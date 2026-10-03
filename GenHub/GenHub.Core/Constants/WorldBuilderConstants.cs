@@ -116,7 +116,7 @@ public static class WorldBuilderConstants
         public const ushort SidesList = 3;
 
         /// <summary>Objects with property dictionaries.</summary>
-        public const ushort Objects = 3;
+        public const ushort ObjectsList = 3;
 
         /// <summary>Triggers with water, river, and layer names (Zero Hour).</summary>
         public const ushort Triggers = 4;

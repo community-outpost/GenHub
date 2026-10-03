@@ -47,16 +47,7 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
             await WriteManifestAsync(project, cancellationToken).ConfigureAwait(false);
             return OperationResult<WorldBuilderProject>.CreateSuccess(project);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to create project at {FolderPath}.", folderPath);
-            return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to create project: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to create project at {FolderPath}.", folderPath);
             return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to create project: {ex.Message}");
@@ -85,16 +76,7 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
             RefreshMaps(project);
             return OperationResult<WorldBuilderProject>.CreateSuccess(project);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to open project at {FolderPath}.", folderPath);
-            return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to open project: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to open project at {FolderPath}.", folderPath);
             return OperationResult<WorldBuilderProject>.CreateFailure($"Failed to open project: {ex.Message}");
@@ -136,16 +118,7 @@ public sealed class WorldBuilderProjectService(ILogger<WorldBuilderProjectServic
             await WriteManifestAsync(project, cancellationToken).ConfigureAwait(false);
             return OperationResult<IReadOnlyList<string>>.CreateSuccess(imported);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to import maps from {SourceFolder}.", sourceFolder);
-            return OperationResult<IReadOnlyList<string>>.CreateFailure($"Failed to import maps: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to import maps from {SourceFolder}.", sourceFolder);
             return OperationResult<IReadOnlyList<string>>.CreateFailure($"Failed to import maps: {ex.Message}");

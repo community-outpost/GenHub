@@ -482,6 +482,8 @@
                                  VerticalAlignment="Stretch"/>
           <controls:MapCanvasControl x:Name="MapCanvas"
                                      Source="{Binding CanvasBitmap}"
+                                     MapWidth="{Binding MapWidth}"
+                                     MapHeight="{Binding MapHeight}"
                                      Zoom="{Binding Zoom, Mode=TwoWay}"
                                      BrushRadiusCells="{Binding BrushRadius, Mode=TwoWay}"
                                      ActiveLinePreview="{Binding ActiveLinePreview}"

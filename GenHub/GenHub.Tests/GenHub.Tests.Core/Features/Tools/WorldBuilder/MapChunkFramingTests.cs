@@ -58,11 +58,11 @@ public sealed class MapChunkFramingTests
     {
         // Arrange
         var writer = new MapChunkWriter();
-        writer.OpenChunk(WorldBuilderConstants.Chunks.ObjectsList, WorldBuilderConstants.Versions.Objects);
-        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.Objects);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.ObjectsList, WorldBuilderConstants.Versions.ObjectsList);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.ObjectsList);
         writer.WriteInt(42);
         writer.CloseChunk();
-        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.Objects);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.ObjectsList);
         writer.WriteInt(43);
         writer.CloseChunk();
         writer.CloseChunk();

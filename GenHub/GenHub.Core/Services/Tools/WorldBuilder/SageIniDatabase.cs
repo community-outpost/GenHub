@@ -84,29 +84,9 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mapIniPath);
         var started = Stopwatch.GetTimestamp();
-        byte[] bytes = [];
-        try
+        var bytes = await TryReadMapIniBytesAsync(mapIniPath, cancellationToken).ConfigureAwait(false);
+        if (bytes == null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            bytes = await File.ReadAllBytesAsync(mapIniPath, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
-            return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
-            return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (NotSupportedException ex)
-        {
-            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
             return OperationResult<MapIniLoadReport>.CreateFailure($"Could not read map.ini at {mapIniPath}.", Stopwatch.GetElapsedTime(started));
         }
 
@@ -303,19 +283,7 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
                 var bytes = await File.ReadAllBytesAsync(resolved, cancellationToken).ConfigureAwait(false);
                 return OperationResult<(string ResolvedPath, string Text)>.CreateSuccess((resolved, DecodeIniText(bytes)));
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (IOException ex)
-            {
-                return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
-            }
-            catch (NotSupportedException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
             {
                 return OperationResult<(string ResolvedPath, string Text)>.CreateFailure($"Include '{includePath}' could not be read: {ex.Message}.");
             }
@@ -459,5 +427,19 @@ public sealed class SageIniDatabase(SageIniParser parser, ILogger<SageIniDatabas
         }
 
         return parsed.Data.Blocks.Count;
+    }
+
+    private async Task<byte[]?> TryReadMapIniBytesAsync(string mapIniPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return await File.ReadAllBytesAsync(mapIniPath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            logger.LogWarning(ex, "Could not read map.ini at {Path}", mapIniPath);
+            return null;
+        }
     }
 }

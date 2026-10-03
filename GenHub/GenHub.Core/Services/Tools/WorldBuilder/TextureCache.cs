@@ -58,7 +58,8 @@ public sealed class TextureCache(IGameAssetFileSystem fileSystem, ISageTextureCo
             var decoded = await DecodeCandidateAsync(candidate, cancellationToken).ConfigureAwait(false);
             if (!decoded.Success || decoded.Data is null)
             {
-                return OperationResult<DecodedTexture>.CreateFailure(decoded, Stopwatch.GetElapsedTime(started));
+                logger.LogDebug("Candidate {Candidate} failed to decode: {Error}", candidate, decoded.FirstError);
+                continue;
             }
 
             lock (_syncLock)

@@ -53,9 +53,9 @@ public sealed class WbTerrainRenderService(
 
     private const int MissingSampleLimit = 3;
 
-    private const uint FnvOffsetBasis = 2166136261u;
+    private const uint FnvOffsetBasis = 2_166_136_261u;
 
-    private const uint FnvPrime = 16777619u;
+    private const uint FnvPrime = 16_777_619u;
 
     private static readonly DecodedTexture EmptyTexture = new(1, 1, new byte[4]);
 
@@ -104,15 +104,18 @@ public sealed class WbTerrainRenderService(
         return OperationResult<WbTerrainRenderData>.CreateSuccess(data);
     }
 
+    private readonly record struct TerrainLighting(
+        Vector3 Ambient,
+        IReadOnlyList<Vector3> LightDirections,
+        IReadOnlyList<Vector3> LightDiffuse);
+
     private static WbTerrainRenderData BuildAtlasAndMesh(
         MapTerrainData terrain,
         List<MapTextureClass> textureClasses,
         List<AtlasSlot> slots,
         int tileOrdinal,
         int tilesAcross,
-        Vector3 ambient,
-        IReadOnlyList<Vector3> lightDirections,
-        IReadOnlyList<Vector3> lightDiffuse)
+        TerrainLighting lighting)
     {
         var rows = Math.Max(1, (tileOrdinal + tilesAcross - 1) / tilesAcross);
         var height = 64;
@@ -156,7 +159,7 @@ public sealed class WbTerrainRenderService(
 
         var atlas = new WbTileAtlas(AtlasWidth, height, tileUv, classUv);
         var (vertices, indices, extraVertices, extraIndices) = WbTerrainMesh.Build(
-            terrain, atlas, ambient, lightDirections, lightDiffuse);
+            terrain, atlas, lighting.Ambient, lighting.LightDirections, lighting.LightDiffuse);
         return new WbTerrainRenderData(vertices, indices, extraVertices, extraIndices, pixels, AtlasWidth, height, atlas);
     }
 
@@ -306,7 +309,7 @@ public sealed class WbTerrainRenderService(
             slots.Add(slot);
         }
 
-        var data = BuildAtlasAndMesh(terrain, textureClasses, slots, tileOrdinal, tilesAcross, ambient, lightDirections, lightDiffuse);
+        var data = BuildAtlasAndMesh(terrain, textureClasses, slots, tileOrdinal, tilesAcross, new TerrainLighting(ambient, lightDirections, lightDiffuse));
         if (missingCatalog + missingTexture > 0)
         {
             _logger.LogInformation("Terrain atlas built with {Missing} of {Total} classes missing textures ({Catalog} without Terrain block, {Files} without texture file). Sample: {Sample}.", missingCatalog + missingTexture, textureClasses.Count, missingCatalog, missingTexture, string.Join("; ", missingSamples));

@@ -702,12 +702,12 @@ public sealed class SageIniParserTests
     }
 
     /// <summary>
-    /// Tests that a Draw module with ModelConditionState and AnimationState scopes nested
-    /// inside ConditionState keeps the whole Object block together, like real game Object files.
+    /// Tests that a genuine ZH Draw module with one-line alias directives keeps the whole
+    /// Object block together: alias lines own no End and must not disturb module boundaries.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantDrawWithNestedAnimationScopes_ParsesWholeObjectAsync()
+    public async Task ParseAsync_DrawWithAliasLines_ParsesWholeObjectAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -720,16 +720,55 @@ public sealed class SageIniParserTests
             "End\n" +
             "ConditionState = REALLYDAMAGED\n" +
             "Model = GLATank_D\n" +
-            "ModelConditionState = USER_1\n" +
-            "Model = GLATank_D1\n" +
             "End\n" +
-            "AnimationState = FIRING\n" +
+            "AliasConditionState = REALLYDAMAGED DAMAGED\n" +
+            "TransitionState = FIRING_A FIRING_B\n" +
             "Animation = GLATank_Fire\n" +
-            "End\n" +
             "End\n" +
             "End\n" +
             "Behavior = PhysicsBehavior ModuleTag_Physics\n" +
             "Mass = 1.0\n" +
+            "End\n" +
+            "End\n" +
+            "Object GLAJeep\n" +
+            "End\n";
+        var options = new SageIniParseOptions(TolerateBlockFailures: true);
+
+        // Act
+        var parsed = await sut.ParseAsync(text, "test.ini", options);
+
+        // Assert
+        parsed.Success.Should().BeTrue();
+        parsed.Data!.Blocks.Select(b => b.Name).Should().BeEquivalentTo("GLATank", "GLAJeep");
+        var block = parsed.Data.Blocks[0];
+        block.Fields.Should().Contain(f => f.Key == "RadarPriority");
+        var draw = block.SubBlocks.Should().Contain(s => s.Key == "Draw").Subject;
+        draw.Fields.Should().Contain(f => f.Key == "AliasConditionState");
+        draw.Fields.First(f => f.Key == "Model").Values.Should().Contain("GLATank");
+        block.SubBlocks.Should().Contain(s => s.Key == "Behavior");
+    }
+
+    /// <summary>
+    /// Tests that later-SAGE nested scopes in mod files are tolerated: their End lines
+    /// must not close the enclosing Draw module.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseAsync_LaterSageNestedScopes_ToleratedAsync()
+    {
+        // Arrange
+        var sut = CreateSut();
+        var text =
+            "Object ModdedTank\n" +
+            "Draw = W3DModelDraw ModuleTag_01\n" +
+            "ConditionState = NONE\n" +
+            "ModelConditionState = USER_1\n" +
+            "Model = ModdedTank_D1\n" +
+            "End\n" +
+            "AnimationState = FIRING\n" +
+            "Animation = ModdedTank_Fire\n" +
+            "End\n" +
+            "End\n" +
             "End\n" +
             "End\n";
         var options = new SageIniParseOptions(TolerateBlockFailures: true);
@@ -740,9 +779,8 @@ public sealed class SageIniParserTests
         // Assert
         parsed.Success.Should().BeTrue();
         var block = parsed.Data!.Blocks.Should().ContainSingle().Subject;
-        block.Fields.Should().Contain(f => f.Key == "RadarPriority");
         block.SubBlocks.Should().Contain(s => s.Key == "Draw");
-        block.SubBlocks.Should().Contain(s => s.Key == "Behavior");
+        block.SubBlocks.Should().HaveCount(1);
     }
 
     /// <summary>

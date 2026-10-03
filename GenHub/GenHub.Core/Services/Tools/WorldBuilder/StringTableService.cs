@@ -126,26 +126,7 @@ public sealed class StringTableService(ILogger<StringTableService> logger) : ISt
             logger.LogInformation("Loaded {Count} map strings from {Path}", parsed.Count, mapStrPath);
             return OperationResult<StringTableLoadReport>.CreateSuccess(report, Stopwatch.GetElapsedTime(started));
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
-            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
-            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (NotSupportedException ex)
-        {
-            logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
-            return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException)
         {
             logger.LogWarning(ex, "Could not load map strings at {Path}", mapStrPath);
             return OperationResult<StringTableLoadReport>.CreateFailure($"Could not load map strings at {mapStrPath}.", Stopwatch.GetElapsedTime(started));

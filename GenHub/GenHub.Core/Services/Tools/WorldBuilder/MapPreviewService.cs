@@ -54,16 +54,7 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
             await AtomicFile.WriteBytesAsync(tgaPath, bytes, cancellationToken).ConfigureAwait(false);
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to write preview for {MapPath}.", mapPath);
-            return OperationResult<bool>.CreateFailure($"Failed to write preview: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to write preview for {MapPath}.", mapPath);
             return OperationResult<bool>.CreateFailure($"Failed to write preview: {ex.Message}");
@@ -85,16 +76,7 @@ public sealed class MapPreviewService(ILogger<MapPreviewService> logger) : IMapP
             var bytes = await File.ReadAllBytesAsync(tgaPath, cancellationToken).ConfigureAwait(false);
             return TgaPreviewCodec.Decode(bytes);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to read preview for {MapPath}.", mapPath);
-            return OperationResult<MapPreviewData>.CreateFailure($"Failed to read preview: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             logger.LogWarning(ex, "Failed to read preview for {MapPath}.", mapPath);
             return OperationResult<MapPreviewData>.CreateFailure($"Failed to read preview: {ex.Message}");

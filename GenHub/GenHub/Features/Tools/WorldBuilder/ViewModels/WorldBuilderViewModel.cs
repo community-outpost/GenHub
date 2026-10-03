@@ -136,47 +136,7 @@ public sealed partial class WorldBuilderViewModel(
             logger.LogInformation("Opened map file {Path}", mapPath);
             return true;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
-            return false;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
-            return false;
-        }
-        catch (InvalidDataException ex)
-        {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
-            return false;
-        }
-        catch (FormatException ex)
-        {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),
-                localizationService.GetString("Tools.WorldBuilder.Open.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-            logger.LogWarning(ex, "Failed to open map file {Path}", mapPath);
-            return false;
-        }
-        catch (OverflowException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or FormatException or OverflowException)
         {
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.Open.FailureTitle"),

@@ -37,16 +37,7 @@ public sealed class TeamExchangeService(ILogger<TeamExchangeService> logger) : I
             await File.WriteAllBytesAsync(teamsPath, writer.ToFileBytes(), cancellationToken).ConfigureAwait(false);
             return OperationResult<int>.CreateSuccess(exported.Count);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to export teams to {TeamsPath}.", teamsPath);
-            return OperationResult<int>.CreateFailure($"Failed to export teams: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to export teams to {TeamsPath}.", teamsPath);
             return OperationResult<int>.CreateFailure($"Failed to export teams: {ex.Message}");
@@ -104,21 +95,7 @@ public sealed class TeamExchangeService(ILogger<TeamExchangeService> logger) : I
 
             return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateSuccess(imported);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
-            return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
-            return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");
-        }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             logger.LogWarning(ex, "Failed to import teams from {TeamsPath}.", teamsPath);
             return OperationResult<IReadOnlyList<MapTeamEntry>>.CreateFailure($"Failed to import teams: {ex.Message}");

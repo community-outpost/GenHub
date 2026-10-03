@@ -177,12 +177,12 @@ public static class SageIniConstants
 
     /// <summary>
     /// End-terminated scopes nested inside Draw modules. The Generals/Zero Hour W3DModelDraw
-    /// parse table carries DefaultConditionState, ConditionState, AliasConditionState, and
-    /// TransitionState; ModelConditionState, AnimationState, and IdleAnimationState nest
-    /// inside ConditionState in real game Draw modules (for example infantry
-    /// AnimationState blocks), so their End lines must not close the enclosing module.
-    /// AutoConditionState is a later-SAGE token kept as deliberate tolerance so its End
-    /// lines do not close the enclosing module either.
+    /// parse table carries DefaultConditionState, ConditionState, and TransitionState as
+    /// End-terminated scopes; AliasConditionState is a one-line directive with no End and
+    /// must never be depth-counted. ModelConditionState, AnimationState, and
+    /// IdleAnimationState are later-SAGE (BFME-era) tokens with no Generals/Zero Hour
+    /// parse-table entry, kept as deliberate tolerance so mod files using them keep
+    /// parsing; Animation and IdleAnimation are plain fields inside a state, not scopes.
     /// </summary>
     public static class ModuleNestedScopes
     {
@@ -192,22 +192,19 @@ public static class SageIniConstants
         /// <summary>Condition state scope opener.</summary>
         public const string ConditionState = "ConditionState";
 
-        /// <summary>Alias condition state scope opener.</summary>
+        /// <summary>Alias condition state one-line directive (ZH token, never End-terminated).</summary>
         public const string AliasConditionState = "AliasConditionState";
-
-        /// <summary>Later-SAGE condition state scope opener, tolerated so its End lines do not close the enclosing module.</summary>
-        public const string AutoConditionState = "AutoConditionState";
 
         /// <summary>Transition state scope opener.</summary>
         public const string TransitionState = "TransitionState";
 
-        /// <summary>Model condition state scope opener, nested inside ConditionState.</summary>
+        /// <summary>Later-SAGE model condition state scope opener, tolerated for mod files.</summary>
         public const string ModelConditionState = "ModelConditionState";
 
-        /// <summary>Animation state scope opener, nested inside ConditionState.</summary>
+        /// <summary>Later-SAGE animation state scope opener, tolerated for mod files.</summary>
         public const string AnimationState = "AnimationState";
 
-        /// <summary>Idle animation state scope opener, nested inside ConditionState.</summary>
+        /// <summary>Later-SAGE idle animation state scope opener, tolerated for mod files.</summary>
         public const string IdleAnimationState = "IdleAnimationState";
 
         /// <summary>All module-nested scope opener field names.</summary>
@@ -215,8 +212,6 @@ public static class SageIniConstants
             [
                 DefaultConditionState,
                 ConditionState,
-                AliasConditionState,
-                AutoConditionState,
                 TransitionState,
                 ModelConditionState,
                 AnimationState,
@@ -353,7 +348,7 @@ public static class SageIniConstants
                 "DrawGroupInfo",
                 "DynamicGameLOD",
                 "EvaEvent",
-                "FXList",
+                BlockTokens.FXList,
                 "GameData",
                 "HeaderTemplate",
                 "InGameUI",
@@ -372,7 +367,7 @@ public static class SageIniConstants
                 "MultiplayerStartingMoneyChoice",
                 "MusicTrack",
                 Inheritance.Object,
-                "ObjectCreationList",
+                BlockTokens.ObjectCreationList,
                 Inheritance.ObjectExtend,
                 Inheritance.ObjectReskin,
                 "OnlineChatColors",

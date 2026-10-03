@@ -60,7 +60,7 @@ public static class MapTerrainTools
         Queue<(int X, int Y)> Queue);
 
     [Flags]
-    private enum BlendSide
+    private enum BlendSides
     {
         None = 0,
         Top = 1,
@@ -166,7 +166,7 @@ public static class MapTerrainTools
             }
 
             var obj = MapOverlayTools.PlaceObject(map, templateName, CellCenter(map.Terrain, x), CellCenter(map.Terrain, y));
-            obj.Angle = random.NextReal() * 360f;
+            obj.Angle = random.NextReal() * MathF.PI * 2;
             placed.Add(obj);
         }
 
@@ -1231,9 +1231,9 @@ public static class MapTerrainTools
         }
     }
 
-    private static BlendSide CollectBlendSides(MapTerrainData terrain, int x, int y, int regionClass)
+    private static BlendSides CollectBlendSides(MapTerrainData terrain, int x, int y, int regionClass)
     {
-        var flags = BlendSide.None;
+        var flags = BlendSides.None;
         for (var i = x - 1; i < x + 2; i++)
         {
             for (var j = y - 1; j < y + 2; j++)
@@ -1265,14 +1265,14 @@ public static class MapTerrainTools
         return i == x || j == y;
     }
 
-    private static BlendSide FlagForOffset(int dx, int dy)
+    private static BlendSides FlagForOffset(int dx, int dy)
     {
         if (dx == 0)
         {
-            return dy > 0 ? BlendSide.Top : BlendSide.Bottom;
+            return dy > 0 ? BlendSides.Top : BlendSides.Bottom;
         }
 
-        return dx < 0 ? BlendSide.Left : BlendSide.Right;
+        return dx < 0 ? BlendSides.Left : BlendSides.Right;
     }
 
     private static void BlendCornerPair(
@@ -1281,27 +1281,27 @@ public static class MapTerrainTools
         int y,
         int regionClass,
         int edgeClass,
-        BlendSide flags)
+        BlendSides flags)
     {
         var blendTileNdx = GetTileNdxForClass(terrain, x, y, regionClass);
         var sourceX = x;
         var sourceY = y;
-        if (flags.HasFlag(BlendSide.Top))
+        if (flags.HasFlag(BlendSides.Top))
         {
             sourceY--;
         }
 
-        if (flags.HasFlag(BlendSide.Bottom))
+        if (flags.HasFlag(BlendSides.Bottom))
         {
             sourceY++;
         }
 
-        if (flags.HasFlag(BlendSide.Left))
+        if (flags.HasFlag(BlendSides.Left))
         {
             sourceX++;
         }
 
-        if (flags.HasFlag(BlendSide.Right))
+        if (flags.HasFlag(BlendSides.Right))
         {
             sourceX--;
         }

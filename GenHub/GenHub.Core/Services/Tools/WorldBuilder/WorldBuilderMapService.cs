@@ -44,19 +44,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
             await LoadCompanionAsync(map, logger, cancellationToken).ConfigureAwait(false);
             return OperationResult<WorldBuilderMap>.CreateSuccess(map);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
-        }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             return OperationResult<WorldBuilderMap>.CreateFailure($"Failed to load map: {ex.Message}");
         }
@@ -90,19 +78,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
             map.IsDirty = false;
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
-        }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             return OperationResult<bool>.CreateFailure($"Failed to save map: {ex.Message}");
         }
@@ -141,6 +117,8 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
             map.ChunkOrder.Add(node.Label);
             ParseNode(reader, map, node);
         }
+
+        NormalizeObjectsOnLoad(map);
 
         return map;
     }
@@ -219,7 +197,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
         MapTerrainCodec.WriteBlendTile(writer, map.Terrain);
         MapMiscCodec.WriteWorld(writer, map.World);
         MapObjectCodec.WriteSides(writer, map.Sides, map.Teams, scripts);
-        MapObjectCodec.WriteObjects(writer, map.Objects);
+        WriteObjectsAbsolute(writer, map);
         MapMiscCodec.WriteTriggers(writer, map.Triggers);
         MapMiscCodec.WriteLighting(writer, map.Lighting);
         MapMiscCodec.WriteWaypoints(writer, map.WaypointLinks);
@@ -287,7 +265,7 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
                 MapObjectCodec.WriteSides(writer, map.Sides, map.Teams, scripts);
                 break;
             case WorldBuilderConstants.Chunks.ObjectsList:
-                MapObjectCodec.WriteObjects(writer, map.Objects);
+                WriteObjectsAbsolute(writer, map);
                 break;
             case WorldBuilderConstants.Chunks.PolygonTriggers:
                 MapMiscCodec.WriteTriggers(writer, map.Triggers);
@@ -470,6 +448,52 @@ public sealed class WorldBuilderMapService(IMapCompressionService compression, I
                 companionLogger.LogDebug(ex, "Optional companion {WakPath} skipped.", wakPath);
             }
         }
+    }
+
+    private static void NormalizeObjectsOnLoad(WorldBuilderMap map)
+    {
+        if (map.Terrain == null || map.Terrain.Heights.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var obj in map.Objects)
+        {
+            var groundZ = MapCoordinates.SampleGroundHeight(map.Terrain, obj.X, obj.Y);
+            obj.Z -= groundZ;
+        }
+    }
+
+    private static void WriteObjectsAbsolute(MapChunkWriter writer, WorldBuilderMap map)
+    {
+        if (map.Terrain == null || map.Terrain.Heights.Count == 0)
+        {
+            MapObjectCodec.WriteObjects(writer, map.Objects);
+            return;
+        }
+
+        var normalized = new List<MapObjectEntry>(map.Objects.Count);
+        foreach (var obj in map.Objects)
+        {
+            var groundZ = MapCoordinates.SampleGroundHeight(map.Terrain, obj.X, obj.Y);
+            var copy = new MapObjectEntry
+            {
+                X = obj.X,
+                Y = obj.Y,
+                Z = obj.Z + groundZ,
+                Angle = obj.Angle,
+                Flags = obj.Flags,
+                Name = obj.Name,
+            };
+            foreach (var prop in obj.Properties.Values)
+            {
+                copy.Properties.Add(prop);
+            }
+
+            normalized.Add(copy);
+        }
+
+        MapObjectCodec.WriteObjects(writer, normalized);
     }
 
     private async Task SavePreviewAsync(WorldBuilderMap map, CancellationToken cancellationToken)

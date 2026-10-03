@@ -1,5 +1,6 @@
 using GenHub.Core.Models.Tools.WorldBuilder;
 using GenHub.Core.Services.Tools.WorldBuilder;
+using System;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.WorldBuilder;
@@ -90,7 +91,7 @@ public sealed class MapEditToolsTests
     }
 
     /// <summary>
-    /// Tests that the grove scatters the requested objects.
+    /// Tests that the grove scatters the requested objects with radian facings.
     /// </summary>
     [Fact]
     public void Grove_ScattersObjects()
@@ -101,6 +102,7 @@ public sealed class MapEditToolsTests
 
         Assert.Equal(5, placed.Count);
         Assert.Equal(5, map.Objects.Count);
+        Assert.All(placed, obj => Assert.InRange(obj.Angle, 0.0f, MathF.PI * 2.0f));
     }
 
     /// <summary>

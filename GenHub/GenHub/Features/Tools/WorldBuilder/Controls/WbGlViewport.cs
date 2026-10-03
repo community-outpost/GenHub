@@ -374,14 +374,18 @@ public sealed class WbGlViewport : OpenGlControlBase, IDisposable
         var pixelWidth = (int)Math.Round(Bounds.Width * scaling);
         var pixelHeight = (int)Math.Round(Bounds.Height * scaling);
         _renderer.SetViewport(pixelWidth, pixelHeight);
+        var terrain = _pendingTerrain;
         var terrainVersion = Volatile.Read(ref _pendingTerrainVersion);
+        var models = _pendingModels;
         var modelsVersion = Volatile.Read(ref _pendingModelsVersion);
+        var water = _pendingWater;
         var waterVersion = Volatile.Read(ref _pendingWaterVersion);
+        var lines = _pendingLines;
         var linesVersion = Volatile.Read(ref _pendingLinesVersion);
-        _renderer.SetTerrainData(_pendingTerrain, terrainVersion);
-        _renderer.SetModels(_pendingModels, modelsVersion);
-        _renderer.SetWater(_pendingWater, waterVersion);
-        _renderer.SetOverlayLines(_pendingLines, linesVersion);
+        _renderer.SetTerrainData(terrain, terrainVersion);
+        _renderer.SetModels(models, modelsVersion);
+        _renderer.SetWater(water, waterVersion);
+        _renderer.SetOverlayLines(lines, linesVersion);
         var size = new Vector2((float)Bounds.Width, (float)Bounds.Height);
         _renderer.Render(_camera, size, Map.Terrain, RenderOptions);
     }

@@ -404,12 +404,13 @@ public sealed class SageIniDatabaseTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that subsystem boot keeps game-shaped Object files: Draw modules with nested
-    /// animation scopes plus trailing Behavior modules must not fail the whole file.
+    /// Tests that subsystem boot keeps game-shaped Object files: Draw modules with
+    /// condition states, one-line alias directives and trailing Behavior modules
+    /// must not fail the whole file.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadSubsystemsAsync_GameShapedObjectFile_LoadsBlocksDespiteNuggetScopesAsync()
+    public async Task LoadSubsystemsAsync_GameShapedObjectFile_LoadsAllBlocksAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -417,14 +418,11 @@ public sealed class SageIniDatabaseTests : IDisposable
             "Object GLATank\n" +
             "RadarPriority = 5\n" +
             "Draw = W3DModelDraw ModuleTag_01\n" +
-            "ConditionState = REALLYDAMAGED\n" +
-            "ModelConditionState = USER_1\n" +
-            "Model = GLATank_D1\n" +
+            "ConditionState = NONE\n" +
+            "Model = GLATank\n" +
+            "Animation = GLATank_Idle\n" +
             "End\n" +
-            "AnimationState = FIRING\n" +
-            "Animation = GLATank_Fire\n" +
-            "End\n" +
-            "End\n" +
+            "AliasConditionState = NONE DAMAGED\n" +
             "End\n" +
             "Behavior = PhysicsBehavior ModuleTag_Physics\n" +
             "Mass = 1.0\n" +

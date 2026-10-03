@@ -116,7 +116,7 @@ public static class MapObjectCodec
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(objects);
-        writer.OpenChunk(WorldBuilderConstants.Chunks.ObjectsList, WorldBuilderConstants.Versions.Objects);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.ObjectsList, WorldBuilderConstants.Versions.ObjectsList);
         foreach (var mapObject in objects)
         {
             WriteObject(writer, mapObject);
@@ -195,7 +195,7 @@ public static class MapObjectCodec
 
     private static void WriteObject(MapChunkWriter writer, MapObjectEntry mapObject)
     {
-        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.Objects);
+        writer.OpenChunk(WorldBuilderConstants.Chunks.Object, WorldBuilderConstants.Versions.ObjectsList);
         writer.WriteReal(mapObject.X);
         writer.WriteReal(mapObject.Y);
         writer.WriteReal(mapObject.Z);

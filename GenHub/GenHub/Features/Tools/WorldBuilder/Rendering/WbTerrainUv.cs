@@ -306,6 +306,11 @@ public static class WbTerrainUv
 
     private static bool CliffDiagonalFlip(IList<byte> heights, int width, int index)
     {
+        if (width <= 0 || index < 0 || index + width + 1 >= heights.Count || (index % width) == width - 1)
+        {
+            return false;
+        }
+
         var p0 = heights[index];
         var p1 = heights[index + 1];
         var p2 = heights[index + width + 1];

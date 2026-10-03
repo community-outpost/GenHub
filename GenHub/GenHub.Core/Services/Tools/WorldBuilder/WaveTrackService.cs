@@ -25,16 +25,7 @@ public sealed class WaveTrackService(ILogger<WaveTrackService> logger) : IWaveTr
             var bytes = await File.ReadAllBytesAsync(wakPath, cancellationToken).ConfigureAwait(false);
             return WakCodec.Decode(bytes);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to load waves from {WakPath}.", wakPath);
-            return OperationResult<IReadOnlyList<WaveTrackRecord>>.CreateFailure($"Failed to load waves: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to load waves from {WakPath}.", wakPath);
             return OperationResult<IReadOnlyList<WaveTrackRecord>>.CreateFailure($"Failed to load waves: {ex.Message}");
@@ -82,16 +73,7 @@ public sealed class WaveTrackService(ILogger<WaveTrackService> logger) : IWaveTr
 
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to save waves to {WakPath}.", wakPath);
-            return OperationResult<bool>.CreateFailure($"Failed to save waves: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to save waves to {WakPath}.", wakPath);
             return OperationResult<bool>.CreateFailure($"Failed to save waves: {ex.Message}");

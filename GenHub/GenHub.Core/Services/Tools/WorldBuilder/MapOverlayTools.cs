@@ -66,7 +66,7 @@ public static class MapOverlayTools
     }
 
     /// <summary>
-    /// Moves an object, snapping Z to the terrain surface.
+    /// Moves an object, storing a zero ground offset (height above the terrain surface is resolved at render time).
     /// </summary>
     /// <param name="map">The map document.</param>
     /// <param name="name">The object name.</param>

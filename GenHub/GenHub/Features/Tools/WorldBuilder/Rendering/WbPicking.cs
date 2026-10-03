@@ -143,10 +143,7 @@ public static class WbPicking
     /// <returns>The ground height in feet.</returns>
     public static float GroundHeightFeet(MapTerrainData terrain, float worldX, float worldY)
     {
-        ArgumentNullException.ThrowIfNull(terrain);
-        var cellX = (worldX / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize;
-        var cellY = (worldY / WorldBuilderConstants.Terrain.CellSize) + terrain.BorderSize;
-        return SampleHeight(terrain, cellX, cellY);
+        return MapCoordinates.SampleGroundHeight(terrain, worldX, worldY);
     }
 
     /// <summary>

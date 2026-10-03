@@ -536,19 +536,7 @@ public sealed partial class WorldBuilderViewModel
                 NotificationDurations.Medium);
             return OperationResult<int>.CreateSuccess(count);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            notificationService.ShowError(
-                localizationService.GetString("Tools.WorldBuilder.Scripts.ExportScripts"),
-                localizationService.GetString("Tools.WorldBuilder.Scripts.ExportFailed", ex.Message),
-                NotificationDurations.Long);
-            return OperationResult<int>.CreateFailure(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             notificationService.ShowError(
                 localizationService.GetString("Tools.WorldBuilder.Scripts.ExportScripts"),
@@ -581,12 +569,15 @@ public sealed partial class WorldBuilderViewModel
             }
 
             var lists = MapScriptCodec.ReadPlayerScripts(reader, reader.TopLevel[0]);
-            _undoService.Checkpoint(_map);
-            _map.Scripts.Clear();
-            _map.Scripts.AddRange(lists);
-            RefreshScriptGroups();
-            IsDirty = true;
-            UpdateUndoState();
+            await InvokeOnUIThreadAsync(() =>
+            {
+                _undoService.Checkpoint(_map);
+                _map.Scripts.Clear();
+                _map.Scripts.AddRange(lists);
+                RefreshScriptGroups();
+                IsDirty = true;
+                UpdateUndoState();
+            }).ConfigureAwait(false);
             var count = CountAllScripts().Scripts;
             notificationService.ShowSuccess(
                 localizationService.GetString("Tools.WorldBuilder.Scripts.ImportScripts"),
@@ -594,19 +585,7 @@ public sealed partial class WorldBuilderViewModel
                 NotificationDurations.Medium);
             return OperationResult<int>.CreateSuccess(count);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            return FailScriptImport(ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return FailScriptImport(ex.Message);
-        }
-        catch (InvalidDataException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
         {
             return FailScriptImport(ex.Message);
         }
@@ -1232,16 +1211,19 @@ public sealed partial class WorldBuilderViewModel
             return;
         }
 
-        _undoService.Checkpoint(_map);
-        foreach (var list in _map.Scripts)
+        await InvokeOnUIThreadAsync(() =>
         {
-            list.Scripts.Clear();
-            list.Groups.Clear();
-        }
+            _undoService.Checkpoint(_map);
+            foreach (var list in _map.Scripts)
+            {
+                list.Scripts.Clear();
+                list.Groups.Clear();
+            }
 
-        RefreshScriptGroups();
-        IsDirty = true;
-        UpdateUndoState();
+            RefreshScriptGroups();
+            IsDirty = true;
+            UpdateUndoState();
+        }).ConfigureAwait(false);
         notificationService.ShowSuccess(
             localizationService.GetString("Tools.WorldBuilder.Scripts.ClearAllTitle"),
             localizationService.GetString("Tools.WorldBuilder.Scripts.ClearAllDone", scripts, folders),

@@ -57,15 +57,7 @@ public sealed class MapGenerationService(ILogger<MapGenerationService> logger) :
             logger.LogInformation("Generated {Width}x{Height} map with {Players} players from seed {Seed}.", width, height, players, settings.Seed);
             return OperationResult<WorldBuilderMap>.CreateSuccess(map);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (InvalidOperationException ex)
-        {
-            return OperationResult<WorldBuilderMap>.CreateFailure($"Map generation failed: {ex.Message}");
-        }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
         {
             return OperationResult<WorldBuilderMap>.CreateFailure($"Map generation failed: {ex.Message}");
         }

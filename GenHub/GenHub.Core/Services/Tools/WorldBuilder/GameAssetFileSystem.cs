@@ -33,20 +33,26 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
 
     private readonly object _syncLock = new();
     private readonly SemaphoreSlim _mountGate = new(1, 1);
+    private bool _disposed;
     private Dictionary<string, AssetSource> _files = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc />
     public async Task<OperationResult<bool>> MountAsync(GameAssetMountSpec spec, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(spec);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         await _mountGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             return await MountCoreAsync(spec, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            _mountGate.Release();
+            if (!_disposed)
+            {
+                _mountGate.Release();
+            }
         }
     }
 
@@ -91,26 +97,7 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
             var archiveBytes = await Task.Run(() => BigArchiveReader.ReadEntryData(source.ArchiveEntry!), cancellationToken).ConfigureAwait(false);
             return OperationResult<byte[]>.CreateSuccess(archiveBytes);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
-            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
-            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
-        }
-        catch (InvalidDataException ex)
-        {
-            logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
-            return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
-        }
-        catch (NotSupportedException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or NotSupportedException)
         {
             logger.LogWarning(ex, "Failed to read mounted file {VirtualPath}", virtualPath);
             return OperationResult<byte[]>.CreateFailure($"Failed to read mounted file: {virtualPath}");
@@ -142,6 +129,16 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
     /// <inheritdoc />
     public void Dispose()
     {
+        lock (_syncLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
         _mountGate.Dispose();
     }
 
@@ -361,16 +358,7 @@ public sealed class GameAssetFileSystem(IGameInstallationService installations, 
                 modelCount);
             return OperationResult<bool>.CreateSuccess(true, elapsed);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Failed to mount game asset layers");
-            return OperationResult<bool>.CreateFailure("Failed to mount game asset layers.", Stopwatch.GetElapsedTime(started));
-        }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to mount game asset layers");
             return OperationResult<bool>.CreateFailure("Failed to mount game asset layers.", Stopwatch.GetElapsedTime(started));
