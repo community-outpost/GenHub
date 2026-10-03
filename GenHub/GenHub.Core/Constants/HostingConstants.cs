@@ -304,6 +304,11 @@ public static class HostingConstants
     public const int StreamCopyBufferSize = 8192;
 
     /// <summary>
+    /// Maximum number of downloaded catalog/definition previews kept in memory.
+    /// </summary>
+    public const int MaxRemotePreviewCacheEntries = 64;
+
+    /// <summary>
     /// Error message returned when Google Drive provider is not authenticated.
     /// </summary>
     public const string GoogleDriveNotAuthenticated = "Not authenticated with Google Drive";

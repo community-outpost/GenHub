@@ -1,9 +1,11 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
@@ -11,7 +13,11 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -240,6 +246,65 @@ public class PublishShareUploadFixTests
         Assert.NotNull(renamed);
         Assert.Equal("old-remote-id", renamed.FileId);
         Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
+    }
+
+    /// <summary>
+    /// When the pre-rename remote delete throws, the cleared entry must be restored and
+    /// re-saved so saved state never forgets a remote file that still exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RenameCatalogInHostingStateAsync_DeleteThrows_RestoresEntryAsync()
+    {
+        var hostingState = new HostingState
+        {
+            Catalogs =
+            [
+                new()
+                {
+                    CatalogId = "old-cat-id",
+                    CatalogName = "Old Name",
+                    FileName = "catalog-old.json",
+                    FileId = "old-remote-id",
+                    Url = "https://example.com/catalog-old.json",
+                    FileSize = 42,
+                },
+            ],
+        };
+        var container = new PublisherHostingStates
+        {
+            States = { [HostingConstants.GoogleDrive] = hostingState },
+        };
+        _mockHostingStateManager.Setup(m => m.LoadStatesAsync("/test/path/project.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherHostingStates>.CreateSuccess(container));
+        _mockHostingStateManager.Setup(m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var mockProvider = new Mock<IHostingProvider>();
+        mockProvider.Setup(p => p.ProviderId).Returns(HostingConstants.GoogleDrive);
+        mockProvider.Setup(p => p.IsAuthenticated).Returns(true);
+        mockProvider.Setup(p => p.DeleteFileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("boom"));
+
+        var project = new PublisherStudioProject { ProjectPath = "/test/path/project.json" };
+        var vm = new PublishShareViewModel(
+            project,
+            _mockStudioService.Object,
+            _mockPublishLogger.Object,
+            null,
+            _mockHostingStateManager.Object,
+            _mockNotificationService.Object);
+        vm.HostingProviders.Add(mockProvider.Object);
+
+        await vm.RenameCatalogInHostingStateAsync("old-cat-id", "new-cat-id", "New Name", "catalog-new.json");
+
+        var renamed = hostingState.Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(renamed);
+        Assert.Equal("old-remote-id", renamed.FileId);
+        Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
+        _mockHostingStateManager.Verify(
+            m => m.SaveStatesAsync("/test/path/project.json", It.IsAny<PublisherHostingStates>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(3));
     }
 
     /// <summary>
