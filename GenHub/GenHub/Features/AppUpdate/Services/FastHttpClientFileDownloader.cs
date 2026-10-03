@@ -12,6 +12,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Velopack.Sources;
@@ -313,13 +314,45 @@ public class FastHttpClientFileDownloader(
         var bytesRead = fs.Read(buffer, 0, buffer.Length);
         if (bytesRead > 0)
         {
-            var headerText = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart();
+            var headerText = Encoding.UTF8.GetString(buffer, 0, bytesRead).TrimStart();
             if (headerText.StartsWith("<!DOCTYPE html", StringComparison.OrdinalIgnoreCase) ||
                 headerText.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException("The downloaded file is an HTML web page rather than binary content. Download may require authentication or virus-scan confirmation.");
             }
         }
+    }
+
+    private static async Task<string> ReadBoundedStringAsync(HttpContent content, int maxBytes, CancellationToken cancelToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
+        var buffer = new byte[Math.Min(maxBytes, 81920)];
+        using var ms = new MemoryStream();
+        var totalRead = 0;
+        int read;
+
+        while (totalRead < maxBytes &&
+               (read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, maxBytes - totalRead)), cancelToken).ConfigureAwait(false)) > 0)
+        {
+            ms.Write(buffer, 0, read);
+            totalRead += read;
+        }
+
+        var encoding = Encoding.UTF8;
+        var charset = content.Headers.ContentType?.CharSet;
+        if (!string.IsNullOrEmpty(charset))
+        {
+            try
+            {
+                encoding = Encoding.GetEncoding(charset);
+            }
+            catch (ArgumentException)
+            {
+                // Fallback to UTF8 if charset is invalid or unsupported
+            }
+        }
+
+        return encoding.GetString(ms.ToArray());
     }
 
     private async Task DownloadFileCoreAsync(
@@ -468,7 +501,7 @@ public class FastHttpClientFileDownloader(
             return false;
         }
 
-        var html = await response.Content.ReadAsStringAsync(cancelToken).ConfigureAwait(false);
+        var html = await ReadBoundedStringAsync(response.Content, AppUpdateConstants.MaxHtmlInspectionSizeBytes, cancelToken).ConfigureAwait(false);
         var resolvedUri = response.RequestMessage?.RequestUri ?? new Uri(url);
         var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
         if (!string.IsNullOrEmpty(confirmedUrl))
