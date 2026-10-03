@@ -7667,14 +7667,7 @@ public partial class PublishShareViewModel(
 
             if (SaveProjectCallback != null)
             {
-                try
-                {
-                    await SaveProjectCallback();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "SaveProjectCallback failed after deleting definition asset {Name}", asset.Name);
-                }
+                await SaveProjectCallback();
             }
 
             _linkageIndex = null;
@@ -7985,26 +7978,12 @@ public partial class PublishShareViewModel(
             project.IsDirty = true;
             if (SaveProjectCallback != null)
             {
-                try
-                {
-                    await SaveProjectCallback();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "SaveProjectCallback failed after deleting catalog {CatalogId}", catalogId);
-                }
+                await SaveProjectCallback();
             }
 
             if (ProjectReloadCallback != null)
             {
-                try
-                {
-                    await ProjectReloadCallback();
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "ProjectReloadCallback failed after deleting catalog {CatalogId}", catalogId);
-                }
+                await ProjectReloadCallback();
             }
         }
 
