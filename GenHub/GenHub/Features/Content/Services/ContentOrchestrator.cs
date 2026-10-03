@@ -512,12 +512,33 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = "Preparing content via provider pipeline",
                 });
 
-                // Forward provider preparation progress directly into monotonic acquisition reporter
-                IProgress<ContentAcquisitionProgress>? prepareProgress = progress != null
-                    ? new SynchronousProgress<ContentAcquisitionProgress>(ReportMonotonicProgress)
-                    : null;
+                // Scale provider preparation progress (0-100) into downloading phase range (40-70%)
+                IProgress<ContentAcquisitionProgress>? prepareProgress = null;
+                if (progress != null)
+                {
+                    prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
+                    {
+                        var span = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
+                        var normalized = Math.Clamp(p.ProgressPercentage, 0.0, 100.0) / 100.0;
+                        var scaledPct = Math.Clamp(
+                            ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * span),
+                            ContentConstants.ProgressStepDownloading,
+                            ContentConstants.ProgressStepValidatingFiles);
 
-                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress ?? progress, cancellationToken);
+                        ReportMonotonicProgress(new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Downloading,
+                            ProgressPercentage = scaledPct,
+                            CurrentOperation = p.CurrentOperation ?? "Preparing content via provider pipeline",
+                            BytesDownloaded = p.BytesDownloaded,
+                            TotalBytes = p.TotalBytes,
+                            FilesProcessed = p.FilesProcessed,
+                            TotalFiles = p.TotalFiles,
+                        });
+                    });
+                }
+
+                var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress, cancellationToken);
                 if (!prepareResult.Success || prepareResult.Data == null)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
