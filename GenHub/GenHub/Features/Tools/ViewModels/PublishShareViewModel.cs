@@ -1840,6 +1840,7 @@ public partial class PublishShareViewModel(
         var artHosting = !string.IsNullOrEmpty(artifact.DownloadUrl)
             ? FindHostingArtifactByUrl(artifact.DownloadUrl)
             : _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename);
+        artHosting ??= FindUnresolvedHostingArtifact(artifact.Filename);
         var artSize = artifact.Size > 0 ? artifact.Size : (artHosting?.FileSize ?? 0);
         var artUpdated = artHosting?.LastUpdated ?? DateTime.MinValue;
 
@@ -2894,6 +2895,41 @@ public partial class PublishShareViewModel(
     {
         return _currentHostingState?.Artifacts.FirstOrDefault(a => string.Equals(a.Url, url, StringComparison.OrdinalIgnoreCase))
             ?? _hostingStates.Values.SelectMany(s => s.Artifacts).FirstOrDefault(a => string.Equals(a.Url, url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Finds the single current-provider hosting artifact matching a filename whose remote URL
+    /// was never resolved, so URL-less entries (such as files without share links) keep their
+    /// persisted file ID and size for management actions. The match stays within the current
+    /// provider and requires exactly one candidate so a same-named file can never resolve to
+    /// another entry's remote file ID.
+    /// </summary>
+    /// <param name="fileName">The artifact file name.</param>
+    /// <returns>The unresolved entry, or null when there is none or several match.</returns>
+    private ArtifactHostingInfo? FindUnresolvedHostingArtifact(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName) || _currentHostingState == null)
+        {
+            return null;
+        }
+
+        ArtifactHostingInfo? match = null;
+        foreach (var candidate in _currentHostingState.Artifacts)
+        {
+            if (!string.IsNullOrWhiteSpace(candidate.Url) || candidate.FileName != fileName)
+            {
+                continue;
+            }
+
+            if (match != null)
+            {
+                return null;
+            }
+
+            match = candidate;
+        }
+
+        return match;
     }
 
     private string FileNameFromUrl(string url, string fallback)
@@ -4910,7 +4946,11 @@ public partial class PublishShareViewModel(
             logger.LogInformation("Saved hosting state");
         }
 
-        if (!string.IsNullOrWhiteSpace(previousFileId))
+        if (!result.Success && !string.IsNullOrWhiteSpace(previousFileId))
+        {
+            logger.LogWarning("Skipping deletion of previous catalog file {FileId}: hosting state was not saved", previousFileId);
+        }
+        else if (!string.IsNullOrWhiteSpace(previousFileId))
         {
             // A file ID still referenced by another catalog must be kept: deleting it would
             // break that catalog's subscribers. This happens when a previous filename
@@ -4991,7 +5031,6 @@ public partial class PublishShareViewModel(
         List<(string ProviderId, CatalogHostingInfo Entry, string OldFileId)> staleRemotes,
         CancellationToken cancellationToken)
     {
-        var clearedAny = false;
         foreach (var (providerId, entry, oldFileId) in staleRemotes)
         {
             var provider = HostingProviders.FirstOrDefault(p =>
@@ -5001,20 +5040,42 @@ public partial class PublishShareViewModel(
                 continue;
             }
 
+            // Persist the cleared entry before deleting the remote file so a crash or
+            // restart never leaves saved state pointing at a deleted remote.
+            var previousFileId = entry.FileId;
+            var previousUrl = entry.Url;
+            var previousSize = entry.FileSize;
+            entry.FileId = string.Empty;
+            entry.Url = string.Empty;
+            entry.FileSize = 0;
+            var saveResult = await SaveAllHostingStatesAsync(cancellationToken);
+            if (!saveResult.Success)
+            {
+                logger.LogWarning("Skipping deletion of pre-rename remote catalog {FileId} from {Provider}: hosting state was not saved", oldFileId, providerId);
+                entry.FileId = previousFileId;
+                entry.Url = previousUrl;
+                entry.FileSize = previousSize;
+                continue;
+            }
+
             try
             {
                 var result = await provider.DeleteFileAsync(oldFileId, cancellationToken);
                 if (result.Success)
                 {
                     logger.LogInformation("Deleted pre-rename remote catalog {FileId} from {Provider}", oldFileId, providerId);
-                    entry.FileId = string.Empty;
-                    entry.Url = string.Empty;
-                    entry.FileSize = 0;
-                    clearedAny = true;
                 }
                 else
                 {
                     logger.LogWarning("Failed to delete pre-rename remote catalog {FileId} from {Provider}: {Error}", oldFileId, providerId, result.FirstError);
+                    entry.FileId = previousFileId;
+                    entry.Url = previousUrl;
+                    entry.FileSize = previousSize;
+                    var restoreResult = await SaveAllHostingStatesAsync(cancellationToken);
+                    if (!restoreResult.Success)
+                    {
+                        logger.LogWarning("Failed to restore pre-rename catalog entry for {FileId} after delete failure", oldFileId);
+                    }
                 }
             }
             catch (OperationCanceledException ex)
@@ -5025,11 +5086,6 @@ public partial class PublishShareViewModel(
             {
                 logger.LogWarning(ex, "Failed to delete pre-rename remote catalog {FileId} from {Provider}", oldFileId, providerId);
             }
-        }
-
-        if (clearedAny)
-        {
-            await SaveAllHostingStatesAsync(cancellationToken);
         }
     }
 

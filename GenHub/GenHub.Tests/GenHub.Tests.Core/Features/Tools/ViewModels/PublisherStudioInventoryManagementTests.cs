@@ -1118,6 +1118,74 @@ public class PublisherStudioInventoryManagementTests
         }
     }
 
+    /// <summary>
+    /// Tests that an artifact row keeps the persisted file ID and size when the only
+    /// matching hosting entry has no resolved URL.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_ArtifactWithUrlAndUnresolvedStateEntry_KeepsFileIdAndSize()
+    {
+        var project = CreateInventoryProject();
+        project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts.Add(new ReleaseArtifact
+        {
+            Filename = "dropbox-mod.zip",
+            DownloadUrl = "https://www.dropbox.com/s/x/dropbox-mod.zip?dl=0",
+            Size = 0,
+        });
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "dropbox-file-id",
+            FileName = "dropbox-mod.zip",
+            Url = string.Empty,
+            FileSize = 777,
+        });
+        vm.RefreshHostedAssets();
+
+        var row = vm.HostedAssets.Single(a => a.Name == "dropbox-mod.zip");
+        Assert.Equal("dropbox-file-id", row.FileId);
+        Assert.Equal(777, row.FileSize);
+    }
+
+    /// <summary>
+    /// Tests that several unresolved same-named entries leave the row without a file ID
+    /// instead of resolving to another entry's remote file.
+    /// </summary>
+    [Fact]
+    public void RefreshHostedAssets_AmbiguousUnresolvedEntries_LeavesFileIdEmpty()
+    {
+        var project = CreateInventoryProject();
+        project.Catalogs[0].Catalog.Content[0].Releases[0].Artifacts.Add(new ReleaseArtifact
+        {
+            Filename = "dup.zip",
+            DownloadUrl = "https://www.dropbox.com/s/x/dup.zip?dl=0",
+            Size = 0,
+        });
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "dup-id-one",
+            FileName = "dup.zip",
+            Url = string.Empty,
+            FileSize = 100,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "dup-id-two",
+            FileName = "dup.zip",
+            Url = string.Empty,
+            FileSize = 200,
+        });
+        vm.RefreshHostedAssets();
+
+        var row = vm.HostedAssets.Single(a => a.Name == "dup.zip");
+        Assert.Equal(string.Empty, row.FileId);
+    }
+
     private static async Task WaitForPreviewAsync(HostedAssetItemViewModel row)
     {
         for (var i = 0; i < 200 && !row.RemotePreviewLoaded && row.ChildrenLoadError == null; i++)
