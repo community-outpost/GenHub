@@ -3035,5 +3035,4 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             }
         }
     }
-
 }
