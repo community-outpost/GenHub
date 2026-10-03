@@ -1062,15 +1062,15 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
-    /// Verifies that sharing local content with no files fails instead of producing a link that
-    /// no recipient could install from, before uploading any other local content in the profile.
+    /// Cloud shares reject fileless local content before uploading anything, while JSON exports
+    /// retain the local reference for recipients who already have it.
     /// </summary>
     /// <param name="shareLink">Whether to share a link rather than export JSON.</param>
     /// <returns>A task representing the test.</returns>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task ExportProfile_WithLocalManifestWithoutFiles_FailsAsync(bool shareLink)
+    public async Task ExportProfile_WithLocalManifestWithoutFiles_OnlyRejectsCloudShareAsync(bool shareLink)
     {
         var localProfile = CreateTestProfile("local-empty-profile", "Local Empty Setup");
         localProfile.EnabledContentIds = ["1.0.local.mod.withfiles", "1.0.local.mod.emptymod"];
@@ -1121,9 +1121,18 @@ public class ProfileSharingServiceTests
             ? await serviceWithUpload.ExportProfileToUriAsync("local-empty-profile")
             : await serviceWithUpload.ExportProfileToJsonAsync("local-empty-profile");
 
-        Assert.False(result.Success);
-        Assert.Contains("Empty Mod", result.FirstError);
-        Assert.Contains("no files to upload", result.FirstError);
+        Assert.Equal(!shareLink, result.Success);
+        if (shareLink)
+        {
+            Assert.Contains("Empty Mod", result.FirstError);
+            Assert.Contains("no files to upload", result.FirstError);
+        }
+        else
+        {
+            var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(result.Data!, TestJsonOptions)!;
+            Assert.Contains(package.RequiredManifests, d => d.ManifestId == localManifest.Id.Value && d.Files.Count == 0);
+        }
+
         uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

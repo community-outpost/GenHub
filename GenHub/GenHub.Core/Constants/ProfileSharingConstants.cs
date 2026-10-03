@@ -8,6 +8,9 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class ProfileSharingConstants
 {
+    /// <summary>Fallback error when building a shared dependency fails. {0} is its manifest ID.</summary>
+    public const string DependencyExportFailedMessage = "Failed to process dependency for {0}.";
+
     /// <summary>
     /// The default schema version for shared game profile packages.
     /// </summary>

@@ -2129,7 +2129,7 @@ public class ProfileSharingService(
                     string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
             }
 
-            if (IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
+            if (allowCloudUpload && IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
             {
                 return OperationResult<SharedGameProfilePackage>.CreateFailure(
                     LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, manifest.Name));
@@ -2144,7 +2144,7 @@ public class ProfileSharingService(
             if (!dependencyResult.Success || dependencyResult.Data == null)
             {
                 return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    dependencyResult.FirstError ?? $"Failed to process dependency for {manifest.Id}.");
+                    dependencyResult.FirstError ?? string.Format(CultureInfo.InvariantCulture, ProfileSharingConstants.DependencyExportFailedMessage, manifest.Id));
             }
 
             manifests.Add(dependencyResult.Data);
