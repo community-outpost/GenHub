@@ -460,9 +460,12 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
         }
 
         // Composed multi-model scenes shift each part along X in world space.
+        // The bone transform runs first (pivot space into model space) and the
+        // slot shift applies after it; reversing the order would rotate the
+        // offset by animated pivots and fling parts across the scene.
         return mesh.LayoutOffset == Vector3.Zero
             ? inner
-            : Matrix4x4.CreateTranslation(mesh.LayoutOffset) * inner;
+            : inner * Matrix4x4.CreateTranslation(mesh.LayoutOffset);
     }
 
     /// <summary>

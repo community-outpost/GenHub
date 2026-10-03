@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.ModelViewer;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.ModelViewer;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Xunit;
@@ -142,6 +143,33 @@ public sealed class W3dSceneTests
         var worlds = W3dAnimationSampler.SampleFrame(hierarchy, clip, 3);
 
         Assert.Equal(new Vector3(6, 0, 0), worlds[0].Translation);
+    }
+
+    /// <summary>
+    /// Verifies that translation deltas apply in the base orientation frame.
+    /// </summary>
+    [Fact]
+    public void SampleFrame_TranslationDeltaWithRotatedBase_RotatesDeltaByBase()
+    {
+        float half = MathF.PI / 4;
+        var hierarchy = new W3dHierarchy(
+            "H",
+            new W3dVector3(0, 0, 0),
+            [new W3dPivot("ROOT", -1, new W3dVector3(1, 0, 0), new W3dVector3(0, 0, 0), new W3dQuaternion(0, 0, MathF.Sin(half), MathF.Cos(half)))]);
+        var clip = new W3dAnimationClip(
+            "C",
+            "H",
+            2,
+            30,
+            false,
+            0,
+            [new W3dAnimationChannel(0, 0, 0, 1, 1, [new W3dAnimationKey(0, [0]), new W3dAnimationKey(1, [5])], false)]);
+
+        var worlds = W3dAnimationSampler.SampleFrame(hierarchy, clip, 1);
+
+        Assert.Equal(1, worlds[0].Translation.X, 5);
+        Assert.Equal(5, worlds[0].Translation.Y, 5);
+        Assert.Equal(0, worlds[0].Translation.Z, 5);
     }
 
     /// <summary>
@@ -448,6 +476,38 @@ public sealed class W3dSceneTests
     }
 
     /// <summary>
+    /// Verifies that only meshes listed by the first LOD level are rendered.
+    /// </summary>
+    [Fact]
+    public void Build_LodListsSubset_RendersOnlyListedMeshes()
+    {
+        var listed = MeshWithTexture("TexA");
+        var spare = MeshWithTexture("TexA") with { Name = "Spare" };
+        var lod = new W3dModelLod("L", "H", [new W3dLevelOfDetail(100, [new W3dSubObject(0, "C.M")])]);
+        var model = new W3dModel([listed, spare], [], [], [lod], []);
+
+        var scene = W3dSceneBuilder.Build(model, new Dictionary<string, DecodedTexture>());
+
+        var render = Assert.Single(scene.Meshes);
+        Assert.Equal("C.M", render.Name);
+    }
+
+    /// <summary>
+    /// Verifies that unmatched LOD names fall back to rendering every mesh.
+    /// </summary>
+    [Fact]
+    public void Build_LodNamesMismatch_RendersAllMeshes()
+    {
+        var mesh = MeshWithTexture("TexA");
+        var lod = new W3dModelLod("L", "H", [new W3dLevelOfDetail(100, [new W3dSubObject(0, "C.Other")])]);
+        var model = new W3dModel([mesh], [], [], [lod], []);
+
+        var scene = W3dSceneBuilder.Build(model, new Dictionary<string, DecodedTexture>());
+
+        Assert.Single(scene.Meshes);
+    }
+
+    /// <summary>
     /// Verifies that a skin without inverse-bind data renders the bind shape instead of a double transform.
     /// </summary>
     [Fact]
@@ -490,6 +550,21 @@ public sealed class W3dSceneTests
         var model = W3dViewerControl.ComputeMeshModelTransform(mesh, pose, bind, null);
 
         Assert.Equal(new Vector3(2, 0, 0), model.Translation);
+    }
+
+    /// <summary>
+    /// Verifies that the composite slot shift applies after the bone transform.
+    /// </summary>
+    [Fact]
+    public void ModelTransform_CompositeOffsetWithRotatedPivot_AppliesOffsetAfterBone()
+    {
+        var mesh = new W3dRenderMesh("M", [], [], -1, 1, false, false, 0, LayoutOffset: new Vector3(10, 0, 0));
+        var inner = Matrix4x4.CreateRotationZ(MathF.PI / 2);
+        var pose = new List<Matrix4x4> { inner };
+
+        var model = W3dViewerControl.ComputeMeshModelTransform(mesh, pose, null, null);
+
+        Assert.Equal(inner * Matrix4x4.CreateTranslation(10, 0, 0), model);
     }
 
     private static W3dMesh MeshWithTexture(string textureName, IReadOnlyList<W3dShader>? shaders = null, float size = 1)

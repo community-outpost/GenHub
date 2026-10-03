@@ -9,7 +9,8 @@ namespace GenHub.Core.Services.Tools.ModelViewer;
 
 /// <summary>
 /// Evaluates hierarchy bind poses and samples animation clips.
-/// Channels compose as deltas over the base pose: translations add, rotations premultiply.
+/// Channels compose as deltas over the base pose: translation deltas apply in
+/// the base orientation frame and rotation deltas premultiply the base rotation.
 /// </summary>
 public static class W3dAnimationSampler
 {
@@ -117,14 +118,17 @@ public static class W3dAnimationSampler
         IReadOnlyDictionary<int, IReadOnlyList<W3dAnimationChannel>>? channelsByPivot,
         int frame)
     {
-        var translation = new Vector3(pivot.Translation.X, pivot.Translation.Y, pivot.Translation.Z);
-        var rotation = ToNumerics(Normalize(pivot.Rotation));
+        var baseTranslation = new Vector3(pivot.Translation.X, pivot.Translation.Y, pivot.Translation.Z);
+        var baseRotation = ToNumerics(Normalize(pivot.Rotation));
+        var rotation = baseRotation;
+        var deltaTranslation = Vector3.Zero;
 
         if (channelsByPivot?.TryGetValue(pivotIndex, out var channels) == true)
         {
-            ApplyChannels(channels, frame, ref translation, ref rotation);
+            ApplyChannels(channels, frame, ref deltaTranslation, ref rotation);
         }
 
+        var translation = Vector3.Transform(deltaTranslation, baseRotation) + baseTranslation;
         return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(translation);
     }
 

@@ -32,7 +32,8 @@ public static class W3dSceneBuilder
 
         var textures = new TextureTable();
         var meshes = new List<W3dRenderMesh>();
-        foreach (var mesh in model.Meshes)
+        var sourceMeshes = SelectLodMeshes(model);
+        foreach (var mesh in sourceMeshes)
         {
             meshes.Add(BuildMesh(mesh, texturesByName, textures, boneByMeshName, discardedTextures));
         }
@@ -44,7 +45,7 @@ public static class W3dSceneBuilder
             skeleton.AddRange(W3dAnimationSampler.BindPoseSegments(hierarchy));
         }
 
-        return new W3dRenderScene(meshes, textures.Textures, skeleton, CombineBounds(model.Meshes));
+        return new W3dRenderScene(meshes, textures.Textures, skeleton, CombineBounds(sourceMeshes));
     }
 
     /// <summary>
@@ -77,11 +78,12 @@ public static class W3dSceneBuilder
 
         foreach (var part in parts)
         {
-            var partBounds = CombineBounds(part.Model.Meshes);
+            var sourceMeshes = SelectLodMeshes(part.Model);
+            var partBounds = CombineBounds(sourceMeshes);
             float offsetX = cursorX - partBounds.Min.X;
             var offset = new System.Numerics.Vector3(offsetX, 0, 0);
             int meshStart = meshes.Count;
-            foreach (var mesh in part.Model.Meshes)
+            foreach (var mesh in sourceMeshes)
             {
                 var built = BuildMesh(mesh, part.TexturesByName, textures, part.BoneByMeshName, discardedTextures);
                 int bone = built.BoneIndex >= 0 ? built.BoneIndex + pivotBase : -1;
@@ -90,7 +92,7 @@ public static class W3dSceneBuilder
 
             int pivotCount = AddPartSkeleton(skeleton, part.Model.Hierarchies.FirstOrDefault(), offsetX, pivotBase);
 
-            ranges.Add(new W3dCompositeRange(part.Label, meshStart, part.Model.Meshes.Count, pivotBase, pivotCount));
+            ranges.Add(new W3dCompositeRange(part.Label, meshStart, sourceMeshes.Count, pivotBase, pivotCount));
             float width = Math.Max(partBounds.Max.X - partBounds.Min.X, 0);
             cursorX += width + Math.Max(width * CompositeGapScale, CompositeGapMin);
             pivotBase += pivotCount;
@@ -115,6 +117,21 @@ public static class W3dSceneBuilder
         return new W3dCompositeScene(
             new W3dRenderScene(meshes, textures.Textures, skeleton, new W3dBoundingBox(min, max, center, radius)),
             ranges);
+    }
+
+    private static IReadOnlyList<W3dMesh> SelectLodMeshes(W3dModel model)
+    {
+        var level = model.Lods.FirstOrDefault()?.Levels.FirstOrDefault();
+        if (level == null || level.SubObjects.Count == 0)
+        {
+            return model.Meshes;
+        }
+
+        var listed = new HashSet<string>(level.SubObjects.Select(subObject => subObject.MeshName), StringComparer.OrdinalIgnoreCase);
+        var selected = model.Meshes
+            .Where(mesh => listed.Contains(mesh.DisplayName) || listed.Contains(mesh.Name))
+            .ToList();
+        return selected.Count == 0 ? model.Meshes : selected;
     }
 
     private static int AddPartSkeleton(

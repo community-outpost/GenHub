@@ -6069,6 +6069,15 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        if (clip.Channels.Any(channel => channel.Pivot < 0 || channel.Pivot >= hierarchy.Pivots.Count))
+        {
+            logger.LogWarning(
+                "Clip {Clip} targets pivots outside hierarchy {Hierarchy} ({Pivots} pivots); out-of-range channels are ignored",
+                clip.Name,
+                hierarchy.Name,
+                hierarchy.Pivots.Count);
+        }
+
         int frame = (int)Math.Round(PreviewFrame);
         PreviewPose = W3dAnimationSampler.SampleFrame(hierarchy, clip, frame);
     }
