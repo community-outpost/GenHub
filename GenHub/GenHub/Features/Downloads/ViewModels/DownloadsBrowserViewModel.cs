@@ -4549,6 +4549,34 @@ public sealed partial class DownloadsBrowserViewModel(
         await InstallBuildContentByIdAsync(resolvedManifestId, item.Name, _vmCts.Token);
     }
 
+    private static void CleanStaleBuildInstallDirectories(ILogger logger)
+    {
+        try
+        {
+            var tempRoot = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp");
+            if (!Directory.Exists(tempRoot))
+            {
+                return;
+            }
+
+            foreach (var dir in Directory.GetDirectories(tempRoot, "genhub-build*"))
+            {
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                }
+                catch
+                {
+                    // Best effort cleanup of previous installations
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to clean stale build directories from Temp");
+        }
+    }
+
     private async Task InstallBuildContentByIdAsync(string contentId, string contentName, CancellationToken cancellationToken)
     {
         var velopackManager = serviceProvider.GetService<IVelopackUpdateManager>();
@@ -4570,6 +4598,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
         try
         {
+            CleanStaleBuildInstallDirectories(logger);
+
             var prepTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Title", "Preparing Installation") ?? "Preparing Installation";
             var prepMessage = locService != null
                 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, locService.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Message", "Preparing {0} for installation..."), contentName)
@@ -4616,9 +4646,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 progress,
                 cancellationToken);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("Installation of GenHub build {ContentId} was cancelled", contentId);
+            logger.LogInformation(ex, "Installation of GenHub build {ContentId} was cancelled", contentId);
         }
         catch (Exception ex)
         {

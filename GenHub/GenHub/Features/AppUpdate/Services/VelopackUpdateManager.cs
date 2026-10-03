@@ -138,6 +138,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <param name="telemetryService">The telemetry service (optional).</param>
     /// <param name="contentManifestPool">The content manifest pool (optional).</param>
     /// <param name="contentStorageService">The content storage service (optional).</param>
+    /// <param name="installationLocationTracker">The installation location tracker (optional).</param>
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Update manager requires DI dependencies for updater operations.")]
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
@@ -217,8 +218,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private string TelemetryChannel =>
-        _subscribedPrNumber.HasValue ? $"{TelemetryConstants.PullRequestChannelPrefix}{_subscribedPrNumber}" : _subscribedBranch ?? TelemetryConstants.ReleaseChannel;
+    private string TelemetryChannel
+    {
+        get
+        {
+            if (_subscribedPrNumber.HasValue)
+            {
+                return $"{TelemetryConstants.PullRequestChannelPrefix}{_subscribedPrNumber}";
+            }
+
+            return _subscribedBranch ?? TelemetryConstants.ReleaseChannel;
+        }
+    }
 
     /// <inheritdoc/>
     public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
@@ -926,103 +937,148 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         _logger.LogInformation("Installing downloaded build from '{Path}'", filePath);
 
-        string? tempDir = null;
+        var targetPath = filePath;
+        if (Directory.Exists(filePath))
+        {
+            var resolved = ResolveDirectoryInstallTarget(filePath, originalFileName);
+            if (resolved == null)
+            {
+                return;
+            }
+
+            targetPath = resolved;
+        }
+
+        if (!File.Exists(targetPath))
+        {
+            throw new FileNotFoundException($"Target build file not found: '{targetPath}'");
+        }
+
+        var extension = Path.GetExtension(targetPath).ToLowerInvariant();
+        switch (extension)
+        {
+            case ".exe":
+                await InstallExeBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
+                break;
+            case ".zip":
+                await InstallZipBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
+                break;
+            case ".nupkg":
+                await InstallNupkgBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
+                break;
+            default:
+                throw new NotSupportedException($"Unsupported build file extension: '{extension}'");
+        }
+    }
+
+    private async Task InstallExeBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
         try
         {
-            string targetPath = filePath;
-            if (Directory.Exists(filePath))
+            Directory.CreateDirectory(tempDir);
+            var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetPath)}.nupkg");
+
+            if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
             {
-                var resolved = ResolveDirectoryInstallTarget(filePath, progress);
-                if (resolved == null)
-                {
-                    return;
-                }
-
-                targetPath = resolved;
-            }
-
-            if (!File.Exists(targetPath))
-            {
-                throw new FileNotFoundException($"Target build file not found: '{targetPath}'");
-            }
-
-            var extension = Path.GetExtension(targetPath).ToLowerInvariant();
-            if (extension == ".exe")
-            {
-                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tempDir);
-                var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetPath)}.nupkg");
-
-                if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
-                {
-                    _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
-                    await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
-                    return;
-                }
-
-                _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
-                LaunchInstallerProcess(targetPath, progress);
+                _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
+                await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            if (extension == ".zip")
-            {
-                progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
-                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tempDir);
-                ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
-
-                var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
-                if (nupkgFiles.Length > 0)
-                {
-                    await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
-                    return;
-                }
-
-                var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
-                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
-                    .ToArray();
-                if (exeFiles.Length > 0)
-                {
-                    var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
-                    var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetExe)}.nupkg");
-
-                    if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
-                    {
-                        _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
-                        await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken);
-                        return;
-                    }
-
-                    LaunchInstallerProcess(targetExe, progress);
-                    return;
-                }
-
-                throw new FileNotFoundException("No .nupkg or installer executable found inside zip archive");
-            }
-
-            if (extension == ".nupkg")
-            {
-                tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tempDir);
-                await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken);
-                return;
-            }
-
-            throw new NotSupportedException($"Unsupported build file extension: '{extension}'");
+            _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
+            LaunchInstallerProcess(targetPath, progress);
         }
         finally
         {
-            if (!string.IsNullOrEmpty(tempDir) && Directory.Exists(tempDir))
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private async Task InstallZipBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
+
+            var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
+            if (nupkgFiles.Length > 0)
             {
-                try
-                {
-                    Directory.Delete(tempDir, true);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to clean up temp build directory {Dir}", tempDir);
-                }
+                await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await InstallZipExeCandidateAsync(tempDir, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private async Task InstallZipExeCandidateAsync(
+        string tempDir,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (exeFiles.Length == 0)
+        {
+            throw new FileNotFoundException("No .nupkg or installer executable found inside zip archive");
+        }
+
+        var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+        var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetExe)}.nupkg");
+
+        if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
+        {
+            _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
+            await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        LaunchInstallerProcess(targetExe, progress);
+    }
+
+    private async Task InstallNupkgBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private void SafeDeleteDirectory(string dir)
+    {
+        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to clean up temp build directory {Dir}", dir);
             }
         }
     }
@@ -1186,55 +1242,69 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
 
-        // 1. Direct download URL match - strong identity proof
-        if (!string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl))
+        if (MatchesDirectDownloadUrl(resolvedFiles, artifactInfo.DownloadUrl))
         {
-            var matchesUrl = resolvedFiles.Any(f => string.Equals(f.DownloadUrl, artifactInfo.DownloadUrl, StringComparison.OrdinalIgnoreCase));
-            if (matchesUrl)
-            {
-                return true;
-            }
+            return true;
         }
 
-        // 2. Exact word boundary PR match
-        if (artifactInfo.PullRequestNumber.HasValue)
+        if (MatchesPullRequestNumber(manifest.Name, artifactInfo.PullRequestNumber, matchesVersion))
         {
-            var prNumber = artifactInfo.PullRequestNumber.Value;
-            var prPattern = $@"\b(PR\s*#?|#){prNumber}\b";
-            var matchesPr = Regex.IsMatch(manifest.Name ?? string.Empty, prPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
-            if (matchesPr && matchesVersion)
-            {
-                return true;
-            }
+            return true;
         }
 
-        // 3. Exact target artifact file name match (e.g. setup.exe, custom.exe) requiring matching version
-        if (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName))
+        if (MatchesArtifactFileName(manifest.Name, resolvedFiles, artifactInfo.ArtifactName, matchesVersion))
         {
-            var targetFileName = Path.GetFileName(artifactInfo.ArtifactName);
-            var matchesFileName = resolvedFiles.Any(f => string.Equals(Path.GetFileName(f.RelativePath), targetFileName, StringComparison.OrdinalIgnoreCase));
-            var matchesNameInManifest = string.Equals(manifest.Name, artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) ||
-                (manifest.Name?.Contains(artifactInfo.ArtifactName, StringComparison.OrdinalIgnoreCase) == true);
-
-            if (matchesFileName && matchesVersion && matchesNameInManifest)
-            {
-                return true;
-            }
+            return true;
         }
 
-        // 4. Git hash match requiring matching version
-        if (!string.IsNullOrWhiteSpace(artifactInfo.GitHash) && artifactInfo.GitHash.Length >= 7)
-        {
-            var matchesGitHash = (manifest.Name?.Contains(artifactInfo.GitHash, StringComparison.OrdinalIgnoreCase) == true) ||
-                (manifest.Metadata?.Description?.Contains(artifactInfo.GitHash, StringComparison.OrdinalIgnoreCase) == true);
+        return MatchesGitHash(manifest, artifactInfo.GitHash, matchesVersion);
+    }
 
-            if (matchesGitHash && matchesVersion)
-            {
-                return true;
-            }
+    private static bool MatchesDirectDownloadUrl(IReadOnlyList<ManifestFile> resolvedFiles, string? downloadUrl)
+    {
+        return !string.IsNullOrWhiteSpace(downloadUrl) &&
+            resolvedFiles.Any(f => string.Equals(f.DownloadUrl, downloadUrl, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool MatchesPullRequestNumber(string? manifestName, int? prNumber, bool matchesVersion)
+    {
+        if (!prNumber.HasValue || !matchesVersion)
+        {
+            return false;
         }
 
-        return false;
+        var prPattern = $@"(PR\s*#?|#){prNumber.Value}";
+        return Regex.IsMatch(manifestName ?? string.Empty, prPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
+    }
+
+    private static bool MatchesArtifactFileName(
+        string? manifestName,
+        IReadOnlyList<ManifestFile> resolvedFiles,
+        string? artifactName,
+        bool matchesVersion)
+    {
+        if (string.IsNullOrWhiteSpace(artifactName) || !matchesVersion)
+        {
+            return false;
+        }
+
+        var targetFileName = Path.GetFileName(artifactName);
+        var matchesFileName = resolvedFiles.Any(f => string.Equals(Path.GetFileName(f.RelativePath), targetFileName, StringComparison.OrdinalIgnoreCase));
+        var matchesNameInManifest = string.Equals(manifestName, artifactName, StringComparison.OrdinalIgnoreCase) ||
+            (manifestName?.Contains(artifactName, StringComparison.OrdinalIgnoreCase) == true);
+
+        return matchesFileName && matchesNameInManifest;
+    }
+
+    private static bool MatchesGitHash(ContentManifest manifest, string? gitHash, bool matchesVersion)
+    {
+        if (string.IsNullOrWhiteSpace(gitHash) || gitHash.Length < 7 || !matchesVersion)
+        {
+            return false;
+        }
+
+        return (manifest.Name?.Contains(gitHash, StringComparison.OrdinalIgnoreCase) == true) ||
+            (manifest.Metadata?.Description?.Contains(gitHash, StringComparison.OrdinalIgnoreCase) == true);
     }
 
     /// <summary>
@@ -1454,38 +1524,50 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         try
         {
             var tempRoot = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp");
-            var prefixes = new[] { "genhub-art-", "genhub-build-", "genhub-local-build-", "genhub-build-install-" };
-            if (!Directory.Exists(tempRoot))
+            var prefixes = new[] { "genhub-art-", "genhub-build-", "genhub-local-build-", "genhub-build-install-", "genhub-installer-" };
+            if (Directory.Exists(tempRoot))
             {
-                return;
+                foreach (var dir in Directory.EnumerateDirectories(tempRoot, "genhub-*"))
+                {
+                    var dirName = Path.GetFileName(dir);
+                    if (prefixes.Any(prefix => dirName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        TryDeleteStaleDirectory(dir, logger);
+                    }
+                }
             }
 
-            foreach (var dir in Directory.EnumerateDirectories(tempRoot, "genhub-*"))
+            var legacyInstallerRoot = Path.Combine(Path.GetTempPath(), "GenHub-Installer");
+            if (Directory.Exists(legacyInstallerRoot))
             {
-                var dirName = Path.GetFileName(dir);
-                if (prefixes.Any(prefix => dirName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                foreach (var dir in Directory.EnumerateDirectories(legacyInstallerRoot))
                 {
-                    try
-                    {
-                        var info = new DirectoryInfo(dir);
-                        var now = DateTime.UtcNow;
-                        if (now - info.CreationTimeUtc > TimeSpan.FromHours(1) &&
-                            now - info.LastWriteTimeUtc > TimeSpan.FromHours(1))
-                        {
-                            Directory.Delete(dir, recursive: true);
-                            logger?.LogDebug("Swept stale build temp directory: {Dir}", dir);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogTrace(ex, "Failed to delete stale temp directory {Dir}", dir);
-                    }
+                    TryDeleteStaleDirectory(dir, logger);
                 }
             }
         }
         catch (Exception ex)
         {
             logger?.LogDebug(ex, "Failed to sweep stale build directories");
+        }
+    }
+
+    private static void TryDeleteStaleDirectory(string dir, ILogger? logger)
+    {
+        try
+        {
+            var info = new DirectoryInfo(dir);
+            var now = DateTime.UtcNow;
+            if (now - info.CreationTimeUtc > TimeSpan.FromHours(1) &&
+                now - info.LastWriteTimeUtc > TimeSpan.FromHours(1))
+            {
+                Directory.Delete(dir, recursive: true);
+                logger?.LogDebug("Swept stale build temp directory: {Dir}", dir);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogTrace(ex, "Failed to delete stale temp directory {Dir}", dir);
         }
     }
 
@@ -1541,13 +1623,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         progress?.Report(new UpdateProgress { Status = "Launching installer...", PercentComplete = 100 });
 
         var stagedExe = exePath;
+        var stagedDir = Path.GetDirectoryName(exePath) ?? AppDataPathHelper.GetDataRoot();
         try
         {
-            var stageDir = Path.Combine(Path.GetTempPath(), "GenHub-Installer", Guid.NewGuid().ToString("N"));
+            var stageDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-installer-{Guid.NewGuid():N}");
             Directory.CreateDirectory(stageDir);
             var targetStagedExe = Path.Combine(stageDir, Path.GetFileName(exePath));
             File.Copy(exePath, targetStagedExe, overwrite: true);
             stagedExe = targetStagedExe;
+            stagedDir = stageDir;
         }
         catch (IOException ex)
         {
@@ -1558,7 +1642,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogWarning(ex, "Failed to stage installer executable to temp dir, executing from original path: {Path}", exePath);
         }
 
-        var customPath = _installationLocationTracker?.GetCustomInstallPath();
+        var customPath = _installationLocationTracker?.GetRegisteredCustomInstallPath();
         var arguments = string.Empty;
         if (!string.IsNullOrWhiteSpace(customPath))
         {
@@ -1568,12 +1652,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         ProcessStartInfo startInfo;
         if (OperatingSystem.IsWindows())
         {
+            var comSpec = Environment.GetEnvironmentVariable("ComSpec");
+            if (string.IsNullOrWhiteSpace(comSpec))
+            {
+                comSpec = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            }
+
             var cmdArgs = $"/c timeout /t 1 /nobreak >nul && start \"\" \"{stagedExe}\" {arguments}".Trim();
-            startInfo = new ProcessStartInfo("cmd.exe", cmdArgs)
+            startInfo = new ProcessStartInfo(comSpec, cmdArgs)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                WorkingDirectory = Path.GetTempPath(),
+                WorkingDirectory = stagedDir,
             };
         }
         else
@@ -1581,7 +1671,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             startInfo = new ProcessStartInfo(stagedExe, arguments)
             {
                 UseShellExecute = true,
-                WorkingDirectory = Path.GetDirectoryName(stagedExe) ?? string.Empty,
+                WorkingDirectory = stagedDir,
             };
         }
 
@@ -1589,7 +1679,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             ?? throw new InvalidOperationException($"Failed to start installer '{stagedExe}'");
         _logger.LogInformation("Installer launcher process started with PID {ProcessId}", proc.Id);
         Thread.Sleep(300);
-        Environment.Exit(0); // skipcq: CS-W1005
+        Environment.Exit(0); // skipcq: CS-W1005, CS-R1081
     }
 
     private async Task<(string DownloadUrl, Dictionary<string, string> Headers)> ResolveArtifactDownloadDetailsAsync(
@@ -1750,7 +1840,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         server.Start();
 
         var artifactChannel = GetArtifactChannel(artifactInfo);
-        await ExecuteLocalVelopackUpdateAsync(
+        var updateRequest = new LocalVelopackUpdateRequest(
             server,
             port,
             fileVersion,
@@ -1759,7 +1849,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             sha256,
             fileLength,
             label,
-            artifactChannel,
+            artifactChannel);
+
+        await ExecuteLocalVelopackUpdateAsync(
+            updateRequest,
             progress,
             cancellationToken).ConfigureAwait(false);
     }
@@ -1803,34 +1896,37 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return (releasesPath, nupkgFileName, fileVersion, sha1, sha256, fileInfo.Length);
     }
 
+    private sealed record LocalVelopackUpdateRequest(
+        SimpleHttpServer Server,
+        int Port,
+        string FileVersion,
+        string NupkgFileName,
+        string Sha1,
+        string Sha256,
+        long FileSize,
+        string Label,
+        string ArtifactChannel);
+
     private async Task ExecuteLocalVelopackUpdateAsync(
-        SimpleHttpServer server,
-        int port,
-        string fileVersion,
-        string nupkgFileName,
-        string sha1,
-        string sha256,
-        long fileSize,
-        string label,
-        string artifactChannel,
+        LocalVelopackUpdateRequest request,
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
         progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
         progress?.Report(new UpdateProgress { Status = "Downloading update...", PercentComplete = 70 });
 
-        var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
+        var source = new SimpleWebSource($"http://localhost:{request.Port}/{request.Server.SecretToken}/", _fileDownloader);
         var localUpdateManager = new UpdateManager(source);
 
         var asset = new VelopackAsset
         {
             PackageId = AppConstants.AppName,
-            Version = SemanticVersion.Parse(fileVersion),
+            Version = SemanticVersion.Parse(request.FileVersion),
             Type = VelopackAssetType.Full,
-            FileName = nupkgFileName,
-            SHA1 = sha1,
-            SHA256 = sha256,
-            Size = fileSize,
+            FileName = request.NupkgFileName,
+            SHA1 = request.Sha1,
+            SHA256 = request.Sha256,
+            Size = request.FileSize,
         };
 
         var updateInfo = new UpdateInfo(asset, true);
@@ -1850,19 +1946,19 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
-            [TelemetryConstants.Properties.ToVersion] = fileVersion,
+            [TelemetryConstants.Properties.ToVersion] = request.FileVersion,
             [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
             [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-            [TelemetryConstants.Properties.Channel] = artifactChannel,
+            [TelemetryConstants.Properties.Channel] = request.ArtifactChannel,
             [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
         });
 
         progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
 
         CleanStrayAppDirectoryArtifacts();
-        _logger.LogInformation("Applying {Label} update and restarting", label);
+        _logger.LogInformation("Applying {Label} update and restarting", request.Label);
 
-        await TrackUpdateAppliedAndFlushAsync(fileVersion, artifactChannel, cancellationToken).ConfigureAwait(false);
+        await TrackUpdateAppliedAndFlushAsync(request.FileVersion, request.ArtifactChannel, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
 
         localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
@@ -2459,35 +2555,55 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         string Owner,
         string Repo);
 
+    private static bool TryParseSuccessfulRun(
+        JsonElement run,
+        string expectedBranch,
+        out long runId,
+        out string runUrl,
+        out string shortHash,
+        out DateTime createdAt)
+    {
+        runId = 0;
+        runUrl = string.Empty;
+        shortHash = string.Empty;
+        createdAt = DateTime.MinValue;
+
+        var id = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
+        var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
+        if (!string.Equals(runBranch, expectedBranch, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
+        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
+        if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        runId = id;
+        runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
+        if (run.TryGetProperty("created_at", out var catProp) && catProp.ValueKind == JsonValueKind.String && catProp.TryGetDateTime(out var dt))
+        {
+            createdAt = dt;
+        }
+
+        var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
+        shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
+        return true;
+    }
+
     private async Task<ArtifactUpdateInfo?> FindMatchingArtifactInRunAsync(
         PrArtifactContext context,
         JsonElement run,
         CancellationToken cancellationToken)
     {
-        var runId = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
-        var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
-
-        if (!string.Equals(runBranch, context.HeadBranch, StringComparison.OrdinalIgnoreCase))
+        if (!TryParseSuccessfulRun(run, context.HeadBranch, out var runId, out var runUrl, out var shortHash, out var createdAt))
         {
             return null;
         }
-
-        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
-        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
-
-        if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
-        var createdAt = run.TryGetProperty("created_at", out var catProp) && catProp.ValueKind == JsonValueKind.String && catProp.TryGetDateTime(out var dt)
-            ? dt
-            : DateTime.MinValue;
-
-        var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
-        var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
 
         var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, context.Owner, context.Repo, runId);
         var artifactsResponse = await SendWithRetryAsync(context.Client, artifactsUrl, cancellationToken).ConfigureAwait(false);
@@ -2885,8 +3001,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
-    private string? ResolveDirectoryInstallTarget(string dirPath, IProgress<UpdateProgress>? progress)
+    private static string? ResolveDirectoryInstallTarget(string dirPath, string? originalFileName = null)
     {
+        if (!string.IsNullOrWhiteSpace(originalFileName))
+        {
+            var match = Directory.GetFiles(dirPath, originalFileName, SearchOption.AllDirectories).FirstOrDefault();
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
         var nupkgs = Directory.GetFiles(dirPath, "*.nupkg", SearchOption.AllDirectories);
         if (nupkgs.Length > 0)
         {
