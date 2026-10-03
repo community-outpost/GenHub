@@ -36,6 +36,22 @@ public partial class HostingStorageView : UserControl
         return false;
     }
 
+    private static bool IsInsideExpandedPanel(Visual? visual)
+    {
+        var current = visual;
+        while (current != null)
+        {
+            if (current is Border border && border.Classes.Contains("expanded-panel"))
+            {
+                return true;
+            }
+
+            current = current.GetVisualParent();
+        }
+
+        return false;
+    }
+
     private void OnAssetRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border row || row.DataContext is not HostedAssetItemViewModel item)
@@ -43,7 +59,7 @@ public partial class HostingStorageView : UserControl
             return;
         }
 
-        if (e.Source is Visual source && IsInsideButton(source))
+        if (e.Source is Visual source && (IsInsideButton(source) || IsInsideExpandedPanel(source)))
         {
             return;
         }
