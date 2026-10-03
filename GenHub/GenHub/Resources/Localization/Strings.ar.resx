@@ -17985,6 +17985,12 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
     <value>تم الاحتفاظ بـ {0} من الملفات اليتيمة على Drive ويمكن حذفها كلاً على حدة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>تعذّر حفظ حالة الاستضافة، وقد تظهر الملفات المحذوفة مجددًا بعد إعادة التشغيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>تم الاحتفاظ بالفهرس '{0}' لتعذّر حذف بعض الملفات البعيدة. تحقق من الاتصال وحاول مجددًا.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
     <value>تعذر إعادة تحميل تعريف المزود وتم وضع علامة عليه للنشر.</value>
   </data>

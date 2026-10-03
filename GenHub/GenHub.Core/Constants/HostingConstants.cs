@@ -474,15 +474,7 @@ public static class HostingConstants
             return false;
         }
 
-        foreach (var extension in ScreenshotFileExtensions)
-        {
-            if (fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return ScreenshotFileExtensions.Any(extension => fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -497,15 +489,7 @@ public static class HostingConstants
             return false;
         }
 
-        foreach (var extension in VideoFileExtensions)
-        {
-            if (fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return VideoFileExtensions.Any(extension => fileName.EndsWith(extension, System.StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

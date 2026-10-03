@@ -18044,6 +18044,12 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
     <value>{0} orphaned file(s) were kept on Drive and can be deleted individually.</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>The hosting state could not be saved, so removed files may reappear after a restart.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>Catalog '{0}' was kept because some remote files could not be deleted. Check the connection and retry.</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
     <value>The provider definition could not be re-uploaded and is marked for publishing.</value>
   </data>
