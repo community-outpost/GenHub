@@ -1,7 +1,10 @@
 using GenHub.Core.Interfaces.Launcher;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Features.Launching;
+using GenHub.Features.Launching.Publishers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System.Linq;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -19,6 +22,14 @@ public static class GameLaunchingModule
     {
         // LaunchRegistry is singleton - it tracks all launches globally across the app lifetime
         services.AddSingleton<ILaunchRegistry, LaunchRegistry>();
+
+        // Publisher launch handlers and registry.
+        services.AddScoped<IPublisherLaunchHandler, DefaultPublisherLaunchHandler>();
+        services.AddScoped<IPublisherLaunchHandler, GeneralsOnlineLaunchHandler>();
+        services.AddScoped<IPublisherLaunchHandlerRegistry>(sp =>
+            new PublisherLaunchHandlerRegistry(
+                sp.GetServices<IPublisherLaunchHandler>().ToList(),
+                sp.GetRequiredService<ILogger<PublisherLaunchHandlerRegistry>>()));
 
         // GameLauncher is scoped - one per request/operation to avoid captive dependencies
         // This prevents issues where scoped dependencies (like IGameProfileManager) are captured by singletons

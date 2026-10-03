@@ -27,9 +27,14 @@ public static class CatalogManifestIdentity
         ["communityoutpost"] = CommunityOutpostConstants.PublisherType,
         ["generalsonline"] = PublisherTypeConstants.GeneralsOnline,
         ["thesuperhackers"] = PublisherTypeConstants.TheSuperHackers,
+        ["superhackers"] = PublisherTypeConstants.TheSuperHackers,
         ["github"] = PublisherTypeConstants.GitHub,
         ["githubreleases"] = PublisherTypeConstants.GitHub,
         ["moddb"] = PublisherTypeConstants.ModDB,
+        ["steamworkshop"] = PublisherTypeConstants.SteamWorkshop,
+        ["genlauncher"] = PublisherTypeConstants.GenLauncher,
+        ["cnclabs"] = PublisherTypeConstants.CncLabs,
+        ["aodmaps"] = PublisherTypeConstants.AODMaps,
         ["generic"] = CatalogConstants.GenericCatalogResolverId,
     };
 
@@ -40,6 +45,8 @@ public static class CatalogManifestIdentity
         "gametype",
         "edition",
         "quality",
+        "language",
+        "lang",
         "1080p",
         "1440p",
         "4k",
@@ -54,6 +61,18 @@ public static class CatalogManifestIdentity
         "chinese",
         "italian",
         "polish",
+        "en",
+        "de",
+        "ru",
+        "fr",
+        "es",
+        "zh",
+        "it",
+        "pt",
+        "pl",
+        "ja",
+        "ko",
+        "uk",
     ];
 
     /// <summary>
@@ -75,7 +94,7 @@ public static class CatalogManifestIdentity
             manifestContentName[depContentName.Length] == '-')
         {
             var suffix = manifestContentName[(depContentName.Length + 1)..];
-            if (KnownVariantPrefixes.Any(prefix => suffix.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            if (KnownVariantPrefixes.Any(prefix => IsVariantTokenMatch(suffix, prefix)))
             {
                 return true;
             }
@@ -96,7 +115,7 @@ public static class CatalogManifestIdentity
             return KnownVariantPrefixes.Any(prefix =>
             {
                 var normPrefix = prefix.Replace("-", string.Empty);
-                return normSuffix.StartsWith(normPrefix, StringComparison.OrdinalIgnoreCase);
+                return IsNormalizedVariantTokenMatch(normSuffix, normPrefix);
             });
         }
 
@@ -1051,6 +1070,51 @@ public static class CatalogManifestIdentity
         {
             result = dotted;
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsVariantTokenMatch(string suffix, string prefix)
+    {
+        if (string.Equals(suffix, prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (suffix.Length > prefix.Length &&
+            suffix.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var nextChar = suffix[prefix.Length];
+            return nextChar == '-' || nextChar == '_' || char.IsDigit(nextChar);
+        }
+
+        return false;
+    }
+
+    private static bool IsNormalizedVariantTokenMatch(string normSuffix, string normPrefix)
+    {
+        if (string.Equals(normSuffix, normPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (normSuffix.Length > normPrefix.Length &&
+            normSuffix.StartsWith(normPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = normSuffix[normPrefix.Length..];
+            var nextChar = remainder[0];
+            if (char.IsDigit(nextChar))
+            {
+                return true;
+            }
+
+            return KnownVariantPrefixes.Any(p =>
+            {
+                var np = p.Replace("-", string.Empty);
+                return string.Equals(remainder, np, StringComparison.OrdinalIgnoreCase) ||
+                       (remainder.Length > np.Length && remainder.StartsWith(np, StringComparison.OrdinalIgnoreCase) && char.IsDigit(remainder[np.Length]));
+            });
         }
 
         return false;
