@@ -339,12 +339,58 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     public IAsyncRelayCommand<NamedCatalog>? RemoveCatalogCommand => parentViewModel?.RemoveCatalogCommand;
 
+    private int? _cachedPendingUploadCount;
+
     /// <summary>
-    /// Gets the number of local artifacts in the selected content that are still waiting for cloud upload.
+    /// Gets the number of local artifacts and gallery media files in the selected content that are still waiting for cloud upload.
     /// </summary>
-    public int PendingUploadCount => SelectedContent?.Releases
-        .SelectMany(r => r.Artifacts)
-        .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl)) ?? 0;
+    public int PendingUploadCount
+    {
+        get
+        {
+            if (_cachedPendingUploadCount.HasValue)
+            {
+                return _cachedPendingUploadCount.Value;
+            }
+
+            var projectDirectory = Path.GetDirectoryName(Project.ProjectPath);
+            var count = CountPendingLocalArtifacts(SelectedContent) + CountPendingLocalMedia(SelectedContent, projectDirectory);
+            _cachedPendingUploadCount = count;
+            return count;
+        }
+    }
+
+    private static int CountPendingLocalArtifacts(CatalogContentItem? item) =>
+        (item?.Releases ?? [])
+            .SelectMany(r => r.Artifacts)
+            .Count(a => !string.IsNullOrEmpty(a.LocalFilePath) && string.IsNullOrEmpty(a.DownloadUrl));
+
+    private static int CountPendingLocalMedia(CatalogContentItem? item, string? projectDirectory)
+    {
+        if (item?.Metadata == null)
+        {
+            return 0;
+        }
+
+        var count = CountPendingReleaseMedia(item.Metadata.ScreenshotUrls, projectDirectory);
+        count += CountPendingReleaseMedia(item.Metadata.VideoUrls, projectDirectory);
+        if (IsUploadableMedia(projectDirectory, item.Metadata.VideoUrl))
+        {
+            count++;
+        }
+
+        count += (item.Releases ?? []).Sum(release => CountPendingReleaseMedia(release.ImageUrls, projectDirectory) + CountPendingReleaseMedia(release.VideoUrls, projectDirectory));
+        count += (item.AddonReleases ?? []).Sum(addon => CountPendingReleaseMedia(addon.ImageUrls, projectDirectory) + CountPendingReleaseMedia(addon.VideoUrls, projectDirectory));
+        return count;
+    }
+
+    private static int CountPendingReleaseMedia(List<string>? urls, string? projectDirectory) =>
+        urls?.Count(url => IsUploadableMedia(projectDirectory, url)) ?? 0;
+
+    private static bool IsUploadableMedia(string? projectDirectory, string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && !MediaFileHelper.IsRemoteHttpUrl(value)
+        && MediaFileHelper.TryResolveLocalMediaPath(projectDirectory, value) != null;
 
     /// <summary>
     /// Gets a value indicating whether a hosting provider is currently connected.
@@ -370,6 +416,7 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     public void RefreshHostingHint()
     {
+        _cachedPendingUploadCount = null;
         OnPropertyChanged(nameof(PendingUploadCount));
         OnPropertyChanged(nameof(IsHostingConnected));
         OnPropertyChanged(nameof(ShowHostingHint));
@@ -1693,7 +1740,7 @@ public partial class ContentLibraryViewModel(
         var files = await dialogService.ShowImageFilesPickerAsync(
             GetLocalizedString("Tools.PublisherStudio.Library.PickScreenshotTitle", "Select Screenshot Images"));
 
-        if (files != null && files.Count > 0)
+        if (files is { Count: > 0 })
         {
             await AddMediaToSelectedContentAsync(files);
         }
@@ -1701,6 +1748,46 @@ public partial class ContentLibraryViewModel(
 
     [RelayCommand]
     private async Task PasteScreenshotAsync()
+    {
+        await PasteClipboardMediaAsync(
+            "Tools.PublisherStudio.Library.NoClipboardImageTitle",
+            "No Image Found",
+            "Tools.PublisherStudio.Library.NoClipboardImageMessage",
+            "No image, file, or image URL was found on the clipboard.");
+    }
+
+    [RelayCommand]
+    private async Task AddVideoAsync()
+    {
+        if (SelectedContent == null)
+        {
+            return;
+        }
+
+        var files = await dialogService.ShowVideoFilesPickerAsync(
+            GetLocalizedString("Tools.PublisherStudio.Library.PickVideoTitle", "Select Video Files"));
+
+        if (files is { Count: > 0 })
+        {
+            await AddMediaToSelectedContentAsync(files);
+        }
+    }
+
+    [RelayCommand]
+    private async Task PasteVideoAsync()
+    {
+        await PasteClipboardMediaAsync(
+            "Tools.PublisherStudio.Library.NoClipboardVideoTitle",
+            "No Video Found",
+            "Tools.PublisherStudio.Library.NoClipboardVideoMessage",
+            "No video file or video URL was found on the clipboard.");
+    }
+
+    private async Task PasteClipboardMediaAsync(
+        string noMediaTitleKey,
+        string noMediaTitleDefault,
+        string noMediaMessageKey,
+        string noMediaMessageDefault)
     {
         if (SelectedContent == null)
         {
@@ -1722,26 +1809,9 @@ public partial class ContentLibraryViewModel(
         }
         else
         {
-            var title = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageTitle", "No Image Found");
-            var message = GetLocalizedString("Tools.PublisherStudio.Library.NoClipboardImageMessage", "No image, file, or image URL was found on the clipboard.");
+            var title = GetLocalizedString(noMediaTitleKey, noMediaTitleDefault);
+            var message = GetLocalizedString(noMediaMessageKey, noMediaMessageDefault);
             notificationService?.ShowWarning(title, message);
-        }
-    }
-
-    [RelayCommand]
-    private async Task AddVideoAsync()
-    {
-        if (SelectedContent == null)
-        {
-            return;
-        }
-
-        var files = await dialogService.ShowVideoFilesPickerAsync(
-            GetLocalizedString("Tools.PublisherStudio.Library.PickVideoTitle", "Select Video Files"));
-
-        if (files != null && files.Count > 0)
-        {
-            await AddMediaToSelectedContentAsync(files);
         }
     }
 

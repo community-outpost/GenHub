@@ -191,7 +191,7 @@ public partial class ContentDetailViewModel(
     private InstallableVariant? _selectedVariant;
 
     [ObservableProperty]
-    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault() ?? string.Empty;
+    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault(s => MediaFileHelper.IsRemoteHttpUrl(s)) ?? string.Empty;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -288,6 +288,62 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     private bool _isFullScreenMediaOpen;
+
+    [ObservableProperty]
+    private string? _videoPlayerUrl;
+
+    [ObservableProperty]
+    private string? _videoPlayerTitle;
+
+    [ObservableProperty]
+    private bool _isVideoPlayerOpen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxHeight))]
+    private bool _isVideoPlayerFullscreen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
+    private double _videoModalWidth = 960;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
+    private double _videoModalHeight = 620;
+
+    /// <summary>
+    /// Gets the effective width of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalWidth => IsVideoPlayerFullscreen ? double.NaN : VideoModalWidth;
+
+    /// <summary>
+    /// Gets the effective height of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalHeight => IsVideoPlayerFullscreen ? double.NaN : VideoModalHeight;
+
+    /// <summary>
+    /// Gets the minimum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinWidth => IsVideoPlayerFullscreen ? 0 : 560;
+
+    /// <summary>
+    /// Gets the minimum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinHeight => IsVideoPlayerFullscreen ? 0 : 380;
+
+    /// <summary>
+    /// Gets the maximum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxWidth => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1920;
+
+    /// <summary>
+    /// Gets the maximum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxHeight => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1200;
 
     [ObservableProperty]
     private bool _isLoadingDetails;
@@ -437,7 +493,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the collection of screenshot URLs.
     /// </summary>
-    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls);
+    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)));
 
     /// <summary>
     /// Gets the collection of tags associated with the content.
@@ -2622,7 +2678,7 @@ public partial class ContentDetailViewModel(
         var screenshots = sibling?.ScreenshotUrls ?? searchResult.ScreenshotUrls;
         if (screenshots != null)
         {
-            foreach (var shot in screenshots)
+            foreach (var shot in screenshots.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)))
             {
                 releaseItem.PreviewImages.Add(shot);
             }
@@ -3925,7 +3981,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        foreach (var screenshot in screenshots.Where(screenshot => !string.IsNullOrWhiteSpace(screenshot) && !Screenshots.Contains(screenshot)))
+        foreach (var screenshot in screenshots.Where(screenshot => MediaFileHelper.IsRemoteHttpUrl(screenshot) && !Screenshots.Contains(screenshot)))
         {
             Screenshots.Add(screenshot);
         }
@@ -3976,16 +4032,6 @@ public partial class ContentDetailViewModel(
         searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId ||
         searchResult.ResolverMetadata?.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey) == true;
 
-    private static bool IsVideoUrl(string url)
-    {
-        return url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase);
-    }
-
     private void PopulateCatalogAddons(CatalogContentItem catalogItem)
     {
         var hasAddonReleases = catalogItem.AddonReleases is { Count: > 0 };
@@ -4028,7 +4074,7 @@ public partial class ContentDetailViewModel(
             var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
             var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
 
-            var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+            var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
                 ?? catalogItem.Metadata?.BannerUrl
                 ?? catalogItem.Metadata?.IconUrl
                 ?? searchResult.IconUrl
@@ -4095,31 +4141,69 @@ public partial class ContentDetailViewModel(
         var videoList = new List<Video>();
         var seenVideos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddVideo(string? url, string title)
+        var screenshots = (catalogItem.Metadata?.ScreenshotUrls ?? [])
+            .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+            .ToList();
+        var fallbackArtwork = catalogItem.Metadata?.BackdropUrl
+            ?? catalogItem.Metadata?.BannerUrl
+            ?? searchResult.IconUrl
+            ?? catalogItem.Metadata?.IconUrl;
+
+        void AddVideo(string? url, string title, int fallbackIndex = 0, IReadOnlyList<string>? specificScreenshots = null)
         {
             if (string.IsNullOrWhiteSpace(url) || !seenVideos.Add(url))
             {
                 return;
             }
 
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
+            {
+                return;
+            }
+
+            // Official video thumbnail (e.g. YouTube poster) takes priority. For hosted/direct
+            // videos, fall back to screenshots or publisher artwork so cards render rich thumbnails.
+            var thumb = MediaFileHelper.TryGetYouTubeThumbnailUrl(url);
+            if (string.IsNullOrEmpty(thumb))
+            {
+                var pool = specificScreenshots is { Count: > 0 }
+                    ? specificScreenshots
+                    : screenshots;
+
+                if (fallbackIndex >= 0 && fallbackIndex < pool.Count)
+                {
+                    thumb = pool[fallbackIndex];
+                }
+                else if (pool.Count > 0)
+                {
+                    thumb = pool[0];
+                }
+                else
+                {
+                    thumb = fallbackArtwork;
+                }
+            }
+
             videoList.Add(new Video(
                 Title: title,
-                ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                ThumbnailUrl: thumb,
                 EmbedUrl: url,
                 Platform: "Web"));
         }
 
         if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
         {
-            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview");
+            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview", fallbackIndex: 0);
         }
 
         if (catalogItem.Metadata?.VideoUrls != null)
         {
             var idx = 1;
+            var videoIdx = 0;
             foreach (var vid in catalogItem.Metadata.VideoUrls)
             {
-                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}");
+                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}", fallbackIndex: videoIdx++);
             }
         }
 
@@ -4132,10 +4216,15 @@ public partial class ContentDetailViewModel(
                     continue;
                 }
 
+                var releaseScreenshots = (rel.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var rIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in rel.VideoUrls)
                 {
-                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}");
+                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}", fallbackIndex: videoIdx++, specificScreenshots: releaseScreenshots);
                 }
             }
         }
@@ -4149,10 +4238,15 @@ public partial class ContentDetailViewModel(
                     continue;
                 }
 
+                var addonScreenshots = (addon.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var aIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in addon.VideoUrls)
                 {
-                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}");
+                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}", fallbackIndex: videoIdx++, specificScreenshots: addonScreenshots);
                 }
             }
         }
@@ -4168,6 +4262,12 @@ public partial class ContentDetailViewModel(
         void AddImage(string? url, string title)
         {
             if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url))
+            {
+                return;
+            }
+
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
             {
                 return;
             }
@@ -4678,7 +4778,7 @@ public partial class ContentDetailViewModel(
         var category = searchResult.ContentType.GetDisplayName();
         var uploader = searchResult.AuthorName;
 
-        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
             ?? catalogItem.Metadata?.BannerUrl
             ?? catalogItem.Metadata?.IconUrl
             ?? searchResult.IconUrl
@@ -4736,7 +4836,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.ImageUrls != null)
         {
-            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewImages.Add(img);
             }
@@ -4744,7 +4844,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.VideoUrls != null)
         {
-            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewVideos.Add(vid);
             }
@@ -6695,89 +6795,72 @@ public partial class ContentDetailViewModel(
 
     /// <summary>
     /// Opens full-screen view for the specified media item or URL.
+    /// Direct videos stream in the in-app player; embed pages open in the system browser.
     /// </summary>
     [RelayCommand]
     private void OpenFullScreenMedia(object? item)
     {
-        if (item is Image img)
+        var decision = ContentDetailMediaDisplay.Resolve(item);
+        switch (decision.Action)
         {
-            FullScreenMediaUrl = img.FullSizeUrl ?? img.ThumbnailUrl;
-            FullScreenMediaTitle = img.Title;
-            IsFullScreenMediaOpen = true;
-        }
-        else if (item is Video vid)
-        {
-            if (!string.IsNullOrWhiteSpace(vid.EmbedUrl))
-            {
-                var targetUrl = vid.EmbedUrl;
-                if (targetUrl.Contains("/embed/", StringComparison.OrdinalIgnoreCase) &&
-                    targetUrl.Contains("youtube", StringComparison.OrdinalIgnoreCase))
+            case MediaDisplayAction.PlayVideo:
+                CloseFullScreenMedia();
+                IsVideoPlayerFullscreen = false;
+                VideoPlayerUrl = decision.Url;
+                VideoPlayerTitle = item is Video video
+                    ? video.Title
+                    : GetLocalizedString("Downloads.ContentDetail.VideoPreview", "Video Preview");
+                IsVideoPlayerOpen = true;
+                break;
+            case MediaDisplayAction.OpenExternally:
+                OpenMediaExternally(decision.Url);
+                break;
+            case MediaDisplayAction.ShowImage:
+                CloseVideoPlayer();
+                FullScreenMediaUrl = decision.Url;
+                FullScreenMediaTitle = item switch
                 {
-                    var embedParts = targetUrl.Split("/embed/", StringSplitOptions.RemoveEmptyEntries);
-                    if (embedParts.Length > 1)
-                    {
-                        var id = embedParts[1].Split('?')[0];
-                        if (!string.IsNullOrWhiteSpace(id))
-                        {
-                            targetUrl = $"{ApiConstants.YouTubeWatchUrlPrefix}{id}";
-                        }
-                    }
-                }
-
-                if (Uri.TryCreate(targetUrl, UriKind.Absolute, out var videoUri) &&
-                    (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    try
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = videoUri.AbsoluteUri,
-                            UseShellExecute = true,
-                        });
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to open video in browser: {Url}", targetUrl);
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("Refusing to open non-http/https video URL in browser: {Url}", targetUrl);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(vid.ThumbnailUrl))
-            {
-                FullScreenMediaUrl = vid.ThumbnailUrl;
-                FullScreenMediaTitle = vid.Title;
+                    Video titledVideo => titledVideo.Title,
+                    Image image => image.Title,
+                    _ => GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview"),
+                };
                 IsFullScreenMediaOpen = true;
-            }
+                break;
+            default:
+                // Unpresentable references are ignored.
+                break;
         }
-        else if (item is string url && !string.IsNullOrWhiteSpace(url))
-        {
-            if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
-                (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-            {
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = videoUri.AbsoluteUri,
-                        UseShellExecute = true,
-                    });
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to open video in browser: {Url}", url);
-                }
-            }
+    }
 
-            FullScreenMediaUrl = url;
-            FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
-            IsFullScreenMediaOpen = true;
-        }
+    /// <summary>
+    /// Opens a media URL in the system browser, notifying the user when the launch fails.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
+    [RelayCommand]
+    private void OpenVideoExternally(string? url)
+    {
+        OpenMediaExternally(url);
+    }
+
+    /// <summary>
+    /// Toggles full-screen presentation mode for the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleVideoPlayerFullscreen()
+    {
+        IsVideoPlayerFullscreen = !IsVideoPlayerFullscreen;
+    }
+
+    /// <summary>
+    /// Closes the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void CloseVideoPlayer()
+    {
+        IsVideoPlayerOpen = false;
+        IsVideoPlayerFullscreen = false;
+        VideoPlayerUrl = null;
+        VideoPlayerTitle = null;
     }
 
     /// <summary>
@@ -6789,6 +6872,18 @@ public partial class ContentDetailViewModel(
         IsFullScreenMediaOpen = false;
         FullScreenMediaUrl = null;
         FullScreenMediaTitle = null;
+    }
+
+    private void OpenMediaExternally(string? url)
+    {
+        if (!BrowserHelper.TryOpenUrl(url, logger))
+        {
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.VideoOpenFailedTitle", "Cannot Open Video"),
+                GetLocalizedString(
+                    "Downloads.ContentDetail.VideoOpenFailedMessage",
+                    "The video link could not be opened in a browser."));
+        }
     }
 
     private async Task LoadDependencySummaryAsync(string manifestId)

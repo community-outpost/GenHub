@@ -284,6 +284,16 @@ public static class HostingConstants
     public const string GoogleDriveFolderUrlTemplate = "https://drive.google.com/drive/folders/{0}";
 
     /// <summary>
+    /// Host serving Google Drive direct file downloads (extensionless media URLs).
+    /// </summary>
+    public const string GoogleDriveDirectDownloadHost = "drive.google.com";
+
+    /// <summary>
+    /// Host serving gateway file uploads (extensionless media URLs).
+    /// </summary>
+    public const string UploadThingFileHost = "utfs.io";
+
+    /// <summary>
     /// Name of the directory for storing Google Drive OAuth tokens.
     /// </summary>
     public const string GoogleDriveTokenDirectoryName = "google-drive-tokens";

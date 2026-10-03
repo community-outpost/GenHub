@@ -6,6 +6,7 @@
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:common="clr-namespace:GenHub.Common.Controls;assembly=GenHub"
              xmlns:parsers="clr-namespace:GenHub.Core.Models.Parsers;assembly=GenHub.Core"
              xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core"
              xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
@@ -1281,10 +1282,22 @@
                                                                     <Image controls:ImageLoader.Source="{Binding ThumbnailUrl}"
                                                                            Stretch="UniformToFill"
                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                    <!-- Placeholder tile for direct uploads with no poster frame -->
+                                                                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                                                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                                                        <Border Width="64" Height="64" CornerRadius="32" Background="#B3000000"
+                                                                                BorderBrush="#80FFFFFF" BorderThickness="1"
+                                                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            <PathIcon Data="M8 5v14l11-7z" Width="26" Height="26" Foreground="White"
+                                                                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0,0,0" />
+                                                                        </Border>
+                                                                    </Border>
                                                                     <!-- Play button overlay -->
                                                                     <Border Width="44" Height="44" CornerRadius="22" Background="#B3000000"
                                                                             BorderBrush="#80FFFFFF" BorderThickness="1"
-                                                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                            IsVisible="{Binding ThumbnailUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                         <PathIcon Data="M8 5v14l11-7z" Width="18" Height="18" Foreground="White"
                                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="3,0,0,0" />
                                                                     </Border>
@@ -1926,6 +1939,144 @@
                            VerticalAlignment="Center"
                            MaxHeight="680"
                            MaxWidth="1060" />
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+
+    <!-- In-App Video Player Modal Overlay -->
+    <Grid IsVisible="{Binding IsVideoPlayerOpen}"
+          Background="#D9000000">
+        <!-- Backdrop click to close -->
+        <Button Command="{Binding CloseVideoPlayerCommand}"
+                Background="Transparent"
+                BorderThickness="0"
+                Padding="0"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Panel Background="Transparent" />
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- Video Player Dialog -->
+        <Border x:Name="VideoModalBorder"
+                Classes.fullscreen="{Binding IsVideoPlayerFullscreen}"
+                ClipToBounds="True">
+            <Border.Styles>
+                <Style Selector="Border#VideoModalBorder">
+                    <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="CornerRadius" Value="12" />
+                    <Setter Property="Margin" Value="32" />
+                    <Setter Property="HorizontalAlignment" Value="Center" />
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                    <Setter Property="BoxShadow" Value="0 16 48 0 #80000000" />
+                </Style>
+                <Style Selector="Border#VideoModalBorder.fullscreen">
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="CornerRadius" Value="0" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                    <Setter Property="VerticalAlignment" Value="Stretch" />
+                    <Setter Property="BoxShadow" Value="none" />
+                </Style>
+            </Border.Styles>
+
+            <Grid x:Name="VideoModalGrid"
+                  RowDefinitions="Auto,*"
+                  Width="{Binding EffectiveVideoModalWidth}"
+                  Height="{Binding EffectiveVideoModalHeight}"
+                  MinWidth="{Binding EffectiveVideoModalMinWidth}"
+                  MinHeight="{Binding EffectiveVideoModalMinHeight}"
+                  MaxWidth="{Binding EffectiveVideoModalMaxWidth}"
+                  MaxHeight="{Binding EffectiveVideoModalMaxHeight}">
+
+                <!-- Modal Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="16,12" Background="Transparent">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding VideoPlayerTitle}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Command="{Binding ToggleVideoPlayerFullscreenCommand}"
+                                Foreground="{DynamicResource TextSecondary}"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                CornerRadius="6"
+                                Width="30"
+                                Height="30"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
+                            <Panel>
+                                <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                                          Width="12"
+                                          Height="12"
+                                          IsVisible="{Binding !IsVideoPlayerFullscreen}" />
+                                <PathIcon Data="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"
+                                          Width="12"
+                                          Height="12"
+                                          IsVisible="{Binding IsVideoPlayerFullscreen}" />
+                            </Panel>
+                        </Button>
+                        <Button Command="{Binding CloseVideoPlayerCommand}"
+                                Foreground="{DynamicResource TextSecondary}"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                CornerRadius="6"
+                                Width="30"
+                                Height="30"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Common.Close}">
+                            <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+                                    <Setter Property="Foreground" Value="White" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Video Player -->
+                <Border Grid.Row="1" Background="Black" Padding="12">
+                    <Panel>
+                        <common:VideoPlayerView SourceUrl="{Binding VideoPlayerUrl}"
+                                                 FallbackCommand="{Binding OpenVideoExternallyCommand}"
+                                                 IsFullscreen="{Binding IsVideoPlayerFullscreen}"
+                                                 ToggleFullscreenCommand="{Binding ToggleVideoPlayerFullscreenCommand}"
+                                                 HorizontalAlignment="Stretch"
+                                                 VerticalAlignment="Stretch" />
+
+                        <!-- Resize Grip (visible only in windowed mode) -->
+                        <Border x:Name="VideoModalResizeGrip"
+                                Width="20"
+                                Height="20"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Cursor="BottomRightCorner"
+                                Background="Transparent"
+                                Margin="0,0,-4,-4"
+                                IsVisible="{Binding !IsVideoPlayerFullscreen}">
+                            <PathIcon Data="M22 22h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm-4 4h-2v-2h2v2zm8-8h-2v-2h2v2z"
+                                      Width="10"
+                                      Height="10"
+                                      Foreground="{DynamicResource TextTertiary}" />
+                        </Border>
+                    </Panel>
                 </Border>
             </Grid>
         </Border>
