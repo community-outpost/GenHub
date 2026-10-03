@@ -60,7 +60,7 @@ public sealed class WorldBuilderViewModelTests : IDisposable
         _mockDialogService = new Mock<IDialogService>();
         _mockLocalizationService
             .Setup(s => s.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
-            .Returns((string key, object?[] args) => args != null && args.Length > 0 ? $"{key}:{string.Join(',', args)}" : key);
+            .Returns((string key, object?[] args) => args?.Length > 0 ? $"{key}:{string.Join(',', args)}" : key);
         _mockDialogService
             .Setup(s => s.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
             .ReturnsAsync(true);

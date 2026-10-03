@@ -52,8 +52,8 @@ public sealed class WbTerrainTests
     {
         var terrain = CreateTerrain();
         terrain.TileIndices[0] = 9999;
-        var u = new float[4] { 0.5f, 0.5f, 0.5f, 0.5f };
-        var v = new float[4] { 0.5f, 0.5f, 0.5f, 0.5f };
+        var u = new[] { 0.5f, 0.5f, 0.5f, 0.5f };
+        var v = new[] { 0.5f, 0.5f, 0.5f, 0.5f };
 
         var (flip, hasTexture) = WbTerrainUv.GetCellUv(terrain, CreateAtlas(), 0, 0, u, v);
 
