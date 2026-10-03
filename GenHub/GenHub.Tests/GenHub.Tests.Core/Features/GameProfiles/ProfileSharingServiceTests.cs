@@ -846,11 +846,14 @@ public class ProfileSharingServiceTests
     /// acquired through the provider search, preferring the shared version.
     /// </summary>
     /// <param name="cached">Whether the pool reports the original manifest as acquired.</param>
+    /// <param name="unsupportedSuccess">Whether acquisition succeeds with a foreign-only manifest.</param>
     /// <returns>A task representing the test.</returns>
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_ReResolvesSharedVersionAsync(bool cached)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_ReResolvesSharedVersionAsync(bool cached, bool unsupportedSuccess)
     {
         const string manifestId = "1.0.moddb.mod.crossplatform";
         var dependency = new SharedManifestDependency
@@ -870,9 +873,21 @@ public class ProfileSharingServiceTests
         SetUpImport(manifestId);
         _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(cached));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(manifestId),
+                Files = [new ManifestFile { RelativePath = "foreign.big" }],
+            }));
         var unsupported = new ContentSearchResult { Id = "unsupported", Name = "Cross Platform Mod", Version = "1.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
         _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(unsupported, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("Unsupported platform"));
+            .ReturnsAsync(unsupportedSuccess
+                ? OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+                {
+                    Id = ManifestId.Create(manifestId),
+                    Variants = [new ArtifactVariant { RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier] }],
+                })
+                : OperationResult<ContentManifest>.CreateFailure("Unsupported platform"));
         _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([newer, unsupported, shared]));
         _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(shared, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
@@ -924,11 +939,13 @@ public class ProfileSharingServiceTests
     /// warning, not as a missing download source, and leaves its shared size out of the download total.
     /// </summary>
     /// <param name="local">Whether the content is local rather than provider-backed.</param>
+    /// <param name="curated">Whether the publisher is curated.</param>
     /// <returns>A task representing the test.</returns>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task InspectSharedProfileAsync_WithDependencyForOtherPlatform_WarnsAndExcludesSizeAsync(bool local)
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public async Task InspectSharedProfileAsync_WithDependencyForOtherPlatform_WarnsAndExcludesSizeAsync(bool local, bool curated)
     {
         var package = new SharedGameProfilePackage
         {
@@ -938,11 +955,11 @@ public class ProfileSharingServiceTests
             [
                 new SharedManifestDependency
                 {
-                    ManifestId = local ? "1.0.local.mod.crossplatform" : "1.0.moddb.mod.crossplatform",
+                    ManifestId = local ? "1.0.local.mod.crossplatform" : (curated ? "1.0.moddb.mod.crossplatform" : "1.0.other.mod.crossplatform"),
                     DisplayName = "Local Cross Platform Mod",
                     Version = "1.0",
                     ContentType = ContentType.Mod,
-                    PublisherType = local ? PublisherTypeConstants.Local : PublisherTypeConstants.ModDB,
+                    PublisherType = local ? PublisherTypeConstants.Local : (curated ? PublisherTypeConstants.ModDB : "Other"),
                     PackageUrl = "https://utfs.io/f/foreign-local.zip",
                     DownloadSize = 5_000_000,
                     Files = [new ManifestFile { RelativePath = "mod.big", Hash = "foreign-hash", Size = 5_000_000, DownloadUrl = "https://utfs.io/f/foreign-local.zip" }],
@@ -953,11 +970,24 @@ public class ProfileSharingServiceTests
         _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
-        var result = await _service.InspectSharedProfileAsync(JsonSerializer.Serialize(package, TestJsonOptions));
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(l => l.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
+            .Returns((string key, object[] args) => $"Localized: {key}");
+        using var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            localizationService: localization.Object);
+        var result = await service.InspectSharedProfileAsync(JsonSerializer.Serialize(package, TestJsonOptions));
 
         Assert.True(result.Success, result.FirstError);
         Assert.Contains(local ? ProfileSecurityWarningCode.BuiltForOtherPlatform : ProfileSecurityWarningCode.RequiresPlatformResolution, result.Data!.SecurityWarningCodes);
         Assert.DoesNotContain(ProfileSecurityWarningCode.MissingDownloadSource, result.Data.SecurityWarningCodes);
+        Assert.Contains(result.Data.SecurityWarnings, w => w.StartsWith("Localized:", StringComparison.Ordinal));
+        Assert.Equal(!local, Assert.Single(result.Data.Manifests).RequiresProviderResolution);
         Assert.Equal(0, result.Data.TotalDownloadBytesRequired);
         var inspected = Assert.Single(result.Data.Manifests);
         Assert.False(inspected.IsCachedLocally);
@@ -3241,6 +3271,46 @@ public class ProfileSharingServiceTests
 
         Assert.False(result.Success);
         _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>Explicitly compatible cached variants satisfy foreign shares without provider access.</summary>
+    /// <param name="local">Whether the shared dependency is local content.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ForeignShare_WithCompatibleCachedVariant_InspectsAndImportsOfflineAsync(bool local)
+    {
+        var id = local ? "1.0.local.mod.crossplatform" : "1.0.moddb.mod.crossplatform";
+        SetUpImport(id);
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = id,
+            DisplayName = "Cached Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            PublisherType = local ? PublisherTypeConstants.Local : PublisherTypeConstants.ModDB,
+            RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier],
+        };
+        var stored = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host.big" }],
+            [new ManifestFile { RelativePath = "foreign.big" }]);
+        stored.Id = ManifestId.Create(id);
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(stored));
+        var request = CreateImportRequest(dependency);
+
+        var inspection = await _service.InspectSharedProfileAsync(JsonSerializer.Serialize(request.Package, TestJsonOptions));
+        var imported = await _service.ImportSharedProfileAsync(request);
+
+        Assert.True(inspection.Success, inspection.FirstError);
+        Assert.True(Assert.Single(inspection.Data!.Manifests).IsCachedLocally);
+        Assert.DoesNotContain(ProfileSecurityWarningCode.BuiltForOtherPlatform, inspection.Data.SecurityWarningCodes);
+        Assert.DoesNotContain(ProfileSecurityWarningCode.RequiresPlatformResolution, inspection.Data.SecurityWarningCodes);
+        Assert.True(imported.Success, imported.FirstError);
+        _contentOrchestratorMock.Verify(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static SharedProfileImportRequest CreateImportRequest(SharedManifestDependency dependency) => new()

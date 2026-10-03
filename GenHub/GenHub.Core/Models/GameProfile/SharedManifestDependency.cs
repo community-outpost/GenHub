@@ -11,6 +11,13 @@ namespace GenHub.Core.Models.GameProfile;
 public sealed class SharedManifestDependency
 {
     /// <summary>
+    /// Gets a value indicating whether inspection requires provider resolution instead of the sender's files.
+    /// This derived state is kept when foreign download metadata is removed from the preview.
+    /// </summary>
+    [JsonIgnore]
+    public bool RequiresProviderResolution { get; init; }
+
+    /// <summary>
     /// Gets the unique identifier of the manifest.
     /// </summary>
     public required string ManifestId { get; init; }

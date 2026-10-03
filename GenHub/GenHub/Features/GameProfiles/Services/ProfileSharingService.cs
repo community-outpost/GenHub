@@ -246,7 +246,7 @@ public class ProfileSharingService(
 
             var manifestSummary = manifestDiffResult.Data;
 
-            ValidateMissingDependencySources(manifestSummary.Manifests, securityWarnings, securityWarningCodes);
+            ValidateMissingDependencySources(manifestSummary.Manifests, securityWarnings, securityWarningCodes, localizationService);
 
             var (compatibleInstallations, matchedInstallationId) = await FindCompatibleInstallationsAsync(package.Profile.GameType, cancellationToken);
             var (suggestedName, hasNameConflict) = await DetermineSuggestedProfileNameAsync(package.Profile.Name, cancellationToken);
@@ -381,7 +381,8 @@ public class ProfileSharingService(
     /// <param name="dependency">The shared dependency.</param>
     /// <returns>Whether the sender's files must be replaced by a provider build.</returns>
     internal static bool RequiresPlatformResolution(SharedManifestDependency dependency) =>
-        IsBuiltForOtherPlatform(dependency) && !IsLocalOrSourcelessDependency(dependency);
+        !dependency.IsCachedLocally &&
+        (dependency.RequiresProviderResolution || (IsBuiltForOtherPlatform(dependency) && !IsLocalOrSourcelessDependency(dependency)));
 
     /// <summary>Explains that the compatible shared version must be located before its size is known.</summary>
     /// <param name="dependency">The shared dependency.</param>
@@ -400,8 +401,8 @@ public class ProfileSharingService(
         HasNoDownloadSource(dependency) || IsLocalBuiltForOtherPlatform(dependency);
 
     /// <summary>
-    /// Determines whether a dependency is not cached, carries no download URL, and is not a curated
-    /// dependency that import resolves through content providers.
+    /// Determines whether a dependency is not cached, targets this platform, carries no download
+    /// URL, and is not a curated dependency that import resolves through content providers.
     /// </summary>
     /// <param name="dependency">The inspected dependency.</param>
     /// <returns><c>true</c> when the dependency has no download source; otherwise <c>false</c>.</returns>
@@ -421,7 +422,7 @@ public class ProfileSharingService(
     internal static bool IsLocalBuiltForOtherPlatform(SharedManifestDependency dependency) =>
         !dependency.IsCachedLocally &&
         IsBuiltForOtherPlatform(dependency) &&
-        IsLocalOrSourcelessDependency(dependency);
+        !RequiresPlatformResolution(dependency);
 
     /// <summary>
     /// Releases managed and unmanaged resources.
@@ -1404,10 +1405,12 @@ public class ProfileSharingService(
     /// <param name="manifests">The manifest dependencies to validate.</param>
     /// <param name="securityWarnings">The list to which any security warnings will be appended.</param>
     /// <param name="securityWarningCodes">The optional list to which any security warning codes will be appended.</param>
+    /// <param name="localization">The application localization service.</param>
     private static void ValidateMissingDependencySources(
         IEnumerable<SharedManifestDependency> manifests,
         List<string> securityWarnings,
-        List<ProfileSecurityWarningCode>? securityWarningCodes = null)
+        List<ProfileSecurityWarningCode>? securityWarningCodes = null,
+        ILocalizationService? localization = null)
     {
         foreach (var manifest in manifests.Where(HasNoDownloadSource))
         {
@@ -1417,13 +1420,13 @@ public class ProfileSharingService(
 
         foreach (var manifest in manifests.Where(IsLocalBuiltForOtherPlatform))
         {
-            securityWarnings.Add(FormatBuiltForOtherPlatform(manifest, null));
+            securityWarnings.Add(FormatBuiltForOtherPlatform(manifest, localization));
             securityWarningCodes?.Add(ProfileSecurityWarningCode.BuiltForOtherPlatform);
         }
 
         foreach (var manifest in manifests.Where(RequiresPlatformResolution))
         {
-            securityWarnings.Add(FormatPlatformResolution(manifest, null));
+            securityWarnings.Add(FormatPlatformResolution(manifest, localization));
             securityWarningCodes?.Add(ProfileSecurityWarningCode.RequiresPlatformResolution);
         }
     }
@@ -2004,6 +2007,26 @@ public class ProfileSharingService(
         return instResult.Success ? instResult.Data : null;
     }
 
+    private async Task<bool> IsDependencyCachedForHostAsync(SharedManifestDependency dependency, CancellationToken cancellationToken)
+    {
+        var acquired = await manifestPool.IsManifestAcquiredAsync(dependency.ManifestId, cancellationToken);
+        if (acquired is not { Success: true, Data: true })
+        {
+            return false;
+        }
+
+        if (!IsBuiltForOtherPlatform(dependency))
+        {
+            return true;
+        }
+
+        // Old imports pooled the sender's resolved files as flat manifests, losing platform
+        // provenance. Only an explicitly variant-aware cached manifest can override a foreign share.
+        var stored = await manifestPool.GetManifestAsync(dependency.ManifestId, cancellationToken);
+        return stored is { Success: true, Data: { Variants.Count: > 0 } manifest } &&
+            ManifestVariantResolver.SupportsRuntime(manifest);
+    }
+
     private async Task<OperationResult<string>> EnsureDependencyManifestAcquiredAsync(
         SharedManifestDependency dep,
         int currentIndex,
@@ -2016,13 +2039,9 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
         }
 
-        if (!IsBuiltForOtherPlatform(dep))
+        if (await IsDependencyCachedForHostAsync(dep, cancellationToken))
         {
-            var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
-            if (isCachedResult.Success && isCachedResult.Data)
-            {
-                return OperationResult<string>.CreateSuccess(dep.ManifestId);
-            }
+            return OperationResult<string>.CreateSuccess(dep.ManifestId);
         }
 
         logger?.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
@@ -3376,7 +3395,15 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateSuccess(acquireRes.Data.Id.Value);
         }
 
-        if (!acquireRes.Success)
+        if (acquireRes.Success && acquireRes.Data != null)
+        {
+            logger?.LogWarning(
+                "Acquired dependency '{DisplayName}' ({ManifestId}) from provider '{Provider}' has no compatible runtime variant; trying another candidate.",
+                dependency.DisplayName,
+                acquireRes.Data.Id.Value,
+                match.ProviderName);
+        }
+        else if (!acquireRes.Success)
         {
             logger?.LogWarning(
                 "Content acquisition failed for dependency '{DisplayName}' ({ManifestId}) from provider '{Provider}': {Error}",
@@ -3493,10 +3520,7 @@ public class ProfileSharingService(
             long rawSize = Math.Max(reqManifest.DownloadSize, reqManifest.Files?.Sum(f => Math.Clamp(f.Size, 0, ProfileSharingConstants.MaxDownloadedFileBytes)) ?? 0);
             long missingBytes = Math.Max(0, rawSize);
             var foreignPlatform = IsBuiltForOtherPlatform(reqManifest);
-            var acquiredResult = foreignPlatform
-                ? OperationResult<bool>.CreateSuccess(false)
-                : await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
-            if (acquiredResult.Success && acquiredResult.Data)
+            if (await IsDependencyCachedForHostAsync(reqManifest, cancellationToken))
             {
                 isCached = true;
                 cachedCount++;
@@ -3506,7 +3530,7 @@ public class ProfileSharingService(
                 missingCount++;
 
                 // A dependency shared for another platform is not downloaded from the shared files, so
-                // their size says nothing about what this platform will download.
+                // its size says nothing about what this platform will download.
                 if (!IsBuiltForOtherPlatform(reqManifest))
                 {
                     totalMissingDownloadBytes += missingBytes;
@@ -3529,6 +3553,7 @@ public class ProfileSharingService(
                 PackageHash = foreignPlatform ? null : reqManifest.PackageHash,
                 Files = foreignPlatform ? [] : reqManifest.Files ?? [],
                 RuntimeIdentifiers = reqManifest.RuntimeIdentifiers,
+                RequiresProviderResolution = !isCached && RequiresPlatformResolution(reqManifest),
             });
         }
 
