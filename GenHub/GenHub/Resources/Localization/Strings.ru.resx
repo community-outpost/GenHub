@@ -13575,6 +13575,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>Провайдер не поддерживает хостинг оформления. Используйте прямые ссылки на изображения или смените провайдера.</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingMediaFormat" xml:space="preserve">
+    <value>Загрузка медиа {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaFileMissingFormat" xml:space="preserve">
+    <value>Медиафайл не найден: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedFormat" xml:space="preserve">
+    <value>Не удалось загрузить медиа {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedTitle" xml:space="preserve">
+    <value>Ошибка загрузки медиа</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
+    <value>Провайдер не поддерживает хостинг медиа. Используйте прямые ссылки на изображения/видео или смените провайдера.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>Неразрешённые медиафайлы пропущены</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>Не удалось сопоставить ссылки на медиафайлы с локальными файлами. Количество ссылок: {0}. Ссылки оставлены без изменений.</value>
+  </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>Не удалось прочитать перетащенный файл: {0}</value>
   </data>
@@ -13763,6 +13784,51 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>Воспроизвести или открыть видео</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>Предпросмотр видео</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>Не удалось открыть видео</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>Не удалось открыть ссылку на видео в браузере.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>Воспроизвести / Пауза</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>Назад на 10 секунд</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>Вперед на 10 секунд</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>Во весь экран</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>Выйти из полноэкранного режима</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>Буферизация... {0}%</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>Отключить / Включить звук</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>Загрузка видео...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>Воспроизведение видео недоступно на этом устройстве.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>Не удалось воспроизвести это видео.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>Открыть в браузере</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>Альтернативные варианты (напр., языки, разрешения)</value>
@@ -14139,6 +14205,24 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
     <value>Процесс завершился до окончания запуска. Подробности см. в журнале.</value>
   </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>Процесс завершился сразу после запуска с кодом {0} (0x{1}). {2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>Не удалось найти необходимую библиотеку DLL. Убедитесь, что все DLL, поставляемые с исполняемым файлом, находятся в его папке.</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>Программа или одна из её библиотек DLL недопустима для этой системы. Часто причина в смешении 32-битных и 64-битных файлов.</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>Не удалось инициализировать необходимую библиотеку DLL.</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>Процесс аварийно завершился из-за нарушения доступа к памяти.</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>Процесс остановил себя после критической ошибки (переполнение буфера стека или аварийное завершение fail-fast).</value>
+  </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>Инструмент запущен</value>
   </data>
@@ -14181,6 +14265,18 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
     <value>Вставить изображение, файл или URL из буфера обмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideo" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideoTooltip" xml:space="preserve">
+    <value>Вставьте видеофайл или URL из буфера обмена</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoTitle" xml:space="preserve">
+    <value>Видео не найдено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoMessage" xml:space="preserve">
+    <value>В буфере обмена не найден видеофайл или URL видео.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
     <value>Добавить видео файл</value>
@@ -17684,5 +17780,8 @@ Error: не удалось: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>Не удалось открыть целевую текстуру.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>
 </root>

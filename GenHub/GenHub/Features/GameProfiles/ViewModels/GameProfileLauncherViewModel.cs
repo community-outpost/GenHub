@@ -29,6 +29,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -3001,6 +3002,7 @@ public partial class GameProfileLauncherViewModel(
         var message = e.UnmountableArchives.Count > 0
             ? localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", string.Join(", ", e.UnmountableArchives), e.ExitCode!)
             : localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Message", e.ExitCode!);
+        message = LaunchExitMessages.AppendExplanation(message, e.ExitCode, localizationService);
         var text = profile == null ? message : $"{profile.Name}: {message}";
         notificationService.ShowError(localizationService["GameProfiles.Notification.UnexpectedExit.Title"], text);
 

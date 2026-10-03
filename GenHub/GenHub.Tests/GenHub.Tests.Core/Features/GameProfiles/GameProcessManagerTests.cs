@@ -9,6 +9,7 @@ using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Globalization;
 
 namespace GenHub.Tests.Core.Features.GameProfiles;
 
@@ -570,6 +571,35 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// A process that exits immediately with STATUS_DLL_NOT_FOUND fails the launch with the raw
+    /// code, its hexadecimal form and the missing-DLL explanation instead of the generic wording.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [WindowsProcessFact]
+    public async Task StartProcessAsync_WhenProcessExitsWithDllNotFound_ExplainsTheMissingDllAsync()
+    {
+        var message = await StartCmdExitAsync(StartupExitCodeConstants.StatusDllNotFound);
+
+        Assert.Contains("-1073741515", message);
+        Assert.Contains("0xC0000135", message);
+        Assert.Contains(LaunchExitMessages.GetString(StartupExitCodeConstants.DllNotFoundKey, null), message);
+        Assert.Equal(LaunchExitMessages.DescribeImmediateExit(StartupExitCodeConstants.StatusDllNotFound, string.Empty, null), message);
+    }
+
+    /// <summary>
+    /// A process that exits immediately with an ordinary failure code keeps the generic wording.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [WindowsProcessFact]
+    public async Task StartProcessAsync_WhenProcessExitsWithUnknownCode_KeepsTheGenericWordingAsync()
+    {
+        var message = await StartCmdExitAsync(ProcessConstants.ExitCodeGeneralError);
+
+        Assert.StartsWith("Process exited immediately with code 1.", message);
+        Assert.DoesNotContain(LaunchExitMessages.GetString(StartupExitCodeConstants.DllNotFoundKey, null), message);
+    }
+
+    /// <summary>
     /// When the launcher exits immediately with code 0 and the subsequent adoption poll loop is cancelled,
     /// the operation must throw OperationCanceledException and clean up any resources.
     /// </summary>
@@ -765,6 +795,36 @@ public class GameProcessManagerTests
                 // Ignored if access denied during process termination
             }
         }
+    }
+
+    /// <summary>Starts <c>cmd.exe /c exit</c> through the real launch path and returns the failure message.</summary>
+    /// <param name="exitCode">The exit code cmd.exe ends with.</param>
+    /// <returns>The joined launch errors.</returns>
+    private static async Task<string> StartCmdExitAsync(int exitCode)
+    {
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(service => service.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => LaunchExitMessages.GetString(key, null, arguments));
+        using var processManager = new GameProcessManager(
+            NullLogger<GameProcessManager>.Instance,
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            localization.Object,
+            Mock.Of<IFlatpakProvisioner>());
+
+        var result = await processManager.StartProcessAsync(new GameLaunchConfiguration
+        {
+            ExecutablePath = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
+            WorkingDirectory = Path.GetTempPath(),
+            Arguments = new Dictionary<string, string>
+            {
+                ["_pos0"] = "/c",
+                ["_pos1"] = "exit",
+                ["_pos2"] = exitCode.ToString(CultureInfo.InvariantCulture),
+            },
+        });
+
+        Assert.False(result.Success);
+        return string.Join(" ", result.Errors);
     }
 
     /// <summary>

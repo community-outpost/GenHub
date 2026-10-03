@@ -1181,6 +1181,49 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// A client that dies with STATUS_DLL_NOT_FOUND is reported with the raw code and an
+    /// explanation that a DLL is missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    /// <param name="includeArchives">Whether archive diagnostics accompany the exit code.</param>
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProcessExitedWithDllNotFound_ExplainsTheMissingDllAsync(bool includeArchives)
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Missing DLL Profile");
+        vm.Profiles.Add(profile);
+        vm.Receive(new ProfileLaunchedMessage("profile-1", 4251));
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4251,
+            ExitCode = StartupExitCodeConstants.StatusDllNotFound,
+            UnmountableArchives = includeArchives ? ["TexturesZH.big"] : [],
+        });
+
+        if (includeArchives)
+        {
+            Assert.Contains("TexturesZH.big", vm.StatusMessage);
+        }
+
+        Assert.Contains("-1073741515", vm.StatusMessage);
+        Assert.Contains("DLL", vm.StatusMessage);
+        notificationService.Verify(
+            n => n.ShowError(
+                "Game Exited Unexpectedly",
+                It.Is<string>(s => s.Contains("-1073741515") && s.Contains("A required DLL could not be found")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once());
+    }
+
+    /// <summary>
     /// A clean exit or a requested stop that arrives after the stop message is not a
     /// failure: no error is shown and the status line is left alone.
     /// </summary>
