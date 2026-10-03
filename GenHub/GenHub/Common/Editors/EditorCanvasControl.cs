@@ -278,7 +278,6 @@ public class EditorCanvasControl : ContentControl
         double newZoom = Math.Clamp(Zoom * factor, MinZoom, MaxZoom);
         if (newZoom <= 0 || !double.IsFinite(newZoom) || Math.Abs(newZoom - Zoom) < 0.0001)
         {
-            e.Handled = true;
             return;
         }
 
@@ -290,7 +289,6 @@ public class EditorCanvasControl : ContentControl
         _pendingZoomScale = newZoom / Zoom;
         _pendingFrameOffset = null;
         Zoom = newZoom;
-        e.Handled = true;
     }
 
     private void OnScrollLayoutUpdated(object? sender, EventArgs e)

@@ -622,6 +622,10 @@ public sealed class IniEditorPreviewTests
             viewModel.PreviewSelectedMeshIndex = 1;
             Assert.True(viewModel.PreviewRelatedObjects[1].IsHighlighted);
             Assert.False(viewModel.PreviewRelatedObjects[0].IsHighlighted);
+
+            viewModel.SelectedPreviewMesh = viewModel.PreviewMeshes[2];
+            Assert.True(viewModel.PreviewRelatedObjects[2].IsHighlighted);
+            Assert.False(viewModel.PreviewRelatedObjects[1].IsHighlighted);
         }
         finally
         {

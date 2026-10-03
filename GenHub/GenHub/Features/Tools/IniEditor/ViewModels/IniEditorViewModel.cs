@@ -63,6 +63,10 @@ public sealed partial class IniEditorViewModel(
     private const string TextSecondaryBrushKey = ThemeResourceKeys.TextSecondary;
     private const string SuccessBrushKey = ThemeResourceKeys.SuccessBrush;
     private const string WarningBrushKey = ThemeResourceKeys.WarningBrush;
+    private const string PreviewParseErrorKey = "Tools.IniEditor.Preview3D.ParseError";
+    private const string SaveFailureTitleKey = "Tools.IniEditor.Save.FailureTitle";
+    private const string SaveFailureMessageKey = "Tools.IniEditor.Save.FailureMessage";
+    private const string SaveFailureLogTemplate = "Failed to save INI file {Path}";
 
     private static readonly (string Key, string Value)[] UpgradeHookupTemplate =
     [
@@ -538,7 +542,8 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether the selected clip can play.
     /// </summary>
-    public bool CanPreviewPlay => HasPreviewScene && SelectedPreviewClip?.IsSamplable == true && PreviewFrameCount >= 1;
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated preview properties.")]
+    public bool CanPreviewPlay => HasPreviewScene && SelectedPreviewClip is { IsSamplable: true } && PreviewFrameCount >= 1;
 
     /// <summary>
     /// Gets a value indicating whether draw modules reference the selected preview mesh.
@@ -578,6 +583,7 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets a value indicating whether the previewed model is inherited from another block.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated preview model source text.")]
     public bool HasPreviewModelSource => !string.IsNullOrEmpty(PreviewModelSourceText);
 
     /// <summary>
@@ -805,6 +811,7 @@ public sealed partial class IniEditorViewModel(
     /// <summary>
     /// Gets the selected node when it wraps an editable block, or null for group headers.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads source-generated SelectedNode property.")]
     private IniTreeNodeViewModel? EditableSelectedNode => SelectedNode is { IsGroupHeader: false } ? SelectedNode : null;
 
     /// <summary>
@@ -1979,7 +1986,7 @@ public sealed partial class IniEditorViewModel(
         }
         catch (OperationCanceledException)
         {
-            throw;
+            return;
         }
         catch (IOException ex)
         {
@@ -2212,6 +2219,7 @@ public sealed partial class IniEditorViewModel(
         return cloned is { Success: true } ? cloned.Data : null;
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private IEnumerable<(string OwnerType, IniField Field)> EnumerateBlockFields(IniBlock block)
     {
         var queue = new Queue<IniBlock>();
@@ -2231,6 +2239,7 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private IniResolutionHopViewModel RootResolutionHop(IniBlock root) =>
         new(root.BlockType, root.Name, FilePath, false, false, true);
 
@@ -2249,6 +2258,7 @@ public sealed partial class IniEditorViewModel(
     private IniResolutionHopViewModel HopForEntry(IniReferenceEntry entry, bool isReverse) =>
         new(entry.BlockType, entry.Name, entry.FilePath, IsExternalPath(entry.FilePath), isReverse, false);
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private bool IsExternalPath(string? filePath) =>
         !string.IsNullOrEmpty(filePath) && !string.Equals(filePath, FilePath, PathHelper.PathComparison);
 
@@ -2322,8 +2332,9 @@ public sealed partial class IniEditorViewModel(
     private IReadOnlyList<IniBlock> ResolveCommandSetObjects(IniBlock block)
     {
         var buttons = block.Fields
-            .Where(field => !string.IsNullOrWhiteSpace(field.Value))
-            .SelectMany(field => FindBlocks(IniConstants.BlockTypes.CommandButton, field.Value.Trim()));
+            .Select(field => field.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .SelectMany(value => FindBlocks(IniConstants.BlockTypes.CommandButton, value.Trim()));
         var related = new List<IniBlock>();
         foreach (var button in buttons)
         {
@@ -4192,16 +4203,10 @@ public sealed partial class IniEditorViewModel(
         return merged.Count > 0 ? merged : null;
     }
 
-    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private void AddUniqueSuggestions(List<string> merged, HashSet<string> seen, IReadOnlyList<string> candidates)
     {
-        foreach (var candidate in candidates)
-        {
-            if (seen.Add(candidate))
-            {
-                merged.Add(candidate);
-            }
-        }
+        merged.AddRange(candidates.Where(seen.Add));
     }
 
     private IReadOnlyList<string>? ResolvePairTargets(string key, IniFieldSchema? schema, SuggestionScope scope)
@@ -4706,7 +4711,7 @@ public sealed partial class IniEditorViewModel(
         {
             logger.LogWarning("Refusing to save INI file {Path}: recovery discarded source lines", filePath);
             Notifications.ShowError(
-                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
+                Localization.GetString(SaveFailureTitleKey),
                 Localization.GetString("Tools.IniEditor.Save.DiscardedContentMessage"),
                 NotificationDurations.Long);
             return;
@@ -4735,36 +4740,12 @@ public sealed partial class IniEditorViewModel(
                 Localization.GetString("Tools.IniEditor.Save.SuccessMessage", DocumentTitle),
                 NotificationDurations.Medium);
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
+            logger.LogError(ex, SaveFailureLogTemplate, filePath);
             Notifications.ShowError(
-                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
-                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
-            Notifications.ShowError(
-                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
-                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-        }
-        catch (ArgumentException ex)
-        {
-            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
-            Notifications.ShowError(
-                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
-                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
-                NotificationDurations.Long);
-        }
-        catch (NotSupportedException ex)
-        {
-            logger.LogError(ex, "Failed to save INI file {Path}", filePath);
-            Notifications.ShowError(
-                Localization.GetString("Tools.IniEditor.Save.FailureTitle"),
-                Localization.GetString("Tools.IniEditor.Save.FailureMessage", ex.Message),
+                Localization.GetString(SaveFailureTitleKey),
+                Localization.GetString(SaveFailureMessageKey, ex.Message),
                 NotificationDurations.Long);
         }
     }
@@ -5423,7 +5404,7 @@ public sealed partial class IniEditorViewModel(
         {
             // Fire-and-forget worker boundary: never let the loading state spin forever.
             logger.LogWarning(ex, "Model preview resolution threw for {Model}", model);
-            PostToUIThread(() => ApplyPreviewFailure(model, generation, "Tools.IniEditor.Preview3D.ParseError", true));
+            PostToUIThread(() => ApplyPreviewFailure(model, generation, PreviewParseErrorKey, true));
             return;
         }
 
@@ -5435,7 +5416,7 @@ public sealed partial class IniEditorViewModel(
         if (resolved == null || !resolved.Success || resolved.Data == null)
         {
             bool notFound = resolved != null && resolved.FirstError?.StartsWith(W3dConstants.ModelNotFoundPrefix, StringComparison.Ordinal) == true;
-            string key = notFound ? "Tools.IniEditor.Preview3D.NotFound" : "Tools.IniEditor.Preview3D.ParseError";
+            string key = notFound ? "Tools.IniEditor.Preview3D.NotFound" : PreviewParseErrorKey;
             PostToUIThread(() => ApplyPreviewFailure(model, generation, key, !notFound));
             return;
         }
@@ -5461,7 +5442,7 @@ public sealed partial class IniEditorViewModel(
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
         {
             logger.LogWarning(ex, "Failed to build 3D preview scene for {Model}", model);
-            PostToUIThread(() => ApplyPreviewFailure(model, generation, "Tools.IniEditor.Preview3D.ParseError", true));
+            PostToUIThread(() => ApplyPreviewFailure(model, generation, PreviewParseErrorKey, true));
         }
     }
 
@@ -5509,7 +5490,7 @@ public sealed partial class IniEditorViewModel(
         {
             // Fire-and-forget worker boundary: never let the loading state spin forever.
             logger.LogWarning(ex, "Composite preview gather threw for {Block}", root.Name);
-            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.ParseError", false));
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, PreviewParseErrorKey, false));
             return;
         }
 
@@ -5549,7 +5530,7 @@ public sealed partial class IniEditorViewModel(
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
         {
             logger.LogWarning(ex, "Failed to build composite preview scene for {Block}", root.Name);
-            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.ParseError", false));
+            PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, PreviewParseErrorKey, false));
         }
     }
 
@@ -5887,7 +5868,7 @@ public sealed partial class IniEditorViewModel(
         return false;
     }
 
-    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private Dictionary<string, int> BoneMap(W3dModel model)
     {
         var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -5899,10 +5880,7 @@ public sealed partial class IniEditorViewModel(
 
         foreach (var subObject in level.SubObjects.Where(s => !string.IsNullOrWhiteSpace(s.MeshName)))
         {
-            if (!map.ContainsKey(subObject.MeshName))
-            {
-                map[subObject.MeshName] = (int)subObject.BoneIndex;
-            }
+            map.TryAdd(subObject.MeshName, (int)subObject.BoneIndex);
         }
 
         return map;
@@ -6153,6 +6131,7 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Mutates source-generated preview playback properties.")]
     private void OnPreviewPlaybackTick(object? sender, EventArgs e)
     {
         if (PreviewFrameCount < 1)
@@ -6368,6 +6347,7 @@ public sealed partial class IniEditorViewModel(
         }
 
         RebuildPreviewMeshModules();
+        SyncCardHighlight();
     }
 
     partial void OnSelectedPreviewClipChanged(W3dAnimationClip? value)

@@ -21,7 +21,7 @@ namespace GenHub.Common.Controls;
 /// OpenGL viewer rendering textured W3D models with skeleton overlay,
 /// orbit camera, and click-to-select sub-object picking.
 /// </summary>
-public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
+public sealed class W3dViewerControl : OpenGlControlBase
 {
     /// <summary>
     /// The rendered scene.
@@ -411,7 +411,7 @@ public sealed class W3dViewerControl : OpenGlControlBase, ICustomHitTest
     /// </summary>
     /// <param name="point">The point in the viewer local coordinate space.</param>
     /// <returns>True when the point falls inside the viewer bounds.</returns>
-    bool ICustomHitTest.HitTest(Point point)
+    public bool HitTest(Point point)
     {
         return new Rect(Bounds.Size).Contains(point);
     }
