@@ -449,6 +449,12 @@ public class PublishShareUploadFixTests
         Assert.NotNull(renamed);
         Assert.Equal("old-remote-id", renamed.FileId);
         Assert.Equal("https://example.com/catalog-old.json", renamed.Url);
+
+        Assert.NotEmpty(savedSnapshots);
+        var lastPersisted = savedSnapshots.Last().States[HostingConstants.GoogleDrive].Catalogs.Find(c => c.CatalogId == "new-cat-id");
+        Assert.NotNull(lastPersisted);
+        Assert.Equal("old-remote-id", lastPersisted.FileId);
+        Assert.Equal("https://example.com/catalog-old.json", lastPersisted.Url);
     }
 
     /// <summary>
