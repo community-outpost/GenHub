@@ -263,7 +263,7 @@ public static class WorkspaceCompatibilityHelper
         if (string.IsNullOrWhiteSpace(launchExecutable))
         {
             launchExecutable = configuration.Manifests
-                .SelectMany(m => m.Files ?? [])
+                .SelectMany(ResolveFilesOrWindowsVariant)
                 .Select(f => f.RelativePath)
                 .FirstOrDefault(CommandLineHelper.IsWindowsExecutable);
         }
@@ -678,22 +678,30 @@ public static class WorkspaceCompatibilityHelper
             return false;
         }
 
-        return manifests.Any(m =>
-        {
-            var files = ManifestVariantResolver.ResolveFiles(m);
-            if (files.Count == 0 && m.Variants.Count > 0)
-            {
-                files = ManifestVariantResolver.ResolveFiles(m, GameClientConstants.WindowsX86RuntimeIdentifier);
-                if (files.Count == 0)
-                {
-                    files = ManifestVariantResolver.ResolveFiles(m, GameClientConstants.WindowsX64RuntimeIdentifier);
-                }
-            }
+        return manifests.Any(m => ResolveFilesOrWindowsVariant(m).Any(f =>
+            f.InstallTarget == ContentInstallTarget.Workspace &&
+            !string.IsNullOrWhiteSpace(f.RelativePath) &&
+            ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath)));
+    }
 
-            return files.Any(f => f.InstallTarget == ContentInstallTarget.Workspace &&
-                                  !string.IsNullOrWhiteSpace(f.RelativePath) &&
-                                  ManifestVariantResolver.PathsMatch(f.RelativePath, relativePath));
-        });
+    /// <summary>
+    /// Resolves the host variant's files, falling back to the Windows variants only when no
+    /// variant supports the host, since a Windows client may run through a compatibility runner.
+    /// A host variant that matches but declares no files is kept as it is.
+    /// </summary>
+    /// <param name="manifest">The manifest to resolve.</param>
+    /// <returns>The host files, or the first non-empty Windows variant's files.</returns>
+    private static IReadOnlyList<ManifestFile> ResolveFilesOrWindowsVariant(ContentManifest manifest)
+    {
+        if (ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return ManifestVariantResolver.ResolveFiles(manifest);
+        }
+
+        var files = ManifestVariantResolver.ResolveFiles(manifest, GameClientConstants.WindowsX86RuntimeIdentifier);
+        return files.Count > 0
+            ? files
+            : ManifestVariantResolver.ResolveFiles(manifest, GameClientConstants.WindowsX64RuntimeIdentifier);
     }
 
     private static void TryDeleteWorkspaceFile(string filePath, string description, ILogger logger)

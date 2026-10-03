@@ -1034,6 +1034,12 @@ Error messages for manifests whose files or platform variants cannot be stored, 
 | `NoHostVariant` | `"Manifest has no variant for this host"` | Storing a manifest with no variant for the current host |
 | `NoHostVariantForManifest` | `"Manifest {0} has no variant for this host ({1})"` | Retrieving a manifest with no variant for the current host; `{0}` is the manifest ID, `{1}` the runtime identifier |
 | `RequiredFileUnavailableInCas` | `"Required file {0} is unavailable in CAS"` | A required file whose CAS object is missing; `{0}` is the relative path |
+| `NoHostVariantForValidation` | `"Manifest has no variant supporting this host ({0})."` | Validating a manifest with no variant for the current host; `{0}` is the runtime identifier |
+| `ManifestFileMissingRelativePath` | `"Manifest file is missing its RelativePath."` | Integrity check of a file entry without a relative path |
+| `VariantIsNull` | `"Variant at index {0} is null."` | Structural check of a null variant; `{0}` is the variant index |
+| `FileCollectionIsNull` | `"Manifest Files collection{0} is null."` | Structural check of a null file list; `{0}` is the location suffix, such as `" in variant 1"` |
+| `FileEntryIsNull` | `"File at index {0}{1} is null."` | Structural check of a null file entry; `{0}` is the file index, `{1}` the location suffix |
+| `FileEntryMissingRelativePath` | `"File at index {0}{1} is missing its RelativePath."` | Structural check of a file entry without a relative path; `{0}` is the file index, `{1}` the location suffix |
 
 ---
 

@@ -83,16 +83,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             // Deduplicate files by RelativePath with priority ordering (GameClient > GameInstallation)
             // so lower-priority sources cannot overwrite higher-priority files like modded clients.
             // ONLY include files where InstallTarget is Workspace.
-            var prioritizedFiles = configuration.Manifests
-                .SelectMany((manifest, index) => (manifest.Files ?? Enumerable.Empty<ManifestFile>())
-                    .Where(f => f.InstallTarget == ContentInstallTarget.Workspace)
-                    .Select(file => new { File = file, Manifest = manifest, ManifestIndex = index }))
-                .GroupBy(x => x.File.RelativePath, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g
-                    .OrderByDescending(x => ContentTypePriority.GetPriority(x.Manifest.ContentType))
-                    .ThenByDescending(x => x.ManifestIndex) // deterministic tie-breaker
-                    .First())
-                .ToList();
+            var prioritizedFiles = configuration.GetWorkspaceUniqueFileEntries();
 
             var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
@@ -265,15 +256,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 throw WrapLinkException(file.RelativePath, symlinkEx, isCrossVolume: true);
             }
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 
     private static Exception WrapLinkException(string relativePath, Exception ex, bool isCrossVolume = false)
