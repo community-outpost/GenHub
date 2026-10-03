@@ -772,10 +772,24 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the wide backdrop/cover URL for the detail header (backdrop preferred, banner fallback).
     /// </summary>
-    public string? BackdropUrl =>
-        !string.IsNullOrWhiteSpace(searchResult.BackdropUrl)
-            ? searchResult.BackdropUrl
-            : searchResult.BannerUrl;
+    public string? BackdropUrl
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(searchResult.BackdropUrl))
+            {
+                return searchResult.BackdropUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchResult.BannerUrl))
+            {
+                return searchResult.BannerUrl;
+            }
+
+            return PublisherInfoConstants.GetPublisherCover(searchResult.ProviderName, searchResult.Id)
+                ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult);
+        }
+    }
 
     /// <summary>
     /// Gets the publisher-defined accent color hex for this content, if any.
@@ -3738,6 +3752,9 @@ public partial class ContentDetailViewModel(
                 var portableUrl = searchResult.GetData<GeneralsOnlineRelease>()?.PortableUrl;
                 var downloadUrl = !string.IsNullOrWhiteSpace(portableUrl) ? portableUrl : searchResult.SourceUrl;
                 var fileName = GetFileNameFromUrl(downloadUrl) ?? $"{searchResult.Name}.zip";
+                var releaseThumbnail = !string.IsNullOrWhiteSpace(searchResult.IconUrl)
+                    ? searchResult.IconUrl
+                    : PublisherInfoConstants.GetPublisherLogo(searchResult.ProviderName, searchResult.Id);
                 var file = new DownloadableFile(
                     Name: searchResult.Name,
                     DownloadUrl: downloadUrl,
@@ -3749,6 +3766,7 @@ public partial class ContentDetailViewModel(
                     Uploader: searchResult.AuthorName,
                     Filename: fileName,
                     Description: searchResult.Description,
+                    ThumbnailUrl: releaseThumbnail,
                     FileSectionType: FileSectionType.Downloads);
                 Files = [file];
                 PopulateReleases(Files);
@@ -7917,7 +7935,7 @@ public partial class ContentDetailViewModel(
             SizeDisplay = file.SizeDisplay,
             DownloadUrl = file.DownloadUrl,
             DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
+            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, (!string.IsNullOrWhiteSpace(searchResult.IconUrl) ? searchResult.IconUrl : PublisherInfoConstants.GetPublisherLogo(searchResult.ProviderName, searchResult.Id)) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
             Category = file.Category,
             ContentType = mappedType,
             File = file,

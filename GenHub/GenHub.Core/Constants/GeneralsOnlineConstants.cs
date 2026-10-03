@@ -95,10 +95,10 @@ public static class GeneralsOnlineConstants
     public const string ThemeColor = "#FF8C00";
 
     /// <summary>Path to publisher logo asset.</summary>
-    public const string LogoSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_logo.png";
+    public const string LogoSource = UriConstants.GeneralsOnlineLogoUri;
 
     /// <summary>Path to publisher cover asset.</summary>
-    public const string CoverSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_cover.png";
+    public const string CoverSource = "/Assets/Covers/usa-cover.jpg";
 
     /// <summary>Portable release description suffix.</summary>
     public const string PortableReleaseSuffix = " portable release";
@@ -142,6 +142,15 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Prefix used for Generals Online manifest IDs.</summary>
     public const string ManifestIdPrefix = "generalsonline-";
+
+    /// <summary>Legacy typed-group segment for game client variant groups.</summary>
+    public const string LegacyGameClientGroupSegment = "gameclient-";
+
+    /// <summary>Legacy typed-group segment for patch variant groups.</summary>
+    public const string LegacyPatchGroupSegment = "patch-";
+
+    /// <summary>Legacy typed-group segment for mappack variant groups.</summary>
+    public const string LegacyMapPackGroupSegment = "mappack-";
 
     /// <summary>Prefix used for Generals Online content IDs from the API.</summary>
     public const string ContentIdPrefix = "GeneralsOnline_";
