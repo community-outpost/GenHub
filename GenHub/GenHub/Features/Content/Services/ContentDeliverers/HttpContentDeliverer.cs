@@ -161,9 +161,9 @@ public class HttpContentDeliverer(
 
         return new Progress<DownloadProgress>(dp =>
         {
-            double currentProgress;
-            long aggregateBytesProcessed;
-            long aggregateTotalBytes;
+            double currentProgress = 0.0;
+            long aggregateBytesProcessed = 0L;
+            long aggregateTotalBytes = 0L;
 
             if (totalBytesAllFiles > 0)
             {

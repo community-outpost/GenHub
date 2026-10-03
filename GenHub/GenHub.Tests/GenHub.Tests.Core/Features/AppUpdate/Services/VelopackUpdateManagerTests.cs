@@ -484,7 +484,7 @@ public class VelopackUpdateManagerTests
     {
         var manifest = new ContentManifest
         {
-            Id = ManifestId.Create("test.build"),
+            Id = ManifestId.Create("1.0.community.genhubbuild.testfork"),
             Name = "GenHub Custom Fork",
             Version = "1.0.0",
             ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
@@ -515,7 +515,7 @@ public class VelopackUpdateManagerTests
     {
         var manifest = new ContentManifest
         {
-            Id = ManifestId.Create("test.build"),
+            Id = ManifestId.Create("1.0.community.genhubbuild.testfork"),
             Name = "GenHub Custom Fork PR #1",
             Version = "1.0.0",
             ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
@@ -545,7 +545,7 @@ public class VelopackUpdateManagerTests
     {
         var manifest = new ContentManifest
         {
-            Id = ManifestId.Create("test.build"),
+            Id = ManifestId.Create("1.0.community.genhubbuild.testfork"),
             Name = "GenHub Custom Fork PR #10",
             Version = "1.0.0",
             ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
@@ -575,7 +575,7 @@ public class VelopackUpdateManagerTests
     {
         var manifest = new ContentManifest
         {
-            Id = ManifestId.Create("test.build"),
+            Id = ManifestId.Create("1.0.community.genhubbuild.testfork"),
             Name = "Publisher A Fork",
             Version = "1.0.0",
             ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
