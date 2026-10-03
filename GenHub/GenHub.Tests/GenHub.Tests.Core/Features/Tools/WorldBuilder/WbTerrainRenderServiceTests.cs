@@ -27,7 +27,7 @@ public sealed class WbTerrainRenderServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildAsync_TexturedClass_BuildsAtlasAndMesh()
+    public async Task BuildAsync_TexturedClass_BuildsAtlasAndMeshAsync()
     {
         var service = new WbTerrainRenderService(new StubTextureCache(), new StubTerrainCatalog(), NullLogger<WbTerrainRenderService>.Instance);
 
@@ -53,7 +53,7 @@ public sealed class WbTerrainRenderServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildAsync_MissingClass_SucceedsWithFallback()
+    public async Task BuildAsync_MissingClass_SucceedsWithFallbackAsync()
     {
         var service = new WbTerrainRenderService(new StubTextureCache(), new MissingTerrainCatalog(), NullLogger<WbTerrainRenderService>.Instance);
 

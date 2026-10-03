@@ -27,7 +27,7 @@ public sealed class WbBridgeServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildBridgesAsync_Bridge_EmitsDeckAndTowers()
+    public async Task BuildBridgesAsync_Bridge_EmitsDeckAndTowersAsync()
     {
         var service = new WbBridgeService(
             new StubRoads(),
@@ -47,7 +47,7 @@ public sealed class WbBridgeServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildBridgesAsync_UnknownTemplate_SkipsQuietly()
+    public async Task BuildBridgesAsync_UnknownTemplate_SkipsQuietlyAsync()
     {
         var service = new WbBridgeService(
             new StubRoads(),

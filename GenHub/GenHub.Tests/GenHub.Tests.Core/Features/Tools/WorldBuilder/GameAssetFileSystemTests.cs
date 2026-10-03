@@ -48,7 +48,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_WorkspaceLooseOverArchive_LooseWins()
+    public async Task MountAsync_WorkspaceLooseOverArchive_LooseWinsAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -73,7 +73,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_ZeroHourOverGenerals_ZeroHourWins()
+    public async Task MountAsync_ZeroHourOverGenerals_ZeroHourWinsAsync()
     {
         // Arrange
         var generals = NewDir("generals");
@@ -95,7 +95,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_IniZhOverIni_SameLayer_ZeroHourWins()
+    public async Task MountAsync_IniZhOverIni_SameLayer_ZeroHourWinsAsync()
     {
         // Arrange
         var workspace = NewDir("combined");
@@ -116,7 +116,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_ModDirectoryOverWorkspace_ModWins()
+    public async Task MountAsync_ModDirectoryOverWorkspace_ModWinsAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -138,7 +138,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_ModSingleArchive_MountsEntries()
+    public async Task MountAsync_ModSingleArchive_MountsEntriesAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -160,7 +160,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_BundledBaseFallback_BundledVisible()
+    public async Task MountAsync_BundledBaseFallback_BundledVisibleAsync()
     {
         // Arrange
         var generals = NewDir("generals");
@@ -184,7 +184,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_InstallationId_ResolvesRootsFromService()
+    public async Task MountAsync_InstallationId_ResolvesRootsFromServiceAsync()
     {
         // Arrange
         var generals = NewDir("generals");
@@ -222,7 +222,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_ExplicitRootOverResolved_ExplicitWins()
+    public async Task MountAsync_ExplicitRootOverResolved_ExplicitWinsAsync()
     {
         // Arrange
         var resolved = NewDir("resolved");
@@ -252,7 +252,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_UnknownInstallationId_ReturnsFailure()
+    public async Task MountAsync_UnknownInstallationId_ReturnsFailureAsync()
     {
         // Arrange
         var service = new Mock<IGameInstallationService>();
@@ -272,7 +272,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_NoRoots_ReturnsFailure()
+    public async Task MountAsync_NoRoots_ReturnsFailureAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -289,7 +289,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_MissingRoots_ReturnsFailure()
+    public async Task MountAsync_MissingRoots_ReturnsFailureAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -327,7 +327,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReadAllBytesAsync_MissingFile_ReturnsFailure()
+    public async Task ReadAllBytesAsync_MissingFile_ReturnsFailureAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -399,7 +399,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_Cancelled_ThrowsOperationCanceledException()
+    public async Task MountAsync_Cancelled_ThrowsOperationCanceledExceptionAsync()
     {
         // Arrange
         var workspace = NewDir("workspace");
@@ -420,7 +420,7 @@ public sealed class GameAssetFileSystemTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task MountAsync_Remount_ReplacesPreviousState()
+    public async Task MountAsync_Remount_ReplacesPreviousStateAsync()
     {
         // Arrange
         var first = NewDir("first");

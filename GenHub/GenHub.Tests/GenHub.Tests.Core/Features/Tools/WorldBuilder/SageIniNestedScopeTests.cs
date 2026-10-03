@@ -20,7 +20,7 @@ public sealed class SageIniNestedScopeTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_BareScopes_SubBlocksAndTrailingFields()
+    public async Task ParseAsync_BareScopes_SubBlocksAndTrailingFieldsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -55,7 +55,7 @@ public sealed class SageIniNestedScopeTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ConditionStates_FlattenedInOrder()
+    public async Task ParseAsync_ConditionStates_FlattenedInOrderAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -92,7 +92,7 @@ public sealed class SageIniNestedScopeTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_UnterminatedScope_StrictFails()
+    public async Task ParseAsync_UnterminatedScope_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();

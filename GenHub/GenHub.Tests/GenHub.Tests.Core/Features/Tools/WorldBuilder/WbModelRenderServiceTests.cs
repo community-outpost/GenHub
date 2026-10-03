@@ -26,7 +26,7 @@ public sealed class WbModelRenderServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildAsync_PlacedObject_BakesWorldDraw()
+    public async Task BuildAsync_PlacedObject_BakesWorldDrawAsync()
     {
         var service = new WbModelRenderService(
             new StubLoader(CreateModel()),
@@ -58,7 +58,7 @@ public sealed class WbModelRenderServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildAsync_HlodBone_TransformsThroughBone()
+    public async Task BuildAsync_HlodBone_TransformsThroughBoneAsync()
     {
         var pivot = new W3dPivot("ROOT", -1, new Vector3(0, 5, 0), Quaternion.Identity);
         var sub = new W3dHlodSubObject(0, "TANK.TURRET", "TURRET");
@@ -88,7 +88,7 @@ public sealed class WbModelRenderServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildAsync_MissingAndHidden_SkipsQuietly()
+    public async Task BuildAsync_MissingAndHidden_SkipsQuietlyAsync()
     {
         var hidden = CreateModel().Meshes[0] with { Attributes = 0x1000 };
         var model = CreateModel() with { Meshes = [hidden] };

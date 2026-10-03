@@ -24,7 +24,7 @@ public sealed class W3DAssetLoaderTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task LoadAsync_ValidFile_ParsesModel()
+    public async Task LoadAsync_ValidFile_ParsesModelAsync()
     {
         var fileSystem = new StubFileSystem(CreateMeshFile());
         var loader = new W3DAssetLoader(fileSystem, NullLogger<W3DAssetLoader>.Instance);
@@ -43,7 +43,7 @@ public sealed class W3DAssetLoaderTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task LoadAsync_MissingFile_Fails()
+    public async Task LoadAsync_MissingFile_FailsAsync()
     {
         var loader = new W3DAssetLoader(new StubFileSystem(null), NullLogger<W3DAssetLoader>.Instance);
 
@@ -57,7 +57,7 @@ public sealed class W3DAssetLoaderTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task LoadAsync_NonChunkBytes_Fails()
+    public async Task LoadAsync_NonChunkBytes_FailsAsync()
     {
         var loader = new W3DAssetLoader(new StubFileSystem([0x01, 0x02]), NullLogger<W3DAssetLoader>.Instance);
 

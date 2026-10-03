@@ -100,7 +100,7 @@ public sealed class StringTableTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadAsync_CsfAndStr_StrWinsOverlap()
+    public async Task LoadAsync_CsfAndStr_StrWinsOverlapAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -129,7 +129,7 @@ public sealed class StringTableTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadAsync_MissingBoth_SucceedsEmpty()
+    public async Task LoadAsync_MissingBoth_SucceedsEmptyAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -150,7 +150,7 @@ public sealed class StringTableTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadAsync_MalformedCsf_ReturnsFailure()
+    public async Task LoadAsync_MalformedCsf_ReturnsFailureAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -170,7 +170,7 @@ public sealed class StringTableTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadMapStringsAsync_Overlay_WinsAndToleratesMissing()
+    public async Task LoadMapStringsAsync_Overlay_WinsAndToleratesMissingAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");

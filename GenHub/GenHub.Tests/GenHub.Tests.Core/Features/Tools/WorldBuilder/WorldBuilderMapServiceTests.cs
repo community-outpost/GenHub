@@ -31,7 +31,7 @@ public sealed class WorldBuilderMapServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WritesMapAndPreview()
+    public async Task SaveAsync_WritesMapAndPreviewAsync()
     {
         // Arrange
         var previews = new Mock<IMapPreviewService>();
@@ -56,7 +56,7 @@ public sealed class WorldBuilderMapServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_PreviewFails_SaveStillSucceeds()
+    public async Task SaveAsync_PreviewFails_SaveStillSucceedsAsync()
     {
         // Arrange
         var previews = new Mock<IMapPreviewService>();

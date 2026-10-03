@@ -21,11 +21,11 @@ public sealed class WbRandom
     /// <returns>The value.</returns>
     public uint Next()
     {
-        // Keep the plain assignment form: xorshift32 xors the state with its own
-        // shifted value, which is not equivalent to a shift-assignment.
-        state = state ^ (state << 13);
-        state = state ^ (state >> 17);
-        state = state ^ (state << 5);
+        // xorshift32 xors the state with its own shifted value; a shift-assignment
+        // would compute a different stream, so keep the self-referential form.
+        state ^= state << 13; // skipcq: CS-R1100
+        state ^= state >> 17; // skipcq: CS-R1100
+        state ^= state << 5; // skipcq: CS-R1100
         return state;
     }
 

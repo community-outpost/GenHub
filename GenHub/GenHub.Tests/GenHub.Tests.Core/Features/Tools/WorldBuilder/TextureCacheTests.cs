@@ -34,7 +34,7 @@ public sealed class TextureCacheTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAsync_RealTga_DecodesAndCaches()
+    public async Task GetAsync_RealTga_DecodesAndCachesAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -60,7 +60,7 @@ public sealed class TextureCacheTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAsync_BareName_PrefersDds()
+    public async Task GetAsync_BareName_PrefersDdsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -84,7 +84,7 @@ public sealed class TextureCacheTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAsync_ExplicitTgaMissing_FallsBackToDds()
+    public async Task GetAsync_ExplicitTgaMissing_FallsBackToDdsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -106,7 +106,7 @@ public sealed class TextureCacheTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAsync_Missing_ReturnsFailure()
+    public async Task GetAsync_Missing_ReturnsFailureAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");
@@ -128,7 +128,7 @@ public sealed class TextureCacheTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAsync_CodecFailure_PropagatesAndClearEvicts()
+    public async Task GetAsync_CodecFailure_PropagatesAndClearEvictsAsync()
     {
         // Arrange
         var workspace = _host.NewDir("workspace");

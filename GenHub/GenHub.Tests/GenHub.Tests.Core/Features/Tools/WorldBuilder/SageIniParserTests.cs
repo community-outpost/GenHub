@@ -22,7 +22,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_CommentTruncatesLine_EngineExact()
+    public async Task ParseAsync_CommentTruncatesLine_EngineExactAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -42,7 +42,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_EndCaseInsensitive_ClosesBlock()
+    public async Task ParseAsync_EndCaseInsensitive_ClosesBlockAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -61,7 +61,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_LowercaseBlockToken_StrictFails()
+    public async Task ParseAsync_LowercaseBlockToken_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -80,7 +80,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TabInLine_WarnsAndParses()
+    public async Task ParseAsync_TabInLine_WarnsAndParsesAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -100,7 +100,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ControlChars_NormalizedToSpaces()
+    public async Task ParseAsync_ControlChars_NormalizedToSpacesAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -119,7 +119,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ExtraHeaderTokens_Ignored()
+    public async Task ParseAsync_ExtraHeaderTokens_IgnoredAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -138,7 +138,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_NamelessBlock_EmptyName()
+    public async Task ParseAsync_NamelessBlock_EmptyNameAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -157,7 +157,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_MissingEnd_StrictFails()
+    public async Task ParseAsync_MissingEnd_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -176,7 +176,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_StrayEnd_StrictFails()
+    public async Task ParseAsync_StrayEnd_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -195,7 +195,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ObjectWithoutName_StrictFails()
+    public async Task ParseAsync_ObjectWithoutName_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -214,7 +214,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ReskinWithoutParent_StrictFails()
+    public async Task ParseAsync_ReskinWithoutParent_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -233,7 +233,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_UnknownField_WildcardKeepsRaw()
+    public async Task ParseAsync_UnknownField_WildcardKeepsRawAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -253,7 +253,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_UnknownField_StrictTableDrops()
+    public async Task ParseAsync_UnknownField_StrictTableDropsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -280,7 +280,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ModuleSubBlock_NestsEnds()
+    public async Task ParseAsync_ModuleSubBlock_NestsEndsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -305,7 +305,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ModuleWithoutTag_StrictFails()
+    public async Task ParseAsync_ModuleWithoutTag_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -324,7 +324,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ModuleWithoutEnd_StrictFails()
+    public async Task ParseAsync_ModuleWithoutEnd_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -343,7 +343,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_DuplicateBlocks_MergeLastWins()
+    public async Task ParseAsync_DuplicateBlocks_MergeLastWinsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -364,7 +364,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_Reskin_CopiesParentDropsNonVisual()
+    public async Task ParseAsync_Reskin_CopiesParentDropsNonVisualAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -388,7 +388,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ReskinMissingParent_StrictFails()
+    public async Task ParseAsync_ReskinMissingParent_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -407,7 +407,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ReskinBeforeParent_StrictFails()
+    public async Task ParseAsync_ReskinBeforeParent_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -426,7 +426,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_Extend_CopiesParentOwnWins()
+    public async Task ParseAsync_Extend_CopiesParentOwnWinsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -449,7 +449,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ChildObject_InheritsLikeExtend()
+    public async Task ParseAsync_ChildObject_InheritsLikeExtendAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -473,7 +473,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_ReskinDraw_ReplacesParentDraw()
+    public async Task ParseAsync_ReskinDraw_ReplacesParentDrawAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -494,7 +494,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_Define_SubstitutesTokens()
+    public async Task ParseAsync_Define_SubstitutesTokensAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -513,7 +513,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_DefineRedefined_LastWins()
+    public async Task ParseAsync_DefineRedefined_LastWinsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -532,7 +532,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_DefineSinglePass_NoRecursion()
+    public async Task ParseAsync_DefineSinglePass_NoRecursionAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -551,7 +551,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_Include_SplicesInline()
+    public async Task ParseAsync_Include_SplicesInlineAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -573,7 +573,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_IncludeMissing_StrictFails()
+    public async Task ParseAsync_IncludeMissing_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -594,7 +594,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_IncludeCycle_StrictFails()
+    public async Task ParseAsync_IncludeCycle_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -619,7 +619,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_IncludeTooDeep_StrictFails()
+    public async Task ParseAsync_IncludeTooDeep_StrictFailsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -645,7 +645,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantMode_SkipsUnfinishableContinues()
+    public async Task ParseAsync_TolerantMode_SkipsUnfinishableContinuesAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -666,7 +666,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantMode_RecordsUnrecognized()
+    public async Task ParseAsync_TolerantMode_RecordsUnrecognizedAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -687,7 +687,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_Cancelled_ThrowsOperationCanceledException()
+    public async Task ParseAsync_Cancelled_ThrowsOperationCanceledExceptionAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -707,7 +707,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantDrawWithNestedAnimationScopes_ParsesWholeObject()
+    public async Task ParseAsync_TolerantDrawWithNestedAnimationScopes_ParsesWholeObjectAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -750,7 +750,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantStrayEnd_SkipsLineAndKeepsNeighbors()
+    public async Task ParseAsync_TolerantStrayEnd_SkipsLineAndKeepsNeighborsAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -771,7 +771,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantFxListNuggets_ParsesSubBlocks()
+    public async Task ParseAsync_TolerantFxListNuggets_ParsesSubBlocksAsync()
     {
         // Arrange
         var sut = CreateSut();
@@ -801,7 +801,7 @@ public sealed class SageIniParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ParseAsync_TolerantObjectCreationListNuggets_ParsesSubBlocks()
+    public async Task ParseAsync_TolerantObjectCreationListNuggets_ParsesSubBlocksAsync()
     {
         // Arrange
         var sut = CreateSut();

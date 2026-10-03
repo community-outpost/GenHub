@@ -25,7 +25,7 @@ public sealed class WbRoadServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildRoadsAsync_Segment_TessellatesWidth()
+    public async Task BuildRoadsAsync_Segment_TessellatesWidthAsync()
     {
         var service = new WbRoadService(new StubRoads(), new StubTextures(), NullLogger<WbRoadService>.Instance);
 
@@ -48,7 +48,7 @@ public sealed class WbRoadServiceTests
     /// </summary>
     /// <returns>A task.</returns>
     [Fact]
-    public async Task BuildRoadsAsync_UnknownType_SkipsQuietly()
+    public async Task BuildRoadsAsync_UnknownType_SkipsQuietlyAsync()
     {
         var service = new WbRoadService(new StubRoads(), new StubTextures(), NullLogger<WbRoadService>.Instance);
         var map = new WorldBuilderMap();
