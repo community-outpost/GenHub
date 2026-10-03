@@ -37,6 +37,21 @@ public static class HostingConstants
     public const string GoogleDriveClientCredentialKey = "google_drive_client";
 
     /// <summary>
+    /// Google Drive primary web host.
+    /// </summary>
+    public const string GoogleDriveHost = "drive.google.com";
+
+    /// <summary>
+    /// Google domain suffix for Drive and Google services.
+    /// </summary>
+    public const string GoogleDomainSuffix = ".google.com";
+
+    /// <summary>
+    /// Google user content domain suffix for Drive direct downloads.
+    /// </summary>
+    public const string GoogleUserContentDomainSuffix = ".googleusercontent.com";
+
+    /// <summary>
     /// Default provider definition file name.
     /// </summary>
     public const string DefaultDefinitionFileName = "publisher.json";
