@@ -135,8 +135,7 @@ public static partial class CloudUrlHelper
                 }
             }
 
-            if (resolvedUri != null &&
-                resolvedUri.Scheme == Uri.UriSchemeHttps &&
+            if (resolvedUri is { Scheme: "https" } &&
                 (resolvedUri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
                  resolvedUri.Host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) ||
                  resolvedUri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)))

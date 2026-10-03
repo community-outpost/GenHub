@@ -136,7 +136,7 @@ public class FastHttpClientFileDownloader(
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        int bytesRead;
+        var bytesRead = 0;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -278,17 +278,11 @@ public class FastHttpClientFileDownloader(
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
 
-        var destinationDirectory = Path.GetDirectoryName(targetFile);
-        if (!string.IsNullOrEmpty(destinationDirectory))
-        {
-            Directory.CreateDirectory(destinationDirectory);
-        }
-
-        using var client = CreateHttpClient(headers, timeout);
-
         try
         {
-            // Probe range support and resolve redirects without holding open full stream
+            using var client = CreateHttpClient(headers, timeout);
+
+            // Send byte-range probe request (bytes 0-0) to discover if the origin supports parallel chunking and obtain accurate total file size
             using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
             probeRequest.Headers.Range = new RangeHeaderValue(0, 0);
 
@@ -316,17 +310,24 @@ public class FastHttpClientFileDownloader(
                 var totalLength = contentRange!.Length!.Value;
                 probeResponse.Dispose();
 
-                await DownloadViaParallelModeAsync(
-                    client,
-                    resolvedUri,
-                    url,
-                    targetFile,
-                    totalLength,
-                    progress,
-                    headers,
-                    timeout,
-                    cancelToken).ConfigureAwait(false);
-                return;
+                try
+                {
+                    await DownloadViaParallelModeAsync(
+                        client,
+                        resolvedUri,
+                        url,
+                        targetFile,
+                        totalLength,
+                        progress,
+                        headers,
+                        timeout,
+                        cancelToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger?.LogWarning(ex, "Parallel download failed for {Url}; falling back to single-stream download", url);
+                }
             }
 
             // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
