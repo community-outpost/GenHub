@@ -300,8 +300,7 @@ public class FastHttpClientFileDownloader(
             probeResponse.EnsureSuccessStatusCode();
 
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!string.Equals(resolvedUri.Host, new Uri(url).Host, StringComparison.OrdinalIgnoreCase) &&
-                !NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
+            if (!NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
             {
                 throw new InvalidOperationException($"Redirect target is not allowed: {redirectError}");
             }
