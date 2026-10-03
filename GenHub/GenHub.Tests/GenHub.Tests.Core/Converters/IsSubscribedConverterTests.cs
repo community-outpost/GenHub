@@ -1,4 +1,5 @@
 using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Providers;
 using GenHub.Infrastructure.Converters;
 using System.Globalization;
 
