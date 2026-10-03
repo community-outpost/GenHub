@@ -17884,7 +17884,7 @@ Error: فشل: {3}
     <value>هذا الملف ليس جزءاً من المشروع الحالي. قم بتوسيع الصف لمعاينة محتوياته.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
-    <value>التعريف: {0}</value>
+    <value>الفهرس: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
     <value>مذكور في {0} · عدد العناصر: {1}</value>
@@ -17974,7 +17974,7 @@ Error: فشل: {3}
     <value>سيتم تحديث تعريف المزود وإعادة تحميله بدون هذا الفهرس.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
-    <value>{0} من الملفات على Drive تُستخدم فقط في هذا الفهرس وستصبح غير مرتبطة (ستبقى على Drive): {1}.</value>
+    <value>{0} من الملفات في التخزين السحابي تُستخدم فقط في هذا الفهرس وستصبح غير مرتبطة (ستبقى في التخزين السحابي): {1}.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
     <value>تمت إزالة الفهرس «{0}» محلياً، لكن تعذر حذف بعض الملفات البعيدة. أعد الفحص وحاول مجدداً من المخزون.</value>
@@ -17983,7 +17983,7 @@ Error: فشل: {3}
     <value>تم حذف الفهرس «{0}».</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
-    <value>تم الاحتفاظ بـ {0} من الملفات اليتيمة على Drive ويمكن حذفها كلاً على حدة.</value>
+    <value>تم الاحتفاظ بـ {0} من الملفات اليتيمة في التخزين السحابي ويمكن حذفها كلاً على حدة.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
     <value>تعذّر حفظ حالة الاستضافة، وقد تظهر الملفات المحذوفة مجددًا بعد إعادة التشغيل.</value>

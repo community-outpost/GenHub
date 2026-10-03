@@ -17968,13 +17968,13 @@ Error: не удалось: {3}
     <value>Удалить «{0}» из облачного хранилища? Он не входит в текущий проект.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogContentsLineFormat" xml:space="preserve">
-    <value>Из проекта будет удалено: элементов: {0}, релизов: {1}, файлов: {2} и ссылок на медиа: {3}.</value>
+    <value>Из проекта будут удалены элементы (количество: {0}), релизы (количество: {1}), файлы (количество: {2}) и ссылки на медиа (количество: {3}).</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogDefinitionLine" xml:space="preserve">
     <value>Определение провайдера будет обновлено и повторно загружено без этого каталога.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
-    <value>Файлов на Диске, используемых только этим каталогом: {0}. Они станут несвязанными (останутся на Диске): {1}.</value>
+    <value>Файлов в облачном хранилище, используемых только этим каталогом: {0}. Они станут несвязанными (останутся в облачном хранилище): {1}.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
     <value>Каталог «{0}» удалён локально, но некоторые удалённые файлы удалить не удалось. Повторно отсканируйте хранилище и повторите попытку.</value>
@@ -17983,7 +17983,7 @@ Error: не удалось: {3}
     <value>Каталог «{0}» удалён.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
-    <value>Осиротевшие файлы оставлены на Диске (количество: {0}); их можно удалить по отдельности.</value>
+    <value>Осиротевшие файлы оставлены в облачном хранилище (количество: {0}); их можно удалить по отдельности.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
     <value>Не удалось сохранить состояние хостинга: удалённые файлы могут снова появиться после перезапуска.</value>
