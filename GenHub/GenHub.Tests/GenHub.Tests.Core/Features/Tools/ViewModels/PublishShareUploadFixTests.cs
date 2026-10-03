@@ -454,7 +454,7 @@ public class PublishShareUploadFixTests
         Assert.NotNull(lastPersisted);
         Assert.Equal("old-remote-id", lastPersisted.FileId);
         Assert.Equal("https://example.com/catalog-old.json", lastPersisted.Url);
-        _mockNotificationService.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>()), Times.AtLeastOnce);
+        _mockNotificationService.Verify(n => n.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.AtLeastOnce);
     }
 
     /// <summary>
