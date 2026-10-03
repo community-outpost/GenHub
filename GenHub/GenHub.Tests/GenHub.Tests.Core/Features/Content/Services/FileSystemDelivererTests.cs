@@ -25,6 +25,7 @@ public sealed class FileSystemDelivererTests
     private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly List<string> _builtFilePaths = [];
     private string? _builtEntryPoint;
+    private (string? ProcessName, int? DiscoveryTimeoutMs)? _builtLaunchRelationship;
 
     /// <summary>
     /// Verifies that CanDeliver returns false when the manifest has no files.
@@ -166,6 +167,36 @@ public sealed class FileSystemDelivererTests
             Assert.True(result.Success, result.FirstError);
             Assert.Equal(["generalszh", "libSDL3.dylib"], _builtFilePaths);
             Assert.Equal("generalszh", _builtEntryPoint);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// The delivered manifest is flat, so it carries the host variant's launch
+    /// relationship. The root and foreign variant relationships are ignored.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_CarriesHostVariantLaunchRelationshipAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = VariantManifestFixture.Create(
+                [CreateLocalFile(directory.FullName, "generalszh")],
+                [new ManifestFile { RelativePath = "generalszh.exe", SourceType = ContentSourceType.ContentAddressable }]);
+            manifest.LaunchRelationship = new LaunchRelationship { ProcessName = "root.exe" };
+            manifest.Variants[0].LaunchRelationship = new LaunchRelationship { ProcessName = "foreign.exe" };
+            manifest.Variants[1].LaunchRelationship = new LaunchRelationship { ProcessName = "game.dat", DiscoveryTimeoutMs = 4000 };
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(("game.dat", 4000), _builtLaunchRelationship);
         }
         finally
         {
@@ -317,6 +348,10 @@ public sealed class FileSystemDelivererTests
         builderMock
             .Setup(b => b.WithEntryPoint(It.IsAny<string?>()))
             .Callback<string?>(entryPoint => _builtEntryPoint = entryPoint)
+            .Returns(builderMock.Object);
+        builderMock
+            .Setup(b => b.WithLaunchRelationship(It.IsAny<string?>(), It.IsAny<int?>()))
+            .Callback<string?, int?>((processName, timeout) => _builtLaunchRelationship = (processName, timeout))
             .Returns(builderMock.Object);
         builderMock.Setup(b => b.AddRequiredDirectories(It.IsAny<string[]>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.Build()).Returns(() => new ContentManifest
