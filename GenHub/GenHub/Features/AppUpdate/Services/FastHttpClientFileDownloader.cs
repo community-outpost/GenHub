@@ -33,50 +33,60 @@ public class FastHttpClientFileDownloader(
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
         ConnectTimeout = TimeSpan.FromSeconds(30),
-        ConnectCallback = async (context, cancellationToken) =>
-        {
-            if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
-            {
-                throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
-            }
-
-            var isLoopbackHost = string.Equals(context.DnsEndPoint.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-                                 string.Equals(context.DnsEndPoint.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-                                 string.Equals(context.DnsEndPoint.Host, "::1", StringComparison.OrdinalIgnoreCase);
-
-            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
-            if (addresses.Length == 0)
-            {
-                throw new HttpRequestException($"No IP addresses found for host '{context.DnsEndPoint.Host}'.");
-            }
-
-            if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
-            {
-                throw new HttpRequestException($"Loopback host '{context.DnsEndPoint.Host}' resolved to a non-loopback IP address.");
-            }
-
-            if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
-            {
-                throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
-            }
-
-            var sortedAddresses = addresses
-                .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
-                .ToArray();
-
-            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            try
-            {
-                await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
-                return new NetworkStream(socket, ownsSocket: true);
-            }
-            catch
-            {
-                socket.Dispose();
-                throw;
-            }
-        },
+        ConnectCallback = ConnectCallbackAsync,
     };
+
+    private static async ValueTask<Stream> ConnectCallbackAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    {
+        var host = context.DnsEndPoint.Host;
+        if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
+        {
+            throw new HttpRequestException($"Invalid host name: '{host}'.");
+        }
+
+        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        ValidateResolvedAddresses(host, addresses);
+
+        var sortedAddresses = addresses
+            .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+            .ToArray();
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        try
+        {
+            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
+
+    private static void ValidateResolvedAddresses(string host, IPAddress[] addresses)
+    {
+        if (addresses.Length == 0)
+        {
+            throw new HttpRequestException($"No IP addresses found for host '{host}'.");
+        }
+
+        var isLoopbackHost = IsLoopbackHost(host);
+        if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
+        {
+            throw new HttpRequestException($"Loopback host '{host}' resolved to a non-loopback IP address.");
+        }
+
+        if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+        {
+            throw new HttpRequestException($"Host '{host}' resolved to an unsafe or reserved IP address.");
+        }
+    }
+
+    private static bool IsLoopbackHost(string host) =>
+        string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase);
 
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
