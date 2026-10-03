@@ -132,7 +132,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     Logger.LogError(
                         ex,

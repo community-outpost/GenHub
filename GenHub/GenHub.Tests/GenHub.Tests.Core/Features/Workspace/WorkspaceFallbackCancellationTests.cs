@@ -6,6 +6,7 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -15,6 +16,9 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// </summary>
 public sealed class WorkspaceFallbackCancellationTests : IDisposable
 {
+    // Exceeds the small-file threshold so hybrid exercises its link fallback.
+    private const long NonEssentialFileSize = 5 * 1024 * 1024;
+
     private const string RelativePath = "Movies/intro.bik";
 
     private readonly Mock<IFileOperationsService> _fileOperations = new();
@@ -29,6 +33,7 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
     [Theory]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HardLink)]
     public async Task PrepareAsync_WhenHardLinkFallbackIsCancelled_PropagatesCancellationAsync(WorkspaceStrategy strategyType)
     {
         var installDir = Path.Combine(_root, "Install");
@@ -52,7 +57,7 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
             [
                 new ContentManifest
                 {
-                    Files = [new() { RelativePath = RelativePath, SourcePath = sourcePath, Size = 5 * 1024 * 1024, SourceType = ContentSourceType.GameInstallation }],
+                    Files = [new() { RelativePath = RelativePath, SourcePath = sourcePath, Size = NonEssentialFileSize, SourceType = ContentSourceType.GameInstallation }],
                 },
             ],
         };
@@ -82,7 +87,7 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
         _fileOperations
             .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
-        var file = new ManifestFile { RelativePath = RelativePath, SourcePath = sourcePath, Size = 5 * 1024 * 1024, SourceType = ContentSourceType.LocalFile };
+        var file = new ManifestFile { RelativePath = RelativePath, SourcePath = sourcePath, Size = NonEssentialFileSize, SourceType = ContentSourceType.LocalFile };
         var configuration = new WorkspaceConfiguration { BaseInstallationPath = installDir };
         var strategy = new HybridCopySymlinkStrategy(_fileOperations.Object, new Mock<ILogger<HybridCopySymlinkStrategy>>().Object);
         var method = typeof(HybridCopySymlinkStrategy).GetMethod("ProcessLocalFileAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
@@ -93,6 +98,44 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
         _fileOperations.Verify(
             f => f.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Cancellation from the CAS service must bypass every strategy's retry and failure wrappers.
+    /// </summary>
+    /// <param name="strategyType">The strategy under test.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    public async Task PrepareAsync_WhenCasOperationIsCancelled_DoesNotRetryAsync(WorkspaceStrategy strategyType)
+    {
+        Directory.CreateDirectory(_root);
+        _fileOperations.Setup(f => f.LinkFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        _fileOperations.Setup(f => f.CopyFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Strategy = strategyType,
+            WorkspaceRootPath = Path.Combine(_root, "Workspaces"),
+            BaseInstallationPath = _root,
+            GameClient = new GameClient { Id = "test" },
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    Files = [new() { RelativePath = RelativePath, Hash = "hash", Size = NonEssentialFileSize, SourceType = ContentSourceType.ContentAddressable }],
+                },
+            ],
+        };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None));
+        Assert.Single(_fileOperations.Invocations, i => i.Method.Name is "LinkFromCasAsync" or "CopyFromCasAsync");
     }
 
     /// <inheritdoc/>
@@ -118,6 +161,8 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
     private IWorkspaceStrategy CreateStrategy(WorkspaceStrategy strategyType) => strategyType switch
     {
         WorkspaceStrategy.HybridCopySymlink => new HybridCopySymlinkStrategy(_fileOperations.Object, new Mock<ILogger<HybridCopySymlinkStrategy>>().Object),
+        WorkspaceStrategy.HardLink => new HardLinkStrategy(_fileOperations.Object, new Mock<ILogger<HardLinkStrategy>>().Object),
+        WorkspaceStrategy.FullCopy => new FullCopyStrategy(_fileOperations.Object, new Mock<ILogger<FullCopyStrategy>>().Object),
         WorkspaceStrategy.SymlinkOnly => new SymlinkOnlyStrategy(_fileOperations.Object, new Mock<ILogger<SymlinkOnlyStrategy>>().Object),
         _ => throw new ArgumentException($"Unknown strategy type: {strategyType}"),
     };

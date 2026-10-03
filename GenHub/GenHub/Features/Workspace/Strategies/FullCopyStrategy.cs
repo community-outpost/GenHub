@@ -160,7 +160,7 @@ public sealed class FullCopyStrategy(
                             }
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         Logger.LogError(
                             ex,

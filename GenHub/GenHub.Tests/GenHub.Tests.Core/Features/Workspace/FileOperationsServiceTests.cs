@@ -35,6 +35,24 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// CAS lookup cancellation propagates rather than being returned as a storage failure.
+    /// </summary>
+    /// <param name="copy">Whether to copy instead of linking.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CasMaterialization_WhenLookupIsCancelled_PropagatesAsync(bool copy)
+    {
+        _casService.Setup(c => c.GetContentPathAsync("hash", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => copy
+            ? _service.CopyFromCasAsync("hash", Path.Combine(_tempDir, "out"))
+            : _service.LinkFromCasAsync("hash", Path.Combine(_tempDir, "out")));
+    }
+
+    /// <summary>
     /// Tests that CopyFileAsync creates a file at the destination path.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
