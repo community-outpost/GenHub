@@ -10,6 +10,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 public class InstallableVariant : INotifyPropertyChanged
 {
     private ContentState _currentState = ContentState.NotDownloaded;
+    private string? _sha256;
 
     /// <summary>
     /// Gets or sets the unique identifier or key for this variant.
@@ -39,7 +40,11 @@ public class InstallableVariant : INotifyPropertyChanged
     /// <summary>
     /// Gets or sets the SHA256 checksum for this variant.
     /// </summary>
-    public string? Sha256 { get; set; }
+    public string? Sha256
+    {
+        get => _sha256;
+        set => _sha256 = value?.Trim();
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether this is the default variant.

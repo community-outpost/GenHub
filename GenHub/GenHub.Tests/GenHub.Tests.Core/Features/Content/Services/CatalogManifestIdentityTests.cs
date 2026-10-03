@@ -465,6 +465,11 @@ public sealed class CatalogManifestIdentityTests
     [InlineData("gamecode-gameplay", "gamecode", false)]
     [InlineData("gamecode-unrelated-addon", "gamecode", false)]
     [InlineData("othercode", "gamecode", false)]
+    [InlineData("foo-enemy", "foo", false)]
+    [InlineData("foo-developer", "foo", false)]
+    [InlineData("foo-en", "foo", true)]
+    [InlineData("foo-de", "foo", true)]
+    [InlineData("foo-en-us", "foo", true)]
     public void IsContentNameOrVariantMatch_MatchesExpectedPatterns(string manifestName, string depName, bool expected)
     {
         var result = CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestName, depName);
