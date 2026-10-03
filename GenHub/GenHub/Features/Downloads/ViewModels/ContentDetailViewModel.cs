@@ -28,6 +28,7 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
@@ -799,15 +800,7 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether the current content is a GenHub build.
     /// </summary>
     public bool IsGenHubBuild =>
-        (SelectedDownloadableItem?.ContentType ?? ContentType) == ContentType.GenHubBuild ||
-        (Tags != null && Tags.Any(t => string.Equals(t, "genhub", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "genhub-build", StringComparison.OrdinalIgnoreCase))) ||
-        (!string.IsNullOrWhiteSpace(Name) &&
-         Name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
-         ((SelectedDownloadableItem?.ContentType ?? ContentType) is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType ||
-          Name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
-          Name.Contains("Fork", StringComparison.OrdinalIgnoreCase)));
+        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, Name, Tags);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
@@ -848,9 +841,10 @@ public partial class ContentDetailViewModel(
         {
             var targetManifestId = SelectedDownloadableItem?.DownloadedManifestId ??
                 SelectedVariant?.ManifestId ??
+                await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
                 searchResult.Id;
             var targetName = SelectedDownloadableItem?.Name ?? SelectedVariant?.Name ?? Name;
-            await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+            await installBuildAction(targetManifestId, targetName, _cts.Token);
         }
     }
 
@@ -2723,9 +2717,12 @@ public partial class ContentDetailViewModel(
         {
             if (installBuildAction != null)
             {
-                var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId ?? searchResult.Id;
+                var targetManifestId = releaseItem.DownloadedManifestId ??
+                    manifestId ??
+                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
+                    searchResult.Id;
                 var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+                await installBuildAction(targetManifestId, targetName, _cts.Token);
             }
         });
     }
@@ -4828,9 +4825,11 @@ public partial class ContentDetailViewModel(
         {
             if (installBuildAction != null)
             {
-                var targetManifestId = releaseItem.DownloadedManifestId ?? searchResult.Id;
+                var targetManifestId = releaseItem.DownloadedManifestId ??
+                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
+                    searchResult.Id;
                 var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+                await installBuildAction(targetManifestId, targetName, _cts.Token);
             }
         });
 
@@ -7933,9 +7932,11 @@ public partial class ContentDetailViewModel(
         {
             if (installBuildAction != null)
             {
-                var targetManifestId = releaseItem.DownloadedManifestId ?? searchResult.Id;
+                var targetManifestId = releaseItem.DownloadedManifestId ??
+                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
+                    searchResult.Id;
                 var targetName = releaseItem.Name;
-                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+                await installBuildAction(targetManifestId, targetName, _cts.Token);
             }
         });
 
@@ -8042,9 +8043,11 @@ public partial class ContentDetailViewModel(
         {
             if (installBuildAction != null)
             {
-                var targetManifestId = addonItem.DownloadedManifestId ?? searchResult.Id;
+                var targetManifestId = addonItem.DownloadedManifestId ??
+                    await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token) ??
+                    searchResult.Id;
                 var targetName = addonItem.Name;
-                await installBuildAction(targetManifestId, targetName, CancellationToken.None);
+                await installBuildAction(targetManifestId, targetName, _cts.Token);
             }
         });
 

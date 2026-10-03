@@ -120,7 +120,9 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
         _lastReportedPhase = value.Phase;
 
         var status = value.FormatProgressStatus();
-        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status), forceUpdate: phaseChanged);
+        var isMultiFile = value.TotalFiles > 1;
+        var includePrefix = isMultiFile || !StatusShowsPercentage(status);
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: includePrefix, forceUpdate: phaseChanged);
     }
 
     /// <summary>
