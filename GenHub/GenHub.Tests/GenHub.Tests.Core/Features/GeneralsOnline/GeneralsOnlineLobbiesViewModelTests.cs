@@ -1653,11 +1653,11 @@ public class GeneralsOnlineLobbiesViewModelTests
         using var vm = CreateViewModel(fakes);
         await vm.RefreshAsync();
         Assert.Single(vm.Lobbies);
-        Assert.Equal(10000, vm.Lobbies[0].StartingCash);
+        Assert.Equal(10000u, vm.Lobbies[0].StartingCash);
 
         // Act - Only StartingCash differs
         var updatedLobby = SampleLobby(9842, "[EU] Pro 1v1");
-        updatedLobby.StartingCash = 20000;
+        updatedLobby.StartingCash = 20000u;
 
         fakes.Api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(
@@ -1667,7 +1667,7 @@ public class GeneralsOnlineLobbiesViewModelTests
 
         // Assert
         Assert.Single(vm.Lobbies);
-        Assert.Equal(20000, vm.Lobbies[0].StartingCash);
+        Assert.Equal(20000u, vm.Lobbies[0].StartingCash);
     }
 
     private static GeneralsOnlineLobby SampleLobby(long id = 9842, string name = "[EU] Pro 1v1")
