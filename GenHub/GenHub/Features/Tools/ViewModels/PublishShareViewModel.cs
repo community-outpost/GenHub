@@ -7980,11 +7980,6 @@ public partial class PublishShareViewModel(
             {
                 await SaveProjectCallback();
             }
-
-            if (ProjectReloadCallback != null)
-            {
-                await ProjectReloadCallback();
-            }
         }
 
         _linkageIndex = null;
@@ -7994,7 +7989,17 @@ public partial class PublishShareViewModel(
         RefreshArtifactStatuses();
         await ValidateCatalogAsync();
 
-        NotifyCatalogDeleteResult(asset, projectCatalog, orphans, definitionFixed);
+        try
+        {
+            if (projectCatalog != null && ProjectReloadCallback != null)
+            {
+                await ProjectReloadCallback();
+            }
+        }
+        finally
+        {
+            NotifyCatalogDeleteResult(asset, projectCatalog, orphans, definitionFixed);
+        }
     }
 
     private void NotifyCatalogDeleteResult(
