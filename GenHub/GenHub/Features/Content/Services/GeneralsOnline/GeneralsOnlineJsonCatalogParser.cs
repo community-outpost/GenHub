@@ -311,6 +311,7 @@ public class GeneralsOnlineJsonCatalogParser(
     {
         var downloadPageUrl = provider.Endpoints.GetEndpoint("downloadPageUrl");
         var iconUrl = provider.Endpoints.GetEndpoint("iconUrl");
+        var coverUrl = provider.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl) ?? GeneralsOnlineConstants.CoverSource;
 
         var searchResult = new ContentSearchResult
         {
@@ -323,6 +324,7 @@ public class GeneralsOnlineJsonCatalogParser(
             ProviderName = provider.PublisherType,
             AuthorName = GeneralsOnlineConstants.PublisherName,
             IconUrl = !string.IsNullOrEmpty(iconUrl) ? iconUrl : PublisherInfoConstants.GeneralsOnline.LogoSource,
+            BannerUrl = coverUrl,
             LastUpdated = release.ReleaseDate,
             DownloadSize = release.PortableSize ?? 0,
             RequiresResolution = true,

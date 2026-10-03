@@ -775,7 +775,10 @@ public partial class ContentDetailViewModel(
     public string? BackdropUrl =>
         !string.IsNullOrWhiteSpace(searchResult.BackdropUrl)
             ? searchResult.BackdropUrl
-            : searchResult.BannerUrl;
+            : (!string.IsNullOrWhiteSpace(searchResult.BannerUrl)
+                ? searchResult.BannerUrl
+                : (PublisherInfoConstants.GetPublisherCover(searchResult.ProviderName, searchResult.Id)
+                    ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)));
 
     /// <summary>
     /// Gets the publisher-defined accent color hex for this content, if any.
@@ -3749,6 +3752,7 @@ public partial class ContentDetailViewModel(
                     Uploader: searchResult.AuthorName,
                     Filename: fileName,
                     Description: searchResult.Description,
+                    ThumbnailUrl: searchResult.IconUrl ?? PublisherInfoConstants.GetPublisherLogo(searchResult.ProviderName, searchResult.Id),
                     FileSectionType: FileSectionType.Downloads);
                 Files = [file];
                 PopulateReleases(Files);
@@ -7917,7 +7921,7 @@ public partial class ContentDetailViewModel(
             SizeDisplay = file.SizeDisplay,
             DownloadUrl = file.DownloadUrl,
             DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
+            ThumbnailUrl = ResolveItemThumbnailUrl(file.ThumbnailUrl, searchResult.IconUrl ?? PublisherInfoConstants.GetPublisherLogo(searchResult.ProviderName, searchResult.Id) ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult)),
             Category = file.Category,
             ContentType = mappedType,
             File = file,

@@ -153,8 +153,8 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that game client variants share a variant group id derived from content type and version,
-    /// while map pack and patch receive separate groups.
+    /// Verifies that all variants from the same release share a single versioned variant group id
+    /// and family name so they collapse into a single content card with variants.
     /// </summary>
     [Fact]
     public void CreateManifests_SameRelease_SharesVersionVariantGroup()
@@ -174,22 +174,12 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
 
         // Assert
         Assert.Equal(4, manifests.Count);
-        var gameClients = manifests.Where(m => m.ContentType == ContentType.GameClient).ToList();
-        Assert.Equal(2, gameClients.Count);
-        var mapPack = manifests.Single(m => m.ContentType == ContentType.MapPack);
-        var patch = manifests.Single(m => m.ContentType == ContentType.Patch);
-
-        Assert.All(gameClients, gc =>
+        Assert.All(manifests, m =>
         {
-            Assert.Equal("generalsonline-gameclient-032926_qfe1", gc.Metadata?.VariantGroupId);
-            Assert.Equal("Generals Online Game Client 032926_QFE1", gc.Metadata?.VariantFamilyName);
+            Assert.Equal("generalsonline-032926_qfe1", m.Metadata?.VariantGroupId);
+            Assert.Equal("Generals Online 032926_QFE1", m.Metadata?.VariantFamilyName);
+            Assert.Equal(GeneralsOnlineConstants.CoverSource, m.Metadata?.CoverUrl);
         });
-
-        Assert.Equal("generalsonline-mappack-032926_qfe1", mapPack.Metadata?.VariantGroupId);
-        Assert.Equal("generalsonline-patch-032926_qfe1", patch.Metadata?.VariantGroupId);
-
-        Assert.Equal("Generals Online Map Pack 032926_QFE1", mapPack.Metadata?.VariantFamilyName);
-        Assert.Equal("Generals Online Patch 032926_QFE1", patch.Metadata?.VariantFamilyName);
     }
 
     /// <summary>

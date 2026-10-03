@@ -95,10 +95,10 @@ public static class GeneralsOnlineConstants
     public const string ThemeColor = "#FF8C00";
 
     /// <summary>Path to publisher logo asset.</summary>
-    public const string LogoSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_logo.png";
+    public const string LogoSource = UriConstants.GeneralsOnlineLogoUri;
 
     /// <summary>Path to publisher cover asset.</summary>
-    public const string CoverSource = "avares://GenHub/Assets/Images/Publishers/generalsonline_cover.png";
+    public const string CoverSource = "/Assets/Covers/usa-cover.jpg";
 
     /// <summary>Portable release description suffix.</summary>
     public const string PortableReleaseSuffix = " portable release";
