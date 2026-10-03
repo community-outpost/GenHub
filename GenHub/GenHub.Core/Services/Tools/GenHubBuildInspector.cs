@@ -838,7 +838,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
                     var peMetadata = TryReadPeMetadata(memStream);
 
-                    var rawVersion = nuspecVersion ?? peMetadata.InformationalVersion ?? peMetadata.Version;
+                    var rawVersion = peMetadata.InformationalVersion ?? nuspecVersion ?? peMetadata.Version;
                     var (cleanVersion, hash, prNum) = NormalizeVersion(rawVersion, peMetadata.InformationalVersion, peMetadata.PullRequestNumber);
 
                     var productName = peMetadata.ProductName ?? nuspecTitle ?? nuspecId ?? GenHubBuildConstants.OfficialProductName;

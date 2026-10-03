@@ -818,7 +818,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         ArgumentNullException.ThrowIfNull(artifactInfo);
 
         var isDirectUrl = !string.IsNullOrWhiteSpace(artifactInfo.DownloadUrl);
-        if (!isDirectUrl && (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated))
+        if (isDirectUrl)
+        {
+            if (!NetworkSecurityHelper.IsSafeUrl(artifactInfo.DownloadUrl, out var failureReason))
+            {
+                throw new InvalidOperationException($"Invalid or unsafe download URL for artifact: {failureReason}");
+            }
+        }
+        else if (_gitHubAuthService == null || !_gitHubAuthService.IsAuthenticated)
         {
             throw new InvalidOperationException("GitHub authentication required to download artifacts");
         }
@@ -840,10 +847,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-art-{Guid.NewGuid():N}");
             Directory.CreateDirectory(tempDir);
 
-            var isDirectExe = (!string.IsNullOrWhiteSpace(artifactInfo.ArtifactName) && artifactInfo.ArtifactName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) ||
-                              (!string.IsNullOrWhiteSpace(downloadUrl) && downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-
-            var targetFileName = DetermineArtifactFileName(artifactInfo, isDirectExe);
+            var targetFileName = DetermineArtifactFileName(artifactInfo, downloadUrl);
             var targetFilePath = Path.Combine(tempDir, targetFileName);
 
             var downloadProgress = new Action<int>(percent =>
@@ -864,6 +868,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 timeout: 300,
                 cancelToken: cancellationToken);
 
+            var isDirectExe = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
             if (TryInstallDirectExecutable(targetFilePath, isDirectExe, progress))
             {
                 return;
@@ -1461,16 +1466,26 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
-    private static string DetermineArtifactFileName(ArtifactUpdateInfo artifactInfo, bool isDirectExe)
+    private static string DetermineArtifactFileName(ArtifactUpdateInfo artifactInfo, string? downloadUrl)
     {
-        if (!isDirectExe)
+        var candidateName = !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
+            ? artifactInfo.ArtifactName
+            : downloadUrl;
+
+        if (!string.IsNullOrWhiteSpace(candidateName))
         {
-            return "artifact.zip";
+            var uri = Uri.TryCreate(candidateName, UriKind.Absolute, out var parsed) ? parsed : null;
+            var fileName = uri != null ? Path.GetFileName(uri.AbsolutePath) : Path.GetFileName(candidateName);
+            var ext = Path.GetExtension(fileName);
+            if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".nupkg", StringComparison.OrdinalIgnoreCase) ||
+                ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return fileName;
+            }
         }
 
-        return !string.IsNullOrWhiteSpace(artifactInfo.ArtifactName)
-            ? Path.GetFileName(artifactInfo.ArtifactName)
-            : "setup.exe";
+        return "artifact.zip";
     }
 
     private static bool IsWindowsExecutable(string filePath)
