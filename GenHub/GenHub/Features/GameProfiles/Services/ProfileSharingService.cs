@@ -369,9 +369,11 @@ public class ProfileSharingService(
     /// <returns><c>true</c> when import cannot acquire the dependency; otherwise <c>false</c>.</returns>
     internal static bool CannotBeAcquired(SharedManifestDependency dependency) =>
         !dependency.IsCachedLocally &&
-        string.IsNullOrWhiteSpace(dependency.PackageUrl) &&
-        dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) != true &&
-        IsLocalOrSourcelessDependency(dependency);
+        (IsBuiltForOtherPlatform(dependency)
+            ? IsLocalOrSourcelessDependency(dependency)
+            : string.IsNullOrWhiteSpace(dependency.PackageUrl) &&
+              dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) != true &&
+              IsLocalOrSourcelessDependency(dependency));
 
     /// <summary>
     /// Releases managed and unmanaged resources.
@@ -626,9 +628,9 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure("Package must include profile metadata and required manifests list.");
         }
 
-        if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        if (!IsSupportedSchemaVersion(request.Package.SchemaVersion))
         {
-            return OperationResult<bool>.CreateFailure($"Unsupported package schema version {request.Package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+            return OperationResult<bool>.CreateFailure(FormatUnsupportedSchemaVersion(request.Package.SchemaVersion));
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -1423,6 +1425,20 @@ public class ProfileSharingService(
         dep.ContentType == ContentType.GameInstallation ||
         dep.ManifestId.Contains(ManifestConstants.GameInstallationSegment, StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsBuiltForOtherPlatform(SharedManifestDependency dependency) =>
+        !dependency.SupportsRuntime(ManifestVariantResolver.CurrentRuntimeIdentifier);
+
+    private static bool IsSupportedSchemaVersion(int schemaVersion) =>
+        schemaVersion >= ProfileSharingConstants.DefaultSchemaVersion &&
+        schemaVersion <= ProfileSharingConstants.MaxSupportedSchemaVersion;
+
+    private static string FormatUnsupportedSchemaVersion(int schemaVersion) =>
+        string.Format(
+            CultureInfo.InvariantCulture,
+            ProfileSharingConstants.UnsupportedSchemaVersionErrorMessage,
+            schemaVersion,
+            ProfileSharingConstants.MaxSupportedSchemaVersion);
+
     private static bool IsLocalOrSourcelessDependency(SharedManifestDependency dependency)
     {
         if (string.Equals(dependency.PublisherType, PublisherTypeConstants.Local, StringComparison.OrdinalIgnoreCase) ||
@@ -1480,7 +1496,12 @@ public class ProfileSharingService(
         IEnumerable<ContentSearchResult> results,
         SharedManifestDependency dependency)
     {
-        var resultList = results.Where(r => IsCandidateCompatible(r, dependency)).ToList();
+        // Prefer the shared version within every match tier, so re-resolving does not silently
+        // install a newer build. A tier still matches another version when none is shared.
+        var resultList = results
+            .Where(r => IsCandidateCompatible(r, dependency))
+            .OrderByDescending(r => string.Equals(r.Version, dependency.Version, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         return FindExactManifestIdMatch(resultList, dependency.ManifestId)
             ?? FindDisplayNameMatch(resultList, dependency.DisplayName, dependency)
@@ -2124,7 +2145,9 @@ public class ProfileSharingService(
 
         var package = new SharedGameProfilePackage
         {
-            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            SchemaVersion = manifests.Any(m => m.RuntimeIdentifiers is { Count: > 0 })
+                ? ProfileSharingConstants.PlatformSpecificSchemaVersion
+                : ProfileSharingConstants.DefaultSchemaVersion,
             GeneratorVersion = AppConstants.AppVersion,
             ExportedAt = DateTime.UtcNow,
             Profile = new SharedProfileMetadata
@@ -2241,6 +2264,9 @@ public class ProfileSharingService(
             PackageUrl = packageUrl,
             PackageHash = packageHash,
             Files = dependencyFiles,
+            RuntimeIdentifiers = ManifestVariantResolver.ResolveVariant(manifest)?.RuntimeIdentifiers is { Count: > 0 } runtimes
+                ? [.. runtimes]
+                : null,
         };
 
         return OperationResult<SharedManifestDependency>.CreateSuccess(dependency);
@@ -2541,6 +2567,23 @@ public class ProfileSharingService(
             if (!ManifestId.TryCreate(dependency.ManifestId, out var validatedManifestId))
             {
                 return OperationResult<string>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
+            }
+
+            // Files shared for another platform cannot run here: skip the shared CAS blobs and
+            // downloads, and let the publisher supply this platform's build.
+            if (IsBuiltForOtherPlatform(dependency))
+            {
+                if (IsLocalOrSourcelessDependency(dependency))
+                {
+                    return OperationResult<string>.CreateFailure(string.Format(
+                        CultureInfo.InvariantCulture,
+                        ProfileSharingConstants.DependencyBuiltForOtherPlatformErrorMessage,
+                        dependency.DisplayName,
+                        string.Join(", ", dependency.RuntimeIdentifiers!),
+                        ManifestVariantResolver.CurrentRuntimeIdentifier));
+                }
+
+                return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
             }
 
             // 1 & 2. Check local manifest pool or CAS storage (zero-download path)
@@ -3336,9 +3379,9 @@ public class ProfileSharingService(
             return OperationResult<SharedGameProfilePackage>.CreateFailure("Package does not contain valid profile metadata or manifests list.");
         }
 
-        if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        if (!IsSupportedSchemaVersion(package.SchemaVersion))
         {
-            return OperationResult<SharedGameProfilePackage>.CreateFailure($"Unsupported package schema version {package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+            return OperationResult<SharedGameProfilePackage>.CreateFailure(FormatUnsupportedSchemaVersion(package.SchemaVersion));
         }
 
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
@@ -3396,6 +3439,7 @@ public class ProfileSharingService(
                 PackageUrl = reqManifest.PackageUrl,
                 PackageHash = reqManifest.PackageHash,
                 Files = reqManifest.Files ?? [],
+                RuntimeIdentifiers = reqManifest.RuntimeIdentifiers,
             });
         }
 

@@ -14,6 +14,18 @@ public static class ProfileSharingConstants
     public const int DefaultSchemaVersion = 1;
 
     /// <summary>
+    /// The schema version for packages with at least one platform-specific dependency.
+    /// Readers that only understand <see cref="DefaultSchemaVersion"/> reject these packages
+    /// instead of installing files built for another platform.
+    /// </summary>
+    public const int PlatformSpecificSchemaVersion = 2;
+
+    /// <summary>
+    /// The highest schema version this build can read.
+    /// </summary>
+    public const int MaxSupportedSchemaVersion = PlatformSpecificSchemaVersion;
+
+    /// <summary>
     /// The maximum length in characters allowed for an inline Base64Url data payload (64 KB).
     /// Payloads exceeding this limit must be exported as .ghprofile files or hosted via URL.
     /// </summary>
@@ -113,6 +125,18 @@ public static class ProfileSharingConstants
     /// Error message when an export or inspection operation is invoked with an empty profile ID.
     /// </summary>
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
+
+    /// <summary>
+    /// Error message for a local dependency whose shared files were built for another platform.
+    /// {0} is the content name, {1} the platforms it was built for and {2} the recipient's runtime.
+    /// </summary>
+    public const string DependencyBuiltForOtherPlatformErrorMessage = "'{0}' was shared for {1} and cannot be installed on this platform ({2}).";
+
+    /// <summary>
+    /// Error message for a package whose schema version this build cannot read.
+    /// {0} is the package version and {1} the highest supported version.
+    /// </summary>
+    public const string UnsupportedSchemaVersionErrorMessage = "Unsupported package schema version {0}. This version of GenHub supports up to version {1}.";
 
     /// <summary>
     /// Parent directory segment in file paths.

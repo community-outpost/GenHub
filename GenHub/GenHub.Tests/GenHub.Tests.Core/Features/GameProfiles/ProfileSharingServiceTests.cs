@@ -776,6 +776,140 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
+    /// Verifies that a dependency exported from a platform-specific variant records that variant's
+    /// runtimes and raises the package to the platform-specific schema version.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfile_WithPlatformSpecificVariant_RecordsRuntimesAndSchemaVersionAsync()
+    {
+        var package = await ExportSingleManifestAsync(VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "client-host.zip", DownloadUrl = "https://example.invalid/client-host.zip", SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "client-foreign.zip", DownloadUrl = "https://example.invalid/client-foreign.zip", SourceType = ContentSourceType.RemoteDownload }]));
+
+        Assert.Equal(ProfileSharingConstants.PlatformSpecificSchemaVersion, package.SchemaVersion);
+        Assert.Equal([VariantManifestFixture.HostRuntimeIdentifier], Assert.Single(package.RequiredManifests).RuntimeIdentifiers);
+    }
+
+    /// <summary>
+    /// Verifies that a dependency without variants records no runtimes and keeps the default schema version.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfile_WithFlatManifest_RecordsNoRuntimesAsync()
+    {
+        var package = await ExportSingleManifestAsync(new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.gameclient.variants"),
+            Name = "Flat Client",
+            Version = "1.0",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Files = [new ManifestFile { RelativePath = "client.zip", DownloadUrl = "https://example.invalid/client.zip", SourceType = ContentSourceType.RemoteDownload }],
+        });
+
+        Assert.Equal(ProfileSharingConstants.DefaultSchemaVersion, package.SchemaVersion);
+        Assert.Null(Assert.Single(package.RequiredManifests).RuntimeIdentifiers);
+    }
+
+    /// <summary>
+    /// Verifies that inspection accepts every supported schema version and rejects a newer one.
+    /// </summary>
+    /// <param name="schemaVersion">The package schema version.</param>
+    /// <param name="supported">Whether this build reads the version.</param>
+    /// <returns>A task representing the test.</returns>
+    [Theory]
+    [InlineData(ProfileSharingConstants.DefaultSchemaVersion, true)]
+    [InlineData(ProfileSharingConstants.PlatformSpecificSchemaVersion, true)]
+    [InlineData(ProfileSharingConstants.MaxSupportedSchemaVersion + 1, false)]
+    [InlineData(0, false)]
+    public async Task InspectSharedProfileAsync_ChecksSchemaVersionRangeAsync(int schemaVersion, bool supported)
+    {
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = schemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Versioned Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+
+        var result = await _service.InspectSharedProfileAsync(JsonSerializer.Serialize(package, TestJsonOptions));
+
+        Assert.Equal(supported, result.Success);
+        if (!supported)
+        {
+            Assert.Contains("Unsupported package schema version", result.FirstError);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a dependency shared for another platform skips the shared files and is
+    /// acquired through the provider search, preferring the shared version.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_ReResolvesSharedVersionAsync()
+    {
+        const string manifestId = "1.0.moddb.mod.crossplatform";
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = manifestId,
+            DisplayName = "Cross Platform Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = "ModDB",
+            PublisherType = PublisherTypeConstants.ModDB,
+            PackageUrl = "https://utfs.io/f/foreign-build.zip",
+            Files = [new ManifestFile { RelativePath = "mod.big", Hash = "foreign-hash", DownloadUrl = "https://utfs.io/f/foreign-build.zip" }],
+            RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier],
+        };
+        var newer = new ContentSearchResult { Id = "newer", Name = "Cross Platform Mod", Version = "2.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
+        var shared = new ContentSearchResult { Id = "shared", Name = "Cross Platform Mod", Version = "1.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
+        SetUpImport(manifestId);
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([newer, shared]));
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(shared, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Id = ManifestId.Create(manifestId) }));
+
+        var result = await _service.ImportSharedProfileAsync(CreateImportRequest(dependency));
+
+        Assert.True(result.Success, result.FirstError);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(shared, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(newer, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a local dependency shared for another platform fails with a message naming
+    /// its platform, and is reported as not acquirable during inspection.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_WithLocalDependencyForOtherPlatform_FailsWithPlatformMessageAsync()
+    {
+        const string manifestId = "1.0.local.mod.crossplatform";
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = manifestId,
+            DisplayName = "Local Cross Platform Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = "GenHub (Local)",
+            PublisherType = PublisherTypeConstants.Local,
+            PackageUrl = "https://utfs.io/f/foreign-local.zip",
+            Files = [new ManifestFile { RelativePath = "mod.big", Hash = "foreign-hash", DownloadUrl = "https://utfs.io/f/foreign-local.zip" }],
+            RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier],
+        };
+        SetUpImport(manifestId);
+
+        var result = await _service.ImportSharedProfileAsync(CreateImportRequest(dependency));
+
+        Assert.False(result.Success);
+        Assert.Contains(VariantManifestFixture.ForeignRuntimeIdentifier, result.FirstError);
+        Assert.True(ProfileSharingService.CannotBeAcquired(dependency));
+        _contentOrchestratorMock.Verify(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that machine-specific artwork paths are stripped when a profile is packaged for sharing.
     /// </summary>
     /// <returns>A task representing the test.</returns>
@@ -3025,6 +3159,18 @@ public class ProfileSharingServiceTests
         Assert.Equal(expectedSafe, isSafe);
     }
 
+    private static SharedProfileImportRequest CreateImportRequest(SharedManifestDependency dependency) => new()
+    {
+        Package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.PlatformSpecificSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Platforms Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        },
+        ProfileName = "Platforms Imported",
+        GameInstallationId = "inst-1",
+    };
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile
@@ -3060,5 +3206,37 @@ public class ProfileSharingServiceTests
                 PublisherType = PublisherTypeConstants.GeneralsOnline,
             },
         };
+    }
+
+    private async Task<SharedGameProfilePackage> ExportSingleManifestAsync(ContentManifest manifest)
+    {
+        var profile = CreateTestProfile("profile-platforms", "Platforms Test");
+        profile.EnabledContentIds = [manifest.Id.Value];
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-platforms", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        var uriResult = await _service.ExportProfileToUriAsync("profile-platforms");
+
+        Assert.True(uriResult.Success, uriResult.FirstError);
+        var dataParam = uriResult.Data!.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
+        return JsonSerializer.Deserialize<SharedGameProfilePackage>(ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam), TestJsonOptions)!;
+    }
+
+    private void SetUpImport(string manifestId)
+    {
+        var installation = new GameInstallation("/games/zh", GameInstallationType.Retail)
+        {
+            Id = "inst-1",
+            HasZeroHour = true,
+            AvailableGameClients = [new GameClient { Id = "c1", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+        };
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
     }
 }
