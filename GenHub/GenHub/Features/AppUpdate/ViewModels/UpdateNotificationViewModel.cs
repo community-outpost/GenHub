@@ -656,8 +656,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             }))
             .ThenByDescending(r => r.ReleaseDate))
         {
-            var art = rel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? rel.Artifacts.FirstOrDefault();
-            if (art == null || string.IsNullOrWhiteSpace(art.DownloadUrl))
+            var art = rel.Artifacts.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
+                      rel.Artifacts.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.DownloadUrl));
+            if (art == null)
             {
                 continue;
             }
