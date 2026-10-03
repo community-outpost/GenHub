@@ -13,6 +13,7 @@ using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -1017,6 +1018,104 @@ public class PublisherStudioInventoryManagementTests
         Assert.Contains(CloudArtifactUrl, metadata.ScreenshotUrls);
         Assert.NotNull(successMessage);
         Assert.Contains("kept", successMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that expanding a cloud catalog whose JSON has null content shows an empty
+    /// preview instead of faulting the background load.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_NullContent_ShowsEmptyWithoutThrowingAsync()
+    {
+        var project = CreateInventoryProject();
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "nullcontent",
+            CatalogName = "Null Content",
+            FileId = "nullcontent-id",
+            FileName = "catalog-null.json",
+            Url = "https://example.com/catalog-null.json",
+            FileSize = 64,
+        });
+        vm.RefreshHostedAssets();
+        var row = vm.HostedAssets.Single(a => a.Name == "catalog-null.json");
+
+        var catalog = new PublisherCatalog { Content = null! };
+        var handler = new CountingJsonHandler(JsonSerializer.Serialize(catalog, PublisherJsonOptions.Definition));
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+        try
+        {
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.Empty(row.Children);
+            Assert.True(row.RemotePreviewLoaded);
+            Assert.Null(row.ChildrenLoadError);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Tests that uploading an addon-release artifact row uploads the file and links the
+    /// returned URL instead of silently doing nothing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task UploadHostedAsset_AddonReleaseArtifact_UploadsAndLinksAsync()
+    {
+        var project = CreateInventoryProject();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "addon-payload");
+            project.Catalogs[0].Catalog.Content[0].AddonReleases.Add(new ContentRelease
+            {
+                Version = "1.0.1",
+                Artifacts =
+                [
+                    new ReleaseArtifact
+                    {
+                        Filename = "addon-patch.zip",
+                        LocalFilePath = tempFile,
+                        Size = 13,
+                    },
+                ],
+            });
+            var provider = CreateDriveProvider();
+            const string directUrl = "https://drive.google.com/uc?export=download&id=addon-patch";
+            provider.Setup(p => p.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<HostingUploadResult>.CreateSuccess(new HostingUploadResult
+                {
+                    FileId = "addon-patch-id",
+                    PublicUrl = directUrl,
+                    DirectDownloadUrl = directUrl,
+                    FileSize = 13,
+                }));
+            using var vm = CreateViewModel(project, provider);
+            vm.RefreshHostedAssets();
+            var row = vm.HostedAssets.Single(a => a.Name == "addon-patch.zip");
+
+            await vm.UploadHostedAssetCommand.ExecuteAsync(row);
+
+            provider.Verify(p => p.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IProgress<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.Equal(directUrl, project.Catalogs[0].Catalog.Content[0].AddonReleases[0].Artifacts[0].DownloadUrl);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
     private static async Task WaitForPreviewAsync(HostedAssetItemViewModel row)
