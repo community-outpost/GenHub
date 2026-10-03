@@ -971,118 +971,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
-    private async Task InstallExeBuildAsync(
-        string targetPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-        try
-        {
-            Directory.CreateDirectory(tempDir);
-            var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetPath)}.nupkg");
-
-            if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
-            {
-                _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
-                await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
-            LaunchInstallerProcess(targetPath, progress);
-        }
-        finally
-        {
-            SafeDeleteDirectory(tempDir);
-        }
-    }
-
-    private async Task InstallZipBuildAsync(
-        string targetPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
-        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-        try
-        {
-            Directory.CreateDirectory(tempDir);
-            ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
-
-            var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
-            if (nupkgFiles.Length > 0)
-            {
-                await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            await InstallZipExeCandidateAsync(tempDir, progress, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            SafeDeleteDirectory(tempDir);
-        }
-    }
-
-    private async Task InstallZipExeCandidateAsync(
-        string tempDir,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
-            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (exeFiles.Length == 0)
-        {
-            throw new FileNotFoundException("No .nupkg or installer executable found inside zip archive");
-        }
-
-        var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
-        var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetExe)}.nupkg");
-
-        if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
-        {
-            _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
-            await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        LaunchInstallerProcess(targetExe, progress);
-    }
-
-    private async Task InstallNupkgBuildAsync(
-        string targetPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
-        try
-        {
-            Directory.CreateDirectory(tempDir);
-            await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            SafeDeleteDirectory(tempDir);
-        }
-    }
-
-    private void SafeDeleteDirectory(string dir)
-    {
-        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
-        {
-            try
-            {
-                Directory.Delete(dir, true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to clean up temp build directory {Dir}", dir);
-            }
-        }
-    }
-
     /// <inheritdoc/>
     public void ClearCache()
     {
@@ -1260,6 +1148,30 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return MatchesGitHash(manifest, artifactInfo.GitHash, matchesVersion);
     }
 
+    /// <summary>
+    /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
+    /// from the application directory prior to applying an update.
+    /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
+    /// </summary>
+    internal void CleanStrayAppDirectoryArtifacts()
+    {
+        try
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            var sampleProjectsDir = Path.Combine(baseDir, ModBuilderConstants.SampleProjectsDirectoryName);
+            if (Directory.Exists(sampleProjectsDir))
+            {
+                CleanSampleProjectArtifacts(sampleProjectsDir);
+            }
+
+            CleanStrayMsgpackFiles(baseDir);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
+        }
+    }
+
     private static bool MatchesDirectDownloadUrl(IReadOnlyList<ManifestFile> resolvedFiles, string? downloadUrl)
     {
         return !string.IsNullOrWhiteSpace(downloadUrl) &&
@@ -1305,30 +1217,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         return (manifest.Name?.Contains(gitHash, StringComparison.OrdinalIgnoreCase) == true) ||
             (manifest.Metadata?.Description?.Contains(gitHash, StringComparison.OrdinalIgnoreCase) == true);
-    }
-
-    /// <summary>
-    /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
-    /// from the application directory prior to applying an update.
-    /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
-    /// </summary>
-    internal void CleanStrayAppDirectoryArtifacts()
-    {
-        try
-        {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var sampleProjectsDir = Path.Combine(baseDir, ModBuilderConstants.SampleProjectsDirectoryName);
-            if (Directory.Exists(sampleProjectsDir))
-            {
-                CleanSampleProjectArtifacts(sampleProjectsDir);
-            }
-
-            CleanStrayMsgpackFiles(baseDir);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Error during pre-update app directory cleanup");
-        }
     }
 
     private static bool MatchesPullRequestCriteria(JsonElement run, int prNumber, string? actualBranch, string? branchName)
@@ -1617,6 +1505,81 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             : $"Artifact v{artifactInfo.Version}";
     }
 
+    private static bool TryParseSuccessfulRun(
+        JsonElement run,
+        string expectedBranch,
+        out long runId,
+        out string runUrl,
+        out string shortHash,
+        out DateTime createdAt)
+    {
+        runId = 0;
+        runUrl = string.Empty;
+        shortHash = string.Empty;
+        createdAt = DateTime.MinValue;
+
+        var id = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
+        var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
+        if (!string.Equals(runBranch, expectedBranch, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
+        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
+        if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        runId = id;
+        runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
+        if (run.TryGetProperty("created_at", out var catProp) && catProp.ValueKind == JsonValueKind.String && catProp.TryGetDateTime(out var dt))
+        {
+            createdAt = dt;
+        }
+
+        var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
+        shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
+        return true;
+    }
+
+    private static string? ResolveDirectoryInstallTarget(string dirPath, string? originalFileName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(originalFileName))
+        {
+            var match = Directory.GetFiles(dirPath, originalFileName, SearchOption.AllDirectories).FirstOrDefault();
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        var nupkgs = Directory.GetFiles(dirPath, "*.nupkg", SearchOption.AllDirectories);
+        if (nupkgs.Length > 0)
+        {
+            return nupkgs[0];
+        }
+
+        var zips = Directory.GetFiles(dirPath, "*.zip", SearchOption.AllDirectories);
+        if (zips.Length > 0)
+        {
+            return zips[0];
+        }
+
+        var exes = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories)
+            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (exes.Length > 0)
+        {
+            var targetExe = exes.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exes[0];
+            return targetExe;
+        }
+
+        throw new FileNotFoundException($"No valid installer, nupkg, or zip archive found in '{dirPath}'");
+    }
+
     private void LaunchInstallerProcess(string exePath, IProgress<UpdateProgress>? progress)
     {
         _logger.LogInformation("Launching installer executable '{Exe}'", exePath);
@@ -1680,6 +1643,118 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _logger.LogInformation("Installer launcher process started with PID {ProcessId}", proc.Id);
         Thread.Sleep(300);
         Environment.Exit(0); // skipcq: CS-W1005, CS-R1081
+    }
+
+    private async Task InstallExeBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetPath)}.nupkg");
+
+            if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
+            {
+                _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
+                await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
+            LaunchInstallerProcess(targetPath, progress);
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private async Task InstallZipBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            ZipArchiveGuard.ExtractToDirectory(targetPath, tempDir, cancellationToken);
+
+            var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
+            if (nupkgFiles.Length > 0)
+            {
+                await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            await InstallZipExeCandidateAsync(tempDir, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private async Task InstallZipExeCandidateAsync(
+        string tempDir,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (exeFiles.Length == 0)
+        {
+            throw new FileNotFoundException("No .nupkg or installer executable found inside zip archive");
+        }
+
+        var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
+        var extractedNupkg = Path.Combine(tempDir, $"{Path.GetFileNameWithoutExtension(targetExe)}.nupkg");
+
+        if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
+        {
+            _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
+            await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        LaunchInstallerProcess(targetExe, progress);
+    }
+
+    private async Task InstallNupkgBuildAsync(
+        string targetPath,
+        IProgress<UpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempDir);
+        }
+    }
+
+    private void SafeDeleteDirectory(string dir)
+    {
+        if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to clean up temp build directory {Dir}", dir);
+            }
+        }
     }
 
     private async Task<(string DownloadUrl, Dictionary<string, string> Headers)> ResolveArtifactDownloadDetailsAsync(
@@ -2555,46 +2630,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         string Owner,
         string Repo);
 
-    private static bool TryParseSuccessfulRun(
-        JsonElement run,
-        string expectedBranch,
-        out long runId,
-        out string runUrl,
-        out string shortHash,
-        out DateTime createdAt)
-    {
-        runId = 0;
-        runUrl = string.Empty;
-        shortHash = string.Empty;
-        createdAt = DateTime.MinValue;
-
-        var id = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
-        var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
-        if (!string.Equals(runBranch, expectedBranch, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
-        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
-        if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        runId = id;
-        runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
-        if (run.TryGetProperty("created_at", out var catProp) && catProp.ValueKind == JsonValueKind.String && catProp.TryGetDateTime(out var dt))
-        {
-            createdAt = dt;
-        }
-
-        var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
-        shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
-        return true;
-    }
-
     private async Task<ArtifactUpdateInfo?> FindMatchingArtifactInRunAsync(
         PrArtifactContext context,
         JsonElement run,
@@ -3001,38 +3036,4 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
     }
 
-    private static string? ResolveDirectoryInstallTarget(string dirPath, string? originalFileName = null)
-    {
-        if (!string.IsNullOrWhiteSpace(originalFileName))
-        {
-            var match = Directory.GetFiles(dirPath, originalFileName, SearchOption.AllDirectories).FirstOrDefault();
-            if (match != null)
-            {
-                return match;
-            }
-        }
-
-        var nupkgs = Directory.GetFiles(dirPath, "*.nupkg", SearchOption.AllDirectories);
-        if (nupkgs.Length > 0)
-        {
-            return nupkgs[0];
-        }
-
-        var zips = Directory.GetFiles(dirPath, "*.zip", SearchOption.AllDirectories);
-        if (zips.Length > 0)
-        {
-            return zips[0];
-        }
-
-        var exes = Directory.GetFiles(dirPath, "*.exe", SearchOption.AllDirectories)
-            .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-        if (exes.Length > 0)
-        {
-            var targetExe = exes.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exes[0];
-            return targetExe;
-        }
-
-        throw new FileNotFoundException($"No valid installer, nupkg, or zip archive found in '{dirPath}'");
-    }
 }
