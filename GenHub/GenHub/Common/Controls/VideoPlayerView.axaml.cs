@@ -418,16 +418,6 @@ public partial class VideoPlayerView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    private void OnVideoHostAttached(object? sender, VisualTreeAttachmentEventArgs e)
-    {
-        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
-        videoHostAttached = true;
-        if (!string.IsNullOrWhiteSpace(SourceUrl) && !Design.IsDesignMode)
-        {
-            StartPlayback(SourceUrl);
-        }
-    }
-
     private static LibVLC? EnsureLibVLC()
     {
         lock (SyncRoot)
@@ -487,6 +477,16 @@ public partial class VideoPlayerView : UserControl
         return hours > 0
             ? $"{hours}:{minutes:D2}:{seconds:D2}"
             : $"{minutes}:{seconds:D2}";
+    }
+
+    private void OnVideoHostAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
+        videoHostAttached = true;
+        if (!string.IsNullOrWhiteSpace(SourceUrl) && !Design.IsDesignMode)
+        {
+            StartPlayback(SourceUrl);
+        }
     }
 
     private void UpdateSurfaceVisibility()
