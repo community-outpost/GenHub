@@ -910,6 +910,45 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
+    /// Verifies that inspection reports a local dependency shared for another platform under its own
+    /// warning, not as a missing download source, and leaves its shared size out of the download total.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileAsync_WithLocalDependencyForOtherPlatform_WarnsAndExcludesSizeAsync()
+    {
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.PlatformSpecificSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Platforms Profile", GameType = GameType.ZeroHour },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.local.mod.crossplatform",
+                    DisplayName = "Local Cross Platform Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    PublisherType = PublisherTypeConstants.Local,
+                    PackageUrl = "https://utfs.io/f/foreign-local.zip",
+                    DownloadSize = 5_000_000,
+                    Files = [new ManifestFile { RelativePath = "mod.big", Hash = "foreign-hash", Size = 5_000_000, DownloadUrl = "https://utfs.io/f/foreign-local.zip" }],
+                    RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier],
+                },
+            ],
+        };
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var result = await _service.InspectSharedProfileAsync(JsonSerializer.Serialize(package, TestJsonOptions));
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Contains(ProfileSecurityWarningCode.BuiltForOtherPlatform, result.Data!.SecurityWarningCodes);
+        Assert.DoesNotContain(ProfileSecurityWarningCode.MissingDownloadSource, result.Data.SecurityWarningCodes);
+        Assert.Equal(0, result.Data.TotalDownloadBytesRequired);
+    }
+
+    /// <summary>
     /// Verifies that machine-specific artwork paths are stripped when a profile is packaged for sharing.
     /// </summary>
     /// <returns>A task representing the test.</returns>

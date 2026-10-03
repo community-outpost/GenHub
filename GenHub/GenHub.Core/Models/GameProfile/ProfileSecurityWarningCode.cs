@@ -24,4 +24,9 @@ public enum ProfileSecurityWarningCode
     /// A missing dependency has no download URL or package URL source.
     /// </summary>
     MissingDownloadSource,
+
+    /// <summary>
+    /// A missing local dependency was shared for another platform and cannot be installed here.
+    /// </summary>
+    BuiltForOtherPlatform,
 }

@@ -17843,4 +17843,13 @@ Mapped image texture reference</value>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
+    <value>'{0}' was shared for {1} and cannot be installed on this platform ({2}).</value>
+  </data>
+  <data name="GameProfiles.Share.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>Unsupported package schema version {0}. This version of GenHub supports up to version {1}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
+    <value>Cannot export '{0}': no variant supports this host ({1}).</value>
+  </data>
 </root>

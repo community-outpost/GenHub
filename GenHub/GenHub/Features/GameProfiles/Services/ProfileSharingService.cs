@@ -19,6 +19,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Publishers;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -55,7 +56,8 @@ public class ProfileSharingService(
     ICasService? casService = null,
     IUploadThingService? uploadThingService = null,
     IUploadHistoryService? uploadHistoryService = null,
-    ITelemetryService? telemetryService = null) : IProfileSharingService, IDisposable
+    ITelemetryService? telemetryService = null,
+    ILocalizationService? localizationService = null) : IProfileSharingService, IDisposable
 {
     private sealed record ManifestInspectionSummary(
         List<SharedManifestDependency> Manifests,
@@ -288,7 +290,7 @@ public class ProfileSharingService(
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var validationResult = ValidateImportRequest(request);
+            var validationResult = ValidateImportRequest(request, localizationService);
             if (!validationResult.Success)
             {
                 return OperationResult<GameProfile>.CreateFailure(validationResult.Errors);
@@ -362,18 +364,51 @@ public class ProfileSharingService(
     }
 
     /// <summary>
-    /// Determines whether an import has no way to acquire a dependency: it is not cached, it carries no
-    /// download URL, and it is not a curated dependency that import resolves through content providers.
+    /// Formats the message for a dependency shared for a platform other than this one.
+    /// </summary>
+    /// <param name="dependency">The dependency.</param>
+    /// <param name="localization">The localization service, when available.</param>
+    /// <returns>The localized message.</returns>
+    internal static string FormatBuiltForOtherPlatform(SharedManifestDependency dependency, ILocalizationService? localization) =>
+        LaunchExitMessages.GetString(
+            ProfileSharingConstants.DependencyBuiltForOtherPlatformErrorKey,
+            localization,
+            dependency.DisplayName,
+            string.Join(", ", dependency.RuntimeIdentifiers ?? []),
+            ManifestVariantResolver.CurrentRuntimeIdentifier);
+
+    /// <summary>
+    /// Determines whether an import has no way to acquire a dependency, either because it has no
+    /// download source or because it is local content shared for another platform.
     /// </summary>
     /// <param name="dependency">The inspected dependency.</param>
     /// <returns><c>true</c> when import cannot acquire the dependency; otherwise <c>false</c>.</returns>
     internal static bool CannotBeAcquired(SharedManifestDependency dependency) =>
+        HasNoDownloadSource(dependency) || IsLocalBuiltForOtherPlatform(dependency);
+
+    /// <summary>
+    /// Determines whether a dependency is not cached, carries no download URL, and is not a curated
+    /// dependency that import resolves through content providers.
+    /// </summary>
+    /// <param name="dependency">The inspected dependency.</param>
+    /// <returns><c>true</c> when the dependency has no download source; otherwise <c>false</c>.</returns>
+    internal static bool HasNoDownloadSource(SharedManifestDependency dependency) =>
         !dependency.IsCachedLocally &&
-        (IsBuiltForOtherPlatform(dependency)
-            ? IsLocalOrSourcelessDependency(dependency)
-            : string.IsNullOrWhiteSpace(dependency.PackageUrl) &&
-              dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) != true &&
-              IsLocalOrSourcelessDependency(dependency));
+        !IsBuiltForOtherPlatform(dependency) &&
+        string.IsNullOrWhiteSpace(dependency.PackageUrl) &&
+        dependency.Files?.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)) != true &&
+        IsLocalOrSourcelessDependency(dependency);
+
+    /// <summary>
+    /// Determines whether a dependency is uncached local content shared for another platform, which
+    /// import cannot re-resolve from a publisher.
+    /// </summary>
+    /// <param name="dependency">The inspected dependency.</param>
+    /// <returns><c>true</c> when the dependency cannot be installed on this platform; otherwise <c>false</c>.</returns>
+    internal static bool IsLocalBuiltForOtherPlatform(SharedManifestDependency dependency) =>
+        !dependency.IsCachedLocally &&
+        IsBuiltForOtherPlatform(dependency) &&
+        IsLocalOrSourcelessDependency(dependency);
 
     /// <summary>
     /// Releases managed and unmanaged resources.
@@ -614,7 +649,7 @@ public class ProfileSharingService(
         }
     }
 
-    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
+    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request, ILocalizationService? localization)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -630,7 +665,7 @@ public class ProfileSharingService(
 
         if (!IsSupportedSchemaVersion(request.Package.SchemaVersion))
         {
-            return OperationResult<bool>.CreateFailure(FormatUnsupportedSchemaVersion(request.Package.SchemaVersion));
+            return OperationResult<bool>.CreateFailure(FormatUnsupportedSchemaVersion(request.Package.SchemaVersion, localization));
         }
 
         return OperationResult<bool>.CreateSuccess(true);
@@ -1361,10 +1396,16 @@ public class ProfileSharingService(
         List<string> securityWarnings,
         List<ProfileSecurityWarningCode>? securityWarningCodes = null)
     {
-        foreach (var manifest in manifests.Where(CannotBeAcquired))
+        foreach (var manifest in manifests.Where(HasNoDownloadSource))
         {
             securityWarnings.Add($"Component '{manifest.DisplayName}' is not cached locally and has no download source. It cannot be acquired.");
             securityWarningCodes?.Add(ProfileSecurityWarningCode.MissingDownloadSource);
+        }
+
+        foreach (var manifest in manifests.Where(IsLocalBuiltForOtherPlatform))
+        {
+            securityWarnings.Add(FormatBuiltForOtherPlatform(manifest, null));
+            securityWarningCodes?.Add(ProfileSecurityWarningCode.BuiltForOtherPlatform);
         }
     }
 
@@ -1432,10 +1473,10 @@ public class ProfileSharingService(
         schemaVersion >= ProfileSharingConstants.DefaultSchemaVersion &&
         schemaVersion <= ProfileSharingConstants.MaxSupportedSchemaVersion;
 
-    private static string FormatUnsupportedSchemaVersion(int schemaVersion) =>
-        string.Format(
-            CultureInfo.InvariantCulture,
-            ProfileSharingConstants.UnsupportedSchemaVersionErrorMessage,
+    private static string FormatUnsupportedSchemaVersion(int schemaVersion, ILocalizationService? localization) =>
+        LaunchExitMessages.GetString(
+            ProfileSharingConstants.UnsupportedSchemaVersionErrorKey,
+            localization,
             schemaVersion,
             ProfileSharingConstants.MaxSupportedSchemaVersion);
 
@@ -2215,7 +2256,7 @@ public class ProfileSharingService(
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
             return OperationResult<SharedManifestDependency>.CreateFailure(
-                string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
+                LaunchExitMessages.GetString(ProfileSharingConstants.CannotExportNoHostVariantErrorKey, localizationService, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
         }
 
         var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
@@ -2575,12 +2616,7 @@ public class ProfileSharingService(
             {
                 if (IsLocalOrSourcelessDependency(dependency))
                 {
-                    return OperationResult<string>.CreateFailure(string.Format(
-                        CultureInfo.InvariantCulture,
-                        ProfileSharingConstants.DependencyBuiltForOtherPlatformErrorMessage,
-                        dependency.DisplayName,
-                        string.Join(", ", dependency.RuntimeIdentifiers!),
-                        ManifestVariantResolver.CurrentRuntimeIdentifier));
+                    return OperationResult<string>.CreateFailure(FormatBuiltForOtherPlatform(dependency, localizationService));
                 }
 
                 return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
@@ -3381,7 +3417,7 @@ public class ProfileSharingService(
 
         if (!IsSupportedSchemaVersion(package.SchemaVersion))
         {
-            return OperationResult<SharedGameProfilePackage>.CreateFailure(FormatUnsupportedSchemaVersion(package.SchemaVersion));
+            return OperationResult<SharedGameProfilePackage>.CreateFailure(FormatUnsupportedSchemaVersion(package.SchemaVersion, localizationService));
         }
 
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
@@ -3421,7 +3457,13 @@ public class ProfileSharingService(
             else
             {
                 missingCount++;
-                totalMissingDownloadBytes += missingBytes;
+
+                // A dependency shared for another platform is not downloaded from the shared files, so
+                // their size says nothing about what this platform will download.
+                if (!IsBuiltForOtherPlatform(reqManifest))
+                {
+                    totalMissingDownloadBytes += missingBytes;
+                }
             }
 
             inspectedManifests.Add(new SharedManifestDependency

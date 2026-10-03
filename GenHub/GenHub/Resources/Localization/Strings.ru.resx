@@ -17784,4 +17784,13 @@ Error: не удалось: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
+    <value>«{0}» опубликован для {1} и не может быть установлен на этой платформе ({2}).</value>
+  </data>
+  <data name="GameProfiles.Share.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>Неподдерживаемая версия схемы пакета {0}. Эта версия GenHub поддерживает версии до {1}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
+    <value>Невозможно экспортировать «{0}»: ни один вариант не поддерживает эту платформу ({1}).</value>
+  </data>
 </root>

@@ -293,6 +293,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var addedMissingDownloadSources = false;
+        var addedOtherPlatformWarnings = false;
         foreach (var code in codes)
         {
             if (code == ProfileSecurityWarningCode.MissingDownloadSource)
@@ -301,6 +302,19 @@ public sealed partial class ImportProfileInspectionViewModel(
                 {
                     addedMissingDownloadSources = true;
                     AddMissingDownloadSourceWarnings(warnings, result, localizationService);
+                }
+
+                continue;
+            }
+
+            if (code == ProfileSecurityWarningCode.BuiltForOtherPlatform)
+            {
+                if (!addedOtherPlatformWarnings)
+                {
+                    addedOtherPlatformWarnings = true;
+                    warnings.AddRange(result.Manifests
+                        .Where(ProfileSharingService.IsLocalBuiltForOtherPlatform)
+                        .Select(manifest => ProfileSharingService.FormatBuiltForOtherPlatform(manifest, localizationService)));
                 }
 
                 continue;
@@ -320,7 +334,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var uncachedSourceless = result.Manifests
-            .Where(ProfileSharingService.CannotBeAcquired)
+            .Where(ProfileSharingService.HasNoDownloadSource)
             .ToList();
 
         if (uncachedSourceless.Count > 0)

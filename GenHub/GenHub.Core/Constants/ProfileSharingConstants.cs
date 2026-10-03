@@ -127,16 +127,22 @@ public static class ProfileSharingConstants
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
 
     /// <summary>
-    /// Error message for a local dependency whose shared files were built for another platform.
-    /// {0} is the content name, {1} the platforms it was built for and {2} the recipient's runtime.
+    /// Resource key for a dependency shared for another platform.
+    /// {0} is the content name, {1} the platforms it was shared for and {2} the recipient's runtime.
     /// </summary>
-    public const string DependencyBuiltForOtherPlatformErrorMessage = "'{0}' was shared for {1} and cannot be installed on this platform ({2}).";
+    public const string DependencyBuiltForOtherPlatformErrorKey = "GameProfiles.Share.Error.BuiltForOtherPlatform";
 
     /// <summary>
-    /// Error message for a package whose schema version this build cannot read.
+    /// Resource key for a package whose schema version this build cannot read.
     /// {0} is the package version and {1} the highest supported version.
     /// </summary>
-    public const string UnsupportedSchemaVersionErrorMessage = "Unsupported package schema version {0}. This version of GenHub supports up to version {1}.";
+    public const string UnsupportedSchemaVersionErrorKey = "GameProfiles.Share.Error.UnsupportedSchemaVersion";
+
+    /// <summary>
+    /// Resource key for exporting a profile whose manifest has no variant for this platform.
+    /// {0} is the manifest name and {1} the runtime identifier.
+    /// </summary>
+    public const string CannotExportNoHostVariantErrorKey = "GameProfiles.Share.Error.NoHostVariant";
 
     /// <summary>
     /// Parent directory segment in file paths.

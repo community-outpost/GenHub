@@ -17784,4 +17784,13 @@ Error: فشل: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
+    <value>تمت مشاركة '{0}' للمنصة {1} ولا يمكن تثبيته على هذه المنصة ({2}).</value>
+  </data>
+  <data name="GameProfiles.Share.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>إصدار مخطط الحزمة {0} غير مدعوم. يدعم هذا الإصدار من GenHub الإصدارات حتى {1}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
+    <value>لا يمكن تصدير '{0}': لا يوجد متغير يدعم هذه المنصة ({1}).</value>
+  </data>
 </root>

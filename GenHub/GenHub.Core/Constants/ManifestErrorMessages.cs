@@ -56,10 +56,4 @@ public static class ManifestErrorMessages
     /// Validation message for a file entry without a relative path. {0} is the file index and {1} the location suffix.
     /// </summary>
     public const string FileEntryMissingRelativePath = "File at index {0}{1} is missing its RelativePath.";
-
-    /// <summary>
-    /// Error message for exporting a profile whose manifest has no variant for the current host.
-    /// {0} is the manifest name and {1} is the host runtime identifier.
-    /// </summary>
-    public const string CannotExportNoHostVariant = "Cannot export '{0}': no variant supports this host ({1}).";
 }
