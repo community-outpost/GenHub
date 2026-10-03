@@ -769,29 +769,28 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
         }
 
+        return InspectDirectorySubFiles(dirPath) ?? CreateNonBuildInfo();
+    }
+
+    private GenHubBuildInfo? InspectDirectorySubFiles(string dirPath)
+    {
         // Look in root and immediate subdirectories only, avoiding full subtree recursion
         try
         {
-            foreach (var subFile in Directory.EnumerateFiles(dirPath, "*.exe", SearchOption.TopDirectoryOnly).Take(10))
+            var topFiles = Directory.EnumerateFiles(dirPath, "*.exe", SearchOption.TopDirectoryOnly).Take(10);
+            var topMatch = TryFindBuildInFiles(dirPath, topFiles);
+            if (topMatch != null)
             {
-                var info = InspectBinaryFile(subFile);
-                if (info.IsGenHubBuild)
-                {
-                    var relative = Path.GetRelativePath(dirPath, subFile);
-                    return info with { EntryPoint = relative.Replace('\\', '/') };
-                }
+                return topMatch;
             }
 
             foreach (var subDir in Directory.EnumerateDirectories(dirPath).Take(5))
             {
-                foreach (var subFile in Directory.EnumerateFiles(subDir, "*.exe", SearchOption.TopDirectoryOnly).Take(5))
+                var subFiles = Directory.EnumerateFiles(subDir, "*.exe", SearchOption.TopDirectoryOnly).Take(5);
+                var subMatch = TryFindBuildInFiles(dirPath, subFiles);
+                if (subMatch != null)
                 {
-                    var info = InspectBinaryFile(subFile);
-                    if (info.IsGenHubBuild)
-                    {
-                        var relative = Path.GetRelativePath(dirPath, subFile);
-                        return info with { EntryPoint = relative.Replace('\\', '/') };
-                    }
+                    return subMatch;
                 }
             }
         }
@@ -800,7 +799,22 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             _logger.LogDebug(ex, "Error enumerating directory '{Directory}' during build inspection", dirPath);
         }
 
-        return CreateNonBuildInfo();
+        return null;
+    }
+
+    private GenHubBuildInfo? TryFindBuildInFiles(string dirPath, IEnumerable<string> files)
+    {
+        foreach (var file in files)
+        {
+            var info = InspectBinaryFile(file);
+            if (info.IsGenHubBuild)
+            {
+                var relative = Path.GetRelativePath(dirPath, file);
+                return info with { EntryPoint = relative.Replace('\\', '/') };
+            }
+        }
+
+        return null;
     }
 
     private GenHubBuildInfo InspectArchive(string archivePath)
@@ -821,63 +835,18 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
             if (targetEntry != null)
             {
-                if (targetEntry.Length > GenHubBuildConstants.MaxArchiveEntrySizeBytes)
+                var targetMatch = TryInspectArchiveTargetEntry(
+                    targetEntry,
+                    archivePath,
+                    nuspecId,
+                    nuspecVersion,
+                    nuspecAuthors,
+                    nuspecTitle,
+                    nuspecDescription);
+
+                if (targetMatch != null)
                 {
-                    _logger.LogWarning(
-                        "Archive entry '{Entry}' in '{Path}' exceeds maximum safe size of {Max} bytes; skipping decompression.",
-                        targetEntry.FullName,
-                        archivePath,
-                        GenHubBuildConstants.MaxArchiveEntrySizeBytes);
-                }
-                else
-                {
-                    using var entryStream = targetEntry.Open();
-                    using var memStream = new MemoryStream();
-                    entryStream.CopyTo(memStream);
-                    memStream.Position = 0;
-
-                    var peMetadata = TryReadPeMetadata(memStream);
-
-                    var rawVersion = peMetadata.InformationalVersion ?? nuspecVersion ?? peMetadata.Version;
-                    var (cleanVersion, hash, prNum) = NormalizeVersion(rawVersion, peMetadata.InformationalVersion, peMetadata.PullRequestNumber);
-
-                    var productName = peMetadata.ProductName ?? nuspecTitle ?? nuspecId ?? GenHubBuildConstants.OfficialProductName;
-                    var companyName = peMetadata.CompanyName ?? nuspecAuthors;
-                    var fileDesc = peMetadata.FileDescription ?? nuspecDescription;
-
-                    var normalizedArchivePath = archivePath.Replace('\\', '/');
-                    var fileName = Path.GetFileName(normalizedArchivePath);
-                    var isGenHub = IsGenHubText(productName) ||
-                                   IsGenHubText(fileDesc) ||
-                                   IsGenHubText(targetEntry.Name) ||
-                                   IsGenHubText(nuspecId) ||
-                                   (!TestFixturePattern().IsMatch(fileName) && GenHubNamePattern().IsMatch(fileName));
-
-                    if (isGenHub)
-                    {
-                        if (string.IsNullOrWhiteSpace(cleanVersion))
-                        {
-                            var fallback = InspectFromFileNameOnly(archivePath);
-                            cleanVersion = fallback.Version;
-                            prNum ??= fallback.PullRequestNumber;
-                        }
-
-                        var ctx = new BuildMetadataContext(
-                            IsGenHub: true,
-                            CleanVersion: cleanVersion,
-                            ProductVersion: rawVersion,
-                            FileVersion: peMetadata.FileVersion,
-                            ProductName: productName,
-                            CompanyName: companyName,
-                            FileDescription: fileDesc,
-                            GitShortHash: peMetadata.GitShortHash ?? hash,
-                            PullRequestNumber: prNum,
-                            BuildChannel: peMetadata.BuildChannel,
-                            EntryPoint: targetEntry.Name,
-                            FileName: fileName);
-
-                        return BuildResult(in ctx);
-                    }
+                    return targetMatch;
                 }
             }
 
@@ -897,6 +866,76 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         }
 
         return CreateNonBuildInfo();
+    }
+
+    private GenHubBuildInfo? TryInspectArchiveTargetEntry(
+        ZipArchiveEntry targetEntry,
+        string archivePath,
+        string? nuspecId,
+        string? nuspecVersion,
+        string? nuspecAuthors,
+        string? nuspecTitle,
+        string? nuspecDescription)
+    {
+        if (targetEntry.Length > GenHubBuildConstants.MaxArchiveEntrySizeBytes)
+        {
+            _logger.LogWarning(
+                "Archive entry '{Entry}' in '{Path}' exceeds maximum safe size of {Max} bytes; skipping decompression.",
+                targetEntry.FullName,
+                archivePath,
+                GenHubBuildConstants.MaxArchiveEntrySizeBytes);
+            return null;
+        }
+
+        using var entryStream = targetEntry.Open();
+        using var memStream = new MemoryStream();
+        entryStream.CopyTo(memStream);
+        memStream.Position = 0;
+
+        var peMetadata = TryReadPeMetadata(memStream);
+
+        var rawVersion = peMetadata.InformationalVersion ?? nuspecVersion ?? peMetadata.Version;
+        var (cleanVersion, hash, prNum) = NormalizeVersion(rawVersion, peMetadata.InformationalVersion, peMetadata.PullRequestNumber);
+
+        var productName = peMetadata.ProductName ?? nuspecTitle ?? nuspecId ?? GenHubBuildConstants.OfficialProductName;
+        var companyName = peMetadata.CompanyName ?? nuspecAuthors;
+        var fileDesc = peMetadata.FileDescription ?? nuspecDescription;
+
+        var normalizedArchivePath = archivePath.Replace('\\', '/');
+        var fileName = Path.GetFileName(normalizedArchivePath);
+        var isGenHub = IsGenHubText(productName) ||
+                       IsGenHubText(fileDesc) ||
+                       IsGenHubText(targetEntry.Name) ||
+                       IsGenHubText(nuspecId) ||
+                       (!TestFixturePattern().IsMatch(fileName) && GenHubNamePattern().IsMatch(fileName));
+
+        if (!isGenHub)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(cleanVersion))
+        {
+            var fallback = InspectFromFileNameOnly(archivePath);
+            cleanVersion = fallback.Version;
+            prNum ??= fallback.PullRequestNumber;
+        }
+
+        var ctx = new BuildMetadataContext(
+            IsGenHub: true,
+            CleanVersion: cleanVersion,
+            ProductVersion: rawVersion,
+            FileVersion: peMetadata.FileVersion,
+            ProductName: productName,
+            CompanyName: companyName,
+            FileDescription: fileDesc,
+            GitShortHash: peMetadata.GitShortHash ?? hash,
+            PullRequestNumber: prNum,
+            BuildChannel: peMetadata.BuildChannel,
+            EntryPoint: targetEntry.Name,
+            FileName: fileName);
+
+        return BuildResult(in ctx);
     }
 
     private GenHubBuildInfo InspectBinaryFile(string filePath)

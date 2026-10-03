@@ -483,7 +483,7 @@ public class FastHttpClientFileDownloader(
         HttpClient chunkClient = client;
         HttpClient? cdnClient = null;
         var originUri = new Uri(url);
-        var hasAuthHeader = headers?.Any(h => string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase)) == true;
+        var hasAuthHeader = headers is not null && headers.Any(h => string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase));
         if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && hasAuthHeader)
         {
             var cdnHeaders = headers!.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))

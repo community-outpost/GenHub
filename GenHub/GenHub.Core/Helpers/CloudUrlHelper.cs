@@ -101,72 +101,7 @@ public static partial class CloudUrlHelper
             return null;
         }
 
-        var confirmMatch = GoogleDriveConfirmHrefRegex.Match(html);
-        if (confirmMatch.Success)
-        {
-            var rawUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
-            Uri? resolvedUri = null;
-            if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absUri) &&
-                (absUri.Scheme == Uri.UriSchemeHttp || absUri.Scheme == Uri.UriSchemeHttps))
-            {
-                resolvedUri = absUri;
-            }
-            else
-            {
-                var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
-                if (Uri.TryCreate(baseUri, rawUrl, out var combinedUri) &&
-                    (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    resolvedUri = combinedUri;
-                }
-            }
-
-            if (resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri))
-            {
-                return resolvedUri.ToString();
-            }
-        }
-
-        var actionMatch = GoogleDriveFormActionRegex.Match(html);
-        if (actionMatch.Success)
-        {
-            var rawAction = actionMatch.Groups[1].Value.Replace("&amp;", "&");
-            var formInnerHtml = actionMatch.Groups[2].Value;
-            Uri? resolvedUri = null;
-            if (Uri.TryCreate(rawAction, UriKind.Absolute, out var absAction) &&
-                (absAction.Scheme == Uri.UriSchemeHttp || absAction.Scheme == Uri.UriSchemeHttps))
-            {
-                resolvedUri = absAction;
-            }
-            else
-            {
-                var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
-                if (Uri.TryCreate(baseUri, rawAction, out var combinedUri) &&
-                    (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    resolvedUri = combinedUri;
-                }
-            }
-
-            if (resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri))
-            {
-                var action = resolvedUri.ToString();
-                var inputMatches = GoogleDriveFormInputRegex.Matches(formInnerHtml);
-                var queryParams = inputMatches
-                    .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")
-                    .ToList();
-
-                if (queryParams.Count > 0)
-                {
-                    var separator = action.Contains('?') ? "&" : "?";
-                    return $"{action}{separator}{string.Join("&", queryParams)}";
-                }
-
-                return action;
-            }
-        }
-
-        return null;
+        return TryExtractFromConfirmHref(html, requestUri) ?? TryExtractFromFormAction(html, requestUri);
     }
 
     /// <summary>
@@ -180,6 +115,69 @@ public static partial class CloudUrlHelper
     {
         confirmedUrl = TryExtractGoogleDriveConfirmationUrl(html, requestUri);
         return !string.IsNullOrEmpty(confirmedUrl);
+    }
+
+    private static Uri? ResolveGoogleDriveUri(string rawTarget, Uri? requestUri)
+    {
+        var rawUrl = rawTarget.Replace("&amp;", "&");
+        if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absUri) &&
+            (absUri.Scheme == Uri.UriSchemeHttp || absUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return absUri;
+        }
+
+        var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+        if (Uri.TryCreate(baseUri, rawUrl, out var combinedUri) &&
+            (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
+        {
+            return combinedUri;
+        }
+
+        return null;
+    }
+
+    private static string? TryExtractFromConfirmHref(string html, Uri? requestUri)
+    {
+        var confirmMatch = GoogleDriveConfirmHrefRegex.Match(html);
+        if (!confirmMatch.Success)
+        {
+            return null;
+        }
+
+        var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
+        return resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri)
+            ? resolvedUri.ToString()
+            : null;
+    }
+
+    private static string? TryExtractFromFormAction(string html, Uri? requestUri)
+    {
+        var actionMatch = GoogleDriveFormActionRegex.Match(html);
+        if (!actionMatch.Success)
+        {
+            return null;
+        }
+
+        var resolvedUri = ResolveGoogleDriveUri(actionMatch.Groups[1].Value, requestUri);
+        if (resolvedUri is null || !IsAllowedGoogleDriveHost(resolvedUri))
+        {
+            return null;
+        }
+
+        var action = resolvedUri.ToString();
+        var formInnerHtml = actionMatch.Groups[2].Value;
+        var inputMatches = GoogleDriveFormInputRegex.Matches(formInnerHtml);
+        var queryParams = inputMatches
+            .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")
+            .ToList();
+
+        if (queryParams.Count > 0)
+        {
+            var separator = action.Contains('?') ? "&" : "?";
+            return $"{action}{separator}{string.Join("&", queryParams)}";
+        }
+
+        return action;
     }
 
     private static bool TryNormalizeGoogleDriveUrl(string url, out string normalizedUrl)

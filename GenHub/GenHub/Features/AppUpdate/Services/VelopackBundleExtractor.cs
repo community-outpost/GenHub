@@ -8,6 +8,8 @@ namespace GenHub.Features.AppUpdate.Services;
 /// </summary>
 public static class VelopackBundleExtractor
 {
+    private const uint ZipLocalHeaderSignature = 0x04034b50; // 'PK\x03\x04'
+
     // Velopack Windows Setup bundles append the .nupkg to Setup.exe with a 48-byte header:
     // 8 bytes package offset (little-endian), 8 bytes package length (little-endian),
     // followed by this 32-byte SHA-256 signature for "squirrel bundle".
@@ -18,8 +20,6 @@ public static class VelopackBundleExtractor
         0x2b, 0x54, 0xf5, 0x70, 0x7e, 0xf5, 0xd6, 0xf5,
         0x78, 0x54, 0x98, 0x3e, 0x5e, 0x94, 0xed, 0x7d,
     ];
-
-    private const uint ZipLocalHeaderSignature = 0x04034b50; // 'PK\x03\x04'
 
     /// <summary>
     /// Attempts to extract the embedded Velopack .nupkg release package from an installer executable.
@@ -91,24 +91,14 @@ public static class VelopackBundleExtractor
         var buffer = new byte[bufferSize];
         var patternLength = pattern.Length;
         long totalRead = 0;
-        int bytesRead;
+        var bytesRead = 0;
 
         stream.Seek(0, SeekOrigin.Begin);
         while ((bytesRead = stream.Read(buffer, 0, bufferSize)) > 0)
         {
             for (var i = 0; i <= bytesRead - patternLength; i++)
             {
-                var match = true;
-                for (var j = 0; j < patternLength; j++)
-                {
-                    if (buffer[i + j] != pattern[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (match)
+                if (MatchesPattern(buffer, i, pattern))
                 {
                     return totalRead + i;
                 }
@@ -126,6 +116,19 @@ public static class VelopackBundleExtractor
         }
 
         return -1;
+    }
+
+    private static bool MatchesPattern(byte[] buffer, int offset, byte[] pattern)
+    {
+        for (var j = 0; j < pattern.Length; j++)
+        {
+            if (buffer[offset + j] != pattern[j])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void CopyExactBytes(Stream source, Stream destination, long count)
