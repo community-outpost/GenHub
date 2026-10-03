@@ -105,14 +105,26 @@ public static partial class CloudUrlHelper
         if (confirmMatch.Success)
         {
             var rawUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
+            Uri? resolvedUri = null;
             if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absUri) &&
                 (absUri.Scheme == Uri.UriSchemeHttp || absUri.Scheme == Uri.UriSchemeHttps))
             {
-                return absUri.ToString();
+                resolvedUri = absUri;
+            }
+            else
+            {
+                var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+                if (Uri.TryCreate(baseUri, rawUrl, out var combinedUri) &&
+                    (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
+                {
+                    resolvedUri = combinedUri;
+                }
             }
 
-            var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
-            return new Uri(baseUri, rawUrl).ToString();
+            if (resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri))
+            {
+                return resolvedUri.ToString();
+            }
         }
 
         var actionMatch = GoogleDriveFormActionRegex.Match(html);
@@ -135,10 +147,7 @@ public static partial class CloudUrlHelper
                 }
             }
 
-            if (resolvedUri is { Scheme: "https" } &&
-                (resolvedUri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-                 resolvedUri.Host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) ||
-                 resolvedUri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)))
+            if (resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri))
             {
                 var action = resolvedUri.ToString();
                 var inputMatches = GoogleDriveFormInputRegex.Matches(html);
@@ -240,5 +249,13 @@ public static partial class CloudUrlHelper
         return allowedHosts.Any(h =>
             uri.Host.Equals(h, StringComparison.OrdinalIgnoreCase) ||
             uri.Host.EndsWith("." + h, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsAllowedGoogleDriveHost(Uri? uri)
+    {
+        return uri is { Scheme: "https" } &&
+            (uri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
+             uri.Host.EndsWith(".google.com", StringComparison.OrdinalIgnoreCase) ||
+             uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -969,7 +969,7 @@ public class BackgroundUpdateCoordinator(
         var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
         if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) &&
-            !string.Equals(latestVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            !string.Equals(latestVersion, settings.DismissedUpdateVersion?.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
         {
             NotifyCustomBuildUpdateAvailable(contentId, buildName, latestVersion);
         }

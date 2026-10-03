@@ -505,7 +505,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return null;
         }
 
-        if (version.Contains("-pr", StringComparison.OrdinalIgnoreCase))
+        if (PrFileNamePattern().IsMatch(version))
         {
             return GenHubBuildConstants.ChannelPr;
         }
