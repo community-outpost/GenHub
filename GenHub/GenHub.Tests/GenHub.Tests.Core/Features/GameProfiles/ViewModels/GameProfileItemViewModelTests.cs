@@ -611,6 +611,47 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that custom covers ending with the default cover filename are not overwritten by publisher branding,
+    /// while the legacy default sentinel path is replaced with the publisher cover.
+    /// </summary>
+    [Fact]
+    public void Construction_CustomCoverEndingWithUsaCoverFilename_PreservedByPublisherBranding()
+    {
+        var customCoverPath = "/custom/path/my-usa-cover.jpg";
+        var customProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-custom-cover",
+            Name = "Custom Cover Profile",
+            CoverPath = customCoverPath,
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmCustom = new GameProfileItemViewModel("test-profile-custom-cover", customProfile, null!, customCoverPath);
+        Assert.Equal(customCoverPath, vmCustom.CoverImagePath);
+
+        var sentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-sentinel-cover",
+            Name = "Sentinel Cover Profile",
+            CoverPath = UriConstants.UsaCoverUri,
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmSentinel = new GameProfileItemViewModel("test-profile-sentinel-cover", sentinelProfile, null!, UriConstants.UsaCoverUri);
+        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmSentinel.CoverImagePath);
+    }
+
+    /// <summary>
     /// Verifies that IsSteamIntegrationSupported evaluates both Steam installation and Windows binary format.
     /// </summary>
     [Fact]
