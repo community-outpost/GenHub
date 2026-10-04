@@ -217,6 +217,7 @@ public class FastHttpClientFileDownloader(
         Uri uri,
         string targetFile,
         long totalBytes,
+        RangeConditionHeaderValue validator,
         Action<int>? progress,
         CancellationToken cancelToken)
     {
@@ -247,6 +248,9 @@ public class FastHttpClientFileDownloader(
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 request.Headers.Range = new RangeHeaderValue(start, end);
+                request.Headers.IfRange = validator.EntityTag is not null
+                    ? new RangeConditionHeaderValue(validator.EntityTag)
+                    : new RangeConditionHeaderValue(validator.Date!.Value);
 
                 using var chunkResponse = await client.SendAsync(
                     request,
@@ -257,6 +261,14 @@ public class FastHttpClientFileDownloader(
                 {
                     throw new InvalidOperationException(
                         $"Origin server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
+                }
+
+                if (validator.EntityTag is not null &&
+                    chunkResponse.Headers.ETag is { } chunkEtag &&
+                    !string.Equals(chunkEtag.Tag, validator.EntityTag.Tag, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Origin server returned ETag {chunkEtag.Tag} for range {start}-{end} which does not match validator {validator.EntityTag.Tag}.");
                 }
 
                 var chunkRange = chunkResponse.Content.Headers.ContentRange;
@@ -302,6 +314,21 @@ public class FastHttpClientFileDownloader(
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
         progressReporter.Complete();
+    }
+
+    private static RangeConditionHeaderValue? GetStrongValidator(HttpResponseMessage response)
+    {
+        if (response.Headers.ETag is { IsWeak: false } etag)
+        {
+            return new RangeConditionHeaderValue(etag);
+        }
+
+        if (response.Content.Headers.LastModified is { } lastModified)
+        {
+            return new RangeConditionHeaderValue(lastModified);
+        }
+
+        return null;
     }
 
     private static void ValidateDownloadedFileHeader(string filePath)
@@ -429,9 +456,11 @@ public class FastHttpClientFileDownloader(
             }
 
             var contentRange = probeResponse.Content.Headers.ContentRange;
+            var validator = GetStrongValidator(probeResponse);
 
-            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
+            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength) and a strong validator
             var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
+                validator is not null &&
                 contentRange is not null &&
                 string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
                 contentRange.From == 0 &&
@@ -452,6 +481,7 @@ public class FastHttpClientFileDownloader(
                         url,
                         targetFile,
                         totalLength,
+                        validator!,
                         progress,
                         headers,
                         timeout,
@@ -565,6 +595,7 @@ public class FastHttpClientFileDownloader(
         string url,
         string targetFile,
         long totalLength,
+        RangeConditionHeaderValue validator,
         Action<int> progress,
         IDictionary<string, string>? headers,
         double timeout,
@@ -596,6 +627,7 @@ public class FastHttpClientFileDownloader(
                 resolvedUri,
                 targetFile,
                 totalLength,
+                validator,
                 progress,
                 cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
