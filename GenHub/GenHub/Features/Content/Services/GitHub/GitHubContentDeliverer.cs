@@ -93,6 +93,8 @@ public class GitHubContentDeliverer(
             var downloadedFiles = new List<string>();
             int currentFileIndex = 0;
             int totalFiles = filesToDownload.Count;
+            long totalBytesAllFiles = filesToDownload.Sum(f => f.Size > 0 ? f.Size : 0L);
+            long previousFilesBytes = 0L;
 
             foreach (var file in filesToDownload)
             {
@@ -104,32 +106,64 @@ public class GitHubContentDeliverer(
                     Directory.CreateDirectory(localDir);
                 }
 
-                // Create progress adapter for download progress
+                // Create progress adapter for download progress (0-100% scale)
                 IProgress<DownloadProgress>? downloadProgress = null;
                 if (progress != null)
                 {
                     downloadProgress = new Progress<DownloadProgress>(dp =>
                     {
-                        // Map download progress (0-100) to the Downloading phase range (40-65%)
-                        // We start at 40 (ProgressStepDownloading) and use 25% of the range for downloads
-                        double downloadRange = 25.0; // 40% to 65%
-                        double fileProgressRange = downloadRange / totalFiles;
-                        double baseProgress = ContentConstants.ProgressStepDownloading + ((currentFileIndex - 1) * fileProgressRange);
-                        double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+                        double currentProgress = 0.0;
+                        long aggregateBytesProcessed = 0L;
+                        long aggregateTotalBytes = 0L;
+
+                        if (totalBytesAllFiles > 0)
+                        {
+                            aggregateBytesProcessed = previousFilesBytes + dp.BytesReceived;
+                            aggregateTotalBytes = totalBytesAllFiles;
+                            currentProgress = Math.Clamp((double)aggregateBytesProcessed / totalBytesAllFiles * 100.0, 0, 100);
+                        }
+                        else
+                        {
+                            double fileProgressRange = 100.0 / totalFiles;
+                            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+                            currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+                            aggregateBytesProcessed = dp.BytesReceived;
+                            aggregateTotalBytes = dp.TotalBytes;
+                        }
 
                         progress.Report(new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.Downloading,
                             ProgressPercentage = currentProgress,
-                            CurrentOperation = $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
+                            CurrentOperation = totalFiles > 1
+                                ? $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
+                                : $"{file.RelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
                             FilesProcessed = currentFileIndex - 1,
                             TotalFiles = totalFiles,
-                            TotalBytes = dp.TotalBytes,
-                            BytesProcessed = dp.BytesReceived,
+                            TotalBytes = aggregateTotalBytes,
+                            BytesProcessed = aggregateBytesProcessed,
                             CurrentFile = file.RelativePath,
                         });
                     });
                 }
+
+                var startingProgress = totalBytesAllFiles > 0
+                    ? Math.Clamp((double)previousFilesBytes / totalBytesAllFiles * 100.0, 0, 100)
+                    : (double)(currentFileIndex - 1) / totalFiles * 100;
+
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = startingProgress,
+                    CurrentOperation = totalFiles > 1
+                        ? $"Connecting to download {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
+                        : $"Connecting to download {file.RelativePath}...",
+                    CurrentFile = file.RelativePath,
+                    FilesProcessed = currentFileIndex - 1,
+                    TotalFiles = totalFiles,
+                    TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
+                    BytesProcessed = previousFilesBytes,
+                });
 
                 var downloadConfig = new DownloadConfiguration
                 {
@@ -148,6 +182,8 @@ public class GitHubContentDeliverer(
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
+                var downloadedFileSize = file.Size > 0 ? file.Size : (new FileInfo(localPath).Exists ? new FileInfo(localPath).Length : 0L);
+                previousFilesBytes += downloadedFileSize;
                 downloadedFiles.Add(localPath);
                 logger.LogInformation("Downloaded {FileName} to {Path}", file.RelativePath, localPath);
             }
@@ -340,13 +376,13 @@ public class GitHubContentDeliverer(
                     manifest.Id,
                     manifestDirectory);
 
-                // Create adapter for storage progress
+                // Create adapter for storage progress (0-100% scale)
                 var storageProgress = new Progress<ContentStorageProgress>(p =>
                 {
                     progress?.Report(new ContentAcquisitionProgress
                     {
                         Phase = ContentAcquisitionPhase.StoringInCas,
-                        ProgressPercentage = Math.Clamp(ContentConstants.ProgressStepStoring + (p.Percentage * 0.1), 0, 100), // Map to Storing phase
+                        ProgressPercentage = p.Percentage,
                         CurrentOperation = $"Storing content: {p.CurrentFileName} ({p.ProcessedCount}/{p.TotalCount})",
                         FilesProcessed = p.ProcessedCount,
                         TotalFiles = p.TotalCount,
@@ -462,18 +498,14 @@ public class GitHubContentDeliverer(
 
                     currentEntry++;
 
-                    // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
-                    double extractStart = ContentConstants.ProgressStepValidatingFiles;
-                    double extractEnd = ContentConstants.ProgressStepExtracting;
-                    double progressRange = extractEnd - extractStart;
-                    double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
+                    double currentPercentage = totalEntries > 0 ? (double)currentEntry / totalEntries * 100.0 : 100.0;
 
                     progress?.Report(
                         new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.Extracting,
                             ProgressPercentage = currentPercentage,
-                            CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
+                            CurrentOperation = $"Extracting {Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
                             FilesProcessed = currentEntry,
                             TotalFiles = totalEntries,
                             CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,

@@ -115,7 +115,10 @@ public static class DownloadModule
                 throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
             }
 
-            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
+            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            connectCts.CancelAfter(TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds));
+
+            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false);
             if (addresses.Length == 0 || !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
             {
                 throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
@@ -128,7 +131,7 @@ public static class DownloadModule
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             try
             {
-                await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+                await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, connectCts.Token).ConfigureAwait(false);
                 return new NetworkStream(socket, ownsSocket: true);
             }
             catch

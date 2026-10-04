@@ -349,7 +349,14 @@ public class DownloadService(
             && configuration.ParallelConcurrency > 1
             && connection.TotalBytes >= configuration.ParallelDownloadThresholdBytes
             && SupportsByteRanges(connection.Response)
-            && HasStrongRepresentationValidator(configuration, connection);
+            && HasStrongRepresentationValidator(configuration, connection)
+            && !IsArtifactZipEndpoint(configuration, connection);
+    }
+
+    private static bool IsArtifactZipEndpoint(DownloadConfiguration configuration, DownloadConnection connection)
+    {
+        return configuration.Url?.AbsoluteUri.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase) == true
+            || connection.Response.RequestMessage?.RequestUri?.AbsoluteUri.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static (long TotalBytes, long? ExpectedContentBytes) ValidateAndCalculateRangeBytes(
@@ -787,6 +794,18 @@ public class DownloadService(
                 TryDeleteFile(configuration.DestinationPath);
                 TryDeleteFile(etagSidecarPath);
                 cts.CancelAfter(configuration.Timeout);
+
+                if (progress != null)
+                {
+                    ReportDownloadProgress(
+                        progress,
+                        0,
+                        0,
+                        connection.TotalBytes,
+                        Path.GetFileName(configuration.DestinationPath),
+                        configuration.Url,
+                        TimeSpan.Zero);
+                }
 
                 connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
             }
