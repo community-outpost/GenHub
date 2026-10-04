@@ -1125,8 +1125,8 @@
   <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>يعلن عميل اللعبة '{0}' عن نقطة إدخال المتغير '{1}'، والتي لم يتم العثور عليها في حمولتها.</value>
   </data>
-  <data name="Manifest.VariantEntryPoint.MultipleMissing" xml:space="preserve">
-    <value>يحتوي عميل اللعبة '{0}' على {1} متغيرات بدون نقطة إدخال معلنة؛ لا يمكن للكشف تحديد نقطة واحدة لكل متغير.</value>
+  <data name="Manifest.Format.Unsupported" xml:space="preserve">
+    <value>يعلن البيان '{0}' عن إصدار التنسيق {1}، لكن هذا الإصدار من GenHub يدعم حتى إصدار التنسيق {2}. حدّث GenHub لتثبيته.</value>
   </data>
   <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
     <value>لا يمكن تثبيت '{0}' مباشرة. {1}</value>

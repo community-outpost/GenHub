@@ -1125,8 +1125,8 @@
   <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Игровой клиент '{0}' объявляет точку входа варианта '{1}', которая не найдена в его содержимом.</value>
   </data>
-  <data name="Manifest.VariantEntryPoint.MultipleMissing" xml:space="preserve">
-    <value>У игрового клиента '{0}' есть {1} вариантов без объявленной точки входа; обнаружение не может определить по одной точке на вариант.</value>
+  <data name="Manifest.Format.Unsupported" xml:space="preserve">
+    <value>Манифест '{0}' объявляет версию формата {1}, но эта версия GenHub поддерживает формат до версии {2}. Обновите GenHub, чтобы установить его.</value>
   </data>
   <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
     <value>Не удаётся установить '{0}' напрямую. {1}</value>

@@ -85,10 +85,15 @@ public static class ManifestConstants
     /// <remarks>
     /// Bumped from <see cref="DefaultManifestFormatVersion"/> so that a manifest using
     /// variants is identifiable as such rather than presenting as a version 1 manifest
-    /// with an unexpected field. Ingestion rejects this version for now — see
-    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// with an unexpected field.
     /// </remarks>
     public const int VariantsManifestFormatVersion = 2;
+
+    /// <summary>
+    /// Highest manifest format version this build ingests. Newer formats are rejected by
+    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// </summary>
+    public const int MaxSupportedManifestFormatVersion = VariantsManifestFormatVersion;
 
     /// <summary>
     /// Prefix for publisher content IDs.
@@ -328,12 +333,6 @@ public static class ManifestConstants
 
     /// <summary>English fallback when variant entry point is not found in payload.</summary>
     public const string VariantEntryPointNotFoundInPayload = "Game client '{0}' declares variant entry point '{1}', which was not found in its payload.";
-
-    /// <summary>Resource key when multiple variants lack declared entry points.</summary>
-    public const string MultipleVariantsMissingEntryPointKey = "Manifest.VariantEntryPoint.MultipleMissing";
-
-    /// <summary>English fallback when multiple variants lack declared entry points.</summary>
-    public const string MultipleVariantsMissingEntryPoint = "Game client '{0}' has {1} variants without a declared entry point; detection cannot resolve one entry per variant.";
 
     /// <summary>Tag for unknown authors.</summary>
     public const string UnknownAuthor = "unknown";

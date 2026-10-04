@@ -9,9 +9,8 @@ namespace GenHub.Tests.Core.Models.Manifest;
 /// Builds manifests that declare one variant for the host and one for another platform,
 /// with an empty root <see cref="ContentManifest.Files"/> list.
 /// <para>
-/// The ingestion gate keeps such manifests out of production today, so consumer tests
-/// construct them directly. The host variant is keyed to the runtime running the tests,
-/// which keeps the tests meaningful on every CI platform.
+/// The host variant is keyed to the runtime running the tests, which keeps the tests
+/// meaningful on every CI platform.
 /// </para>
 /// </summary>
 internal static class VariantManifestFixture

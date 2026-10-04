@@ -159,19 +159,36 @@ public class ManifestProviderTests
     }
 
     /// <summary>
-    /// Cached variant manifests must pass the same fail-closed ingestion gate as newly
-    /// discovered manifests.
+    /// Cached variant manifests are returned: every consumer resolves the host variant.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithCachedVariantManifest_ThrowsValidationExceptionAsync()
+    public async Task GetManifestAsync_WithCachedVariantManifest_ReturnsItAsync()
     {
         var gameClient = new GameClient { Id = "1.0.genhub.mod.variant" };
         var manifest = new ContentManifest
         {
             Id = gameClient.Id,
-            Variants = [new ArtifactVariant()],
+            SchemaVersion = "2",
+            Variants = [new ArtifactVariant { Files = [new ManifestFile { RelativePath = "generalszh.exe" }] }],
         };
+
+        _poolMock
+            .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        Assert.Same(manifest, await _manifestProvider.GetManifestAsync(gameClient));
+    }
+
+    /// <summary>
+    /// Cached manifests declaring a newer format than this build supports are rejected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_WithCachedNewerFormatManifest_ThrowsValidationExceptionAsync()
+    {
+        var gameClient = new GameClient { Id = "1.0.genhub.mod.futureformat" };
+        var manifest = new ContentManifest { Id = gameClient.Id, SchemaVersion = "3" };
 
         _poolMock
             .Setup(pool => pool.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
@@ -216,11 +233,11 @@ public class ManifestProviderTests
     }
 
     /// <summary>
-    /// The installation overload must not bypass the fail-closed variant gate.
+    /// The installation overload applies the same format gate as the game client overload.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithInstallationCachedVariantManifest_ThrowsValidationExceptionAsync()
+    public async Task GetManifestAsync_WithInstallationCachedNewerFormatManifest_ThrowsValidationExceptionAsync()
     {
         var installation = new GameInstallation(
             installationPath: @"C:\TestPath",
@@ -231,7 +248,7 @@ public class ManifestProviderTests
         var manifest = new ContentManifest
         {
             Id = ManifestId.Create("1.108.eaapp.gameinstallation.generals"),
-            Variants = [new ArtifactVariant()],
+            SchemaVersion = "3",
         };
 
         _poolMock

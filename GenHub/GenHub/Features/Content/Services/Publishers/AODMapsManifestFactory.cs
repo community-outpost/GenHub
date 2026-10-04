@@ -123,10 +123,7 @@ public partial class AODMapsManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
-            new ContentManifest(originalManifest)
-            {
-                Files = files,
-            },
+            ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, files),
         ]);
     }
 

@@ -12,6 +12,7 @@ using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -77,7 +78,7 @@ public class HttpContentDeliverer(
             if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Manifest {packageManifest.Id} has no variant for runtime {ManifestVariantResolver.CurrentRuntimeIdentifier}.");
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, packageManifest.Id, ManifestVariantResolver.CurrentRuntimeIdentifier));
             }
 
             var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest)
