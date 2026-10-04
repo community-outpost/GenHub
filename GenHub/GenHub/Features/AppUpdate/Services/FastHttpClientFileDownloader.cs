@@ -73,22 +73,11 @@ public class FastHttpClientFileDownloader(
             throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, host));
         }
 
-        var isLoopbackHost = IsLoopbackHost(host);
-        if (isLoopbackHost && !addresses.All(IPAddress.IsLoopback))
-        {
-            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.LoopbackResolvedToNonLoopbackFormat, host));
-        }
-
-        if (!isLoopbackHost && !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+        if (!addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
         {
             throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, host));
         }
     }
-
-    private static bool IsLoopbackHost(string host) =>
-        string.Equals(host, NetworkSecurityConstants.BlockedLocalhostName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, NetworkSecurityConstants.LoopbackIpv4, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(host, NetworkSecurityConstants.LoopbackIpv6, StringComparison.OrdinalIgnoreCase);
 
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
@@ -601,14 +590,6 @@ public class FastHttpClientFileDownloader(
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private bool IsAllowedDownloadUrl(string? url, out string? error)
     {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
-            IsLoopbackHost(uri.Host))
-        {
-            error = null;
-            return true;
-        }
-
         return NetworkSecurityHelper.IsSafeUrl(url, out error);
     }
 }

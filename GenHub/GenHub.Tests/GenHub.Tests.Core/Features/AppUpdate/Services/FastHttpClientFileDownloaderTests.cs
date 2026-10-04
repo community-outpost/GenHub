@@ -577,30 +577,16 @@ public class FastHttpClientFileDownloaderTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that a loopback URL is permitted for local staging without throwing SecurityException.
+    /// Tests that a loopback URL is rejected with a SecurityException.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFile_WithLoopbackUrl_PermitsDownloadWithoutSecurityExceptionAsync()
+    public async Task DownloadFile_WithLoopbackUrl_ThrowsSecurityExceptionAsync()
     {
-        var payload = new byte[] { 10, 20, 30, 40 };
-        var handler = new TestHttpMessageHandler(request =>
-        {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new ByteArrayContent(payload),
-                RequestMessage = request,
-            };
-            return response;
-        });
-
-        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object);
         var targetFile = Path.Combine(_tempDirectory, "loopback.bin");
 
-        await downloader.DownloadFile("http://127.0.0.1:8080/releases.win.json", targetFile, _ => { }, null, 30);
-
-        Assert.True(File.Exists(targetFile));
-        var downloadedBytes = await File.ReadAllBytesAsync(targetFile);
-        Assert.Equal(payload, downloadedBytes);
+        await Assert.ThrowsAsync<SecurityException>(
+            () => downloader.DownloadFile("http://127.0.0.1:8080/releases.win.json", targetFile, _ => { }, null, 30));
     }
 }

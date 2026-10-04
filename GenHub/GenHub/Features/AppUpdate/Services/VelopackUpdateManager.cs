@@ -2023,9 +2023,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
+        if (!File.Exists(nupkgFile))
+        {
+            throw new FileNotFoundException($"Package file not found: '{nupkgFile}'", nupkgFile);
+        }
+
+        var nupkgFileName = Path.GetFileName(nupkgFile);
+        var targetNupkgInTemp = Path.Combine(tempDir, nupkgFileName);
+        if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(targetNupkgInTemp), StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(nupkgFile, targetNupkgInTemp, overwrite: true);
+            nupkgFile = targetNupkgInTemp;
+        }
+
         var releasesFileName = GetReleasesFileName();
         var releasesPath = Path.Combine(tempDir, releasesFileName);
-        var nupkgFileName = Path.GetFileName(nupkgFile);
         var fileInfo = new FileInfo(nupkgFile);
         var sha1 = CalculateSHA1(nupkgFile);
         var sha256 = CalculateSHA256(nupkgFile);
