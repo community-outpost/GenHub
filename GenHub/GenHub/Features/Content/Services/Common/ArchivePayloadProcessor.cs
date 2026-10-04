@@ -1340,10 +1340,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var fileName = Path.GetFileName(entryKey);
             progress?.Report(new ContentAcquisitionProgress
             {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = stageProgress,
                 CurrentStage = 3,
                 TotalStages = 5,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {fileName}",
+                CurrentFile = fileName,
                 FilesProcessed = i + 1,
                 TotalFiles = totalEntries,
                 StageProgress = stageProgress,
@@ -1477,10 +1480,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var fileName = Path.GetFileName(entry.FullName);
         progress?.Report(new ContentAcquisitionProgress
         {
+            Phase = ContentAcquisitionPhase.Extracting,
+            ProgressPercentage = stageProgress,
             CurrentStage = 3,
             TotalStages = 5,
             StageDescription = ExtractingFilesStageDescription,
             CurrentOperation = $"Extracting {fileName}",
+            CurrentFile = fileName,
             FilesProcessed = index + 1,
             TotalFiles = totalEntries,
             StageProgress = stageProgress,
@@ -1991,10 +1997,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var shortName = Path.GetFileName(fileName);
             progress?.Report(new ContentAcquisitionProgress
             {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = stageProgress,
                 CurrentStage = 3,
                 TotalStages = 5,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
+                CurrentFile = shortName,
                 FilesProcessed = fileIdx + 1,
                 TotalFiles = totalFiles,
                 StageProgress = stageProgress,
@@ -2051,10 +2060,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var shortName = Path.GetFileName(rec.Name);
             progress?.Report(new ContentAcquisitionProgress
             {
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = stageProgress,
                 CurrentStage = 3,
                 TotalStages = 5,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
+                CurrentFile = shortName,
                 FilesProcessed = i + 1,
                 TotalFiles = totalRecords,
                 StageProgress = stageProgress,

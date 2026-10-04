@@ -30,10 +30,30 @@ public static class ContentAcquisitionProgressExtensions
     private static string FormatStagedProgress(ContentAcquisitionProgress progress)
     {
         string stagePart = $"{progress.CurrentStage}/{progress.TotalStages}";
-        string description = !string.IsNullOrEmpty(progress.CurrentOperation) &&
-                             !string.Equals(progress.CurrentOperation, progress.StageDescription, StringComparison.Ordinal)
-            ? $"{progress.StageDescription}: {progress.CurrentOperation}"
-            : progress.StageDescription;
+        var desc = progress.StageDescription ?? string.Empty;
+        var op = progress.CurrentOperation ?? string.Empty;
+
+        // If op starts with the stage description or its first word, avoid repeating it
+        if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(op))
+        {
+            if (op.StartsWith(desc, StringComparison.OrdinalIgnoreCase))
+            {
+                op = op.Substring(desc.Length).TrimStart(':', ' ');
+            }
+            else
+            {
+                var firstWord = desc.Split(' ')[0];
+                if (firstWord.Length > 2 && op.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase))
+                {
+                    op = op.Substring(firstWord.Length).TrimStart(':', ' ');
+                }
+            }
+        }
+
+        string description = !string.IsNullOrEmpty(op) &&
+                             !string.Equals(op, desc, StringComparison.OrdinalIgnoreCase)
+            ? $"{desc}: {op}"
+            : desc;
 
         string percentPart = progress.StageProgress is > 0 and < 100
             ? $" ({progress.StageProgress:F0}%)"

@@ -440,18 +440,16 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            int current = 0;
+            int current;
+            int effectivePct;
             do
             {
                 current = maxReportedPercentage;
-                if (targetPct < current)
-                {
-                    return;
-                }
+                effectivePct = Math.Max(current, targetPct);
             }
-            while (Interlocked.CompareExchange(ref maxReportedPercentage, targetPct, current) != current);
+            while (effectivePct > current && Interlocked.CompareExchange(ref maxReportedPercentage, effectivePct, current) != current);
 
-            cap.ProgressPercentage = targetPct;
+            cap.ProgressPercentage = effectivePct;
             progress.Report(cap);
         }
 
@@ -512,28 +510,73 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = ContentConstants.PreparingContentViaProviderOperation,
                 });
 
-                // Scale provider preparation progress (0-100) into downloading phase range (40-70%)
+                // Scale provider preparation progress into overall acquisition range:
+                // - Downloading phase: 40% to 70%
+                // - Extracting / Processing phase: 70% to 85%
+                // - Other (validating): 85% to 90%
                 IProgress<ContentAcquisitionProgress>? prepareProgress = null;
                 if (progress != null)
                 {
                     prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
                     {
-                        var span = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
-                        var normalized = Math.Clamp(p.ProgressPercentage, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
-                        var scaledPct = Math.Clamp(
-                            ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * span),
-                            ContentConstants.ProgressStepDownloading,
-                            ContentConstants.ProgressStepValidatingFiles);
+                        var isExtracting = p.Phase == ContentAcquisitionPhase.Extracting ||
+                                           p.CurrentStage == 3 ||
+                                           (!string.IsNullOrEmpty(p.StageDescription) &&
+                                            p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase));
+
+                        var isValidating = p.Phase == ContentAcquisitionPhase.ValidatingFiles ||
+                                           p.CurrentStage == 4;
+
+                        var effectivePhase = isExtracting
+                            ? ContentAcquisitionPhase.Extracting
+                            : isValidating
+                                ? ContentAcquisitionPhase.ValidatingFiles
+                                : p.Phase;
+
+                        var rawPct = p.ProgressPercentage > 0 ? p.ProgressPercentage : p.StageProgress;
+                        var normalized = Math.Clamp(rawPct, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
+
+                        int scaledPct;
+                        if (isExtracting)
+                        {
+                            var extractSpan = (double)(ContentConstants.ProgressStepExtracting - ContentConstants.ProgressStepValidatingFiles);
+                            scaledPct = Math.Clamp(
+                                ContentConstants.ProgressStepValidatingFiles + (int)Math.Round(normalized * extractSpan),
+                                ContentConstants.ProgressStepValidatingFiles,
+                                ContentConstants.ProgressStepExtracting);
+                        }
+                        else if (isValidating)
+                        {
+                            scaledPct = Math.Clamp(
+                                ContentConstants.ProgressStepExtracting + (int)Math.Round(normalized * (ContentConstants.ProgressStepStoring - ContentConstants.ProgressStepExtracting)),
+                                ContentConstants.ProgressStepExtracting,
+                                ContentConstants.ProgressStepStoring);
+                        }
+                        else
+                        {
+                            var downloadSpan = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
+                            scaledPct = Math.Clamp(
+                                ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * downloadSpan),
+                                ContentConstants.ProgressStepDownloading,
+                                ContentConstants.ProgressStepValidatingFiles);
+                        }
 
                         ReportMonotonicProgress(new ContentAcquisitionProgress
                         {
-                            Phase = ContentAcquisitionPhase.Downloading,
+                            Phase = effectivePhase,
                             ProgressPercentage = scaledPct,
                             CurrentOperation = p.CurrentOperation ?? ContentConstants.PreparingContentViaProviderOperation,
+                            CurrentStage = p.CurrentStage,
+                            TotalStages = p.TotalStages,
+                            StageProgress = p.StageProgress,
+                            StageDescription = p.StageDescription,
+                            CurrentFile = p.CurrentFile,
                             BytesProcessed = p.BytesProcessed,
                             TotalBytes = p.TotalBytes,
                             FilesProcessed = p.FilesProcessed,
                             TotalFiles = p.TotalFiles,
+                            IsBottleneck = p.IsBottleneck,
+                            BottleneckReason = p.BottleneckReason,
                         });
                     });
                 }
@@ -557,7 +600,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    ProgressPercentage = ContentConstants.ProgressStepValidatingFiles,
+                    ProgressPercentage = ContentConstants.ProgressStepExtracting,
                     CurrentOperation = "Validating prepared content files",
                 });
 
@@ -567,8 +610,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 {
                     validationProgress = new SynchronousProgress<ValidationProgress>(vp =>
                     {
-                        // Map validation progress (0-100) into 70-80% range for acquisition
-                        var pct = Math.Clamp(ContentConstants.ProgressStepValidatingFiles + (int)(vp.PercentComplete / 10.0), 0, 100);
+                        // Map validation progress (0-100) into 85-90% range for acquisition
+                        var pct = Math.Clamp(ContentConstants.ProgressStepExtracting + (int)(vp.PercentComplete / 20.0), ContentConstants.ProgressStepExtracting, ContentConstants.ProgressStepStoring);
                         ReportMonotonicProgress(new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.ValidatingFiles,
@@ -599,8 +642,8 @@ public class ContentOrchestrator : IContentOrchestrator
                 // Step 6: Store in permanent storage (only if not already stored by deliverer)
                 ReportMonotonicProgress(new ContentAcquisitionProgress
                 {
-                    Phase = ContentAcquisitionPhase.Extracting,
-                    ProgressPercentage = ContentConstants.ProgressStepExtracting,
+                    Phase = ContentAcquisitionPhase.StoringInCas,
+                    ProgressPercentage = ContentConstants.ProgressStepStoring,
                     CurrentOperation = "Adding to content library",
                 });
 

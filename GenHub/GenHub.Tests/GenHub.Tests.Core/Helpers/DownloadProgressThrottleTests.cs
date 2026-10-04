@@ -48,6 +48,20 @@ public sealed class DownloadProgressThrottleTests
     }
 
     /// <summary>
+    /// Verifies that a stage change always passes through.
+    /// </summary>
+    [Fact]
+    public void ShouldForward_StageChange_AlwaysForwards()
+    {
+        var throttle = new DownloadProgressThrottle(minIntervalMs: 60000);
+        var now = Stopwatch.GetTimestamp();
+
+        Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Extracting, 50, 1, now));
+        Assert.False(throttle.ShouldForward(ContentAcquisitionPhase.Extracting, 51, 1, now + (Stopwatch.Frequency / 1000)));
+        Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Extracting, 52, 2, now + (Stopwatch.Frequency / 1000)));
+    }
+
+    /// <summary>
     /// Verifies that completion always passes through.
     /// </summary>
     [Fact]

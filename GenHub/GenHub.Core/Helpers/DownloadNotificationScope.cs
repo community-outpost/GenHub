@@ -35,7 +35,9 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     private bool _dismissed;
     private bool _disposed;
     private ContentAcquisitionPhase? _lastReportedPhase;
+    private int? _lastReportedStage;
     private string? _lastReportedOperation;
+    private string? _lastReportedDownloadFile;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadNotificationScope"/> class
@@ -123,18 +125,20 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
             _lastReportedPhase = value.Phase;
 
+            var stageChanged = !_lastReportedStage.HasValue || _lastReportedStage.Value != value.CurrentStage;
+            _lastReportedStage = value.CurrentStage;
+
             var op = value.CurrentOperation ?? string.Empty;
             var opChanged = !string.Equals(_lastReportedOperation, op, StringComparison.Ordinal);
             var isProgressTick = !string.IsNullOrEmpty(_lastReportedOperation) &&
                                  StatusShowsPercentage(_lastReportedOperation) &&
                                  StatusShowsPercentage(op);
-            forceUpdate = phaseChanged || (opChanged && !isProgressTick);
+            forceUpdate = phaseChanged || stageChanged || (opChanged && !isProgressTick);
             _lastReportedOperation = op;
         }
 
         var status = value.FormatProgressStatus();
-        var isMultiFile = value.TotalFiles > 1;
-        var includePrefix = isMultiFile || !StatusShowsPercentage(status);
+        var includePrefix = !StatusShowsPercentage(status);
         UpdatePinnedToast(clamped, status, includePercentagePrefix: includePrefix, forceUpdate: forceUpdate);
     }
 
@@ -149,9 +153,16 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
+        bool forceUpdate;
+        lock (_lock)
+        {
+            forceUpdate = !string.Equals(_lastReportedDownloadFile, value.FileName, StringComparison.Ordinal);
+            _lastReportedDownloadFile = value.FileName;
+        }
+
         var clamped = ClampPercentage(value.Percentage);
         var status = $"{value.FileName} - {value.FormattedProgress} ({value.FormattedSpeed})";
-        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status));
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status), forceUpdate: forceUpdate);
     }
 
     /// <summary>
@@ -176,10 +187,18 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             status = value.Status;
         }
 
+        bool forceUpdate;
+        lock (_lock)
+        {
+            var msg = value.Message ?? value.Status ?? string.Empty;
+            forceUpdate = !string.Equals(_lastReportedOperation, msg, StringComparison.Ordinal);
+            _lastReportedOperation = msg;
+        }
+
         // Update producers may embed their own percentage (for example
         // "Downloading artifact for PR #547 (ab47b8f)... 24%"). Prefixing the
         // scaled total as well would show two conflicting figures.
-        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status));
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: !StatusShowsPercentage(status), forceUpdate: forceUpdate);
     }
 
     /// <summary>
