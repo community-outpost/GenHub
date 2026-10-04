@@ -44,6 +44,13 @@
       Each platform head opts back in for Debug only; Release downloads on demand.
     -->
     <PlaywrightPlatform>none</PlaywrightPlatform>
+
+    <!--
+      VideoLAN.LibVLC.Windows targets default to copying x64, x86, and arm64 when Platform is AnyCPU.
+      GenHub targets win-x64 on Windows, so disable the unused x86 and arm64 VLC trees.
+    -->
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->
