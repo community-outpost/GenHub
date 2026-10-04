@@ -202,7 +202,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }
@@ -298,7 +298,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             manifest.ContentType,
             sourcePath);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return (true, false, 0);
         }
@@ -308,7 +308,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
         if (sameVolume)
         {
-            var result = await ProcessSameVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            var result = await ProcessSameVolumeFileAsync(file, sourcePath, destinationPath, configuration, cancellationToken);
             if (result.Skipped)
             {
                 return (true, false, 0);
@@ -319,7 +319,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
         else
         {
-            var result = await ProcessDifferentVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            var result = await ProcessDifferentVolumeFileAsync(file, sourcePath, destinationPath, configuration, cancellationToken);
             if (result.Skipped)
             {
                 return (true, false, 0);
@@ -336,6 +336,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         ManifestFile file,
         string sourcePath,
         string destinationPath,
+        WorkspaceConfiguration configuration,
         CancellationToken cancellationToken)
     {
         try
@@ -345,10 +346,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
         catch (IOException ioEx)
         {
-            if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
-                ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+            if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
             {
-                Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
                 return (true, false, 0);
             }
 
@@ -375,11 +374,11 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         ManifestFile file,
         string sourcePath,
         string destinationPath,
+        WorkspaceConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        if (!File.Exists(sourcePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
-            Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
             return (true, false, 0);
         }
 
