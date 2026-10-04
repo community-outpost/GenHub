@@ -10,6 +10,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Services.Tools;
+using GenHub.Core.Utilities;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 using NuGet.Versioning;
@@ -948,6 +949,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             throw new FileNotFoundException($"Target build file not found: '{targetPath}'");
         }
 
+        if (ZipValidation.IsValidZipFile(targetPath))
+        {
+            await InstallZipBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
         var extension = Path.GetExtension(targetPath).ToLowerInvariant();
         switch (extension)
         {
@@ -1332,18 +1339,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return BitConverter.ToString(hash).Replace("-", string.Empty);
     }
 
-    /// <summary>
-    /// Finds an available network port.
-    /// </summary>
-    private static int FindAvailablePort()
-    {
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
-
     private static bool IsStrayArtifactDirectory(string dirName) =>
         dirName.Equals(ModBuilderConstants.DefaultBuildDir, StringComparison.OrdinalIgnoreCase) ||
         dirName.Equals(ModBuilderConstants.DefaultReleaseDir, StringComparison.OrdinalIgnoreCase) ||
@@ -1512,15 +1507,35 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         shortHash = string.Empty;
         createdAt = DateTime.MinValue;
 
-        var id = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
-        var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
+        long id = 0;
+        if (run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId))
+        {
+            id = rId;
+        }
+
+        string runBranch = string.Empty;
+        if (run.TryGetProperty("head_branch", out var hb))
+        {
+            runBranch = hb.GetString() ?? string.Empty;
+        }
+
         if (!string.Equals(runBranch, expectedBranch, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        var status = run.TryGetProperty("status", out var statusProp) ? statusProp.GetString() : string.Empty;
-        var conclusion = run.TryGetProperty("conclusion", out var conclusionProp) ? conclusionProp.GetString() : string.Empty;
+        string status = string.Empty;
+        if (run.TryGetProperty("status", out var statusProp))
+        {
+            status = statusProp.GetString() ?? string.Empty;
+        }
+
+        string conclusion = string.Empty;
+        if (run.TryGetProperty("conclusion", out var conclusionProp))
+        {
+            conclusion = conclusionProp.GetString() ?? string.Empty;
+        }
+
         if (!string.Equals(status, "completed", StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(conclusion, "success", StringComparison.OrdinalIgnoreCase))
         {
@@ -1615,7 +1630,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 comSpec = Path.Combine(Environment.SystemDirectory, "cmd.exe");
             }
 
-            var cmdArgs = $"/c \"ping 127.0.0.1 -n 2 >nul & start \"\" \"{stagedExe}\" {arguments}\"".Trim();
+            var cmdArgs = $"/c ping 127.0.0.1 -n 3 >nul & start \"\" \"{stagedExe}\" {arguments}".Trim();
             startInfo = new ProcessStartInfo(comSpec, cmdArgs)
             {
                 UseShellExecute = false,
@@ -1644,6 +1659,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
+        if (!IsWindowsExecutable(targetPath))
+        {
+            throw new InvalidDataException($"The file '{Path.GetFileName(targetPath)}' is not a valid Windows executable.");
+        }
+
         var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
         try
         {
@@ -1657,6 +1677,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 {
                     await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), targetPath, progress, cancellationToken).ConfigureAwait(false);
                     return;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -1698,6 +1722,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), fallbackExe, progress, cancellationToken).ConfigureAwait(false);
                     return;
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex) when (fallbackExe != null && File.Exists(fallbackExe))
                 {
                     _logger.LogWarning(ex, "Failed to apply local Velopack update from zip nupkg; falling back to direct installer '{Exe}'", fallbackExe);
@@ -1737,6 +1765,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), targetExe, progress, cancellationToken).ConfigureAwait(false);
                 return;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -2032,18 +2064,26 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var jsonContent = JsonSerializer.Serialize(releasesJson);
         await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken).ConfigureAwait(false);
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "releases.json"), jsonContent, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Created local {FileName} for build '{Title}' with version {Version}", releasesFileName, releaseTitle, fileVersion);
-
-        progress?.Report(new UpdateProgress { Status = "Starting local installation server...", PercentComplete = 50 });
-
-        var port = FindAvailablePort();
-        using var server = new SimpleHttpServer(nupkgFile, releasesPath, port, _logger);
-        server.Start();
 
         progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
 
-        var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
+        var source = new SimpleFileSource(new DirectoryInfo(tempDir));
         var localUpdateManager = new UpdateManager(source);
+
+        if (!localUpdateManager.IsInstalled)
+        {
+            _logger.LogWarning("Application is not running from an installed Velopack location (IsInstalled is false)");
+            if (fallbackExePath != null && File.Exists(fallbackExePath))
+            {
+                _logger.LogInformation("Falling back to direct installer launch: {Exe}", fallbackExePath);
+                LaunchInstallerProcess(fallbackExePath, progress);
+                return;
+            }
+
+            throw new InvalidOperationException("Installing a package update (.nupkg) requires an existing Velopack installation. Please run the full Setup installer.");
+        }
 
         var asset = new VelopackAsset
         {
@@ -2103,6 +2143,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
             throw new InvalidOperationException("Application did not exit after applying update");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (fallbackExePath != null && File.Exists(fallbackExePath))
         {
@@ -2786,9 +2830,23 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
-        var id = artifact.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var aId) ? aId : 0;
-        var size = artifact.TryGetProperty("size_in_bytes", out var sizeProp) && sizeProp.TryGetInt64(out var s) ? s : 0;
-        var downloadUrl = artifact.TryGetProperty("archive_download_url", out var dl) ? dl.GetString() : null;
+        long id = 0;
+        if (artifact.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var aId))
+        {
+            id = aId;
+        }
+
+        long size = 0;
+        if (artifact.TryGetProperty("size_in_bytes", out var sizeProp) && sizeProp.TryGetInt64(out var s))
+        {
+            size = s;
+        }
+
+        string? downloadUrl = null;
+        if (artifact.TryGetProperty("archive_download_url", out var dl))
+        {
+            downloadUrl = dl.GetString();
+        }
 
         return new ArtifactUpdateInfo(
             Version: version,
