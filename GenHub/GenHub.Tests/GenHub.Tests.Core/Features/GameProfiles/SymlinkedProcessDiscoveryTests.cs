@@ -72,7 +72,7 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     [SymlinkFact]
     public void ProcessStartedThroughACasSymlink_IsDiscoveredWithTheResolvedIdentities()
     {
-        if (OperatingSystem.IsMacOS())
+        if (OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
         {
             // Apple Mobile File Integrity terminates ad-hoc signed copies of arm64e system binaries on Apple Silicon.
             return;

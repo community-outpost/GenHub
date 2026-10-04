@@ -721,7 +721,7 @@ jobs:
             test_count=$((test_count + 1))
           done < <(find GenHub/GenHub.Tests -name "*.csproj" | sort)
           if [ "$test_count" -eq 0 ]; then
-            echo "No matching test projects found!"
+            echo "::error::No matching test projects found."
             exit 1
           fi
 

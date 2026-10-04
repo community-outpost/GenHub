@@ -1063,7 +1063,7 @@ Error messages for manifests whose files or platform variants cannot be stored, 
 | `VariantLocationSuffix` | `" in variant {0}"` | Suffix for file issues located in a variant; `{0}` is the variant index |
 | `UnsupportedManifestFormatVersionKey` | `"Manifest.Format.Unsupported"` | Resource key for `UnsupportedManifestFormatVersion` |
 | `UnsupportedManifestFormatVersion` | `"Manifest '{0}' declares format version {1}, but this version of GenHub supports up to format version {2}. Update GenHub to install it."` | Rejecting a manifest whose format is newer than this build supports; `{0}` is the manifest ID, `{1}` the declared format, `{2}` the highest supported format |
-| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | Exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
+| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | English fallback when exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
 
 ---
 

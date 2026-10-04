@@ -2280,7 +2280,10 @@ public class ProfileSharingService(
     {
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            return LaunchExitMessages.GetString(ProfileSharingConstants.CannotExportNoHostVariantErrorKey, localizationService, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier);
+            var localized = LaunchExitMessages.GetString(ProfileSharingConstants.CannotExportNoHostVariantErrorKey, localizationService, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier);
+            return string.IsNullOrEmpty(localized) || localized == ProfileSharingConstants.CannotExportNoHostVariantErrorKey
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier)
+                : localized;
         }
 
         if (allowCloudUpload && IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)

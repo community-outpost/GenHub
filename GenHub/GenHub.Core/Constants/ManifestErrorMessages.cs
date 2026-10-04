@@ -126,7 +126,8 @@ public static class ManifestErrorMessages
     public const string VariantLocationSuffix = " in variant {0}";
 
     /// <summary>
-    /// Error message for exporting a profile whose manifest has no variant for the current host.
+    /// English fallback error message for exporting a profile whose manifest has no variant for the current host.
+    /// Used as fallback anchor for <see cref="ProfileSharingConstants.CannotExportNoHostVariantErrorKey"/>.
     /// {0} is the manifest name and {1} is the host runtime identifier.
     /// </summary>
     public const string CannotExportNoHostVariant = "Cannot export '{0}': no variant supports this host ({1}).";

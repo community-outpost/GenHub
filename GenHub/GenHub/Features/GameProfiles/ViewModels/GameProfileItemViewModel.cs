@@ -1021,6 +1021,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             !string.Equals(CoverPath, UriConstants.DefaultIconUri, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, SuperHackersConstants.ZeroHourCoverSource, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, GeneralsOnlineConstants.CoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !CoverPath.EndsWith(UriConstants.UsaCoverFilename, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, CommunityOutpostConstants.CoverSource, StringComparison.OrdinalIgnoreCase);
 
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
