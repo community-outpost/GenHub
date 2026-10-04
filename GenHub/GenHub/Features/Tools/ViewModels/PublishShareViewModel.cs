@@ -9339,13 +9339,21 @@ public partial class PublishShareViewModel(
     private async Task<string?> DownloadStringFromUrlAsync(string url, CancellationToken cancellationToken = default)
     {
         var directUrl = EnsureDirectDownloadUrl(url);
-        if (!AllowUnresolvableUrlsForTesting &&
-            !CatalogDocumentReader.AllowUnresolvableDnsForTesting &&
-            HttpClientOverrideForTesting == null &&
-            !NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
+        if (!NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
         {
-            logger.LogWarning("Refusing to download string from unsafe or disallowed URL {Url}: {Reason}", directUrl, failureReason);
-            return null;
+            var isUnresolvableDns = failureReason != null &&
+                failureReason.Contains("could not be resolved", StringComparison.OrdinalIgnoreCase);
+
+            var allowBypass = isUnresolvableDns &&
+                (AllowUnresolvableUrlsForTesting ||
+                 CatalogDocumentReader.AllowUnresolvableDnsForTesting ||
+                 HttpClientOverrideForTesting != null);
+
+            if (!allowBypass)
+            {
+                logger.LogWarning("Refusing to download string from unsafe or disallowed URL {Url}: {Reason}", directUrl, failureReason);
+                return null;
+            }
         }
 
         try
