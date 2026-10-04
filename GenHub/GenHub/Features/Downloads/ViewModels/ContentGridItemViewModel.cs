@@ -1641,8 +1641,6 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(HasAccentColor));
         OnPropertyChanged(nameof(IncludesSummary));
         OnPropertyChanged(nameof(HasIncludesSummary));
-        OnPropertyChanged(nameof(ShortDescription));
-        OnPropertyChanged(nameof(HasShortDescription));
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
@@ -1660,6 +1658,8 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(CategoryBadge));
         OnPropertyChanged(nameof(HasCategoryBadge));
         OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ShortDescription));
+        OnPropertyChanged(nameof(HasShortDescription));
         OnPropertyChanged(nameof(CardTags));
         OnPropertyChanged(nameof(DisplayCardTags));
         OnPropertyChanged(nameof(HasCardTags));

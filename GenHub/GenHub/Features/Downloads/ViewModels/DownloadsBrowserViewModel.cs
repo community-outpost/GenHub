@@ -674,9 +674,44 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <returns>True if the item is a Generals Online item; otherwise, false.</returns>
     internal static bool IsGeneralsOnlineResult(ContentSearchResult item)
     {
-        return item.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
-               item.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
-               item.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+        if (item == null)
+        {
+            return false;
+        }
+
+        if (GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(item) ||
+            string.Equals(item.ProviderName, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ProviderName, GeneralsOnlineConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ResolverId, GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ResolverId, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return MatchesGeneralsOnlineId(item.Id);
+    }
+
+    /// <summary>
+    /// Determines whether the specified ID represents a Generals Online manifest or content ID.
+    /// </summary>
+    /// <param name="id">The content identifier to test.</param>
+    /// <returns>True if the ID matches Generals Online conventions; otherwise, false.</returns>
+    internal static bool MatchesGeneralsOnlineId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (id.StartsWith(GeneralsOnlineConstants.ManifestIdPrefix, StringComparison.OrdinalIgnoreCase) ||
+            id.StartsWith(GeneralsOnlineConstants.ContentIdPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var segments = id.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(seg => string.Equals(seg, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(seg, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
