@@ -3120,6 +3120,77 @@ public class DownloadsBrowserViewModelTests
         Assert.Same(clientVariant, card.SelectedVariant);
     }
 
+    /// <summary>
+    /// Verifies that SelectDefaultVariant does not select the 60Hz variant fallback for non-Generals-Online content.
+    /// </summary>
+    [Fact]
+    public void SelectDefaultVariant_NonGeneralsOnlineGroup_DoesNotSelect60HzFallback()
+    {
+        // Arrange
+        var generic1 = new ContentSearchResult
+        {
+            Id = "generic.mod.item1",
+            Name = "Generic Mod",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+        var generic2 = new ContentSearchResult
+        {
+            Id = "generic.mod.item2",
+            Name = "Generic Mod 60Hz Edition",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+
+        var group = new List<ContentSearchResult> { generic1, generic2 };
+        var card = new ContentGridItemViewModel(generic1, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+
+        var defaultVariant = new InstallableVariant { Name = "Generic Mod Standard", ManifestId = "non-matching-id" };
+        var variant60Hz = new InstallableVariant { Name = "Generic Mod 60Hz Edition", ManifestId = generic2.Id };
+        var lastVariant = new InstallableVariant { Name = "Generic Mod Last", ManifestId = "last-id" };
+
+        card.AddVariant(defaultVariant, generic1);
+        card.AddVariant(variant60Hz, generic2);
+        card.AddVariant(lastVariant, generic1);
+
+        // Act: defaultVariant.Id does not match card variant ManifestIds, so it hits the fallbacks.
+        // Since it is NOT Generals Online, the 60Hz fallback must be bypassed, falling back to last variant.
+        DownloadsBrowserViewModel.SelectDefaultVariant(card, group, generic1, generic1);
+
+        // Assert: Must NOT select variant60Hz; should fall back to the last variant
+        Assert.Same(lastVariant, card.SelectedVariant);
+    }
+
+    /// <summary>
+    /// Verifies that MatchesNotificationTarget matches either primary card ID or child variant ManifestId.
+    /// </summary>
+    [Fact]
+    public void MatchesNotificationTarget_MatchesByPrimaryIdOrVariantManifestId()
+    {
+        // Arrange
+        var primaryResult = new ContentSearchResult
+        {
+            Id = "primary.client.id",
+            Name = "Primary Client",
+            ContentType = ContentType.GameClient,
+        };
+        var card = new ContentGridItemViewModel(primaryResult, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+        var patchResult = new ContentSearchResult
+        {
+            Id = "sibling.patch.id",
+            Name = "Patch",
+            ContentType = ContentType.Patch,
+        };
+        card.AddVariant(new InstallableVariant { Name = "Patch", ManifestId = patchResult.Id }, patchResult);
+
+        var unrelatedItem = new ContentSearchResult { Id = "other.id", Name = "Other" };
+
+        // Act & Assert
+        Assert.True(DownloadsBrowserViewModel.MatchesNotificationTarget(card, primaryResult));
+        Assert.True(DownloadsBrowserViewModel.MatchesNotificationTarget(card, patchResult));
+        Assert.False(DownloadsBrowserViewModel.MatchesNotificationTarget(card, unrelatedItem));
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,

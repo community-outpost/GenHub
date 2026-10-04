@@ -665,6 +665,30 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Determines whether the content search result belongs to the Generals Online provider.
+    /// </summary>
+    /// <param name="item">The content search result to check.</param>
+    /// <returns>True if the item is a Generals Online item; otherwise, false.</returns>
+    internal static bool IsGeneralsOnlineResult(ContentSearchResult item)
+    {
+        return item.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
+               item.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
+               item.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    /// <summary>
+    /// Determines whether a content card matches a newly discovered content search result, either by primary ID or by variant manifest ID.
+    /// </summary>
+    /// <param name="card">The content grid item view model card.</param>
+    /// <param name="item">The newly discovered content item.</param>
+    /// <returns>True if the card matches the item; otherwise, false.</returns>
+    internal static bool MatchesNotificationTarget(ContentGridItemViewModel card, ContentSearchResult item)
+    {
+        return string.Equals(card.Id, item.Id, StringComparison.OrdinalIgnoreCase) ||
+               card.Variants.Any(v => string.Equals(v.ManifestId, item.Id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Resolves the default content search result variant for a group.
     /// </summary>
     /// <param name="groupItems">The collection of content search results in the group.</param>
@@ -676,16 +700,12 @@ public sealed partial class DownloadsBrowserViewModel(
             i.Variants?.Any(v => v.IsDefault && (v.ManifestId == i.Id || i.Id?.EndsWith($".{v.ManifestId}", StringComparison.OrdinalIgnoreCase) == true)) == true)
             ?? groupItems.FirstOrDefault(i =>
                 i.ContentType == ContentType.GameClient &&
-                (i.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
-                 i.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
-                 i.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) &&
+                IsGeneralsOnlineResult(i) &&
                 (i.Id?.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) == true ||
                  i.Name?.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) == true))
             ?? groupItems.FirstOrDefault(i =>
                 i.ContentType == ContentType.GameClient &&
-                (i.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
-                 i.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
-                 i.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true))
+                IsGeneralsOnlineResult(i))
             ?? groupItems.FirstOrDefault(i =>
                 i.ContentType == ContentType.GameClient &&
                 (i.ProviderName?.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true ||
@@ -739,9 +759,11 @@ public sealed partial class DownloadsBrowserViewModel(
             }
         }
 
+        var isGeneralsOnline = groupItems.Any(IsGeneralsOnlineResult);
+
         variantVm.SelectedVariant = defaultSelection
             ?? variantVm.Variants.FirstOrDefault(v => string.Equals(v.ManifestId, defaultVariant.Id, StringComparison.OrdinalIgnoreCase))
-            ?? variantVm.Variants.FirstOrDefault(v => v.Name.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase))
+            ?? (isGeneralsOnline ? variantVm.Variants.FirstOrDefault(v => v.Name.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase)) : null)
             ?? variantVm.Variants.FirstOrDefault(v => v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
             ?? variantVm.Variants[^1];
     }
@@ -2711,9 +2733,16 @@ public sealed partial class DownloadsBrowserViewModel(
                 actionText: actionText,
                 action: () => RunOnUi(() =>
                 {
-                    var targetVm = ContentItems.FirstOrDefault(ci => string.Equals(ci.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+                    var targetVm = ContentItems.FirstOrDefault(ci => MatchesNotificationTarget(ci, item));
                     if (targetVm != null)
                     {
+                        var matchingVariant = targetVm.Variants.FirstOrDefault(v =>
+                            string.Equals(v.ManifestId, item.Id, StringComparison.OrdinalIgnoreCase));
+                        if (matchingVariant != null)
+                        {
+                            targetVm.SelectedVariant = matchingVariant;
+                        }
+
                         ViewContent(targetVm);
                     }
                 })));
@@ -2733,10 +2762,24 @@ public sealed partial class DownloadsBrowserViewModel(
                 actionText: actionText,
                 action: () => RunOnUi(() =>
                 {
-                    var firstVm = ContentItems.FirstOrDefault(ci => newDiscoveredItems.Any(ni => string.Equals(ni.Id, ci.Id, StringComparison.OrdinalIgnoreCase)));
-                    if (firstVm != null)
+                    var match = ContentItems
+                        .Select(ci => new
+                        {
+                            Card = ci,
+                            Item = newDiscoveredItems.FirstOrDefault(ni => MatchesNotificationTarget(ci, ni)),
+                        })
+                        .FirstOrDefault(m => m.Item != null);
+
+                    if (match != null)
                     {
-                        ViewContent(firstVm);
+                        var matchingVariant = match.Card.Variants.FirstOrDefault(v =>
+                            string.Equals(v.ManifestId, match.Item.Id, StringComparison.OrdinalIgnoreCase));
+                        if (matchingVariant != null)
+                        {
+                            match.Card.SelectedVariant = matchingVariant;
+                        }
+
+                        ViewContent(match.Card);
                     }
                 })));
         }

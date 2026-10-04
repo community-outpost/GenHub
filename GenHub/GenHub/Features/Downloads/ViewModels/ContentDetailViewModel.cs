@@ -2715,6 +2715,7 @@ public partial class ContentDetailViewModel(
                 if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
+                    SyncTagsWithSearchResult();
                     SelectedVariant = variant;
                 }
 
@@ -2727,6 +2728,7 @@ public partial class ContentDetailViewModel(
             if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
             {
                 VariantSwap.Apply(searchResult, swapSr);
+                SyncTagsWithSearchResult();
                 SelectedVariant = variant;
             }
 
@@ -2738,6 +2740,7 @@ public partial class ContentDetailViewModel(
             if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
             {
                 VariantSwap.Apply(searchResult, swapSr);
+                SyncTagsWithSearchResult();
                 SelectedVariant = variant;
             }
 
@@ -2768,6 +2771,23 @@ public partial class ContentDetailViewModel(
         SyncDownloadableItemsWithSelectedVariant(value);
     }
 
+    private void SyncTagsWithSearchResult()
+    {
+        var newTags = searchResult.Tags ?? Array.Empty<string>();
+        if (newTags.SequenceEqual(Tags))
+        {
+            return;
+        }
+
+        Tags.Clear();
+        foreach (var tag in newTags)
+        {
+            Tags.Add(tag);
+        }
+
+        OnPropertyChanged(nameof(Tags));
+    }
+
     private void ApplySelectedVariantSearchResult(InstallableVariant value)
     {
         if (!string.IsNullOrEmpty(value.ManifestId) &&
@@ -2775,6 +2795,7 @@ public partial class ContentDetailViewModel(
             variantSearchResults.TryGetValue(value.ManifestId, out var sr))
         {
             VariantSwap.Apply(searchResult, sr);
+            SyncTagsWithSearchResult();
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(FormattedDescription));
             if (patchNotesService != null &&
