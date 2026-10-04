@@ -649,6 +649,38 @@ public class GameProfileItemViewModelTests
 
         var vmSentinel = new GameProfileItemViewModel("test-profile-sentinel-cover", sentinelProfile, null!, UriConstants.UsaCoverUri);
         Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmSentinel.CoverImagePath);
+
+        var legacySentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-legacy-cover",
+            Name = "Legacy Sentinel Profile",
+            CoverPath = "/Assets/Covers/usa-cover.jpg",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmLegacySentinel = new GameProfileItemViewModel("test-profile-legacy-cover", legacySentinelProfile, null!, "/Assets/Covers/usa-cover.jpg");
+        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmLegacySentinel.CoverImagePath);
+
+        var backslashSentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-backslash-cover",
+            Name = "Backslash Sentinel Profile",
+            CoverPath = @"Assets\Covers\usa-cover.jpg",
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmBackslashSentinel = new GameProfileItemViewModel("test-profile-backslash-cover", backslashSentinelProfile, null!, @"Assets\Covers\usa-cover.jpg");
+        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmBackslashSentinel.CoverImagePath);
     }
 
     /// <summary>
