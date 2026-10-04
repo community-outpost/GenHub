@@ -124,6 +124,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         var processResult = await ProcessStandardFileAsync(file, manifest, destinationPath, configuration, sameVolume, cancellationToken);
                         if (!processResult.Skipped)
                         {
+                            await EnsureExecutableAsync(file, destinationPath, cancellationToken);
+
                             if (processResult.HardLinked)
                             {
                                 linkedFiles++;

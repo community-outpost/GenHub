@@ -543,7 +543,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// those and gigabytes of data, so the deduplication that matters is untouched.
     /// </para>
     /// <para>
-    /// No-op on Windows, which has no execute bit, and for files that do not need one.
+    /// On macOS a quarantined shared library gets the same private copy. Gatekeeper refuses
+    /// to load quarantined code, and a hard link or symlink would leave the attribute on the
+    /// user's own install. The copy carries no quarantine and leaves the original untouched.
+    /// </para>
+    /// <para>
+    /// No-op on Windows, which has no execute bit, and for files that need neither change.
     /// </para>
     /// </summary>
     /// <param name="file">The manifest entry that was just materialised.</param>
@@ -552,7 +557,13 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <returns>A task representing the operation.</returns>
     protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
     {
-        if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
+        if (OperatingSystem.IsWindows() || !File.Exists(targetPath))
+        {
+            return;
+        }
+
+        if (!file.IsExecutable
+            && !(ExecutableFileClassifier.IsUnixSharedLibrary(file.RelativePath) && MacOSNativeMethods.IsQuarantined(targetPath)))
         {
             return;
         }
