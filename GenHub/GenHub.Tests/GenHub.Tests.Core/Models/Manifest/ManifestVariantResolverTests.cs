@@ -480,6 +480,107 @@ public class ManifestVariantResolverTests
     }
 
     /// <summary>
+    /// Copying with resolved files puts the delivered files on the matching variant of
+    /// the copy, keeps the other variants as declared, and leaves the original untouched.
+    /// </summary>
+    [Fact]
+    public void CopyWithResolvedFiles_ReplacesMatchingVariantFilesOnCopyOnly()
+    {
+        var original = new ContentManifest
+        {
+            Files = [File("stale.big")],
+            Variants =
+            [
+                new() { RuntimeIdentifiers = ["win-x64"], EntryPoint = "generalszh.exe", Files = [File("generalszh.exe", true)] },
+                new() { RuntimeIdentifiers = ["osx-arm64"], EntryPoint = "generalszh", Files = [File("generalszh.tar.gz")] },
+            ],
+        };
+
+        var copy = ManifestVariantResolver.CopyWithResolvedFiles(original, [File("generalszh", true), File("libSDL3.dylib")], "osx-arm64");
+
+        Assert.NotSame(original, copy);
+        Assert.Empty(copy.Files);
+        Assert.Equal(2, copy.Variants.Count);
+        Assert.Equal(["generalszh", "libSDL3.dylib"], ManifestVariantResolver.ResolveFiles(copy, "osx-arm64").Select(f => f.RelativePath));
+        Assert.Equal("generalszh.exe", Assert.Single(copy.Variants[0].Files).RelativePath);
+        Assert.Equal("generalszh", ManifestVariantResolver.ResolveEntryPoint(copy, "osx-arm64").RelativePath);
+        Assert.Equal("generalszh.tar.gz", Assert.Single(original.Variants[1].Files).RelativePath);
+        Assert.Equal("stale.big", Assert.Single(original.Files).RelativePath);
+    }
+
+    /// <summary>
+    /// Copying a manifest without variants replaces the copy's flat list only.
+    /// </summary>
+    [Fact]
+    public void CopyWithResolvedFiles_FlatManifest_ReplacesFlatListOnCopyOnly()
+    {
+        var original = new ContentManifest { Files = [File("archive.zip")] };
+
+        var copy = ManifestVariantResolver.CopyWithResolvedFiles(original, [File("generals.exe", true)], "osx-arm64");
+
+        Assert.Equal("generals.exe", Assert.Single(copy.Files).RelativePath);
+        Assert.Empty(copy.Variants);
+        Assert.Equal("archive.zip", Assert.Single(original.Files).RelativePath);
+    }
+
+    /// <summary>
+    /// With variants declared and none for the runtime there is nowhere to put the files,
+    /// so the copy fails instead of returning a manifest that silently lost them.
+    /// </summary>
+    [Fact]
+    public void CopyWithResolvedFiles_NoMatchingVariant_Throws()
+    {
+        var original = new ContentManifest
+        {
+            Variants = [new() { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] }],
+        };
+
+        Assert.Throws<InvalidOperationException>(
+            () => ManifestVariantResolver.CopyWithResolvedFiles(original, [File("generalszh", true)], "osx-arm64"));
+    }
+
+    /// <summary>
+    /// With variants declared, the matching variant's entry point is the declared one and
+    /// the root entry point is ignored.
+    /// </summary>
+    [Fact]
+    public void GetDeclaredEntryPoint_Variants_UsesMatchingVariantAndIgnoresRoot()
+    {
+        var manifest = new ContentManifest
+        {
+            EntryPoint = "root.exe",
+            Variants =
+            [
+                new() { RuntimeIdentifiers = ["win-x64"], EntryPoint = "generalszh.exe" },
+                new() { RuntimeIdentifiers = ["osx-arm64"], EntryPoint = "generalszh" },
+                new() { RuntimeIdentifiers = ["linux-x64"] },
+            ],
+        };
+
+        Assert.Equal("generalszh", ManifestVariantResolver.GetDeclaredEntryPoint(manifest, "osx-arm64"));
+        Assert.Equal("generalszh.exe", ManifestVariantResolver.GetDeclaredEntryPoint(manifest, "win-x64"));
+        Assert.Null(ManifestVariantResolver.GetDeclaredEntryPoint(manifest, "linux-x64"));
+    }
+
+    /// <summary>
+    /// Without variants the root entry point is the declared one; with variants and no
+    /// matching variant there is none.
+    /// </summary>
+    [Fact]
+    public void GetDeclaredEntryPoint_UsesRootWithoutVariantsAndNullWithoutMatch()
+    {
+        var flat = new ContentManifest { EntryPoint = "generals.exe" };
+        var unmatched = new ContentManifest
+        {
+            EntryPoint = "root.exe",
+            Variants = [new() { RuntimeIdentifiers = ["win-x64"], EntryPoint = "generalszh.exe" }],
+        };
+
+        Assert.Equal("generals.exe", ManifestVariantResolver.GetDeclaredEntryPoint(flat, "osx-arm64"));
+        Assert.Null(ManifestVariantResolver.GetDeclaredEntryPoint(unmatched, "osx-arm64"));
+    }
+
+    /// <summary>
     /// Rewriting all files applies to the flat list and to every variant.
     /// </summary>
     [Fact]

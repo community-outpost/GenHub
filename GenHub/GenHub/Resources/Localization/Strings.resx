@@ -1125,9 +1125,6 @@
   <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Game client '{0}' declares variant entry point '{1}', which was not found in its payload.</value>
   </data>
-  <data name="Manifest.VariantEntryPoint.MultipleMissing" xml:space="preserve">
-    <value>Game client '{0}' has {1} variants without a declared entry point; detection cannot resolve one entry per variant.</value>
-  </data>
   <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
     <value>'{0}' cannot be installed directly. {1}</value>
   </data>
@@ -17897,6 +17894,15 @@ Mapped image texture reference</value>
   </data>
   <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
     <value>Skipped {0}: its source file is missing.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>Cannot share local content '{0}': it has no files to upload, so recipients could not install it.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.DependencyExportFailed" xml:space="preserve">
+    <value>Failed to process dependency for {0}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
+    <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
   </data>
   <data name="Navigation.Online" xml:space="preserve">
     <value>Online</value>

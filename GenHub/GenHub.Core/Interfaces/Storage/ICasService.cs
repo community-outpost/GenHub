@@ -35,7 +35,12 @@ public interface ICasService
     /// </summary>
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The file system path if the content exists.</returns>
+    /// <returns>The file system path if content exists; a failed result for missing content or expected filesystem/access failures.</returns>
+    /// <remarks>
+    /// Unexpected storage or pool implementation faults propagate. Callers must not treat such
+    /// faults as missing content, successful verification, or a reason to retry another copy path.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">The lookup was cancelled.</exception>
     Task<OperationResult<string>> GetContentPathAsync(string hash, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -123,7 +128,12 @@ public interface ICasService
     /// <param name="hash">The content hash.</param>
     /// <param name="contentType">The content type for pool routing.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The file system path if the content exists.</returns>
+    /// <returns>The file system path if content exists; a failed result for missing content or expected filesystem/access failures.</returns>
+    /// <remarks>
+    /// Unexpected storage or pool implementation faults propagate. Callers must not treat such
+    /// faults as missing content, successful verification, or a reason to retry another copy path.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">The lookup was cancelled.</exception>
     Task<OperationResult<string>> GetContentPathAsync(
         string hash,
         ContentType contentType,

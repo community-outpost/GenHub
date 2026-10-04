@@ -174,8 +174,7 @@ public class GenericCatalogManifestFactory(
         });
 
         // Create updated manifest with computed hashes
-        var updatedManifest = originalManifest.Clone();
-        updatedManifest.Files = updatedFiles;
+        var updatedManifest = ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, updatedFiles);
         if (string.IsNullOrWhiteSpace(updatedManifest.Version))
         {
             updatedManifest.Version = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
