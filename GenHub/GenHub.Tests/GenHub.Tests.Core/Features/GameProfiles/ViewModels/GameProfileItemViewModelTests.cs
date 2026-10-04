@@ -611,8 +611,7 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
-    /// Verifies that custom covers ending with the default cover filename are not overwritten by publisher branding,
-    /// while the legacy default sentinel path is replaced with the publisher cover.
+    /// Verifies that custom covers ending with the default cover filename are not overwritten by publisher branding.
     /// </summary>
     [Fact]
     public void Construction_CustomCoverEndingWithUsaCoverFilename_PreservedByPublisherBranding()
@@ -633,12 +632,23 @@ public class GameProfileItemViewModelTests
 
         var vmCustom = new GameProfileItemViewModel("test-profile-custom-cover", customProfile, null!, customCoverPath);
         Assert.Equal(customCoverPath, vmCustom.CoverImagePath);
+    }
 
+    /// <summary>
+    /// Verifies that default USA cover sentinels (URI, legacy relative, and backslash paths) are replaced with publisher branding.
+    /// </summary>
+    /// <param name="sentinelCoverPath">The sentinel cover path representation to test.</param>
+    [Theory]
+    [InlineData(UriConstants.UsaCoverUri)]
+    [InlineData("/Assets/Covers/usa-cover.jpg")]
+    [InlineData(@"Assets\Covers\usa-cover.jpg")]
+    public void Construction_DefaultUsaCoverSentinels_ReplacedByPublisherBranding(string sentinelCoverPath)
+    {
         var sentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
         {
             Id = "test-profile-sentinel-cover",
             Name = "Sentinel Cover Profile",
-            CoverPath = UriConstants.UsaCoverUri,
+            CoverPath = sentinelCoverPath,
             GameClient = new GenHub.Core.Models.GameClients.GameClient
             {
                 Id = "1.000.thesuperhackers.gameclient.zerohour",
@@ -647,40 +657,8 @@ public class GameProfileItemViewModelTests
             },
         };
 
-        var vmSentinel = new GameProfileItemViewModel("test-profile-sentinel-cover", sentinelProfile, null!, UriConstants.UsaCoverUri);
+        var vmSentinel = new GameProfileItemViewModel("test-profile-sentinel-cover", sentinelProfile, null!, sentinelCoverPath);
         Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmSentinel.CoverImagePath);
-
-        var legacySentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
-        {
-            Id = "test-profile-legacy-cover",
-            Name = "Legacy Sentinel Profile",
-            CoverPath = "/Assets/Covers/usa-cover.jpg",
-            GameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Id = "1.000.thesuperhackers.gameclient.zerohour",
-                Name = "The Super Hackers",
-                PublisherType = "thesuperhackers",
-            },
-        };
-
-        var vmLegacySentinel = new GameProfileItemViewModel("test-profile-legacy-cover", legacySentinelProfile, null!, "/Assets/Covers/usa-cover.jpg");
-        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmLegacySentinel.CoverImagePath);
-
-        var backslashSentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
-        {
-            Id = "test-profile-backslash-cover",
-            Name = "Backslash Sentinel Profile",
-            CoverPath = @"Assets\Covers\usa-cover.jpg",
-            GameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Id = "1.000.thesuperhackers.gameclient.zerohour",
-                Name = "The Super Hackers",
-                PublisherType = "thesuperhackers",
-            },
-        };
-
-        var vmBackslashSentinel = new GameProfileItemViewModel("test-profile-backslash-cover", backslashSentinelProfile, null!, @"Assets\Covers\usa-cover.jpg");
-        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmBackslashSentinel.CoverImagePath);
     }
 
     /// <summary>
