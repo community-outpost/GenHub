@@ -3271,6 +3271,38 @@ public class DownloadsBrowserViewModelTests
         // Assert
         Assert.Equal(hostSupported, viewModel.Publishers.Any(p => p.PublisherId == PublisherTypeConstants.GeneralsOnline));
         Assert.Contains(viewModel.Publishers, p => p.PublisherId == PublisherTypeConstants.TheSuperHackers);
+    /// Verifies that IsGeneralsOnlineResult identifies Generals Online content and rejects fork or custom catalog items.
+    /// </summary>
+    /// <param name="providerName">The provider name.</param>
+    /// <param name="resolverId">The resolver ID.</param>
+    /// <param name="id">The content or manifest ID.</param>
+    /// <param name="expected">The expected result.</param>
+    [Theory]
+    [InlineData("generalsonline", null, null, true)]
+    [InlineData("GeneralsOnline", null, null, true)]
+    [InlineData("Generals Online", null, null, true)]
+    [InlineData(null, "GeneralsOnline", null, true)]
+    [InlineData(null, null, "generalsonline-client-1.0", true)]
+    [InlineData(null, null, "GeneralsOnline_Client_1.0", true)]
+    [InlineData(null, null, "1.928260.generalsonline.gameclient.60hz", true)]
+    [InlineData("generalsonline-fork", null, "custom.fork.gameclient", false)]
+    [InlineData("my-custom-provider", "generalsonline-fork-resolver", "my.mod", false)]
+    [InlineData("ModDB", null, "1.928260.generalsonline-fork.gameclient.60hz", false)]
+    public void IsGeneralsOnlineResult_IdentifiesGeneralsOnlineCorrectly(
+        string? providerName,
+        string? resolverId,
+        string? id,
+        bool expected)
+    {
+        var item = new ContentSearchResult
+        {
+            ProviderName = providerName ?? string.Empty,
+            ResolverId = resolverId,
+            Id = id ?? string.Empty,
+        };
+
+        var actual = DownloadsBrowserViewModel.IsGeneralsOnlineResult(item);
+        Assert.Equal(expected, actual);
     }
 
     private static InstallableVariant AddCardVariant(

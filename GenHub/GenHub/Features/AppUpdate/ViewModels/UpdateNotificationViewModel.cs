@@ -724,6 +724,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         var latestRelease = matchedItem.Releases
+            .Where(r => r.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)))
             .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
             {
                 if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
@@ -815,6 +816,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 foreach (var item in catalog.Content.Where(c => c.ContentType == ContentType.GenHubBuild))
                 {
                     var latestRel = item.Releases
+                        .Where(r => r.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)))
                         .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
                         {
                             if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;

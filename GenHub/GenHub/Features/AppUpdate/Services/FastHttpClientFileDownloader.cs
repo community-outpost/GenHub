@@ -241,7 +241,7 @@ public class FastHttpClientFileDownloader(
             await semaphore.WaitAsync(cancelToken).ConfigureAwait(false);
             try
             {
-                var start = chunkIndex * chunkSize;
+                var start = (long)chunkIndex * chunkSize;
                 var end = Math.Min(start + chunkSize - 1, totalBytes - 1);
                 var expectedChunkBytes = end - start + 1;
 
