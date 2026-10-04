@@ -165,12 +165,12 @@ public class FileSystemDeliverer(
                     permissions: file.Permissions);
             }
 
-            // The delivered manifest is flat, so it carries the resolved variant's declared
-            // entry point and launch relationship in place of the variant list.
-            var variantEntryPoint = ManifestVariantResolver.ResolveVariant(packageManifest)?.EntryPoint;
-            if (!string.IsNullOrWhiteSpace(variantEntryPoint))
+            // The delivered manifest is flat, so it carries the declared entry point and launch
+            // relationship the launcher resolves, in place of the variant list.
+            var declaredEntryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(packageManifest);
+            if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
             {
-                manifestBuilder.WithEntryPoint(variantEntryPoint);
+                manifestBuilder.WithEntryPoint(declaredEntryPoint);
             }
 
             var launchRelationship = ManifestVariantResolver.ResolveLaunchRelationship(packageManifest);

@@ -236,6 +236,40 @@ public sealed class FileSystemDelivererTests
     }
 
     /// <summary>
+    /// A flat manifest keeps its declared entry point and launch relationship together, so
+    /// the launcher does not pair a guessed entry with the declared child process.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_FlatManifest_CarriesRootEntryPointAndLaunchRelationshipAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.test.gameclient.zerohour"),
+                Name = "Test",
+                ContentType = ContentType.GameClient,
+                Files = [CreateLocalFile(directory.FullName, "launcher.exe"), CreateLocalFile(directory.FullName, "generals.exe")],
+                EntryPoint = "launcher.exe",
+                LaunchRelationship = new LaunchRelationship { ProcessName = "generals" },
+            };
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal("launcher.exe", _builtEntryPoint);
+            Assert.Equal(("generals", (int?)null), _builtLaunchRelationship);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Validation of a variant manifest checks the host variant's required files, so a
     /// missing host file is reported instead of passing over an empty root list.
     /// </summary>
