@@ -17781,6 +17781,306 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Резервные выпуски вручную (переопределения)</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaScreenshotsPrefix" xml:space="preserve">
+    <value>Скриншоты: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaVideosPrefix" xml:space="preserve">
+    <value>Видео: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterScreenshots" xml:space="preserve">
+    <value>Скриншоты</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterVideos" xml:space="preserve">
+    <value>Видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLinkedTo" xml:space="preserve">
+    <value>СВЯЗАНО С</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortByNameTip" xml:space="preserve">
+    <value>Сортировать по имени файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortBySizeTip" xml:space="preserve">
+    <value>Сортировать по размеру файла</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExpandChildrenTip" xml:space="preserve">
+    <value>Показать связанные элементы</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteAction" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteTip" xml:space="preserve">
+    <value>Удалить из облачного хранилища</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryScreenshotFormat" xml:space="preserve">
+    <value>Скриншот ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryVideoFormat" xml:space="preserve">
+    <value>Видео ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshot" xml:space="preserve">
+    <value>Облачный скриншот</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideo" xml:space="preserve">
+    <value>Облачное видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshotFormat" xml:space="preserve">
+    <value>Облачный скриншот ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideoFormat" xml:space="preserve">
+    <value>Облачное видео ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFormat" xml:space="preserve">
+    <value>Облачный артефакт ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFileFormat" xml:space="preserve">
+    <value>Облачный артефакт ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotArtifact" xml:space="preserve">
+    <value>Файл релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotScreenshot" xml:space="preserve">
+    <value>Скриншот</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotVideo" xml:space="preserve">
+    <value>Видео</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotIcon" xml:space="preserve">
+    <value>Значок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotAvatar" xml:space="preserve">
+    <value>Аватар</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBanner" xml:space="preserve">
+    <value>Баннер</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBackdrop" xml:space="preserve">
+    <value>Фон</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseImage" xml:space="preserve">
+    <value>Изображение релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseVideo" xml:space="preserve">
+    <value>Видео релиза</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefWithVersionFormat" xml:space="preserve">
+    <value>{0} › {1} v{2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefFormat" xml:space="preserve">
+    <value>{0} › {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreFormat" xml:space="preserve">
+    <value>{0} (ещё {1})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionLineFormat" xml:space="preserve">
+    <value>Определение: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat" xml:space="preserve">
+    <value>+{0} ещё</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinked" xml:space="preserve">
+    <value>Не связано</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinkedTip" xml:space="preserve">
+    <value>Этот файл не используется ни одним каталогом текущего проекта.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
+    <value>Этот файл не входит в текущий проект. Разверните строку для предпросмотра содержимого.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
+    <value>Определение: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
+    <value>Указано в {0} · элементов: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionFormat" xml:space="preserve">
+    <value>каталогов: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionTipFormat" xml:space="preserve">
+    <value>Определение издателя, включающее каталоги: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenCatalogsFormat" xml:space="preserve">
+    <value>каталогов: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenContentsFormat" xml:space="preserve">
+    <value>элементов: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenReferencesFormat" xml:space="preserve">
+    <value>ссылок: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCatalogDetailFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildContentDetailFormat" xml:space="preserve">
+    <value>{0} · релизов: {1} · файлов: {2} · медиа: {3}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyCatalogText" xml:space="preserve">
+    <value>Пустой каталог — нет связанного содержимого</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
+    <value>С этим определением не связано ни одного каталога</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
+    <value>Нечего удалять</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedMessageFormat" xml:space="preserve">
+    <value>«{0}» ещё не размещён, поэтому в облачном хранилище нечего удалять.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyTitle" xml:space="preserve">
+    <value>Выполняется операция</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyMessage" xml:space="preserve">
+    <value>Дождитесь завершения текущей загрузки или сканирования перед удалением.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredTitle" xml:space="preserve">
+    <value>Провайдер не подключён</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredMessage" xml:space="preserve">
+    <value>Подключитесь к хостинг-провайдеру перед удалением облачных файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionTitle" xml:space="preserve">
+    <value>Удалить размещённое определение?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteActiveDefinitionMessageFormat" xml:space="preserve">
+    <value>«{0}» — ваше опубликованное определение провайдера. Подписчики используют его для обнаружения обновлений каталогов, поэтому удаление нарушит проверку обновлений до повторной публикации. Удалить «{0}» из облачного хранилища?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionMessageFormat" xml:space="preserve">
+    <value>Удалить «{0}» из облачного хранилища? Он не используется текущим проектом.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionRepublishNote" xml:space="preserve">
+    <value>Повторно опубликуйте определение провайдера, чтобы восстановить обновления для подписчиков.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionMessageFormat" xml:space="preserve">
+    <value>«{0}» удалён из облачного хранилища.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedTitle" xml:space="preserve">
+    <value>Ошибка удаления</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedMessageFormat" xml:space="preserve">
+    <value>Не удалось удалить «{0}» из облачного хранилища. Удалённый файл не найден или провайдер отклонил запрос. Локальные изменения не внесены.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogTitle" xml:space="preserve">
+    <value>Нельзя удалить последний каталог</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogMessage" xml:space="preserve">
+    <value>Проекту нужен хотя бы один каталог. Вместо этого удалите его содержимое или сначала создайте замену.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogTitleFormat" xml:space="preserve">
+    <value>Удалить каталог «{0}»?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogCloudOnlyMessageFormat" xml:space="preserve">
+    <value>Удалить «{0}» из облачного хранилища? Он не входит в текущий проект.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogContentsLineFormat" xml:space="preserve">
+    <value>Из проекта будут удалены элементы (количество: {0}), релизы (количество: {1}), файлы (количество: {2}) и ссылки на медиа (количество: {3}).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogDefinitionLine" xml:space="preserve">
+    <value>Определение провайдера будет обновлено и повторно загружено без этого каталога.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
+    <value>Файлов в облачном хранилище, используемых только этим каталогом: {0}. Они станут несвязанными (останутся в облачном хранилище): {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
+    <value>Каталог «{0}» удалён локально, но некоторые удалённые файлы удалить не удалось. Повторно отсканируйте хранилище и повторите попытку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogMessageFormat" xml:space="preserve">
+    <value>Каталог «{0}» удалён.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
+    <value>Осиротевшие файлы оставлены в облачном хранилище (количество: {0}); их можно удалить по отдельности.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>Не удалось сохранить состояние хостинга: удалённые файлы могут снова появиться после перезапуска.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>Каталог '{0}' сохранен, так как некоторые удаленные файлы не удалось удалить. Проверьте подключение и повторите попытку.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
+    <value>Определение провайдера не удалось повторно загрузить, оно помечено для публикации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSuccessTitle" xml:space="preserve">
+    <value>Удалено</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalTitleFormat" xml:space="preserve">
+    <value>Убрать ссылку «{0}»?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactTitleFormat" xml:space="preserve">
+    <value>Удалить «{0}»?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMessageFormat" xml:space="preserve">
+    <value>«{0}» размещён на внешнем CDN, поэтому удалять нечего. Убрать его ссылку из релизов: {1}?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactMessageFormat" xml:space="preserve">
+    <value>Удалить «{0}» ({1}) из облачного хранилища?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactConsequenceLineFormat" xml:space="preserve">
+    <value>Файл будет удалён из релизов: {0}; затронутые каталоги будут обновлены и повторно загружены.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactUsedByLine" xml:space="preserve">
+    <value>Используется в:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactEmptiedLineFormat" xml:space="preserve">
+    <value>Внимание: релиз v{0} «{1}» останется без файлов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat" xml:space="preserve">
+    <value>«{0}» удалён и убран из релизов: {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat" xml:space="preserve">
+    <value>Ссылка «{0}» убрана из релизов: {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteEmptiedReleaseNoteFormat" xml:space="preserve">
+    <value>Релиз v{0} «{1}» теперь без файлов. Добавьте замену или удалите релиз.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishFailedNoteFormat" xml:space="preserve">
+    <value>Не удалось повторно загрузить каталогов: {0}, они помечены для публикации.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishedNoteFormat" xml:space="preserve">
+    <value>Каталогов повторно загружено с исправлением: {0}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaTitleFormat" xml:space="preserve">
+    <value>Удалить медиа «{0}»?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaMessageFormat" xml:space="preserve">
+    <value>Удалить «{0}» из облачного хранилища?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaConsequenceLineFormat" xml:space="preserve">
+    <value>Ссылка будет убрана из мест: {0}; затронутые каталоги будут обновлены и повторно загружены.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedMediaMessageFormat" xml:space="preserve">
+    <value>«{0}» удалён, ссылки на него убраны из мест: {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedTitleFormat" xml:space="preserve">
+    <value>Удалить несвязанный файл «{0}»?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedMessageFormat" xml:space="preserve">
+    <value>«{0}» ({1}) не используется ни одним каталогом. Удалить его из облачного хранилища?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedUnlinkedMessageFormat" xml:space="preserve">
+    <value>«{0}» удалён из облачного хранилища.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMediaMessageFormat" xml:space="preserve">
+    <value>«{0}» размещён на внешнем CDN, поэтому удалять нечего. Убрать его ссылку из мест: {1}?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
+    <value>Ссылка «{0}» убрана из мест: {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadingText" xml:space="preserve">
+    <value>Загрузка предпросмотра...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat" xml:space="preserve">
+    <value>Предпросмотр недоступен: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewDownloadFailedText" xml:space="preserve">
+    <value>Не удалось скачать файл.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCopyLinkAction" xml:space="preserve">
+    <value>Нажмите, чтобы скопировать ссылку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
+    <value>Этот файл также используется в других местах; файл в облаке останется, будут удалены только выбранные ссылки.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
+    <value>Файл в облаке оставлен, так как на него всё ещё ссылаются.</value>
+  </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>

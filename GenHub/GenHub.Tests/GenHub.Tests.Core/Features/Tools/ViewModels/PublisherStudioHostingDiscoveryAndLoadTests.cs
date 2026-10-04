@@ -6,6 +6,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -20,6 +21,7 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// <summary>
 /// Unit tests for cloud hosting asset discovery, categorization, filtering, and project loading.
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public sealed class PublisherStudioHostingDiscoveryAndLoadTests : IDisposable
 {
     /// <summary>

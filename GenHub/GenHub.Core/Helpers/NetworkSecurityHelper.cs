@@ -14,9 +14,15 @@ using System.Threading.Tasks;
 /// </summary>
 public static class NetworkSecurityHelper
 {
-    private const string DisallowedAddressMessage = "Loopback, private, and local addresses are not allowed.";
+    /// <summary>
+    /// Error message returned when a URL resolves to a loopback, private, or local network address.
+    /// </summary>
+    public const string DisallowedAddressMessage = "Loopback, private, and local addresses are not allowed.";
 
-    private const string UnresolvableHostMessage = "The URL host name could not be resolved to a safe address.";
+    /// <summary>
+    /// Error message returned when a URL host name cannot be resolved to a safe IP address via DNS.
+    /// </summary>
+    public const string UnresolvableHostMessage = "The URL host name could not be resolved to a safe address.";
 
     /// <summary>
     /// Validates whether a URL is a safe external HTTPS URL (not loopback, private, or local network).

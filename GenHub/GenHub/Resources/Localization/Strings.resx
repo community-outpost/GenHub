@@ -17840,6 +17840,306 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>Manual Fallback Releases (Overrides)</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaScreenshotsPrefix" xml:space="preserve">
+    <value>Screenshots: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaVideosPrefix" xml:space="preserve">
+    <value>Videos: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterScreenshots" xml:space="preserve">
+    <value>Screenshots</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterVideos" xml:space="preserve">
+    <value>Videos</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLinkedTo" xml:space="preserve">
+    <value>LINKED TO</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortByNameTip" xml:space="preserve">
+    <value>Sort by file name</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortBySizeTip" xml:space="preserve">
+    <value>Sort by file size</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExpandChildrenTip" xml:space="preserve">
+    <value>Show linked items</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteAction" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteTip" xml:space="preserve">
+    <value>Delete from cloud storage</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryScreenshotFormat" xml:space="preserve">
+    <value>Screenshot ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryVideoFormat" xml:space="preserve">
+    <value>Video ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshot" xml:space="preserve">
+    <value>Cloud Screenshot</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideo" xml:space="preserve">
+    <value>Cloud Video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshotFormat" xml:space="preserve">
+    <value>Cloud Screenshot ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideoFormat" xml:space="preserve">
+    <value>Cloud Video ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFormat" xml:space="preserve">
+    <value>Cloud Artifact ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFileFormat" xml:space="preserve">
+    <value>Cloud Artifact ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotArtifact" xml:space="preserve">
+    <value>Release file</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotScreenshot" xml:space="preserve">
+    <value>Screenshot</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotIcon" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotAvatar" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBanner" xml:space="preserve">
+    <value>Banner</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBackdrop" xml:space="preserve">
+    <value>Backdrop</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseImage" xml:space="preserve">
+    <value>Release image</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseVideo" xml:space="preserve">
+    <value>Release video</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefWithVersionFormat" xml:space="preserve">
+    <value>{0} › {1} v{2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefFormat" xml:space="preserve">
+    <value>{0} › {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreFormat" xml:space="preserve">
+    <value>{0} (+{1} more)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionLineFormat" xml:space="preserve">
+    <value>Definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat" xml:space="preserve">
+    <value>+{0} more</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinked" xml:space="preserve">
+    <value>Not linked</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinkedTip" xml:space="preserve">
+    <value>This file is not referenced by any catalog in the current project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
+    <value>This file is not part of the current project. Expand the row to preview its contents.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
+    <value>Definition: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
+    <value>Listed in {0} · {1} content item(s)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionFormat" xml:space="preserve">
+    <value>{0} catalog(s)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionTipFormat" xml:space="preserve">
+    <value>Publisher definition listing {0} catalog(s)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenCatalogsFormat" xml:space="preserve">
+    <value>{0} catalogs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenContentsFormat" xml:space="preserve">
+    <value>{0} contents</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenReferencesFormat" xml:space="preserve">
+    <value>{0} references</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCatalogDetailFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildContentDetailFormat" xml:space="preserve">
+    <value>{0} · {1} releases · {2} files · {3} media</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyCatalogText" xml:space="preserve">
+    <value>Empty catalog — no content linked</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
+    <value>No catalogs linked to this definition</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
+    <value>Nothing To Delete</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedMessageFormat" xml:space="preserve">
+    <value>'{0}' is not hosted yet, so there is nothing to delete from cloud storage.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyTitle" xml:space="preserve">
+    <value>Operation In Progress</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyMessage" xml:space="preserve">
+    <value>Please wait for the current upload or scan to finish before deleting.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredTitle" xml:space="preserve">
+    <value>Provider Not Connected</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredMessage" xml:space="preserve">
+    <value>Connect to your hosting provider before deleting cloud files.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionTitle" xml:space="preserve">
+    <value>Delete Hosted Definition?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteActiveDefinitionMessageFormat" xml:space="preserve">
+    <value>'{0}' is your published provider definition. Subscribers use it to discover catalog updates, so deleting it breaks update checks until you republish. Delete '{0}' from cloud storage?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionMessageFormat" xml:space="preserve">
+    <value>Delete '{0}' from cloud storage? It is not referenced by the current project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionRepublishNote" xml:space="preserve">
+    <value>Republish the provider definition to restore subscriber updates.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionMessageFormat" xml:space="preserve">
+    <value>'{0}' was deleted from cloud storage.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedTitle" xml:space="preserve">
+    <value>Delete Failed</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedMessageFormat" xml:space="preserve">
+    <value>Could not delete '{0}' from cloud storage. The remote file could not be located or the provider rejected the request. No local changes were made.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogTitle" xml:space="preserve">
+    <value>Cannot Delete Last Catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogMessage" xml:space="preserve">
+    <value>A project needs at least one catalog. Remove its contents instead, or create a replacement catalog first.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogTitleFormat" xml:space="preserve">
+    <value>Delete Catalog '{0}'?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogCloudOnlyMessageFormat" xml:space="preserve">
+    <value>Delete '{0}' from cloud storage? It is not part of the current project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogContentsLineFormat" xml:space="preserve">
+    <value>{0} content item(s), {1} release(s), {2} file(s) and {3} media link(s) will be removed from the project.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogDefinitionLine" xml:space="preserve">
+    <value>The provider definition will be updated and re-uploaded without this catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
+    <value>{0} file(s) in cloud storage are only used by this catalog and will become unlinked (kept in cloud storage): {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
+    <value>Catalog '{0}' was removed locally, but some remote files could not be deleted. Rescan and retry from the inventory.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogMessageFormat" xml:space="preserve">
+    <value>Catalog '{0}' was deleted.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
+    <value>{0} orphaned file(s) were kept in cloud storage and can be deleted individually.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>The hosting state could not be saved, so removed files may reappear after a restart.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>Catalog '{0}' was kept because some remote files could not be deleted. Check the connection and retry.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
+    <value>The provider definition could not be re-uploaded and is marked for publishing.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSuccessTitle" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalTitleFormat" xml:space="preserve">
+    <value>Remove Link '{0}'?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactTitleFormat" xml:space="preserve">
+    <value>Delete '{0}'?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMessageFormat" xml:space="preserve">
+    <value>'{0}' is hosted on an external CDN, so there is no remote file to delete. Remove its link from {1} release(s)?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactMessageFormat" xml:space="preserve">
+    <value>Delete '{0}' ({1}) from cloud storage?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactConsequenceLineFormat" xml:space="preserve">
+    <value>The file will be removed from {0} release(s); affected catalogs will be updated and re-uploaded.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactUsedByLine" xml:space="preserve">
+    <value>Used by:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactEmptiedLineFormat" xml:space="preserve">
+    <value>Warning: release v{0} of '{1}' will be left without files.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat" xml:space="preserve">
+    <value>'{0}' was deleted and removed from {1} release(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat" xml:space="preserve">
+    <value>'{0}' was unlinked from {1} release(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteEmptiedReleaseNoteFormat" xml:space="preserve">
+    <value>Release v{0} of '{1}' now has no files. Add a replacement or delete the release.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishFailedNoteFormat" xml:space="preserve">
+    <value>{0} catalog(s) could not be re-uploaded and are marked for publishing.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishedNoteFormat" xml:space="preserve">
+    <value>{0} catalog(s) re-uploaded with the fix.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaTitleFormat" xml:space="preserve">
+    <value>Delete Media '{0}'?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaMessageFormat" xml:space="preserve">
+    <value>Delete '{0}' from cloud storage?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaConsequenceLineFormat" xml:space="preserve">
+    <value>The link will be removed from {0} place(s); affected catalogs will be updated and re-uploaded.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedMediaMessageFormat" xml:space="preserve">
+    <value>'{0}' was deleted and unlinked from {1} place(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedTitleFormat" xml:space="preserve">
+    <value>Delete Unlinked File '{0}'?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedMessageFormat" xml:space="preserve">
+    <value>'{0}' ({1}) is not referenced by any catalog. Delete it from cloud storage?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedUnlinkedMessageFormat" xml:space="preserve">
+    <value>'{0}' was deleted from cloud storage.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMediaMessageFormat" xml:space="preserve">
+    <value>'{0}' is hosted on an external CDN, so there is no remote file to delete. Remove its link from {1} place(s)?</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
+    <value>'{0}' was unlinked from {1} place(s).</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadingText" xml:space="preserve">
+    <value>Loading preview...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat" xml:space="preserve">
+    <value>Preview unavailable: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewDownloadFailedText" xml:space="preserve">
+    <value>The file could not be downloaded.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCopyLinkAction" xml:space="preserve">
+    <value>Click to copy link</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
+    <value>This file is also referenced in another way; the remote file will be kept and only the selected links will be removed.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
+    <value>The remote file was kept because other references still use it.</value>
+  </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
