@@ -11,6 +11,7 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Features.Workspace.Strategies;
+using GenHub.Tests.Core.Infrastructure;
 using GenHub.Tests.Core.Services.Security;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -226,6 +227,36 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
         finally
         {
             File.SetUnixFileMode(installDir, originalMode);
+        }
+    }
+
+    /// <summary>All strategies skip dangling source links, including a chain of links.</summary>
+    /// <returns>A task representing the test.</returns>
+    [SymlinkFact]
+    public async Task PrepareAsync_WhenSourceLinkTargetIsMissing_SkipsAndRecordsAsync()
+    {
+        var installDir = Directory.CreateDirectory(Path.Combine(_root, "Install")).FullName;
+        var target = Path.Combine(installDir, "missing.ini");
+        var link = Path.Combine(installDir, "link.ini");
+        var chain = Path.Combine(installDir, "chain.ini");
+        File.CreateSymbolicLink(link, target);
+        File.CreateSymbolicLink(chain, link);
+        foreach (var strategyType in new[] { WorkspaceStrategy.HardLink, WorkspaceStrategy.FullCopy, WorkspaceStrategy.HybridCopySymlink, WorkspaceStrategy.SymlinkOnly })
+        {
+            var configuration = new WorkspaceConfiguration
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Strategy = strategyType,
+                WorkspaceRootPath = Path.Combine(_root, "Workspaces"),
+                BaseInstallationPath = installDir,
+                GameClient = new GameClient { Id = "test" },
+                Manifests = [CreateManifest("1.0.test.mod.winner", ContentType.Mod, chain)],
+            };
+
+            var result = await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
+
+            Assert.True(result.IsPrepared);
+            Assert.Equal(SharedPath, Assert.Single(configuration.SkippedSourceFiles));
         }
     }
 

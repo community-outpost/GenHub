@@ -252,7 +252,18 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         try
         {
-            if ((File.GetAttributes(sourcePath) & FileAttributes.Directory) != 0)
+            var attributes = File.GetAttributes(sourcePath);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                // Probe the final target explicitly: attributes on a dangling link can still succeed.
+                var target = File.ResolveLinkTarget(sourcePath, returnFinalTarget: true);
+                if (target != null)
+                {
+                    attributes = File.GetAttributes(target.FullName);
+                }
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
             {
                 throw new IOException($"Source path is a directory: {sourcePath}");
             }
