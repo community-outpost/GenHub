@@ -1693,7 +1693,7 @@ Constants for Generals Online content discovery and manifest creation.
 - `GameDataSubdirectory`: Subdirectory within the portable ZIP containing GeneralsOnline game data (`"GeneralsOnlineGameData"`)
 - `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline", "quickmatch", "competitive"]`)
 - `GameDataTags`: Default tags for GameData patch manifests (`["patch", "generalsonline"]`)
-- `CoverSource`: Path for cover images (`"avares://GenHub/Assets/Covers/usa-cover.jpg"`, referenced via `UriConstants.UsaCoverUri`)
+- `CoverSource`: Avalonia asset URI for cover images (`"avares://GenHub/Assets/Covers/usa-cover.jpg"`, referenced via `UriConstants.UsaCoverUri`)
 - `UnknownVersion`: Default version string when unknown (`"unknown"`)
 
 ### CNCLabsConstants Class

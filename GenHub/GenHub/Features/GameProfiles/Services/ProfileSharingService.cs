@@ -2280,10 +2280,7 @@ public class ProfileSharingService(
     {
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            var localized = LaunchExitMessages.GetString(ProfileSharingConstants.CannotExportNoHostVariantErrorKey, localizationService, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier);
-            return string.IsNullOrEmpty(localized) || localized == ProfileSharingConstants.CannotExportNoHostVariantErrorKey
-                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier)
-                : localized;
+            return GetCannotExportNoHostVariantErrorMessage(manifest);
         }
 
         if (allowCloudUpload && IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
@@ -2292,6 +2289,19 @@ public class ProfileSharingService(
         }
 
         return null;
+    }
+
+    private string GetCannotExportNoHostVariantErrorMessage(ContentManifest manifest)
+    {
+        var localized = LaunchExitMessages.GetString(
+            ProfileSharingConstants.CannotExportNoHostVariantErrorKey,
+            localizationService,
+            manifest.Name,
+            ManifestVariantResolver.CurrentRuntimeIdentifier);
+
+        return string.IsNullOrEmpty(localized) || localized == ProfileSharingConstants.CannotExportNoHostVariantErrorKey
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier)
+            : localized;
     }
 
     private async Task<OperationResult<ContentManifest?>> ResolveProfileContentManifestAsync(
@@ -2323,7 +2333,7 @@ public class ProfileSharingService(
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
             return OperationResult<SharedManifestDependency>.CreateFailure(
-                LaunchExitMessages.GetString(ProfileSharingConstants.CannotExportNoHostVariantErrorKey, localizationService, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
+                GetCannotExportNoHostVariantErrorMessage(manifest));
         }
 
         var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
