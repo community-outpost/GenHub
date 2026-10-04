@@ -9,10 +9,10 @@ namespace GenHub.Core.Constants;
 public static class ProfileSharingConstants
 {
     /// <summary>Fallback error when building a shared dependency fails. {0} is its manifest ID.</summary>
-    public const string DependencyExportFailedMessageKey = "ProfileSharing_DependencyExportFailed";
+    public const string DependencyExportFailedMessageKey = "GameProfiles.Share.Error.DependencyExportFailed";
 
     /// <summary>Error when a profile references a missing manifest. {0} is its manifest ID.</summary>
-    public const string ReferencedManifestMissingMessageKey = "ProfileSharing_ReferencedManifestMissing";
+    public const string ReferencedManifestMissingMessageKey = "GameProfiles.Share.Error.ReferencedManifestMissing";
 
     /// <summary>
     /// The default schema version for shared game profile packages.
