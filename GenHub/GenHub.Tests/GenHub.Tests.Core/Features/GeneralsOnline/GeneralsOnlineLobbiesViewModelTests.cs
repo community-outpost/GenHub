@@ -1700,71 +1700,6 @@ public class GeneralsOnlineLobbiesViewModelTests
         return lobby;
     }
 
-    private sealed record Fakes(
-        Mock<IGeneralsOnlineApiClient> Api,
-        Mock<IGeneralsOnlineAuthService> Auth,
-        Mock<IGeneralsOnlineCompatibilityService> Compatibility,
-        Mock<INotificationService> Notifications,
-        Mock<IOnlineLaunchService> Launch);
-
-    private static Fakes CreateFakes(bool authenticated)
-    {
-        var state = authenticated ? GeneralsOnlineAuthState.Authenticated : GeneralsOnlineAuthState.Unauthenticated;
-        var api = new Mock<IGeneralsOnlineApiClient>();
-        api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(
-                new GeneralsOnlineLobbiesResult { Lobbies = [SampleLobby(), SampleModLobby()], Latencies = [42] }));
-        api.Setup(a => a.GetPublicCountsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlinePublicCounts>.CreateSuccess(new GeneralsOnlinePublicCounts(7, 140)));
-        api.Setup(a => a.GetServiceUptimeAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineServiceUptime>.CreateSuccess(
-                new GeneralsOnlineServiceUptime { StartTime = "2026-09-26 01:24:45", Uptime = "Days: 2, Hours: 0, Minutes: 59" }));
-        api.Setup(a => a.GetGlobalStatsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineDailyStats>.CreateSuccess(
-                new GeneralsOnlineDailyStats { Matches = [10, 5], Wins = [7, 2] }));
-        api.Setup(a => a.GetPlayerStatsAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlinePlayerStats>.CreateSuccess(
-                new GeneralsOnlinePlayerStats { UserId = 1052, EloRating = 1450, EloMatches = 31, Wins = [12, 8], Losses = [6, 5], Games = [18, 13] }));
-        api.Setup(a => a.GetMotdAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<string>.CreateSuccess("Welcome, commanders!"));
-        api.Setup(a => a.GetFriendsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineFriendsResult>.CreateSuccess(new GeneralsOnlineFriendsResult()));
-        api.Setup(a => a.GetRoomsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GeneralsOnlineRoom>>.CreateSuccess([]));
-        api.Setup(a => a.GetBlockedAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineBlockedResult>.CreateSuccess(new GeneralsOnlineBlockedResult()));
-        api.Setup(a => a.GetMeAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GeneralsOnlineMe>.CreateSuccess(
-                new GeneralsOnlineMe { UserId = authenticated ? 1052 : 0, DisplayName = "PlayerName" }));
-
-        var auth = new Mock<IGeneralsOnlineAuthService>();
-        auth.SetupGet(a => a.AuthState).Returns(state);
-        auth.SetupGet(a => a.CurrentDisplayName).Returns(authenticated ? "PlayerName" : null);
-        auth.SetupGet(a => a.CurrentUserId).Returns(authenticated ? 1052 : null);
-        auth.SetupGet(a => a.WebSocketUri).Returns("wss://api.playgenerals.online/ws");
-        auth.Setup(a => a.GetSessionTokenAsync()).ReturnsAsync(authenticated ? "session" : null);
-        auth.Setup(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<LoginResult>.CreateFailure(GeneralsOnlineConstants.ErrorAuthRequired));
-        auth.Setup(a => a.LogoutAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => auth.SetupGet(a => a.AuthState).Returns(GeneralsOnlineAuthState.Unauthenticated))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-
-        var compatibility = new Mock<IGeneralsOnlineCompatibilityService>();
-        compatibility.Setup(c => c.RankProfilesAsync(It.IsAny<GeneralsOnlineLobby>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GeneralsOnlineLobby lobby, CancellationToken _) =>
-                OperationResult<IReadOnlyList<GeneralsOnlineProfileMatch>>.CreateSuccess(
-                    lobby.LobbyId == 9842
-                        ? [new GeneralsOnlineProfileMatch("profile-vanilla", "Zero Hour 1.04 Vanilla", GeneralsOnlineCompatibility.Compatible, 2_948_194_012U, 1_048_576_021U)]
-                        : [new GeneralsOnlineProfileMatch("profile-contra", "Contra 009", GeneralsOnlineCompatibility.IniMismatch, 2_948_194_012U, 1U)]));
-
-        var notifications = new Mock<INotificationService>();
-        var launch = new Mock<IOnlineLaunchService>();
-        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-vanilla", "Zero Hour 1.04 Vanilla", "[EU] Pro 1v1")));
-
-        return new Fakes(api, auth, compatibility, notifications, launch);
-    }
-
     /// <summary>
     /// Tests that an expired session on lobbies load recovers via stored-token login and retries.
     /// </summary>
@@ -1787,7 +1722,7 @@ public class GeneralsOnlineLobbiesViewModelTests
             .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(successResult));
 
         fakes.Auth.Setup(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<LoginResult>.CreateSuccess(new LoginResult { Token = "new_token" }));
+            .ReturnsAsync(OperationResult<LoginResult>.CreateSuccess(new LoginResult { SessionToken = "new_token", Result = PendingLoginState.LoginSuccess }));
 
         using var vm = CreateViewModel(fakes, ws.Object);
 
@@ -1885,7 +1820,7 @@ public class GeneralsOnlineLobbiesViewModelTests
         var signInTask = vm.SignInCommand.ExecuteAsync(null);
         Assert.True(vm.IsSigningIn);
         Assert.True(vm.IsLoading);
-        Assert.True(vm.CanCancelSignIn);
+        Assert.True(vm.CancelSignInCommand.CanExecute(null));
 
         vm.CancelSignInCommand.Execute(null);
         await signInTask;
@@ -1917,6 +1852,71 @@ public class GeneralsOnlineLobbiesViewModelTests
     public void LogoSource_PointsToGeneralsOnlineLogo()
     {
         Assert.Equal("avares://GenHub/Assets/Logos/generalsonline-logo.png", GeneralsOnlineConstants.LogoSource);
+    }
+
+    private sealed record Fakes(
+        Mock<IGeneralsOnlineApiClient> Api,
+        Mock<IGeneralsOnlineAuthService> Auth,
+        Mock<IGeneralsOnlineCompatibilityService> Compatibility,
+        Mock<INotificationService> Notifications,
+        Mock<IOnlineLaunchService> Launch);
+
+    private static Fakes CreateFakes(bool authenticated)
+    {
+        var state = authenticated ? GeneralsOnlineAuthState.Authenticated : GeneralsOnlineAuthState.Unauthenticated;
+        var api = new Mock<IGeneralsOnlineApiClient>();
+        api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(
+                new GeneralsOnlineLobbiesResult { Lobbies = [SampleLobby(), SampleModLobby()], Latencies = [42] }));
+        api.Setup(a => a.GetPublicCountsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlinePublicCounts>.CreateSuccess(new GeneralsOnlinePublicCounts(7, 140)));
+        api.Setup(a => a.GetServiceUptimeAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineServiceUptime>.CreateSuccess(
+                new GeneralsOnlineServiceUptime { StartTime = "2026-09-26 01:24:45", Uptime = "Days: 2, Hours: 0, Minutes: 59" }));
+        api.Setup(a => a.GetGlobalStatsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineDailyStats>.CreateSuccess(
+                new GeneralsOnlineDailyStats { Matches = [10, 5], Wins = [7, 2] }));
+        api.Setup(a => a.GetPlayerStatsAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlinePlayerStats>.CreateSuccess(
+                new GeneralsOnlinePlayerStats { UserId = 1052, EloRating = 1450, EloMatches = 31, Wins = [12, 8], Losses = [6, 5], Games = [18, 13] }));
+        api.Setup(a => a.GetMotdAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("Welcome, commanders!"));
+        api.Setup(a => a.GetFriendsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineFriendsResult>.CreateSuccess(new GeneralsOnlineFriendsResult()));
+        api.Setup(a => a.GetRoomsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GeneralsOnlineRoom>>.CreateSuccess([]));
+        api.Setup(a => a.GetBlockedAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineBlockedResult>.CreateSuccess(new GeneralsOnlineBlockedResult()));
+        api.Setup(a => a.GetMeAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineMe>.CreateSuccess(
+                new GeneralsOnlineMe { UserId = authenticated ? 1052 : 0, DisplayName = "PlayerName" }));
+
+        var auth = new Mock<IGeneralsOnlineAuthService>();
+        auth.SetupGet(a => a.AuthState).Returns(state);
+        auth.SetupGet(a => a.CurrentDisplayName).Returns(authenticated ? "PlayerName" : null);
+        auth.SetupGet(a => a.CurrentUserId).Returns(authenticated ? 1052 : null);
+        auth.SetupGet(a => a.WebSocketUri).Returns("wss://api.playgenerals.online/ws");
+        auth.Setup(a => a.GetSessionTokenAsync()).ReturnsAsync(authenticated ? "session" : null);
+        auth.Setup(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LoginResult>.CreateFailure(GeneralsOnlineConstants.ErrorAuthRequired));
+        auth.Setup(a => a.LogoutAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => auth.SetupGet(a => a.AuthState).Returns(GeneralsOnlineAuthState.Unauthenticated))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var compatibility = new Mock<IGeneralsOnlineCompatibilityService>();
+        compatibility.Setup(c => c.RankProfilesAsync(It.IsAny<GeneralsOnlineLobby>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GeneralsOnlineLobby lobby, CancellationToken _) =>
+                OperationResult<IReadOnlyList<GeneralsOnlineProfileMatch>>.CreateSuccess(
+                    lobby.LobbyId == 9842
+                        ? [new GeneralsOnlineProfileMatch("profile-vanilla", "Zero Hour 1.04 Vanilla", GeneralsOnlineCompatibility.Compatible, 2_948_194_012U, 1_048_576_021U)]
+                        : [new GeneralsOnlineProfileMatch("profile-contra", "Contra 009", GeneralsOnlineCompatibility.IniMismatch, 2_948_194_012U, 1U)]));
+
+        var notifications = new Mock<INotificationService>();
+        var launch = new Mock<IOnlineLaunchService>();
+        launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateSuccess(new OnlinePlayResult("profile-vanilla", "Zero Hour 1.04 Vanilla", "[EU] Pro 1v1")));
+
+        return new Fakes(api, auth, compatibility, notifications, launch);
     }
 
     private static GeneralsOnlineLobbiesViewModel CreateViewModel(
