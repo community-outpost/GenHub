@@ -8618,7 +8618,8 @@ public partial class PublishShareViewModel(
                     removedAny = true;
                 }
 
-                if (string.Equals(catalog.Catalog.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+                if (catalog.Catalog.Publisher != null &&
+                    string.Equals(catalog.Catalog.Publisher.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
                 {
                     catalog.Catalog.Publisher.AvatarUrl = null;
                     removedAny = true;
@@ -8643,7 +8644,7 @@ public partial class PublishShareViewModel(
             }
         }
 
-        var pubAvatarCleared = false;
+        var definitionMediaCleared = false;
         if (string.Equals(project.Catalog?.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
         {
             if (project.Catalog?.Publisher != null)
@@ -8652,7 +8653,7 @@ public partial class PublishShareViewModel(
             }
 
             UploadHierarchy.AvatarUrl = null;
-            pubAvatarCleared = true;
+            definitionMediaCleared = true;
         }
 
         if (string.Equals(project.Catalog?.IconUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -8662,7 +8663,7 @@ public partial class PublishShareViewModel(
                 project.Catalog.IconUrl = null;
             }
 
-            pubAvatarCleared = true;
+            definitionMediaCleared = true;
         }
 
         if (string.Equals(project.Catalog?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -8672,10 +8673,10 @@ public partial class PublishShareViewModel(
                 project.Catalog.AvatarUrl = null;
             }
 
-            pubAvatarCleared = true;
+            definitionMediaCleared = true;
         }
 
-        if (pubAvatarCleared)
+        if (definitionMediaCleared)
         {
             HasDefinitionChanges = true;
             NotifyDefinitionStale();
