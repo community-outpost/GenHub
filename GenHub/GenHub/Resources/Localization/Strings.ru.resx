@@ -17790,4 +17790,13 @@ Error: не удалось: {3}
   <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
     <value>Пропущен {0}: исходный файл отсутствует.</value>
   </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>Невозможно поделиться локальным содержимым «{0}»: в нём нет файлов для загрузки, поэтому получатели не смогут его установить.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.DependencyExportFailed" xml:space="preserve">
+    <value>Не удалось обработать зависимость для {0}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
+    <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  </data>
 </root>
