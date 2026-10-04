@@ -77,6 +77,24 @@ public sealed class WorkspaceVariantTests : IDisposable
     }
 
     /// <summary>
+    /// A non-client variant manifest that declares its entry point only on the host variant
+    /// still supplies the workspace executable, matching the launch target lookup.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareAsync_ModVariantManifestWithHostEntryPoint_ResolvesHostExecutableAsync()
+    {
+        var manifest = CreateManifest();
+        manifest.ContentType = ContentType.Mod;
+        manifest.EntryPoint = null;
+        ManifestVariantResolver.ResolveVariant(manifest)!.EntryPoint = HostFileName;
+
+        var result = await CreateStrategy(WorkspaceStrategy.FullCopy).PrepareAsync(CreateConfiguration(WorkspaceStrategy.FullCopy, manifest), null, CancellationToken.None);
+
+        Assert.EndsWith(HostFileName, result.ExecutablePath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// The reconciler plans only the host variant's files.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
