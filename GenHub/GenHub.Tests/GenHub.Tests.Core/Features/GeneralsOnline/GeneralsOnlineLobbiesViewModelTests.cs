@@ -1670,36 +1670,6 @@ public class GeneralsOnlineLobbiesViewModelTests
         Assert.Equal(20000u, vm.Lobbies[0].StartingCash);
     }
 
-    private static GeneralsOnlineLobby SampleLobby(long id = 9842, string name = "[EU] Pro 1v1")
-    {
-        return new GeneralsOnlineLobby
-        {
-            LobbyId = id,
-            Owner = 1052,
-            Name = name,
-            State = GeneralsOnlineLobbyState.GameSetup,
-            MapName = "Tournament Desert",
-            IsMapOfficial = true,
-            ExeCrc = 2_948_194_012U,
-            IniCrc = 1_048_576_021U,
-            Members =
-            [
-                new GeneralsOnlineLobbyMember { UserId = 1052, DisplayName = "GeneralAlex", SlotIndex = 0, SlotState = GeneralsOnlineSlotState.SlotPlayer },
-                new GeneralsOnlineLobbyMember { UserId = -1, DisplayName = "Open", SlotIndex = 1, SlotState = GeneralsOnlineSlotState.SlotOpen },
-                new GeneralsOnlineLobbyMember { UserId = 1053, DisplayName = "Rookie", SlotIndex = 2, SlotState = GeneralsOnlineSlotState.SlotPlayer },
-            ],
-        };
-    }
-
-    private static GeneralsOnlineLobby SampleModLobby()
-    {
-        var lobby = SampleLobby(777, "[Contra] 3v3 Mountain King");
-        lobby.MapName = "Mountain King";
-        lobby.IsMapOfficial = false;
-        lobby.IniCrc = 0x3E84F102u;
-        return lobby;
-    }
-
     /// <summary>
     /// Tests that an expired session on lobbies load recovers via stored-token login and retries.
     /// </summary>
@@ -1852,6 +1822,36 @@ public class GeneralsOnlineLobbiesViewModelTests
     public void LogoSource_PointsToGeneralsOnlineLogo()
     {
         Assert.Equal("avares://GenHub/Assets/Logos/generalsonline-logo.png", GeneralsOnlineConstants.LogoSource);
+    }
+
+    private static GeneralsOnlineLobby SampleLobby(long id = 9842, string name = "[EU] Pro 1v1")
+    {
+        return new GeneralsOnlineLobby
+        {
+            LobbyId = id,
+            Owner = 1052,
+            Name = name,
+            State = GeneralsOnlineLobbyState.GameSetup,
+            MapName = "Tournament Desert",
+            IsMapOfficial = true,
+            ExeCrc = 2_948_194_012U,
+            IniCrc = 1_048_576_021U,
+            Members =
+            [
+                new GeneralsOnlineLobbyMember { UserId = 1052, DisplayName = "GeneralAlex", SlotIndex = 0, SlotState = GeneralsOnlineSlotState.SlotPlayer },
+                new GeneralsOnlineLobbyMember { UserId = -1, DisplayName = "Open", SlotIndex = 1, SlotState = GeneralsOnlineSlotState.SlotOpen },
+                new GeneralsOnlineLobbyMember { UserId = 1053, DisplayName = "Rookie", SlotIndex = 2, SlotState = GeneralsOnlineSlotState.SlotPlayer },
+            ],
+        };
+    }
+
+    private static GeneralsOnlineLobby SampleModLobby()
+    {
+        var lobby = SampleLobby(777, "[Contra] 3v3 Mountain King");
+        lobby.MapName = "Mountain King";
+        lobby.IsMapOfficial = false;
+        lobby.IniCrc = 0x3E84F102u;
+        return lobby;
     }
 
     private sealed record Fakes(
