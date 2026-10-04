@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using System.Globalization;
+using System.Linq;
 
 namespace GenHub.Core.Models.Manifest;
 
@@ -35,8 +36,14 @@ public static class ManifestIngestionGate
             return true;
         }
 
-        if (!int.TryParse(manifest.SchemaVersion, NumberStyles.None, CultureInfo.InvariantCulture, out var declaredFormat)
-            || declaredFormat <= ManifestConstants.MaxSupportedManifestFormatVersion)
+        var declared = manifest.SchemaVersion;
+        if (string.IsNullOrEmpty(declared) || !declared.All(char.IsAsciiDigit))
+        {
+            return true;
+        }
+
+        if (int.TryParse(declared, NumberStyles.None, CultureInfo.InvariantCulture, out var declaredFormat)
+            && declaredFormat <= ManifestConstants.MaxSupportedManifestFormatVersion)
         {
             return true;
         }

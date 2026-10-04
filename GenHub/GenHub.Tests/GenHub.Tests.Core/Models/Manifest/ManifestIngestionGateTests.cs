@@ -99,4 +99,20 @@ public class ManifestIngestionGateTests
         Assert.False(ManifestIngestionGate.TryAccept(manifest, out var reason));
         Assert.NotNull(reason);
     }
+
+    /// <summary>
+    /// A numeric format too large for an <see cref="int"/> is still newer than this build
+    /// supports, so it is rejected rather than treated like a non-numeric version.
+    /// </summary>
+    /// <param name="schemaVersion">The declared format version.</param>
+    [Theory]
+    [InlineData("2147483648")]
+    [InlineData("99999999999999999999")]
+    public void TryAccept_NumericFormatBeyondIntRange_IsRejected(string schemaVersion)
+    {
+        var manifest = new ContentManifest { Id = new("1.0.genhub.mod.hugeformat"), SchemaVersion = schemaVersion };
+
+        Assert.False(ManifestIngestionGate.TryAccept(manifest, out var reason));
+        Assert.Contains(schemaVersion, reason);
+    }
 }
