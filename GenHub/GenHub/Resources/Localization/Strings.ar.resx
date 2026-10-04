@@ -17784,4 +17784,13 @@ Error: فشل: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
+  <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
+    <value>لا يمكن مشاركة المحتوى المحلي '{0}': لا يحتوي على ملفات لرفعها، لذا لن يتمكن المستلمون من تثبيته.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.DependencyExportFailed" xml:space="preserve">
+    <value>تعذرت معالجة التبعية لـ {0}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
+    <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
+  </data>
 </root>
