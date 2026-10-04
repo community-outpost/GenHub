@@ -241,19 +241,46 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Validates that the source file exists and logs appropriate warnings.
+    /// Validates that a source file exists. A missing source is skipped with a warning and recorded
+    /// on the configuration so the workspace manager can report it after preparation.
     /// </summary>
     /// <param name="sourcePath">The source file path.</param>
-    /// <param name="relativePath">The relative path for logging.</param>
-    /// <returns>True if the file exists; otherwise, false.</returns>
-    protected bool ValidateSourceFile(string sourcePath, string relativePath)
+    /// <param name="relativePath">The workspace-relative path of the file.</param>
+    /// <param name="configuration">The workspace configuration that collects skipped files.</param>
+    /// <returns><c>true</c> when the source file exists; otherwise <c>false</c>.</returns>
+    protected bool ValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration)
     {
-        if (File.Exists(sourcePath))
+        try
         {
+            var attributes = File.GetAttributes(sourcePath);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                // Probe the final target explicitly: attributes on a dangling link can still succeed.
+                var target = File.ResolveLinkTarget(sourcePath, returnFinalTarget: true);
+                if (target != null)
+                {
+                    attributes = File.GetAttributes(target.FullName);
+                }
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
+            {
+                throw new IOException(string.Format(System.Globalization.CultureInfo.InvariantCulture, WorkspaceConstants.SourcePathIsDirectoryMessage, sourcePath));
+            }
+
             return true;
+        }
+        catch (FileNotFoundException)
+        {
+            // Only a confirmed missing source can be skipped.
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing parent also means the source is absent.
         }
 
         logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
+        configuration.RecordSkippedSourceFile(relativePath);
         return false;
     }
 
