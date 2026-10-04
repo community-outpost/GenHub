@@ -57,6 +57,11 @@ public class UnixFileOperationsServiceTests : IDisposable
     [InlineData(false)]
     public async Task LinkFromCasAsync_WithInvalidDestination_PropagatesAsync(bool hardLink)
     {
+        if (!OnUnix)
+        {
+            return;
+        }
+
         var source = Path.Combine(_tempDir, "source.dat");
         await File.WriteAllTextAsync(source, "payload");
         _casServiceMock.Setup(c => c.GetContentPathAsync("hash", default))
