@@ -562,4 +562,104 @@ public class ImportProfileInspectionViewModelTests
         Assert.Contains("Orphan Mod", warning);
         Assert.DoesNotContain("AOD Map Pack", warning);
     }
+
+    /// <summary>Blocked foreign local content must not promise downloads; provider content explains lookup.</summary>
+    /// <param name="local">Whether the foreign dependency is local content.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ForeignPlatformPreview_ExplainsActualAcquisitionPath(bool local)
+    {
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = local ? "1.0.local.mod.foreign" : "1.0.moddb.mod.foreign",
+            DisplayName = "Foreign Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            PublisherType = local ? "Local" : "ModDB",
+            RuntimeIdentifiers = [GenHub.Tests.Core.Models.Manifest.VariantManifestFixture.ForeignRuntimeIdentifier],
+        };
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 2,
+            Profile = new SharedProfileMetadata { Name = "Foreign Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        };
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [dependency],
+            Package = package,
+            MissingManifestCount = 1,
+            HasValidGameInstallation = false,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 0,
+            HasNameConflict = false,
+            SuggestedProfileName = "Foreign Profile",
+            SecurityWarnings = [],
+            SecurityWarningCodes = [local ? ProfileSecurityWarningCode.BuiltForOtherPlatform : ProfileSecurityWarningCode.RequiresPlatformResolution],
+        };
+        using var vm = new ImportProfileInspectionViewModel(
+            inspection, _sharingServiceMock.Object, _notificationServiceMock.Object, NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        Assert.Contains(vm.SecurityWarnings, w => w.Contains(local ? "cannot be installed" : "connected provider", StringComparison.Ordinal));
+        if (local)
+        {
+            Assert.DoesNotContain(vm.SecurityWarnings, w => w.Contains("Additional downloads", StringComparison.Ordinal));
+            Assert.DoesNotContain("Download", vm.ActionButtonText);
+        }
+        else
+        {
+            Assert.Contains("Download", vm.ActionButtonText);
+        }
+    }
+
+    /// <summary>Platform warning codes without a matching manifest still explain the platform problem.</summary>
+    /// <param name="code">The platform warning code.</param>
+    /// <param name="expected">Text the generic warning contains.</param>
+    [Theory]
+    [InlineData(ProfileSecurityWarningCode.BuiltForOtherPlatform, "shared for another platform")]
+    [InlineData(ProfileSecurityWarningCode.RequiresPlatformResolution, "connected provider")]
+    public void PlatformWarningCode_WithNoMatchingManifest_EmitsGenericWarning(ProfileSecurityWarningCode code, string expected)
+    {
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = "1.0.moddb.mod.native",
+            DisplayName = "Native Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            PublisherType = "ModDB",
+            IsCachedLocally = true,
+        };
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 2,
+            Profile = new SharedProfileMetadata { Name = "Platform Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        };
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [dependency],
+            Package = package,
+            MissingManifestCount = 0,
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 1,
+            HasNameConflict = false,
+            SuggestedProfileName = "Platform Profile",
+            SecurityWarnings = [],
+            SecurityWarningCodes = [code],
+        };
+        using var vm = new ImportProfileInspectionViewModel(
+            inspection, _sharingServiceMock.Object, _notificationServiceMock.Object, NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        var warning = Assert.Single(vm.SecurityWarnings);
+        Assert.Contains(expected, warning);
+        Assert.DoesNotContain("Native Mod", warning);
+    }
 }

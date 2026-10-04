@@ -17849,6 +17849,27 @@ Mapped image texture reference</value>
   <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
     <value>Skipped {0}: its source file is missing.</value>
   </data>
+  <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
+    <value>'{0}' was shared for {1} and cannot be installed on this platform ({2}).</value>
+  </data>
+  <data name="GameProfiles.Share.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>Unsupported package schema version {0}. This version of GenHub supports up to version {1}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
+    <value>Cannot export '{0}': no variant supports this host ({1}).</value>
+  </data>
+  <data name="GameProfiles.Share.Warning.PlatformResolution" xml:space="preserve">
+    <value>'{0}' version {1} must be found through a connected provider for this platform. Download size is unknown; import will fail if no compatible build of that version is available.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoCompatiblePlatformBuild" xml:space="preserve">
+    <value>No build of '{0}' version {1} for this platform ({2}) was found in any connected content source.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric" xml:space="preserve">
+    <value>One or more required components were shared for another platform and cannot be installed on this one.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric" xml:space="preserve">
+    <value>One or more required components must be found through a connected provider for this platform. Download size is unknown.</value>
+  </data>
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>Cannot share local content '{0}': it has no files to upload, so recipients could not install it.</value>
   </data>
