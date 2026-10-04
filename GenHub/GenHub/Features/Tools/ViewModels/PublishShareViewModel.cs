@@ -264,6 +264,41 @@ public partial class PublishShareViewModel(
     internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether URL safety checks that require DNS resolution
+    /// should be bypassed during testing.
+    /// </summary>
+    internal static bool AllowUnresolvableUrlsForTesting { get; set; }
+
+    /// <summary>
+    /// Invalidates any probed artifact size cached for the specified URL.
+    /// </summary>
+    /// <param name="url">The download URL of the artifact to invalidate.</param>
+    internal void InvalidateProbedArtifactSize(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return;
+        }
+
+        _probedArtifactSizes.TryRemove(url, out _);
+    }
+
+    /// <summary>
+    /// Clears all cached probed artifact sizes.
+    /// </summary>
+    internal void ClearProbedArtifactSizes()
+    {
+        _probedArtifactSizes.Clear();
+    }
+
+    /// <summary>
+    /// Updates the artifact sizes in the current project for the specified URL during testing.
+    /// </summary>
+    /// <param name="url">The artifact download URL.</param>
+    /// <param name="size">The probed size in bytes.</param>
+    internal void UpdateProjectArtifactSizesForTesting(string url, long size) => UpdateProjectArtifactSizes(url, size);
+
+    /// <summary>
     /// Gets the current hosting state for testing or inspection.
     /// </summary>
     internal HostingState? CurrentHostingState => _currentHostingState;
@@ -939,78 +974,11 @@ public partial class PublishShareViewModel(
     /// <returns>True when every remote catalog file was deleted or none existed; otherwise false.</returns>
     public async Task<bool> DeleteCatalogRemotesAsync(string catalogId, CancellationToken cancellationToken = default)
     {
-        await EnsureHostingStatesLoadedAsync(cancellationToken);
-
-        var allCleaned = true;
-        var stateChanged = false;
-        foreach (var (providerId, state) in _hostingStates)
-        {
-            var entry = state.Catalogs.FirstOrDefault(c => string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase));
-            if (entry == null)
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(entry.FileId))
-            {
-                state.Catalogs.Remove(entry);
-                stateChanged = true;
-                continue;
-            }
-
-            if (IsCatalogFileIdShared(state, entry.FileId, catalogId))
-            {
-                logger.LogWarning("Keeping remote catalog file {FileId}: it is shared with another catalog after a filename collision", entry.FileId);
-                state.Catalogs.Remove(entry);
-                stateChanged = true;
-                continue;
-            }
-
-            var provider = HostingProviders.FirstOrDefault(p =>
-                string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
-            if (provider == null || !provider.IsAuthenticated)
-            {
-                allCleaned = false;
-                continue;
-            }
-
-            try
-            {
-                var result = await provider.DeleteFileAsync(entry.FileId, cancellationToken);
-                if (result.Success)
-                {
-                    logger.LogInformation("Deleted remote catalog {FileId} from {Provider}", entry.FileId, providerId);
-                    state.Catalogs.Remove(entry);
-                    stateChanged = true;
-                }
-                else
-                {
-                    logger.LogWarning("Failed to delete remote catalog {FileId} from {Provider}: {Error}", entry.FileId, providerId, result.FirstError);
-                    allCleaned = false;
-                }
-            }
-            catch (OperationCanceledException ex)
-            {
-                logger.LogInformation(ex, "Remote catalog cleanup was canceled for {FileId}", entry.FileId);
-                allCleaned = false;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to delete remote catalog {FileId} from {Provider}", entry.FileId, providerId);
-                allCleaned = false;
-            }
-        }
-
-        if (stateChanged)
-        {
-            await SaveAllHostingStatesAsync(cancellationToken);
-            RefreshHostedAssets();
-        }
-
+        var (allCleaned, _) = await DeleteCatalogRemotesCoreAsync(catalogId, cancellationToken);
         return allCleaned;
     }
 
-    /// <summary>
+/// <summary>
     /// Marks a catalog as having unpublished changes.
     /// </summary>
     /// <param name="catalogId">The catalog ID.</param>
@@ -1079,6 +1047,7 @@ public partial class PublishShareViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
+        ClearProbedArtifactSizes();
         InitializeCatalogStatuses();
         RefreshUploadHierarchy();
         RefreshHostedAssets();
@@ -2043,7 +2012,7 @@ public partial class PublishShareViewModel(
         return detectedSize;
     }
 
-    private void DispatchArtifactSizeUpdate(string url, long size)
+    private void DispatchArtifactSizeUpdate(string url, long size, ReleaseArtifact? artifact = null)
     {
         if (!_probingUrls.TryGetValue(url, out var list))
         {
@@ -2058,6 +2027,12 @@ public partial class PublishShareViewModel(
 
         void UpdateItems()
         {
+            if (artifact != null)
+            {
+                artifact.Size = size;
+                UpdateProjectArtifactSizes(url, size);
+            }
+
             foreach (var target in targets)
             {
                 target.FileSize = size;
@@ -2090,12 +2065,12 @@ public partial class PublishShareViewModel(
 
             foreach (var content in namedCatalog.Catalog.Content)
             {
-                if (content.Releases == null)
+                if (content == null)
                 {
                     continue;
                 }
 
-                foreach (var release in content.Releases)
+                foreach (var release in AllContentReleases(content))
                 {
                     if (release.Artifacts == null)
                     {
@@ -2125,9 +2100,7 @@ public partial class PublishShareViewModel(
             {
                 var size = detectedSize.Value;
                 _probedArtifactSizes[url] = size;
-                artifact.Size = size;
-                UpdateProjectArtifactSizes(url, size);
-                DispatchArtifactSizeUpdate(url, size);
+                DispatchArtifactSizeUpdate(url, size, artifact);
                 logger.LogInformation("Probed external artifact size for {FileName}: {Size} bytes", artifact.Filename, size);
             }
         }
@@ -3595,6 +3568,7 @@ public partial class PublishShareViewModel(
             var result = hostingStateManager != null ? await hostingStateManager.LoadStatesAsync(project.ProjectPath, CancellationToken.None) : null;
             if (result?.Success == true && result.Data != null)
             {
+                ClearProbedArtifactSizes();
                 _hostingStates.Clear();
                 foreach (var (providerId, state) in result.Data.States)
                 {
@@ -5354,6 +5328,85 @@ public partial class PublishShareViewModel(
         }
     }
 
+    private async Task<(bool RemotesCleaned, bool StateSaveFailed)> DeleteCatalogRemotesCoreAsync(string catalogId, CancellationToken cancellationToken = default)
+    {
+        await EnsureHostingStatesLoadedAsync(cancellationToken);
+
+        var allCleaned = true;
+        var stateChanged = false;
+        var stateSaveFailed = false;
+        foreach (var (providerId, state) in _hostingStates)
+        {
+            var entry = state.Catalogs.FirstOrDefault(c => string.Equals(c.CatalogId, catalogId, StringComparison.OrdinalIgnoreCase));
+            if (entry == null)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(entry.FileId))
+            {
+                state.Catalogs.Remove(entry);
+                stateChanged = true;
+                continue;
+            }
+
+            if (IsCatalogFileIdShared(state, entry.FileId, catalogId))
+            {
+                logger.LogWarning("Keeping remote catalog file {FileId}: it is shared with another catalog after a filename collision", entry.FileId);
+                state.Catalogs.Remove(entry);
+                stateChanged = true;
+                continue;
+            }
+
+            var provider = HostingProviders.FirstOrDefault(p =>
+                string.Equals(p.ProviderId, providerId, StringComparison.OrdinalIgnoreCase));
+            if (provider == null || !provider.IsAuthenticated)
+            {
+                allCleaned = false;
+                continue;
+            }
+
+            try
+            {
+                var result = await provider.DeleteFileAsync(entry.FileId, cancellationToken);
+                if (result.Success)
+                {
+                    logger.LogInformation("Deleted remote catalog {FileId} from {Provider}", entry.FileId, providerId);
+                    state.Catalogs.Remove(entry);
+                    stateChanged = true;
+                }
+                else
+                {
+                    logger.LogWarning("Failed to delete remote catalog {FileId} from {Provider}: {Error}", entry.FileId, providerId, result.FirstError);
+                    allCleaned = false;
+                }
+            }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogInformation(ex, "Remote catalog cleanup was canceled for {FileId}", entry.FileId);
+                allCleaned = false;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete remote catalog {FileId} from {Provider}", entry.FileId, providerId);
+                allCleaned = false;
+            }
+        }
+
+        if (stateChanged)
+        {
+            var saveResult = await SaveAllHostingStatesAsync(cancellationToken);
+            if (!saveResult.Success)
+            {
+                stateSaveFailed = true;
+            }
+
+            RefreshHostedAssets();
+        }
+
+        return (allCleaned, stateSaveFailed);
+    }
+
     /// <summary>
     /// Best-effort deletion of the pre-rename remote catalog files.
     /// Without this, the next cloud scan would resurrect the old catalog file as a ghost entry.
@@ -5421,7 +5474,7 @@ public partial class PublishShareViewModel(
                         logger.LogWarning("Failed to restore pre-rename catalog entry for {FileId} after delete failure", oldFileId);
                         notificationService?.ShowWarning(
                             GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
-                            FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
+                            GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault));
                     }
                 }
             }
@@ -5462,19 +5515,19 @@ public partial class PublishShareViewModel(
                 logger.LogWarning("Failed to re-save hosting state after restoring rename entry {FileId}: {Error}", fileId, saveResult.FirstError);
                 notificationService?.ShowWarning(
                     GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
-                    FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
+                    GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault));
             }
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
             logger.LogWarning(ex, "Failed to re-save hosting state after restoring rename entry {FileId}", fileId);
             notificationService?.ShowWarning(
                 GetLocalizedString(PublishWarningKey, PublishWarningDefaultMessage),
-                FormatLocalizedString("Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote", "The hosting state could not be saved, so removed files may reappear after a restart."));
+                GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault));
         }
     }
 
@@ -7962,7 +8015,7 @@ public partial class PublishShareViewModel(
             catalogId = DetermineCatalogIdFromFileName(asset.Name);
         }
 
-        var remotesCleaned = await DeleteCatalogRemotesAsync(catalogId, cancellationToken);
+        var (remotesCleaned, stateSaveFailed) = await DeleteCatalogRemotesCoreAsync(catalogId, cancellationToken);
         if (!remotesCleaned)
         {
             notificationService?.ShowWarning(
@@ -7972,13 +8025,26 @@ public partial class PublishShareViewModel(
             return;
         }
 
+        var projectSaveFailed = false;
         if (projectCatalog != null)
         {
             project.Catalogs.Remove(projectCatalog);
             project.IsDirty = true;
             if (SaveProjectCallback != null)
             {
-                await SaveProjectCallback();
+                try
+                {
+                    await SaveProjectCallback();
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    projectSaveFailed = true;
+                    logger.LogWarning(ex, "Failed to persist project after deleting catalog");
+                }
             }
         }
 
@@ -7998,7 +8064,7 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            NotifyCatalogDeleteResult(asset, projectCatalog, orphans, definitionFixed);
+            NotifyCatalogDeleteResult(asset, projectCatalog, orphans, definitionFixed, stateSaveFailed || projectSaveFailed);
         }
     }
 
@@ -8006,7 +8072,8 @@ public partial class PublishShareViewModel(
         HostedAssetItemViewModel asset,
         NamedCatalog? projectCatalog,
         IReadOnlyList<string> orphans,
-        bool definitionFixed)
+        bool definitionFixed,
+        bool stateSaveFailed)
     {
         var displayName = projectCatalog?.Name ?? asset.Name;
         var message = new System.Text.StringBuilder(FormatLocalizedString("Tools.PublisherStudio.Hosting.DeletedCatalogMessageFormat", "Catalog '{0}' was deleted.", displayName));
@@ -8022,10 +8089,29 @@ public partial class PublishShareViewModel(
             message.Append(GetLocalizedString("Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote", "The provider definition could not be re-uploaded and is marked for publishing."));
         }
 
-        notificationService?.ShowSuccess(
-            GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
-            message.ToString(),
-            NotificationDurations.Long);
+        if (stateSaveFailed)
+        {
+            message.Append(' ');
+            message.Append(GetLocalizedString(DeleteStateSaveFailedNoteKey, DeleteStateSaveFailedNoteDefault));
+            notificationService?.ShowWarning(
+                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
+                message.ToString(),
+                NotificationDurations.Long);
+        }
+        else if (!definitionFixed)
+        {
+            notificationService?.ShowWarning(
+                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
+                message.ToString(),
+                NotificationDurations.Long);
+        }
+        else
+        {
+            notificationService?.ShowSuccess(
+                GetLocalizedString(DeleteSuccessTitleKey, DeleteSuccessTitleDefault),
+                message.ToString(),
+                NotificationDurations.Long);
+        }
     }
 
     private async Task<bool> RepublishDefinitionAfterDeleteAsync(bool shouldFix, CancellationToken cancellationToken)
@@ -8213,14 +8299,20 @@ public partial class PublishShareViewModel(
         }
 
         project.IsDirty = true;
+        var projectSaveFailed = false;
         if (SaveProjectCallback != null)
         {
             try
             {
                 await SaveProjectCallback();
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
+                projectSaveFailed = true;
                 logger.LogWarning(ex, "Failed to persist project after deleting hosted file");
             }
         }
@@ -8228,7 +8320,7 @@ public partial class PublishShareViewModel(
         LibraryRefreshCallback?.Invoke();
         _linkageIndex = null;
         var (republished, republishFailed) = await RepublishCatalogsAfterDeleteAsync(affected, cancellationToken);
-        return (republished, republishFailed, !saveResult.Success);
+        return (republished, republishFailed, !saveResult.Success || projectSaveFailed);
     }
 
     private async Task RefreshAfterDeleteAsync()
@@ -8340,6 +8432,7 @@ public partial class PublishShareViewModel(
 
     private void PruneArtifactStateEntries(string? url, string? fileId, string? fileName)
     {
+        InvalidateProbedArtifactSize(url);
         foreach (var state in _hostingStates.Values)
         {
             state.Artifacts.RemoveAll(a => MatchesHostedFile(a, url, fileId, fileName));
@@ -9188,6 +9281,11 @@ public partial class PublishShareViewModel(
 
         if (existingArt != null)
         {
+            if (!string.Equals(existingArt.DownloadUrl, directUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                InvalidateProbedArtifactSize(existingArt.DownloadUrl);
+            }
+
             existingArt.DownloadUrl = directUrl;
             if (!string.IsNullOrEmpty(asset.Sha256))
             {
@@ -9237,7 +9335,10 @@ public partial class PublishShareViewModel(
     private async Task<string?> DownloadStringFromUrlAsync(string url, CancellationToken cancellationToken = default)
     {
         var directUrl = EnsureDirectDownloadUrl(url);
-        if (!NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
+        if (!AllowUnresolvableUrlsForTesting &&
+            !CatalogDocumentReader.AllowUnresolvableDnsForTesting &&
+            HttpClientOverrideForTesting == null &&
+            !NetworkSecurityHelper.IsSafeUrl(directUrl, out var failureReason))
         {
             logger.LogWarning("Refusing to download string from unsafe or disallowed URL {Url}: {Reason}", directUrl, failureReason);
             return null;

@@ -698,6 +698,7 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(JsonSerializer.Serialize(catalog, PublisherJsonOptions.Definition));
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
+        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
         try
         {
@@ -713,6 +714,7 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -753,6 +755,7 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(JsonSerializer.Serialize(definition, PublisherJsonOptions.Definition));
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
+        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
         try
         {
@@ -1477,6 +1480,7 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(catalogJson);
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
+        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
 
         try
@@ -1527,6 +1531,7 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -1616,6 +1621,59 @@ public class PublisherStudioInventoryManagementTests
             {
                 Directory.Delete(tempDir, recursive: true);
             }
+        }
+    }
+
+    [Fact]
+    public void UpdateProjectArtifactSizes_PropagatesSizeToAddonReleases()
+    {
+        var project = new PublisherProject
+        {
+            Name = "Addon Test",
+            ProjectPath = "/dummy/project",
+        };
+        var catalog = new PublisherCatalog();
+        var item = new CatalogContentItem
+        {
+            Id = "mod1",
+            Name = "Mod 1",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+        };
+        var addonRelease = new ContentRelease
+        {
+            Version = "1.0.0",
+            Artifacts =
+            [
+                new ReleaseArtifact
+                {
+                    Filename = "patch.zip",
+                    DownloadUrl = "https://example.com/patch.zip",
+                    Size = 0,
+                },
+            ],
+        };
+        item.AddonReleases.Add(addonRelease);
+        catalog.Content.Add(item);
+        project.Catalogs.Add(new NamedCatalog { Name = "Cat1", Catalog = catalog });
+
+        using var vm = CreateViewModel(project, CreateDriveProvider());
+        vm.UpdateProjectArtifactSizesForTesting("https://example.com/patch.zip", 4242);
+
+        Assert.Equal(4242, addonRelease.Artifacts[0].Size);
+    }
+
+    [Fact]
+    public void AllowUnresolvableUrlsForTesting_DefaultsToFalse_CanBeToggled()
+    {
+        Assert.False(PublishShareViewModel.AllowUnresolvableUrlsForTesting);
+        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
+        try
+        {
+            Assert.True(PublishShareViewModel.AllowUnresolvableUrlsForTesting);
+        }
+        finally
+        {
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
         }
     }
 
