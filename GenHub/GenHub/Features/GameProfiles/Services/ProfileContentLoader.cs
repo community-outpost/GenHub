@@ -367,7 +367,7 @@ public class ProfileContentLoader(
             ? manifest.Version
             : string.Empty;
 
-        var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(manifest.SourcePath, manifest.EntryPoint);
+        var (exePath, workingDir) = ClientPathResolver.ResolveClientPaths(manifest.SourcePath, ManifestVariantResolver.GetDeclaredEntryPoint(manifest));
 
         return new GameClient
         {

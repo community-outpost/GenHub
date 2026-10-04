@@ -10,6 +10,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -296,6 +297,36 @@ public class ProfileContentLoaderManifestIdTests
             {
                 File.Delete(tempFile);
             }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a variant game client resolves its executable from the host variant's
+    /// entry point, not the root entry point the launcher ignores when variants exist.
+    /// </summary>
+    [Fact]
+    public void CreateGameClientFromManifest_VariantManifest_UsesHostVariantEntryPoint()
+    {
+        var sourcePath = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            File.WriteAllText(Path.Combine(sourcePath, "root.exe"), "fake root");
+            File.WriteAllText(Path.Combine(sourcePath, "generalszh"), "fake host");
+            var manifest = VariantManifestFixture.Create([], []);
+            manifest.SourcePath = sourcePath;
+            manifest.EntryPoint = "root.exe";
+            manifest.Variants[0].EntryPoint = "root.exe";
+            manifest.Variants[1].EntryPoint = "generalszh";
+
+            var client = ProfileContentLoader.CreateGameClientFromManifest(manifest);
+
+            Assert.NotNull(client);
+            Assert.Equal(Path.Combine(sourcePath, "generalszh"), client.ExecutablePath);
+            Assert.Equal(sourcePath, client.WorkingDirectory);
+        }
+        finally
+        {
+            Directory.Delete(sourcePath, recursive: true);
         }
     }
 

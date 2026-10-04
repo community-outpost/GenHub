@@ -64,13 +64,7 @@ public class GenLauncherManifestFactory(
             await archivePayloadProcessor.ExtractArchivesSafelyAsync(extractedDirectory, originalManifest.ContentType, cancellationToken);
             await archivePayloadProcessor.NormalizeDirectoryStructureAsync(extractedDirectory, originalManifest.ContentType, originalManifest.TargetGame, cancellationToken);
 
-            var manifest = new ContentManifest(originalManifest)
-            {
-                SourcePath = Directory.Exists(originalManifest.SourcePath) || File.Exists(originalManifest.SourcePath) ? originalManifest.SourcePath : null,
-                Files = [],
-            };
-
-            var filesWithEtag = originalManifest.Files
+            var filesWithEtag = ManifestVariantResolver.ResolveFiles(originalManifest)
                 .Where(f => !string.IsNullOrWhiteSpace(f.ETag ?? f.Hash))
                 .ToList();
 
@@ -91,6 +85,7 @@ public class GenLauncherManifestFactory(
                 .Where(g => g.Count() == 1)
                 .ToDictionary(g => g.Key, g => g.First().ETag ?? g.First().Hash ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 
+            var extractedFiles = new List<ManifestFile>();
             var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
             foreach (var filePath in allFiles)
             {
@@ -108,8 +103,11 @@ public class GenLauncherManifestFactory(
                     return OperationResult<List<ContentManifest>>.CreateFailure(fileResult.FirstError ?? "File validation failed");
                 }
 
-                manifest.Files.Add(fileResult.Data);
+                extractedFiles.Add(fileResult.Data);
             }
+
+            var manifest = ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, extractedFiles);
+            manifest.SourcePath = Directory.Exists(originalManifest.SourcePath) || File.Exists(originalManifest.SourcePath) ? originalManifest.SourcePath : null;
 
             var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory, cancellationToken, localizationService);
             if (!entryResult.Success)

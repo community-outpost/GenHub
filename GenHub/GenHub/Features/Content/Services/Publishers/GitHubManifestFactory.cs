@@ -116,11 +116,8 @@ public class GitHubManifestFactory(
         var processedFiles = await Task.WhenAll(fileProcessingTasks);
         files.AddRange(processedFiles.Where(f => f != null)!);
 
-        // Clone the original manifest but replace files
-        var manifest = new ContentManifest(originalManifest)
-        {
-            Files = files,
-        };
+        // Clone the original manifest with the extracted files as the host's files
+        var manifest = ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, files);
 
         var entryResult = ManifestEntryPointHelper.BakeEntryPoint(manifest, extractedDirectory, cancellationToken, localizationService);
         if (!entryResult.Success)
