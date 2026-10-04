@@ -117,9 +117,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private bool _isChecking;
 
     /// <summary>
-    /// Gets or sets a value indicating whether an update download is in progress.
-    /// </summary>
-    /// <summary>
     /// Gets or sets the download progress percentage.
     /// </summary>
     [ObservableProperty]
@@ -150,6 +147,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private UpdateProgress _installationProgress = new() { Status = "Ready", PercentComplete = 0 };
 
+    /// <summary>
+    /// Gets or sets a value indicating whether an update download is in progress.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InstallButtonText))]
     [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
@@ -814,7 +814,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
                 foreach (var item in catalog.Content.Where(c => c.ContentType == ContentType.GenHubBuild))
                 {
-                    var latestRel = item.Releases.OrderByDescending(r => r.ReleaseDate).FirstOrDefault();
+                    var latestRel = item.Releases
+                        .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
+                        {
+                            if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+                            if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+                            return 0;
+                        }))
+                        .ThenByDescending(r => r.ReleaseDate)
+                        .FirstOrDefault();
                     AvailableCustomBuilds.Add(new CustomBuildSubscriptionItem
                     {
                         PublisherId = sub.PublisherId,
@@ -825,7 +833,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         LatestVersion = latestRel?.Version ?? GenHubBuildConstants.DefaultVersion,
                         ReleaseDate = latestRel?.ReleaseDate,
                         Category = latestRel?.Category ?? GenHubBuildConstants.CategoryCustomFork,
-                        IsSubscribed = string.Equals(SubscribedCustomBuildContentId, item.Id, StringComparison.OrdinalIgnoreCase),
+                        IsSubscribed = string.Equals(SubscribedCustomBuildContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
+                                       string.Equals(SubscribedCustomBuildPublisherId, sub.PublisherId, StringComparison.OrdinalIgnoreCase),
                     });
                 }
             }
@@ -896,7 +905,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         foreach (var build in AvailableCustomBuilds)
         {
-            build.IsSubscribed = string.Equals(build.ContentId, item.ContentId, StringComparison.OrdinalIgnoreCase);
+            build.IsSubscribed = string.Equals(build.ContentId, item.ContentId, StringComparison.OrdinalIgnoreCase) &&
+                                 string.Equals(build.PublisherId, item.PublisherId, StringComparison.OrdinalIgnoreCase);
         }
 
         OnPropertyChanged(nameof(IsSubscribedToAny));

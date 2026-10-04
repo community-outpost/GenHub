@@ -579,14 +579,19 @@ public class FastHttpClientFileDownloaderTests : IDisposable
     /// <summary>
     /// Tests that a loopback URL is rejected with a SecurityException.
     /// </summary>
+    /// <param name="loopbackUrl">The loopback URL to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    [Fact]
-    public async Task DownloadFile_WithLoopbackUrl_ThrowsSecurityExceptionAsync()
+    [Theory]
+    [InlineData("http://127.0.0.1:8080/releases.win.json")]
+    [InlineData("https://127.0.0.1:8443/releases.win.json")]
+    [InlineData("http://localhost:8080/releases.win.json")]
+    [InlineData("https://localhost:8443/releases.win.json")]
+    public async Task DownloadFile_WithLoopbackUrl_ThrowsSecurityExceptionAsync(string loopbackUrl)
     {
         var downloader = new FastHttpClientFileDownloader(_mockLogger.Object);
         var targetFile = Path.Combine(_tempDirectory, "loopback.bin");
 
         await Assert.ThrowsAsync<SecurityException>(
-            () => downloader.DownloadFile("http://127.0.0.1:8080/releases.win.json", targetFile, _ => { }, null, 30));
+            () => downloader.DownloadFile(loopbackUrl, targetFile, _ => { }, null, 30));
     }
 }

@@ -1702,7 +1702,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
-        progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 20 });
+        progress?.Report(new UpdateProgress { Status = "Extracting build archive...", PercentComplete = 30 });
         var tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-{Guid.NewGuid():N}");
         try
         {
@@ -2032,7 +2032,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var targetNupkgInTemp = Path.Combine(tempDir, nupkgFileName);
         if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(targetNupkgInTemp), StringComparison.OrdinalIgnoreCase))
         {
-            File.Copy(nupkgFile, targetNupkgInTemp, overwrite: true);
+            await using (var sourceStream = new FileStream(nupkgFile, FileMode.Open, FileAccess.Read, FileShare.Read, DownloadDefaults.BufferSizeBytes, useAsync: true))
+            await using (var destinationStream = new FileStream(targetNupkgInTemp, FileMode.Create, FileAccess.Write, FileShare.None, DownloadDefaults.BufferSizeBytes, useAsync: true))
+            {
+                await sourceStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
+            }
+
             nupkgFile = targetNupkgInTemp;
         }
 

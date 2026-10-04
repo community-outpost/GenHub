@@ -145,7 +145,10 @@ public static partial class CloudUrlHelper
         }
 
         var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
-        return resolvedUri is not null && IsAllowedGoogleDriveHost(resolvedUri)
+        return resolvedUri is not null &&
+               IsAllowedGoogleDriveHost(resolvedUri) &&
+               (resolvedUri.AbsolutePath.EndsWith("/uc", StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith("/download", StringComparison.OrdinalIgnoreCase)) &&
+               resolvedUri.Query.Contains("export=download", StringComparison.OrdinalIgnoreCase)
             ? resolvedUri.ToString()
             : null;
     }

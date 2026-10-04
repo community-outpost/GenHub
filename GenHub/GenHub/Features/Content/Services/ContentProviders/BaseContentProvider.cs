@@ -134,6 +134,13 @@ public abstract class BaseContentProvider : IContentProvider
         {
             Logger.LogDebug("Preparing content for manifest {ManifestId}", manifest.Id);
 
+            // Validate manifest before preparation
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.ValidatingManifest,
+                CurrentOperation = "Validating manifest structure...",
+            });
+
             var validationResult = await ContentValidator.ValidateManifestAsync(manifest, cancellationToken);
             if (!validationResult.IsValid)
             {
