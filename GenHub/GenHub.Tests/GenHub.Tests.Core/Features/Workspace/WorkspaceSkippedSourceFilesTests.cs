@@ -260,6 +260,35 @@ public sealed class WorkspaceSkippedSourceFilesTests : IDisposable
         }
     }
 
+    /// <summary>A directory in a manifest file slot fails preparation without a missing-source warning.</summary>
+    /// <param name="strategyType">The workspace strategy.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    [InlineData(WorkspaceStrategy.FullCopy)]
+    [InlineData(WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    public async Task PrepareAsync_WithDirectorySource_FailsWithoutSkipAsync(WorkspaceStrategy strategyType)
+    {
+        var installDir = Directory.CreateDirectory(Path.Combine(_root, "Install")).FullName;
+        var source = Directory.CreateDirectory(Path.Combine(installDir, "mod.ini")).FullName;
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Strategy = strategyType,
+            WorkspaceRootPath = Path.Combine(_root, "Workspaces"),
+            BaseInstallationPath = installDir,
+            GameClient = new GameClient { Id = "test" },
+            Manifests = [CreateManifest("1.0.test.mod.winner", ContentType.Mod, source)],
+        };
+
+        var result = await CreateStrategy(strategyType).PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.False(result.IsPrepared);
+        Assert.Empty(configuration.SkippedSourceFiles);
+        Assert.NotEmpty(result.ValidationIssues);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
