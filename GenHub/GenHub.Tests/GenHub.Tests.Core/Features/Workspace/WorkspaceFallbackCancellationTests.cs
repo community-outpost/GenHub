@@ -70,12 +70,15 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
     }
 
     /// <summary>
-    /// Hybrid's local-file path has its own hard-link fallback. When that fallback is cancelled,
-    /// cancellation propagates and the copy fallback is not attempted.
+    /// Hybrid's local-file path propagates cancellation and unexpected hard-link faults
+    /// without attempting the copy fallback.
     /// </summary>
+    /// <param name="unexpected">Whether the failure is an unsupported operation rather than cancellation.</param>
     /// <returns>A task that represents the asynchronous test.</returns>
-    [Fact]
-    public async Task HybridProcessLocalFileAsync_WhenHardLinkFallbackIsCancelled_PropagatesCancellationAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HybridProcessLocalFileAsync_WhenHardLinkFallbackCannotRecover_PropagatesAsync(bool unexpected)
     {
         var installDir = Path.Combine(_root, "Install");
         Directory.CreateDirectory(Path.Combine(installDir, "Movies"));
@@ -86,15 +89,24 @@ public sealed class WorkspaceFallbackCancellationTests : IDisposable
             .ThrowsAsync(new UnauthorizedAccessException("symlink denied"));
         _fileOperations
             .Setup(f => f.CreateHardLinkAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new OperationCanceledException());
+            .ThrowsAsync(unexpected ? new NotSupportedException("Unsupported link operation") : new OperationCanceledException());
         var file = new ManifestFile { RelativePath = RelativePath, SourcePath = sourcePath, Size = NonEssentialFileSize, SourceType = ContentSourceType.LocalFile };
         var configuration = new WorkspaceConfiguration { BaseInstallationPath = installDir };
         var strategy = new HybridCopySymlinkStrategy(_fileOperations.Object, new Mock<ILogger<HybridCopySymlinkStrategy>>().Object);
         var method = typeof(HybridCopySymlinkStrategy).GetMethod("ProcessLocalFileAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => (Task)method.Invoke(
+        Func<Task> operation = () => (Task)method.Invoke(
             strategy,
-            [file, new ContentManifest { Files = [file] }, Path.Combine(_root, "Workspace", RelativePath), configuration, CancellationToken.None])!);
+            [file, new ContentManifest { Files = [file] }, Path.Combine(_root, "Workspace", RelativePath), configuration, CancellationToken.None])!;
+        if (unexpected)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(operation);
+        }
+        else
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(operation);
+        }
+
         _fileOperations.Verify(
             f => f.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);

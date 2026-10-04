@@ -143,7 +143,7 @@ public class CasService(
 
             return OperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to get content path for hash {Hash}", hash);
             return OperationResult<string>.CreateFailure($"Path lookup failed: {ex.Message}");
@@ -523,7 +523,7 @@ public class CasService(
 
             return OperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to get content path for hash {Hash} in pool ({ContentType})", hash, contentType);
             return OperationResult<string>.CreateFailure($"Path lookup failed: {ex.Message}");
