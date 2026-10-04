@@ -136,6 +136,24 @@ public static class ProfileSharingConstants
     public const string DependencyBuiltForOtherPlatformErrorKey = "GameProfiles.Share.Error.BuiltForOtherPlatform";
 
     /// <summary>
+    /// Resource key for a dependency shared for another platform whose shared version has no build for this platform.
+    /// {0} is the content name, {1} the shared version and {2} the recipient's runtime.
+    /// </summary>
+    public const string NoCompatiblePlatformBuildErrorKey = "GameProfiles.Share.Error.NoCompatiblePlatformBuild";
+
+    /// <summary>Resource key for the inspection warning when other-platform dependencies cannot be named.</summary>
+    public const string BuiltForOtherPlatformGenericWarningKey = "GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric";
+
+    /// <summary>Fallback text for <see cref="BuiltForOtherPlatformGenericWarningKey"/>.</summary>
+    public const string BuiltForOtherPlatformGenericWarning = "One or more required components were shared for another platform and cannot be installed on this one.";
+
+    /// <summary>Resource key for the inspection warning when dependencies needing provider resolution cannot be named.</summary>
+    public const string PlatformResolutionGenericWarningKey = "GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric";
+
+    /// <summary>Fallback text for <see cref="PlatformResolutionGenericWarningKey"/>.</summary>
+    public const string PlatformResolutionGenericWarning = "One or more required components must be found through a connected provider for this platform. Download size is unknown.";
+
+    /// <summary>
     /// Resource key for a package whose schema version this build cannot read.
     /// {0} is the package version and {1} the highest supported version.
     /// </summary>

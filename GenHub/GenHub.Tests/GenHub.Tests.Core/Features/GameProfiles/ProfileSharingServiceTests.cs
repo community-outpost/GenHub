@@ -905,6 +905,49 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
+    /// Verifies that when every candidate for a dependency shared for another platform lacks a build
+    /// for this runtime, import tries each one and fails with a platform-specific message.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_WhenNoCandidateSupportsRuntime_FailsWithPlatformMessageAsync()
+    {
+        const string manifestId = "1.0.moddb.mod.foreignonly";
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = manifestId,
+            DisplayName = "Foreign Only Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = "ModDB",
+            PublisherType = PublisherTypeConstants.ModDB,
+            PackageUrl = "https://utfs.io/f/foreign-only.zip",
+            RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier],
+        };
+        var first = new ContentSearchResult { Id = "first", Name = "Foreign Only Mod", Version = "1.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
+        var second = new ContentSearchResult { Id = "second", Name = "Foreign Only Mod", Version = "1.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
+        SetUpImport(manifestId);
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([first, second]));
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(manifestId),
+                Variants = [new ArtifactVariant { RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier] }],
+            }));
+
+        var result = await _service.ImportSharedProfileAsync(CreateImportRequest(dependency));
+
+        Assert.False(result.Success);
+        Assert.Contains(ManifestVariantResolver.CurrentRuntimeIdentifier, result.FirstError);
+        Assert.Contains("No build of 'Foreign Only Mod' version 1.0", result.FirstError);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(first, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(second, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    /// <summary>
     /// Verifies that a local dependency shared for another platform fails with a message naming
     /// its platform, and is reported as not acquirable during inspection.
     /// </summary>

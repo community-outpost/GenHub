@@ -17796,4 +17796,13 @@ Error: فشل: {3}
   <data name="GameProfiles.Share.Warning.PlatformResolution" xml:space="preserve">
     <value>يجب العثور على '{0}' بالإصدار {1} عبر موفر متصل لهذه المنصة. حجم التنزيل غير معروف؛ سيفشل الاستيراد إذا لم يتوفر إصدار متوافق.</value>
   </data>
+  <data name="GameProfiles.Share.Error.NoCompatiblePlatformBuild" xml:space="preserve">
+    <value>لم يتم العثور على إصدار من '{0}' بالإصدار {1} لهذه المنصة ({2}) في أي مصدر محتوى متصل.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric" xml:space="preserve">
+    <value>تمت مشاركة مكون مطلوب واحد أو أكثر لمنصة أخرى ولا يمكن تثبيته على هذه المنصة.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric" xml:space="preserve">
+    <value>يجب العثور على مكون مطلوب واحد أو أكثر عبر موفر متصل لهذه المنصة. حجم التنزيل غير معروف.</value>
+  </data>
 </root>

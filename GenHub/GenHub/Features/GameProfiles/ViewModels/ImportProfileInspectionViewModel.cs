@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -313,9 +314,12 @@ public sealed partial class ImportProfileInspectionViewModel(
                 if (!addedPlatformResolutionWarnings)
                 {
                     addedPlatformResolutionWarnings = true;
-                    warnings.AddRange(result.Manifests
-                        .Where(ProfileSharingService.RequiresPlatformResolution)
-                        .Select(manifest => ProfileSharingService.FormatPlatformResolution(manifest, localizationService)));
+                    AddManifestWarningsOrGeneric(
+                        warnings,
+                        result.Manifests
+                            .Where(ProfileSharingService.RequiresPlatformResolution)
+                            .Select(manifest => ProfileSharingService.FormatPlatformResolution(manifest, localizationService)),
+                        localizationService.GetLocalizedString(ProfileSharingConstants.PlatformResolutionGenericWarningKey, ProfileSharingConstants.PlatformResolutionGenericWarning));
                 }
 
                 continue;
@@ -326,9 +330,12 @@ public sealed partial class ImportProfileInspectionViewModel(
                 if (!addedOtherPlatformWarnings)
                 {
                     addedOtherPlatformWarnings = true;
-                    warnings.AddRange(result.Manifests
-                        .Where(ProfileSharingService.IsLocalBuiltForOtherPlatform)
-                        .Select(manifest => ProfileSharingService.FormatBuiltForOtherPlatform(manifest, localizationService)));
+                    AddManifestWarningsOrGeneric(
+                        warnings,
+                        result.Manifests
+                            .Where(ProfileSharingService.IsLocalBuiltForOtherPlatform)
+                            .Select(manifest => ProfileSharingService.FormatBuiltForOtherPlatform(manifest, localizationService)),
+                        localizationService.GetLocalizedString(ProfileSharingConstants.BuiltForOtherPlatformGenericWarningKey, ProfileSharingConstants.BuiltForOtherPlatformGenericWarning));
                 }
 
                 continue;
@@ -339,6 +346,16 @@ public sealed partial class ImportProfileInspectionViewModel(
             {
                 warnings.Add(localized);
             }
+        }
+    }
+
+    private static void AddManifestWarningsOrGeneric(List<string> warnings, IEnumerable<string> manifestWarnings, string genericWarning)
+    {
+        var count = warnings.Count;
+        warnings.AddRange(manifestWarnings);
+        if (warnings.Count == count)
+        {
+            warnings.Add(genericWarning);
         }
     }
 

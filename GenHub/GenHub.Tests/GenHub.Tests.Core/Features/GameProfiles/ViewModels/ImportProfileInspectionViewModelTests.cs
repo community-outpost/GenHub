@@ -615,4 +615,51 @@ public class ImportProfileInspectionViewModelTests
             Assert.Contains("Download", vm.ActionButtonText);
         }
     }
+
+    /// <summary>Platform warning codes without a matching manifest still explain the platform problem.</summary>
+    /// <param name="code">The platform warning code.</param>
+    /// <param name="expected">Text the generic warning contains.</param>
+    [Theory]
+    [InlineData(ProfileSecurityWarningCode.BuiltForOtherPlatform, "shared for another platform")]
+    [InlineData(ProfileSecurityWarningCode.RequiresPlatformResolution, "connected provider")]
+    public void PlatformWarningCode_WithNoMatchingManifest_EmitsGenericWarning(ProfileSecurityWarningCode code, string expected)
+    {
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = "1.0.moddb.mod.native",
+            DisplayName = "Native Mod",
+            Version = "1.0",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            PublisherType = "ModDB",
+            IsCachedLocally = true,
+        };
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 2,
+            Profile = new SharedProfileMetadata { Name = "Platform Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        };
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [dependency],
+            Package = package,
+            MissingManifestCount = 0,
+            HasValidGameInstallation = true,
+            MatchedGameInstallationId = null,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 0,
+            CachedManifestCount = 1,
+            HasNameConflict = false,
+            SuggestedProfileName = "Platform Profile",
+            SecurityWarnings = [],
+            SecurityWarningCodes = [code],
+        };
+        using var vm = new ImportProfileInspectionViewModel(
+            inspection, _sharingServiceMock.Object, _notificationServiceMock.Object, NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        var warning = Assert.Single(vm.SecurityWarnings);
+        Assert.Contains(expected, warning);
+        Assert.DoesNotContain("Native Mod", warning);
+    }
 }

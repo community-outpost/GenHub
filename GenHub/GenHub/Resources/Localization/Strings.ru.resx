@@ -17796,4 +17796,13 @@ Error: не удалось: {3}
   <data name="GameProfiles.Share.Warning.PlatformResolution" xml:space="preserve">
     <value>«{0}» версии {1} необходимо найти у подключённого поставщика для этой платформы. Размер загрузки неизвестен; импорт завершится ошибкой, если совместимая сборка этой версии недоступна.</value>
   </data>
+  <data name="GameProfiles.Share.Error.NoCompatiblePlatformBuild" xml:space="preserve">
+    <value>Сборка «{0}» версии {1} для этой платформы ({2}) не найдена ни в одном подключённом источнике контента.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов опубликованы для другой платформы и не могут быть установлены на этой.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов необходимо найти у подключённого поставщика для этой платформы. Размер загрузки неизвестен.</value>
+  </data>
 </root>

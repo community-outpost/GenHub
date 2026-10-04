@@ -3447,6 +3447,16 @@ public class ProfileSharingService(
             dependency.DisplayName,
             dependency.ManifestId);
 
+        if (IsBuiltForOtherPlatform(dependency))
+        {
+            return OperationResult<string>.CreateFailure(LaunchExitMessages.GetString(
+                ProfileSharingConstants.NoCompatiblePlatformBuildErrorKey,
+                localizationService,
+                dependency.DisplayName,
+                dependency.Version,
+                ManifestVariantResolver.CurrentRuntimeIdentifier));
+        }
+
         return CreateFallbackAcquisitionFailure(dependency);
     }
 
