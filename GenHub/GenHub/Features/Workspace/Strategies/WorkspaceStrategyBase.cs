@@ -9,6 +9,7 @@ using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -269,7 +270,7 @@ public abstract class WorkspaceStrategyBase<T>(
 
             if ((attributes & FileAttributes.Directory) != 0)
             {
-                throw new IOException(string.Format(System.Globalization.CultureInfo.InvariantCulture, WorkspaceConstants.SourcePathIsDirectoryMessage, sourcePath));
+                throw new IOException(string.Format(CultureInfo.InvariantCulture, WorkspaceConstants.SourcePathIsDirectoryMessage, sourcePath));
             }
 
             return true;
