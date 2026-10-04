@@ -136,12 +136,16 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent([sourceBytes[0]]),
                     RequestMessage = request,
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
                 return probeResponse;
             }
 
             if (range is { From: { } from, To: { } to })
             {
+                Assert.NotNull(request.Headers.IfRange);
+                Assert.Equal("\"test-etag\"", request.Headers.IfRange.EntityTag?.Tag);
+
                 var length = (int)(to - from + 1);
                 var chunkData = new byte[length];
                 Array.Copy(sourceBytes, from, chunkData, 0, length);
@@ -151,6 +155,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent(chunkData),
                     RequestMessage = request,
                 };
+                chunkResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
                 return chunkResponse;
             }
@@ -199,12 +204,12 @@ public class FastHttpClientFileDownloaderTests : IDisposable
             var range = request.Headers.Range?.Ranges.FirstOrDefault();
             if (range is { From: 0, To: 0 })
             {
-                // Probe response indicates 1MB file
                 var probeResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
                 {
                     Content = new ByteArrayContent([smallBytes[0]]),
                     RequestMessage = request,
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, smallBytes.Length) { Unit = "bytes" };
                 return probeResponse;
             }
@@ -214,12 +219,11 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                 Interlocked.Increment(ref chunkRequestsCount);
             }
 
-            var fullResponse = new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new ByteArrayContent(smallBytes),
                 RequestMessage = request,
             };
-            return fullResponse;
         });
 
         var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
@@ -228,39 +232,28 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         await downloader.DownloadFile("https://example.com/small.bin", targetFile, _ => { }, null, 30);
 
         Assert.True(File.Exists(targetFile));
-        var downloadedBytes = await File.ReadAllBytesAsync(targetFile);
-        Assert.Equal(smallBytes, downloadedBytes);
+        Assert.Equal(smallBytes, await File.ReadAllBytesAsync(targetFile));
         Assert.Equal(0, chunkRequestsCount);
     }
 
     /// <summary>
-    /// Tests that when the server ignores range headers (returning 200 OK on probe), the downloader streams directly without error.
+    /// Tests that HTML web page responses from origins throw InvalidDataException to prevent saving corrupt files.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DownloadFile_ServerIgnoresRange_ShouldStreamProbeResponseDirectlyAsync()
+    public async Task DownloadFile_HtmlResponse_ShouldThrowInvalidDataExceptionAsync()
     {
-        var fileBytes = new byte[1024 * 512]; // 512 KB
-        new Random(1337).NextBytes(fileBytes);
-
-        var handler = new TestHttpMessageHandler(request =>
+        const string htmlPayload = "<!DOCTYPE html><html><head><title>Login</title></head><body>Login required</body></html>";
+        var handler = new TestHttpMessageHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
         {
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new ByteArrayContent(fileBytes),
-                RequestMessage = request,
-            };
-            return response;
+            Content = new StringContent(htmlPayload, System.Text.Encoding.UTF8, "text/html"),
         });
 
         var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
-        var targetFile = Path.Combine(_tempDirectory, "ignored-range.bin");
+        var targetFile = Path.Combine(_tempDirectory, "html-response.bin");
 
-        await downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30);
-
-        Assert.True(File.Exists(targetFile));
-        var downloadedBytes = await File.ReadAllBytesAsync(targetFile);
-        Assert.Equal(fileBytes, downloadedBytes);
+        await Assert.ThrowsAsync<InvalidDataException>(
+            () => downloader.DownloadFile("https://example.com/download.zip", targetFile, _ => { }, null, 30));
     }
 
     /// <summary>
@@ -285,6 +278,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent([sourceBytes[0]]),
                     RequestMessage = request,
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
                 return probeResponse;
             }
@@ -297,6 +291,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent(new byte[100]),
                     RequestMessage = request,
                 };
+                badResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 badResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(999, 1098, totalBytes) { Unit = "bytes" };
                 return badResponse;
             }
@@ -342,6 +337,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent([sourceBytes[0]]),
                     RequestMessage = request,
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
                 return probeResponse;
             }
@@ -354,6 +350,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent(new byte[100]),
                     RequestMessage = request,
                 };
+                shortResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 shortResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
                 return shortResponse;
             }
@@ -399,6 +396,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent([0]),
                     RequestMessage = request,
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
                 return probeResponse;
             }
@@ -411,6 +409,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent(new byte[length]),
                     RequestMessage = request,
                 };
+                chunkResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
                 return chunkResponse;
             }
@@ -483,6 +482,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent([sourceBytes[0]]),
                     RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://cdn.blob.core.windows.net/artifacts/file.zip"),
                 };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
                 return probeResponse;
             }
@@ -503,6 +503,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
                     Content = new ByteArrayContent(chunkData),
                     RequestMessage = request,
                 };
+                chunkResponse.Headers.ETag = new EntityTagHeaderValue("\"test-etag\"");
                 chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
                 return chunkResponse;
             }
@@ -518,12 +519,11 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         var targetFile = Path.Combine(_tempDirectory, "cross-origin-test.bin");
         var headers = new Dictionary<string, string>
         {
-            { "Authorization", "Bearer test_pat_token" },
-            { "User-Agent", "GenHub" },
+            ["Authorization"] = "Bearer secret-token",
         };
 
         await downloader.DownloadFile(
-            "https://api.github.com/repos/community-outpost/GenHub/actions/artifacts/123/zip",
+            "https://github.com/community-outpost/GenHub/releases/download/v1.0.0/test.bin",
             targetFile,
             _ => { },
             headers,
@@ -532,6 +532,113 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         Assert.True(File.Exists(targetFile));
         Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(targetFile));
         Assert.Equal(0, chunkAuthHeadersPresent);
+    }
+
+    /// <summary>
+    /// Tests that when the probe response lacks a strong validator (no ETag, no LastModified),
+    /// parallel download is disabled and the downloader falls back to single-stream mode.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_NoValidator_ShouldDisableParallelAndUseSingleStreamAsync()
+    {
+        var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 2;
+        var sourceBytes = new byte[totalBytes];
+        new Random(55).NextBytes(sourceBytes);
+
+        var chunkRequestsCount = 0;
+
+        var handler = new TestHttpMessageHandler(request =>
+        {
+            var range = request.Headers.Range?.Ranges.FirstOrDefault();
+            if (range is { From: 0, To: 0 })
+            {
+                // Probe response with NO ETag and NO LastModified
+                var probeResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent([sourceBytes[0]]),
+                    RequestMessage = request,
+                };
+                probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
+                return probeResponse;
+            }
+
+            if (range is not null)
+            {
+                Interlocked.Increment(ref chunkRequestsCount);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(sourceBytes),
+                RequestMessage = request,
+            };
+        });
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "no-validator.bin");
+
+        await downloader.DownloadFile("https://example.com/no-validator.bin", targetFile, _ => { }, null, 30);
+
+        Assert.True(File.Exists(targetFile));
+        Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(targetFile));
+        Assert.Equal(0, chunkRequestsCount);
+    }
+
+    /// <summary>
+    /// Tests that when a chunk response returns a mismatched ETag validator,
+    /// parallel mode is aborted and falls back to single-stream download.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_ParallelRange_ChunkValidatorMismatch_ShouldFallbackToSingleStreamAsync()
+    {
+        var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 2;
+        var sourceBytes = new byte[totalBytes];
+        new Random(88).NextBytes(sourceBytes);
+
+        var handler = new TestHttpMessageHandler(request =>
+        {
+            var range = request.Headers.Range?.Ranges.FirstOrDefault();
+            if (range is { From: 0, To: 0 })
+            {
+                var probeResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent([sourceBytes[0]]),
+                    RequestMessage = request,
+                };
+                probeResponse.Headers.ETag = new EntityTagHeaderValue("\"probe-etag\"");
+                probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
+                return probeResponse;
+            }
+
+            if (range is { From: { } from, To: { } to })
+            {
+                // Return mismatched ETag (e.g., origin updated resource mid-flight)
+                var chunkResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(new byte[to - from + 1]),
+                    RequestMessage = request,
+                };
+                chunkResponse.Headers.ETag = new EntityTagHeaderValue("\"modified-etag\"");
+                chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
+                return chunkResponse;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(sourceBytes),
+                RequestMessage = request,
+            };
+        });
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "mismatched-etag.bin");
+
+        await downloader.DownloadFile("https://example.com/mismatched-etag.bin", targetFile, _ => { }, null, 30);
+
+        Assert.True(File.Exists(targetFile));
+        Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(targetFile));
     }
 
     /// <summary>
