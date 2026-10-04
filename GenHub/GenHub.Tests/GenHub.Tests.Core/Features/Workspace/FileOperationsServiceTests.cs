@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,69 @@ public class FileOperationsServiceTests : IDisposable
         _service = new FileOperationsService(_logger.Object, _downloadService.Object, _casService.Object);
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDir);
+    }
+
+    /// <summary>
+    /// CAS lookup cancellation propagates rather than being returned as a storage failure.
+    /// </summary>
+    /// <param name="copy">Whether to copy instead of linking.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CasMaterialization_WhenLookupIsCancelled_PropagatesAsync(bool copy)
+    {
+        _casService.Setup(c => c.GetContentPathAsync("hash", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => copy
+            ? _service.CopyFromCasAsync("hash", Path.Combine(_tempDir, "out"))
+            : _service.LinkFromCasAsync("hash", Path.Combine(_tempDir, "out")));
+    }
+
+    /// <summary>Cancellation and unexpected storage faults cross the real CAS service and file-operation layers.</summary>
+    /// <param name="copy">Whether to copy rather than link.</param>
+    /// <param name="pooled">Whether to use content-type pool routing.</param>
+    /// <param name="unexpected">Whether storage reports an unsupported operation instead of cancellation.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, true)]
+    public async Task CasMaterialization_WhenStorageLookupFails_PropagatesAsync(bool copy, bool pooled, bool unexpected = false)
+    {
+        var storage = new Mock<ICasStorage>();
+        storage.Setup(s => s.ObjectExistsAsync("hash", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(unexpected ? new NotSupportedException("Unsupported storage operation") : new OperationCanceledException());
+        var pools = new Mock<ICasPoolManager>();
+        pools.Setup(p => p.GetStorage(GenHub.Core.Models.Enums.ContentType.Mod)).Returns(storage.Object);
+        var cas = new CasService(
+            storage.Object,
+            new Mock<ILogger<CasService>>().Object,
+            Mock.Of<IFileHashProvider>(),
+            Mock.Of<IStreamHashProvider>(),
+            pooled ? pools.Object : null);
+        var operations = new FileOperationsService(_logger.Object, _downloadService.Object, cas);
+        GenHub.Core.Models.Enums.ContentType? contentType = pooled ? GenHub.Core.Models.Enums.ContentType.Mod : null;
+
+        Func<Task> operation = () => copy
+            ? operations.CopyFromCasAsync("hash", Path.Combine(_tempDir, "out"), contentType)
+            : operations.LinkFromCasAsync("hash", Path.Combine(_tempDir, "out"), contentType: contentType);
+        if (unexpected)
+        {
+            await Assert.ThrowsAsync<NotSupportedException>(operation);
+        }
+        else
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(operation);
+        }
+
+        storage.Verify(s => s.ObjectExistsAsync("hash", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

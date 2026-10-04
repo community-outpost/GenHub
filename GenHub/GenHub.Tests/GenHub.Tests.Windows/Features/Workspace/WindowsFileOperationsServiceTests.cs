@@ -33,6 +33,26 @@ public class WindowsFileOperationsServiceTests : IDisposable
         Directory.CreateDirectory(_tempDir);
     }
 
+    /// <summary>Unexpected CAS backend faults propagate through the Windows decorator.</summary>
+    /// <param name="copy">Whether to copy rather than link.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CasMaterialization_WhenLookupIsUnsupported_PropagatesAsync(bool copy)
+    {
+        var cas = new Mock<ICasService>();
+        cas.Setup(x => x.GetContentPathAsync("hash", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotSupportedException("Unsupported backend"));
+        var baseService = new FileOperationsService(
+            NullLogger<FileOperationsService>.Instance, Mock.Of<IDownloadService>(), cas.Object);
+        var service = new WindowsFileOperationsService(baseService, cas.Object, _logger);
+
+        await Assert.ThrowsAsync<NotSupportedException>(() => copy
+            ? service.CopyFromCasAsync("hash", "target")
+            : service.LinkFromCasAsync("hash", "target"));
+    }
+
     /// <summary>CAS copy and link operations preserve cancellation.</summary>
     /// <param name="copy">Whether to copy rather than link.</param>
     /// <returns>The asynchronous test.</returns>

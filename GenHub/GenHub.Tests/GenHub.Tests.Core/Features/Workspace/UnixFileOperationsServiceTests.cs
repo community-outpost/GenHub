@@ -49,6 +49,22 @@ public class UnixFileOperationsServiceTests : IDisposable
 
     private static bool OnUnix => !RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
+    /// <summary>Invalid path faults escape both Unix link branches instead of looking like missing CAS content.</summary>
+    /// <param name="hardLink">Whether to use the hard-link branch.</param>
+    /// <returns>The asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LinkFromCasAsync_WithInvalidDestination_PropagatesAsync(bool hardLink)
+    {
+        var source = Path.Combine(_tempDir, "source.dat");
+        await File.WriteAllTextAsync(source, "payload");
+        _casServiceMock.Setup(c => c.GetContentPathAsync("hash", default))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(source));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.LinkFromCasAsync("hash", "\0", useHardLink: hardLink));
+    }
+
     /// <summary>
     /// The link and its target must be the same inode with a link count of two. Content
     /// equality is not sufficient evidence: a copy has identical content and a distinct
