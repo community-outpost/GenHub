@@ -8,10 +8,25 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class ProfileSharingConstants
 {
+    /// <summary>Resource key for a dependency requiring provider resolution on the recipient's platform.</summary>
+    public const string PlatformResolutionWarningKey = "GameProfiles.Share.Warning.PlatformResolution";
+
     /// <summary>
     /// The default schema version for shared game profile packages.
     /// </summary>
     public const int DefaultSchemaVersion = 1;
+
+    /// <summary>
+    /// The schema version for packages with at least one platform-specific dependency.
+    /// Readers that only understand <see cref="DefaultSchemaVersion"/> reject these packages
+    /// instead of installing files built for another platform.
+    /// </summary>
+    public const int PlatformSpecificSchemaVersion = 2;
+
+    /// <summary>
+    /// The highest schema version this build can read.
+    /// </summary>
+    public const int MaxSupportedSchemaVersion = PlatformSpecificSchemaVersion;
 
     /// <summary>
     /// The maximum length in characters allowed for an inline Base64Url data payload (64 KB).
@@ -113,6 +128,24 @@ public static class ProfileSharingConstants
     /// Error message when an export or inspection operation is invoked with an empty profile ID.
     /// </summary>
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
+
+    /// <summary>
+    /// Resource key for a dependency shared for another platform.
+    /// {0} is the content name, {1} the platforms it was shared for and {2} the recipient's runtime.
+    /// </summary>
+    public const string DependencyBuiltForOtherPlatformErrorKey = "GameProfiles.Share.Error.BuiltForOtherPlatform";
+
+    /// <summary>
+    /// Resource key for a package whose schema version this build cannot read.
+    /// {0} is the package version and {1} the highest supported version.
+    /// </summary>
+    public const string UnsupportedSchemaVersionErrorKey = "GameProfiles.Share.Error.UnsupportedSchemaVersion";
+
+    /// <summary>
+    /// Resource key for exporting a profile whose manifest has no variant for this platform.
+    /// {0} is the manifest name and {1} the runtime identifier.
+    /// </summary>
+    public const string CannotExportNoHostVariantErrorKey = "GameProfiles.Share.Error.NoHostVariant";
 
     /// <summary>
     /// Parent directory segment in file paths.
