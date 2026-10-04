@@ -578,6 +578,16 @@ public class FastHttpClientFileDownloader(
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private bool IsAllowedDownloadUrl(string? url, out string? error) =>
-        NetworkSecurityHelper.IsSafeUrl(url, out error);
+    private bool IsAllowedDownloadUrl(string? url, out string? error)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+            IsLoopbackHost(uri.Host))
+        {
+            error = null;
+            return true;
+        }
+
+        return NetworkSecurityHelper.IsSafeUrl(url, out error);
+    }
 }
