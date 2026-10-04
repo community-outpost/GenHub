@@ -278,7 +278,7 @@ public class GeneralsOnlineWebSocketListenerTests
         var disconnectTask = Task.Run(async () => await listener.DisconnectAsync());
         var disposeTask = Task.Run(async () => await listener.DisposeAsync());
 
-        await Task.WhenAll(disconnectTask, disposeTask.AsTask());
+        await Task.WhenAll(disconnectTask, disposeTask);
         Assert.False(listener.IsConnected);
     }
 
