@@ -247,7 +247,11 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="sourcePath">The source file path.</param>
     /// <param name="relativePath">The workspace-relative path of the file.</param>
     /// <param name="configuration">The workspace configuration that collects skipped files.</param>
-    /// <returns><c>true</c> when the source file exists; otherwise <c>false</c>.</returns>
+    /// <returns><c>true</c> when the source file exists; <c>false</c> when it is confirmed missing.</returns>
+    /// <exception cref="IOException">
+    /// The source path is a directory, or its attributes cannot be read for a reason other than a missing file.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">The source path or one of its parents is inaccessible.</exception>
     protected bool ValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration)
     {
         try

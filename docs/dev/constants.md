@@ -235,6 +235,12 @@ Constants related to workspace management and configuration.
 
 - `DefaultWorkspaceStrategy`: The default workspace strategy to use when none is specified (`WorkspaceStrategy.HardLink`)
 - `ZeroCopyElevationGuidance`: Guidance message appended to errors when zero-copy hard links or symlinks cannot be created (`"To use zero-copy workspaces without copying game files, ensure GenHub has permission to create links (on Windows, enable Developer Mode or run as Administrator)."`)
+- `SourcePathIsDirectoryMessage`: Error when a workspace source points to a directory instead of a file (`"Source path is a directory: {0}"`)
+- `SkippedMissingSourceFileMessageKey`: Resource key for the validation issue on a file skipped because its source is missing (`"Workspace.Validation.SkippedMissingSourceFile"`)
+- `SkippedSourceFilesTitleKey`: Resource key for the title of the skipped files notification (`"Workspace.Notification.SkippedSourceFiles.Title"`)
+- `SkippedSourceFilesMessageKey`: Resource key for the message of the skipped files notification (`"Workspace.Notification.SkippedSourceFiles.Message"`)
+- `MaxSkippedSourceFilesListed`: Maximum number of skipped file names listed in the notification (`5`)
+- `SkippedSourceFilesLog`: Log template for skipped missing workspace sources
 
 ---
 ## CommandLineConstants Class
