@@ -643,6 +643,7 @@ public class GameProfileItemViewModelTests
     [InlineData("/Assets/Covers/usa-cover.jpg")]
     [InlineData(@"Assets\Covers\usa-cover.jpg")]
     [InlineData("/assets/covers/USA-Cover.jpg")]
+    [InlineData("avares://GenHub/assets/covers/USA-Cover.jpg")]
     public void Construction_DefaultUsaCoverSentinels_ReplacedByPublisherBranding(string sentinelCoverPath)
     {
         var sentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
