@@ -148,6 +148,7 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path "win-publish") { Remove-Item -Recurse -Force "win-publish" }
+          if (Test-Path "velopack-release-windows") { Remove-Item -Recurse -Force "velopack-release-windows" }
           dotnet publish "${{ env.WINDOWS_PROJECT }}" `
             -c ${{ env.BUILD_CONFIGURATION }} `
             -r win-x64 `
@@ -166,6 +167,7 @@ jobs:
         id: delta_baseline
         shell: pwsh
         run: |
+          if (Test-Path "velopack-release-windows") { Remove-Item -Recurse -Force "velopack-release-windows" }
           New-Item -ItemType Directory -Force -Path velopack-release-windows | Out-Null
           vpk download github `
             --repoUrl "https://github.com/${{ github.repository }}" `
@@ -323,7 +325,7 @@ jobs:
 
       - name: Publish Linux App
         run: |
-          rm -rf linux-publish
+          rm -rf linux-publish velopack-release-linux
           dotnet publish "${{ env.LINUX_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r linux-x64 \
@@ -340,6 +342,7 @@ jobs:
       - name: Download Previous Release For Deltas
         id: delta_baseline
         run: |
+          rm -rf velopack-release-linux
           mkdir -p velopack-release-linux
           download_ok=0
           if vpk download github \
@@ -513,6 +516,7 @@ jobs:
       - name: Download Previous Release For Deltas
         id: delta_baseline
         run: |
+          rm -rf velopack-release-macos
           mkdir -p velopack-release-macos
           download_ok=0
           if vpk download github \
