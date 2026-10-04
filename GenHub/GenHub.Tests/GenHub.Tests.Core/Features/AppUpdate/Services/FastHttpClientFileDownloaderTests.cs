@@ -701,4 +701,44 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         await Assert.ThrowsAsync<SecurityException>(
             () => downloader.DownloadFile(loopbackUrl, targetFile, _ => { }, null, 30));
     }
+
+    /// <summary>
+    /// Tests that when DNS resolution fails due to an unsafe address (wrapped in HttpRequestException),
+    /// the exception is not swallowed by the fallback block and base.DownloadFile is not invoked.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_UnsafeAddressInHttpRequestException_ShouldNotFallbackToBaseDownloaderAndRethrowAsync()
+    {
+        var handler = new TestHttpMessageHandler(_ =>
+            throw new HttpRequestException("Connection failed", new SecurityException("Host 'example.com' resolved to an unsafe or reserved IP address.")));
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "ssrf-dns.bin");
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(
+            () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30));
+
+        Assert.IsType<SecurityException>(ex.InnerException);
+        Assert.False(File.Exists(targetFile));
+    }
+
+    /// <summary>
+    /// Tests that an AggregateException containing a SecurityException is not caught by the fallback catch block.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_AggregateSecurityException_ShouldNotFallbackToBaseDownloaderAsync()
+    {
+        var handler = new TestHttpMessageHandler(_ =>
+            throw new AggregateException(new SecurityException("Blocked by security validation.")));
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "ssrf-agg.bin");
+
+        await Assert.ThrowsAsync<AggregateException>(
+            () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30));
+
+        Assert.False(File.Exists(targetFile));
+    }
 }
