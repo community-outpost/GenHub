@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Content.Services.Publishers;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -131,6 +132,34 @@ public sealed class GitHubManifestFactoryEntryTests : IDisposable
 
         Assert.True(result.Success);
         Assert.Null(result.Data!.Single().EntryPoint);
+    }
+
+    /// <summary>
+    /// A variant manifest resolves on the host to the extracted payload: the host variant
+    /// takes the extracted files and the detected entry, the root list stays empty, and the
+    /// foreign variant keeps its declared files and entry.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifests_VariantGameClient_PutsExtractedFilesOnHostVariantAsync()
+    {
+        File.WriteAllBytes(Path.Combine(_tempDirectory, "GeneralsOnlineZH"), [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00]);
+        var original = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host.zip", SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "foreign.zip", SourceType = ContentSourceType.RemoteDownload }]);
+        original.Publisher = new PublisherInfo { Name = "Test", PublisherType = "github" };
+        original.Variants[0].EntryPoint = "generalszh.exe";
+
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(original, _tempDirectory);
+
+        Assert.True(result.Success, result.FirstError);
+        var manifest = result.Data!.Single();
+        Assert.Empty(manifest.Files);
+        Assert.Equal("GeneralsOnlineZH", Assert.Single(ManifestVariantResolver.ResolveFiles(manifest)).RelativePath);
+        Assert.Equal("GeneralsOnlineZH", ManifestVariantResolver.ResolveEntryPoint(manifest).RelativePath);
+        Assert.Equal("foreign.zip", Assert.Single(manifest.Variants[0].Files).RelativePath);
+        Assert.Equal("generalszh.exe", manifest.Variants[0].EntryPoint);
+        Assert.Equal("host.zip", Assert.Single(original.Variants[1].Files).RelativePath);
     }
 
     private static ContentManifest ClientManifest()

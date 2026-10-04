@@ -13,6 +13,7 @@ using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -183,6 +184,46 @@ public sealed class GenLauncherDelivererTests
 
         requested.Should().NotBeEmpty();
         requested.Should().OnlyContain(url => url == VariantDownloadRecorder.HostUrl);
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync fails with the no-host-variant message, without
+    /// downloading, when no variant matches the host.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithoutHostVariant_FailsWithoutDownloadingAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadServiceMock);
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var manifest = VariantManifestFixture.Create(
+            [],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Variants.RemoveAt(1);
+        manifest.Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher };
+        var expected = string.Format(
+            CultureInfo.InvariantCulture,
+            ManifestErrorMessages.NoHostVariantForManifest,
+            manifest.Id,
+            ManifestVariantResolver.CurrentRuntimeIdentifier);
+
+        OperationResult<ContentManifest> result;
+        try
+        {
+            result = await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+
+        result.Success.Should().BeFalse();
+        result.FirstError.Should().Be(expected);
+        requested.Should().BeEmpty();
     }
 
     /// <summary>

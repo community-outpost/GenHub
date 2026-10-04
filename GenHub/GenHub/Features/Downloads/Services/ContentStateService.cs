@@ -989,9 +989,10 @@ public sealed partial class ContentStateService(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest.EntryPoint))
+        var entryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(manifest);
+        if (!string.IsNullOrWhiteSpace(entryPoint))
         {
-            platforms.UnionWith(ExtractPlatformTokens(manifest.EntryPoint));
+            platforms.UnionWith(ExtractPlatformTokens(entryPoint));
         }
 
         return platforms;

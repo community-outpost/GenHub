@@ -194,10 +194,7 @@ public partial class CNCLabsManifestFactory(
         }
 
         // Create updated manifest with extracted files
-        var updatedManifest = new ContentManifest(originalManifest)
-        {
-            Files = extractedFiles,
-        };
+        var updatedManifest = ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, extractedFiles);
 
         logger.LogInformation(
             "Successfully extracted and processed {Count} files for manifest {ManifestId}",
