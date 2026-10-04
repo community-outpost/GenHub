@@ -75,7 +75,7 @@ public class UnixFileOperationsService(
                 await BaseService.CreateSymlinkAsync(destinationPath, casPath, allowFallback: false, cancellationToken).ConfigureAwait(false);
                 return true;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 Logger.LogError(ex, "Failed to create symlink from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
                 return false;
@@ -87,7 +87,7 @@ public class UnixFileOperationsService(
             await CreateHardLinkAsync(destinationPath, casPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.LogError(ex, "Failed to create hard link from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return false;
