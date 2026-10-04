@@ -1684,6 +1684,244 @@ public class PublisherStudioInventoryManagementTests
         }
     }
 
+    /// <summary>
+    /// Tests that Publisher.AvatarUrl and NamedCatalog.IconUrl are indexed in the linkage index,
+    /// showing as linked in the inventory rather than unlinked.
+    /// </summary>
+    [Fact]
+    public void BuildUrlReferenceIndex_IndexesPublisherAvatarAndCatalogIcons()
+    {
+        var project = CreateInventoryProject();
+        const string avatarUrl = "https://drive.google.com/uc?export=download&id=pub-avatar";
+        const string iconUrl = "https://drive.google.com/uc?export=download&id=cat-icon";
+
+        project.Catalog!.Publisher!.AvatarUrl = avatarUrl;
+        project.Catalogs[0].IconUrl = iconUrl;
+
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "avatar-file-id",
+            FileName = "avatar.png",
+            Url = avatarUrl,
+            FileSize = 2048,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "icon-file-id",
+            FileName = "icon.png",
+            Url = iconUrl,
+            FileSize = 1024,
+        });
+
+        vm.RefreshHostedAssets();
+
+        var avatarAsset = vm.HostedAssets.Single(a => a.Name == "avatar.png");
+        var iconAsset = vm.HostedAssets.Single(a => a.Name == "icon.png");
+
+        Assert.Equal(1, avatarAsset.LinkCount);
+        Assert.NotEqual("Not linked", avatarAsset.LinkedToText);
+
+        Assert.Equal(1, iconAsset.LinkCount);
+        Assert.NotEqual("Not linked", iconAsset.LinkedToText);
+    }
+
+    /// <summary>
+    /// Tests that deleting a hosted asset linked to Publisher.AvatarUrl or NamedCatalog.IconUrl
+    /// calls DeleteFileAsync and clears the respective URL references in the project.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_PublisherAvatarAndCatalogIcon_UnlinksAndReplacesUrlsAsync()
+    {
+        var project = CreateInventoryProject();
+        const string avatarUrl = "https://drive.google.com/uc?export=download&id=pub-avatar";
+        const string iconUrl = "https://drive.google.com/uc?export=download&id=cat-icon";
+
+        project.Catalog!.Publisher!.AvatarUrl = avatarUrl;
+        project.Catalogs[0].IconUrl = iconUrl;
+
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "avatar-file-id",
+            FileName = "avatar.png",
+            Url = avatarUrl,
+            FileSize = 2048,
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "icon-file-id",
+            FileName = "icon.png",
+            Url = iconUrl,
+            FileSize = 1024,
+        });
+
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+
+        var avatarAsset = vm.HostedAssets.Single(a => a.Name == "avatar.png");
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(avatarAsset);
+
+        provider.Verify(p => p.DeleteFileAsync("avatar-file-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(project.Catalog.Publisher.AvatarUrl);
+        Assert.Null(vm.UploadHierarchy.AvatarUrl);
+
+        var iconAsset = vm.HostedAssets.Single(a => a.Name == "icon.png");
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(iconAsset);
+
+        provider.Verify(p => p.DeleteFileAsync("icon-file-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(project.Catalogs[0].IconUrl);
+    }
+
+    /// <summary>
+    /// Tests that catalog remote cleanup keeps a remote icon file shared with the publisher avatar.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteCatalogRemotes_SharedPublisherAvatar_KeepsRemoteFileAsync()
+    {
+        var project = CreateInventoryProject();
+        const string sharedUrl = "https://drive.google.com/uc?export=download&id=shared-icon";
+        project.Catalog!.Publisher!.AvatarUrl = sharedUrl;
+        project.Catalogs[0].IconUrl = sharedUrl;
+
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Catalogs.Add(new CatalogHostingInfo
+        {
+            CatalogId = "main",
+            CatalogName = "Main Catalog",
+            FileId = "catalog-file-id",
+            FileName = "catalog-main.json",
+            Url = "https://drive.google.com/uc?export=download&id=catfile",
+        });
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "shared-icon-file-id",
+            FileName = "icon.png",
+            Url = sharedUrl,
+            FileSize = 1024,
+        });
+        vm.RefreshHostedAssets();
+
+        var cleaned = await vm.DeleteCatalogRemotesAsync("main");
+
+        Assert.True(cleaned);
+        provider.Verify(p => p.DeleteFileAsync("catalog-file-id", It.IsAny<CancellationToken>()), Times.Once);
+        provider.Verify(p => p.DeleteFileAsync("shared-icon-file-id", It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Contains(state.Artifacts, a => a.FileId == "shared-icon-file-id");
+    }
+
+    /// <summary>
+    /// Tests that deleting a hosted asset holds the publish gate, preventing concurrent publish operations.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_HoldsPublishGateDuringDeleteAsync()
+    {
+        var project = CreateInventoryProject();
+        var provider = CreateDriveProvider();
+        var deleteStarted = new TaskCompletionSource<bool>();
+        var allowDeleteToComplete = new TaskCompletionSource<bool>();
+        var gateAcquiredDuringDelete = false;
+
+        provider
+            .Setup(p => p.DeleteFileAsync("modfile-id", It.IsAny<CancellationToken>()))
+            .Returns(async (string _, CancellationToken _) =>
+            {
+                deleteStarted.TrySetResult(true);
+                await allowDeleteToComplete.Task;
+                return true;
+            });
+
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "modfile-id",
+            FileName = "cool-mod.zip",
+            Url = CloudArtifactUrl,
+            FileSize = 1024,
+        });
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+        var artifact = vm.HostedAssets.Single(a => a.Name == "cool-mod.zip");
+
+        var deleteExecutionTask = vm.DeleteHostedAssetCommand.ExecuteAsync(artifact);
+
+        await deleteStarted.Task;
+
+        var (acquired, cts) = await vm.TryBeginPublishAsyncForTesting();
+        gateAcquiredDuringDelete = acquired;
+        cts?.Dispose();
+
+        allowDeleteToComplete.TrySetResult(true);
+        await deleteExecutionTask;
+
+        Assert.False(gateAcquiredDuringDelete);
+    }
+
+    /// <summary>
+    /// Tests that downloading catalog string from a loopback address is strictly rejected
+    /// even if bypass flags are turned on.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExpandCloudOnlyCatalog_LoopbackUrl_StrictlyRejectedEvenWithBypassFlagAsync()
+    {
+        var project = CreateInventoryProject();
+        var handler = new CountingJsonHandler("{}");
+        var client = new HttpClient(handler);
+        PublishShareViewModel.HttpClientOverrideForTesting = client;
+        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+
+        try
+        {
+            using var vm = CreateViewModel(project, CreateDriveProvider());
+            var state = vm.CurrentHostingState;
+            Assert.NotNull(state);
+            const string loopbackUrl = "https://127.0.0.1/catalog.json";
+            state.Catalogs.Add(new CatalogHostingInfo
+            {
+                CatalogId = "loopback-cat",
+                CatalogName = "Loopback Catalog",
+                FileName = "catalog-loopback.json",
+                Url = loopbackUrl,
+                FileSize = 100,
+            });
+
+            vm.RefreshHostedAssets();
+
+            var row = vm.HostedAssets.Single(a => a.Name == "catalog-loopback.json");
+            row.IsExpanded = true;
+            await WaitForPreviewAsync(row);
+
+            Assert.Equal(0, handler.CallCount);
+            Assert.False(row.RemotePreviewLoaded);
+        }
+        finally
+        {
+            PublishShareViewModel.HttpClientOverrideForTesting = null;
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+            client.Dispose();
+            handler.Dispose();
+        }
+    }
+
     private static async Task WaitForPreviewAsync(HostedAssetItemViewModel row)
     {
         for (var i = 0; i < 200 && !row.RemotePreviewLoaded && row.ChildrenLoadError == null; i++)

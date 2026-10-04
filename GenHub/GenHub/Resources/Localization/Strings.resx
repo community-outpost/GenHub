@@ -17906,6 +17906,9 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Hosting.MediaSlotIcon" xml:space="preserve">
     <value>Icon</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotAvatar" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
   <data name="Tools.PublisherStudio.Hosting.MediaSlotBanner" xml:space="preserve">
     <value>Banner</value>
   </data>
