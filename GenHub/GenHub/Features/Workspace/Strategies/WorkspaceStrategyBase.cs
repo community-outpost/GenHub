@@ -448,7 +448,7 @@ public abstract class WorkspaceStrategyBase<T>(
             // First try the strategy-specific CAS link creation
             await CreateCasLinkAsync(file.Hash, targetPath, contentType, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or CasStorageException)
         {
             logger.LogWarning(ex, "Strategy-specific CAS link creation failed for hash {Hash} at {Path}, attempting direct service fallback", file.Hash, targetPath);
 
@@ -466,7 +466,7 @@ public abstract class WorkspaceStrategyBase<T>(
                     }
                 }
             }
-            catch (Exception fallbackEx)
+            catch (Exception fallbackEx) when (fallbackEx is IOException or UnauthorizedAccessException or InvalidOperationException or CasStorageException)
             {
                 logger.LogError(fallbackEx, "All CAS operations failed for hash {Hash} at {Path}", file.Hash, targetPath);
                 throw new CasStorageException($"CAS content not available for hash {file.Hash}", fallbackEx);
