@@ -610,7 +610,7 @@ public class GeneralsOnlineLobbiesViewModelTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
 
         // Act & Assert
-        await (Task)method.Invoke(vm, [CancellationToken.None])!;
+        await (Task)method.Invoke(vm, [CancellationToken.None, false])!;
     }
 
     /// <summary>
