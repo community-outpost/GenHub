@@ -224,7 +224,7 @@ jobs:
           )
 
           Write-Host "Cleaning publish directory..."
-          Remove-Item -Recurse -Force "win-publish" -ErrorAction SilentlyContinue
+          if (Test-Path "win-publish") { Remove-Item -Recurse -Force "win-publish" }
 
           Write-Host "Publishing Windows application"
           Write-Host "Version: ${{ steps.buildinfo.outputs.VERSION }}"
@@ -242,7 +242,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Creating Velopack package..."
-          Remove-Item -Recurse -Force "velopack-release" -ErrorAction SilentlyContinue
+          if (Test-Path "velopack-release") { Remove-Item -Recurse -Force "velopack-release" }
           vpk pack `
             --packId GenHub `
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} `
@@ -483,8 +483,8 @@ jobs:
         run: |
           BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
 
-          echo "Cleaning publish and dist directories..."
-          rm -rf macos-publish macos-dist
+          echo "Cleaning publish, dist, and release directories..."
+          rm -rf macos-publish macos-dist velopack-release
 
           dotnet publish "${{ env.MACOS_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
@@ -572,6 +572,7 @@ jobs:
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} \
             --packDir macos-dist/GenHub.app \
             --mainExe GenHub.MacOS \
+            --runtime osx-arm64 \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             $ICON_ARG \

@@ -147,6 +147,7 @@ jobs:
       - name: Publish Windows App
         shell: pwsh
         run: |
+          if (Test-Path "win-publish") { Remove-Item -Recurse -Force "win-publish" }
           dotnet publish "${{ env.WINDOWS_PROJECT }}" `
             -c ${{ env.BUILD_CONFIGURATION }} `
             -r win-x64 `
@@ -194,6 +195,7 @@ jobs:
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} `
             --packDir win-publish `
             --mainExe GenHub.Windows.exe `
+            --runtime win-x64 `
             --packTitle "GenHub" `
             --packAuthors "Community Outpost" `
             --icon GenHub/GenHub/Assets/Icons/generalshub.ico `
@@ -258,7 +260,8 @@ jobs:
       - name: Enforce Installer Size Budget
         shell: pwsh
         run: |
-          $budgetMB = 85
+          # 145 MB budget: base GenHub (~80 MB) + LibVLC Windows x64 native video player runtime (~48 MB compressed) + headroom
+          $budgetMB = 145
           $setup = Get-ChildItem -Path velopack-release-windows/*-Setup.exe | Select-Object -First 1
           $sizeMB = $setup.Length / 1MB
           Write-Host ("Setup.exe: {0:N1} MB (budget {1} MB)" -f $sizeMB, $budgetMB)
@@ -319,6 +322,7 @@ jobs:
 
       - name: Publish Linux App
         run: |
+          rm -rf linux-publish
           dotnet publish "${{ env.LINUX_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r linux-x64 \
@@ -363,6 +367,7 @@ jobs:
             --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
             --packDir linux-publish \
             --mainExe GenHub.Linux \
+            --runtime linux-x64 \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
@@ -441,6 +446,7 @@ jobs:
 
       - name: Publish macOS App
         run: |
+          rm -rf macos-publish macos-dist velopack-release-macos
           dotnet publish "${{ env.MACOS_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r osx-arm64 \
@@ -541,6 +547,7 @@ jobs:
             --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
             --packDir macos-dist/GenHub.app \
             --mainExe GenHub.MacOS \
+            --runtime osx-arm64 \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             $ICON_ARG \
