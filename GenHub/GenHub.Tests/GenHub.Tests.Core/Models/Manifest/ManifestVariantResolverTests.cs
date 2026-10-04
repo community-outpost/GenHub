@@ -524,6 +524,22 @@ public class ManifestVariantResolverTests
     }
 
     /// <summary>
+    /// With variants declared and none for the runtime there is nowhere to put the files,
+    /// so the copy fails instead of returning a manifest that silently lost them.
+    /// </summary>
+    [Fact]
+    public void CopyWithResolvedFiles_NoMatchingVariant_Throws()
+    {
+        var original = new ContentManifest
+        {
+            Variants = [new() { RuntimeIdentifiers = ["win-x64"], Files = [File("generalszh.exe", true)] }],
+        };
+
+        Assert.Throws<InvalidOperationException>(
+            () => ManifestVariantResolver.CopyWithResolvedFiles(original, [File("generalszh", true)], "osx-arm64"));
+    }
+
+    /// <summary>
     /// With variants declared, the matching variant's entry point is the declared one and
     /// the root entry point is ignored.
     /// </summary>

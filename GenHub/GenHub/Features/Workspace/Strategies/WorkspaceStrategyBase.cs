@@ -587,7 +587,7 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         var executableManifest = configuration.Manifests
-            .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+            .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(ManifestVariantResolver.GetDeclaredEntryPoint(m)));
 
         if (executableManifest != null)
         {

@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -122,6 +123,9 @@ public static class ManifestVariantResolver
     /// <param name="files">The files delivered for the runtime.</param>
     /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
     /// <returns>The copy.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The manifest declares variants and none matches the runtime, so there is nowhere to put the files.
+    /// </exception>
     public static ContentManifest CopyWithResolvedFiles(
         ContentManifest original,
         List<ManifestFile> files,
@@ -129,6 +133,15 @@ public static class ManifestVariantResolver
     {
         ArgumentNullException.ThrowIfNull(original);
         ArgumentNullException.ThrowIfNull(files);
+
+        if (!SupportsRuntime(original, runtimeIdentifier))
+        {
+            throw new InvalidOperationException(string.Format(
+                CultureInfo.InvariantCulture,
+                ManifestErrorMessages.NoHostVariantForManifest,
+                original.Id,
+                runtimeIdentifier ?? CurrentRuntimeIdentifier));
+        }
 
         var copy = new ContentManifest(original);
         ReplaceResolvedFiles(copy, files, runtimeIdentifier);
