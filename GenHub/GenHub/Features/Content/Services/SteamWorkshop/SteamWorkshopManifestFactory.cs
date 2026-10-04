@@ -117,10 +117,7 @@ public class SteamWorkshopManifestFactory(
             });
         }
 
-        var updatedManifest = new ContentManifest(originalManifest)
-        {
-            Files = extractedFiles,
-        };
+        var updatedManifest = ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, extractedFiles);
 
         logger.LogInformation(
             "Successfully processed {Count} files for manifest {ManifestId}",

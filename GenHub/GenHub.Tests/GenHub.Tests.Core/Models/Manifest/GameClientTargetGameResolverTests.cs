@@ -120,6 +120,27 @@ public sealed class GameClientTargetGameResolverTests : IDisposable
         Assert.Null(await GameClientTargetGameResolver.ResolveFromEntryBinaryAsync(missing, _payload, CancellationToken.None));
     }
 
+    /// <summary>
+    /// A variant manifest resolves from the host variant's entry binary, ignoring the
+    /// root entry point and the foreign variant's entry.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveFromEntryBinaryAsync_VariantManifest_UsesHostVariantEntryAsync()
+    {
+        WriteEntry("hostclient", withMarkers: true);
+        WriteEntry("rootclient", withMarkers: false, withGeneralsToken: true);
+        WriteEntry("foreignclient", withMarkers: false, withGeneralsToken: true);
+        var manifest = VariantManifestFixture.Create([], []);
+        manifest.EntryPoint = "rootclient";
+        manifest.Variants[0].EntryPoint = "foreignclient";
+        manifest.Variants[1].EntryPoint = "hostclient";
+
+        var result = await GameClientTargetGameResolver.ResolveFromEntryBinaryAsync(manifest, _payload, CancellationToken.None);
+
+        Assert.Equal(GameType.ZeroHour, result);
+    }
+
     private void WriteEntry(string name, bool withMarkers, bool withGeneralsToken = false)
     {
         var header = new byte[] { 0x7F, (byte)'E', (byte)'L', (byte)'F', 0x02, 0x01, 0x01, 0x00 };

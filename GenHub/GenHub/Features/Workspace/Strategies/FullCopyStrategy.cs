@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -160,7 +161,7 @@ public sealed class FullCopyStrategy(
                             }
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or CasStorageException)
                     {
                         Logger.LogError(
                             ex,

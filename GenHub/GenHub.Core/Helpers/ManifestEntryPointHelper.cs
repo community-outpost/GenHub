@@ -19,8 +19,8 @@ namespace GenHub.Core.Helpers;
 /// Declared entries are validated against the payload while it is still on disk: a
 /// GameClient entry that names no file fails here instead of shipping an unlaunchable
 /// manifest. Variants carry their own entries (the launch resolver ignores the root
-/// entry whenever variants exist), so baking fills missing variant entries and skips
-/// sniffing entirely when every variant already declares one.
+/// entry whenever variants exist). The payload holds only the host's build, so baking
+/// validates or detects the host variant's entry and leaves the other variants as declared.
 /// </para>
 /// </summary>
 public static class ManifestEntryPointHelper
@@ -92,27 +92,20 @@ public static class ManifestEntryPointHelper
         CancellationToken cancellationToken,
         ILocalizationService? localizationService)
     {
-        var dangling = manifest.Variants
-            .Where(v => !string.IsNullOrWhiteSpace(v.EntryPoint))
-            .FirstOrDefault(v => !EntryExistsInPayload(extractedDirectory, v.EntryPoint!));
-        if (dangling is not null)
-        {
-            return OperationResult<string?>.CreateFailure(
-                FormatFailure(localizationService, ManifestConstants.VariantEntryPointNotFoundInPayloadKey, ManifestConstants.VariantEntryPointNotFoundInPayload, manifest.Id, dangling.EntryPoint));
-        }
-
-        var missing = manifest.Variants.Where(v => string.IsNullOrWhiteSpace(v.EntryPoint)).ToList();
-        if (missing.Count == 0)
+        // The payload holds only this platform's build, so only the host variant can be
+        // validated or detected against it. Other variants keep their declared entries.
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        if (variant is null)
         {
             return OperationResult<string?>.CreateSuccess(null);
         }
 
-        // Detection scans the whole payload, so it cannot produce one entry per
-        // variant: fail loudly instead of assigning one variant's entry to another.
-        if (missing.Count > 1)
+        if (!string.IsNullOrWhiteSpace(variant.EntryPoint))
         {
-            return OperationResult<string?>.CreateFailure(
-                FormatFailure(localizationService, ManifestConstants.MultipleVariantsMissingEntryPointKey, ManifestConstants.MultipleVariantsMissingEntryPoint, manifest.Id, missing.Count));
+            return EntryExistsInPayload(extractedDirectory, variant.EntryPoint)
+                ? OperationResult<string?>.CreateSuccess(variant.EntryPoint)
+                : OperationResult<string?>.CreateFailure(
+                    FormatFailure(localizationService, ManifestConstants.VariantEntryPointNotFoundInPayloadKey, ManifestConstants.VariantEntryPointNotFoundInPayload, manifest.Id, variant.EntryPoint));
         }
 
         var detection = GameClientEntryDetector.DetectEntryPoint(extractedDirectory, cancellationToken);
@@ -122,7 +115,7 @@ public static class ManifestEntryPointHelper
                 FormatFailure(localizationService, ManifestConstants.EntryPointDetectionFailedKey, ManifestConstants.EntryPointDetectionFailed, manifest.Id, detection));
         }
 
-        missing[0].EntryPoint = detection.RelativePath;
+        variant.EntryPoint = detection.RelativePath;
         return OperationResult<string?>.CreateSuccess(detection.RelativePath);
     }
 

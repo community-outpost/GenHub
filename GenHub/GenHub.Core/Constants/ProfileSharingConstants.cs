@@ -11,6 +11,12 @@ public static class ProfileSharingConstants
     /// <summary>Resource key for a dependency requiring provider resolution on the recipient's platform.</summary>
     public const string PlatformResolutionWarningKey = "GameProfiles.Share.Warning.PlatformResolution";
 
+    /// <summary>Fallback error when building a shared dependency fails. {0} is its manifest ID.</summary>
+    public const string DependencyExportFailedMessageKey = "GameProfiles.Share.Error.DependencyExportFailed";
+
+    /// <summary>Error when a profile references a missing manifest. {0} is its manifest ID.</summary>
+    public const string ReferencedManifestMissingMessageKey = "GameProfiles.Share.Error.ReferencedManifestMissing";
+
     /// <summary>
     /// The default schema version for shared game profile packages.
     /// </summary>
@@ -164,6 +170,12 @@ public static class ProfileSharingConstants
     /// {0} is the manifest name and {1} the runtime identifier.
     /// </summary>
     public const string CannotExportNoHostVariantErrorKey = "GameProfiles.Share.Error.NoHostVariant";
+
+    /// <summary>
+    /// Resource key for the error shown when sharing local content that has no files to upload.
+    /// {0} is the content name.
+    /// </summary>
+    public const string LocalContentHasNoFilesToShareErrorKey = "GameProfiles.Share.Error.LocalContentHasNoFiles";
 
     /// <summary>
     /// Parent directory segment in file paths.
