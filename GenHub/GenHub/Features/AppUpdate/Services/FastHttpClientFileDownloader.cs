@@ -382,6 +382,27 @@ public class FastHttpClientFileDownloader(
         {
             using var client = CreateHttpClient(headers, timeout);
 
+            if (url.Contains("/actions/artifacts/", StringComparison.OrdinalIgnoreCase))
+            {
+                using var artifactResponse = await client.GetAsync(
+                    url,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancelToken).ConfigureAwait(false);
+
+                artifactResponse.EnsureSuccessStatusCode();
+
+                var artifactResolvedUri = artifactResponse.RequestMessage?.RequestUri ?? new Uri(url);
+                if (!IsAllowedDownloadUrl(artifactResolvedUri.ToString(), out var artifactRedirectError))
+                {
+                    throw new SecurityException($"Redirect target is not allowed: {artifactRedirectError}");
+                }
+
+                var totalBytes = artifactResponse.Content.Headers.ContentLength ?? -1L;
+                await DownloadSingleStreamAsync(artifactResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
+                ValidateDownloadedFileHeader(targetFile);
+                return;
+            }
+
             // Send byte-range probe request (bytes 0-0) to discover if the origin supports parallel chunking and obtain accurate total file size
             using var probeRequest = new HttpRequestMessage(HttpMethod.Get, url);
             probeRequest.Headers.Range = new RangeHeaderValue(0, 0);

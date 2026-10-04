@@ -119,9 +119,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets or sets a value indicating whether an update download is in progress.
     /// </summary>
-    [ObservableProperty]
-    private bool _isDownloading;
-
     /// <summary>
     /// Gets or sets the download progress percentage.
     /// </summary>
@@ -152,6 +149,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private UpdateProgress _installationProgress = new() { Status = "Ready", PercentComplete = 0 };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(IsLoadingOrInstalling))]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
+    private bool _isDownloading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InstallButtonText))]
@@ -465,6 +469,21 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 viewModel.InstallationProgress = p;
                 viewModel.StatusMessage = p.Status;
                 viewModel.DownloadProgress = p.PercentComplete;
+
+                if (!string.IsNullOrEmpty(p.Status) &&
+                    p.Status.StartsWith("Downloading", StringComparison.OrdinalIgnoreCase))
+                {
+                    viewModel.IsDownloading = true;
+                }
+                else if (!string.IsNullOrEmpty(p.Status) &&
+                         (p.Status.StartsWith("Extracting", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Preparing", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Applying", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Launching", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Installing", StringComparison.OrdinalIgnoreCase)))
+                {
+                    viewModel.IsDownloading = false;
+                }
             });
         });
     }
@@ -997,7 +1016,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling && !IsChecking && !IsLoadingVersions;
+    public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling && !IsDownloading && !IsChecking && !IsLoadingVersions;
 
     /// <summary>
     /// Gets a value indicating whether the check button should be enabled.
@@ -1009,7 +1028,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    public bool IsLoadingOrInstalling => IsLoadingVersions || IsChecking || IsInstalling;
+    public bool IsLoadingOrInstalling => IsLoadingVersions || IsChecking || IsInstalling || IsDownloading;
 
     /// <summary>
     /// Gets the text for the install button.
@@ -1018,6 +1037,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         get
         {
+            if (IsDownloading)
+            {
+                return _localizationService?.GetString("Downloads.Status.Downloading") ?? "Downloading...";
+            }
+
             if (IsInstalling)
             {
                 return _localizationService?.GetString("Updates.Button.Installing") ?? AppUpdateConstants.InstallingMessage;
@@ -1602,6 +1626,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         try
         {
             IsInstalling = true;
+            IsDownloading = true;
             HasError = false;
             ErrorMessage = string.Empty;
             StatusMessage = AppUpdateConstants.DownloadingUpdateMessage;
@@ -1638,6 +1663,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            IsDownloading = false;
             IsInstalling = false;
         }
     }
@@ -1645,7 +1671,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the branch artifact can be installed.
     /// </summary>
-    public bool CanInstallBranchArtifact => !string.IsNullOrEmpty(SubscribedBranch) && !IsInstalling;
+    public bool CanInstallBranchArtifact => !string.IsNullOrEmpty(SubscribedBranch) && !IsInstalling && !IsDownloading;
 
     /// <summary>
     /// Installs the subscribed PR artifact.
@@ -1707,6 +1733,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            IsDownloading = false;
             IsInstalling = false;
         }
     }
@@ -1714,7 +1741,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the PR artifact can be installed.
     /// </summary>
-    public bool CanInstallPrArtifact => SubscribedPr != null && !IsInstalling;
+    public bool CanInstallPrArtifact => SubscribedPr != null && !IsInstalling && !IsDownloading;
 
     /// <summary>
     /// Installs the subscribed branch artifact.
@@ -1772,6 +1799,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            IsDownloading = false;
             IsInstalling = false;
         }
     }
@@ -1779,6 +1807,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private async Task InstallArtifactAsync(ArtifactUpdateInfo artifact)
     {
         IsInstalling = true;
+        IsDownloading = true;
         HasError = false;
         ErrorMessage = string.Empty;
         DownloadProgress = 0;
@@ -1829,6 +1858,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            IsDownloading = false;
             IsInstalling = false;
         }
     }
@@ -1879,6 +1909,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     partial void OnIsUpdateAvailableChanged(bool value)
+    {
+        RunOnUi(UpdateCommandStates);
+    }
+
+    partial void OnIsDownloadingChanged(bool value)
     {
         RunOnUi(UpdateCommandStates);
     }
