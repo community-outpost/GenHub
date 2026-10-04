@@ -117,16 +117,20 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
-        var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
-        _lastReportedPhase = value.Phase;
+        bool forceUpdate;
+        lock (_lock)
+        {
+            var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
+            _lastReportedPhase = value.Phase;
 
-        var op = value.CurrentOperation ?? string.Empty;
-        var opChanged = !string.Equals(_lastReportedOperation, op, StringComparison.Ordinal);
-        var isProgressTick = !string.IsNullOrEmpty(_lastReportedOperation) &&
-                             StatusShowsPercentage(_lastReportedOperation) &&
-                             StatusShowsPercentage(op);
-        var forceUpdate = phaseChanged || (opChanged && !isProgressTick);
-        _lastReportedOperation = op;
+            var op = value.CurrentOperation ?? string.Empty;
+            var opChanged = !string.Equals(_lastReportedOperation, op, StringComparison.Ordinal);
+            var isProgressTick = !string.IsNullOrEmpty(_lastReportedOperation) &&
+                                 StatusShowsPercentage(_lastReportedOperation) &&
+                                 StatusShowsPercentage(op);
+            forceUpdate = phaseChanged || (opChanged && !isProgressTick);
+            _lastReportedOperation = op;
+        }
 
         var status = value.FormatProgressStatus();
         var isMultiFile = value.TotalFiles > 1;

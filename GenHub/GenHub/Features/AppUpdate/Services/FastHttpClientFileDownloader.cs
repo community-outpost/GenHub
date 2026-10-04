@@ -137,7 +137,26 @@ public class FastHttpClientFileDownloader(
         double timeout,
         CancellationToken cancelToken = default)
     {
-        return DownloadFileCoreAsync(url, targetFile, progress, headers, timeout, remainingRedirects: 3, cancelToken);
+        var maxReported = -1;
+        var sync = new object();
+        Action<int> monotonicProgress = p =>
+        {
+            if (p <= Volatile.Read(ref maxReported))
+            {
+                return;
+            }
+
+            lock (sync)
+            {
+                if (p > maxReported)
+                {
+                    maxReported = p;
+                    progress(p);
+                }
+            }
+        };
+
+        return DownloadFileCoreAsync(url, targetFile, monotonicProgress, headers, timeout, remainingRedirects: 3, cancelToken);
     }
 
     /// <inheritdoc/>
@@ -356,7 +375,7 @@ public class FastHttpClientFileDownloader(
         ArgumentException.ThrowIfNullOrWhiteSpace(url);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetFile);
 
-        if (!IsAllowedDownloadUrl(url, out var urlError))
+        if (!NetworkSecurityHelper.IsSafeUrl(url, out var urlError))
         {
             throw new SecurityException($"Download URL is not allowed: {urlError}");
         }
@@ -371,7 +390,7 @@ public class FastHttpClientFileDownloader(
         {
             using var client = CreateHttpClient(headers, timeout);
 
-            if (url.Contains("/actions/artifacts/", StringComparison.OrdinalIgnoreCase))
+            if (url.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase))
             {
                 using var artifactResponse = await client.GetAsync(
                     url,
@@ -381,7 +400,7 @@ public class FastHttpClientFileDownloader(
                 artifactResponse.EnsureSuccessStatusCode();
 
                 var artifactResolvedUri = artifactResponse.RequestMessage?.RequestUri ?? new Uri(url);
-                if (!IsAllowedDownloadUrl(artifactResolvedUri.ToString(), out var artifactRedirectError))
+                if (!NetworkSecurityHelper.IsSafeUrl(artifactResolvedUri.ToString(), out var artifactRedirectError))
                 {
                     throw new SecurityException($"Redirect target is not allowed: {artifactRedirectError}");
                 }
@@ -404,7 +423,7 @@ public class FastHttpClientFileDownloader(
             probeResponse.EnsureSuccessStatusCode();
 
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!IsAllowedDownloadUrl(resolvedUri.ToString(), out var redirectError))
+            if (!NetworkSecurityHelper.IsSafeUrl(resolvedUri.ToString(), out var redirectError))
             {
                 throw new SecurityException($"Redirect target is not allowed: {redirectError}");
             }
@@ -468,7 +487,7 @@ public class FastHttpClientFileDownloader(
             fullResponse.EnsureSuccessStatusCode();
 
             var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!IsAllowedDownloadUrl(fullResolvedUri.ToString(), out var fullRedirectError))
+            if (!NetworkSecurityHelper.IsSafeUrl(fullResolvedUri.ToString(), out var fullRedirectError))
             {
                 throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
             }
@@ -521,7 +540,7 @@ public class FastHttpClientFileDownloader(
                 throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
             }
 
-            if (!IsAllowedDownloadUrl(confirmedUrl, out var confirmedError))
+            if (!NetworkSecurityHelper.IsSafeUrl(confirmedUrl, out var confirmedError))
             {
                 throw new SecurityException($"Confirmation URL target is not allowed: {confirmedError}");
             }
@@ -585,11 +604,5 @@ public class FastHttpClientFileDownloader(
         {
             cdnClient?.Dispose();
         }
-    }
-
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private bool IsAllowedDownloadUrl(string? url, out string? error)
-    {
-        return NetworkSecurityHelper.IsSafeUrl(url, out error);
     }
 }
