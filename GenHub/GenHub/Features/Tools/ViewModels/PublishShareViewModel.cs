@@ -265,12 +265,6 @@ public partial class PublishShareViewModel(
     internal static HttpClient? HttpClientOverrideForTesting { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether URL safety checks that require DNS resolution
-    /// should be bypassed during testing.
-    /// </summary>
-    internal static bool AllowUnresolvableUrlsForTesting { get; set; }
-
-    /// <summary>
     /// Invalidates any probed artifact size cached for the specified URL.
     /// </summary>
     /// <param name="url">The download URL of the artifact to invalidate.</param>
@@ -9466,8 +9460,7 @@ public partial class PublishShareViewModel(
             var isUnresolvableDns = string.Equals(failureReason, NetworkSecurityHelper.UnresolvableHostMessage, StringComparison.OrdinalIgnoreCase);
 
             var allowBypass = isUnresolvableDns &&
-                (AllowUnresolvableUrlsForTesting ||
-                 CatalogDocumentReader.AllowUnresolvableDnsForTesting ||
+                (CatalogDocumentReader.AllowUnresolvableDnsForTesting ||
                  HttpClientOverrideForTesting != null);
 
             if (!allowBypass)

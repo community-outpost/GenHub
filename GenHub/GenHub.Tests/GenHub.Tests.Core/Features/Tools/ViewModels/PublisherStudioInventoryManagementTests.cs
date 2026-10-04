@@ -698,7 +698,6 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(JsonSerializer.Serialize(catalog, PublisherJsonOptions.Definition));
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
-        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
         try
         {
@@ -714,7 +713,6 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -755,7 +753,6 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(JsonSerializer.Serialize(definition, PublisherJsonOptions.Definition));
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
-        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
         try
         {
@@ -770,7 +767,6 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -1481,7 +1477,6 @@ public class PublisherStudioInventoryManagementTests
         var handler = new CountingJsonHandler(catalogJson);
         var client = new HttpClient(handler);
         PublishShareViewModel.HttpClientOverrideForTesting = client;
-        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
 
         try
@@ -1532,7 +1527,6 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -1664,24 +1658,6 @@ public class PublisherStudioInventoryManagementTests
         vm.UpdateProjectArtifactSizesForTesting("https://example.com/patch.zip", 4242);
 
         Assert.Equal(4242, addonRelease.Artifacts[0].Size);
-    }
-
-    /// <summary>
-    /// Tests that <see cref="PublishShareViewModel.AllowUnresolvableUrlsForTesting"/> defaults to false and can be toggled.
-    /// </summary>
-    [Fact]
-    public void AllowUnresolvableUrlsForTesting_DefaultsToFalse_CanBeToggled()
-    {
-        Assert.False(PublishShareViewModel.AllowUnresolvableUrlsForTesting);
-        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
-        try
-        {
-            Assert.True(PublishShareViewModel.AllowUnresolvableUrlsForTesting);
-        }
-        finally
-        {
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
-        }
     }
 
     /// <summary>
@@ -1904,7 +1880,6 @@ public class PublisherStudioInventoryManagementTests
 
             var row = vm.HostedAssets.Single(a => a.Name == "catalog-loopback.json");
             PublishShareViewModel.HttpClientOverrideForTesting = client;
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
 
             row.IsExpanded = true;
@@ -1916,7 +1891,6 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
-            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
