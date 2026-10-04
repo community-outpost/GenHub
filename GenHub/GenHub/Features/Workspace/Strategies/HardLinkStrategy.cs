@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Workspace;
+using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -132,7 +133,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or CasStorageException)
                 {
                     Logger.LogError(
                         ex,
@@ -220,7 +221,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
             }
-            catch (Exception hardLinkEx) when (hardLinkEx is not OperationCanceledException)
+            catch (Exception hardLinkEx) when (hardLinkEx is IOException or UnauthorizedAccessException)
             {
                 Logger.LogWarning(hardLinkEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
 
@@ -228,7 +229,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 {
                     await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
                 }
-                catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
+                catch (Exception symlinkEx) when (symlinkEx is IOException or UnauthorizedAccessException)
                 {
                     Logger.LogError(
                         symlinkEx,
@@ -246,7 +247,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
             }
-            catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
+            catch (Exception symlinkEx) when (symlinkEx is IOException or UnauthorizedAccessException)
             {
                 Logger.LogError(
                     symlinkEx,
@@ -358,7 +359,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
                 return (false, true, LinkOverheadBytes);
             }
-            catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
+            catch (Exception symlinkEx) when (symlinkEx is IOException or UnauthorizedAccessException)
             {
                 Logger.LogError(
                     symlinkEx,
@@ -387,7 +388,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
             return (false, true, LinkOverheadBytes);
         }
-        catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
+        catch (Exception symlinkEx) when (symlinkEx is IOException or UnauthorizedAccessException)
         {
             Logger.LogError(
                 symlinkEx,

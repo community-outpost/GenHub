@@ -89,6 +89,36 @@ public class ProfileSharingServiceTests
             NullLogger<ProfileSharingService>.Instance);
     }
 
+    /// <summary>Missing manifest errors use the injected localization service.</summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToJsonAsync_WithMissingManifest_LocalizesErrorAsync()
+    {
+        const string missingId = "1.0.local.mod.missing";
+        var profile = CreateTestProfile("missing-profile", "Missing Profile");
+        profile.EnabledContentIds = [missingId];
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(missingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+        var localization = new Mock<GenHub.Core.Interfaces.Common.ILocalizationService>();
+        localization.Setup(l => l.GetString(ProfileSharingConstants.ReferencedManifestMissingMessageKey, It.IsAny<object[]>()))
+            .Returns((string key, object[] args) => $"Localized: {args[0]}");
+        using var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            localizationService: localization.Object);
+
+        var result = await service.ExportProfileToJsonAsync(profile.Id);
+
+        Assert.False(result.Success);
+        Assert.Equal($"Localized: {missingId}", result.FirstError);
+    }
+
     /// <summary>
     /// Verifies that exporting a valid profile produces a properly formatted genhub:// URI.
     /// </summary>
@@ -947,8 +977,10 @@ public class ProfileSharingServiceTests
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-profile-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
 
-        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+        // A concurrent pool replacement must not change the already validated export.
+        _manifestPoolMock.SetupSequence(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest(localManifest) { Files = [] }));
 
         var serviceWithUpload = new ProfileSharingService(
             _profileRepositoryMock.Object,
@@ -969,6 +1001,7 @@ public class ProfileSharingServiceTests
             // Assert
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
+            _manifestPoolMock.Verify(m => m.GetManifestAsync("1.0.local.mod.custommod", It.IsAny<CancellationToken>()), Times.Once);
             uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
             uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles, It.IsAny<GameType?>()), Times.Once);
         }
@@ -1056,6 +1089,81 @@ public class ProfileSharingServiceTests
                 File.Delete(tempFile);
             }
         }
+    }
+
+    /// <summary>
+    /// Cloud shares reject fileless local content before uploading anything, while JSON exports
+    /// retain the local reference for recipients who already have it.
+    /// </summary>
+    /// <param name="shareLink">Whether to share a link rather than export JSON.</param>
+    /// <returns>A task representing the test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExportProfile_WithLocalManifestWithoutFiles_OnlyRejectsCloudShareAsync(bool shareLink)
+    {
+        var localProfile = CreateTestProfile("local-empty-profile", "Local Empty Setup");
+        localProfile.EnabledContentIds = ["1.0.local.mod.withfiles", "1.0.local.mod.emptymod"];
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+        var localWithFiles = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.withfiles"),
+            Name = "Mod With Files",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo { Name = "GenHub (Local)", PublisherType = PublisherTypeConstants.Local },
+            Files = [new ManifestFile { RelativePath = "Data/INI/Mod.ini", Hash = "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Size = 10 }],
+        };
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.withfiles", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localWithFiles));
+        var localManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.local.mod.emptymod"),
+            Name = "Empty Mod",
+            Version = "1.0",
+            ContentType = ContentType.Mod,
+            Publisher = new PublisherInfo
+            {
+                Name = "GenHub (Local)",
+                PublisherType = PublisherTypeConstants.Local,
+            },
+            Files = [],
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-empty-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.emptymod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var serviceWithUpload = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            new Mock<ICasService>().Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        var result = shareLink
+            ? await serviceWithUpload.ExportProfileToUriAsync("local-empty-profile")
+            : await serviceWithUpload.ExportProfileToJsonAsync("local-empty-profile");
+
+        Assert.Equal(!shareLink, result.Success);
+        if (shareLink)
+        {
+            Assert.Contains("Empty Mod", result.FirstError);
+            Assert.Contains("no files to upload", result.FirstError);
+        }
+        else
+        {
+            var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(result.Data!, TestJsonOptions)!;
+            Assert.Contains(package.RequiredManifests, d => d.ManifestId == localManifest.Id.Value && d.Files.Count == 0);
+        }
+
+        uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
@@ -1511,6 +1619,7 @@ public class ProfileSharingServiceTests
         {
             Id = ManifestId.Create("1.0.local.map.defcon"),
             Name = "Defcon Map",
+            Files = [new ManifestFile { RelativePath = "Defcon.map", Hash = "map-hash", Size = 10 }],
             Version = "1.0",
             ContentType = ContentType.Map,
             TargetGame = GameType.ZeroHour,

@@ -74,29 +74,24 @@ public sealed class ManifestEntryPointHelperTests : IDisposable
     }
 
     /// <summary>
-    /// Variants with declared entries skip sniffing entirely, even for payloads that
-    /// would be ambiguous as a single client.
+    /// The host variant's declared entry is validated against the payload and returned
+    /// without sniffing. A foreign variant's entry is not in the host payload and is kept.
     /// </summary>
     [Fact]
-    public void BakeEntryPoint_VariantsAllDeclared_SkipsDetection()
+    public void BakeEntryPoint_HostVariantDeclared_ReturnsHostEntryAndKeepsForeignEntry()
     {
-        File.WriteAllBytes(Path.Combine(_payload, "win.exe"), [(byte)'M', (byte)'Z', 0x00, 0x00]);
         File.WriteAllBytes(Path.Combine(_payload, "macclient"), [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00]);
-        var manifest = new ContentManifest
-        {
-            Id = "1.0.test.gameclient.variants",
-            ContentType = ContentType.GameClient,
-            Variants =
-            [
-                new ArtifactVariant { EntryPoint = "win.exe" },
-                new ArtifactVariant { EntryPoint = "macclient" },
-            ],
-        };
+        File.WriteAllBytes(Path.Combine(_payload, "helper"), [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
+        var manifest = VariantManifestFixture.Create([], []);
+        manifest.Variants[0].EntryPoint = "win.exe";
+        manifest.Variants[1].EntryPoint = "macclient";
 
         var result = ManifestEntryPointHelper.BakeEntryPoint(manifest, _payload);
 
         Assert.True(result.Success);
-        Assert.Null(result.Data);
+        Assert.Equal("macclient", result.Data);
+        Assert.Equal("win.exe", manifest.Variants[0].EntryPoint);
+        Assert.Equal("macclient", manifest.Variants[1].EntryPoint);
         Assert.Null(manifest.EntryPoint);
     }
 
@@ -126,28 +121,57 @@ public sealed class ManifestEntryPointHelperTests : IDisposable
     }
 
     /// <summary>
-    /// Multiple variants without declared entries fail instead of sharing one
-    /// payload-wide detection result.
+    /// Only the host variant is detected from the payload. A foreign variant without an
+    /// entry no longer fails the bake and keeps no entry.
     /// </summary>
     [Fact]
-    public void BakeEntryPoint_MultipleVariantsMissingEntry_FailsFast()
+    public void BakeEntryPoint_ForeignVariantMissingEntry_BakesOnlyHostVariant()
     {
-        File.WriteAllBytes(Path.Combine(_payload, "win.exe"), [(byte)'M', (byte)'Z', 0x00, 0x00]);
-        var manifest = new ContentManifest
-        {
-            Id = "1.0.test.gameclient.variantambiguous",
-            ContentType = ContentType.GameClient,
-            Variants =
-            [
-                new ArtifactVariant(),
-                new ArtifactVariant(),
-            ],
-        };
+        File.WriteAllBytes(Path.Combine(_payload, "GeneralsOnlineZH"), [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00]);
+        var manifest = VariantManifestFixture.Create([], []);
+
+        var result = ManifestEntryPointHelper.BakeEntryPoint(manifest, _payload);
+
+        Assert.True(result.Success);
+        Assert.Equal("GeneralsOnlineZH", result.Data);
+        Assert.Null(manifest.Variants[0].EntryPoint);
+        Assert.Equal("GeneralsOnlineZH", manifest.Variants[1].EntryPoint);
+        Assert.Null(manifest.EntryPoint);
+    }
+
+    /// <summary>
+    /// A host variant entry that names no payload file fails instead of shipping an
+    /// unlaunchable manifest.
+    /// </summary>
+    [Fact]
+    public void BakeEntryPoint_HostVariantDeclaredEntryMissing_Fails()
+    {
+        File.WriteAllBytes(Path.Combine(_payload, "GeneralsOnlineZH"), [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00]);
+        var manifest = VariantManifestFixture.Create([], []);
+        manifest.Variants[1].EntryPoint = "missing/generalszh";
 
         var result = ManifestEntryPointHelper.BakeEntryPoint(manifest, _payload);
 
         Assert.False(result.Success);
-        Assert.Contains("2 variants", result.FirstError, StringComparison.Ordinal);
+        Assert.Contains("missing/generalszh", result.FirstError, StringComparison.Ordinal);
+        Assert.Equal("missing/generalszh", manifest.Variants[1].EntryPoint);
+    }
+
+    /// <summary>
+    /// A variant manifest with no host variant has nothing to bake and succeeds untouched.
+    /// </summary>
+    [Fact]
+    public void BakeEntryPoint_NoHostVariant_SucceedsWithoutBaking()
+    {
+        File.WriteAllBytes(Path.Combine(_payload, "GeneralsOnlineZH"), [0xFE, 0xED, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x00]);
+        var manifest = VariantManifestFixture.Create([], []);
+        manifest.Variants.RemoveAt(1);
+
+        var result = ManifestEntryPointHelper.BakeEntryPoint(manifest, _payload);
+
+        Assert.True(result.Success);
+        Assert.Null(result.Data);
+        Assert.Null(manifest.Variants[0].EntryPoint);
     }
 
     /// <summary>

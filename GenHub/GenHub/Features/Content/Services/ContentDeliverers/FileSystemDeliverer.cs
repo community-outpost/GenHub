@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -10,6 +11,7 @@ using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -65,7 +67,7 @@ public class FileSystemDeliverer(
             if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Manifest {packageManifest.Id} has no variant for runtime {ManifestVariantResolver.CurrentRuntimeIdentifier}.");
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, packageManifest.Id, ManifestVariantResolver.CurrentRuntimeIdentifier));
             }
 
             var deliveredFiles = new List<ManifestFile>();
@@ -163,12 +165,18 @@ public class FileSystemDeliverer(
                     permissions: file.Permissions);
             }
 
-            // The delivered manifest is flat, so it carries the resolved variant's declared
-            // entry point in place of the variant list.
-            var variantEntryPoint = ManifestVariantResolver.ResolveVariant(packageManifest)?.EntryPoint;
-            if (!string.IsNullOrWhiteSpace(variantEntryPoint))
+            // The delivered manifest is flat, so it carries the declared entry point and launch
+            // relationship the launcher resolves, in place of the variant list.
+            var declaredEntryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(packageManifest);
+            if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
             {
-                manifestBuilder.WithEntryPoint(variantEntryPoint);
+                manifestBuilder.WithEntryPoint(declaredEntryPoint);
+            }
+
+            var launchRelationship = ManifestVariantResolver.ResolveLaunchRelationship(packageManifest);
+            if (launchRelationship is not null)
+            {
+                manifestBuilder.WithLaunchRelationship(launchRelationship.ProcessName, launchRelationship.DiscoveryTimeoutMs);
             }
 
             // Add required directories

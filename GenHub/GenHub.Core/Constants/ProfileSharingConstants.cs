@@ -8,6 +8,12 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class ProfileSharingConstants
 {
+    /// <summary>Fallback error when building a shared dependency fails. {0} is its manifest ID.</summary>
+    public const string DependencyExportFailedMessageKey = "GameProfiles.Share.Error.DependencyExportFailed";
+
+    /// <summary>Error when a profile references a missing manifest. {0} is its manifest ID.</summary>
+    public const string ReferencedManifestMissingMessageKey = "GameProfiles.Share.Error.ReferencedManifestMissing";
+
     /// <summary>
     /// The default schema version for shared game profile packages.
     /// </summary>
@@ -113,6 +119,12 @@ public static class ProfileSharingConstants
     /// Error message when an export or inspection operation is invoked with an empty profile ID.
     /// </summary>
     public const string EmptyProfileIdErrorMessage = "Profile identifier cannot be empty.";
+
+    /// <summary>
+    /// Resource key for the error shown when sharing local content that has no files to upload.
+    /// {0} is the content name.
+    /// </summary>
+    public const string LocalContentHasNoFilesToShareErrorKey = "GameProfiles.Share.Error.LocalContentHasNoFiles";
 
     /// <summary>
     /// Parent directory segment in file paths.

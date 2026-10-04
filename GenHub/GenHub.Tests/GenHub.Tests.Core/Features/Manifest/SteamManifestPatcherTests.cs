@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Text.Json;
@@ -77,6 +78,48 @@ public class SteamManifestPatcherTests : IDisposable
         Assert.Null(patched.LaunchRelationship);
     }
 
+    /// <summary>
+    /// For a variant manifest, Steam mode declares the relationship on the host variant,
+    /// which is where the launcher reads it, and leaves the root and foreign variant alone.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task PatchManifestAsync_SteamModeVariantManifest_DeclaresRelationshipOnHostVariantAsync()
+    {
+        const string manifestId = "1.104.steam.gameclient.zerohour";
+        WriteVariantManifest(manifestId, hostRelationship: null);
+
+        await PatchAsync(manifestId, useSteamLaunch: true);
+
+        var patched = ReadManifest(manifestId);
+        Assert.Null(patched.LaunchRelationship);
+        Assert.Null(patched.Variants[0].LaunchRelationship);
+        Assert.Equal(GameClientConstants.GameProcessName, patched.Variants[1].LaunchRelationship?.ProcessName);
+        Assert.Equal(GameClientConstants.GameProcessName, ManifestVariantResolver.ResolveLaunchRelationship(patched)?.ProcessName);
+    }
+
+    /// <summary>
+    /// For a variant manifest, standalone mode clears the host variant's relationship and
+    /// any stale root relationship left by earlier patching.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task PatchManifestAsync_StandaloneModeVariantManifest_ClearsHostVariantRelationshipAsync()
+    {
+        const string manifestId = "1.104.steam.gameclient.zerohour";
+        WriteVariantManifest(
+            manifestId,
+            new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName },
+            new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
+
+        await PatchAsync(manifestId, useSteamLaunch: false);
+
+        var patched = ReadManifest(manifestId);
+        Assert.Null(patched.LaunchRelationship);
+        Assert.Null(patched.Variants[1].LaunchRelationship);
+        Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(patched));
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -112,6 +155,21 @@ public class SteamManifestPatcherTests : IDisposable
     private void WriteManifest(string manifestId, bool withGameDat)
     {
         var json = JsonSerializer.Serialize(CreateManifest(manifestId, withGameDat));
+        File.WriteAllText(Path.Combine(_manifestsDirectory, $"{manifestId}.manifest.json"), json);
+    }
+
+    private void WriteVariantManifest(string manifestId, LaunchRelationship? hostRelationship, LaunchRelationship? rootRelationship = null)
+    {
+        var manifest = VariantManifestFixture.Create(
+            [
+                new() { RelativePath = GameClientConstants.GeneralsExecutable },
+                new() { RelativePath = GameClientConstants.SteamGameDatExecutable },
+            ],
+            [new() { RelativePath = GameClientConstants.GeneralsExecutable }]);
+        manifest.Id = manifestId;
+        manifest.Variants[1].LaunchRelationship = hostRelationship;
+        manifest.LaunchRelationship = rootRelationship;
+        var json = JsonSerializer.Serialize(manifest);
         File.WriteAllText(Path.Combine(_manifestsDirectory, $"{manifestId}.manifest.json"), json);
     }
 

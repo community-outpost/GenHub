@@ -98,7 +98,7 @@ public class ModDBManifestFactory(
         // Playwright saves a download to the requested destination path. ModDB's redirect often
         // omits the filename extension, so archive detection must use its signature rather than
         // relying on a .zip suffix.
-        var stagedPayloads = originalManifest.Files
+        var stagedPayloads = ManifestVariantResolver.ResolveFiles(originalManifest)
             .Select(file => Path.Combine(extractedDirectory, file.RelativePath))
             .Where(File.Exists)
             .ToArray();
@@ -180,10 +180,7 @@ public class ModDBManifestFactory(
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(
         [
-            new ContentManifest(originalManifest)
-            {
-                Files = files,
-            },
+            ManifestVariantResolver.CopyWithResolvedFiles(originalManifest, files),
         ]);
     }
 

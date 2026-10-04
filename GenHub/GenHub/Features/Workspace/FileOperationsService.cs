@@ -652,7 +652,7 @@ public class FileOperationsService(
             logger.LogDebug("Copied from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to copy from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
             return false;
@@ -699,7 +699,7 @@ public class FileOperationsService(
             logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;

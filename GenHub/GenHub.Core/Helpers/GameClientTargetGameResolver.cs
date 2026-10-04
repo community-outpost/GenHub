@@ -35,14 +35,16 @@ public static class GameClientTargetGameResolver
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
+        var entryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(manifest);
+
         if (manifest.ContentType != ContentType.GameClient
-            || string.IsNullOrWhiteSpace(manifest.EntryPoint)
+            || string.IsNullOrWhiteSpace(entryPoint)
             || string.IsNullOrWhiteSpace(extractedDirectory))
         {
             return null;
         }
 
-        var resolved = ContentPathPolicy.ResolveContainedFile(extractedDirectory, manifest.EntryPoint);
+        var resolved = ContentPathPolicy.ResolveContainedFile(extractedDirectory, entryPoint);
         if (!resolved.Success || string.IsNullOrWhiteSpace(resolved.Data))
         {
             return null;

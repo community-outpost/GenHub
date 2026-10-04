@@ -1490,7 +1490,7 @@ public class ProfileLauncherFacade(
         }
 
         var targetManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient)
-            ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+            ?? manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(ManifestVariantResolver.GetDeclaredEntryPoint(m)));
         if (targetManifest is null)
         {
             return (null, null);
@@ -1503,17 +1503,11 @@ public class ProfileLauncherFacade(
             return (targetManifest, resolution.RelativePath);
         }
 
-        var variant = ManifestVariantResolver.ResolveVariant(targetManifest);
-        if (!string.IsNullOrWhiteSpace(variant?.EntryPoint))
+        var declaredEntryPoint = ManifestVariantResolver.GetDeclaredEntryPoint(targetManifest);
+        if (!string.IsNullOrWhiteSpace(declaredEntryPoint))
         {
-            logger.LogDebug("[Launch] Target executable resolved from variant entry point {ManifestId}: {EntryPoint}", targetManifest.Id, variant.EntryPoint);
-            return (targetManifest, variant.EntryPoint);
-        }
-
-        if (!string.IsNullOrWhiteSpace(targetManifest.EntryPoint))
-        {
-            logger.LogDebug("[Launch] Target executable resolved from manifest declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, targetManifest.EntryPoint);
-            return (targetManifest, targetManifest.EntryPoint);
+            logger.LogDebug("[Launch] Target executable resolved from declared entry point {ManifestId}: {EntryPoint}", targetManifest.Id, declaredEntryPoint);
+            return (targetManifest, declaredEntryPoint);
         }
 
         return (null, null);
