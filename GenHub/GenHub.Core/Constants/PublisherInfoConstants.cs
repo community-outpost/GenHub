@@ -40,6 +40,7 @@ public static class PublisherInfoConstants
         (["lutris"], Lutris.LogoSource),
         (["github"], GitHub.LogoSource),
         (["genlauncher", "gen launcher", "gen-launcher"], GenLauncher.LogoSource),
+        (["steamworkshop", "steam workshop", "steam-workshop"], SteamWorkshop.LogoSource),
     ];
 
     private static readonly (string[] Keywords, string CoverSource)[] CoverRules =
@@ -64,7 +65,7 @@ public static class PublisherInfoConstants
         public const string SupportUrl = "https://help.steampowered.com";
 
         /// <summary>Logo source for Steam.</summary>
-        public const string LogoSource = ""; // Placeholder until asset lands
+        public const string LogoSource = "avares://GenHub/Assets/Icons/steam-icon.png";
 
         /// <summary>Store page URL for Command &amp; Conquer Generals and Zero Hour on Steam.</summary>
         public const string StoreUrl = "https://store.steampowered.com/app/2229870/Command__Conquer_Generals/";
@@ -359,6 +360,24 @@ public static class PublisherInfoConstants
 
         /// <summary>Logo source for GenLauncher.</summary>
         public const string LogoSource = "avares://GenHub/Assets/Logos/genlauncher-logo.png";
+    }
+
+    /// <summary>
+    /// Publisher information for Steam Workshop.
+    /// </summary>
+    public static class SteamWorkshop
+    {
+        /// <summary>Display name for Steam Workshop publisher.</summary>
+        public const string Name = "Steam Workshop";
+
+        /// <summary>Website URL for Steam Workshop.</summary>
+        public const string Website = "https://steamcommunity.com/workshop/";
+
+        /// <summary>Support URL for Steam Workshop.</summary>
+        public const string SupportUrl = "https://help.steampowered.com";
+
+        /// <summary>Logo source for Steam Workshop.</summary>
+        public const string LogoSource = "avares://GenHub/Assets/Icons/steam-icon.png";
     }
 
     /// <summary>

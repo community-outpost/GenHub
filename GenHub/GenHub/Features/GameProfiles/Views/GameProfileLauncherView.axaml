@@ -199,17 +199,14 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto, *">
+    <Grid RowDefinitions="Auto, *" PointerMoved="RootLayout_PointerMoved" PointerPressed="RootLayout_PointerPressed">
         <!-- Row 0: Collapsible Header Container -->
+        <!-- Collapses to zero height when hidden so the profile list sits flush at the top. -->
+        <!-- Hover/tap-to-expand is tracked by pointer position, which reserves no layout space. -->
         <Grid Grid.Row="0"
               Background="Transparent"
               PointerEntered="HeaderZone_PointerEntered"
               PointerExited="HeaderZone_PointerExited">
-            <!-- Persistent hit-test area that ensures the Grid is Tall enough even when collapsed -->
-            <Panel Height="60"
-                   VerticalAlignment="Top"
-                   IsHitTestVisible="False" />
-
             <!-- Animated Header Content -->
             <Border Classes="header-container" ClipToBounds="True">
                 <Border.Styles>

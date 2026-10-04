@@ -57,7 +57,7 @@ public class CommunityOutpostResolver(
                 discoveredItem.Version);
 
             // Get provider definition if not provided
-            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+            provider ??= providerLoader.GetProvider(CommunityOutpostConstants.PublisherId) ?? providerLoader.GetProvider(CommunityOutpostConstants.PublisherType);
             if (provider == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure(
@@ -415,7 +415,7 @@ public class CommunityOutpostResolver(
     {
         if (context.Filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var file in builtManifest.Files)
+            foreach (var file in ManifestVariantResolver.EnumerateAllFiles(builtManifest))
             {
                 if (file.RelativePath == context.Filename)
                 {
@@ -425,9 +425,10 @@ public class CommunityOutpostResolver(
             }
         }
 
-        if (context.FileSize > 0 && builtManifest.Files.Count > 0)
+        var firstFile = ManifestVariantResolver.EnumerateAllFiles(builtManifest).FirstOrDefault();
+        if (context.FileSize > 0 && firstFile != null)
         {
-            builtManifest.Files[0].Size = context.FileSize;
+            firstFile.Size = context.FileSize;
         }
     }
 

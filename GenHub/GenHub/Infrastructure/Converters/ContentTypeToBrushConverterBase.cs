@@ -59,7 +59,7 @@ public abstract class ContentTypeToBrushConverterBase : IValueConverter
                 ContentType.Patch => PatchBrush,
                 ContentType.Map or ContentType.MapPack => MapBrush,
                 ContentType.Addon => AddonBrush,
-                ContentType.ModdingTool or ContentType.Executable => ToolBrush,
+                ContentType.ModdingTool or ContentType.Executable or ContentType.GenHubBuild => ToolBrush,
                 ContentType.ContentBundle => BundleBrush,
                 ContentType.Mission => MissionBrush,
                 ContentType.Skin or ContentType.LanguagePack => SkinBrush,
@@ -71,8 +71,7 @@ public abstract class ContentTypeToBrushConverterBase : IValueConverter
     }
 
     /// <summary>
-    /// Converts back from a brush to a ContentType (not supported).
-    /// </summary>
+    /// Converts back from a brush to a ContentType (not supported).</summary>
     /// <param name="value">The value to convert back.</param>
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">Optional parameter.</param>

@@ -19,7 +19,9 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Launching;
+using GenHub.Features.Launching.Publishers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -51,6 +53,7 @@ public class GameLauncherTests : IDisposable
     private readonly Mock<IProfileContentLinker> _profileContentLinkerMock = new();
     private readonly Mock<ISteamLauncher> _steamLauncherMock = new();
     private readonly Mock<ILaunchReceiptService> _launchReceiptServiceMock = new();
+    private readonly Mock<IPublisherLaunchHandlerRegistry> _publisherLaunchHandlerRegistryMock = new();
     private readonly GameLauncher _gameLauncher;
 
     private readonly string _retailRoot;
@@ -98,7 +101,11 @@ public class GameLauncherTests : IDisposable
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Setup storage location service mock
@@ -158,6 +165,17 @@ public class GameLauncherTests : IDisposable
                 return DependencyResolutionResult.CreateSuccess(idList, [], []);
             });
 
+        var generalsOnlineHandler = new GeneralsOnlineLaunchHandler(
+            _gameSettingsServiceMock.Object,
+            NullLogger<GeneralsOnlineLaunchHandler>.Instance);
+        var defaultHandler = new DefaultPublisherLaunchHandler();
+        var publisherRegistry = new PublisherLaunchHandlerRegistry(
+            [defaultHandler, generalsOnlineHandler],
+            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+
+        _publisherLaunchHandlerRegistryMock.Setup(r => r.GetHandler(It.IsAny<GameProfile>()))
+            .Returns<GameProfile>(p => publisherRegistry.GetHandler(p));
+
         var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
         var localization = new Mock<ILocalizationService>();
         localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
@@ -178,6 +196,7 @@ public class GameLauncherTests : IDisposable
             _steamLauncherMock.Object,
             _configurationProviderServiceMock.Object,
             _launchReceiptServiceMock.Object,
+            _publisherLaunchHandlerRegistryMock.Object,
             localization.Object);
     }
 
@@ -190,7 +209,7 @@ public class GameLauncherTests : IDisposable
         profile.Id = Guid.NewGuid().ToString();
         var gate = GameLauncher.ProfileLaunchLocks.GetOrAdd(profile.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync();
-        Task<LaunchOperationResult<GameLaunchInfo>> launch;
+        Task<LaunchOperationResult<GameLaunchInfo>> launch = null!;
         try
         {
             launch = _gameLauncher.LaunchProfileAsync(profile);
@@ -1264,7 +1283,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -1286,7 +1305,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -1300,7 +1319,7 @@ public class GameLauncherTests : IDisposable
     public async Task LaunchProfileAsync_WithUnreadableGeneralsOnlineSettings_ShouldNotRewriteThemAsync()
     {
         // Arrange
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1313,7 +1332,7 @@ public class GameLauncherTests : IDisposable
         // Assert
         Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
-            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -1328,7 +1347,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var existing = new GeneralsOnlineSettings { Camera = null! };
 
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1336,8 +1355,8 @@ public class GameLauncherTests : IDisposable
         ArrangeSuccessfulLaunch(profile);
 
         GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
+            .Callback<GeneralsOnlineSettings, CancellationToken>((s, _) => saved = s)
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
@@ -1367,7 +1386,7 @@ public class GameLauncherTests : IDisposable
         existing.Render.FpsLimit = 60;
         existing.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"preserve-me\"");
 
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
 
         var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
@@ -1375,8 +1394,8 @@ public class GameLauncherTests : IDisposable
         ArrangeSuccessfulLaunch(profile);
 
         GeneralsOnlineSettings? saved = null;
-        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
-            .Callback<GeneralsOnlineSettings>(s => saved = s)
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>(), It.IsAny<CancellationToken>()))
+            .Callback<GeneralsOnlineSettings, CancellationToken>((s, _) => saved = s)
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
@@ -1392,6 +1411,39 @@ public class GameLauncherTests : IDisposable
         Assert.Equal(60, saved.Render.FpsLimit);
         Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
         Assert.Equal("preserve-me", saved.AdditionalSettings["auth_token"].GetString());
+    }
+
+    /// <summary>
+    /// Verifies that LaunchProfileAsync unregisters the launch and fails when BeforeProcessStartAsync fails.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenPublisherBeforeProcessStartFails_UnregistersAndReturnsFailureAsync()
+    {
+        // Arrange
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.CommunityOutpost, "Failing PreStart Profile");
+        ArrangeSuccessfulLaunch(profile);
+
+        var failingHandlerMock = new Mock<IPublisherLaunchHandler>();
+        failingHandlerMock.Setup(h => h.PublisherType).Returns(PublisherTypeConstants.CommunityOutpost);
+        failingHandlerMock.Setup(h => h.BeforeLaunchAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+        failingHandlerMock.Setup(h => h.BeforeProcessStartAsync(It.IsAny<GameProfile>(), It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateFailure("publisher pre-launch validation failed"));
+
+        _publisherLaunchHandlerRegistryMock.Setup(r => r.GetHandler(profile))
+            .Returns(failingHandlerMock.Object);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("publisher pre-launch validation failed", result.FirstError);
+        _launchRegistryMock.Verify(x => x.UnregisterLaunchAsync(It.IsAny<string>()), Times.Once);
+        _processManagerMock.Verify(
+            x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>
@@ -1942,7 +1994,11 @@ public class GameLauncherTests : IDisposable
         {
             Directory.Delete(_retailRoot, recursive: true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best effort; a leftover temp directory is not worth failing the run over.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best effort; a leftover temp directory is not worth failing the run over.
         }
@@ -2033,6 +2089,62 @@ public class GameLauncherTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// A declared launch relationship on the game client manifest wins over any
+    /// filename guessing, including its custom discovery timeout.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_DeclaredRelationship_Wins()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new()
+            {
+                Id = "1.928260.generalsonline.gameclient.60hz",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
+                LaunchRelationship = new LaunchRelationship { ProcessName = "GeneralsOnlineZH_TestEnvironment", DiscoveryTimeoutMs = 15000 },
+            },
+        };
+
+        var resolved = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("GeneralsOnlineZH_TestEnvironment", resolved.ChildName);
+        Assert.Equal(TimeSpan.FromMilliseconds(15000), resolved.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Manifests that predate declarations fall back to legacy filename guessing,
+    /// so old pool entries launch exactly as before.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoDeclaration_UsesLegacyFallback()
+    {
+        var manifests = new List<ContentManifest>
+        {
+            new() { Id = "1.928260.generalsonline.gameclient.60hz", ContentType = GenHub.Core.Models.Enums.ContentType.GameClient },
+        };
+
+        var bootstrapper = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+        Assert.Equal("generalsonlinezh_60", bootstrapper.ChildName);
+        Assert.Null(bootstrapper.DiscoveryTimeout);
+
+        var direct = GameLauncher.ResolveExpectedChildProcess(manifests, @"C:\workspace\generalszh.exe");
+        Assert.Null(direct.ChildName);
+        Assert.Null(direct.DiscoveryTimeout);
+    }
+
+    /// <summary>
+    /// Without any executable manifest there is nothing to declare from, so the
+    /// legacy fallback still applies.
+    /// </summary>
+    [Fact]
+    public void ResolveExpectedChildProcess_NoExecutableManifest_UsesLegacyFallback()
+    {
+        var resolved = GameLauncher.ResolveExpectedChildProcess([], @"C:\workspace\EAC_LaunchGeneralsOnline.exe");
+
+        Assert.Equal("generalsonlinezh_60", resolved.ChildName);
     }
 
     /// <summary>

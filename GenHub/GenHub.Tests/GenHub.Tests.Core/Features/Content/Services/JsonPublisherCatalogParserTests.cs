@@ -579,6 +579,84 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.Contains(result.Errors, e => e.Contains("must declare a valid repository in 'owner/repo' format", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// Catalogs declaring 'GenHubBuild' content type must parse and validate successfully.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_GenHubBuildContentType_SucceedsAsync()
+    {
+        const string json = """
+            {
+              "$schema": "https://genhub.net/schemas/publisher-catalog.json",
+              "publisher": { "id": "genhub-official", "name": "GenHub Official" },
+              "content": [
+                {
+                  "id": "genhub-client",
+                  "name": "GenHub Client",                  "description": "GenHub desktop application installer.",
+                  "contentType": "GenHubBuild",
+                  "targetGame": "ZeroHour",
+                  "releases": [
+                    {
+                      "version": "1.0.0",
+                      "artifacts": [
+                        { "filename": "GenHub-Setup.exe", "downloadUrl": "https://example.com/GenHub-Setup.exe" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var item = Assert.Single(result.Data!.Content);
+        Assert.Equal(ContentType.GenHubBuild, item.ContentType);
+        Assert.True(item.IsStandalone);
+    }
+
+    /// <summary>
+    /// Catalogs declaring an unknown or future content type must fall back to UnknownContentType without throwing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_UnknownContentType_FallsBackGracefullyAsync()
+    {
+        const string json = """
+            {
+              "$schema": "https://genhub.net/schemas/publisher-catalog.json",
+              "publisher": { "id": "future-pub", "name": "Future Publisher" },
+              "content": [
+                {
+                  "id": "future-item",
+                  "name": "Future Content",
+                  "description": "Content with a new future content type.",
+                  "contentType": "SomeFutureUnsupportedType",
+                  "targetGame": "ZeroHour",
+                  "releases": [
+                    {
+                      "version": "1.0.0",
+                      "artifacts": [
+                        { "filename": "future.zip", "downloadUrl": "https://example.com/future.zip" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var item = Assert.Single(result.Data!.Content);
+        Assert.Equal(ContentType.UnknownContentType, item.ContentType);
+    }
+
     private static void AssertUpstream(
         System.Collections.Generic.IReadOnlyList<CatalogContentItem> content,
         string id,

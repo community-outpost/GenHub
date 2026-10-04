@@ -10,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.IO.Compression;
@@ -387,6 +388,37 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         await (Task)repackMethod.Invoke(deliverer, [manifest, _extractDirectory, CancellationToken.None])!;
 
         Assert.True(File.Exists(dummyFile));
+    }
+
+    /// <summary>
+    /// Verifies DeliverContentAsync downloads only the host variant's archive.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithVariantManifest_DownloadsOnlyHostVariantAsync()
+    {
+        var downloadService = new Mock<IDownloadService>();
+        var requested = VariantDownloadRecorder.Record(downloadService);
+        var deliverer = CreateDeliverer(downloadService.Object, new Mock<IContentManifestPool>().Object);
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "variant-host.zip", DownloadUrl = VariantDownloadRecorder.HostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo { PublisherType = CommunityOutpostConstants.PublisherType };
+
+        try
+        {
+            await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+
+        Assert.Equal([VariantDownloadRecorder.HostUrl], requested);
     }
 
     private static CommunityOutpostDeliverer CreateDeliverer(

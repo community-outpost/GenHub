@@ -188,6 +188,32 @@ public class ContentCardBadgeHelperTests
     }
 
     /// <summary>
+    /// Verifies Steam Workshop items resolve to the Steam logo and prefer creator avatars.
+    /// </summary>
+    [Fact]
+    public void GetPublisherLogoUrl_SteamWorkshopPrefersCreatorAvatar()
+    {
+        var withoutAvatar = new ContentSearchResult
+        {
+            Id = "steamworkshop.3790356853",
+            Name = "Desert Duel",
+            ProviderName = "Steam Workshop",
+        };
+
+        var withAvatar = new ContentSearchResult
+        {
+            Id = "steamworkshop.3790356853",
+            Name = "Desert Duel",
+            ProviderName = "Steam Workshop",
+        };
+        withAvatar.Metadata[SteamWorkshopConstants.CreatorAvatarUrlMetadataKey] = "https://example.com/creator.jpg";
+
+        Assert.True(ContentCardBadgeHelper.IsSteamWorkshop(withAvatar));
+        Assert.Equal(PublisherInfoConstants.SteamWorkshop.LogoSource, ContentCardBadgeHelper.GetPublisherLogoUrl(withoutAvatar));
+        Assert.Equal("https://example.com/creator.jpg", ContentCardBadgeHelper.GetPublisherLogoUrl(withAvatar));
+    }
+
+    /// <summary>
     /// Verifies that TheSuperHackers cards show China cover for GameClients and GLA cover for Patch.
     /// </summary>
     [Fact]

@@ -50,7 +50,8 @@ public partial class GeneralsOnlineProfileReconciler(
     IContentVersionComparer versionComparer,
     IGameInstallationService? installationService = null,
     ITelemetryService? telemetryService = null,
-    ILocalizationService? localizationService = null)
+    ILocalizationService? localizationService = null,
+    IContentRetentionPolicy? retentionPolicy = null)
     : IGeneralsOnlineProfileReconciler, IPublisherReconciler
 {
     private readonly SemaphoreSlim _reconcileLock = new(1, 1);
@@ -306,7 +307,7 @@ public partial class GeneralsOnlineProfileReconciler(
     private static partial Regex VersionSuffixRegex();
 
     /// <summary>
-    /// Checks if two manifests refer to the same variant (30hz, 60hz, quickmatch-maps, or gamedata).
+    /// Checks if two manifests refer to the same variant (60hz, test, quickmatch-maps, or gamedata).
     /// </summary>
     private static bool MatchesByVariant(ContentManifest oldManifest, ContentManifest newManifest)
     {
@@ -326,10 +327,24 @@ public partial class GeneralsOnlineProfileReconciler(
         var lastPart = parts[^1];
 
         if (lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase) ||
             lastPart.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase))
         {
+            if (lastPart.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+            }
+
             return lastPart.ToLowerInvariant();
+        }
+
+        // Check if any segment is test environment
+        if (parts.Any(p => p.Equals(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase) ||
+                           p.Equals(GeneralsOnlineConstants.LegacyVariantTestEnvironmentSuffix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
         }
 
         // Check if any segment is gamedata
@@ -373,25 +388,17 @@ public partial class GeneralsOnlineProfileReconciler(
     private static string? ExtractVariant(ContentManifest manifest)
     {
         // First, check for explicit variant tags in metadata (preferred method for new manifests)
-        if (manifest.Metadata?.Tags != null)
+        var tagVariant = ExtractVariantFromTags(manifest.Metadata?.Tags);
+        if (tagVariant != null)
         {
-            foreach (var tag in manifest.Metadata.Tags)
-            {
-                if (tag.Equals(GeneralsOnlineVariantTags.Tag60Hz, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.Variant60HzSuffix;
-                }
+            return tagVariant;
+        }
 
-                if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
-                }
-
-                if (tag.Equals(GeneralsOnlineVariantTags.TagGameData, StringComparison.OrdinalIgnoreCase))
-                {
-                    return GeneralsOnlineConstants.GameDataPatchSuffix;
-                }
-            }
+        // Fallback to ID-based detection for manifests
+        var idVariant = ExtractVariant(manifest.Id.Value);
+        if (idVariant != null)
+        {
+            return idVariant;
         }
 
         // Fallback to explicit metadata if available (Check TargetGame for default variant association)
@@ -400,8 +407,45 @@ public partial class GeneralsOnlineProfileReconciler(
             return GeneralsOnlineConstants.DefaultVariantSuffix;
         }
 
-        // Fallback to ID-based detection for legacy manifests
-        return ExtractVariant(manifest.Id.Value);
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts the variant suffix from tags, checking known variant tags.
+    /// </summary>
+    /// <param name="tags">The tags collection.</param>
+    /// <returns>The variant suffix, or null if not detected.</returns>
+    private static string? ExtractVariantFromTags(IEnumerable<string>? tags)
+    {
+        if (tags == null)
+        {
+            return null;
+        }
+
+        foreach (var tag in tags)
+        {
+            if (tag.Equals(GeneralsOnlineVariantTags.Tag60Hz, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.Variant60HzSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagTestEnvironment, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
+            }
+
+            if (tag.Equals(GeneralsOnlineVariantTags.TagGameData, StringComparison.OrdinalIgnoreCase))
+            {
+                return GeneralsOnlineConstants.GameDataPatchSuffix;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -461,7 +505,9 @@ public partial class GeneralsOnlineProfileReconciler(
             ? profile.GameClient.WorkingDirectory
             : string.Empty;
 
-        var executableFile = newClientManifest?.Files?.FirstOrDefault(f =>
+        var executableFile = newClientManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(newClientManifest).FirstOrDefault(f =>
             f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
         var relativeExe = executableFile?.RelativePath ?? GeneralsOnlineConstants.DefaultExecutableFileName;
         var exePath = !string.IsNullOrEmpty(workingDir)
@@ -559,7 +605,7 @@ public partial class GeneralsOnlineProfileReconciler(
 
     /// <summary>
     /// Builds a mapping from old manifest IDs to new manifest IDs based on variant matching.
-    /// Handles 30hz, 60hz, quickmatch-maps, and gamedata variants.
+    /// Handles 60hz, test, quickmatch-maps, and gamedata variants.
     /// </summary>
     private Dictionary<string, string> BuildManifestMapping(
         List<ContentManifest> oldManifests,
@@ -866,6 +912,32 @@ public partial class GeneralsOnlineProfileReconciler(
         return OperationResult<(int, bool, Dictionary<string, string>?, string?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping, targetProfileId));
     }
 
+    private async Task<List<ContentManifest>> ResolveDeletableManifestsAsync(
+        List<ContentManifest> candidateManifests,
+        CancellationToken cancellationToken)
+    {
+        if (retentionPolicy == null)
+        {
+            return candidateManifests;
+        }
+
+        var deletableManifests = new List<ContentManifest>();
+        var groupedCandidates = GroupManifestsByVariant(candidateManifests);
+        var unvarianted = candidateManifests.Where(m => ExtractVariant(m) == null).ToList();
+        if (unvarianted.Count > 0)
+        {
+            groupedCandidates[string.Empty] = unvarianted;
+        }
+
+        foreach (var group in groupedCandidates.Values)
+        {
+            var groupDeletables = await retentionPolicy.FilterDeletableManifestsAsync(group, cancellationToken);
+            deletableManifests.AddRange(groupDeletables);
+        }
+
+        return deletableManifests;
+    }
+
     private async Task HandleOldManifestsAndCleanupAsync(
         bool shouldDeleteOldVersions,
         bool anyFailure,
@@ -873,29 +945,51 @@ public partial class GeneralsOnlineProfileReconciler(
         List<ContentManifest> oldManifests,
         CancellationToken cancellationToken)
     {
-        if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
+        if (!shouldDeleteOldVersions)
         {
-            logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
-            var oldManifestIds = oldManifests
-                .Where(m => manifestMapping.ContainsKey(m.Id.Value))
-                .Select(m => m.Id)
-                .ToList();
-
-            if (oldManifestIds.Count > 0)
-            {
-                var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
-                if (!removalResult.Success)
-                {
-                    logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
-                }
-            }
-
-            await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+            return;
         }
-        else if (shouldDeleteOldVersions && anyFailure)
+
+        if (anyFailure)
         {
             logger.LogWarning("[GO Reconciler] Skipping old manifest deletion and scheduled GC due to previous failures to preserve content integrity.");
+            return;
         }
+
+        if (manifestMapping == null)
+        {
+            return;
+        }
+
+        logger.LogInformation("[GO Reconciler] Filtering old manifests with retention policy");
+        var candidateManifests = oldManifests
+            .Where(m => manifestMapping.ContainsKey(m.Id.Value))
+            .ToList();
+
+        var deletableManifests = await ResolveDeletableManifestsAsync(candidateManifests, cancellationToken);
+
+        var oldManifestIds = deletableManifests
+            .Select(m => m.Id)
+            .ToList();
+
+        if (oldManifestIds.Count > 0)
+        {
+            var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
+            if (!removalResult.Success)
+            {
+                logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
+            }
+        }
+
+        if (oldManifestIds.Count < candidateManifests.Count)
+        {
+            logger.LogInformation(
+                "[GO Reconciler] Retained {RetainedCount} older manifests per retention policy; removed {RemovedCount}",
+                candidateManifests.Count - oldManifestIds.Count,
+                oldManifestIds.Count);
+        }
+
+        await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
     }
 
     /// <summary>
@@ -1206,7 +1300,9 @@ public partial class GeneralsOnlineProfileReconciler(
         }
 
         var installationPath = installation?.ZeroHourPath ?? string.Empty;
-        var executableFile = newClientManifest?.Files?.FirstOrDefault(f =>
+        var executableFile = newClientManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveFiles(newClientManifest).FirstOrDefault(f =>
             f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true);
         var relativeExe = executableFile?.RelativePath ?? GeneralsOnlineConstants.DefaultExecutableFileName;
         var exePath = !string.IsNullOrEmpty(installationPath)
@@ -1274,7 +1370,7 @@ public partial class GeneralsOnlineProfileReconciler(
         };
 
         var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
-        if (createResult != null && createResult.Success)
+        if (createResult is { Success: true })
         {
             logger.LogInformation("[GO Reconciler] Successfully created fresh profile '{Name}' for update", createRequest.Name);
             return OperationResult<(int CreatedCount, string? TargetProfileId)>.CreateSuccess((1, createResult.Data?.Id));
@@ -1365,7 +1461,7 @@ public partial class GeneralsOnlineProfileReconciler(
             var cloneRequest = BuildCloneProfileRequest(profile, targetProfileName, updatedGameClient, newEnabledContent, newClientManifest);
 
             var createResult = await profileManager.CreateProfileAsync(cloneRequest, cancellationToken);
-            if (createResult != null && createResult.Success)
+            if (createResult is { Success: true })
             {
                 logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
                 return (true, createResult.Data?.Id);

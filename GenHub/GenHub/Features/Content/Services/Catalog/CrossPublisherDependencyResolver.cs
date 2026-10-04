@@ -92,7 +92,7 @@ public class CrossPublisherDependencyResolver(
 
             logger.LogDebug("Fetching external catalog from: {CatalogUrl}", catalogUrl);
 
-            string catalogJson;
+            string catalogJson = string.Empty;
             try
             {
                 catalogJson = await CatalogDocumentReader.ReadAsync(

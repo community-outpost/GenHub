@@ -96,7 +96,7 @@ public static class LinuxUriSchemeRegistrar
         const string primaryPath = "/usr/bin/update-desktop-database";
         const string fallbackPath = "/usr/local/bin/update-desktop-database";
 
-        string executablePath;
+        string executablePath = string.Empty;
         if (File.Exists(primaryPath))
         {
             executablePath = primaryPath;
@@ -154,7 +154,7 @@ public static class LinuxUriSchemeRegistrar
         const string primaryPath = "/usr/bin/xdg-mime";
         const string fallbackPath = "/usr/local/bin/xdg-mime";
 
-        string executablePath;
+        string executablePath = string.Empty;
         if (File.Exists(primaryPath))
         {
             executablePath = primaryPath;

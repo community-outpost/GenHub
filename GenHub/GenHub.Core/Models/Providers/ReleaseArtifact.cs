@@ -8,6 +8,8 @@ namespace GenHub.Core.Models.Providers;
 /// </summary>
 public class ReleaseArtifact
 {
+    private string _sha256 = string.Empty;
+
     /// <summary>
     /// Gets or sets the artifact filename (e.g., "MyMod-1.0.0.zip").
     /// </summary>
@@ -31,7 +33,11 @@ public class ReleaseArtifact
     /// Gets or sets the SHA256 hash for integrity verification.
     /// </summary>
     [JsonPropertyName("sha256")]
-    public string Sha256 { get; set; } = string.Empty;
+    public string Sha256
+    {
+        get => _sha256;
+        set => _sha256 = value?.Trim() ?? string.Empty;
+    }
 
     /// <summary>
     /// Gets or sets the MIME type of the artifact.

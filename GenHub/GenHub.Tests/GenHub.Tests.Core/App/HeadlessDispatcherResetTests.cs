@@ -60,7 +60,7 @@ public class HeadlessDispatcherResetTests
         /// <returns>The configured application builder.</returns>
         public static AppBuilder BuildAvaloniaApp()
         {
-            var builder = TestAppBuilder.BuildAvaloniaApp();
+            var builder = TestAppBuilder.BuildWithDispatcherProbe(() => Task.Run(() => Dispatcher.UIThread).Wait());
             var registerRuntime = builder.RuntimePlatformServicesInitializer!;
             return builder.UseRuntimePlatformSubsystem(
                 () =>

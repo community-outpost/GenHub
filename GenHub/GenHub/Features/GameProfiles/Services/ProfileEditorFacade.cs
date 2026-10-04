@@ -8,6 +8,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -136,53 +137,12 @@ public class ProfileEditorFacade(
                     profile.EnabledContentIds = [.. resolutionResult.ResolvedContentIds];
 
                     // Resolve source paths for all manifests
-                    var manifestSourcePaths = new Dictionary<string, string>();
-                    foreach (var manifest in workspaceConfig.Manifests)
-                    {
-                        // Skip GameInstallation manifests - they use BaseInstallationPath
-                        if (manifest.ContentType == Core.Models.Enums.ContentType.GameInstallation)
-                        {
-                            continue;
-                        }
-
-                        // For GameClient, use WorkingDirectory if available
-                        if (manifest.ContentType == Core.Models.Enums.ContentType.GameClient &&
-                            !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
-                        {
-                            manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
-                            _logger.LogDebug("[ProfileEditor] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
-                            continue;
-                        }
-
-                        // For all other content types, query the manifest pool for the content directory
-                        var contentDirResult = await _manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
-                        if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
-                        {
-                            manifestSourcePaths[manifest.Id.Value] = contentDirResult.Data;
-                            _logger.LogDebug(
-                                "[ProfileEditor] Source path for content {ManifestId} ({ContentType}): {SourcePath}",
-                                manifest.Id.Value,
-                                manifest.ContentType,
-                                contentDirResult.Data);
-                        }
-                        else if (contentDirResult.Success)
-                        {
-                            _logger.LogDebug(
-                                "[ProfileEditor] Manifest {ManifestId} ({ContentType}) is CAS-managed (no external source directory required)",
-                                manifest.Id.Value,
-                                manifest.ContentType);
-                        }
-                        else
-                        {
-                            _logger.LogWarning(
-                                "[ProfileEditor] Could not resolve source path for manifest {ManifestId} ({ContentType}): {Error}",
-                                manifest.Id.Value,
-                                manifest.ContentType,
-                                contentDirResult.FirstError);
-                        }
-                    }
-
-                    workspaceConfig.ManifestSourcePaths = manifestSourcePaths;
+                    workspaceConfig.ManifestSourcePaths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(
+                        workspaceConfig.Manifests,
+                        profile,
+                        _manifestPool,
+                        _logger,
+                        cancellationToken);
                 }
 
                 var workspaceResult = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);

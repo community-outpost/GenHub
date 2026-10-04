@@ -471,6 +471,179 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("My Custom Publisher", savedSubscription.PublisherName);
     }
 
+    /// <summary>
+    /// Verifies that encountering an unsafe candidate catalog URL produces the expected localized blocked message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithUnsafeCatalogUrl_SetsLocalizedBlockedErrorMessageAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string unsafeCatalogUrl = "http://127.0.0.1:8080/catalog.json";
+        var definitionJson = "{\"$schemaVersion\":1,\"publisher\":{\"id\":\"my-pub\",\"name\":\"My Publisher\"},\"catalogs\":[{\"id\":\"unsafe\",\"name\":\"Unsafe Catalog\",\"url\":\"" + unsafeCatalogUrl + "\"}]}";
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Equal("Failed to Load Catalog", vm.ErrorTitle);
+        Assert.Contains("Blocked unsafe catalog URL", vm.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that candidate catalog collection includes mirror URLs and falls back to a working mirror
+    /// when the primary catalog URL fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryCatalogFails_FallsBackToMirrorUrlCandidateAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string primaryCatalogUrl = "https://example.com/primary.json";
+        const string mirrorCatalogUrl = "https://example.com/mirror.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    {
+                        "id": "cat-1",
+                        "name": "Main Catalog",
+                        "url": "https://example.com/primary.json",
+                        "mirrors": ["https://example.com/mirror.json"]
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("my-pub", "My Publisher");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("primary-invalid", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateFailure("Invalid primary catalog"));
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("mirror-valid", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [primaryCatalogUrl] = "primary-invalid",
+            [mirrorCatalogUrl] = "mirror-valid",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that when a candidate catalog throws an InvalidDataException (e.g. oversized content),
+    /// TryResolveDefinitionFromPayloadAsync catches it and falls back to subsequent candidate catalogs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_CandidateThrowsInvalidDataException_FallsBackToNextCandidateAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string oversizedCatalogUrl = "https://example.com/oversized.json";
+        const string validCatalogUrl = "https://example.com/valid.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    {
+                        "id": "cat-oversized",
+                        "name": "Oversized Catalog",
+                        "url": "https://example.com/oversized.json"
+                    },
+                    {
+                        "id": "cat-valid",
+                        "name": "Valid Catalog",
+                        "url": "https://example.com/valid.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("my-pub", "My Publisher");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("valid-catalog-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        using var httpClient = new HttpClient(new CustomDelegateHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (uri == definitionUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(definitionJson),
+                };
+            }
+
+            if (uri == oversizedCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(new byte[15 * 1024 * 1024]),
+                };
+            }
+
+            if (uri == validCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("valid-catalog-content"),
+                };
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Null(vm.ErrorMessage);
+        Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog
@@ -531,6 +704,14 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
             {
                 Content = new StringContent(body ?? "{}"),
             });
+        }
+    }
+
+    private sealed class CustomDelegateHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(handlerFunc(request));
         }
     }
 }

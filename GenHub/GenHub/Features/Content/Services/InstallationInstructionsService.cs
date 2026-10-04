@@ -90,6 +90,31 @@ public class InstallationInstructionsService(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Copies a step with resolved arguments. The step key is dropped so it derives
+    /// from the resolved values: a publisher-side value change then naturally
+    /// re-triggers RunOnce steps instead of reusing a stale key.
+    /// </summary>
+    /// <param name="step">The declared step.</param>
+    /// <param name="resolvedArguments">The binding-resolved arguments.</param>
+    /// <returns>The executable step.</returns>
+    private static InstallationStep CopyStepWithArguments(InstallationStep step, List<string> resolvedArguments)
+    {
+        return new InstallationStep
+        {
+            Name = step.Name,
+            Kind = step.Kind,
+            TargetRelativePath = step.TargetRelativePath,
+            DestinationRelativePath = step.DestinationRelativePath,
+            Arguments = resolvedArguments,
+            ArgumentBindings = step.ArgumentBindings,
+            RequiresElevation = step.RequiresElevation,
+            StatusMessage = step.StatusMessage,
+            StepKey = null,
+            RunOnce = step.RunOnce,
+        };
+    }
+
     private async Task<OperationResult> ExecuteStepsAsync(
         IReadOnlyList<InstallationStep> steps,
         ContentManifest manifest,
@@ -141,9 +166,31 @@ public class InstallationInstructionsService(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var stepKey = GetStepKey(step, manifest);
+        var effectiveStep = step;
+        if (step.ArgumentBindings is { Count: > 0 })
+        {
+            var argumentsResult = InstallationArgumentBindingResolver.ResolveArguments(step, workingDirectory);
+            if (!argumentsResult.Success || argumentsResult.Data is null)
+            {
+                logger.LogError(
+                    "Failed to resolve argument bindings for installation step '{StepName}' of manifest {ManifestId}: {Error}",
+                    step.Name,
+                    manifest.Id,
+                    argumentsResult.FirstError);
+                return OperationResult.CreateFailure(argumentsResult.Errors);
+            }
 
-        if (!force && step.RunOnce && await ShouldSkipStepAsync(step, stepKey, manifest, cancellationToken))
+            effectiveStep = CopyStepWithArguments(step, argumentsResult.Data);
+            logger.LogDebug(
+                "Resolved {Count} argument binding(s) for installation step '{StepName}' of manifest {ManifestId}",
+                step.ArgumentBindings.Count,
+                step.Name,
+                manifest.Id);
+        }
+
+        var stepKey = GetStepKey(effectiveStep, manifest);
+
+        if (!force && step.RunOnce && await ShouldSkipStepAsync(effectiveStep, stepKey, manifest, cancellationToken))
         {
             logger.LogInformation(
                 "Skipping installation step '{StepName}' for manifest {ManifestId} because it has already been executed (key: {StepKey})",
@@ -161,30 +208,30 @@ public class InstallationInstructionsService(
             return OperationResult.CreateSuccess();
         }
 
-        var authResult = ValidateProviderAuthorization(providerSource, manifest, step);
+        var authResult = ValidateProviderAuthorization(providerSource, manifest, effectiveStep);
         if (!authResult.Success)
         {
             return authResult;
         }
 
         var result = OperationResult.CreateFailure("Uninitialized step result");
-        switch (step.Kind)
+        switch (effectiveStep.Kind)
         {
             case InstallationStepKind.RunVerifiedInstaller:
-                result = await ExecuteRunVerifiedInstallerAsync(step, manifest, workingDirectory, progress, cancellationToken);
+                result = await ExecuteRunVerifiedInstallerAsync(effectiveStep, manifest, workingDirectory, progress, cancellationToken);
                 break;
 
             case InstallationStepKind.RemoveFile:
-                result = ExecuteRemoveFile(step, workingDirectory);
+                result = ExecuteRemoveFile(effectiveStep, workingDirectory);
                 break;
 
             case InstallationStepKind.RenameFile:
-                result = ExecuteRenameFile(step, workingDirectory);
+                result = ExecuteRenameFile(effectiveStep, workingDirectory);
                 break;
 
             default:
-                logger.LogError("Unsupported installation step kind '{Kind}' in step '{StepName}'", step.Kind, step.Name);
-                return OperationResult.CreateFailure($"Unsupported installation step kind '{step.Kind}' for step '{step.Name}'.");
+                logger.LogError("Unsupported installation step kind '{Kind}' in step '{StepName}'", effectiveStep.Kind, effectiveStep.Name);
+                return OperationResult.CreateFailure($"Unsupported installation step kind '{effectiveStep.Kind}' for step '{effectiveStep.Name}'.");
         }
 
         if (result.Success && step.RunOnce && !string.IsNullOrWhiteSpace(stepKey))
@@ -259,9 +306,26 @@ public class InstallationInstructionsService(
         var manifestId = manifest.Id.Value ?? string.Empty;
         var name = step.Name;
         var target = step.TargetRelativePath ?? string.Empty;
-        var args = step.Arguments is { Count: > 0 } ? string.Join(" ", step.Arguments) : string.Empty;
+        var args = step.Arguments is { Count: > 0 }
+            ? string.Join(" ", step.Arguments.Select(QuoteArgumentIfNeeded))
+            : string.Empty;
 
         return $"{publisher}:{manifestId}:{name}:{target}:{args}".TrimEnd(':');
+
+        static string QuoteArgumentIfNeeded(string arg)
+        {
+            if (string.IsNullOrEmpty(arg))
+            {
+                return "\"\"";
+            }
+
+            if (arg.IndexOfAny([' ', '\t', '"', '\'']) >= 0)
+            {
+                return $"\"{arg.Replace("\"", "\\\"")}\"";
+            }
+
+            return arg;
+        }
     }
 
     private async Task<OperationResult> ExecuteRunVerifiedInstallerAsync(
@@ -352,7 +416,7 @@ public class InstallationInstructionsService(
         CancellationToken cancellationToken)
     {
         var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath ?? string.Empty);
-        var manifestFile = manifest.Files?.FirstOrDefault(f =>
+        var manifestFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
             string.Equals(
                 PathHelper.NormalizeRelativePath(f.RelativePath),
                 normalizedRelativePath,

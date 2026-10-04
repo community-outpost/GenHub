@@ -352,7 +352,7 @@ public partial class AddArtifactDialogViewModel(Action<ReleaseArtifact> onArtifa
         using var sha256 = SHA256.Create();
         using var stream = File.OpenRead(filePath);
         var buffer = new byte[BufferSize];
-        int bytesRead;
+        int bytesRead = 0;
         while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();

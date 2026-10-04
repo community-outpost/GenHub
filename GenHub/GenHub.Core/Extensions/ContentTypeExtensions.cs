@@ -30,6 +30,7 @@ public static class ContentTypeExtensions
             ContentType.ContentReferral => "Content Referral",
             ContentType.ModdingTool => "Tool",
             ContentType.Executable => "Executable",
+            ContentType.GenHubBuild => "GenHub Build",
             ContentType.Skin => "Skin",
             ContentType.Video => "Video",
             ContentType.Replay => "Replay",
@@ -67,6 +68,7 @@ public static class ContentTypeExtensions
             ContentType.Screensaver => "screensaver",
             ContentType.ModdingTool => "moddingtool",
             ContentType.Executable => "executable",
+            ContentType.GenHubBuild => "genhubbuild",
             ContentType.UnknownContentType => "unknown",
             _ => "unknown",
         };
@@ -83,6 +85,7 @@ public static class ContentTypeExtensions
         {
             ContentType.ModdingTool => true,
             ContentType.Executable => true,
+            ContentType.GenHubBuild => true,
             _ => false,
         };
     }

@@ -935,7 +935,11 @@ public class GameProcessManager(
             exitTime = process.ExitTime.ToUniversalTime();
             exitCode = process.ExitCode;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        catch (InvalidOperationException)
+        {
+            // Process may have already been disposed or its metadata may be inaccessible.
+        }
+        catch (Win32Exception)
         {
             // Process may have already been disposed or its metadata may be inaccessible.
         }
@@ -987,12 +991,24 @@ public class GameProcessManager(
             return;
         }
 
-        string fullRoot;
+        string fullRoot = string.Empty;
         try
         {
             fullRoot = Path.GetFullPath(dirPath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+        catch (NotSupportedException)
         {
             return;
         }
@@ -1151,8 +1167,7 @@ public class GameProcessManager(
             return true;
         }
 
-        if (runnerCommand.EnvironmentVariables != null &&
-            runnerCommand.EnvironmentVariables.ContainsKey(WineConstants.PrefixEnvironmentVariable))
+        if (runnerCommand.EnvironmentVariables?.ContainsKey(WineConstants.PrefixEnvironmentVariable) == true)
         {
             return true;
         }
@@ -1426,7 +1441,7 @@ public class GameProcessManager(
             return;
         }
 
-        int processId;
+        int processId = 0;
         try
         {
             processId = process.Id;
@@ -1705,7 +1720,19 @@ public class GameProcessManager(
                     exitCode,
                     archiveNames);
                 return OperationResult<GameProcessInfo>.CreateFailure(
-                    localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode));
+                    LaunchExitMessages.AppendExplanation(
+                        localizationService.GetString("GameProfiles.Notification.UnexpectedExit.Archives", archiveNames, exitCode),
+                        exitCode,
+                        localizationService));
+            }
+
+            var explained = LaunchExitMessages.DescribeImmediateExit(exitCode, stderrTail, localizationService);
+            if (explained != null)
+            {
+                logger.LogError(
+                    "[Process] {Message}",
+                    explained);
+                return OperationResult<GameProcessInfo>.CreateFailure(explained);
             }
 
             var detail = string.IsNullOrWhiteSpace(stderrTail)
@@ -1825,7 +1852,7 @@ public class GameProcessManager(
                         expectedName);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         AppendLauncherErrors(
-                            $"Launcher exited with code {exitCode} before starting {expectedName}.",
+                            LaunchExitMessages.DescribeLauncherExit(exitCode, expectedName, localizationService),
                             launcher,
                             capturedErrors));
                 }
@@ -1888,7 +1915,7 @@ public class GameProcessManager(
         finally
         {
             // A failed cleanup transfers ownership to the manager for monitoring and retry.
-            if (!_managedProcesses.Values.Any(candidate => ReferenceEquals(candidate, launcher)))
+            if (_managedProcesses.Values.All(candidate => !ReferenceEquals(candidate, launcher)))
             {
                 TryRemoveProcessErrors(launcher);
                 launcher.Dispose();

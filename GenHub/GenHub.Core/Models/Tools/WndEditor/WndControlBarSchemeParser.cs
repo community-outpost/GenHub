@@ -162,8 +162,8 @@ public static class WndControlBarSchemeParser
 
     private static void ParseKeyValueLine(string line, string[] tokens, Dictionary<string, string> target)
     {
-        string key;
-        string value;
+        string key = string.Empty;
+        string value = string.Empty;
 
         var separatorIndex = line.IndexOfAny(['=', ':']);
         if (separatorIndex > 0)

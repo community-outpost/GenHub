@@ -3835,6 +3835,9 @@
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>أداة تعديل</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>إصدار GenHub</value>
+  </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>محتوى غير معروف</value>
   </data>
@@ -4593,6 +4596,30 @@
   </data>
   <data name="Downloads.Filter.Timeframe" xml:space="preserve">
     <value>الإطار الزمني</value>
+  </data>
+  <data name="Downloads.Filter.Tags" xml:space="preserve">
+    <value>الوسوم</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.Trending" xml:space="preserve">
+    <value>الرائج</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostRecent" xml:space="preserve">
+    <value>الأحدث</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.LastUpdated" xml:space="preserve">
+    <value>آخر تحديث</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.MostSubscribed" xml:space="preserve">
+    <value>الأكثر اشتراكاً</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Sort.TopRated" xml:space="preserve">
+    <value>الأعلى تقييماً</value>
+  </data>
+  <data name="Downloads.Filter.SteamWorkshop.Tags" xml:space="preserve">
+    <value>وسوم الخرائط</value>
+  </data>
+  <data name="Downloads.SteamWorkshop.Description.PendingResolution" xml:space="preserve">
+    <value>خريطة من ورشة عمل Steam - التفاصيل الكاملة متاحة بعد الاسترداد</value>
   </data>
   <data name="Tools.ReplayManager.Column.Map" xml:space="preserve">
     <value>الخريطة</value>
@@ -6615,6 +6642,9 @@
   <data name="Downloads.Subscription.Category.All" xml:space="preserve">
     <value>الكل</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.NoValidCatalogUrl" xml:space="preserve">
+    <value>لا يحتوي التعريف على عنوان URL صالح للكتالوج.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.FailedToFetchFormat" xml:space="preserve">
     <value>فشل جلب الكتالوج: {0}</value>
   </data>
@@ -6623,6 +6653,12 @@
   </data>
   <data name="Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly" xml:space="preserve">
     <value>يمكن فقط فتح روابط HTTPS الآمنة أو عناوين البريد الإلكتروني الصالحة.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.FailedToFetch" xml:space="preserve">
+    <value>فشل جلب الكتالوج من التعريف</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl" xml:space="preserve">
+    <value>تم حظر رابط الكتالوج غير الآمن.</value>
   </data>
   <data name="Downloads.Subscription.ErrorTitle.FailedToFetch" xml:space="preserve">
     <value>فشل جلب الكتالوج</value>
@@ -9690,6 +9726,51 @@
   </data>
   <data name="Settings.GitHubAuth.Toast.BrowserOpenFailed" xml:space="preserve">
     <value>تم نسخ الرمز إلى الحافظة، ولكن تعذر فتح GitHub تلقائيًا. أدخل الرمز يدويًا.</value>
+  </data>
+  <data name="Settings.SteamWorkshop.Toast.Title" xml:space="preserve">
+    <value>ورشة عمل Steam</value>
+  </data>
+  <data name="Settings.SteamAccount.Label" xml:space="preserve">
+    <value>حساب ستيم (تنزيلات ورشة العمل بنقرة واحدة)</value>
+  </data>
+  <data name="Settings.SteamAccount.Description" xml:space="preserve">
+    <value>قم بتسجيل الدخول باستخدام حساب ستيم الخاص بك لتمكين التنزيل السريع للخرائط داخل التطبيق بنقرة واحدة دون الحاجة إلى تشغيل تطبيق ستيم الخارجي.</value>
+  </data>
+  <data name="Settings.SteamAccount.SignInQrCode" xml:space="preserve">
+    <value>تسجيل الدخول عبر ستيم (رمز الاستجابة السريعة)</value>
+  </data>
+  <data name="Settings.SteamAccount.Disconnect" xml:space="preserve">
+    <value>قطع اتصال حساب ستيم</value>
+  </data>
+  <data name="Settings.SteamAccount.ScanQrPrompt" xml:space="preserve">
+    <value>امسح رمز الاستجابة السريعة هذا ضوئيًا باستخدام تطبيق ستيم على هاتفك لتأكيد تسجيل الدخول:</value>
+  </data>
+  <data name="Settings.SteamAccount.Cancel" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="Settings.SteamAccount.ConnectedAs" xml:space="preserve">
+    <value>متصل باسم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.Connected" xml:space="preserve">
+    <value>متصل باسم {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Status.NotConnected" xml:space="preserve">
+    <value>غير متصل</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Connected" xml:space="preserve">
+    <value>تم ربط حساب ستيم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.NotApproved" xml:space="preserve">
+    <value>لم تتم الموافقة على تسجيل الدخول عبر ستيم.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Failed" xml:space="preserve">
+    <value>فشل تسجيل الدخول عبر ستيم: {0}</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.Disconnected" xml:space="preserve">
+    <value>تم قطع اتصال حساب ستيم.</value>
+  </data>
+  <data name="Settings.SteamAccount.Toast.DisconnectFailed" xml:space="preserve">
+    <value>فشل قطع اتصال حساب ستيم: {0}</value>
   </data>
   <data name="Info.Demo.AppUpdates.AuthTitle" xml:space="preserve">
     <value>تسجيل الدخول باستخدام GitHub</value>
@@ -13431,6 +13512,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.Browser.LoadingCatalogs" xml:space="preserve">
     <value>جارٍ تحميل الكتالوجات...</value>
   </data>
+  <data name="Downloads.Browser.ReloadCatalog" xml:space="preserve">
+    <value>إعادة تحميل الفهرس</value>
+  </data>
+  <data name="Downloads.Browser.UpdatingCatalog" xml:space="preserve">
+    <value>جارٍ تحديث الفهرس...</value>
+  </data>
   <data name="Downloads.Browser.CurrentCatalog" xml:space="preserve">
     <value>الكتالوج الحالي</value>
   </data>
@@ -13487,6 +13574,27 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ArtworkHostingNotSupported" xml:space="preserve">
     <value>المزود لا يدعم استضافة الصور. استخدم روابط صور مباشرة أو بدّل المزود.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.UploadingMediaFormat" xml:space="preserve">
+    <value>جارٍ رفع الوسائط {0}/{1}: {2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaFileMissingFormat" xml:space="preserve">
+    <value>لم يتم العثور على ملف الوسائط: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedFormat" xml:space="preserve">
+    <value>فشل رفع الوسائط {0}: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaUploadFailedTitle" xml:space="preserve">
+    <value>فشل رفع الوسائط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaHostingNotSupported" xml:space="preserve">
+    <value>المزود لا يدعم استضافة الوسائط. استخدم روابط صور/فيديو مباشرة أو بدّل المزود.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedTitle" xml:space="preserve">
+    <value>تم تخطي الوسائط غير المحلولة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.MediaSkippedFormat" xml:space="preserve">
+    <value>تعذر حل {0} من مراجع الوسائط إلى ملفات محلية وتم تركها دون تغيير.</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.DropFileUnreadableFormat" xml:space="preserve">
     <value>تعذّر قراءة الملف المُسقط: {0}</value>
@@ -13676,6 +13784,51 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Downloads.ContentDetail.PlayVideoTooltip" xml:space="preserve">
     <value>تشغيل أو فتح الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPreview" xml:space="preserve">
+    <value>معاينة الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedTitle" xml:space="preserve">
+    <value>تعذر فتح الفيديو</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoOpenFailedMessage" xml:space="preserve">
+    <value>تعذر فتح رابط الفيديو في المتصفح.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.PlayPause" xml:space="preserve">
+    <value>تشغيل / إيقاف مؤقت</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Rewind" xml:space="preserve">
+    <value>ترجيع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.FastForward" xml:space="preserve">
+    <value>تقديم سريع 10 ثوانٍ</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Fullscreen" xml:space="preserve">
+    <value>ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.ExitFullscreen" xml:space="preserve">
+    <value>الخروج من ملء الشاشة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.BufferingVideo" xml:space="preserve">
+    <value>جارٍ التحميل المؤقت... {0}%</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.MuteUnmute" xml:space="preserve">
+    <value>كتم / إلغاء الكتم</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.LoadingVideo" xml:space="preserve">
+    <value>جارٍ تحميل الفيديو...</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoUnavailable" xml:space="preserve">
+    <value>تشغيل الفيديو غير متوفر على هذا الجهاز.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.VideoLoadFailed" xml:space="preserve">
+    <value>تعذر تشغيل هذا الفيديو.</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.Retry" xml:space="preserve">
+    <value>إعادة المحاولة</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
+    <value>فتح في المتصفح</value>
   </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>إصدارات بديلة (مثل اللغات والدقات)</value>
@@ -13981,16 +14134,16 @@ https://example.com/screenshot2.png</value>
     <value>أصدر الناشر '{0}' {1} كتالوجات جديدة.</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationTitle" xml:space="preserve">
-    <value>محتوى جديد متاح</value>
+    <value>تنزيلات جديدة متاحة</value>
   </data>
   <data name="Downloads.Browser.ViewContentAction" xml:space="preserve">
     <value>عرض</value>
   </data>
   <data name="Downloads.Browser.NewContentNotificationFormat" xml:space="preserve">
-    <value>تم إصدار محتوى جديد '{0}' في الكتالوج '{1}'</value>
+    <value>تم إصدار تنزيل جديد '{0}' في الكتالوج '{1}'</value>
   </data>
   <data name="Downloads.Browser.NewContentsNotificationFormat" xml:space="preserve">
-    <value>تم إصدار {0} عناصر محتوى جديدة في الكتالوج '{1}'</value>
+    <value>تم إصدار تنزيلات جديدة في الكتالوج '{1}' (العدد: {0})</value>
   </data>
   <data name="Tools.PublisherStudio.Common.Catalog" xml:space="preserve">
     <value>الكتالوج</value>
@@ -14052,6 +14205,24 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Notification.EarlyExit.UnknownCode" xml:space="preserve">
     <value>انتهت العملية قبل اكتمال التشغيل. راجع السجلات للاطلاع على التفاصيل.</value>
   </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>خرجت العملية فورًا برمز الخروج {0} (0x{1}). {2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>تعذر العثور على مكتبة DLL مطلوبة. تأكد من وجود جميع ملفات DLL المرفقة بالملف التنفيذي في مجلده.</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>البرنامج أو إحدى مكتبات DLL الخاصة به غير صالح لهذا النظام، وغالبًا ما يكون السبب خلط ملفات 32 بت و64 بت.</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>فشلت تهيئة مكتبة DLL مطلوبة.</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>تعطلت العملية بسبب انتهاك في الوصول إلى الذاكرة.</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>أوقفت العملية نفسها بعد خطأ فادح (تجاوز سعة المخزن المؤقت للمكدس أو إنهاء فوري).</value>
+  </data>
   <data name="GameProfiles.Notification.ToolLaunchSuccess.Title" xml:space="preserve">
     <value>تم تشغيل الأداة</value>
   </data>
@@ -14094,6 +14265,18 @@ https://example.com/screenshot2.png</value>
   </data>
   <data name="Tools.PublisherStudio.Library.PasteScreenshotTooltip" xml:space="preserve">
     <value>لصق صورة أو ملف أو رابط من الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideo" xml:space="preserve">
+    <value>لصق</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.PasteVideoTooltip" xml:space="preserve">
+    <value>الصق ملف فيديو أو رابط من الحافظة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoTitle" xml:space="preserve">
+    <value>لم يتم العثور على فيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.NoClipboardVideoMessage" xml:space="preserve">
+    <value>لم يتم العثور على ملف فيديو أو رابط فيديو في الحافظة.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.AddVideo" xml:space="preserve">
     <value>إضافة ملف فيديو</value>
@@ -17597,6 +17780,18 @@ Error: فشل: {3}
   <data name="TextureEditor.Notify.OpenFailed.Message" xml:space="preserve"><value>فشل فتح النسيج الهدف.</value></data>
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
+  </data>
+  <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
+    <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Title" xml:space="preserve">
+    <value>تم تخطي بعض الملفات</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
+    <value>تم تخطي {0} من الملفات لأن ملفاتها المصدرية مفقودة: {1}</value>
+  </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>تم تخطي {0}: ملفه المصدري مفقود.</value>
   </data>
   <data name="Tools.Plugin.genhub.tools.worldbuilder.Name" xml:space="preserve">
     <value>WorldBuilder</value>

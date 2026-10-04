@@ -169,10 +169,15 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         if (!string.IsNullOrEmpty(configured))
         {
             var normalizedTheme = configured.Trim();
-            if (ThemeConstants.AllThemes.Any(t =>
-                    string.Equals(t.Id, normalizedTheme, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(t.DisplayName, normalizedTheme, StringComparison.OrdinalIgnoreCase)) ||
-                string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
+            var matchingTheme = ThemeConstants.AllThemes.FirstOrDefault(t =>
+                string.Equals(t.Id, normalizedTheme, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.DisplayName, normalizedTheme, StringComparison.OrdinalIgnoreCase));
+            if (matchingTheme != null)
+            {
+                return matchingTheme.Id;
+            }
+
+            if (string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(normalizedTheme, "Light", StringComparison.OrdinalIgnoreCase))
             {
                 return normalizedTheme;

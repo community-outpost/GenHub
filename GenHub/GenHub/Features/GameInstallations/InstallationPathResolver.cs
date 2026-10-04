@@ -93,7 +93,7 @@ public class InstallationPathResolver(
         }
 
         // Archive presence validates retail data independently of the executable form.
-        bool hasValidFiles;
+        bool hasValidFiles = false;
         try
         {
             hasValidFiles =

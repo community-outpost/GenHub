@@ -41,14 +41,13 @@ internal static class ManifestSourcePathResolver
                 continue;
             }
 
-            // A Flatpak bundle staged outside the game directory is not in the
-            // working directory by definition: skip the shortcut so the content
-            // directory lookup below resolves the staging location instead.
+            // Game clients in a local working directory (e.g. retail or Steam installations)
+            // resolve from that directory. Publisher-based or staged clients (e.g. Generals Online,
+            // Flatpak bundles) resolve their content directory from the manifest pool instead.
             if (manifest.ContentType == ContentType.GameClient
-                && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory)
-                && !IsFlatpakBundleOutsideWorkingDirectory(manifest, profile.GameClient.WorkingDirectory))
+                && ShouldUseWorkingDirectoryForGameClient(profile, manifest))
             {
-                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
+                manifestSourcePaths[manifest.Id.Value] = profile.GameClient!.WorkingDirectory;
                 logger.LogDebug("[ManifestSourcePathResolver] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
                 continue;
             }
@@ -81,6 +80,35 @@ internal static class ManifestSourcePathResolver
         }
 
         return manifestSourcePaths;
+    }
+
+    private static bool ShouldUseWorkingDirectoryForGameClient(GameProfile profile, ContentManifest manifest)
+    {
+        if (profile.GameClient == null || string.IsNullOrEmpty(profile.GameClient.WorkingDirectory))
+        {
+            return false;
+        }
+
+        if (IsFlatpakBundleOutsideWorkingDirectory(manifest, profile.GameClient.WorkingDirectory))
+        {
+            return false;
+        }
+
+        // Publisher clients have their own binaries managed by the application (via content-addressable storage
+        // or extracted content pools) and do not exist in the retail installation working directory.
+        if (profile.GameClient.IsPublisherClient)
+        {
+            var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            if (entry.Success && !string.IsNullOrEmpty(entry.RelativePath))
+            {
+                var workingDirEntryPath = Path.Combine(profile.GameClient.WorkingDirectory, entry.RelativePath);
+                return File.Exists(workingDirEntryPath);
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private static bool IsFlatpakBundleOutsideWorkingDirectory(ContentManifest manifest, string workingDirectory)

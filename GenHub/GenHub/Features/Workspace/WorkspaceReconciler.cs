@@ -43,11 +43,12 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
         // Build a dictionary tracking ALL occurrences of each file for conflict resolution
         // Key: relative file path, Value: list of (file, contentType, manifestId) tuples
-        var fileOccurrences = new Dictionary<string, List<(ManifestFile File, ContentType ContentType, string ManifestId)>>(StringComparer.OrdinalIgnoreCase);
+        var fileOccurrences = new Dictionary<string, List<(ManifestFile File, ContentType ContentType, string ManifestId, int ManifestIndex)>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var manifest in configuration.Manifests)
+        for (var manifestIndex = 0; manifestIndex < configuration.Manifests.Count; manifestIndex++)
         {
-            foreach (var file in (manifest.Files ?? Enumerable.Empty<ManifestFile>()).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
+            var manifest = configuration.Manifests[manifestIndex];
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.InstallTarget == ContentInstallTarget.Workspace))
             {
                 var relativePath = file.RelativePath.Replace('/', Path.DirectorySeparatorChar);
 
@@ -57,7 +58,7 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
                     fileOccurrences[relativePath] = list;
                 }
 
-                list.Add((file, manifest.ContentType, manifest.Id.ToString()));
+                list.Add((file, manifest.ContentType, manifest.Id.ToString(), manifestIndex));
             }
         }
 
@@ -74,9 +75,10 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             }
             else
             {
-                // Conflict - multiple sources for same file, resolve by priority
+                // Conflict - multiple sources for same file, resolve by priority, then the later manifest
                 var sorted = occurrences
                     .OrderByDescending(o => ContentTypePriority.GetPriority(o.ContentType))
+                    .ThenByDescending(o => o.ManifestIndex)
                     .ToList();
 
                 var winner = sorted[0];

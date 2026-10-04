@@ -565,7 +565,7 @@ public sealed class WndTextureImportService(ILogger<WndTextureImportService> log
 
         var bitCount = (int)BitConverter.ToInt16(dib, 14);
         var clrUsed = BitConverter.ToInt32(dib, 32);
-        int paletteEntries;
+        int paletteEntries = 0;
         if (clrUsed > 0)
         {
             paletteEntries = clrUsed;

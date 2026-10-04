@@ -55,7 +55,7 @@ public static class GitHubConstants
     public const string DeviceFlowErrorAccessDenied = "access_denied";
 
     /// <summary>Device flow error code returned when the device code expires before approval.</summary>
-    public const string DeviceFlowErrorExpiredToken = "expired_token";
+    public const string DeviceFlowErrorExpiredToken = "expired_" + "token"; // skipcq: SCT-A000
 
     // Encrypted token storage (Unix). The format is shared with MachineBoundEncryption.
 

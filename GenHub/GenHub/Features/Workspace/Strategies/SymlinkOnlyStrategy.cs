@@ -45,7 +45,7 @@ public sealed class SymlinkOnlyStrategy(
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
         // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.Manifests.SelectMany(m => m.Files).Count() * LinkOverheadBytes;
+        return configuration.GetWorkspaceUniqueFiles().Count() * LinkOverheadBytes;
     }
 
     /// <inheritdoc/>
@@ -80,14 +80,14 @@ public sealed class SymlinkOnlyStrategy(
             // Create workspace directory
             Directory.CreateDirectory(workspacePath);
 
-            var allFiles = configuration.Manifests.SelectMany(m => m.Files).ToList();
-            var totalFiles = allFiles.Count;
+            var manifestFiles = configuration.GetWorkspaceUniqueFileEntries();
+            var totalFiles = manifestFiles.Count;
             var processedFiles = 0;
 
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            int degreeOfParallelism;
+            int degreeOfParallelism = 0;
             try
             {
                 var driveInfo = new DriveInfo(Path.GetPathRoot(workspacePath) ?? "C:\\");
@@ -104,14 +104,6 @@ public sealed class SymlinkOnlyStrategy(
                 Logger.LogWarning(ex, "[Workspace] Failed to detect drive type, using default parallelism");
                 degreeOfParallelism = Environment.ProcessorCount * 2;
             }
-
-            // Deduplicate files by RelativePath - multiple manifests may contain the same file
-            // (e.g., GameClient and GameInstallation both contain the executable)
-            // Group by path and take the first occurrence to avoid parallel creation conflicts
-            // include files where InstallTarget is Workspace.
-            var manifestFiles = configuration.GetWorkspaceUniqueFiles()
-                .Select(f => new { Manifest = configuration.Manifests.First(m => m.Files.Contains(f)), File = f })
-                .ToList();
 
             await Parallel.ForEachAsync(
                 manifestFiles,
@@ -193,7 +185,7 @@ public sealed class SymlinkOnlyStrategy(
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }
@@ -227,14 +219,5 @@ public sealed class SymlinkOnlyStrategy(
             Logger.LogError(ex, "Failed to create symlink from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             throw new InvalidOperationException($"Failed to create symlink for {file.RelativePath}: {ex.Message}", ex);
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // For game installation files, treat them the same as local files
-        // We need to find the manifest that contains this file
-        var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
-        await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
     }
 }

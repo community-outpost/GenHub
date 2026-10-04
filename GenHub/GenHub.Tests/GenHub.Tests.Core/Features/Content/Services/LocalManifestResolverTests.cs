@@ -1,9 +1,13 @@
+using GenHub.Core.Helpers;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentResolvers;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -51,6 +55,25 @@ public class LocalManifestResolverTests : IDisposable
         var result = await _resolver.ResolveAsync(new ContentSearchResult { SourceUrl = manifestPath });
 
         Assert.False(result.Success);
+    }
+
+    /// <summary>
+    /// Tests that a manifest whose files are all in variants is accepted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveAsync_WithFilesOnlyInVariants_SucceedsAsync()
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "generalszh-host" }],
+            [new ManifestFile { RelativePath = "generalszh-foreign.exe" }]);
+        var manifestPath = Path.Combine(_tempRoot, "manifest.json");
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, ManifestJsonOptions.Default));
+
+        var result = await _resolver.ResolveAsync(new ContentSearchResult { SourceUrl = manifestPath });
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(2, result.Data!.Variants.Count);
     }
 
     /// <summary>

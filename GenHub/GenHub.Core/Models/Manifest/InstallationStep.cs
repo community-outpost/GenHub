@@ -35,9 +35,18 @@ public class InstallationStep
     /// <summary>
     /// Gets or sets the arguments for executable steps.
     /// Only used when <see cref="Kind"/> is <see cref="InstallationStepKind.RunVerifiedInstaller"/>.
+    /// Entries covered by <see cref="ArgumentBindings"/> are placeholders replaced at execution.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Arguments { get; set; }
+
+    /// <summary>
+    /// Gets or sets bindings filling argument entries from delivered package files.
+    /// Steps with bindings must not declare an explicit <see cref="StepKey"/>: the key
+    /// derives from the resolved arguments so value changes re-trigger RunOnce steps.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<InstallationArgumentBinding>? ArgumentBindings { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the step requires elevation.

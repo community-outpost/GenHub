@@ -1897,7 +1897,7 @@ public class ProfileSharingService(
     private static string GenerateConflictFreeProfileName(string baseName, ISet<string> existingNames)
     {
         int counter = 1;
-        string candidate;
+        string candidate = string.Empty;
         do
         {
             string suffix = string.Format(System.Globalization.CultureInfo.InvariantCulture, ProfileSharingConstants.ConflictSuffixFormat, counter);
@@ -2189,7 +2189,14 @@ public class ProfileSharingService(
         bool allowCloudUpload,
         CancellationToken cancellationToken)
     {
-        var dependencyFiles = (manifest.Files ?? []).Select(f => ToSharedManifestFile(f)).ToList();
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return OperationResult<SharedManifestDependency>.CreateFailure(
+                string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
+        }
+
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(manifest);
+        var dependencyFiles = resolvedFiles.Select(f => ToSharedManifestFile(f)).ToList();
 
         string? packageUrl = null;
         string? packageHash = null;
@@ -2204,7 +2211,7 @@ public class ProfileSharingService(
                     $"Cloud upload service is unavailable to upload local content '{manifest.Name}'. Export as a .ghprofile file instead.");
             }
 
-            var uploadResult = await PackageAndUploadLocalManifestAsync(manifest, cancellationToken);
+            var uploadResult = await PackageAndUploadLocalManifestAsync(manifest, resolvedFiles, cancellationToken);
             if (!uploadResult.Success || string.IsNullOrWhiteSpace(uploadResult.Data.Url))
             {
                 return OperationResult<SharedManifestDependency>.CreateFailure(
@@ -2241,9 +2248,10 @@ public class ProfileSharingService(
 
     private async Task<OperationResult<(string? Url, string? Hash)>> PackageAndUploadLocalManifestAsync(
         ContentManifest manifest,
+        IReadOnlyList<ManifestFile> resolvedFiles,
         CancellationToken cancellationToken)
     {
-        if (uploadThingService == null || casService == null || manifest.Files is not { Count: > 0 })
+        if (uploadThingService == null || casService == null || resolvedFiles.Count == 0)
         {
             return OperationResult<(string? Url, string? Hash)>.CreateFailure(
                 $"Cannot package local manifest '{manifest.Name}': missing files or upload services.");
@@ -2255,7 +2263,7 @@ public class ProfileSharingService(
         try
         {
             Directory.CreateDirectory(stagingBase);
-            var zipHash = await CreateLocalManifestArchiveAsync(tempZipPath, manifest, cancellationToken);
+            var zipHash = await CreateLocalManifestArchiveAsync(tempZipPath, manifest, resolvedFiles, cancellationToken);
             if (string.IsNullOrEmpty(zipHash))
             {
                 return OperationResult<(string? Url, string? Hash)>.CreateFailure(
@@ -2283,14 +2291,15 @@ public class ProfileSharingService(
     private async Task<string?> CreateLocalManifestArchiveAsync(
         string tempZipPath,
         ContentManifest manifest,
+        IReadOnlyList<ManifestFile> resolvedFiles,
         CancellationToken cancellationToken)
     {
-        if (casService == null || manifest.Files == null)
+        if (casService == null)
         {
             return null;
         }
 
-        var sortedFiles = manifest.Files.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
+        var sortedFiles = resolvedFiles.OrderBy(f => f.RelativePath, StringComparer.Ordinal).ToList();
         var written = await WriteLocalManifestArchiveEntriesAsync(tempZipPath, manifest, sortedFiles, cancellationToken);
         if (!written)
         {

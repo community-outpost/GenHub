@@ -91,7 +91,7 @@ public class CommunityOutpostProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        return GetCachedProviderDefinition(providerDefinitionLoader, CommunityOutpostConstants.PublisherId);
+        return GetCachedProviderDefinition(providerDefinitionLoader, CommunityOutpostConstants.PublisherId) ?? GetCachedProviderDefinition(providerDefinitionLoader, CommunityOutpostConstants.PublisherType);
     }
 
     /// <inheritdoc/>

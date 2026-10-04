@@ -64,16 +64,9 @@ public class HostingCredentialStore(
             }
 
             plainBytes = Encoding.UTF8.GetBytes(credential);
-            byte[] encryptedBytes;
-
-            if (OperatingSystem.IsWindows())
-            {
-                encryptedBytes = ProtectedData.Protect(plainBytes, Entropy, DataProtectionScope.CurrentUser);
-            }
-            else
-            {
-                encryptedBytes = EncryptNonWindows(plainBytes);
-            }
+            byte[] encryptedBytes = OperatingSystem.IsWindows()
+                ? ProtectedData.Protect(plainBytes, Entropy, DataProtectionScope.CurrentUser)
+                : EncryptNonWindows(plainBytes);
 
             await WriteCredentialAtomicallyAsync(filePath, encryptedBytes, cancellationToken).ConfigureAwait(false);
         }

@@ -555,7 +555,7 @@ public partial class ModDBDiscoverer(
 
         if (!IsValidContentDetailUrl(href)) return null;
 
-        string detailUrl;
+        string detailUrl = string.Empty;
         if (href.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
             detailUrl = href;

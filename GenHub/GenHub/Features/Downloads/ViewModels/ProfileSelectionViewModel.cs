@@ -598,7 +598,7 @@ public sealed partial class ProfileSelectionViewModel(
 
     private async Task<string> ResolveUniqueProfileNameAsync(ContentManifest? selectedManifest, string selectedContentName)
     {
-        string baseName;
+        string baseName = string.Empty;
         if (selectedManifest?.ContentType == ContentType.GameClient &&
             !string.IsNullOrWhiteSpace(selectedManifest.Name))
         {

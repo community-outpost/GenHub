@@ -521,7 +521,8 @@ public class PublisherStudioService(
             return upstreamValidation;
         }
 
-        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) ||
+                                CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
         var isBundle = content.ContentType == ContentType.ContentBundle;
 
         if (content.Releases.Count == 0)
@@ -562,7 +563,8 @@ public class PublisherStudioService(
 
     private static OperationResult<bool> ValidateUpstreamSyncItem(CatalogContentItem content)
     {
-        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
+        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) ||
+                                CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
         if (!isUpstreamTracked || content.UpstreamSync == null)
         {
             return OperationResult<bool>.CreateSuccess(true);

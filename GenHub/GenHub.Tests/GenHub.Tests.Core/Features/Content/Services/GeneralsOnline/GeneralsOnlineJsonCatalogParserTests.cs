@@ -174,19 +174,22 @@ public class GeneralsOnlineJsonCatalogParserTests
     }
 
     /// <summary>
-    /// Tests that ParseAsync correctly populates the SHA256 hash when present in the API response.
+    /// Tests that ParseAsync correctly populates and trims the SHA256 hash when present in the API response.
     /// </summary>
+    /// <param name="inputSha256">The input SHA256 string, potentially containing leading/trailing whitespace.</param>
+    /// <param name="expectedSha256">The expected normalized SHA256 on the release.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
-    [Fact]
-    public async Task ParseAsync_WithSha256_PopulatesSha256OnReleaseAsync()
+    [Theory]
+    [InlineData("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
+    [InlineData("   085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE   ", "085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE")]
+    public async Task ParseAsync_WithSha256_PopulatesSha256OnReleaseAsync(string inputSha256, string expectedSha256)
     {
         // Arrange
-        const string expectedSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         var json = $@"{{
             ""version"": ""111825_QFE2"",
             ""download_url"": ""https://example.com/download.zip"",
             ""size"": 123456,
-            ""sha256"": ""{expectedSha256}"",
+            ""sha256"": ""{inputSha256}"",
             ""release_notes"": ""Fixes stuff""
         }}";
 

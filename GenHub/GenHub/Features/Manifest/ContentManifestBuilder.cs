@@ -827,7 +827,8 @@ public partial class ContentManifestBuilder(
         bool requiresElevation = false,
         string? statusMessage = null,
         bool runOnce = false,
-        string? stepKey = null)
+        string? stepKey = null,
+        List<InstallationArgumentBinding>? argumentBindings = null)
     {
         var step = new InstallationStep
         {
@@ -835,6 +836,7 @@ public partial class ContentManifestBuilder(
             Kind = kind,
             TargetRelativePath = targetRelativePath,
             Arguments = arguments,
+            ArgumentBindings = argumentBindings,
             DestinationRelativePath = destinationRelativePath,
             RequiresElevation = requiresElevation,
             StatusMessage = statusMessage,
@@ -889,6 +891,30 @@ public partial class ContentManifestBuilder(
 
         _manifest.EntryPoint = entryPoint;
         logger.LogDebug("Set declared entry point: {EntryPoint}", entryPoint);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IContentManifestBuilder WithLaunchRelationship(string? processName, int? discoveryTimeoutMs = null)
+    {
+        if (string.IsNullOrWhiteSpace(processName))
+        {
+            _manifest.LaunchRelationship = null;
+            return this;
+        }
+
+        var trimmed = processName.Trim();
+        if (!LaunchRelationship.IsValidProcessName(trimmed))
+        {
+            throw new ArgumentException($"Invalid launch relationship process name '{processName}'. Declare a bare process name without extension or path.", nameof(processName));
+        }
+
+        _manifest.LaunchRelationship = new LaunchRelationship
+        {
+            ProcessName = trimmed,
+            DiscoveryTimeoutMs = discoveryTimeoutMs is > 0 ? discoveryTimeoutMs : null,
+        };
+        logger.LogDebug("Set declared launch relationship: {ProcessName}", trimmed);
         return this;
     }
 

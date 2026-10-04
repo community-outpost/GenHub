@@ -58,6 +58,19 @@ public class ThemeService(
     {
         ArgumentNullException.ThrowIfNull(theme);
 
+        try
+        {
+            _ = Color.Parse(theme.PrimaryHex);
+            _ = Color.Parse(theme.LightHex);
+            _ = Color.Parse(theme.DarkHex);
+            _ = Color.Parse(theme.GlowHex);
+        }
+        catch (FormatException ex)
+        {
+            logger.LogError(ex, "Failed to parse color hex for theme {ThemeId}", theme.Id);
+            return;
+        }
+
         CurrentTheme = theme;
 
         if (Dispatcher.UIThread.CheckAccess())
@@ -150,7 +163,6 @@ public class ThemeService(
             };
             resources[ThemeResourceKeys.PrimaryGradientBrush] = gradientBrush;
             resources[ThemeResourceKeys.PurpleAccentGradient] = gradientBrush;
-            resources["PurpleAccentGradient"] = gradientBrush;
 
             WeakReferenceMessenger.Default.Send(new ThemeChangedMessage(theme.Id));
             logger.LogDebug("Applied color theme '{ThemeName}' ({ThemeId})", theme.DisplayName, theme.Id);

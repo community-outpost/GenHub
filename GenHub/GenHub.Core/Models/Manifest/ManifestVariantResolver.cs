@@ -31,7 +31,8 @@ public static class ManifestVariantResolver
     /// <returns>
     /// The matching variant's files, or the flat <see cref="ContentManifest.Files"/> list
     /// when the manifest declares no variants. Empty when variants are declared but none
-    /// matches, which means the content genuinely cannot run here.
+    /// matches, which means the content genuinely cannot run here. Null entries are
+    /// skipped; structural validation reports them through <see cref="GetDeclaredFileLists"/>.
     /// </returns>
     public static IReadOnlyList<ManifestFile> ResolveFiles(
         ContentManifest manifest,
@@ -40,13 +41,90 @@ public static class ManifestVariantResolver
         ArgumentNullException.ThrowIfNull(manifest);
 
         var variant = ResolveVariant(manifest, runtimeIdentifier);
-
+        IReadOnlyList<ManifestFile>? files = null;
         if (variant is not null)
         {
-            return variant.Files ?? [];
+            files = variant.Files;
+        }
+        else if (manifest.Variants.Count == 0)
+        {
+            files = manifest.Files;
         }
 
-        return manifest.Variants.Count == 0 ? (manifest.Files ?? []) : [];
+        return files is null ? [] : files.Where(f => f is not null).ToList();
+    }
+
+    /// <summary>
+    /// Enumerates every file the manifest declares: the flat list followed by each
+    /// variant's files, whichever runtime they target. Null entries are skipped; use
+    /// GetDeclaredFileLists for structural validation of malformed entries.
+    /// </summary>
+    /// <param name="manifest">The manifest to enumerate.</param>
+    /// <returns>All declared files.</returns>
+    public static IReadOnlyList<ManifestFile> EnumerateAllFiles(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var variantFiles = manifest.Variants.SelectMany(v => v?.Files ?? []);
+        return (manifest.Files ?? []).Concat(variantFiles).Where(f => f is not null).ToList();
+    }
+
+    /// <summary>Gets the declared file lists without dropping malformed entries, for structural validation.</summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <returns>The flat list followed by each variant's list, in declaration order.</returns>
+    public static IReadOnlyList<IReadOnlyList<ManifestFile>?> GetDeclaredFileLists(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        var lists = new List<IReadOnlyList<ManifestFile>?> { manifest.Files };
+        lists.AddRange(manifest.Variants.Select(v => (IReadOnlyList<ManifestFile>?)v?.Files));
+        return lists;
+    }
+
+    /// <summary>
+    /// Replaces the files <see cref="ResolveFiles"/> returns for the given runtime.
+    /// <para>
+    /// The matching variant's list is replaced, or the flat list when the manifest
+    /// declares no variants. Other variants are left untouched. Nothing changes when
+    /// variants are declared but none matches.
+    /// </para>
+    /// </summary>
+    /// <param name="manifest">The manifest to update.</param>
+    /// <param name="files">The new files.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    public static void ReplaceResolvedFiles(
+        ContentManifest manifest,
+        List<ManifestFile> files,
+        string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(files);
+
+        var variant = ResolveVariant(manifest, runtimeIdentifier);
+        if (variant is not null)
+        {
+            variant.Files = files;
+        }
+        else if (manifest.Variants.Count == 0)
+        {
+            manifest.Files = files;
+        }
+    }
+
+    /// <summary>
+    /// Rewrites every file the manifest declares, in the flat list and in each variant.
+    /// </summary>
+    /// <param name="manifest">The manifest to update.</param>
+    /// <param name="rewrite">Returns the replacement for a file, or the file itself to keep it.</param>
+    public static void RewriteAllFiles(ContentManifest manifest, Func<ManifestFile, ManifestFile> rewrite)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(rewrite);
+
+        manifest.Files = (manifest.Files ?? []).Select(f => f is null ? f! : rewrite(f)).ToList();
+        foreach (var variant in manifest.Variants.Where(v => v is not null))
+        {
+            variant.Files = (variant.Files ?? []).Select(f => f is null ? f! : rewrite(f)).ToList();
+        }
     }
 
     /// <summary>
@@ -70,8 +148,8 @@ public static class ManifestVariantResolver
 
         // Prefer an explicit match over a platform-neutral one, so a manifest carrying
         // both a native build and a neutral asset bundle resolves to the native build.
-        return manifest.Variants.FirstOrDefault(v => v.RuntimeIdentifiers.Count > 0 && v.SupportsRuntime(rid))
-            ?? manifest.Variants.FirstOrDefault(v => v.RuntimeIdentifiers.Count == 0);
+        return manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is { Count: > 0 } && v.SupportsRuntime(rid))
+            ?? manifest.Variants.FirstOrDefault(v => v is not null && v.RuntimeIdentifiers is null or { Count: 0 });
     }
 
     /// <summary>
@@ -150,6 +228,38 @@ public static class ManifestVariantResolver
         return executable.Count == 0
             ? ResolveLegacyCandidates(manifest, files)
             : ResolvePrimaryExecutable(manifest, files, executable);
+    }
+
+    /// <summary>
+    /// Resolves the declared launch relationship: the process the resolved entry point
+    /// spawns and hands the session to.
+    /// <para>
+    /// Mirrors entry-point placement: the matching variant's relationship wins when
+    /// variants are declared, otherwise the manifest-level one. Absence is normal and
+    /// means the entry is the game itself. An invalid declaration is treated as absent
+    /// so a bad relationship degrades to legacy guessing instead of breaking the launch.
+    /// </para>
+    /// </summary>
+    /// <param name="manifest">The manifest to resolve.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    /// <returns>The validated relationship, or <c>null</c> when none is declared or valid.</returns>
+    public static LaunchRelationship? ResolveLaunchRelationship(
+        ContentManifest manifest,
+        string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        var variant = ResolveVariant(manifest, runtimeIdentifier);
+        var declared = manifest.Variants.Count == 0
+            ? manifest.LaunchRelationship
+            : variant?.LaunchRelationship;
+
+        if (declared is null || !LaunchRelationship.IsValidProcessName(declared.ProcessName))
+        {
+            return null;
+        }
+
+        return declared;
     }
 
     /// <summary>

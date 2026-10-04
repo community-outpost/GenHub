@@ -222,7 +222,7 @@ public partial class MappedImagePickerControl : UserControl
             _syncingSelection = false;
         }
 
-        if (SelectedImage is not null && !_filteredItems.Any(item => string.Equals(item.Definition.Name, SelectedImage.Name, StringComparison.OrdinalIgnoreCase)))
+        if (SelectedImage is not null && _filteredItems.All(item => !string.Equals(item.Definition.Name, SelectedImage.Name, StringComparison.OrdinalIgnoreCase)))
         {
             SelectedImage = null;
         }

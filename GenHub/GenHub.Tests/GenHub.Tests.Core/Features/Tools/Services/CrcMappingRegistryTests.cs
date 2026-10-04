@@ -97,7 +97,8 @@ public sealed class CrcMappingRegistryTests
             DataPatchName = "CommunityPatch Core INI (88888888)",
             Publisher = "generalsonline",
             GameType = "ZeroHour",
-            Version = "082826_QFE1",
+            Version = "092826",
+            BuildDate = "2026-09-28",
         };
 
         registry.RegisterEntry(entry);
@@ -382,5 +383,51 @@ public sealed class CrcMappingRegistryTests
         Assert.True(registry.TryGetEntryByIniCrc("0x81FB5632", out var cpIni));
         Assert.NotNull(cpIni);
         Assert.Equal("CommunityPatch Core INI (81FB5632)", cpIni.DataPatchName);
+    }
+
+    /// <summary>
+    /// Verifies that duplicate ExeCrc entries prefer a non-patch/vanilla entry over one with a DataPatchManifestId
+    /// so exe-only fallback lookups do not associate an unwanted data patch.
+    /// </summary>
+    [Fact]
+    public void LoadCatalog_DuplicateExeCrc_PrefersNonPatchEntryForExeLookup()
+    {
+        var registry = new CrcMappingRegistry();
+        var catalog = new CrcCatalog
+        {
+            SchemaVersion = 1,
+            TotalEntries = 2,
+            Mappings =
+            [
+                new()
+                {
+                    ExeCrc = "0xDA2B4B18",
+                    IniCrc = "0x11111111",
+                    ManifestId = "1.04.modded.gameclient.zerohour",
+                    DataPatchManifestId = "1.04.modded.patch.gamedata",
+                    Publisher = "community",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-09-01",
+                    Version = "2.0",
+                },
+                new()
+                {
+                    ExeCrc = "0xDA2B4B18",
+                    IniCrc = "0x22222222",
+                    ManifestId = "1.04.vanilla.gameclient.zerohour",
+                    Publisher = "community",
+                    GameType = "ZeroHour",
+                    BuildDate = "2026-08-01",
+                    Version = "1.0",
+                },
+            ],
+        };
+
+        registry.LoadCatalog(catalog);
+
+        Assert.True(registry.TryGetEntryByExeCrc("0xDA2B4B18", out var found));
+        Assert.NotNull(found);
+        Assert.Equal("1.04.vanilla.gameclient.zerohour", found.ManifestId);
+        Assert.Null(found.DataPatchManifestId);
     }
 }

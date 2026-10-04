@@ -272,7 +272,11 @@ public class DownloadService(
             {
                 await File.WriteAllTextAsync($"{configuration.DestinationPath}.etag", etag.Trim(), cancellationToken);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Non-fatal if sidecar cannot be written
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Non-fatal if sidecar cannot be written
             }
@@ -385,7 +389,11 @@ public class DownloadService(
                 File.Delete(path);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Non-fatal cleanup
+        }
+        catch (UnauthorizedAccessException)
         {
             // Non-fatal cleanup
         }
@@ -410,7 +418,7 @@ public class DownloadService(
         await TryWriteETagSidecarAsync(configuration, cts.Token);
 
         var receivedContentBytes = 0L;
-        int bytesRead;
+        int bytesRead = 0;
         while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token)) > 0)
         {
             if (connection.ExpectedContentBytes is long expectedContentBytes &&
@@ -490,7 +498,7 @@ public class DownloadService(
         await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         var buffer = new byte[bufferSize];
         var chunkBytesRead = 0L;
-        int bytesRead;
+        int bytesRead = 0;
 
         while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), token).ConfigureAwait(false)) > 0)
         {
@@ -909,12 +917,13 @@ public class DownloadService(
             return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, elapsed, false);
         }
 
+        var expectedHash = configuration.ExpectedHash.Trim();
         var actualHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-        var hashVerified = string.Equals(actualHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase);
+        var hashVerified = string.Equals(actualHash.Trim(), expectedHash, StringComparison.OrdinalIgnoreCase);
         if (!hashVerified)
         {
             TryDeleteFile(configuration.DestinationPath);
-            var hashError = $"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}";
+            var hashError = $"Hash verification failed. Expected: {expectedHash}, Actual: {actualHash}";
             TrackDownloadFailure(configuration, hashError, elapsed);
 
             return DownloadResult.CreateFailure(
@@ -936,8 +945,9 @@ public class DownloadService(
             return false;
         }
 
+        var expectedHash = configuration.ExpectedHash.Trim();
         var existingHash = await hashProvider.ComputeFileHashAsync(configuration.DestinationPath, cancellationToken);
-        if (string.Equals(existingHash, configuration.ExpectedHash, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(existingHash.Trim(), expectedHash, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogInformation("File {FilePath} already exists and matches expected hash; skipping download", configuration.DestinationPath);
             return true;

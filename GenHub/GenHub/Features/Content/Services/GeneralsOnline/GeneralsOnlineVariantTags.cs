@@ -10,6 +10,9 @@ internal static class GeneralsOnlineVariantTags
     /// <summary>Tag indicating 60Hz variant.</summary>
     public const string Tag60Hz = GeneralsOnlineConstants.Variant60HzSuffix;
 
+    /// <summary>Tag indicating Test Environment variant.</summary>
+    public const string TagTestEnvironment = GeneralsOnlineConstants.VariantTestEnvironmentSuffix;
+
     /// <summary>Tag indicating QuickMatch MapPack variant.</summary>
     public const string TagQuickMatchMaps = GeneralsOnlineConstants.QuickMatchMapPackSuffix;
 

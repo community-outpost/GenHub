@@ -136,6 +136,63 @@
             <Setter Property="RenderTransform" Value="scale(0.98)" />
         </Style>
 
+        <!-- Catalog Reload Button -->
+        <Style Selector="Button.catalog-reload-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.catalog-reload-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+
+        <Style Selector="Button.catalog-reload-btn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.95)" />
+        </Style>
+
+        <Style Selector="Button.catalog-reload-btn:disabled">
+            <Setter Property="Opacity" Value="0.4" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+
+        <Style Selector="Button.catalog-reload-btn.spinning, Button.catalog-reload-btn.spinning:disabled">
+            <Setter Property="Opacity" Value="0.85" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="Button.catalog-reload-btn.spinning PathIcon">
+            <Style.Animations>
+                <Animation Duration="0:0:1" IterationCount="Infinite">
+                    <KeyFrame KeyTime="0:0:0">
+                        <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame KeyTime="0:0:1">
+                        <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+
     </UserControl.Styles>
 
     <UserControl.DataTemplates>
@@ -269,30 +326,14 @@
                     </ToggleButton>
                 </Grid>
 
-                <!-- Catalog loading indicator (while the subscribed definition is fetched). -->
-                <StackPanel DockPanel.Dock="Top"
-                            Orientation="Horizontal"
-                            Spacing="8"
-                            Margin="0,0,0,12"
-                            VerticalAlignment="Center"
-                            IsVisible="{Binding IsLoadingCatalogs}">
-                    <ProgressBar IsIndeterminate="True"
-                                 Width="120"
-                                 VerticalAlignment="Center" />
-                    <TextBlock Text="{localization:Localize Downloads.Browser.LoadingCatalogs}"
-                               FontSize="13"
-                               Foreground="{DynamicResource TextSecondary}"
-                               VerticalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Catalog switcher (visible only for subscribed publishers with multiple catalogs).
+                <!-- Catalog switcher and reload bar (visible for subscribed publishers with multiple catalogs, or while loading).
                      Long catalog names trim in place; the full name stays available via tooltip. -->
                 <StackPanel DockPanel.Dock="Top"
                             Orientation="Horizontal"
                             Spacing="8"
                             Margin="0,0,0,12"
                             VerticalAlignment="Center"
-                            IsVisible="{Binding HasMultipleCatalogs}">
+                            IsVisible="{Binding CanShowCatalogSwitcher}">
                     <TextBlock Text="{localization:Localize Downloads.Browser.Catalog}"
                                FontSize="13"
                                FontWeight="SemiBold"
@@ -303,6 +344,7 @@
                               MaxWidth="340"
                               MinWidth="180"
                               VerticalAlignment="Center"
+                              IsVisible="{Binding HasMultipleCatalogs}"
                               ToolTip.Tip="{Binding SelectedCatalog.Name}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="providers:CatalogEntry">
@@ -357,6 +399,41 @@
                             </DataTemplate>
                         </ComboBox.SelectionBoxItemTemplate>
                     </ComboBox>
+
+                    <!-- Single-catalog name (displayed when only one catalog exists) -->
+                    <TextBlock Text="{Binding SelectedCatalog.Name}"
+                               FontSize="13"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="260"
+                               IsVisible="{Binding !HasMultipleCatalogs}" />
+
+                    <!-- Reload catalog button with animated spin on loading -->
+                    <Button Classes="catalog-reload-btn"
+                            Classes.spinning="{Binding IsLoadingCatalogs}"
+                            Command="{Binding ReloadCatalogCommand}"
+                            ToolTip.Tip="{localization:Localize Downloads.Browser.ReloadCatalog}"
+                            AutomationProperties.Name="{localization:Localize Downloads.Browser.ReloadCatalog}"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding CanShowCatalogSwitcher}">
+                        <PathIcon Data="{StaticResource RefreshIcon}"
+                                  Width="13" Height="13"
+                                  RenderTransformOrigin="50%,50%">
+                            <PathIcon.RenderTransform>
+                                <RotateTransform Angle="0" />
+                            </PathIcon.RenderTransform>
+                        </PathIcon>
+                    </Button>
+
+                    <!-- Catalog updating / loading label placed directly next to the catalog -->
+                    <TextBlock Text="{Binding CatalogLoadingStatusText}"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondary}"
+                               VerticalAlignment="Center"
+                               Margin="4,0,0,0"
+                               IsVisible="{Binding IsLoadingCatalogs}" />
                 </StackPanel>
 
                 <!-- Filter Panel (Collapsible) -->
@@ -427,7 +504,7 @@
                                     </Style>
                                 </PathIcon.Styles>
                             </PathIcon>
-                            <TextBlock Text="{localization:Localize Downloads.LoadingDetails}"
+                            <TextBlock Text="{localization:Localize Common.Status.LoadingContent}"
                                        FontSize="15"
                                        Foreground="{DynamicResource TextSecondary}"
                                        VerticalAlignment="Center"/>

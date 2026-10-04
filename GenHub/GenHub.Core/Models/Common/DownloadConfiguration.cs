@@ -14,6 +14,8 @@ public sealed class DownloadConfiguration
     /// </summary>
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(DownloadDefaults.TimeoutSeconds);
 
+    private string? _expectedHash;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadConfiguration"/> class.
     /// </summary>
@@ -53,7 +55,11 @@ public sealed class DownloadConfiguration
     public string DestinationPath { get; set; }
 
     /// <summary>Gets or sets the expected SHA256 hash for verification.</summary>
-    public string? ExpectedHash { get; set; }
+    public string? ExpectedHash
+    {
+        get => _expectedHash;
+        set => _expectedHash = value?.Trim();
+    }
 
     /// <summary>Gets or sets a value indicating whether to overwrite existing files.</summary>
     public bool OverwriteExisting { get; set; }

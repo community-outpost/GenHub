@@ -19,6 +19,8 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public class ArtifactVariant
 {
+    private List<string> _runtimeIdentifiers = [];
+
     /// <summary>
     /// Gets or sets the runtime identifiers this variant can run on, for example
     /// <c>osx-arm64</c> or <c>win-x64</c>.
@@ -29,11 +31,16 @@ public class ArtifactVariant
     /// </para>
     /// <para>
     /// An empty list means the variant is platform-neutral, which is correct for map
-    /// packs, INI tweaks and <c>.big</c> content that contains no native code.
+    /// packs, INI tweaks and <c>.big</c> content that contains no native code. A null
+    /// value, such as an explicit JSON <c>null</c>, is stored as an empty list.
     /// </para>
     /// </summary>
     [JsonPropertyName("runtimeIdentifiers")]
-    public List<string> RuntimeIdentifiers { get; set; } = [];
+    public List<string> RuntimeIdentifiers
+    {
+        get => _runtimeIdentifiers;
+        set => _runtimeIdentifiers = value ?? [];
+    }
 
     /// <summary>
     /// Gets or sets the relative path of the file to launch for this variant.
@@ -45,6 +52,13 @@ public class ArtifactVariant
     /// </summary>
     [JsonPropertyName("entryPoint")]
     public string? EntryPoint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the process the variant's entry point spawns and hands the session
+    /// to. Null means the entry is the game itself and no adoption takes place.
+    /// </summary>
+    [JsonPropertyName("launchRelationship")]
+    public LaunchRelationship? LaunchRelationship { get; set; }
 
     /// <summary>
     /// Gets or sets the files belonging to this variant.

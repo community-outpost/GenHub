@@ -626,6 +626,9 @@ public partial class AddContentDialogViewModel(
         ContentType.Mission,
         ContentType.Skin,
         ContentType.GameClient,
+        ContentType.GenHubBuild,
+        ContentType.ModdingTool,
+        ContentType.Executable,
     ];
 
     /// <summary>

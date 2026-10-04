@@ -96,36 +96,11 @@ public sealed class MapImportService(
 
             var fileName = ExtractFileName(finalUri, response);
             Directory.CreateDirectory(tempDir);
-            var tempPath = Path.Combine(tempDir, fileName);
+            var tempPath = ResolveSafeFilePath(tempDir, fileName);
 
-            await using (var fileStream = File.Create(tempPath))
-            await using (var httpStream = await response.Content.ReadAsStreamAsync(ct))
-            {
-                await httpStream.CopyToAsync(fileStream, ct);
-            }
+            await DownloadToTempFileAsync(response, tempPath, ct);
 
-            var isArchive = IsArchiveFile(tempPath) ||
-                fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                fileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                fileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase);
-
-            if (isArchive)
-            {
-                result = await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
-            }
-            else
-            {
-                // Ensure extension is .map so ImportFromFilesAsync picks it up
-                if (!tempPath.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-                {
-                    var newPath = tempPath + ".map";
-                    if (File.Exists(newPath)) File.Delete(newPath);
-                    File.Move(tempPath, newPath);
-                    tempPath = newPath;
-                }
-
-                result = await ImportFromFilesAsync([tempPath], targetVersion, ct);
-            }
+            result = await ProcessDownloadedMapAsync(tempPath, fileName, targetVersion, progress, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -134,17 +109,7 @@ public sealed class MapImportService(
         }
         finally
         {
-            if (Directory.Exists(tempDir))
-            {
-                try
-                {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-                catch
-                {
-                    // Best effort cleanup
-                }
-            }
+            DeleteDirectoryBestEffort(tempDir);
         }
 
         return result;
@@ -702,17 +667,7 @@ public sealed class MapImportService(
         }
         finally
         {
-            if (Directory.Exists(tempDir))
-            {
-                try
-                {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-                catch
-                {
-                    // Best effort cleanup
-                }
-            }
+            DeleteDirectoryBestEffort(tempDir);
         }
     }
 
@@ -868,7 +823,7 @@ public sealed class MapImportService(
         {
             var trimmed = rawName.Trim('"', '\'');
             var fileName = Path.GetFileName(trimmed);
-            if (!string.IsNullOrWhiteSpace(fileName))
+            if (!string.IsNullOrWhiteSpace(fileName) && fileName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
             {
                 return fileName;
             }
@@ -877,7 +832,7 @@ public sealed class MapImportService(
         try
         {
             var localName = Path.GetFileName(uri.LocalPath);
-            if (!string.IsNullOrWhiteSpace(localName))
+            if (!string.IsNullOrWhiteSpace(localName) && localName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
             {
                 return localName;
             }
@@ -907,6 +862,28 @@ public sealed class MapImportService(
         {
             // Best effort cleanup
         }
+    }
+
+    private static string ResolveSafeFilePath(string tempDir, string fileName)
+    {
+        var safeFileName = Path.GetFileName(fileName);
+        var tempPath = Path.Combine(tempDir, safeFileName);
+        if (string.IsNullOrWhiteSpace(safeFileName) || !PathHelper.IsPathWithinDirectory(tempDir, tempPath))
+        {
+            return Path.Combine(tempDir, $"import_{Guid.NewGuid():N}.bin");
+        }
+
+        return tempPath;
+    }
+
+    private static async Task DownloadToTempFileAsync(
+        HttpResponseMessage response,
+        string destinationPath,
+        CancellationToken ct)
+    {
+        await using var fileStream = File.Create(destinationPath);
+        await using var httpStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await httpStream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
     }
 
     private static string GetUniqueFilePath(string path)
@@ -1060,6 +1037,40 @@ public sealed class MapImportService(
             return false;
         }
     }
+
+    private async Task<ImportResult> ProcessDownloadedMapAsync(
+        string tempPath,
+        string fileName,
+        GameType targetVersion,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        if (IsArchiveImport(tempPath, fileName))
+        {
+            return await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
+        }
+
+        // Ensure extension is .map so ImportFromFilesAsync picks it up
+        if (!tempPath.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            var newPath = tempPath + ".map";
+            if (File.Exists(newPath))
+            {
+                File.Delete(newPath);
+            }
+
+            File.Move(tempPath, newPath);
+            tempPath = newPath;
+        }
+
+        return await ImportFromFilesAsync([tempPath], targetVersion, ct);
+    }
+
+    private bool IsArchiveImport(string tempPath, string fileName) =>
+        IsArchiveFile(tempPath) ||
+        fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+        fileName.EndsWith(FileTypes.SevenZipFileExtension, StringComparison.OrdinalIgnoreCase) ||
+        fileName.EndsWith(FileTypes.RarFileExtension, StringComparison.OrdinalIgnoreCase);
 
     private (bool IsValid, string? ErrorMessage) ValidateWithSharpCompress(string archivePath)
     {

@@ -2,7 +2,9 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -24,11 +26,13 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// Downloads ZIP packages, extracts files, and creates variant manifests (60Hz).
 /// </summary>
 public class GeneralsOnlineDeliverer(
-   IDownloadService downloadService,
-   IContentManifestPool manifestPool,
-   GeneralsOnlineManifestFactory manifestFactory,
-   ILogger<GeneralsOnlineDeliverer> logger)
-   : IContentDeliverer
+    IDownloadService downloadService,
+    IContentManifestPool manifestPool,
+    GeneralsOnlineManifestFactory manifestFactory,
+    IGameInstallationService installationService,
+    IInstallationCasPoolService installationCasPoolService,
+    ILogger<GeneralsOnlineDeliverer> logger)
+    : IContentDeliverer
 {
     /// <inheritdoc />
     public string SourceName => GeneralsOnlineConstants.DelivererSourceName;
@@ -50,7 +54,7 @@ public class GeneralsOnlineDeliverer(
                                string.Equals(manifest.Publisher?.Name, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
 
         return isGeneralsOnline &&
-               manifest.Files.Any(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
+               ManifestVariantResolver.ResolveFiles(manifest).Any(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -107,7 +111,11 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            var registrationResult = await RegisterVariantManifestsAsync(manifests, extractPath, newlyRegisteredManifests, cancellationToken);
+            var registrationResult = await RegisterAndStoreVariantManifestsAsync(
+                manifests,
+                extractPath,
+                newlyRegisteredManifests,
+                cancellationToken);
             if (!registrationResult.Success)
             {
                 CleanupTempArtifacts(zipPath, extractPath, logger);
@@ -134,35 +142,13 @@ public class GeneralsOnlineDeliverer(
         catch (OperationCanceledException)
         {
             logger.LogInformation("Generals Online content delivery was canceled for {Version}", packageManifest.Version);
-            if (newlyRegisteredManifests.Count > 0)
-            {
-                var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
-                if (rollbackErrors.Count > 0)
-                {
-                    logger.LogWarning("Rollback warnings during cancellation cleanup: {Errors}", string.Join("; ", rollbackErrors));
-                }
-            }
-
-            CleanupTempArtifacts(zipPath, extractPath, logger);
+            await HandleCancellationCleanupAsync(newlyRegisteredManifests, zipPath, extractPath);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver Generals Online content for {Version}", packageManifest.Version);
-            var rollbackErrors = new List<string>();
-            if (newlyRegisteredManifests.Count > 0)
-            {
-                rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
-            }
-
-            CleanupTempArtifacts(zipPath, extractPath, logger);
-
-            var errorMessage = $"Content delivery failed: {ex.Message}";
-            if (rollbackErrors.Count > 0)
-            {
-                errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
-            }
-
+            var errorMessage = await HandleFailureCleanupAsync(ex, newlyRegisteredManifests, zipPath, extractPath);
             return OperationResult<ContentManifest>.CreateFailure(errorMessage);
         }
     }
@@ -174,7 +160,7 @@ public class GeneralsOnlineDeliverer(
     {
         try
         {
-            var hasZipFile = manifest.Files.Any(f =>
+            var hasZipFile = ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
                 !string.IsNullOrEmpty(f.DownloadUrl) &&
                 f.DownloadUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
 
@@ -261,7 +247,7 @@ public class GeneralsOnlineDeliverer(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
+        var zipFile = ManifestVariantResolver.ResolveFiles(packageManifest).FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
         if (zipFile == null)
         {
             return OperationResult<(string, string)>.CreateFailure("No ZIP file found in manifest");
@@ -277,8 +263,8 @@ public class GeneralsOnlineDeliverer(
         });
 
         var expectedHash = !string.IsNullOrWhiteSpace(zipFile.Hash)
-            ? zipFile.Hash
-            : packageManifest.InstallationInstructions?.DownloadHash;
+            ? zipFile.Hash.Trim()
+            : packageManifest.InstallationInstructions?.DownloadHash?.Trim();
 
         if (string.IsNullOrWhiteSpace(expectedHash))
         {
@@ -540,5 +526,91 @@ public class GeneralsOnlineDeliverer(
         }
 
         return rollbackErrors;
+    }
+
+    /// <summary>
+    /// Ensures the installation pool root path is set before storing GameClient content.
+    /// This prevents content from being stored in the wrong CAS pool.
+    /// </summary>
+    /// <returns>True when content acquisition may continue; otherwise, false.</returns>
+    private Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    {
+        return InstallationPoolPathHelper.EnsureInstallationPoolPathAsync(
+            installationService,
+            installationCasPoolService,
+            logger,
+            cancellationToken);
+    }
+
+    private async Task<OperationResult> EnsureGameClientStorageAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        CancellationToken cancellationToken)
+    {
+        var hasGameClientManifest = manifests.Any(m => m.ContentType == ContentType.GameClient);
+        if (!hasGameClientManifest)
+        {
+            return OperationResult.CreateSuccess();
+        }
+
+        var poolPathReady = await EnsureInstallationPoolPathAsync(cancellationToken);
+        return poolPathReady
+            ? OperationResult.CreateSuccess()
+            : OperationResult.CreateFailure("Could not ensure storage for GameClient content.");
+    }
+
+    private async Task<OperationResult> RegisterAndStoreVariantManifestsAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        string extractPath,
+        List<ContentManifest> newlyRegisteredManifests,
+        CancellationToken cancellationToken)
+    {
+        // For GameClient content, ensure installation pool path is initialized before storing.
+        var storageResult = await EnsureGameClientStorageAsync(manifests, cancellationToken);
+        if (!storageResult.Success)
+        {
+            return storageResult;
+        }
+
+        return await RegisterVariantManifestsAsync(manifests, extractPath, newlyRegisteredManifests, cancellationToken);
+    }
+
+    private async Task HandleCancellationCleanupAsync(
+        List<ContentManifest> newlyRegisteredManifests,
+        string? zipPath,
+        string? extractPath)
+    {
+        if (newlyRegisteredManifests.Count > 0)
+        {
+            var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+            if (rollbackErrors.Count > 0)
+            {
+                logger.LogWarning("Rollback warnings during cancellation cleanup: {Errors}", string.Join("; ", rollbackErrors));
+            }
+        }
+
+        CleanupTempArtifacts(zipPath, extractPath, logger);
+    }
+
+    private async Task<string> HandleFailureCleanupAsync(
+        Exception ex,
+        List<ContentManifest> newlyRegisteredManifests,
+        string? zipPath,
+        string? extractPath)
+    {
+        var rollbackErrors = new List<string>();
+        if (newlyRegisteredManifests.Count > 0)
+        {
+            rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+        }
+
+        CleanupTempArtifacts(zipPath, extractPath, logger);
+
+        var errorMessage = $"Content delivery failed: {ex.Message}";
+        if (rollbackErrors.Count > 0)
+        {
+            errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
+        }
+
+        return errorMessage;
     }
 }

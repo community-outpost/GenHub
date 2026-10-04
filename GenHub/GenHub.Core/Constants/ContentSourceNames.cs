@@ -37,6 +37,11 @@ public static class ContentSourceNames
     /// </summary>
     public const string ModDBDiscoverer = "ModDB";
 
+    /// <summary>
+    /// Source name for Steam Workshop content discoverer.
+    /// </summary>
+    public const string SteamWorkshopDiscoverer = "Steam Workshop";
+
     // Resolvers
 
     /// <summary>
@@ -59,6 +64,11 @@ public static class ContentSourceNames
     /// </summary>
     public const string ModDBResolverId = "ModDB";
 
+    /// <summary>
+    /// Resolver ID for Steam Workshop resolver.
+    /// </summary>
+    public const string SteamWorkshopResolverId = "SteamWorkshop";
+
     // Deliverers
 
     /// <summary>
@@ -80,4 +90,9 @@ public static class ContentSourceNames
     /// Source name for local file system deliverer.
     /// </summary>
     public const string FileSystemDeliverer = "Local File System Deliverer";
+
+    /// <summary>
+    /// Source name for Steam Workshop content deliverer.
+    /// </summary>
+    public const string SteamWorkshopDeliverer = "Steam Workshop Deliverer";
 }

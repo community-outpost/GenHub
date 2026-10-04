@@ -14,6 +14,7 @@ using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -52,54 +53,57 @@ public class ContentStorageService : IContentStorageService
 
     private static OperationResult<bool> ValidateManifestSecurity(ContentManifest manifest, string baseDirectory)
     {
-        if (manifest.Files != null)
+        var metadataOnly = !RequiresPhysicalStorage(manifest);
+        var hostFiles = new HashSet<ManifestFile>(ManifestVariantResolver.ResolveFiles(manifest), ReferenceEqualityComparer.Instance);
+        var normalizedBase = Path.GetFullPath(baseDirectory);
+        foreach (var file in ManifestVariantResolver.EnumerateAllFiles(manifest))
         {
-            var normalizedBase = Path.GetFullPath(baseDirectory);
-            foreach (var file in manifest.Files)
+            if (string.IsNullOrEmpty(file.RelativePath))
             {
-                if (string.IsNullOrEmpty(file.RelativePath))
-                {
-                    return OperationResult<bool>.CreateFailure("File entries must have a relative path");
-                }
+                return OperationResult<bool>.CreateFailure("File entries must have a relative path");
+            }
 
-                // path traversal check using normalization
+            // path traversal check using normalization
+            try
+            {
+                var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
+                if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullPath))
+                {
+                    return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
+                }
+            }
+            catch (ArgumentException)
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
+            }
+
+            // Security check: SourcePath should generally not be set in manifests to avoid
+            // arbitrary file reads, unless explicitly allowed for local ingestion.
+            // For now, we enforce that if SourcePath IS set, it must check for traversal if relative,
+            // and we warn on absolute paths if they look suspicious (though we can't easily distinguish
+            // legitimate local imports from malicious ones without more context).
+            // A CAS entry's staging SourcePath is never read when storage is metadata-only or the
+            // entry belongs to another platform's variant, and it is cleared before persisting.
+            var stagingPathUnread = file.SourceType == ContentSourceType.ContentAddressable
+                && (metadataOnly || !hostFiles.Contains(file));
+            if (!string.IsNullOrEmpty(file.SourcePath) && !stagingPathUnread)
+            {
                 try
                 {
-                    var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
-                    if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullPath))
+                    // If SourcePath is absolute, we strictly enforce it must be within baseDirectory
+                    // If it is relative, we combine and check traversal
+                    var fullSource = Path.IsPathRooted(file.SourcePath)
+                        ? Path.GetFullPath(file.SourcePath)
+                        : Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
+
+                    if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullSource))
                     {
-                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
+                        return OperationResult<bool>.CreateFailure($"File {file.RelativePath} specifies SourcePath {file.SourcePath} which traverses outside base directory");
                     }
                 }
                 catch (ArgumentException)
                 {
-                    return OperationResult<bool>.CreateFailure($"Invalid path in file entry: {file.RelativePath}");
-                }
-
-                // Security check: SourcePath should generally not be set in manifests to avoid
-                // arbitrary file reads, unless explicitly allowed for local ingestion.
-                // For now, we enforce that if SourcePath IS set, it must check for traversal if relative,
-                // and we warn on absolute paths if they look suspicious (though we can't easily distinguish
-                // legitimate local imports from malicious ones without more context).
-                if (!string.IsNullOrEmpty(file.SourcePath))
-                {
-                    try
-                    {
-                        // If SourcePath is absolute, we strictly enforce it must be within baseDirectory
-                        // If it is relative, we combine and check traversal
-                        var fullSource = Path.IsPathRooted(file.SourcePath)
-                            ? Path.GetFullPath(file.SourcePath)
-                            : Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
-
-                        if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullSource))
-                        {
-                            return OperationResult<bool>.CreateFailure($"File {file.RelativePath} specifies SourcePath {file.SourcePath} which traverses outside base directory");
-                        }
-                    }
-                    catch (ArgumentException)
-                    {
-                        return OperationResult<bool>.CreateFailure($"Invalid SourcePath in file entry: {file.RelativePath}");
-                    }
+                    return OperationResult<bool>.CreateFailure($"Invalid SourcePath in file entry: {file.RelativePath}");
                 }
             }
         }
@@ -208,13 +212,15 @@ public class ContentStorageService : IContentStorageService
             return true;
         }
 
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+
         // GameClient content typically references external installations - no storage needed (old behavior)
         // Only store physically for GitHub content that requires it
         if (manifest.ContentType == ContentType.GameClient)
         {
             // Check if any file requires CAS storage based on its source type
             // This covers content from any GitHub publisher (thesuperhackers, generalsonline, etc.)
-            if (manifest.Files.Any(f =>
+            if (files.Any(f =>
                 f.SourceType == ContentSourceType.ContentAddressable ||
                 f.SourceType == ContentSourceType.ExtractedPackage ||
                 f.SourceType == ContentSourceType.LocalFile ||
@@ -226,18 +232,18 @@ public class ContentStorageService : IContentStorageService
             // A lone Flatpak bundle arrives as a RemoteDownload in transient staging,
             // which is deleted after acquisition: without CAS persistence the source
             // mapping dangles and the launch can never materialize the bundle.
-            return ManifestVariantResolver.IsLoneFlatpakBundle(manifest.Files);
+            return ManifestVariantResolver.IsLoneFlatpakBundle(files);
         }
 
         // For other content types, check if files have source types that require CAS storage
-        if (manifest.Files.Count == 0)
+        if (files.Count == 0)
         {
             // No files to store
             return false;
         }
 
         // Check if any file requires CAS storage based on its source type
-        bool hasStorableContent = manifest.Files.Any(f =>
+        bool hasStorableContent = files.Any(f =>
             f.SourceType == ContentSourceType.ContentAddressable ||
             f.SourceType == ContentSourceType.ExtractedPackage ||
             f.SourceType == ContentSourceType.LocalFile ||
@@ -265,6 +271,26 @@ public class ContentStorageService : IContentStorageService
             Permissions = original.Permissions,
         };
     }
+
+    /// <summary>
+    /// Determines whether the manifest declares a null variant, file list or file entry.
+    /// A null variant surfaces as a null list, so one check covers all three.
+    /// </summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <returns><c>true</c> when any declared list or entry is null.</returns>
+    private static bool HasNullFileEntries(ContentManifest manifest) =>
+        ManifestVariantResolver.GetDeclaredFileLists(manifest).Any(files => files is null || files.Any(f => f is null));
+
+    /// <summary>
+    /// Clears transient staging source paths from every CAS-backed file, in the flat list and
+    /// in each variant, so a stored manifest never retains them.
+    /// </summary>
+    /// <param name="manifest">The manifest to sanitize.</param>
+    private static void ClearCasStagingSourcePaths(ContentManifest manifest) =>
+        ManifestVariantResolver.RewriteAllFiles(manifest, f =>
+            f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath)
+                ? CloneManifestFileForCas(f)
+                : f);
 
     /// <summary>
     /// Resolves the source path for a manifest file, preferring its explicit source path when available.
@@ -358,6 +384,16 @@ public class ContentStorageService : IContentStorageService
         IProgress<ContentStorageProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        if (HasNullFileEntries(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(ManifestErrorMessages.NullFileEntries);
+        }
+
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(ManifestErrorMessages.NoHostVariant);
+        }
+
         if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
         {
             return await HandleMissingSourceDirectoryAsync(manifest, sourceDirectory, cancellationToken).ConfigureAwait(false);
@@ -467,7 +503,14 @@ public class ContentStorageService : IContentStorageService
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
-            if (manifest == null || manifest.Files.Count == 0)
+            if (manifest != null && !ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                return OperationResult<string>.CreateFailure(
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, manifestId, ManifestVariantResolver.CurrentRuntimeIdentifier));
+            }
+
+            var files = manifest == null ? [] : ManifestVariantResolver.ResolveFiles(manifest);
+            if (manifest == null || files.Count == 0)
             {
                 return OperationResult<string>.CreateFailure(
                     $"Manifest is empty or invalid for {manifestId}");
@@ -476,7 +519,7 @@ public class ContentStorageService : IContentStorageService
             Directory.CreateDirectory(targetDirectory);
 
             // Copy files from CAS to target directory
-            foreach (var file in manifest.Files)
+            foreach (var file in files)
             {
                 var materializeResult = await MaterializeManifestFileAsync(file, manifest.ContentType, targetDirectory, cancellationToken).ConfigureAwait(false);
                 if (!materializeResult.Success)
@@ -509,7 +552,7 @@ public class ContentStorageService : IContentStorageService
         {
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken).ConfigureAwait(false);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, JsonOptions);
-            if (manifest == null)
+            if (manifest == null || !ManifestVariantResolver.SupportsRuntime(manifest))
             {
                 return OperationResult<bool>.CreateSuccess(false);
             }
@@ -651,6 +694,8 @@ public class ContentStorageService : IContentStorageService
         string manifestPath,
         CancellationToken cancellationToken)
     {
+        ClearCasStagingSourcePaths(updatedManifest);
+
         // Track CAS references to ensure files are not prematurely garbage collected
         var trackResult = await _referenceTracker.TrackManifestReferencesAsync(updatedManifest.Id, updatedManifest, cancellationToken);
         if (!trackResult.Success)
@@ -714,6 +759,9 @@ public class ContentStorageService : IContentStorageService
                 return OperationResult<ContentManifest>.CreateFailure($"Manifest security validation failed: {securityValidation.FirstError ?? "Unknown error"}");
             }
 
+            // Sanitize only after validation succeeds, preserving rejected callers' staging paths.
+            ClearCasStagingSourcePaths(manifest);
+
             // Create manifest directory if needed
             var manifestDir = Path.GetDirectoryName(manifestPath);
             if (!string.IsNullOrEmpty(manifestDir))
@@ -749,20 +797,6 @@ public class ContentStorageService : IContentStorageService
             {
                 _logger.LogError("Failed to track CAS references for metadata-only manifest {ManifestId}: {Error}", manifest.Id, trackResult.FirstError);
                 return OperationResult<ContentManifest>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
-            }
-
-            // Sanitize file entries: CAS files must never retain transient staging source paths
-            if (manifest.Files != null)
-            {
-                manifest.Files = manifest.Files.Select(f =>
-                {
-                    if (f.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(f.SourcePath))
-                    {
-                        return CloneManifestFileForCas(f);
-                    }
-
-                    return f;
-                }).ToList();
             }
 
             // Store manifest metadata only
@@ -882,12 +916,13 @@ public class ContentStorageService : IContentStorageService
         // No early return when the source directory vanishes or the drive turns invalid mid-store:
         // the per-file loop below already fails on missing required files and still reuses
         // CAS-resident content, so a metadata-only success with silently dropped files is impossible.
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        int totalFiles = files.Count;
+
         _logger.LogInformation(
             "Storing {FileCount} files from manifest to CAS for {ManifestId}",
-            manifest.Files.Count,
+            totalFiles,
             manifest.Id);
-
-        int totalFiles = manifest.Files.Count;
 
         // Initialize progress report
         ReportStorageProgress(progress, 0, totalFiles, "Initializing...");
@@ -898,7 +933,7 @@ public class ContentStorageService : IContentStorageService
             _logger.LogInformation("Starting storage of {FileCount} files - this may take a while", totalFiles);
         }
 
-        var storeAllResult = await StoreAllManifestFilesAsync(manifest, sourceDirectory, progress, totalFiles, cancellationToken).ConfigureAwait(false);
+        var storeAllResult = await StoreAllManifestFilesAsync(manifest, files, sourceDirectory, progress, cancellationToken).ConfigureAwait(false);
         if (!storeAllResult.Success || storeAllResult.Data == null)
         {
             return OperationResult<ContentManifest>.CreateFailure(
@@ -906,13 +941,13 @@ public class ContentStorageService : IContentStorageService
         }
 
         var updatedFiles = storeAllResult.Data;
-        var validationError = ValidateAllRequiredFilesStored(manifest, updatedFiles);
+        var validationError = ValidateAllRequiredFilesStored(manifest, files, updatedFiles);
         if (validationError != null)
         {
             return OperationResult<ContentManifest>.CreateFailure(validationError);
         }
 
-        manifest.Files = updatedFiles;
+        ManifestVariantResolver.ReplaceResolvedFiles(manifest, updatedFiles);
 
         _logger.LogInformation(
             "Successfully stored {StoredCount} of {TotalCount} files to CAS for {ManifestId}",
@@ -928,18 +963,19 @@ public class ContentStorageService : IContentStorageService
     /// A required-file failure cancels the remaining work and surfaces the first error.
     /// </summary>
     /// <param name="manifest">The content manifest.</param>
+    /// <param name="files">The files the manifest contributes on this host.</param>
     /// <param name="sourceDirectory">Source directory containing content files.</param>
     /// <param name="progress">Optional progress reporter for tracking storage operations.</param>
-    /// <param name="totalFiles">The total number of files to process.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The stored file entries in manifest order, or the first failure.</returns>
     private async Task<OperationResult<List<ManifestFile>>> StoreAllManifestFilesAsync(
         ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files,
         string sourceDirectory,
         IProgress<ContentStorageProgress>? progress,
-        int totalFiles,
         CancellationToken cancellationToken)
     {
+        var totalFiles = files.Count;
         var slots = new ManifestFile?[totalFiles];
         var processedCount = 0;
         string? firstError = null;
@@ -955,7 +991,7 @@ public class ContentStorageService : IContentStorageService
         try
         {
             await Parallel.ForEachAsync(
-                manifest.Files.Select((file, index) => (file, index)),
+                files.Select((file, index) => (file, index)),
                 parallelOptions,
                 async (item, ct) =>
                 {
@@ -965,6 +1001,7 @@ public class ContentStorageService : IContentStorageService
                         sourceDirectory,
                         progress,
                         Volatile.Read(ref processedCount),
+                        totalFiles,
                         ct).ConfigureAwait(false);
 
                     if (!outcome.Success)
@@ -1009,6 +1046,7 @@ public class ContentStorageService : IContentStorageService
     /// <param name="sourceDirectory">Source directory containing content files.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="processedCount">The number of files processed so far.</param>
+    /// <param name="totalFiles">The total number of files to process.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The processing outcome: stored file, skip, or required-file failure.</returns>
     private async Task<FileProcessResult> ProcessManifestFileAsync(
@@ -1017,6 +1055,7 @@ public class ContentStorageService : IContentStorageService
         string sourceDirectory,
         IProgress<ContentStorageProgress>? progress,
         int processedCount,
+        int totalFiles,
         CancellationToken cancellationToken)
     {
         try
@@ -1046,7 +1085,7 @@ public class ContentStorageService : IContentStorageService
             }
 
             // Update progress before starting heavy CAS operation
-            ReportStorageProgress(progress, processedCount, manifest.Files.Count, manifestFile.RelativePath);
+            ReportStorageProgress(progress, processedCount, totalFiles, manifestFile.RelativePath);
 
             var storeResult = await StoreFileInCasAsync(manifestFile, manifest.ContentType, sourcePath, cancellationToken);
             if (!storeResult.Success)
@@ -1169,11 +1208,12 @@ public class ContentStorageService : IContentStorageService
     /// Validates that every required manifest file was stored.
     /// </summary>
     /// <param name="manifest">The content manifest.</param>
+    /// <param name="files">The files the manifest contributes on this host.</param>
     /// <param name="updatedFiles">The stored file entries.</param>
     /// <returns>An error message when required files are missing; otherwise, null.</returns>
-    private string? ValidateAllRequiredFilesStored(ContentManifest manifest, List<ManifestFile> updatedFiles)
+    private string? ValidateAllRequiredFilesStored(ContentManifest manifest, IReadOnlyList<ManifestFile> files, List<ManifestFile> updatedFiles)
     {
-        var missingRequiredFiles = manifest.Files
+        var missingRequiredFiles = files
             .Where(f => f.IsRequired && !updatedFiles.Any(u => string.Equals(u.RelativePath, f.RelativePath, StringComparison.Ordinal)))
             .ToList();
 
@@ -1196,14 +1236,23 @@ public class ContentStorageService : IContentStorageService
         if (string.IsNullOrEmpty(file.Hash))
         {
             _logger.LogWarning("File {RelativePath} has no hash, skipping", file.RelativePath);
-            return OperationResult<string>.CreateSuccess(string.Empty);
+            return file.IsRequired
+                ? OperationResult<string>.CreateFailure(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.RequiredFileUnavailableInCas, file.RelativePath))
+                : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
         var casPathResult = await _casService.GetContentPathAsync(file.Hash, contentType, cancellationToken).ConfigureAwait(false);
         if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
         {
+            casPathResult = await _casService.GetContentPathAsync(file.Hash, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!casPathResult.Success || string.IsNullOrEmpty(casPathResult.Data))
+        {
             _logger.LogWarning("File {RelativePath} not found in CAS (hash: {Hash})", file.RelativePath, file.Hash);
-            return OperationResult<string>.CreateSuccess(string.Empty);
+            return file.IsRequired
+                ? OperationResult<string>.CreateFailure(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.RequiredFileUnavailableInCas, file.RelativePath))
+                : OperationResult<string>.CreateSuccess(string.Empty);
         }
 
         var targetPath = Path.Combine(targetDirectory, file.RelativePath);

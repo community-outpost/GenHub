@@ -903,7 +903,7 @@ public class DropboxHostingProvider(ILogger<DropboxHostingProvider> logger, IHtt
     {
         using var bufferStream = new MemoryStream();
         var tempBuffer = new byte[HostingConstants.StreamCopyBufferSize];
-        int read;
+        int read = 0;
 
         while ((read = await fileStream.ReadAsync(tempBuffer, cancellationToken).ConfigureAwait(false)) > 0)
         {

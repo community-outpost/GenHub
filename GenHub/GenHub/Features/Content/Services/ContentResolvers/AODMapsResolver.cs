@@ -50,7 +50,7 @@ public class AODMapsResolver(
 
         try
         {
-            string pageUrl;
+            string pageUrl = string.Empty;
             if (discoveredItem.ResolverMetadata.TryGetValue(AODMapsConstants.ListPageUrlMetadataKey, out var listPageUrl))
             {
                 pageUrl = listPageUrl;

@@ -1890,7 +1890,7 @@ public sealed class PlaywrightService(
         string expectedHash,
         CancellationToken cancellationToken)
     {
-        string actualHash;
+        string actualHash = string.Empty;
         try
         {
             actualHash = await DownloadSecurityValidator.ComputeSha256Async(destinationPath, cancellationToken);

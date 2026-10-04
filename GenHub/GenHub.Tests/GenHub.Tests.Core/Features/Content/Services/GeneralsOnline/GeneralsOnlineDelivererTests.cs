@@ -1,14 +1,18 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.GeneralsOnline;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -29,6 +33,8 @@ public class GeneralsOnlineDelivererTests : IDisposable
     private readonly Mock<IDownloadService> _downloadServiceMock;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly Mock<IProviderDefinitionLoader> _providerLoaderMock;
+    private readonly Mock<IGameInstallationService> _installationServiceMock;
+    private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock;
     private readonly GeneralsOnlineManifestFactory _manifestFactory;
     private readonly GeneralsOnlineDeliverer _deliverer;
     private readonly string _tempDir;
@@ -41,6 +47,16 @@ public class GeneralsOnlineDelivererTests : IDisposable
         _downloadServiceMock = new Mock<IDownloadService>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _providerLoaderMock = new Mock<IProviderDefinitionLoader>();
+        _installationServiceMock = new Mock<IGameInstallationService>();
+        _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
+
+        _installationServiceMock
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
+        _installationCasPoolServiceMock
+            .Setup(p => p.EnsurePoolPathAsync(It.IsAny<IReadOnlyList<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         _providerLoaderMock
             .Setup(l => l.GetProvider(PublisherTypeConstants.GeneralsOnline))
@@ -66,6 +82,8 @@ public class GeneralsOnlineDelivererTests : IDisposable
             _downloadServiceMock.Object,
             _manifestPoolMock.Object,
             _manifestFactory,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object,
             NullLogger<GeneralsOnlineDeliverer>.Instance);
 
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHub_GODelivererTest_" + Guid.NewGuid().ToString("N"));
@@ -109,6 +127,51 @@ public class GeneralsOnlineDelivererTests : IDisposable
         };
 
         Assert.True(_deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
+    /// Verifies CanDeliver reads only the host variant's download URLs of a variant manifest.
+    /// </summary>
+    /// <param name="hostUrl">The download URL in the host variant.</param>
+    /// <param name="foreignUrl">The download URL in the foreign variant.</param>
+    /// <param name="expected">Whether the deliverer should accept the manifest.</param>
+    [Theory]
+    [InlineData("https://example.com/GeneralsOnline_host.zip", "https://example.com/GeneralsOnline_foreign.bin", true)]
+    [InlineData("https://example.com/GeneralsOnline_host.bin", "https://example.com/GeneralsOnline_foreign.zip", false)]
+    public void CanDeliver_VariantManifest_UsesHostVariant(string hostUrl, string foreignUrl, bool expected)
+    {
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host", DownloadUrl = hostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "foreign", DownloadUrl = foreignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        Assert.Equal(expected, _deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
+    /// Verifies DeliverContentAsync downloads only the host variant's package.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_DownloadsOnlyHostVariantAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadServiceMock);
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "variant-host.zip", DownloadUrl = VariantDownloadRecorder.HostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        await _deliverer.DeliverContentAsync(manifest, Path.Combine(_tempDir, "variant-delivery"), null, CancellationToken.None);
+
+        Assert.Equal([VariantDownloadRecorder.HostUrl], requested);
     }
 
     /// <summary>

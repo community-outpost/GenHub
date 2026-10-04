@@ -199,6 +199,10 @@ public static class ClipboardInputHelper
             case string singlePath:
                 ExtractSinglePath(singlePath, paths);
                 break;
+
+            default:
+                // Unsupported clipboard payload format.
+                break;
         }
 
         return paths;
@@ -380,7 +384,7 @@ public static class ClipboardInputHelper
             BitConverter.GetBytes(bfOffBits).CopyTo(bmpFileBytes, 10);
 
             // Copy DIB bytes following the file header
-            Buffer.BlockCopy(dibBytes, 0, bmpFileBytes, 14, dibBytes.Length);
+            dibBytes.CopyTo(bmpFileBytes.AsSpan(14));
 
             var dir = destinationDirectory ?? Path.GetTempPath();
             Directory.CreateDirectory(dir);

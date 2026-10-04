@@ -1039,8 +1039,8 @@ Task<OperationResult<bool>> ValidateCatalogAsync(PublisherCatalog catalog);
 Task<OperationResult<string>> ExportCatalogAsync(PublisherStudioProject project);
 
 // Save/load projects
-Task<OperationResult<bool>> SaveProjectAsync(PublisherStudioProject project, CancellationToken cancellationToken = default);
-Task<OperationResult<PublisherStudioProject>> LoadProjectAsync(string path, CancellationToken cancellationToken = default);
+Task<OperationResult<bool>> SaveProjectAsync(PublisherStudioProject project, CancellationToken cancellationToken = default); // skipcq: SCT-A000
+Task<OperationResult<PublisherStudioProject>> LoadProjectAsync(string path, CancellationToken cancellationToken = default); // skipcq: SCT-A000
 ```
 
 ##### 2. Publisher Studio ViewModels

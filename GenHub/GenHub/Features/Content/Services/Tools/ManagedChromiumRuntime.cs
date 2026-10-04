@@ -290,7 +290,7 @@ internal sealed class ManagedChromiumRuntime(
         {
             foreach (var filePath in Directory.EnumerateFiles(stagingDirectory, ModDBConstants.PlaywrightStagingDownloadPattern))
             {
-                long length;
+                long length = 0;
                 try
                 {
                     length = new FileInfo(filePath).Length;

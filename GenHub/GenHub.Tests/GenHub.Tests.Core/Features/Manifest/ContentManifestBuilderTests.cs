@@ -107,6 +107,45 @@ public class ContentManifestBuilderTests
     }
 
     /// <summary>
+    /// Tests that WithLaunchRelationship declares the child process and timeout.
+    /// </summary>
+    [Fact]
+    public void WithLaunchRelationship_SetsDeclaration()
+    {
+        var result = _builder
+            .WithBasicInfo("Test Publisher", "Test Name", "1")
+            .WithLaunchRelationship("game", 5000)
+            .Build();
+
+        Assert.NotNull(result.LaunchRelationship);
+        Assert.Equal("game", result.LaunchRelationship.ProcessName);
+        Assert.Equal(5000, result.LaunchRelationship.DiscoveryTimeoutMs);
+    }
+
+    /// <summary>
+    /// Tests that WithLaunchRelationship rejects non-bare names and normalizes
+    /// non-positive timeouts to the pipeline default.
+    /// </summary>
+    [Fact]
+    public void WithLaunchRelationship_InvalidInput_ThrowsOrNormalizes()
+    {
+        Assert.Throws<ArgumentException>(() => _builder.WithLaunchRelationship("subdir/game"));
+        Assert.Throws<ArgumentException>(() => _builder.WithLaunchRelationship("game.exe"));
+
+        var cleared = _builder
+            .WithLaunchRelationship("game")
+            .WithLaunchRelationship(null)
+            .Build();
+        Assert.Null(cleared.LaunchRelationship);
+
+        var normalized = _builder
+            .WithLaunchRelationship("game", 0)
+            .Build();
+        Assert.NotNull(normalized.LaunchRelationship);
+        Assert.Null(normalized.LaunchRelationship.DiscoveryTimeoutMs);
+    }
+
+    /// <summary>
     /// Tests that WithBasicInfo sets properties correctly.
     /// </summary>
     [Fact]

@@ -349,7 +349,7 @@ public partial class MapNameParser(ILogger<MapNameParser> logger)
     private MapFileScanState ScanReaderForMapDetails(StreamReader reader, string mapFilePath, CancellationToken cancellationToken)
     {
         var scanState = new MapFileScanState();
-        string? line;
+        string? line = null;
 
         while ((line = reader.ReadLine()) != null)
         {

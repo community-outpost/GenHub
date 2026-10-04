@@ -33,9 +33,11 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Reconciliation;
+using GenHub.Features.Content.Services.SteamWorkshop;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Info.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -161,6 +163,9 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly ITelemetryService? _telemetryService =
         serviceProvider.GetService<ITelemetryService>();
 
+    private readonly ILocalizationService? _localizationService =
+        serviceProvider.GetService<ILocalizationService>();
+
     // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
         new(StringComparer.OrdinalIgnoreCase);
@@ -171,6 +176,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _catalogsCts;
     private int _activeRequestId;
+    private int _activeCatalogLoadId;
     private string? _lastPopulatedPublisherId;
     private string? _lastCatalogPublisherId;
     private bool _hasCustomQuery;
@@ -178,7 +184,6 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _suppressCatalogChanged;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
-    private ILocalizationService? _localizationService;
 
     [ObservableProperty]
     private string _searchTerm = string.Empty;
@@ -193,6 +198,8 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _isFilterPanelVisible;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanReloadCatalog))]
+    [NotifyCanExecuteChangedFor(nameof(ReloadCatalogCommand))]
     private bool _isLoading;
 
     private PublisherItemViewModel? _selectedPublisher;
@@ -219,6 +226,10 @@ public sealed partial class DownloadsBrowserViewModel(
     private CatalogEntry? _selectedCatalog;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanShowCatalogSwitcher))]
+    [NotifyPropertyChangedFor(nameof(CatalogLoadingStatusText))]
+    [NotifyPropertyChangedFor(nameof(CanReloadCatalog))]
+    [NotifyCanExecuteChangedFor(nameof(ReloadCatalogCommand))]
     private bool _isLoadingCatalogs;
 
     [ObservableProperty]
@@ -248,6 +259,10 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 OnPropertyChanged(nameof(CanSearch));
                 OnPropertyChanged(nameof(CanSearchOrFilter));
+                OnPropertyChanged(nameof(IsSubscribedPublisher));
+                OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+                OnPropertyChanged(nameof(CanReloadCatalog));
+                ReloadCatalogCommand.NotifyCanExecuteChanged();
                 HandleSelectedPublisherChanged(value);
             }
         }
@@ -283,6 +298,29 @@ public sealed partial class DownloadsBrowserViewModel(
     public bool HasMultipleCatalogs => AvailableCatalogs.Count > 1;
 
     /// <summary>
+    /// Gets a value indicating whether the selected publisher is a subscribed publisher.
+    /// </summary>
+    public bool IsSubscribedPublisher => SelectedPublisher != null &&
+        SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets a value indicating whether the catalog switcher and reload bar should be visible in the toolbar.
+    /// </summary>
+    public bool CanShowCatalogSwitcher => HasMultipleCatalogs || IsSubscribedPublisher;
+
+    /// <summary>
+    /// Gets a value indicating whether the catalog can currently be reloaded.
+    /// </summary>
+    public bool CanReloadCatalog => !IsLoadingCatalogs && !IsLoading && IsSubscribedPublisher;
+
+    /// <summary>
+    /// Gets the localized status text displayed while catalogs are loading or updating.
+    /// </summary>
+    public string CatalogLoadingStatusText => AvailableCatalogs.Count > 0
+        ? _localizationService?.GetString("Downloads.Browser.UpdatingCatalog") ?? "Updating catalog..."
+        : _localizationService?.GetString("Downloads.Browser.LoadingCatalogs") ?? "Loading catalogs...";
+
+    /// <summary>
     /// Gets a value indicating whether the detail view is currently visible.
     /// </summary>
     public bool IsDetailViewVisible => SelectedContent != null;
@@ -304,7 +342,6 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (!_builtInPublishersInitialized)
         {
-            _localizationService = serviceProvider.GetService<ILocalizationService>();
             if (_localizationService != null)
             {
                 _localizationService.PropertyChanged += OnLocalizationChanged;
@@ -353,7 +390,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
         foreach (var item in ContentItems)
         {
-            _ = item.EnsureIconsLoadedAsync();
+            _ = item.EnsureIconsLoadedAsync(_vmCts.Token);
         }
     }
 
@@ -960,7 +997,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 composedName = $"{baseContentCode}-{ContentConstants.DefaultContentFallbackId}";
             }
 
-            string manifestId;
+            string manifestId = string.Empty;
             if (!string.IsNullOrEmpty(v.ManifestId) && ManifestIdValidator.IsValid(v.ManifestId, out _))
             {
                 manifestId = v.ManifestId;
@@ -1147,6 +1184,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 ModDBConstants.PublisherType,
                 PublisherInfoConstants.ModDB.Name,
                 PublisherInfoConstants.ModDB.LogoSource,
+                ContentConstants.CategoryDynamic),
+            new PublisherItemViewModel(
+                SteamWorkshopConstants.PublisherType,
+                PublisherInfoConstants.SteamWorkshop.Name,
+                PublisherInfoConstants.SteamWorkshop.LogoSource,
                 ContentConstants.CategoryDynamic),
         ];
     }
@@ -1389,9 +1431,9 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private void BeginLoadCatalogsForPublisher(PublisherItemViewModel publisher)
     {
-        _catalogsCts?.Cancel();
-        _catalogsCts?.Dispose();
-        _catalogsCts = null;
+        var oldCts = Interlocked.Exchange(ref _catalogsCts, null);
+        oldCts?.Cancel();
+        oldCts?.Dispose();
         ClearCatalogSelection();
 
         if (!publisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
@@ -1399,13 +1441,18 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
         _lastCatalogPublisherId = publisher.PublisherId;
-        _catalogsCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
-        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, _catalogsCts.Token);
+        var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+        var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+        replaced?.Cancel();
+        replaced?.Dispose();
+        _ = LoadAvailableCatalogsAsync(publisher.PublisherId, loadId, newCts.Token);
     }
 
     private void ClearCatalogSelection()
     {
+        Interlocked.Increment(ref _activeCatalogLoadId);
         _lastCatalogPublisherId = null;
         _suppressCatalogChanged = true;
         try
@@ -1420,6 +1467,10 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         OnPropertyChanged(nameof(HasMultipleCatalogs));
+        OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+        OnPropertyChanged(nameof(CatalogLoadingStatusText));
+        OnPropertyChanged(nameof(CanReloadCatalog));
+        ReloadCatalogCommand.NotifyCanExecuteChanged();
     }
 
     private CatalogEntry? FindMatchingCatalogEntry(
@@ -1440,8 +1491,16 @@ public sealed partial class DownloadsBrowserViewModel(
             c.Url.Equals(subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task LoadAvailableCatalogsAsync(string publisherId, CancellationToken cancellationToken)
+    private async Task LoadAvailableCatalogsAsync(string publisherId, int loadId, CancellationToken cancellationToken)
     {
+        RunOnUi(() =>
+        {
+            if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase) && _activeCatalogLoadId == loadId)
+            {
+                IsLoadingCatalogs = true;
+            }
+        });
+
         try
         {
             var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
@@ -1456,14 +1515,6 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 return;
             }
-
-            RunOnUi(() =>
-            {
-                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                {
-                    IsLoadingCatalogs = true;
-                }
-            });
 
             var definitionResult = await definitionService.FetchDefinitionAsync(subscription.DefinitionUrl, cancellationToken);
             if (definitionResult.Success && definitionResult.Data != null)
@@ -1510,6 +1561,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
                 : null;
             if (cancellationToken.IsCancellationRequested
+                || _activeCatalogLoadId != loadId
                 || !string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
             {
                 return;
@@ -1523,7 +1575,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            RunOnUi(() => PopulateCatalogs(publisherId, subscription, catalogs));
+            RunOnUi(() => PopulateCatalogs(publisherId, subscription, catalogs, loadId));
         }
         catch (OperationCanceledException)
         {
@@ -1537,7 +1589,9 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             RunOnUi(() =>
             {
-                if (string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                if (!cancellationToken.IsCancellationRequested &&
+                    string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase) &&
+                    _activeCatalogLoadId == loadId)
                 {
                     IsLoadingCatalogs = false;
                 }
@@ -1545,78 +1599,65 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
-    private void PopulateCatalogs(
+    private void CheckAndNotifyNewCatalogs(
         string publisherId,
         Core.Models.Providers.PublisherSubscription subscription,
         List<CatalogEntry> catalogs)
     {
-        if (!string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase)
+        if (!_knownCatalogIds.TryGetValue(publisherId, out var prevCatalogIds) || !subscription.NotifyNewReleases)
+        {
+            return;
+        }
+
+        var newCatalogs = catalogs.Where(c => !prevCatalogIds.Contains(c.Id)).ToList();
+        if (newCatalogs.Count == 0)
+        {
+            return;
+        }
+
+        var title = _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationTitle") ?? "New Catalog Available";
+        var actionText = _localizationService?.GetString("Downloads.Browser.ViewCatalogAction") ?? "View Catalog";
+
+        var targetCat = newCatalogs[0];
+        var message = newCatalogs.Count == 1
+            ? string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationFormat") ?? "Publisher '{0}' released a new catalog: '{1}'",
+                subscription.PublisherName ?? publisherId,
+                targetCat.Name)
+            : string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewCatalogsNotificationFormat") ?? "Publisher '{0}' released {1} new catalogs.",
+                subscription.PublisherName ?? publisherId,
+                newCatalogs.Count);
+
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            title,
+            message,
+            autoDismissMilliseconds: NotificationDurations.VeryLong,
+            actionText: actionText,
+            action: () => RunOnUi(() =>
+            {
+                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    SelectedCatalog = targetCat;
+                }
+            })));
+    }
+
+    private void PopulateCatalogs(
+        string publisherId,
+        Core.Models.Providers.PublisherSubscription subscription,
+        List<CatalogEntry> catalogs,
+        int loadId)
+    {
+        if (_activeCatalogLoadId != loadId
+            || !string.Equals(_lastCatalogPublisherId, publisherId, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        if (_knownCatalogIds.TryGetValue(publisherId, out var prevCatalogIds))
-        {
-            var newCatalogs = catalogs.Where(c => !prevCatalogIds.Contains(c.Id)).ToList();
-            if (newCatalogs.Count > 0 && subscription.NotifyNewReleases)
-            {
-                var title = _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationTitle") ?? "New Catalog Available";
-                var actionText = _localizationService?.GetString("Downloads.Browser.ViewCatalogAction") ?? "View Catalog";
-
-                if (newCatalogs.Count == 1)
-                {
-                    var cat = newCatalogs[0];
-                    var message = string.Format(
-                        _localizationService?.GetString("Downloads.Browser.NewCatalogNotificationFormat") ?? "Publisher '{0}' released a new catalog: '{1}'",
-                        subscription.PublisherName ?? publisherId,
-                        cat.Name);
-
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        title,
-                        message,
-                        autoDismissMilliseconds: NotificationDurations.VeryLong,
-                        actionText: actionText,
-                        action: () =>
-                        {
-                            RunOnUi(() =>
-                            {
-                                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    SelectedCatalog = cat;
-                                }
-                            });
-                        }));
-                }
-                else
-                {
-                    var message = string.Format(
-                        _localizationService?.GetString("Downloads.Browser.NewCatalogsNotificationFormat") ?? "Publisher '{0}' released {1} new catalogs.",
-                        subscription.PublisherName ?? publisherId,
-                        newCatalogs.Count);
-
-                    var firstCat = newCatalogs[0];
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        title,
-                        message,
-                        autoDismissMilliseconds: NotificationDurations.VeryLong,
-                        actionText: actionText,
-                        action: () =>
-                        {
-                            RunOnUi(() =>
-                            {
-                                if (string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    SelectedCatalog = firstCat;
-                                }
-                            });
-                        }));
-                }
-            }
-        }
-
+        CheckAndNotifyNewCatalogs(publisherId, subscription, catalogs);
         _knownCatalogIds[publisherId] = new HashSet<string>(catalogs.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
 
         _suppressCatalogChanged = true;
@@ -1647,6 +1688,10 @@ public sealed partial class DownloadsBrowserViewModel(
 
             SelectedCatalog = match ?? catalogs[0];
             OnPropertyChanged(nameof(HasMultipleCatalogs));
+            OnPropertyChanged(nameof(CanShowCatalogSwitcher));
+            OnPropertyChanged(nameof(CatalogLoadingStatusText));
+            OnPropertyChanged(nameof(CanReloadCatalog));
+            ReloadCatalogCommand.NotifyCanExecuteChanged();
         }
         finally
         {
@@ -2072,6 +2117,8 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 entry.DisplayName = ResolveDownloadedContentLabel();
             }
+
+            OnPropertyChanged(nameof(CatalogLoadingStatusText));
         }
     }
 
@@ -2080,7 +2127,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// </summary>
     private string ResolveDownloadedContentLabel()
     {
-        if (_localizationService != null && _localizationService.TryGetString("Downloads.Browser.MyDownloads", out var localized))
+        if (_localizationService is { } locService && locService.TryGetString("Downloads.Browser.MyDownloads", out var localized))
         {
             return localized;
         }
@@ -2137,6 +2184,77 @@ public sealed partial class DownloadsBrowserViewModel(
         await RefreshContentAsync();
     }
 
+    /// <summary>
+    /// Reloads the available catalogs and content for the current publisher.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand(CanExecute = nameof(CanReloadCatalog))]
+    private async Task ReloadCatalogAsync()
+    {
+        if (SelectedPublisher == null || !IsSubscribedPublisher)
+        {
+            return;
+        }
+
+        Interlocked.Increment(ref _activeRequestId);
+        var publisherId = SelectedPublisher.PublisherId;
+        lock (_cacheLock)
+        {
+            if (_browseCache.Remove(publisherId, out var cachedState))
+            {
+                if (cachedState.ActiveDetailViewModel != null)
+                {
+                    if (ReferenceEquals(SelectedContent, cachedState.ActiveDetailViewModel))
+                    {
+                        SelectedContent = null;
+                    }
+
+                    cachedState.ActiveDetailViewModel.Dispose();
+                }
+
+                var currentItems = new HashSet<ContentGridItemViewModel>(ContentItems);
+                foreach (var item in cachedState.Items.Where(item => !currentItems.Contains(item)))
+                {
+                    item.Dispose();
+                }
+            }
+        }
+
+        if (IsSubscribedPublisher)
+        {
+            var previousCts = Interlocked.Exchange(ref _catalogsCts, null);
+            if (previousCts != null)
+            {
+                await previousCts.CancelAsync();
+                previousCts.Dispose();
+            }
+
+            if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase) || !IsSubscribedPublisher)
+            {
+                return;
+            }
+
+            var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
+            _lastCatalogPublisherId = publisherId;
+            var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+            var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+            if (replaced != null)
+            {
+                await replaced.CancelAsync();
+                replaced.Dispose();
+            }
+
+            await LoadAvailableCatalogsAsync(publisherId, loadId, newCts.Token);
+        }
+
+        if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await RefreshContentAsync(reloadCatalogs: false);
+    }
+
     [RelayCommand]
     private async Task LoadMoreAsync()
     {
@@ -2177,9 +2295,13 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Refreshes the content for the currently selected publisher.
+    /// </summary>
     /// <param name="append">Whether to append results to the current list instead of clearing.</param>
+    /// <param name="reloadCatalogs">Whether to reload subscribed catalogs.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task<bool> RefreshContentAsync(bool append = false)
+    private async Task<bool> RefreshContentAsync(bool append = false, bool reloadCatalogs = true)
     {
         if (SelectedPublisher == null)
         {
@@ -2196,9 +2318,36 @@ public sealed partial class DownloadsBrowserViewModel(
             if (!append)
             {
                 PrepareContentCollectionForRefresh(publisherId, isCustomQuery);
-                if (SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
+                if (reloadCatalogs && SelectedPublisher.PublisherType.Equals(CatalogConstants.SubscribedPublisherCategory, StringComparison.OrdinalIgnoreCase))
                 {
-                    _ = LoadAvailableCatalogsAsync(publisherId, _vmCts.Token);
+                    var oldCts = Interlocked.Exchange(ref _catalogsCts, null);
+                    if (oldCts != null)
+                    {
+                        await oldCts.CancelAsync();
+                        oldCts.Dispose();
+                    }
+
+                    if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    var loadId = Interlocked.Increment(ref _activeCatalogLoadId);
+                    _lastCatalogPublisherId = publisherId;
+                    var newCts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token);
+                    var replaced = Interlocked.Exchange(ref _catalogsCts, newCts);
+                    if (replaced != null)
+                    {
+                        await replaced.CancelAsync();
+                        replaced.Dispose();
+                    }
+
+                    if (!string.Equals(SelectedPublisher?.PublisherId, publisherId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    _ = LoadAvailableCatalogsAsync(publisherId, loadId, newCts.Token);
                 }
             }
 
@@ -2240,6 +2389,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         if (isCustomQuery)
         {
+            List<ContentGridItemViewModel> itemsToDispose = [];
             lock (_cacheLock)
             {
                 var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
@@ -2248,16 +2398,14 @@ public sealed partial class DownloadsBrowserViewModel(
                     cachedItemSet.UnionWith(inFlight.ResolvedItems);
                 }
 
-                foreach (var item in ContentItems)
-                {
-                    if (!cachedItemSet.Contains(item))
-                    {
-                        item.Dispose();
-                    }
-                }
+                itemsToDispose = ContentItems.Where(item => !cachedItemSet.Contains(item)).ToList();
             }
 
             ContentItems.Clear();
+            foreach (var item in itemsToDispose)
+            {
+                item.Dispose();
+            }
         }
         else
         {
@@ -2296,16 +2444,13 @@ public sealed partial class DownloadsBrowserViewModel(
                     retainedItems.UnionWith(inFlightSnapshot);
                 }
 
-                foreach (var item in ContentItems)
+                var itemsToDispose = ContentItems.Where(item => !retainedItems.Contains(item)).ToList();
+                ContentItems.Clear();
+                foreach (var item in itemsToDispose)
                 {
-                    if (!retainedItems.Contains(item))
-                    {
-                        item.Dispose();
-                    }
+                    item.Dispose();
                 }
             }
-
-            ContentItems.Clear();
         }
     }
 
@@ -2358,77 +2503,9 @@ public sealed partial class DownloadsBrowserViewModel(
                     .ToList();
 
                 var effectiveCatalogId = inFlightOp?.CatalogId ?? targetCatalogId;
+                await CheckAndNotifyNewDiscoveredItemsAsync(publisherId, effectiveCatalogId, items, append, isCustomQuery, fetchToken);
+
                 var cacheKey = $"{publisherId}:{effectiveCatalogId ?? CatalogConstants.DefaultCatalogId}";
-                if (_knownContentItemIds.TryGetValue(cacheKey, out var prevItemIds) && !append && !isCustomQuery)
-                {
-                    var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
-                    if (newDiscoveredItems.Count > 0)
-                    {
-                        var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, fetchToken);
-                        var sub = subResult.Success ? subResult.Data : null;
-                        if (sub?.NotifyNewReleases != false)
-                        {
-                            var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Content Available";
-                            var actionText = _localizationService?.GetString("Downloads.Browser.ViewContentAction") ?? "View";
-                            var catalogName = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase))?.Name
-                                ?? (string.Equals(SelectedCatalog?.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog?.Name : null)
-                                ?? "Catalog";
-
-                            if (newDiscoveredItems.Count == 1)
-                            {
-                                var item = newDiscoveredItems[0];
-                                var message = string.Format(
-                                    _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat") ?? "New content '{0}' released in catalog '{1}'",
-                                    item.Name,
-                                    catalogName);
-
-                                notificationService.Show(new NotificationMessage(
-                                    NotificationType.Info,
-                                    title,
-                                    message,
-                                    autoDismissMilliseconds: 10000,
-                                    actionText: actionText,
-                                    action: () =>
-                                    {
-                                        RunOnUi(() =>
-                                        {
-                                            var targetVm = ContentItems.FirstOrDefault(ci => string.Equals(ci.Id, item.Id, StringComparison.OrdinalIgnoreCase));
-                                            if (targetVm != null)
-                                            {
-                                                ViewContent(targetVm);
-                                            }
-                                        });
-                                    }));
-                            }
-                            else
-                            {
-                                var message = string.Format(
-                                    _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat") ?? "{0} new content items released in catalog '{1}'",
-                                    newDiscoveredItems.Count,
-                                    catalogName);
-
-                                notificationService.Show(new NotificationMessage(
-                                    NotificationType.Info,
-                                    title,
-                                    message,
-                                    autoDismissMilliseconds: 10000,
-                                    actionText: actionText,
-                                    action: () =>
-                                    {
-                                        RunOnUi(() =>
-                                        {
-                                            var firstVm = ContentItems.FirstOrDefault(ci => newDiscoveredItems.Any(ni => string.Equals(ni.Id, ci.Id, StringComparison.OrdinalIgnoreCase)));
-                                            if (firstVm != null)
-                                            {
-                                                ViewContent(firstVm);
-                                            }
-                                        });
-                                    }));
-                            }
-                        }
-                    }
-                }
-
                 if (!append && !isCustomQuery)
                 {
                     _knownContentItemIds[cacheKey] = new HashSet<string>(items.Select(i => i.Id), StringComparer.OrdinalIgnoreCase);
@@ -2555,6 +2632,86 @@ public sealed partial class DownloadsBrowserViewModel(
             });
             logger.LogError(ex, "Failed to stream content for publisher {Publisher}", publisherId);
             return false;
+        }
+    }
+
+    private async Task CheckAndNotifyNewDiscoveredItemsAsync(
+        string publisherId,
+        string? effectiveCatalogId,
+        IReadOnlyList<ContentSearchResult> items,
+        bool append,
+        bool isCustomQuery,
+        CancellationToken fetchToken)
+    {
+        var cacheKey = $"{publisherId}:{effectiveCatalogId ?? CatalogConstants.DefaultCatalogId}";
+        if (!_knownContentItemIds.TryGetValue(cacheKey, out var prevItemIds) || append || isCustomQuery)
+        {
+            return;
+        }
+
+        var newDiscoveredItems = items.Where(i => !prevItemIds.Contains(i.Id)).ToList();
+        if (newDiscoveredItems.Count == 0)
+        {
+            return;
+        }
+
+        var subResult = await subscriptionStore.GetSubscriptionAsync(publisherId, fetchToken);
+        var sub = subResult.Success ? subResult.Data : null;
+        if (sub?.NotifyNewReleases == false)
+        {
+            return;
+        }
+
+        var title = _localizationService?.GetString("Downloads.Browser.NewContentNotificationTitle") ?? "New Content Available";
+        var actionText = _localizationService?.GetString("Downloads.Browser.ViewContentAction") ?? "View";
+        var catalogName = AvailableCatalogs.FirstOrDefault(c => string.Equals(c.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase))?.Name
+            ?? (string.Equals(SelectedCatalog?.Id, effectiveCatalogId, StringComparison.OrdinalIgnoreCase) ? SelectedCatalog?.Name : null)
+            ?? "Catalog";
+
+        if (newDiscoveredItems.Count == 1)
+        {
+            var item = newDiscoveredItems[0];
+            var message = string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewContentNotificationFormat") ?? "New content '{0}' released in catalog '{1}'",
+                item.Name,
+                catalogName);
+
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                title,
+                message,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
+                actionText: actionText,
+                action: () => RunOnUi(() =>
+                {
+                    var targetVm = ContentItems.FirstOrDefault(ci => string.Equals(ci.Id, item.Id, StringComparison.OrdinalIgnoreCase));
+                    if (targetVm != null)
+                    {
+                        ViewContent(targetVm);
+                    }
+                })));
+        }
+        else
+        {
+            var message = string.Format(
+                _localizationService?.GetString("Downloads.Browser.NewContentsNotificationFormat") ?? "{0} new content items released in catalog '{1}'",
+                newDiscoveredItems.Count,
+                catalogName);
+
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                title,
+                message,
+                autoDismissMilliseconds: NotificationDurations.VeryLong,
+                actionText: actionText,
+                action: () => RunOnUi(() =>
+                {
+                    var firstVm = ContentItems.FirstOrDefault(ci => newDiscoveredItems.Any(ni => string.Equals(ni.Id, ci.Id, StringComparison.OrdinalIgnoreCase)));
+                    if (firstVm != null)
+                    {
+                        ViewContent(firstVm);
+                    }
+                })));
         }
     }
 
@@ -2925,6 +3082,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             variantVm.NotifyStateChanged();
+            await Task.WhenAny(variantVm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return variantVm;
         }
         catch
@@ -2953,6 +3111,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             vm.NotifyStateChanged();
+            await Task.WhenAny(vm.EnsureIconsLoadedAsync(ct), Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct));
             return vm;
         }
         catch
@@ -2996,78 +3155,18 @@ public sealed partial class DownloadsBrowserViewModel(
         var ct = linkedCts.Token;
 
         var targetItem = item.UpdateTargetVm ?? item;
-        var publisherId = item.SearchResult?.ProviderName;
-        if ((string.IsNullOrEmpty(publisherId) || ContentStateService.IsGitHubPublisher(publisherId)) &&
-            item.SearchResult?.ResolverMetadata != null &&
-            item.SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
-            !string.IsNullOrWhiteSpace(owner))
+        var publisherId = ResolveUpdatePublisherId(item, targetItem);
+
+        var (reconcilerHandled, reconcilerSuccess) = await TryReconcileViaPublisherReconcilerAsync(publisherId, targetItem, ct);
+        if (reconcilerHandled)
         {
-            publisherId = owner;
+            return reconcilerSuccess;
         }
 
-        publisherId ??= targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId;
-
-        var registry = _reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
-        var reconciler = !string.IsNullOrEmpty(publisherId) ? registry?.GetReconciler(publisherId) : null;
-
-        if (reconciler != null)
+        var (shouldCancelUpdate, promptResult) = await PromptForUpdateOptionAsync(targetItem);
+        if (shouldCancelUpdate)
         {
-            var result = await reconciler.CheckAndReconcileIfNeededAsync(string.Empty, ct);
-            if (result.Success && result.Data)
-            {
-                if (SelectedPublisher != null)
-                {
-                    await RefreshAndReconcileItemsAsync(ContentItems, SelectedPublisher.PublisherId);
-                }
-
-                return true;
-            }
-
-            if (!result.Success)
-            {
-                logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
-                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
-
-                // No telemetry here: the publisher reconcilers own per-item failure
-                // reporting and already emit content_update_failed for failures they
-                // handle. Reconciler infrastructure exceptions stay LogError-only.
-                return false;
-            }
-
-            // The reconciler found nothing to do on its own: fall through to the explicit
-            // update dialog plus re-download below so an acknowledged update is never
-            // silently swallowed.
-            logger.LogInformation(
-                "Reconciler reported no update work for {PublisherId}; continuing with explicit update flow",
-                publisherId);
-        }
-
-        var dialogService = serviceProvider.GetService<IDialogService>();
-        UpdateDialogResult? promptResult = null;
-        if (dialogService != null)
-        {
-            var version = targetItem.SearchResult?.Version;
-            var title = _localizationService?.GetString("Downloads.UpdateDialog.Title", targetItem.Name)
-                ?? $"{targetItem.Name} Update Available";
-
-            string message;
-            if (!string.IsNullOrWhiteSpace(version))
-            {
-                message = _localizationService?.GetString("Downloads.UpdateDialog.MessageWithVersion", targetItem.Name, version)
-                    ?? $"{targetItem.Name} has an update available ({version}).\n\nHow do you want to apply this update?";
-            }
-            else
-            {
-                message = _localizationService?.GetString("Downloads.UpdateDialog.Message", targetItem.Name)
-                    ?? $"{targetItem.Name} has an update available.\n\nHow do you want to apply this update?";
-            }
-
-            promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
-
-            if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return false;
         }
 
         var oldManifestId = await ResolveLocalInstalledManifestIdAsync(item, ct).ConfigureAwait(false);
@@ -3112,112 +3211,17 @@ public sealed partial class DownloadsBrowserViewModel(
 
         var newManifestId = await ResolveLocalInstalledManifestIdAsync(targetItem, ct).ConfigureAwait(false);
 
-        var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
-        var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
-        var manifestPool = serviceProvider.GetService<IContentManifestPool>();
+        var reconciliationProceeded = await ApplyPostUpdateReconciliationAsync(
+            targetItem,
+            publisherId,
+            oldManifestId,
+            newManifestId,
+            promptResult,
+            ct);
 
-        if (activeProfileManager != null && reconciliationService != null && manifestPool != null)
+        if (!reconciliationProceeded)
         {
-            try
-            {
-                var oldManifest = !string.IsNullOrEmpty(oldManifestId)
-                    ? await manifestPool.GetManifestAsync(oldManifestId, ct)
-                    : null;
-                var newManifest = !string.IsNullOrEmpty(newManifestId)
-                    ? await manifestPool.GetManifestAsync(newManifestId, ct)
-                    : null;
-
-                var oldManifests = oldManifest is { Success: true, Data: not null }
-                    ? new List<ContentManifest> { oldManifest.Data }
-                    : new List<ContentManifest>();
-                var newManifests = newManifest is { Success: true, Data: not null }
-                    ? new List<ContentManifest> { newManifest.Data }
-                    : new List<ContentManifest>();
-
-                var mapping = (!string.IsNullOrEmpty(oldManifestId) && !string.IsNullOrEmpty(newManifestId))
-                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
-                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-                var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
-                var shouldDelete = promptResult?.DeleteOldVersions ?? false;
-
-                var helperContext = new PublisherReconciliationContext(
-                    activeProfileManager,
-                    reconciliationService,
-                    notificationService,
-                    logger,
-                    targetItem.SearchResult?.ProviderName ?? DefaultPublisherName,
-                    "[Downloads Update]",
-                    localizationService);
-
-                var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
-                    new UpdateStrategyExecutionArgs(
-                        strategy,
-                        oldManifests,
-                        newManifests,
-                        mapping,
-                        targetItem.SearchResult?.Version ?? string.Empty,
-                        shouldDelete,
-                        null),
-                    helperContext,
-                    ct);
-
-                if (updateOutcome.ShouldDeleteOldVersions && !updateOutcome.AnyFailure)
-                {
-                    await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
-                }
-
-                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
-
-                if (!updateOutcome.Proceed)
-                {
-                    targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage}";
-                    _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                    {
-                        [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                        [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                        [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                        [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                        [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
-                        [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
-                        [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                        [TelemetryConstants.Properties.ErrorMessage] = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage,
-                    });
-                    return false;
-                }
-
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateApplied, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                    [TelemetryConstants.Properties.FromVersion] = oldManifest?.Data?.Version ?? string.Empty,
-                    [TelemetryConstants.Properties.ToVersion] = targetItem.SearchResult?.Version ?? string.Empty,
-                    [TelemetryConstants.Properties.Strategy] = strategy.ToString(),
-                    [TelemetryConstants.Properties.ProfilesUpdated] = updateOutcome.ProfilesUpdated,
-                    [TelemetryConstants.Properties.Success] = !updateOutcome.AnyFailure,
-                });
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
-                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
-                var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
-                _telemetryService?.TrackEvent(TelemetryConstants.Events.ContentUpdateFailed, new Dictionary<string, object?>
-                {
-                    [TelemetryConstants.Properties.PublisherId] = targetPublisherId,
-                    [TelemetryConstants.Properties.ContentName] = targetItem.Name,
-                    [TelemetryConstants.Properties.ContentId] = newManifestId ?? targetItem.Id,
-                    [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
-                    [TelemetryConstants.Properties.ErrorMessage] = ex.Message,
-                });
-                return false;
-            }
+            return false;
         }
 
         var activeNotificationService = notificationService ?? serviceProvider.GetService<INotificationService>();
@@ -3232,6 +3236,261 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         return true;
+    }
+
+    private string? ResolveUpdatePublisherId(ContentGridItemViewModel item, ContentGridItemViewModel targetItem)
+    {
+        var publisherId = item.SearchResult?.ProviderName;
+        if ((string.IsNullOrEmpty(publisherId) || ContentStateService.IsGitHubPublisher(publisherId)) &&
+            item.SearchResult?.ResolverMetadata != null &&
+            item.SearchResult.ResolverMetadata.TryGetValue(GitHubConstants.OwnerMetadataKey, out var owner) &&
+            !string.IsNullOrWhiteSpace(owner))
+        {
+            publisherId = owner;
+        }
+
+        return publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId;
+    }
+
+    private async Task<(bool Handled, bool Success)> TryReconcileViaPublisherReconcilerAsync(
+        string? publisherId,
+        ContentGridItemViewModel targetItem,
+        CancellationToken ct)
+    {
+        var registry = _reconcilerRegistry ?? serviceProvider.GetService<IPublisherReconcilerRegistry>();
+        var reconciler = !string.IsNullOrEmpty(publisherId) ? registry?.GetReconciler(publisherId) : null;
+
+        if (reconciler == null)
+        {
+            return (false, false);
+        }
+
+        var result = await reconciler.CheckAndReconcileIfNeededAsync(string.Empty, ct);
+        if (result.Success && result.Data)
+        {
+            if (SelectedPublisher != null)
+            {
+                await RefreshAndReconcileItemsAsync(ContentItems, SelectedPublisher.PublisherId);
+            }
+
+            return (true, true);
+        }
+
+        if (!result.Success)
+        {
+            logger.LogWarning("Reconciler failed for {PublisherId}: {Error}", publisherId, result.FirstError);
+            targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{result.FirstError ?? ContentConstants.UpdateFailedStatusMessage}";
+            return (true, false);
+        }
+
+        logger.LogInformation(
+            "Reconciler reported no update work for {PublisherId}; continuing with explicit update flow",
+            publisherId);
+        return (false, false);
+    }
+
+    private async Task<(bool ShouldCancel, UpdateDialogResult? Result)> PromptForUpdateOptionAsync(ContentGridItemViewModel targetItem)
+    {
+        var dialogService = serviceProvider.GetService<IDialogService>();
+        if (dialogService == null)
+        {
+            return (false, null);
+        }
+
+        var version = targetItem.SearchResult?.Version;
+        var title = _localizationService?.GetString("Downloads.UpdateDialog.Title", targetItem.Name)
+            ?? $"{targetItem.Name} Update Available";
+
+        var message = !string.IsNullOrWhiteSpace(version)
+            ? _localizationService?.GetString("Downloads.UpdateDialog.MessageWithVersion", targetItem.Name, version)
+                ?? $"{targetItem.Name} has an update available ({version}).\n\nHow do you want to apply this update?"
+            : _localizationService?.GetString("Downloads.UpdateDialog.Message", targetItem.Name)
+                ?? $"{targetItem.Name} has an update available.\n\nHow do you want to apply this update?";
+
+        var promptResult = await dialogService.ShowUpdateOptionDialogAsync(title, message, initialDeleteOldVersions: true);
+        if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+        {
+            return (true, null);
+        }
+
+        return (false, promptResult);
+    }
+
+    private async Task<bool> ApplyPostUpdateReconciliationAsync(
+        ContentGridItemViewModel targetItem,
+        string? publisherId,
+        string? oldManifestId,
+        string? newManifestId,
+        UpdateDialogResult? promptResult,
+        CancellationToken ct)
+    {
+        var activeProfileManager = profileManager ?? serviceProvider.GetService<IGameProfileManager>();
+        var reconciliationService = serviceProvider.GetService<IContentReconciliationService>();
+        var manifestPool = serviceProvider.GetService<IContentManifestPool>();
+
+        if (activeProfileManager == null || reconciliationService == null || manifestPool == null)
+        {
+            return true;
+        }
+
+        var targetPublisherId = publisherId ?? targetItem.SearchResult?.ProviderName ?? SelectedPublisher?.PublisherId ?? DefaultPublisherName;
+        var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
+        var shouldDelete = promptResult?.DeleteOldVersions == true;
+
+        var fromVersion = string.Empty;
+        try
+        {
+            var (oldManifests, newManifests, mapping) = await LoadReconciliationManifestsAsync(
+                manifestPool,
+                oldManifestId,
+                newManifestId,
+                ct);
+
+            if (oldManifests.Count > 0)
+            {
+                fromVersion = oldManifests[0].Version;
+            }
+
+            var helperContext = new PublisherReconciliationContext(
+                activeProfileManager,
+                reconciliationService,
+                notificationService,
+                logger,
+                targetItem.SearchResult?.ProviderName ?? DefaultPublisherName,
+                "[Downloads Update]",
+                localizationService);
+
+            var updateOutcome = await PublisherReconcilerHelper.ApplyUpdateStrategyAsync(
+                new UpdateStrategyExecutionArgs(
+                    strategy,
+                    oldManifests,
+                    newManifests,
+                    mapping,
+                    targetItem.SearchResult?.Version ?? string.Empty,
+                    shouldDelete,
+                    null),
+                helperContext,
+                ct);
+
+            if (updateOutcome.ShouldDeleteOldVersions && !updateOutcome.AnyFailure)
+            {
+                await reconciliationService.ScheduleGarbageCollectionAsync(false, ct);
+            }
+
+            var toVersion = targetItem.SearchResult?.Version ?? string.Empty;
+
+            if (!updateOutcome.Proceed)
+            {
+                var error = updateOutcome.Error ?? ContentConstants.UpdateFailedStatusMessage;
+                targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{error}";
+                TrackUpdateTelemetry(
+                    TelemetryConstants.Events.ContentUpdateFailed,
+                    targetPublisherId,
+                    targetItem,
+                    newManifestId,
+                    fromVersion,
+                    toVersion,
+                    strategy.ToString(),
+                    errorMessage: error);
+                return false;
+            }
+
+            TrackUpdateTelemetry(
+                TelemetryConstants.Events.ContentUpdateApplied,
+                targetPublisherId,
+                targetItem,
+                newManifestId,
+                fromVersion,
+                toVersion,
+                strategy.ToString(),
+                profilesUpdated: updateOutcome.ProfilesUpdated,
+                success: !updateOutcome.AnyFailure);
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to apply update strategy for {OldManifestId} -> {NewManifestId}", oldManifestId, newManifestId);
+            targetItem.DownloadStatus = $"{ContentConstants.ErrorStatusPrefix}{ex.Message}";
+            TrackUpdateTelemetry(
+                TelemetryConstants.Events.ContentUpdateFailed,
+                targetPublisherId,
+                targetItem,
+                newManifestId,
+                fromVersion,
+                targetItem.SearchResult?.Version ?? string.Empty,
+                strategy.ToString(),
+                errorMessage: ex.Message);
+            return false;
+        }
+    }
+
+    private async Task<(List<ContentManifest> OldManifests, List<ContentManifest> NewManifests, Dictionary<string, string> Mapping)> LoadReconciliationManifestsAsync(
+        IContentManifestPool manifestPool,
+        string? oldManifestId,
+        string? newManifestId,
+        CancellationToken ct)
+    {
+        var oldManifest = !string.IsNullOrEmpty(oldManifestId)
+            ? await manifestPool.GetManifestAsync(oldManifestId, ct)
+            : null;
+        var newManifest = !string.IsNullOrEmpty(newManifestId)
+            ? await manifestPool.GetManifestAsync(newManifestId, ct)
+            : null;
+
+        var oldManifests = oldManifest is { Success: true, Data: not null }
+            ? new List<ContentManifest> { oldManifest.Data }
+            : new List<ContentManifest>();
+        var newManifests = newManifest is { Success: true, Data: not null }
+            ? new List<ContentManifest> { newManifest.Data }
+            : new List<ContentManifest>();
+
+        var mapping = (!string.IsNullOrEmpty(oldManifestId) && !string.IsNullOrEmpty(newManifestId))
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [oldManifestId] = newManifestId }
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        return (oldManifests, newManifests, mapping);
+    }
+
+    private void TrackUpdateTelemetry(
+        string eventName,
+        string publisherId,
+        ContentGridItemViewModel targetItem,
+        string? manifestId,
+        string fromVersion,
+        string toVersion,
+        string strategy,
+        string? errorMessage = null,
+        int profilesUpdated = 0,
+        bool success = true)
+    {
+        var props = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.PublisherId] = publisherId,
+            [TelemetryConstants.Properties.ContentName] = targetItem.Name,
+            [TelemetryConstants.Properties.ContentId] = manifestId ?? targetItem.Id,
+            [TelemetryConstants.Properties.Author] = targetItem.SearchResult?.AuthorName ?? TelemetryConstants.DownloadAttribution.Unknown,
+            [TelemetryConstants.Properties.FromVersion] = fromVersion,
+            [TelemetryConstants.Properties.ToVersion] = toVersion,
+            [TelemetryConstants.Properties.Strategy] = strategy,
+        };
+
+        if (!string.IsNullOrEmpty(errorMessage))
+        {
+            props[TelemetryConstants.Properties.ErrorMessage] = errorMessage;
+        }
+
+        if (eventName == TelemetryConstants.Events.ContentUpdateApplied)
+        {
+            props[TelemetryConstants.Properties.ProfilesUpdated] = profilesUpdated;
+            props[TelemetryConstants.Properties.Success] = success;
+        }
+
+        _telemetryService?.TrackEvent(eventName, props);
     }
 
     private async Task RefreshAndReconcileItemsAsync(IReadOnlyList<ContentGridItemViewModel> items, string publisherId)
@@ -3291,7 +3550,7 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 foreach (var item in items)
                 {
-                    _ = item.EnsureIconsLoadedAsync();
+                    _ = item.EnsureIconsLoadedAsync(_vmCts.Token);
                 }
 
                 ReconcileReleaseUpdateStates(ContentItems);
@@ -3429,6 +3688,7 @@ public sealed partial class DownloadsBrowserViewModel(
             CNCLabsConstants.PublisherType => contentDiscoverers.OfType<CNCLabsMapDiscoverer>().FirstOrDefault(),
             AODMapsConstants.PublisherType => contentDiscoverers.OfType<AODMapsDiscoverer>().FirstOrDefault(),
             ModDBConstants.PublisherType => contentDiscoverers.OfType<ModDBDiscoverer>().FirstOrDefault(),
+            SteamWorkshopConstants.PublisherType => contentDiscoverers.OfType<SteamWorkshopDiscoverer>().FirstOrDefault(),
 
             // User-subscribed GenHub catalogs (and later definition-resolved endpoints)
             _ => _subscribedDiscoverers.TryGetValue(publisherId, out var subscribed) ? subscribed : null,
@@ -3478,7 +3738,15 @@ public sealed partial class DownloadsBrowserViewModel(
                 deletedAction: OnContentDeletedAsync,
                 artworkService: serviceProvider.GetService<IContentArtworkService>(),
                 gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient,
-                workspaceManager: serviceProvider.GetService<IWorkspaceManager>());
+                workspaceManager: serviceProvider.GetService<IWorkspaceManager>(),
+                patchNotesService: serviceProvider.GetService(typeof(IGeneralsOnlinePatchNotesService)) as IGeneralsOnlinePatchNotesService,
+                onDescriptionEnriched: (version, desc) =>
+                {
+                    if (GeneralsOnlinePatchNotesHelper.VersionsMatch(item.SearchResult.Version, version))
+                    {
+                        item.UpdateDescription(desc);
+                    }
+                });
 
             if (item.HasBundleComponents)
             {
@@ -3703,6 +3971,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _filterViewModels[CNCLabsConstants.PublisherType] = new CNCLabsFilterViewModel();
         _filterViewModels[AODMapsConstants.PublisherType] = new AODMapsFilterViewModel();
         _filterViewModels[ModDBConstants.PublisherType] = new ModDBFilterViewModel();
+        _filterViewModels[SteamWorkshopConstants.PublisherType] = new SteamWorkshopFilterViewModel(_localizationService);
         _filterViewModels[PublisherTypeConstants.GenLauncher] = new StaticPublisherFilterViewModel(PublisherTypeConstants.GenLauncher)
         {
             LocalizationService = _localizationService,
@@ -4147,7 +4416,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             var strategy = promptResult?.Strategy ?? UpdateStrategy.CreateNewProfile;
-            var shouldDelete = promptResult?.DeleteOldVersions ?? false;
+            var shouldDelete = promptResult?.DeleteOldVersions == true;
 
             var helperContext = new PublisherReconciliationContext(
                 activeProfileManager,
@@ -4192,7 +4461,7 @@ public sealed partial class DownloadsBrowserViewModel(
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
     /// </summary>
     [RelayCommand]
-    private async Task AddContentToProfileAsync(ContentGridItemViewModel item)
+    private async Task AddContentToProfileAsync(ContentGridItemViewModel item, CancellationToken cancellationToken = default)
     {
         if (item == null)
         {
@@ -4214,76 +4483,15 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(_vmCts.Token, cancellationToken);
+        var ct = cts.Token;
+
         try
         {
-            string? manifestId;
-            IReadOnlyList<string> additionalManifestIds = [];
-
-            if (item.HasBundleComponents)
+            var (manifestId, additionalManifestIds, errorHandled) = await ResolveProfileManifestIdsAsync(item, ct);
+            if (errorHandled || string.IsNullOrEmpty(manifestId))
             {
-                var bundleIds = await BundleComponentViewModel.GetRequiredProfileManifestIdsAsync(
-                    item.BundleComponents,
-                    contentStateService,
-                    _vmCts.Token);
-                if (bundleIds.Count == 0)
-                {
-                    item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
-                    notificationService.ShowError(
-                        localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.Title", "Cannot Add to Profile"),
-                        localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.BundleMessage", "Download every selected bundle item (including the chosen variants) before adding them to a profile."));
-                    logger.LogWarning(
-                        "Cannot add bundle to profile: missing acquired members for '{ContentName}'",
-                        item.Name);
-                    return;
-                }
-
-                manifestId = bundleIds[0];
-                additionalManifestIds = [.. bundleIds.Skip(1)];
-            }
-            else
-            {
-                // Prefer the variant-specific search result if a variant is selected
-                var searchResultToMatch = item.SearchResult;
-                if (item.SelectedVariant != null &&
-                    !string.IsNullOrEmpty(item.SelectedVariant.ManifestId) &&
-                    item.VariantSearchResults.TryGetValue(item.SelectedVariant.ManifestId, out var variantSr))
-                {
-                    searchResultToMatch = variantSr;
-                }
-
-                manifestId = searchResultToMatch.Id;
-                if (string.IsNullOrEmpty(manifestId) && item.SelectedVariant != null)
-                {
-                    manifestId = item.SelectedVariant.ManifestId;
-                }
-
-                var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
-                    && ManifestIdValidator.IsValid(manifestId, out _)
-                    && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
-
-                if (!trustSearchResultId && !string.IsNullOrEmpty(item.SelectedVariant?.ManifestId))
-                {
-                    manifestId = item.SelectedVariant.ManifestId;
-                    trustSearchResultId = ManifestIdValidator.IsValid(manifestId, out _)
-                        && await contentStateService.GetStateByManifestIdAsync(manifestId, _vmCts.Token) == ContentState.Downloaded;
-                }
-
-                if (!trustSearchResultId)
-                {
-                    logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", searchResultToMatch.Id);
-                    manifestId = await contentStateService.GetLocalManifestIdAsync(searchResultToMatch, _vmCts.Token);
-                }
-
-                if (string.IsNullOrEmpty(manifestId))
-                {
-                    // Content hasn't been downloaded yet
-                    item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
-                    notificationService.ShowError(
-                        localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.Title", "Cannot Add to Profile"),
-                        localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.DownloadFirstMessage", "Please download the content first before adding it to a profile."));
-                    logger.LogWarning("Cannot add content to profile: no manifest found for '{ContentName}'", item.Name);
-                    return;
-                }
+                return;
             }
 
             logger.LogInformation("Adding content '{ContentName}' (Manifest: {ManifestId}) to profile", item.Name, manifestId);
@@ -4309,7 +4517,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 manifestId,
                 item.Name,
                 additionalManifestIds,
-                _vmCts.Token);
+                ct);
 
             // Show the dialog
             var dialog = new Views.ProfileSelectionView(profileSelectionVm);
@@ -4330,43 +4538,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 return;
             }
 
-            // Check the result
-            if (profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.SelectedProfileName))
-            {
-                item.DownloadStatus = $"{ContentConstants.AddedToProfileStatusPrefix}{profileSelectionVm.SelectedProfileName}";
-
-                // Send profile updated message to notify other components
-                try
-                {
-                    // Get the updated profile to send in the message
-                    var profilesResult = await profileManager.GetAllProfilesAsync(CancellationToken.None);
-                    var selectedProfile = profilesResult.Data?.FirstOrDefault(p => p.Name == profileSelectionVm.SelectedProfileName);
-                    if (selectedProfile != null)
-                    {
-                        var message = new ProfileUpdatedMessage(selectedProfile);
-                        WeakReferenceMessenger.Default.Send(message);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
-                }
-            }
-            else if (!profileSelectionVm.WasSuccessful && !profileSelectionVm.WasCancelled && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
-            {
-                item.DownloadStatus = $"{ContentConstants.FailedStatusPrefix}{profileSelectionVm.ErrorMessage}";
-                logger.LogError("Failed to add content to profile: {Error}", profileSelectionVm.ErrorMessage);
-            }
-            else
-            {
-                // Dismissing the profile picker does not cancel an acquisition. Leave the
-                // downloaded card in its normal actionable state instead of presenting a
-                // misleading persistent cancellation message.
-                item.ClearInactiveDownloadStatus();
-                logger.LogInformation("User cancelled profile selection for '{ContentName}'", item.Name);
-            }
+            await HandleProfileSelectionResultAsync(item, profileSelectionVm);
         }
-        catch (OperationCanceledException) when (_vmCts.IsCancellationRequested)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // View disposal/cancellation is expected.
         }
@@ -4380,9 +4554,110 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
-    /// <summary>
-    /// Opens the Import Subscription / Catalog dialog.
-    /// </summary>
+    private async Task<(string? PrimaryManifestId, IReadOnlyList<string> AdditionalManifestIds, bool ErrorHandled)> ResolveProfileManifestIdsAsync(
+        ContentGridItemViewModel item,
+        CancellationToken ct)
+    {
+        if (item.HasBundleComponents)
+        {
+            var bundleIds = await BundleComponentViewModel.GetRequiredProfileManifestIdsAsync(
+                item.BundleComponents,
+                contentStateService,
+                ct);
+            if (bundleIds.Count == 0)
+            {
+                item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
+                notificationService.ShowError(
+                    localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.Title", "Cannot Add to Profile"),
+                    localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.BundleMessage", "Download every selected bundle item (including the chosen variants) before adding them to a profile."));
+                logger.LogWarning(
+                    "Cannot add bundle to profile: missing acquired members for '{ContentName}'",
+                    item.Name);
+                return (null, [], true);
+            }
+
+            return (bundleIds[0], [.. bundleIds.Skip(1)], false);
+        }
+
+        var searchResultToMatch = item.SearchResult;
+        if (item.SelectedVariant != null &&
+            !string.IsNullOrEmpty(item.SelectedVariant.ManifestId) &&
+            item.VariantSearchResults.TryGetValue(item.SelectedVariant.ManifestId, out var variantSr))
+        {
+            searchResultToMatch = variantSr;
+        }
+
+        var manifestId = searchResultToMatch.Id;
+        if (string.IsNullOrEmpty(manifestId) && item.SelectedVariant != null)
+        {
+            manifestId = item.SelectedVariant.ManifestId;
+        }
+
+        var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
+            && ManifestIdValidator.IsValid(manifestId, out _)
+            && await contentStateService.GetStateByManifestIdAsync(manifestId, ct) == ContentState.Downloaded;
+
+        if (!trustSearchResultId && !string.IsNullOrEmpty(item.SelectedVariant?.ManifestId))
+        {
+            manifestId = item.SelectedVariant.ManifestId;
+            trustSearchResultId = ManifestIdValidator.IsValid(manifestId, out _)
+                && await contentStateService.GetStateByManifestIdAsync(manifestId, ct) == ContentState.Downloaded;
+        }
+
+        if (!trustSearchResultId)
+        {
+            logger.LogDebug("SearchResult ID '{Id}' is not an acquired manifest, looking up from pool", searchResultToMatch.Id);
+            manifestId = await contentStateService.GetLocalManifestIdAsync(searchResultToMatch, ct);
+        }
+
+        if (string.IsNullOrEmpty(manifestId))
+        {
+            item.DownloadStatus = ContentConstants.PleaseDownloadFirstStatusMessage;
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.Title", "Cannot Add to Profile"),
+                localizationService.GetLocalizedString("Downloads.Notification.CannotAddToProfile.DownloadFirstMessage", "Please download the content first before adding it to a profile."));
+            logger.LogWarning("Cannot add content to profile: no manifest found for '{ContentName}'", item.Name);
+            return (null, [], true);
+        }
+
+        return (manifestId, [], false);
+    }
+
+    private async Task HandleProfileSelectionResultAsync(
+        ContentGridItemViewModel item,
+        ProfileSelectionViewModel profileSelectionVm)
+    {
+        if (profileSelectionVm.WasSuccessful && !string.IsNullOrEmpty(profileSelectionVm.SelectedProfileName))
+        {
+            item.DownloadStatus = $"{ContentConstants.AddedToProfileStatusPrefix}{profileSelectionVm.SelectedProfileName}";
+
+            try
+            {
+                var profilesResult = await profileManager.GetAllProfilesAsync(CancellationToken.None);
+                var selectedProfile = profilesResult.Data?.FirstOrDefault(p => p.Name == profileSelectionVm.SelectedProfileName);
+                if (selectedProfile != null)
+                {
+                    var message = new ProfileUpdatedMessage(selectedProfile);
+                    WeakReferenceMessenger.Default.Send(message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to send ProfileUpdatedMessage");
+            }
+        }
+        else if (!profileSelectionVm.WasSuccessful && !profileSelectionVm.WasCancelled && !string.IsNullOrEmpty(profileSelectionVm.ErrorMessage))
+        {
+            item.DownloadStatus = $"{ContentConstants.FailedStatusPrefix}{profileSelectionVm.ErrorMessage}";
+            logger.LogError("Failed to add content to profile: {Error}", profileSelectionVm.ErrorMessage);
+        }
+        else
+        {
+            item.ClearInactiveDownloadStatus();
+            logger.LogInformation("User cancelled profile selection for '{ContentName}'", item.Name);
+        }
+    }
+
     [RelayCommand]
     private async Task ImportSubscriptionAsync()
     {

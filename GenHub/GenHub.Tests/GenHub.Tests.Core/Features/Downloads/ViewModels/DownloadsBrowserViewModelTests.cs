@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GitHub;
@@ -2907,6 +2908,132 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal(ContentState.NotDownloaded, card.CurrentState);
         Assert.True(card.ShowDownloadButton);
         Assert.False(card.ShowAddToProfileButton);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true when a publisher has multiple catalogs.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenMultipleCatalogs_ReturnsTrue()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c2", Name = "Catalog 2", Url = "https://example.com/2.json" });
+
+        // Act & Assert
+        Assert.True(viewModel.HasMultipleCatalogs);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true when catalogs are loading for a subscribed publisher.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenSubscribedPublisherAndLoadingCatalogs_ReturnsTrue()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var subPub = new PublisherItemViewModel("sub-1", "Subscribed Publisher", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(subPub);
+        viewModel.SelectedPublisher = subPub;
+
+        // Act
+        viewModel.IsLoadingCatalogs = true;
+
+        // Assert
+        Assert.True(viewModel.IsSubscribedPublisher);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns false for a non-subscribed publisher with a single catalog.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenNonSubscribedSingleCatalog_ReturnsFalse()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var pub = new PublisherItemViewModel("std-1", "Standard Publisher", null, "Standard");
+        viewModel.Publishers.Add(pub);
+        viewModel.SelectedPublisher = pub;
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.IsLoadingCatalogs = false;
+
+        // Act & Assert
+        Assert.False(viewModel.HasMultipleCatalogs);
+        Assert.False(viewModel.IsSubscribedPublisher);
+        Assert.False(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CanShowCatalogSwitcher returns true for a subscribed publisher even with a single catalog.
+    /// </summary>
+    [Fact]
+    public void CanShowCatalogSwitcher_WhenSubscribedPublisherSingleCatalog_ReturnsTrue()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        var subPub = new PublisherItemViewModel("sub-1", "Subscribed Publisher", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(subPub);
+        viewModel.SelectedPublisher = subPub;
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        viewModel.IsLoadingCatalogs = false;
+
+        // Act & Assert
+        Assert.False(viewModel.HasMultipleCatalogs);
+        Assert.True(viewModel.IsSubscribedPublisher);
+        Assert.True(viewModel.CanShowCatalogSwitcher);
+    }
+
+    /// <summary>
+    /// Verifies that CatalogLoadingStatusText reflects updating state when catalogs exist,
+    /// and loading state when no catalogs exist, using localized resources.
+    /// </summary>
+    [Fact]
+    public void CatalogLoadingStatusText_ReflectsUpdateVsInitialLoadState()
+    {
+        // Arrange
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock.Setup(l => l.GetString("Downloads.Browser.LoadingCatalogs")).Returns("Localized Loading Catalogs");
+        localizationMock.Setup(l => l.GetString("Downloads.Browser.UpdatingCatalog")).Returns("Localized Updating Catalog");
+
+        var serviceProviderMock = new Mock<IServiceProvider>();
+        serviceProviderMock.Setup(sp => sp.GetService(typeof(ILocalizationService))).Returns(localizationMock.Object);
+
+        using var viewModel = CreateViewModel(serviceProvider: serviceProviderMock.Object);
+
+        // Empty catalog list -> initial loading text
+        Assert.Equal("Localized Loading Catalogs", viewModel.CatalogLoadingStatusText);
+
+        // Populated catalog list -> updating text
+        viewModel.AvailableCatalogs.Add(new CatalogEntry { Id = "c1", Name = "Catalog 1", Url = "https://example.com/1.json" });
+        Assert.Equal("Localized Updating Catalog", viewModel.CatalogLoadingStatusText);
+    }
+
+    /// <summary>
+    /// Verifies that CanReloadCatalog tracks busy and loading states appropriately.
+    /// </summary>
+    [Fact]
+    public void CanReloadCatalog_TracksLoadingStates()
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        Assert.False(viewModel.CanReloadCatalog);
+
+        var publisher = new PublisherItemViewModel("pub-1", "Pub 1", null, CatalogConstants.SubscribedPublisherCategory);
+        viewModel.Publishers.Add(publisher);
+        viewModel.SelectedPublisher = publisher;
+        Assert.True(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoadingCatalogs = true;
+        Assert.False(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoadingCatalogs = false;
+        Assert.True(viewModel.CanReloadCatalog);
+
+        viewModel.IsLoading = true;
+        Assert.False(viewModel.CanReloadCatalog);
     }
 
     private static InstallableVariant AddCardVariant(

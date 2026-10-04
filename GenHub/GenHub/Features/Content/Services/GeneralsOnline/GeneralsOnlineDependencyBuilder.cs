@@ -3,14 +3,16 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Services.Dependencies;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
 /// Builds dependency specifications for Generals Online content.
 /// Generals Online game clients require a base Zero Hour installation
-/// and the QuickMatch MapPack for multiplayer functionality.
+/// and the QuickMatch MapPack for multiplayer functionality, along with an optional GameData patch.
 /// </summary>
 public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
 {
@@ -54,8 +56,34 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     }
 
     /// <summary>
+    /// Creates a dependency on the GeneralsOnline GameData patch.
+    /// This is an optional auto-install dependency for GeneralsOnline game clients.
+    /// </summary>
+    /// <param name="version">Optional version constraint for the data patch.</param>
+    /// <returns>A content dependency for the GameData patch.</returns>
+    public static ContentDependency CreateGameDataPatchDependency(int version = 0)
+    {
+        return new ContentDependency
+        {
+            Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                PublisherTypeConstants.GeneralsOnline,
+                ContentType.Patch,
+                GeneralsOnlineConstants.GameDataPatchSuffix,
+                version)),
+            Name = $"{GeneralsOnlineConstants.GameDataDisplayName} (Optional)",
+            DependencyType = ContentType.Patch,
+            InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            IsOptional = true,
+
+            // Must be from GeneralsOnline publisher
+            StrictPublisher = true,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+            CompatibleGameTypes = [GameType.ZeroHour],
+        };
+    }
+
+    /// <summary>
     /// Creates a dependency on the GeneralsOnline 60Hz GameClient.
-    /// This is required for GeneralsOnline data patches to work.
     /// </summary>
     /// <param name="version">Optional version constraint for the game client.</param>
     /// <returns>A content dependency for the 60Hz GameClient.</returns>
@@ -82,32 +110,43 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
 
     /// <summary>
     /// Gets the list of all dependencies for a Generals Online 60Hz variant.
-    /// Includes Zero Hour installation and QuickMatch MapPack.
+    /// Includes Zero Hour installation, QuickMatch MapPack, and optional GameData patch.
     /// </summary>
-    /// <param name="mapPackVersion">The version of the QuickMatch MapPack to depend on.</param>
+    /// <param name="version">The version of the components to depend on.</param>
     /// <returns>List of dependencies for 60Hz variant.</returns>
-    public static List<ContentDependency> GetDependenciesFor60Hz(int mapPackVersion = 0)
+    public static List<ContentDependency> GetDependenciesFor60Hz(int version = 0)
     {
         return
         [
             CreateZeroHourDependencyForGeneralsOnline(),
-            CreateQuickMatchMapPackDependency(mapPackVersion),
+            CreateQuickMatchMapPackDependency(version),
+            CreateGameDataPatchDependency(version),
         ];
     }
 
     /// <summary>
-    /// Gets the list of dependencies for the GeneralsOnlineGameData data patch.
-    /// Includes Zero Hour installation and GeneralsOnline 60Hz GameClient.
+    /// Gets the list of all dependencies for a Generals Online Test Environment variant.
+    /// Delegates to 60Hz dependency configuration (Zero Hour installation, QuickMatch MapPack, and optional GameData patch).
     /// </summary>
-    /// <param name="clientVersion">The version of the GameClient to depend on.</param>
+    /// <param name="version">The version of the components to depend on.</param>
+    /// <returns>List of dependencies for Test Environment variant.</returns>
+    public static List<ContentDependency> GetDependenciesForTestEnvironment(int version = 0)
+    {
+        return GetDependenciesFor60Hz(version);
+    }
+
+    /// <summary>
+    /// Gets the list of dependencies for the GeneralsOnlineGameData data patch.
+    /// Requires only a base Zero Hour installation so it can be used with any compatible game client.
+    /// </summary>
+    /// <param name="clientVersion">Unused version parameter kept for API compatibility.</param>
     /// <returns>List of dependencies for GameData data patch.</returns>
     public static List<ContentDependency> GetDependenciesForGameData(int clientVersion = 0)
     {
-        return new List<ContentDependency>
-        {
+        return
+        [
             CreateZeroHourDependencyForGeneralsOnline(),
-            CreateGameClient60HzDependency(clientVersion),
-        };
+        ];
     }
 
     /// <summary>
@@ -131,9 +170,18 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
             }
         }
 
+        if (manifest.ContentType == ContentType.GameClient)
+        {
+            var isTestEnv = manifest.Id.Value.EndsWith($".{GeneralsOnlineConstants.VariantTestEnvironmentSuffix}", StringComparison.OrdinalIgnoreCase)
+                || (manifest.Metadata?.Tags is not null && manifest.Metadata.Tags.Contains(GeneralsOnlineVariantTags.TagTestEnvironment));
+
+            return isTestEnv
+                ? GetDependenciesForTestEnvironment(userVersion)
+                : GetDependenciesFor60Hz(userVersion);
+        }
+
         return manifest.ContentType switch
         {
-            ContentType.GameClient => GetDependenciesFor60Hz(userVersion),
             ContentType.MapPack => [CreateZeroHourDependencyForGeneralsOnline()],
             ContentType.Patch => GetDependenciesForGameData(userVersion),
             _ => [],

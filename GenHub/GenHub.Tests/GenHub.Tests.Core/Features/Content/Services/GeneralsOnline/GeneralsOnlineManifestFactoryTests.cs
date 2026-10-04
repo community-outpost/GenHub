@@ -90,11 +90,11 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifests"/> generates 3 manifests:
-    /// 60Hz GameClient, QuickMatch MapPack, and GeneralsOnlineGameData data patch.
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifests"/> generates 4 manifests:
+    /// 60Hz GameClient, Test Environment GameClient, QuickMatch MapPack, and GeneralsOnlineGameData data patch.
     /// </summary>
     [Fact]
-    public void CreateManifests_GeneratesThreeManifests_IncludingGameDataPatch()
+    public void CreateManifests_GeneratesFourManifests_IncludingTestEnvironmentAndGameDataPatch()
     {
         // Arrange
         var release = new GeneralsOnlineRelease
@@ -110,20 +110,28 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         var manifests = _factory.CreateManifests(release);
 
         // Assert
-        Assert.Equal(3, manifests.Count);
+        Assert.Equal(4, manifests.Count);
 
-        var gameClient = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        var gameClient60Hz = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.Variant60HzSuffix));
+        var gameClientTest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.VariantTestEnvironmentSuffix));
         var mapPack = manifests.FirstOrDefault(m => m.ContentType == ContentType.MapPack);
         var gameDataPatch = manifests.FirstOrDefault(m => m.ContentType == ContentType.Patch);
 
-        Assert.NotNull(gameClient);
+        Assert.NotNull(gameClient60Hz);
+        Assert.NotNull(gameClientTest);
         Assert.NotNull(mapPack);
         Assert.NotNull(gameDataPatch);
 
-        // Verify GameClient manifest
-        Assert.Contains(GeneralsOnlineConstants.Variant60HzSuffix, gameClient.Id.Value);
-        Assert.Equal(GameType.ZeroHour, gameClient.TargetGame);
-        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, gameClient.Name);
+        // Verify 60Hz GameClient manifest
+        Assert.Contains(GeneralsOnlineConstants.Variant60HzSuffix, gameClient60Hz.Id.Value);
+        Assert.Equal(GameType.ZeroHour, gameClient60Hz.TargetGame);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, gameClient60Hz.Name);
+
+        // Verify Test Environment GameClient manifest
+        Assert.Contains(GeneralsOnlineConstants.VariantTestEnvironmentSuffix, gameClientTest.Id.Value);
+        Assert.Equal(GameType.ZeroHour, gameClientTest.TargetGame);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentDisplayName, gameClientTest.Name);
+        Assert.Contains(GeneralsOnlineVariantTags.TagTestEnvironment, gameClientTest.Metadata?.Tags ?? []);
 
         // Verify MapPack manifest
         Assert.Contains("quickmatchmaps", mapPack.Id.Value);
@@ -137,11 +145,16 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         Assert.Equal(GeneralsOnlineConstants.GameDataDisplayName, gameDataPatch.Name);
         Assert.Equal(GeneralsOnlineConstants.GameDataDescription, gameDataPatch.Metadata?.Description);
         Assert.Contains(GeneralsOnlineVariantTags.TagGameData, gameDataPatch.Metadata?.Tags ?? []);
+
+        // Verify OriginalContentId provenance mapping
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5", gameClient60Hz.OriginalContentId);
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5_MapPack", mapPack.OriginalContentId);
+        Assert.Equal($"{GeneralsOnlineConstants.ContentIdPrefix}101525_QFE5_Patch", gameDataPatch.OriginalContentId);
     }
 
     /// <summary>
-    /// Verifies that all three manifests of one release share a variant group id derived from
-    /// the full version (QFE included) so the library collapses them into one card.
+    /// Verifies that game client variants share a variant group id derived from content type and version,
+    /// while map pack and patch receive separate groups.
     /// </summary>
     [Fact]
     public void CreateManifests_SameRelease_SharesVersionVariantGroup()
@@ -160,11 +173,23 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         var manifests = _factory.CreateManifests(release);
 
         // Assert
-        Assert.Equal(3, manifests.Count);
-        var groupIds = manifests.Select(m => m.Metadata?.VariantGroupId).Distinct().ToList();
-        Assert.Single(groupIds);
-        Assert.Equal("generalsonline-032926_qfe1", groupIds[0]);
-        Assert.All(manifests, m => Assert.Equal("Generals Online 032926_QFE1", m.Metadata?.VariantFamilyName));
+        Assert.Equal(4, manifests.Count);
+        var gameClients = manifests.Where(m => m.ContentType == ContentType.GameClient).ToList();
+        Assert.Equal(2, gameClients.Count);
+        var mapPack = manifests.Single(m => m.ContentType == ContentType.MapPack);
+        var patch = manifests.Single(m => m.ContentType == ContentType.Patch);
+
+        Assert.All(gameClients, gc =>
+        {
+            Assert.Equal("generalsonline-gameclient-032926_qfe1", gc.Metadata?.VariantGroupId);
+            Assert.Equal("Generals Online Game Client 032926_QFE1", gc.Metadata?.VariantFamilyName);
+        });
+
+        Assert.Equal("generalsonline-mappack-032926_qfe1", mapPack.Metadata?.VariantGroupId);
+        Assert.Equal("generalsonline-patch-032926_qfe1", patch.Metadata?.VariantGroupId);
+
+        Assert.Equal("Generals Online Map Pack 032926_QFE1", mapPack.Metadata?.VariantFamilyName);
+        Assert.Equal("Generals Online Patch 032926_QFE1", patch.Metadata?.VariantFamilyName);
     }
 
     /// <summary>
@@ -194,11 +219,11 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that the GameData patch depends on the 60Hz GameClient and Zero Hour,
-    /// while the 60Hz GameClient does not depend on the GameData patch (making GameData patch optional).
+    /// Verifies that the GameData patch depends only on Zero Hour (decoupled so other game clients can use it),
+    /// while the GameClients (60Hz and Test Environment) have an auto-install optional dependency on the GameData patch.
     /// </summary>
     [Fact]
-    public void Dependencies_GameDataPatch_DependsOn60HzGameClientAndZeroHour_WhileGameClientDoesNotDependOnGameData()
+    public void Dependencies_GameDataPatch_DependsOnlyOnZeroHour_WhileGameClientsHaveAutoInstallOptionalGameData()
     {
         // Arrange
         var release = new GeneralsOnlineRelease
@@ -210,24 +235,28 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
 
         // Act
         var manifests = _factory.CreateManifests(release);
-        var gameClient = manifests.First(m => m.ContentType == ContentType.GameClient);
+        var gameClient60Hz = manifests.First(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.Variant60HzSuffix));
+        var gameClientTest = manifests.First(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.VariantTestEnvironmentSuffix));
         var gameDataPatch = manifests.First(m => m.ContentType == ContentType.Patch);
 
-        // Assert - GameData patch has dependencies on Zero Hour and 60Hz GameClient
-        Assert.NotEmpty(gameDataPatch.Dependencies);
-        var zhDepInPatch = gameDataPatch.Dependencies.FirstOrDefault(d => d.DependencyType == ContentType.GameInstallation);
-        var clientDepInPatch = gameDataPatch.Dependencies.FirstOrDefault(d => d.DependencyType == ContentType.GameClient);
+        // Assert - GameData patch depends only on Zero Hour, NOT on GameClient
+        var zhDepInPatch = Assert.Single(gameDataPatch.Dependencies);
+        Assert.Equal(ContentType.GameInstallation, zhDepInPatch.DependencyType);
+        Assert.DoesNotContain(gameDataPatch.Dependencies, d => d.DependencyType == ContentType.GameClient);
 
-        Assert.NotNull(zhDepInPatch);
-        Assert.NotNull(clientDepInPatch);
-        Assert.Equal(gameClient.Id.Value, clientDepInPatch.Id.Value);
-        Assert.False(clientDepInPatch.IsOptional);
-        Assert.True(clientDepInPatch.StrictPublisher);
-        Assert.Equal(PublisherTypeConstants.GeneralsOnline, clientDepInPatch.PublisherType);
+        // Assert - 60Hz GameClient has optional auto-install GameData patch dependency
+        var gameDataDepIn60Hz = gameClient60Hz.Dependencies.FirstOrDefault(d => d.DependencyType == ContentType.Patch);
+        Assert.NotNull(gameDataDepIn60Hz);
+        Assert.Equal(gameDataPatch.Id.Value, gameDataDepIn60Hz.Id.Value);
+        Assert.True(gameDataDepIn60Hz.IsOptional);
+        Assert.Equal(DependencyInstallBehavior.AutoInstall, gameDataDepIn60Hz.InstallBehavior);
 
-        // Assert - GameClient dependencies do NOT include Patch dependency
-        Assert.DoesNotContain(gameClient.Dependencies, d => d.DependencyType == ContentType.Patch);
-        Assert.DoesNotContain(gameClient.Dependencies, d => d.Id.Value.Contains(GeneralsOnlineConstants.GameDataPatchSuffix));
+        // Assert - Test Environment GameClient also has optional auto-install GameData patch dependency
+        var gameDataDepInTest = gameClientTest.Dependencies.FirstOrDefault(d => d.DependencyType == ContentType.Patch);
+        Assert.NotNull(gameDataDepInTest);
+        Assert.Equal(gameDataPatch.Id.Value, gameDataDepInTest.Id.Value);
+        Assert.True(gameDataDepInTest.IsOptional);
+        Assert.Equal(DependencyInstallBehavior.AutoInstall, gameDataDepInTest.InstallBehavior);
     }
 
     /// <summary>
@@ -459,17 +488,13 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     [Fact]
     public void DependencyBuilder_GetDependenciesForGameData_ReturnsExpectedDependencies()
     {
-        // Arrange
-        var expectedClientId = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz");
-
         // Act
         var dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(1015255);
 
-        // Assert
-        Assert.Equal(2, dependencies.Count);
-        Assert.Contains(dependencies, d => d.DependencyType == ContentType.GameInstallation);
-        var clientDep = dependencies.First(d => d.DependencyType == ContentType.GameClient);
-        Assert.Equal(expectedClientId.Value, clientDep.Id.Value);
+        // Assert - decoupled from 60Hz GameClient, only requires Zero Hour installation
+        var zhDep = Assert.Single(dependencies);
+        Assert.Equal(ContentType.GameInstallation, zhDep.DependencyType);
+        Assert.DoesNotContain(dependencies, d => d.DependencyType == ContentType.GameClient);
 
         var builder = new GeneralsOnlineDependencyBuilder();
         var patchManifest = new ContentManifest
@@ -479,10 +504,9 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
             Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
         };
         var resolvedDeps = builder.GetDependencies(patchManifest);
-        Assert.Equal(2, resolvedDeps.Count);
-        Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameInstallation);
-        var resolvedClientDep = resolvedDeps.First(d => d.DependencyType == ContentType.GameClient);
-        Assert.Equal(expectedClientId.Value, resolvedClientDep.Id.Value);
+        var resolvedZhDep = Assert.Single(resolvedDeps);
+        Assert.Equal(ContentType.GameInstallation, resolvedZhDep.DependencyType);
+        Assert.DoesNotContain(resolvedDeps, d => d.DependencyType == ContentType.GameClient);
     }
 
     /// <summary>
@@ -540,5 +564,176 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         // Assert
         Assert.NotNull(gameClient);
         Assert.Equal(expectedClientId, gameClient.Id.Value);
+    }
+
+    /// <summary>
+    /// Verifies that when all four variants are present in extracted content (including the test environment executable),
+    /// all 4 manifests are produced with correct executables.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithAllFourVariants_ProducesFourManifestsAsync()
+    {
+        // Arrange
+        var exe60Path = Path.Combine(_tempDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        var exeTestPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineDefaultExecutable);
+        var dllPath = Path.Combine(_tempDir, "GameNetworkingSockets.dll");
+        File.WriteAllText(exe60Path, "fake 60hz exe content");
+        File.WriteAllText(exeTestPath, "fake test exe content");
+        File.WriteAllText(dllPath, "fake dll content");
+
+        var mapsDir = Path.Combine(_tempDir, GeneralsOnlineConstants.MapsSubdirectory, "Tournament Desert");
+        Directory.CreateDirectory(mapsDir);
+        var mapFilePath = Path.Combine(mapsDir, "Tournament Desert.map");
+        File.WriteAllText(mapFilePath, "fake map content");
+
+        var gameDataDir = Path.Combine(_tempDir, GeneralsOnlineConstants.GameDataSubdirectory);
+        Directory.CreateDirectory(gameDataDir);
+        var bigPath = Path.Combine(gameDataDir, "500_900_CommunityPatch_CoreINI.big");
+        File.WriteAllText(bigPath, "fake big content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Metadata = new ContentMetadata { ReleaseDate = DateTime.UtcNow },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        Assert.Equal(4, manifests.Count);
+
+        var gameClient60Hz = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.Variant60HzSuffix));
+        var gameClientTest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.VariantTestEnvironmentSuffix));
+        var mapPack = manifests.FirstOrDefault(m => m.ContentType == ContentType.MapPack);
+        var gameDataPatch = manifests.FirstOrDefault(m => m.ContentType == ContentType.Patch);
+
+        Assert.NotNull(gameClient60Hz);
+        Assert.NotNull(gameClientTest);
+        Assert.NotNull(mapPack);
+        Assert.NotNull(gameDataPatch);
+
+        // Test environment must mark generalsonlinezh.exe as executable
+        var testExe = Assert.Single(gameClientTest.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnlineDefaultExecutable, testExe.RelativePath, ignoreCase: true);
+
+        // 60Hz client must mark 60Hz executable as executable
+        var sixtyExe = Assert.Single(gameClient60Hz.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzExecutable, sixtyExe.RelativePath, ignoreCase: true);
+
+        // Test environment must NOT include 60Hz binary
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that older archives missing MapPack or GameData directories gracefully omit those manifests
+    /// and drop dependencies to them from the game clients.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_OlderArchive_WithoutMapPackOrGameData_ReconcilesDependenciesGracefullyAsync()
+    {
+        // Arrange: Only provide 60Hz game client files (no maps, no gamedata, no test exe)
+        var exe60Path = Path.Combine(_tempDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        File.WriteAllText(exe60Path, "fake 60hz exe content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Metadata = new ContentMetadata { ReleaseDate = DateTime.UtcNow },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        var gameClient = Assert.Single(manifests);
+        Assert.Equal(ContentType.GameClient, gameClient.ContentType);
+
+        // Missing MapPack and GameData dependencies should be reconciled (dropped)
+        Assert.DoesNotContain(gameClient.Dependencies, d => d.DependencyType == ContentType.MapPack);
+        Assert.DoesNotContain(gameClient.Dependencies, d => d.DependencyType == ContentType.Patch);
+    }
+
+    /// <summary>
+    /// Verifies that when both 60Hz and Test Environment variants are extracted, files are cleanly partitioned:
+    /// Test Environment excludes 60Hz binary and EAC files, while 60Hz excludes dedicated Test Environment binary.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_PartitionsVariantsAndExcludesIrrelevantFilesAsync()
+    {
+        // Arrange: Create simulated extracted directory structure containing EAC + Test Environment
+        var exe60Path = Path.Combine(_tempDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        var exeTestPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineTestEnvironmentExecutable);
+        var launcherPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineDefaultExecutable);
+        var eacLauncherPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        var eacSetupPath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnlineEacSetupExecutable);
+        var eossdkPath = Path.Combine(_tempDir, "EOSSDK-Win32-Shipping.dll");
+        var eacDir = Path.Combine(_tempDir, "EasyAntiCheat");
+        Directory.CreateDirectory(eacDir);
+        var eacSettingsPath = Path.Combine(eacDir, "Settings.json");
+        var sharedDllPath = Path.Combine(_tempDir, "xaudio2_9redist.dll");
+
+        File.WriteAllText(exe60Path, "fake 60hz exe content");
+        File.WriteAllText(exeTestPath, "fake test env exe content");
+        File.WriteAllText(launcherPath, "fake launcher exe content");
+        File.WriteAllText(eacLauncherPath, "fake eac launcher content");
+        File.WriteAllText(eacSetupPath, "fake eac setup content");
+        File.WriteAllText(eossdkPath, "fake eos sdk content");
+        File.WriteAllText(eacSettingsPath, "fake eac settings content");
+        File.WriteAllText(sharedDllPath, "fake shared dll content");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Metadata = new ContentMetadata { ReleaseDate = DateTime.UtcNow },
+        };
+
+        // Act
+        var result = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        var manifests = result.Data!;
+        var gameClient60Hz = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.Variant60HzSuffix));
+        var gameClientTest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient && m.Id.Value.EndsWith(GeneralsOnlineConstants.VariantTestEnvironmentSuffix));
+
+        Assert.NotNull(gameClient60Hz);
+        Assert.NotNull(gameClientTest);
+
+        // 60Hz client checks
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameClient60Hz.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClient60Hz.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineTestEnvironmentExecutable, StringComparison.OrdinalIgnoreCase));
+
+        // Test Environment checks
+        var testExe = Assert.Single(gameClientTest.Files, f => f.IsExecutable);
+        Assert.Equal(GameClientConstants.GeneralsOnlineTestEnvironmentExecutable, testExe.RelativePath, ignoreCase: true);
+        Assert.Contains(gameClientTest.Files, f => f.RelativePath.Equals("xaudio2_9redist.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacLauncherExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals(GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Equals("EOSSDK-Win32-Shipping.dll", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(gameClientTest.Files, f => f.RelativePath.Contains("EasyAntiCheat", StringComparison.OrdinalIgnoreCase));
     }
 }

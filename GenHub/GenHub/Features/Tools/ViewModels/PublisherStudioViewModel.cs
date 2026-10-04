@@ -681,7 +681,7 @@ public partial class PublisherStudioViewModel(
             }
 
             var declared = CatalogManifestIdentity.ResolveDeclaredPublisherType(item.PublisherType);
-            if (!item.PublisherType.Equals(declared, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(declared, CatalogConstants.GenericCatalogResolverId, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation(
                     "Catalog import from {FilePath}: publisherType '{PublisherType}' on '{ContentId}' is not a native pipeline; using generic.",
@@ -689,6 +689,10 @@ public partial class PublisherStudioViewModel(
                     item.PublisherType,
                     item.Id);
                 item.PublisherType = string.Empty;
+            }
+            else
+            {
+                item.PublisherType = declared;
             }
         }
     }

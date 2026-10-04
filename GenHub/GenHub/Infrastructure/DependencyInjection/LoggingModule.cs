@@ -134,7 +134,7 @@ public static class LoggingModule
     {
         try
         {
-            string rootDir;
+            string rootDir = string.Empty;
             if (customDataRoot != null)
             {
                 rootDir = customDataRoot;

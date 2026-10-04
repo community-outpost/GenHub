@@ -264,7 +264,7 @@ public class GeneralsOnlineJsonCatalogParser(
             ReleaseDate = versionDate,
             PortableUrl = apiResponse.DownloadUrl,
             PortableSize = apiResponse.Size,
-            Sha256 = apiResponse.Sha256,
+            Sha256 = apiResponse.Sha256?.Trim(),
             Changelog = changelog,
         };
     }

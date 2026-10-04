@@ -246,7 +246,7 @@ public class ActionSetOrchestrator(
         List<string> errors,
         CancellationToken ct)
     {
-        string gameType;
+        string gameType = string.Empty;
         if (installation.HasZeroHour && installation.HasGenerals)
         {
             gameType = "Both";

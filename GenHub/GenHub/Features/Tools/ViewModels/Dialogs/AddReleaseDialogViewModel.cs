@@ -1061,9 +1061,9 @@ public partial class AddReleaseDialogViewModel(
             return;
         }
 
-        string title;
-        string messageFormat;
-        string targetName;
+        string title = string.Empty;
+        string messageFormat = string.Empty;
+        string targetName = string.Empty;
 
         if (IsAddonMode)
         {

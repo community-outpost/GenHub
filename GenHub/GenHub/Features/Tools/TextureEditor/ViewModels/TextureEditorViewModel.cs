@@ -576,7 +576,7 @@ public sealed partial class TextureEditorViewModel(
         }
 
         var def = SelectedSlice.ToDefinition();
-        string serialized;
+        string serialized = string.Empty;
         try
         {
             serialized = parser.Serialize([def]);
@@ -607,7 +607,7 @@ public sealed partial class TextureEditorViewModel(
 
         var slice = SelectedSlice;
         var def = slice.ToDefinition();
-        string serialized;
+        string serialized = string.Empty;
         try
         {
             serialized = parser.Serialize([def]);
@@ -2980,7 +2980,7 @@ public sealed partial class TextureEditorViewModel(
 
     private async Task<bool> ConfirmEmptyOverwriteAsync(string path, CancellationToken cancellationToken)
     {
-        bool hasContent;
+        bool hasContent = false;
         try
         {
             hasContent = File.Exists(path) && new FileInfo(path).Length > 0;

@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,6 +15,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
@@ -26,6 +28,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Steam;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -63,6 +66,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string ErrorTitleKey = "Common.Notification.Error";
 
     private const string DeletionFailedTitleKey = "Settings.Notification.DeletionFailed.Title";
+
+    private const string UnknownErrorResourceKey = "Common.UnknownError";
+
+    private const string UnknownErrorFallback = "Unknown error";
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     private string SubscriptionErrorTitle => _localizationService?.GetString("Settings.Subscriptions.ErrorTitle") ?? ErrorTitle;
@@ -78,6 +85,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly IGitHubAuthService? _gitHubAuthService;
     private readonly GitHubRateLimitTracker? _rateLimitTracker;
+    private readonly ISteamWorkshopAccountAuthService? _steamWorkshopAccountAuthService;
     private readonly IPublisherSubscriptionStore? _subscriptionStore;
     private readonly IPublisherCatalogRefreshService? _catalogRefreshService;
     private readonly Timer _memoryUpdateTimer;
@@ -96,6 +104,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool _isViewVisible;
     private bool _disposed;
+    private Action? _cancelSteamSignInAction;
+    private Guid _activeSteamSignInId;
 
     // Use private fields for properties that need validation
     private int _maxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
@@ -185,6 +195,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _allowBackgroundDownloads = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SteamAccountStatusText))]
+    [NotifyPropertyChangedFor(nameof(SteamAccountStatusColor))]
+    [NotifyPropertyChangedFor(nameof(CanSignInToSteam))]
+    [NotifyPropertyChangedFor(nameof(SteamConnectedAsText))]
+    private bool _isSteamAccountConnected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SteamConnectedAsText))]
+    private string _steamAccountName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSignInToSteam))]
+    private bool _isSteamAuthenticating;
+
+    /// <summary>
+    /// Gets or sets the Steam QR code bitmap for scanning.
+    /// </summary>
+    [ObservableProperty]
+    private Bitmap? _steamQrCodeBitmap;
 
     [ObservableProperty]
     private bool _enableDetailedLogging = false;
@@ -330,6 +361,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="subscriptionStore">The publisher subscription store.</param>
     /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
     /// <param name="localizationService">The localization service for language management.</param>
+    /// <param name="steamWorkshopAccountAuthService">Steam account authentication service for 1-click in-app workshop downloads.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -352,7 +384,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IUploadHistoryService? uploadHistoryService = null,
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
-        ILocalizationService? localizationService = null)
+        ILocalizationService? localizationService = null,
+        ISteamWorkshopAccountAuthService? steamWorkshopAccountAuthService = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -375,6 +408,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _uploadHistoryService = uploadHistoryService;
         _subscriptionStore = subscriptionStore;
         _catalogRefreshService = catalogRefreshService;
+        _steamWorkshopAccountAuthService = steamWorkshopAccountAuthService;
+        _ = RefreshSteamAccountStateAsync();
 
         _subscriptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
         _localizationService = localizationService;
@@ -521,6 +556,52 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             return _localizationService?.GetString("Settings.GitHubAuth.Status.SignedOut") ?? "Signed out";
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the user can start a Steam sign-in session.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public bool CanSignInToSteam => !IsSteamAccountConnected && !IsSteamAuthenticating;
+
+    /// <summary>
+    /// Gets the text showing the connected Steam account.
+    /// </summary>
+    public string SteamConnectedAsText
+    {
+        get
+        {
+            if (!IsSteamAccountConnected)
+            {
+                return string.Empty;
+            }
+
+            var pattern = _localizationService?.GetString("Settings.SteamAccount.ConnectedAs") ?? "Connected as: {0}";
+            return string.Format(CultureInfo.InvariantCulture, pattern, SteamAccountName);
+        }
+    }
+
+    /// <summary>
+    /// Gets the status indicator brush color for the Steam account connection.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding.")]
+    public string SteamAccountStatusColor => IsSteamAccountConnected ? UiConstants.StatusSuccessColor : UiConstants.StatusInactiveColor;
+
+    /// <summary>
+    /// Gets the status text for the Steam account connection.
+    /// </summary>
+    public string SteamAccountStatusText
+    {
+        get
+        {
+            if (IsSteamAccountConnected)
+            {
+                var pattern = _localizationService?.GetString("Settings.SteamAccount.Status.Connected") ?? "Connected as {0}";
+                return string.Format(CultureInfo.InvariantCulture, pattern, SteamAccountName);
+            }
+
+            return _localizationService?.GetString("Settings.SteamAccount.Status.NotConnected") ?? "Not connected";
         }
     }
 
@@ -704,6 +785,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
                 // Cancel any in-flight device flow sign-in; the async command owns its token.
                 SignInWithGitHubCommand.Cancel();
+                _activeSteamSignInId = Guid.Empty;
+                _cancelSteamSignInAction?.Invoke();
+                _cancelSteamSignInAction = null;
+                SteamQrCodeBitmap?.Dispose();
+                SteamQrCodeBitmap = null;
+                IsSteamAuthenticating = false;
                 DeleteProfilesCommand.Cancel();
                 _memoryUpdateTimer?.Dispose();
                 _dangerZoneUpdateTimer?.Dispose();
@@ -878,6 +965,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             InitializeSections();
             UpdateGitHubRateLimitText();
             OnPropertyChanged(nameof(GitHubAuthStatusText));
+            OnPropertyChanged(nameof(SteamAccountStatusText));
+            OnPropertyChanged(nameof(SteamConnectedAsText));
         }
     }
 
@@ -1250,7 +1339,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError(
                     _localizationService.GetLocalizedString("Settings.Notification.RegistrationFailed.Title", "Registration Failed"),
-                    regResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString("Common.UnknownError", "Unknown error"),
+                    regResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString(UnknownErrorResourceKey, UnknownErrorFallback),
                     NotificationDurations.Medium);
             }
         }
@@ -1298,7 +1387,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowError(
                     _localizationService.GetLocalizedString("Settings.Notification.RemovalFailed.Title", "Removal Failed"),
-                    remResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString("Common.UnknownError", "Unknown error"),
+                    remResult.Errors.FirstOrDefault() ?? _localizationService.GetLocalizedString(UnknownErrorResourceKey, UnknownErrorFallback),
                     NotificationDurations.Medium);
             }
         }
@@ -1936,6 +2025,185 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         await _gitHubAuthService.SignOutAsync();
         RefreshGitHubAuthState();
         ShowGitHubSuccessToast(_localizationService?.GetString("Settings.GitHubAuth.Toast.SignedOut") ?? "Signed out of GitHub.");
+    }
+
+    /// <summary>
+    /// Initiates a Steam QR code login session to authenticate the user's Steam account.
+    /// </summary>
+    [RelayCommand]
+    private async Task SignInWithSteamAsync()
+    {
+        if (_steamWorkshopAccountAuthService == null || IsSteamAuthenticating)
+        {
+            return;
+        }
+
+        var signInId = Guid.NewGuid();
+        _activeSteamSignInId = signInId;
+        IsSteamAuthenticating = true;
+        using var cts = new CancellationTokenSource();
+        _cancelSteamSignInAction = () => cts.Cancel();
+
+        SteamQrLoginSession? session = null;
+        void OnQrCodeRefreshed(object? sender, ReadOnlyMemory<byte> newBytes)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateSteamQrCodeBitmap(newBytes, signInId));
+        }
+
+        try
+        {
+            session = await _steamWorkshopAccountAuthService.BeginQrLoginAsync(cts.Token);
+            UpdateSteamQrCodeBitmap(session.QrCodePngBytes, signInId);
+
+            session.QrCodeRefreshed += OnQrCodeRefreshed;
+
+            var accountInfo = await session.WaitForApprovalAsync(cts.Token);
+            await HandleSteamSignInOutcomeAsync(accountInfo);
+        }
+        catch (OperationCanceledException oce)
+        {
+            _logger.LogInformation(oce, "Steam QR sign-in was canceled.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during Steam QR sign-in.");
+            var pattern = _localizationService?.GetString("Settings.SteamAccount.Toast.Failed") ?? "Steam sign-in failed: {0}";
+            ShowSteamWorkshopErrorToast(string.Format(CultureInfo.InvariantCulture, pattern, ex.Message));
+        }
+        finally
+        {
+            if (session != null)
+            {
+                session.QrCodeRefreshed -= OnQrCodeRefreshed;
+            }
+
+            ResetSteamAuthenticationState(signInId);
+        }
+    }
+
+    private void UpdateSteamQrCodeBitmap(ReadOnlyMemory<byte> bytes, Guid expectedSignInId)
+    {
+        if (!IsSteamAuthenticating || _activeSteamSignInId != expectedSignInId)
+        {
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream(bytes.ToArray());
+            var oldBitmap = SteamQrCodeBitmap;
+            SteamQrCodeBitmap = new Bitmap(ms);
+            oldBitmap?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update Steam QR code bitmap.");
+        }
+    }
+
+    private async Task HandleSteamSignInOutcomeAsync(SteamAccountInfo? accountInfo)
+    {
+        if (accountInfo != null)
+        {
+            await RefreshSteamAccountStateAsync();
+            var msg = _localizationService != null
+                ? string.Format(CultureInfo.InvariantCulture, _localizationService.GetString("Settings.SteamAccount.Toast.Connected"), accountInfo.AccountName)
+                : $"Connected Steam account: {accountInfo.AccountName}";
+            ShowSteamWorkshopSuccessToast(msg);
+        }
+        else
+        {
+            ShowSteamWorkshopErrorToast(_localizationService?.GetString("Settings.SteamAccount.Toast.NotApproved") ?? "Steam sign-in was not approved.");
+        }
+    }
+
+    private void ResetSteamAuthenticationState(Guid signInId)
+    {
+        if (_activeSteamSignInId == signInId || _activeSteamSignInId == Guid.Empty)
+        {
+            _activeSteamSignInId = Guid.Empty;
+            _cancelSteamSignInAction = null;
+            IsSteamAuthenticating = false;
+            SteamQrCodeBitmap?.Dispose();
+            SteamQrCodeBitmap = null;
+        }
+    }
+
+    /// <summary>
+    /// Cancels an in-progress Steam QR code sign-in session.
+    /// </summary>
+    [RelayCommand]
+    private void CancelSteamSignIn()
+    {
+        _cancelSteamSignInAction?.Invoke();
+    }
+
+    /// <summary>
+    /// Disconnects the currently authenticated Steam account.
+    /// </summary>
+    [RelayCommand]
+    private async Task SignOutSteamAccountAsync()
+    {
+        if (_steamWorkshopAccountAuthService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _steamWorkshopAccountAuthService.DisconnectAccountAsync();
+            await RefreshSteamAccountStateAsync();
+            ShowSteamWorkshopSuccessToast(_localizationService?.GetString("Settings.SteamAccount.Toast.Disconnected") ?? "Steam account disconnected.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sign out Steam account.");
+            var pattern = _localizationService?.GetString("Settings.SteamAccount.Toast.DisconnectFailed") ?? "Failed to disconnect Steam account: {0}";
+            ShowSteamWorkshopErrorToast(string.Format(CultureInfo.InvariantCulture, pattern, ex.Message));
+        }
+    }
+
+    private async Task RefreshSteamAccountStateAsync()
+    {
+        if (_steamWorkshopAccountAuthService == null)
+        {
+            IsSteamAccountConnected = false;
+            SteamAccountName = string.Empty;
+            return;
+        }
+
+        try
+        {
+            var info = await _steamWorkshopAccountAuthService.GetAccountInfoAsync();
+            if (info != null && !string.IsNullOrWhiteSpace(info.RefreshToken))
+            {
+                IsSteamAccountConnected = true;
+                SteamAccountName = info.AccountName;
+            }
+            else
+            {
+                IsSteamAccountConnected = false;
+                SteamAccountName = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to refresh Steam account state.");
+            IsSteamAccountConnected = false;
+            SteamAccountName = string.Empty;
+        }
+    }
+
+    private string SteamWorkshopToastTitle => _localizationService?.GetString("Settings.SteamWorkshop.Toast.Title") ?? "Steam Workshop";
+
+    private void ShowSteamWorkshopSuccessToast(string message)
+    {
+        _notificationService.ShowSuccess(SteamWorkshopToastTitle, message, NotificationDurations.Medium);
+    }
+
+    private void ShowSteamWorkshopErrorToast(string message)
+    {
+        _notificationService.ShowError(SteamWorkshopToastTitle, message, NotificationDurations.Medium);
     }
 
     private string GitHubToastTitle => _localizationService?.GetString("Settings.GitHubAuth.Toast.Title") ?? "GitHub";
@@ -2932,7 +3200,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
-            string path;
+            string path = string.Empty;
 
             if (preferredInstallation != null)
             {
@@ -2978,7 +3246,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var preferredInstallation = await _storageLocationService.GetPreferredInstallationAsync();
-            string path;
+            string path = string.Empty;
 
             if (preferredInstallation != null)
             {
@@ -3581,7 +3849,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                var unknownError = _localizationService?.GetString("Common.UnknownError") ?? "Unknown error";
+                var unknownError = GetUnknownErrorMessage();
                 _notificationService.ShowError(SubscriptionErrorTitle, result.FirstError ?? unknownError);
             }
         }
@@ -3599,5 +3867,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             IsLoadingSubscriptions = false;
         }
+    }
+
+    private string GetUnknownErrorMessage()
+    {
+        return _localizationService?.GetString(UnknownErrorResourceKey) ?? UnknownErrorFallback;
     }
 }

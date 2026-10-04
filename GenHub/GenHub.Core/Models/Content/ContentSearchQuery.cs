@@ -146,6 +146,21 @@ public class ContentSearchQuery
     /// </summary>
     public string? AODMapsMapType { get; set; }
 
+    // ===== Steam Workshop-specific filters =====
+
+    /// <summary>
+    /// Gets or sets the Steam Workshop sort order (trend, mostrecent, lastupdated,
+    /// totaluniquesubscribers, toprated). Text search is used automatically when
+    /// <see cref="SearchTerm"/> is set and no explicit sort is provided.
+    /// </summary>
+    public string? SteamWorkshopSort { get; set; }
+
+    /// <summary>
+    /// Gets the Steam Workshop required tag filters (Single Player, Co-op, 1v1, Large, etc.).
+    /// Items must match all selected tags.
+    /// </summary>
+    public Collection<string> SteamWorkshopRequiredTags { get; } = [];
+
     // ===== GitHub-specific filters =====
 
     /// <summary>

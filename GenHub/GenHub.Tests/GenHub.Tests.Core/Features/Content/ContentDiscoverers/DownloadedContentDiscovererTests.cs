@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -368,12 +369,12 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that legacy GeneralsOnline pool entries without stored grouping collapse by
-    /// full version (QFE included) while other releases stay separate.
+    /// Verifies that legacy GeneralsOnline pool entries without stored grouping isolate distinct
+    /// content types by version while other releases stay separate.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
-    public async Task DiscoverAsync_LegacyGeneralsOnlineManifests_ShareVersionGroupAsync()
+    public async Task DiscoverAsync_LegacyGeneralsOnlineManifests_IsolateContentTypesAsync()
     {
         var client = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
         var gameData = CreateGeneralsOnlineManifest("1.329261.generalsonline.patch.gamedata", "GeneralsOnline Game Data", ContentType.Patch, "032926_QFE1");
@@ -389,9 +390,12 @@ public sealed class DownloadedContentDiscovererTests
         var gameDataItem = Assert.Single(result.Data.Items, item => item.Id == gameData.Id.Value);
         var nextQfeItem = Assert.Single(result.Data.Items, item => item.Id == nextQfe.Id.Value);
         Assert.NotNull(clientItem.VariantGroupId);
-        Assert.Equal(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
+        Assert.NotEqual(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
+        Assert.Equal("generalsonline-gameclient-032926_qfe1", clientItem.VariantGroupId);
+        Assert.Equal("generalsonline-patch-032926_qfe1", gameDataItem.VariantGroupId);
         Assert.NotEqual(clientItem.VariantGroupId, nextQfeItem.VariantGroupId);
-        Assert.Equal("Generals Online 032926_QFE1", clientItem.VariantFamilyName);
+        Assert.Equal("Generals Online Game Client 032926_QFE1", clientItem.VariantFamilyName);
+        Assert.Equal("Generals Online Patch 032926_QFE1", gameDataItem.VariantFamilyName);
     }
 
     /// <summary>
@@ -603,9 +607,51 @@ public sealed class DownloadedContentDiscovererTests
         Assert.False(result.Data.HasMoreItems);
     }
 
+    /// <summary>
+    /// Verifies that legacy GeneralsOnline group ids without content type segment are migrated
+    /// to the new type-isolated format.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_LegacyGeneralsOnlineGroupId_MigratesToTypedGroupAsync()
+    {
+        var manifest = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
+        manifest.Metadata = new ContentMetadata { VariantGroupId = "generalsonline-032926_qfe1" };
+
+        var discoverer = CreateDiscoverer([manifest]);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("generalsonline-gameclient-032926_qfe1", item.VariantGroupId);
+    }
+
+    /// <summary>
+    /// Verifies that GeneralsOnline family name respects localization service when provided.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_GeneralsOnline_LocalizesVariantFamilyNameAsync()
+    {
+        var manifest = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
+        var localization = new Mock<ILocalizationService>();
+        var localized = "Игровой клиент";
+        localization.Setup(loc => loc.TryGetString("ContentType.GameClient", out localized)).Returns(true);
+
+        var discoverer = CreateDiscoverer([manifest], localizationService: localization);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
+
+        Assert.True(result.Success);
+        var item = Assert.Single(result.Data!.Items);
+        Assert.Equal("Generals Online Игровой клиент 032926_QFE1", item.VariantFamilyName);
+    }
+
     private static DownloadedContentDiscoverer CreateDiscoverer(
         IReadOnlyList<ContentManifest> manifests,
-        Mock<IContentArtworkService>? artworkService = null)
+        Mock<IContentArtworkService>? artworkService = null,
+        Mock<ILocalizationService>? localizationService = null)
     {
         var manifestPool = new Mock<IContentManifestPool>();
         manifestPool
@@ -614,7 +660,8 @@ public sealed class DownloadedContentDiscovererTests
         return new DownloadedContentDiscoverer(
             manifestPool.Object,
             (artworkService ?? CreateArtworkService()).Object,
-            new Mock<ILogger<DownloadedContentDiscoverer>>().Object);
+            new Mock<ILogger<DownloadedContentDiscoverer>>().Object,
+            localizationService?.Object);
     }
 
     private static Mock<IContentArtworkService> CreateArtworkService()

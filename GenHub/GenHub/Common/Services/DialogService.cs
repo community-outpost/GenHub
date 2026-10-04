@@ -94,7 +94,7 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         };
 
         var closedByCancellation = false;
-        await using var cancellationRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() =>
+        await using var cancellationRegistration = cancellationToken.Register(() => Dispatcher.UIThread.Post(() => // skipcq: CS-W1100
         {
             if (window.IsVisible)
             {

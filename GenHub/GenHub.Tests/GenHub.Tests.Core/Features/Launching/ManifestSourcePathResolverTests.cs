@@ -109,6 +109,79 @@ public sealed class ManifestSourcePathResolverTests : IDisposable
         Assert.Equal(workingDirectory, sourcePath);
     }
 
+    /// <summary>
+    /// Publisher game client outside working directory resolves source from manifest pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublisherClientOutsideWorkingDirectory_ResolvesFromPoolAsync()
+    {
+        // arrange
+        var workingDirectory = CreateDirectory("game");
+        var stagingDirectory = CreateDirectory("staging");
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.generalsonline.gameclient.zh",
+            ContentType = ContentType.GameClient,
+            Files = [new ManifestFile { RelativePath = "generalsonline.exe", IsExecutable = true }],
+        };
+        var profile = new GameProfile
+        {
+            GameClient = new GameClient { WorkingDirectory = workingDirectory, PublisherType = "generalsonline" },
+        };
+        var poolMock = new Mock<IContentManifestPool>();
+        poolMock
+            .Setup(x => x.GetContentDirectoryAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string?>.CreateSuccess(stagingDirectory));
+
+        // act
+        var paths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(
+            [manifest],
+            profile,
+            poolMock.Object,
+            NullLogger.Instance,
+            CancellationToken.None);
+
+        // assert
+        Assert.True(paths.TryGetValue(manifest.Id.Value, out var sourcePath));
+        Assert.Equal(stagingDirectory, sourcePath);
+    }
+
+    /// <summary>
+    /// Publisher game client with binary already in working directory resolves from working directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PublisherClientInWorkingDirectory_ResolvesFromWorkingDirectoryAsync()
+    {
+        // arrange
+        var workingDirectory = CreateDirectory("game");
+        File.WriteAllText(Path.Combine(workingDirectory, "generalsonline.exe"), "MZ");
+        var manifest = new ContentManifest
+        {
+            Id = "1.0.generalsonline.gameclient.zh",
+            ContentType = ContentType.GameClient,
+            Files = [new ManifestFile { RelativePath = "generalsonline.exe", IsExecutable = true }],
+        };
+        var profile = new GameProfile
+        {
+            GameClient = new GameClient { WorkingDirectory = workingDirectory, PublisherType = "generalsonline" },
+        };
+        var poolMock = new Mock<IContentManifestPool>(MockBehavior.Strict);
+
+        // act
+        var paths = await ManifestSourcePathResolver.ResolveManifestSourcePathsAsync(
+            [manifest],
+            profile,
+            poolMock.Object,
+            NullLogger.Instance,
+            CancellationToken.None);
+
+        // assert
+        Assert.True(paths.TryGetValue(manifest.Id.Value, out var sourcePath));
+        Assert.Equal(workingDirectory, sourcePath);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

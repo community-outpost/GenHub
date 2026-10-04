@@ -7,6 +7,7 @@ using GenHub.Core.Models.Results.Content;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,7 +55,7 @@ public class LocalManifestResolver(ILogger<LocalManifestResolver> logger) : ICon
             var manifestJson = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             var manifest = JsonSerializer.Deserialize<ContentManifest>(manifestJson, ManifestJsonOptions.Default);
 
-            if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id.Value) || manifest.Files == null || manifest.Files.Count == 0)
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id.Value) || !ManifestVariantResolver.EnumerateAllFiles(manifest).Any())
             {
                 return OperationResult<ContentManifest>.CreateFailure("Manifest is missing required fields.");
             }

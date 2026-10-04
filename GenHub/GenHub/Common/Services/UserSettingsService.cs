@@ -6,6 +6,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security;
@@ -46,6 +47,39 @@ public class UserSettingsService : IUserSettingsService
         FileTypes.SettingsFileName,
         FileTypes.LegacySettingsFileName,
     ];
+
+    /// <summary>
+    /// Mapping from camelCase JSON property names to PascalCase C# property names.
+    /// </summary>
+    private static readonly Dictionary<string, string> JsonPropertyNameToCSharpMap = new(StringComparer.Ordinal)
+    {
+        ["theme"] = nameof(UserSettings.Theme),
+        ["language"] = nameof(UserSettings.Language),
+        ["windowWidth"] = nameof(UserSettings.WindowWidth),
+        ["windowHeight"] = nameof(UserSettings.WindowHeight),
+        ["isMaximized"] = nameof(UserSettings.IsMaximized),
+        ["workspacePath"] = nameof(UserSettings.WorkspacePath),
+        ["lastUsedProfileId"] = nameof(UserSettings.LastUsedProfileId),
+        ["lastSelectedTab"] = nameof(UserSettings.LastSelectedTab),
+        ["maxConcurrentDownloads"] = nameof(UserSettings.MaxConcurrentDownloads),
+        ["allowBackgroundDownloads"] = nameof(UserSettings.AllowBackgroundDownloads),
+        ["autoCheckForUpdatesOnStartup"] = nameof(UserSettings.AutoCheckForUpdatesOnStartup),
+        ["lastUpdateCheckTimestamp"] = nameof(UserSettings.LastUpdateCheckTimestamp),
+        ["enableDetailedLogging"] = nameof(UserSettings.EnableDetailedLogging),
+        ["defaultWorkspaceStrategy"] = nameof(UserSettings.DefaultWorkspaceStrategy),
+        ["downloadBufferSize"] = nameof(UserSettings.DownloadBufferSize),
+        ["downloadTimeoutSeconds"] = nameof(UserSettings.DownloadTimeoutSeconds),
+        ["downloadUserAgent"] = nameof(UserSettings.DownloadUserAgent),
+        ["settingsFilePath"] = nameof(UserSettings.SettingsFilePath),
+        ["cachePath"] = nameof(UserSettings.CachePath),
+        ["applicationDataPath"] = nameof(UserSettings.ApplicationDataPath),
+        ["contentDirectories"] = nameof(UserSettings.ContentDirectories),
+        ["gitHubDiscoveryRepositories"] = nameof(UserSettings.GitHubDiscoveryRepositories),
+        ["indexFilePath"] = nameof(UserSettings.IndexFilePath),
+        ["csvValidationCatalogs"] = nameof(UserSettings.CsvValidationCatalogs),
+        ["telemetryPreference"] = nameof(UserSettings.TelemetryPreference),
+        ["enableTelemetryPromptShown"] = nameof(UserSettings.EnableTelemetryPromptShown),
+    };
 
     private readonly ILogger<UserSettingsService> _logger;
     private readonly IAppConfiguration _appConfig;
@@ -211,7 +245,7 @@ public class UserSettingsService : IUserSettingsService
 
                 var initialSettings = LoadSettings(sourcePath, out var outcome);
 
-                string writePath;
+                string writePath = string.Empty;
                 if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
                     !PathHelper.AreSamePath(initialSettings.SettingsFilePath, targetPath))
                 {
@@ -331,36 +365,7 @@ public class UserSettingsService : IUserSettingsService
     /// </summary>
     private static string ConvertJsonPropertyNameToCSharp(string jsonPropertyName)
     {
-        return jsonPropertyName switch
-        {
-            "theme" => nameof(UserSettings.Theme),
-            "language" => nameof(UserSettings.Language),
-            "windowWidth" => nameof(UserSettings.WindowWidth),
-            "windowHeight" => nameof(UserSettings.WindowHeight),
-            "isMaximized" => nameof(UserSettings.IsMaximized),
-            "workspacePath" => nameof(UserSettings.WorkspacePath),
-            "lastUsedProfileId" => nameof(UserSettings.LastUsedProfileId),
-            "lastSelectedTab" => nameof(UserSettings.LastSelectedTab),
-            "maxConcurrentDownloads" => nameof(UserSettings.MaxConcurrentDownloads),
-            "allowBackgroundDownloads" => nameof(UserSettings.AllowBackgroundDownloads),
-            "autoCheckForUpdatesOnStartup" => nameof(UserSettings.AutoCheckForUpdatesOnStartup),
-            "lastUpdateCheckTimestamp" => nameof(UserSettings.LastUpdateCheckTimestamp),
-            "enableDetailedLogging" => nameof(UserSettings.EnableDetailedLogging),
-            "defaultWorkspaceStrategy" => nameof(UserSettings.DefaultWorkspaceStrategy),
-            "downloadBufferSize" => nameof(UserSettings.DownloadBufferSize),
-            "downloadTimeoutSeconds" => nameof(UserSettings.DownloadTimeoutSeconds),
-            "downloadUserAgent" => nameof(UserSettings.DownloadUserAgent),
-            "settingsFilePath" => nameof(UserSettings.SettingsFilePath),
-            "cachePath" => nameof(UserSettings.CachePath),
-            "applicationDataPath" => nameof(UserSettings.ApplicationDataPath),
-            "contentDirectories" => nameof(UserSettings.ContentDirectories),
-            "gitHubDiscoveryRepositories" => nameof(UserSettings.GitHubDiscoveryRepositories),
-            "indexFilePath" => nameof(UserSettings.IndexFilePath),
-            "csvValidationCatalogs" => nameof(UserSettings.CsvValidationCatalogs),
-            "telemetryPreference" => nameof(UserSettings.TelemetryPreference),
-            "enableTelemetryPromptShown" => nameof(UserSettings.EnableTelemetryPromptShown),
-            _ => string.Empty,
-        };
+        return JsonPropertyNameToCSharpMap.GetValueOrDefault(jsonPropertyName, string.Empty);
     }
 
     /// <summary>

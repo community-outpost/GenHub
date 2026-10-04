@@ -239,7 +239,7 @@ public sealed class ContentArtworkService(
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var buffer = new MemoryStream();
             var chunk = new byte[81920];
-            int read;
+            int read = 0;
             while ((read = await stream.ReadAsync(chunk, cancellationToken)) > 0)
             {
                 await buffer.WriteAsync(chunk.AsMemory(0, read), cancellationToken);

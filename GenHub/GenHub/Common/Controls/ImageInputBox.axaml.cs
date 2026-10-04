@@ -56,7 +56,7 @@ public partial class ImageInputBox : UserControl
         new("AOD Maps", "avares://GenHub/Assets/Logos/aodmaps-logo.png"),
     ];
 
-    private async void OnBuiltInAssetSelected(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnBuiltInAssetSelected(object? sender, Avalonia.Interactivity.RoutedEventArgs e) // skipcq: CS-R1005
     {
         if (sender is Button btn && btn.Tag is string url)
         {
@@ -284,7 +284,7 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private async void OnInputTextBoxLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnInputTextBoxLostFocus(object? sender, Avalonia.Interactivity.RoutedEventArgs e) // skipcq: CS-R1005
     {
         if (_isProcessingInput || DropHandler == null || sender is not TextBox inputTextBox)
         {
@@ -298,7 +298,7 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private async void OnInputTextBoxKeyDown(object? sender, KeyEventArgs e)
+    private async void OnInputTextBoxKeyDown(object? sender, KeyEventArgs e) // skipcq: CS-R1005
     {
         if (e.Key != Key.Enter || _isProcessingInput || DropHandler == null || sender is not TextBox inputTextBox)
         {
@@ -313,7 +313,7 @@ public partial class ImageInputBox : UserControl
         }
     }
 
-    private async void OnControlKeyDown(object? sender, KeyEventArgs e)
+    private async void OnControlKeyDown(object? sender, KeyEventArgs e) // skipcq: CS-R1005
     {
         var isPaste = (e.Key == Key.V && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Meta)))
                       || (e.Key == Key.Insert && e.KeyModifiers.HasFlag(KeyModifiers.Shift));
@@ -333,7 +333,7 @@ public partial class ImageInputBox : UserControl
         await PasteFromClipboardAsync(topLevel.Clipboard);
     }
 
-    private async void OnPasteButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnPasteButtonClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) // skipcq: CS-R1005
     {
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel?.Clipboard != null)

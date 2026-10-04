@@ -404,7 +404,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     TargetRelativePath = scriptName,
                     Arguments = OperatingSystem.IsWindows() ? ["/c", "exit", "0"] : [],
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
-                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    StepKey = "generalsonline:eac:test-product",
                     RunOnce = true,
                 },
             ],
@@ -413,7 +413,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.True(result.Success);
-        Assert.True(_userSettings.IsInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey));
+        Assert.True(_userSettings.IsInstallationStepExecuted("generalsonline:eac:test-product"));
         _notificationServiceMock.Verify(
             n => n.ShowInfo(
                 GeneralsOnlineConstants.EacStepName,
@@ -457,14 +457,14 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Name = GeneralsOnlineConstants.EacStepName,
                     Kind = InstallationStepKind.RunVerifiedInstaller,
                     TargetRelativePath = scriptName,
-                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    StepKey = "generalsonline:eac:test-product",
                     RunOnce = true,
                 },
             ],
         };
 
         // Mark as already executed
-        _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
+        _userSettings.RecordInstallationStepExecuted("generalsonline:eac:test-product");
 
         var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
@@ -527,14 +527,14 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     TargetRelativePath = scriptName,
                     Arguments = OperatingSystem.IsWindows() ? ["/c", "exit", "0"] : [],
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
-                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    StepKey = "generalsonline:eac:test-product",
                     RunOnce = true,
                 },
             ],
         };
 
         // Mark as already executed in settings
-        _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
+        _userSettings.RecordInstallationStepExecuted("generalsonline:eac:test-product");
 
         // Force execution
         var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline, force: true);
@@ -987,6 +987,146 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             providerSource: "untrusted_source");
 
         Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that bindings resolve before installer validation: a valid binding lets
+    /// the step proceed to target validation instead of failing on arguments.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_ValidBinding_ProceedsToInstallerValidationAsync()
+    {
+        File.WriteAllText(Path.Combine(_tempDirectory, "settings.json"), """{"productid": "bound-product"}""");
+        File.WriteAllText(Path.Combine(_tempDirectory, "installer.exe"), "binary content");
+
+        var manifest = CreateBoundManifest(step => step);
+        manifest.Files = [];
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("not declared in manifest files", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that an unresolvable binding fails the step before any installer runs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_UnresolvableBinding_FailsStepAsync()
+    {
+        var manifest = CreateBoundManifest(step => step);
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("settings.json", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that explicit step keys combined with bindings are rejected: a static
+    /// key would pin a dynamic step to its first resolved values forever.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_BindingsWithExplicitStepKey_FailsStepAsync()
+    {
+        File.WriteAllText(Path.Combine(_tempDirectory, "settings.json"), """{"productid": "bound-product"}""");
+
+        var manifest = CreateBoundManifest(step =>
+        {
+            step.StepKey = "pinned-key";
+            return step;
+        });
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("step key", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that RunOnce keys derive from resolved arguments, so a publisher-side
+    /// value change re-triggers the step under a new key.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_BoundRunOnceStep_RecordsDerivedKeyAsync()
+    {
+        const string targetFile = "obsolete.txt";
+        File.WriteAllText(Path.Combine(_tempDirectory, targetFile), "stale");
+        File.WriteAllText(Path.Combine(_tempDirectory, "settings.json"), """{"productid": "bound-product"}""");
+
+        var manifest = CreateBaseManifest();
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Remove Bound",
+                    Kind = InstallationStepKind.RemoveFile,
+                    TargetRelativePath = targetFile,
+                    Arguments = ["bound-product-placeholder"],
+                    ArgumentBindings =
+                    [
+                        new InstallationArgumentBinding
+                        {
+                            ArgumentIndex = 0,
+                            Source = ManifestConstants.InstallationBindingJsonSource,
+                            RelativePath = "settings.json",
+                            Key = "productid",
+                        },
+                    ],
+                    RunOnce = true,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.True(result.Success);
+        Assert.True(_userSettings.IsInstallationStepExecuted(
+            $"{PublisherTypeConstants.GeneralsOnline}:1.0.test.gameclient.variant:Remove Bound:{targetFile}:bound-product"));
+        Assert.False(File.Exists(Path.Combine(_tempDirectory, targetFile)));
+    }
+
+    private static ContentManifest CreateBoundManifest(Func<InstallationStep, InstallationStep> configure)
+    {
+        var manifest = CreateBaseManifest();
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+        var step = new InstallationStep
+        {
+            Name = "Bound Installer",
+            Kind = InstallationStepKind.RunVerifiedInstaller,
+            TargetRelativePath = "installer.exe",
+            Arguments = ["install", string.Empty],
+            ArgumentBindings =
+            [
+                new InstallationArgumentBinding
+                {
+                    ArgumentIndex = 1,
+                    Source = ManifestConstants.InstallationBindingJsonSource,
+                    RelativePath = "settings.json",
+                    Key = "productid",
+                },
+            ],
+        };
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps = [configure(step)],
+        };
+        return manifest;
     }
 
     private static ContentManifest CreateBaseManifest() => new()

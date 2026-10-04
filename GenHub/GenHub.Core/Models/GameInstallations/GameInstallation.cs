@@ -134,7 +134,7 @@ public class GameInstallation(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(installationPath);
 
-        string normalizedPath;
+        string normalizedPath = string.Empty;
         try
         {
             normalizedPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));

@@ -281,9 +281,10 @@ public class CasStorage(
 
         var hashBytes = sha256.Hash ?? throw new InvalidOperationException("Hash computation did not produce a digest.");
         var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-        if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+        var normalizedExpectedHash = expectedHash?.Trim();
+        if (!string.Equals(actualHash, normalizedExpectedHash, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException($"Hash mismatch: expected {expectedHash}, got {actualHash}");
+            throw new InvalidDataException($"Hash mismatch: expected {normalizedExpectedHash}, got {actualHash}");
         }
     }
 

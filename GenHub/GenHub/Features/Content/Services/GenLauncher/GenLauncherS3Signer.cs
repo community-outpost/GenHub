@@ -53,7 +53,7 @@ public static class GenLauncherS3Signer
         }
 
         var cleaned = rawHost.Trim();
-        string scheme;
+        string scheme = string.Empty;
         if (cleaned.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             scheme = "https";
@@ -77,7 +77,7 @@ public static class GenLauncherS3Signer
 
         cleaned = cleaned.TrimEnd('/');
         var slashIdx = cleaned.IndexOf('/');
-        string hostHeader;
+        string hostHeader = string.Empty;
         string? pathPrefix = null;
 
         if (slashIdx >= 0)

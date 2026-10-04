@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -36,6 +37,34 @@ public class CatalogUpstreamIngestionService(
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> GitHubReleaseCache = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, string> StandardLanguageDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en"] = "English",
+        ["english"] = "English",
+        ["de"] = "German",
+        ["german"] = "German",
+        ["ru"] = "Russian",
+        ["russian"] = "Russian",
+        ["zh"] = "Chinese",
+        ["chinese"] = "Chinese",
+        ["fr"] = "French",
+        ["french"] = "French",
+        ["es"] = "Spanish",
+        ["spanish"] = "Spanish",
+        ["it"] = "Italian",
+        ["italian"] = "Italian",
+        ["pl"] = "Polish",
+        ["polish"] = "Polish",
+        ["pt"] = "Portuguese",
+        ["portuguese"] = "Portuguese",
+        ["ja"] = "Japanese",
+        ["japanese"] = "Japanese",
+        ["ko"] = "Korean",
+        ["korean"] = "Korean",
+        ["uk"] = "Ukrainian",
+        ["ukrainian"] = "Ukrainian",
+    };
 
     /// <inheritdoc />
     public async Task IngestCatalogAsync(PublisherCatalog catalog, CancellationToken cancellationToken = default)
@@ -74,6 +103,34 @@ public class CatalogUpstreamIngestionService(
     /// Clears the in-memory GitHub release cache (primarily for unit tests).
     /// </summary>
     internal static void ClearReleaseCache() => GitHubReleaseCache.Clear();
+
+    /// <summary>
+    /// Resolves the file extension from a download URL, stripping query string or fragment.
+    /// </summary>
+    /// <param name="downloadUrl">The download URL.</param>
+    /// <returns>The file extension (defaulting to .zip).</returns>
+    internal static string ResolveDownloadFileExtension(string downloadUrl)
+    {
+        var uriExt = string.Empty;
+        if (Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri))
+        {
+            uriExt = Path.GetExtension(parsedUri.AbsolutePath);
+        }
+
+        if (string.IsNullOrWhiteSpace(uriExt) && !string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            var cleanUrl = downloadUrl;
+            var queryOrFragIdx = cleanUrl.IndexOfAny(['?', '#']);
+            if (queryOrFragIdx >= 0)
+            {
+                cleanUrl = cleanUrl[..queryOrFragIdx];
+            }
+
+            uriExt = Path.GetExtension(cleanUrl);
+        }
+
+        return string.IsNullOrWhiteSpace(uriExt) ? ".zip" : uriExt;
+    }
 
     private static string NormalizeReleaseVersion(GitHubRelease release)
     {
@@ -176,7 +233,7 @@ public class CatalogUpstreamIngestionService(
                 continue;
             }
 
-            string variant;
+            string variant = string.Empty;
             if (isZh)
             {
                 variant = "Zero Hour";
@@ -415,6 +472,36 @@ public class CatalogUpstreamIngestionService(
         return "1.0.0";
     }
 
+    private static string ResolveVariantDisplayLabel(ContentVariantInfo v, string? axis)
+    {
+        if (string.Equals(axis, "language", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(v.VariantType, "language", StringComparison.OrdinalIgnoreCase))
+        {
+            var token = v.Id;
+            var dashIdx = token.LastIndexOf('-');
+            if (dashIdx >= 0)
+            {
+                token = token[(dashIdx + 1)..];
+            }
+
+            if (StandardLanguageDisplayNames.TryGetValue(token, out var langLabel))
+            {
+                return langLabel;
+            }
+
+            if (!string.IsNullOrWhiteSpace(v.Name))
+            {
+                var parenMatch = Regex.Match(v.Name, @"\(([^)]+)\)$", RegexOptions.None, RegexTimeout);
+                if (parenMatch.Success && StandardLanguageDisplayNames.TryGetValue(parenMatch.Groups[1].Value.Trim(), out var parenLabel))
+                {
+                    return parenLabel;
+                }
+            }
+        }
+
+        return !string.IsNullOrWhiteSpace(v.Name) ? v.Name : v.Id;
+    }
+
     private async Task IngestSingleItemAsync(
         CatalogContentItem item,
         Dictionary<IContentDiscoverer, OperationResult<ContentDiscoveryResult>> discoveryCache,
@@ -581,18 +668,77 @@ public class CatalogUpstreamIngestionService(
             IsLatest = true,
         };
 
-        synthesized.Artifacts.Add(new ReleaseArtifact
-        {
-            Filename = $"{item.Id}-{synthesized.Version}.zip",
-            DownloadUrl = downloadUrl,
-            Size = downloadSize,
-            IsPrimary = true,
-        });
+        PopulateDiscoveredArtifacts(synthesized, item, matched, downloadUrl, downloadSize);
 
         PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         item.Releases.Clear();
         item.Releases.Add(synthesized);
+    }
+
+    private void PopulateDiscoveredArtifacts(
+        ContentRelease synthesized,
+        CatalogContentItem item,
+        ContentSearchResult matched,
+        string downloadUrl,
+        long downloadSize)
+    {
+        var uriExt = ResolveDownloadFileExtension(downloadUrl);
+
+        var matchingVariants = matched.Variants?
+            .Where(v => item.TargetGame == GameType.Unknown || v.TargetGame == null || v.TargetGame == GameType.Unknown || v.TargetGame == item.TargetGame)
+            .ToList();
+
+        if (matchingVariants is { Count: > 0 })
+        {
+            var fallbackAxis = matchingVariants.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v.VariantType))?.VariantType ?? "variant";
+            var configuredAxis = item.UpstreamSync?.VariantAxis;
+
+            var hasDefault = matchingVariants.Any(v => v.IsDefault);
+            for (var i = 0; i < matchingVariants.Count; i++)
+            {
+                var v = matchingVariants[i];
+                var isDefault = v.IsDefault || (!hasDefault && i == 0);
+                string variantAxis;
+                if (!string.IsNullOrWhiteSpace(configuredAxis))
+                {
+                    variantAxis = configuredAxis;
+                }
+                else if (!string.IsNullOrWhiteSpace(v.VariantType))
+                {
+                    variantAxis = v.VariantType;
+                }
+                else
+                {
+                    variantAxis = fallbackAxis;
+                }
+
+                var variantLabel = ResolveVariantDisplayLabel(v, variantAxis);
+
+                synthesized.Artifacts.Add(new ReleaseArtifact
+                {
+                    Filename = $"{item.Id}-{v.Id}{uriExt}",
+                    DownloadUrl = downloadUrl,
+                    Size = downloadSize,
+                    VariantAxis = variantAxis,
+                    Variant = variantLabel,
+                    IsDefaultVariant = isDefault,
+                    IsPrimary = isDefault,
+                    TargetGame = v.TargetGame ?? item.TargetGame,
+                });
+            }
+        }
+        else
+        {
+            synthesized.Artifacts.Add(new ReleaseArtifact
+            {
+                Filename = $"{item.Id}-{synthesized.Version}{uriExt}",
+                DownloadUrl = downloadUrl,
+                Size = downloadSize,
+                IsPrimary = true,
+                IsDefaultVariant = true,
+            });
+        }
     }
 
     private (string? DownloadUrl, long DownloadSize) ResolveDiscoveryDownloadUrl(

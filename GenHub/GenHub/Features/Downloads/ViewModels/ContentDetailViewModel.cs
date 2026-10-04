@@ -30,8 +30,10 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.Views;
+using GenHub.Features.Info.Services;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -76,6 +78,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="artworkService">Optional artwork service for purging persisted icons and covers on delete.</param>
 /// <param name="gitHubApiClient">Optional GitHub API client for README and release-notes hydration.</param>
 /// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
+/// <param name="patchNotesService">Optional service for fetching Generals Online patch notes on demand.</param>
+/// <param name="onDescriptionEnriched">Optional callback invoked when the content description is updated with patch notes (version, changelog).</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -102,7 +106,9 @@ public partial class ContentDetailViewModel(
     Func<string, Task>? deletedAction = null,
     IContentArtworkService? artworkService = null,
     IGitHubApiClient? gitHubApiClient = null,
-    IWorkspaceManager? workspaceManager = null) : ObservableObject, IDisposable
+    IWorkspaceManager? workspaceManager = null,
+    IGeneralsOnlinePatchNotesService? patchNotesService = null,
+    Action<string, string>? onDescriptionEnriched = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -134,6 +140,7 @@ public partial class ContentDetailViewModel(
     private readonly object _basicContentLoadLock = new();
     private readonly object _preloadLock = new();
     private readonly object _contentTypePersistLock = new();
+    private readonly object _generalsOnlineSync = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
@@ -171,6 +178,8 @@ public partial class ContentDetailViewModel(
     private Task? _customTabsTask;
     private Task? _variantsTask;
     private Task? _gitHubReadmeTask;
+    private Task? _generalsOnlineNotesTask;
+    private CancellationTokenSource? _generalsOnlineCts;
     private Task? _gitHubHydrationTask;
     private bool _gitHubHydrationRunning;
 
@@ -182,7 +191,7 @@ public partial class ContentDetailViewModel(
     private InstallableVariant? _selectedVariant;
 
     [ObservableProperty]
-    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault() ?? string.Empty;
+    private string _selectedScreenshotUrl = searchResult.ScreenshotUrls.FirstOrDefault(s => MediaFileHelper.IsRemoteHttpUrl(s)) ?? string.Empty;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -279,6 +288,62 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     private bool _isFullScreenMediaOpen;
+
+    [ObservableProperty]
+    private string? _videoPlayerUrl;
+
+    [ObservableProperty]
+    private string? _videoPlayerTitle;
+
+    [ObservableProperty]
+    private bool _isVideoPlayerOpen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMinHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxWidth))]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalMaxHeight))]
+    private bool _isVideoPlayerFullscreen;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalWidth))]
+    private double _videoModalWidth = 960;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
+    private double _videoModalHeight = 620;
+
+    /// <summary>
+    /// Gets the effective width of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalWidth => IsVideoPlayerFullscreen ? double.NaN : VideoModalWidth;
+
+    /// <summary>
+    /// Gets the effective height of the video modal dialog, unconstrained when full screen.
+    /// </summary>
+    public double EffectiveVideoModalHeight => IsVideoPlayerFullscreen ? double.NaN : VideoModalHeight;
+
+    /// <summary>
+    /// Gets the minimum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinWidth => IsVideoPlayerFullscreen ? 0 : 560;
+
+    /// <summary>
+    /// Gets the minimum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMinHeight => IsVideoPlayerFullscreen ? 0 : 380;
+
+    /// <summary>
+    /// Gets the maximum width constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxWidth => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1920;
+
+    /// <summary>
+    /// Gets the maximum height constraint for the video modal dialog.
+    /// </summary>
+    public double EffectiveVideoModalMaxHeight => IsVideoPlayerFullscreen ? double.PositiveInfinity : 1200;
 
     [ObservableProperty]
     private bool _isLoadingDetails;
@@ -428,7 +493,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the collection of screenshot URLs.
     /// </summary>
-    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls);
+    public ObservableCollection<string> Screenshots { get; } = new(searchResult.ScreenshotUrls.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)));
 
     /// <summary>
     /// Gets the collection of tags associated with the content.
@@ -566,7 +631,10 @@ public partial class ContentDetailViewModel(
     /// Gets the content description (full) - prefers parsed page context description.
     /// </summary>
     public string Description =>
-        HtmlTextHelper.NormalizeHtml(ParsedPage?.Context.Description ?? searchResult.Description);
+        HtmlTextHelper.NormalizeHtml(
+            (GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) && !GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version))
+                ? searchResult.Description
+                : (ParsedPage?.Context.Description ?? searchResult.Description));
 
     /// <summary>
     /// Gets the formatted markdown description with clickable links for PRs, issues, and URLs.
@@ -667,7 +735,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public bool CanChangeContentType =>
         !IsDownloading &&
-        !(SelectedDownloadableItem?.IsDownloading ?? false) &&
+        SelectedDownloadableItem is not { IsDownloading: true } &&
         !HasBundleComponents &&
         ContentCardBadgeHelper.CanChangeContentType(searchResult);
 
@@ -1015,6 +1083,13 @@ public partial class ContentDetailViewModel(
         _customTabsTask = LoadCustomTabsAsync();
         _variantsTask = InitializeVariantsAsync();
         _gitHubReadmeTask = LoadGitHubReadmeAsync();
+        if (patchNotesService != null &&
+            GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) &&
+            GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
+            !string.IsNullOrWhiteSpace(searchResult.Version))
+        {
+            StartGeneralsOnlineNotesTask(searchResult.Version);
+        }
     }
 
     /// <summary>
@@ -1143,6 +1218,14 @@ public partial class ContentDetailViewModel(
             tasks.Add(_variantsTask);
         }
 
+        lock (_generalsOnlineSync)
+        {
+            if (_generalsOnlineNotesTask != null)
+            {
+                tasks.Add(_generalsOnlineNotesTask);
+            }
+        }
+
         await Task.WhenAll(tasks);
         await WaitForGitHubHydrationAsync();
         await WaitForRowStateResolutionsAsync();
@@ -1178,173 +1261,15 @@ public partial class ContentDetailViewModel(
         }
 
         Releases.Clear();
-        var sortedVariants = Variants
-            .OrderByDescending(v =>
-            {
-                if (variantSearchResults != null &&
-                    !string.IsNullOrEmpty(v.ManifestId) &&
-                    variantSearchResults.TryGetValue(v.ManifestId, out var sr))
-                {
-                    return sr.LastUpdated ?? DateTime.MinValue;
-                }
-
-                return searchResult.LastUpdated ?? DateTime.MinValue;
-            })
-            .ThenByDescending(v => v.Name, StringComparer.OrdinalIgnoreCase);
+        var sortedVariants = SortVariantsByRecency(Variants);
 
         foreach (var variant in sortedVariants)
         {
-            var manifestId = variant.ManifestId;
-            ContentSearchResult? sibling = null;
-            if (!string.IsNullOrEmpty(manifestId) &&
-                variantSearchResults != null &&
-                variantSearchResults.TryGetValue(manifestId, out var sr))
-            {
-                sibling = sr;
-            }
-
-            DownloadableFile? matchedFile = null;
-            if (sibling?.ParsedPageData?.Sections != null)
-            {
-                matchedFile = sibling.ParsedPageData.Sections
-                    .OfType<DownloadableFile>()
-                    .FirstOrDefault(f => string.Equals(f.Name, variant.Name, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (matchedFile == null && searchResult.ParsedPageData?.Sections != null)
-            {
-                matchedFile = searchResult.ParsedPageData.Sections
-                    .OfType<DownloadableFile>()
-                    .FirstOrDefault(f => string.Equals(f.Name, variant.Name, StringComparison.OrdinalIgnoreCase));
-            }
-
-            var (gitHubUrl, gitHubSize) = ResolveGitHubSiblingDownload(sibling);
-            var url = matchedFile?.DownloadUrl ?? gitHubUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
-            long size = 0;
-            if (matchedFile?.SizeBytes is > 0)
-            {
-                size = matchedFile.SizeBytes.Value;
-            }
-            else if (gitHubSize > 0)
-            {
-                size = gitHubSize;
-            }
-            else if (sibling?.DownloadSize > 0)
-            {
-                size = sibling.DownloadSize;
-            }
-            else if (searchResult.DownloadSize > 0)
-            {
-                size = searchResult.DownloadSize;
-            }
-
-            var displayName = variant.Name;
-            var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
-            var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
-            var gitHubBody = ResolveGitHubSiblingDescription(sibling);
-            var itemDescription = matchedFile?.Description
-                ?? gitHubBody
-                ?? sibling?.Description
-                ?? searchResult.Description;
-            var notesPlaceholder = matchedFile?.Description == null && gitHubBody == null ? itemDescription : null;
-            var itemContentType = sibling?.ContentType ?? searchResult.ContentType;
-            var itemCategory = itemContentType.GetDisplayName();
-            var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
-
-            if (GenLauncherConstants.IsYamlDescriptorPath(itemFilename))
-            {
-                itemFilename = $"{displayName}.zip";
-            }
-
-            var itemThumbnail = ResolveItemThumbnailUrl(
-                sibling?.IconUrl ?? (sibling != null ? ContentCardBadgeHelper.GetThumbnailUrl(sibling) : null),
-                searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult));
-
-            var file = new DownloadableFile(
-                Name: displayName,
-                DownloadUrl: url,
-                SizeBytes: size > 0 ? size : null,
-                UploadDate: sibling?.LastUpdated ?? searchResult.LastUpdated,
-                Version: itemVersion,
-                Category: itemCategory,
-                Uploader: itemAuthor,
-                Filename: itemFilename,
-                Description: itemDescription,
-                ThumbnailUrl: itemThumbnail,
-                FileSectionType: FileSectionType.Downloads);
-
-            ReleaseItemViewModel releaseItem = new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = displayName,
-                Version = itemVersion,
-                ReleaseDate = sibling?.LastUpdated ?? searchResult.LastUpdated,
-                FileSize = size,
-                DownloadUrl = url,
-                DetailsUrl = url,
-                DownloadedManifestId = manifestId,
-                ContentType = itemContentType,
-                Category = itemCategory,
-                Uploader = itemAuthor,
-                Filename = itemFilename,
-                ThumbnailUrl = itemThumbnail,
-                FullDescription = itemDescription,
-                TargetGame = ResolveTargetGameString(sibling, searchResult),
-                IsDetailsLoaded = true,
-                File = file,
-                IsDownloaded = variant.CurrentState == ContentState.Downloaded,
-                IsUpdateAvailable = variant.CurrentState == ContentState.UpdateAvailable,
-                FetchDetailsAsync = LoadItemDetailsAsync,
-            };
-
-            var screenshots = sibling?.ScreenshotUrls ?? searchResult.ScreenshotUrls;
-            if (screenshots != null)
-            {
-                foreach (var shot in screenshots)
-                {
-                    releaseItem.PreviewImages.Add(shot);
-                }
-            }
-
-            releaseItem.SelectCommand = new RelayCommand(
-                () =>
-                {
-                    if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
-                    {
-                        VariantSwap.Apply(searchResult, swapSr);
-                        SelectedVariant = variant;
-                    }
-
-                    SelectDownloadableItem(releaseItem, isUserInitiated: true);
-                },
-                () => !IsDownloading);
-
-            releaseItem.DownloadCommand = new AsyncRelayCommand(async ct =>
-            {
-                if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
-                {
-                    VariantSwap.Apply(searchResult, swapSr);
-                    SelectedVariant = variant;
-                }
-
-                await DownloadReleaseAsync(releaseItem, releaseItem.File ?? file, ct);
-            });
-
-            releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
-            {
-                if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
-                {
-                    VariantSwap.Apply(searchResult, swapSr);
-                    SelectedVariant = variant;
-                }
-
-                var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId;
-                await AddFileToProfileAsync(releaseItem.File ?? file, targetManifestId);
-            });
-
+            var (releaseItem, file, sibling, notesPlaceholder) = BuildVariantReleaseItem(variant);
             Releases.Add(releaseItem);
             TrackRowStateResolution(ResolveRowStateAsync(releaseItem, file));
             EnqueueGitHubNotesRequest(releaseItem, sibling ?? searchResult, notesPlaceholder);
+            AttachGeneralsOnlinePatchNotesFetcher(releaseItem, sibling ?? searchResult, sibling);
         }
 
         var initialRelease = (SelectedVariant != null
@@ -1388,6 +1313,7 @@ public partial class ContentDetailViewModel(
             var releaseItem = CreateReleaseItemViewModel(file);
             Releases.Add(releaseItem);
             TrackRowStateResolution(ResolveRowStateAsync(releaseItem, file));
+            AttachGeneralsOnlinePatchNotesFetcher(releaseItem, searchResult);
         }
 
         SelectInitialPreferredRelease();
@@ -1443,7 +1369,7 @@ public partial class ContentDetailViewModel(
         }
 
         var artifact = result.GetData<GitHubArtifact>();
-        if (artifact != null && artifact.IsRelease && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
+        if (artifact is { IsRelease: true } && !string.IsNullOrWhiteSpace(artifact.DownloadUrl))
         {
             Files = [CreateGitHubArtifactFile(result, artifact)];
             PopulateReleases(Files);
@@ -1501,7 +1427,7 @@ public partial class ContentDetailViewModel(
 
         if (profileManager != null && !string.IsNullOrEmpty(oldManifestId))
         {
-            bool profilesUpdated;
+            bool profilesUpdated = false;
             try
             {
                 profilesUpdated = await ApplyBundleProfileUpdatesAsync(target, oldManifestId, newManifest, promptResult, cancellationToken);
@@ -1666,8 +1592,14 @@ public partial class ContentDetailViewModel(
         {
             if (disposing)
             {
-                _cts.Cancel();
-                _cts.Dispose();
+                lock (_generalsOnlineSync)
+                {
+                    _cts.Cancel();
+                    _cts.Dispose();
+                    _generalsOnlineCts?.Cancel();
+                    _generalsOnlineCts?.Dispose();
+                    _generalsOnlineCts = null;
+                }
 
                 // Unsubscribe from state changes
                 contentStateService.ContentStateChanged -= OnContentStateChanged;
@@ -2122,8 +2054,8 @@ public partial class ContentDetailViewModel(
             string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(v.ManifestId, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(v.ManifestId, key, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id != null && sibling.Id.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id != null && sibling.Id.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
             (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)) ||
             (!string.IsNullOrEmpty(v.Id) && key.EndsWith($"-{v.Id}", StringComparison.OrdinalIgnoreCase)));
 
@@ -2517,7 +2449,7 @@ public partial class ContentDetailViewModel(
                     composedName = $"{baseSegment}-{ContentConstants.DefaultContentFallbackId}";
                 }
 
-                string manifestId;
+                string manifestId = string.Empty;
                 if (!string.IsNullOrEmpty(v.ManifestId))
                 {
                     manifestId = v.ManifestId;
@@ -2565,62 +2497,279 @@ public partial class ContentDetailViewModel(
         SelectedVariant = value;
     }
 
+    private void SyncSelectedReleaseWithVariant(ReleaseItemViewModel currentRel, InstallableVariant value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
+        {
+            currentRel.DownloadUrl = value.DownloadUrl;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.File))
+        {
+            currentRel.Filename = value.File;
+        }
+
+        if (value.Size.HasValue && value.Size.Value > 0)
+        {
+            currentRel.FileSize = value.Size.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.Sha256))
+        {
+            currentRel.Sha256Hash = value.Sha256;
+        }
+
+        if (currentRel.File != null)
+        {
+            currentRel.File = new DownloadableFile(
+                Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
+                DownloadUrl: currentRel.DownloadUrl,
+                SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
+                UploadDate: currentRel.ReleaseDate,
+                Version: currentRel.Version,
+                Category: currentRel.Category,
+                Uploader: currentRel.Uploader,
+                Filename: currentRel.Filename,
+                Description: currentRel.FullDescription,
+                FileSectionType: FileSectionType.Downloads);
+        }
+
+        RefreshSelectedTargetProperties();
+    }
+
+    private IEnumerable<InstallableVariant> SortVariantsByRecency(IEnumerable<InstallableVariant> variants)
+    {
+        return variants
+            .OrderByDescending(v =>
+            {
+                if (variantSearchResults != null &&
+                    !string.IsNullOrEmpty(v.ManifestId) &&
+                    variantSearchResults.TryGetValue(v.ManifestId, out var sr))
+                {
+                    return sr.LastUpdated ?? DateTime.MinValue;
+                }
+
+                return searchResult.LastUpdated ?? DateTime.MinValue;
+            })
+            .ThenByDescending(v => v.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private DownloadableFile? FindMatchedVariantFile(string variantName, ContentSearchResult? sibling, ContentSearchResult fallbackResult)
+    {
+        if (sibling?.ParsedPageData?.Sections != null)
+        {
+            var match = sibling.ParsedPageData.Sections
+                .OfType<DownloadableFile>()
+                .FirstOrDefault(f => string.Equals(f.Name, variantName, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                return match;
+            }
+        }
+
+        if (fallbackResult.ParsedPageData?.Sections != null)
+        {
+            return fallbackResult.ParsedPageData.Sections
+                .OfType<DownloadableFile>()
+                .FirstOrDefault(f => string.Equals(f.Name, variantName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return null;
+    }
+
+    private (string Url, long Size) ResolveVariantDownload(DownloadableFile? matchedFile, ContentSearchResult? sibling)
+    {
+        var (gitHubUrl, gitHubSize) = ResolveGitHubSiblingDownload(sibling);
+        var url = matchedFile?.DownloadUrl ?? gitHubUrl ?? sibling?.SelectedDownloadUrl ?? sibling?.SourceUrl ?? searchResult.SourceUrl ?? string.Empty;
+        long size = 0;
+        if (matchedFile?.SizeBytes is > 0)
+        {
+            size = matchedFile.SizeBytes.Value;
+        }
+        else if (gitHubSize > 0)
+        {
+            size = gitHubSize;
+        }
+        else if (sibling?.DownloadSize > 0)
+        {
+            size = sibling.DownloadSize;
+        }
+        else if (searchResult.DownloadSize > 0)
+        {
+            size = searchResult.DownloadSize;
+        }
+
+        return (url, size);
+    }
+
+    private (ReleaseItemViewModel ReleaseItem, DownloadableFile File, ContentSearchResult? Sibling, string? NotesPlaceholder) BuildVariantReleaseItem(InstallableVariant variant)
+    {
+        var manifestId = variant.ManifestId;
+        ContentSearchResult? sibling = null;
+        if (!string.IsNullOrEmpty(manifestId) &&
+            variantSearchResults != null &&
+            variantSearchResults.TryGetValue(manifestId, out var sr))
+        {
+            sibling = sr;
+        }
+
+        var matchedFile = FindMatchedVariantFile(variant.Name, sibling, searchResult);
+        var (url, size) = ResolveVariantDownload(matchedFile, sibling);
+
+        var displayName = variant.Name;
+        var itemVersion = matchedFile?.Version ?? sibling?.Version ?? Version;
+        var itemAuthor = sibling?.AuthorName ?? searchResult.AuthorName;
+        var gitHubBody = ResolveGitHubSiblingDescription(sibling);
+        var itemDescription = matchedFile?.Description
+            ?? gitHubBody
+            ?? sibling?.Description
+            ?? searchResult.Description;
+        var notesPlaceholder = matchedFile?.Description == null && gitHubBody == null ? itemDescription : null;
+        var itemContentType = sibling?.ContentType ?? searchResult.ContentType;
+        var itemCategory = itemContentType.GetDisplayName();
+        var itemFilename = matchedFile?.Filename ?? GetFileNameFromUrl(url) ?? displayName;
+
+        if (GenLauncherConstants.IsYamlDescriptorPath(itemFilename))
+        {
+            itemFilename = $"{displayName}.zip";
+        }
+
+        var itemThumbnail = ResolveItemThumbnailUrl(
+            sibling?.IconUrl ?? (sibling != null ? ContentCardBadgeHelper.GetThumbnailUrl(sibling) : null),
+            searchResult.IconUrl ?? ContentCardBadgeHelper.GetThumbnailUrl(searchResult));
+
+        var file = new DownloadableFile(
+            Name: displayName,
+            DownloadUrl: url,
+            SizeBytes: size > 0 ? size : null,
+            UploadDate: sibling?.LastUpdated ?? searchResult.LastUpdated,
+            Version: itemVersion,
+            Category: itemCategory,
+            Uploader: itemAuthor,
+            Filename: itemFilename,
+            Description: itemDescription,
+            ThumbnailUrl: itemThumbnail,
+            FileSectionType: FileSectionType.Downloads);
+
+        var releaseItem = new ReleaseItemViewModel
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = displayName,
+            Version = itemVersion,
+            ReleaseDate = sibling?.LastUpdated ?? searchResult.LastUpdated,
+            FileSize = size,
+            DownloadUrl = url,
+            DetailsUrl = url,
+            DownloadedManifestId = manifestId,
+            ContentType = itemContentType,
+            Category = itemCategory,
+            Uploader = itemAuthor,
+            Filename = itemFilename,
+            ThumbnailUrl = itemThumbnail,
+            FullDescription = itemDescription,
+            TargetGame = ResolveTargetGameString(sibling, searchResult),
+            IsDetailsLoaded = true,
+            File = file,
+            IsDownloaded = variant.CurrentState == ContentState.Downloaded,
+            IsUpdateAvailable = variant.CurrentState == ContentState.UpdateAvailable,
+            FetchDetailsAsync = LoadItemDetailsAsync,
+        };
+
+        var screenshots = sibling?.ScreenshotUrls ?? searchResult.ScreenshotUrls;
+        if (screenshots != null)
+        {
+            foreach (var shot in screenshots.Where(s => MediaFileHelper.IsRemoteHttpUrl(s)))
+            {
+                releaseItem.PreviewImages.Add(shot);
+            }
+        }
+
+        WireVariantReleaseItemCommands(releaseItem, variant, file, manifestId);
+
+        return (releaseItem, file, sibling, notesPlaceholder);
+    }
+
+    private void WireVariantReleaseItemCommands(
+        ReleaseItemViewModel releaseItem,
+        InstallableVariant variant,
+        DownloadableFile file,
+        string? manifestId)
+    {
+        releaseItem.SelectCommand = new RelayCommand(
+            () =>
+            {
+                if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                {
+                    VariantSwap.Apply(searchResult, swapSr);
+                    SelectedVariant = variant;
+                }
+
+                SelectDownloadableItem(releaseItem, isUserInitiated: true);
+            },
+            () => !IsDownloading);
+
+        releaseItem.DownloadCommand = new AsyncRelayCommand(async ct =>
+        {
+            if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+            {
+                VariantSwap.Apply(searchResult, swapSr);
+                SelectedVariant = variant;
+            }
+
+            await DownloadReleaseAsync(releaseItem, releaseItem.File ?? file, ct);
+        });
+
+        releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
+        {
+            if (variantSearchResults is not null && !string.IsNullOrEmpty(manifestId) && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+            {
+                VariantSwap.Apply(searchResult, swapSr);
+                SelectedVariant = variant;
+            }
+
+            var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId;
+            await AddFileToProfileAsync(releaseItem.File ?? file, targetManifestId);
+        });
+    }
+
     partial void OnSelectedVariantChanged(InstallableVariant? value)
     {
         VariantAxisGrouping.SyncSelections(VariantAxes, value);
 
-        if (value != null)
+        if (value is null)
         {
-            IsDownloaded = value.CurrentState == ContentState.Downloaded;
-            IsUpdateAvailable = value.CurrentState is ContentState.UpdateAvailable;
+            OnPropertyChanged(nameof(Name));
+            return;
         }
 
-        if (SelectedDownloadableItem is ReleaseItemViewModel currentRel && value != null && IsCatalogContent)
+        IsDownloaded = value.CurrentState == ContentState.Downloaded;
+        IsUpdateAvailable = value.CurrentState is ContentState.UpdateAvailable;
+
+        if (SelectedDownloadableItem is ReleaseItemViewModel currentRel && IsCatalogContent)
         {
-            if (!string.IsNullOrWhiteSpace(value.DownloadUrl))
-            {
-                currentRel.DownloadUrl = value.DownloadUrl;
-            }
-
-            if (!string.IsNullOrWhiteSpace(value.File))
-            {
-                currentRel.Filename = value.File;
-            }
-
-            if (value.Size.HasValue && value.Size.Value > 0)
-            {
-                currentRel.FileSize = value.Size.Value;
-            }
-
-            if (!string.IsNullOrWhiteSpace(value.Sha256))
-            {
-                currentRel.Sha256Hash = value.Sha256;
-            }
-
-            if (currentRel.File != null)
-            {
-                currentRel.File = new DownloadableFile(
-                    Name: !string.IsNullOrWhiteSpace(currentRel.Filename) ? currentRel.Filename : currentRel.Name,
-                    DownloadUrl: currentRel.DownloadUrl,
-                    SizeBytes: currentRel.FileSize > 0 ? currentRel.FileSize : null,
-                    UploadDate: currentRel.ReleaseDate,
-                    Version: currentRel.Version,
-                    Category: currentRel.Category,
-                    Uploader: currentRel.Uploader,
-                    Filename: currentRel.Filename,
-                    Description: currentRel.FullDescription,
-                    FileSectionType: FileSectionType.Downloads);
-            }
-
-            RefreshSelectedTargetProperties();
+            SyncSelectedReleaseWithVariant(currentRel, value);
         }
 
-        if (value != null &&
-            !string.IsNullOrEmpty(value.ManifestId) &&
+        ApplySelectedVariantSearchResult(value);
+        SyncDownloadableItemsWithSelectedVariant(value);
+    }
+
+    private void ApplySelectedVariantSearchResult(InstallableVariant value)
+    {
+        if (!string.IsNullOrEmpty(value.ManifestId) &&
             variantSearchResults != null &&
             variantSearchResults.TryGetValue(value.ManifestId, out var sr))
         {
             VariantSwap.Apply(searchResult, sr);
+            OnPropertyChanged(nameof(Description));
+            OnPropertyChanged(nameof(FormattedDescription));
+            if (patchNotesService != null &&
+                GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(searchResult) &&
+                GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(searchResult.Description, searchResult.Version) &&
+                !string.IsNullOrWhiteSpace(searchResult.Version))
+            {
+                StartGeneralsOnlineNotesTask(searchResult.Version);
+            }
 
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(DownloadSize));
@@ -2646,64 +2795,84 @@ public partial class ContentDetailViewModel(
         {
             OnPropertyChanged(nameof(Name));
         }
+    }
 
-        if (value != null && (Releases.Count > 0 || Addons.Count > 0))
+    private void SyncDownloadableItemsWithSelectedVariant(InstallableVariant value)
+    {
+        if (Releases.Count == 0 && Addons.Count == 0)
         {
-            var allRows = Releases.Cast<DownloadableItemViewModel>().Concat(Addons).ToList();
-            var match = allRows.FirstOrDefault(r =>
-                !string.IsNullOrEmpty(value.ManifestId) &&
-                string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
-                r.Name != null && !string.IsNullOrEmpty(value.Name) &&
-                (string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase) ||
-                 r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
-                 value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
-                ?? (!string.IsNullOrEmpty(value.ManifestId)
-                    ? allRows.FirstOrDefault(r =>
-                        string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
-                    : null)
-                ?? allRows.FirstOrDefault(r =>
-                    string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
-                ?? allRows.FirstOrDefault(r =>
-                    !string.IsNullOrEmpty(value.Name) && r.Name != null &&
-                    (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
-                     value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
-            if (match != null)
+            return;
+        }
+
+        var allRows = Releases.Cast<DownloadableItemViewModel>().Concat(Addons).ToList();
+        var match = FindMatchingDownloadableItem(allRows, value);
+        if (match != null)
+        {
+            UpdateMatchedDownloadableItem(match, value, allRows);
+        }
+    }
+
+    private DownloadableItemViewModel? FindMatchingDownloadableItem(
+        List<DownloadableItemViewModel> allRows,
+        InstallableVariant value)
+    {
+        return allRows.FirstOrDefault(r =>
+            !string.IsNullOrEmpty(value.ManifestId) &&
+            string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase) &&
+            r.Name != null && !string.IsNullOrEmpty(value.Name) &&
+            (string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase) ||
+             r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
+             value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)))
+            ?? (!string.IsNullOrEmpty(value.ManifestId)
+                ? allRows.FirstOrDefault(r =>
+                    string.Equals(r.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase))
+                : null)
+            ?? allRows.FirstOrDefault(r =>
+                string.Equals(r.Name, value.Name, StringComparison.OrdinalIgnoreCase))
+            ?? allRows.FirstOrDefault(r =>
+                !string.IsNullOrEmpty(value.Name) && r.Name != null &&
+                (r.Name.Contains(value.Name, StringComparison.OrdinalIgnoreCase) ||
+                 value.Name.Contains(r.Name, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private void UpdateMatchedDownloadableItem(
+        DownloadableItemViewModel match,
+        InstallableVariant value,
+        List<DownloadableItemViewModel> allRows)
+    {
+        var isManifestMatch = !string.IsNullOrEmpty(value.ManifestId) &&
+            string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase);
+        var isExactNameMatch = string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
+
+        var isUniqueNameMatch = isExactNameMatch &&
+            allRows.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
+        var isExactManifestOrNameMatch = isManifestMatch || isUniqueNameMatch;
+
+        if (value.CurrentState == ContentState.Downloaded && isExactManifestOrNameMatch)
+        {
+            match.IsDownloaded = true;
+            if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
             {
-                var isManifestMatch = !string.IsNullOrEmpty(value.ManifestId) &&
-                    string.Equals(match.DownloadedManifestId, value.ManifestId, StringComparison.OrdinalIgnoreCase);
-                var isExactNameMatch = string.Equals(match.Name, value.Name, StringComparison.OrdinalIgnoreCase);
-
-                var isUniqueNameMatch = isExactNameMatch &&
-                    allRows.Count(row => string.Equals(row.Name, value.Name, StringComparison.OrdinalIgnoreCase)) == 1;
-                var isExactManifestOrNameMatch = isManifestMatch || isUniqueNameMatch;
-
-                if (value.CurrentState == ContentState.Downloaded && isExactManifestOrNameMatch)
-                {
-                    match.IsDownloaded = true;
-                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
-                    {
-                        match.DownloadedManifestId = value.ManifestId;
-                    }
-                }
-                else if (value.CurrentState == ContentState.UpdateAvailable && isExactManifestOrNameMatch)
-                {
-                    match.IsDownloaded = true;
-                    match.IsUpdateAvailable = true;
-                    if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
-                    {
-                        match.DownloadedManifestId = value.ManifestId;
-                    }
-                }
-
-                if (!ReferenceEquals(SelectedDownloadableItem, match))
-                {
-                    SelectDownloadableItem(match, isUserInitiated: false);
-                }
-                else
-                {
-                    RefreshSelectedTargetProperties();
-                }
+                match.DownloadedManifestId = value.ManifestId;
             }
+        }
+        else if (value.CurrentState == ContentState.UpdateAvailable && isExactManifestOrNameMatch)
+        {
+            match.IsDownloaded = true;
+            match.IsUpdateAvailable = true;
+            if (!string.IsNullOrEmpty(value.ManifestId) && ManifestIdValidator.IsValid(value.ManifestId, out _))
+            {
+                match.DownloadedManifestId = value.ManifestId;
+            }
+        }
+
+        if (!ReferenceEquals(SelectedDownloadableItem, match))
+        {
+            SelectDownloadableItem(match, isUserInitiated: false);
+        }
+        else
+        {
+            RefreshSelectedTargetProperties();
         }
     }
 
@@ -2958,11 +3127,11 @@ public partial class ContentDetailViewModel(
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            var anyVariantMatches = variantSearchResults != null && variantSearchResults.Any(pair =>
+            var anyVariantMatches = variantSearchResults?.Any(pair =>
                 string.Equals(pair.Key, contentId, StringComparison.OrdinalIgnoreCase) ||
                 (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Key, manifestId, StringComparison.OrdinalIgnoreCase)) ||
                 string.Equals(pair.Value.Id, contentId, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Value.Id, manifestId, StringComparison.OrdinalIgnoreCase)));
+                (!string.IsNullOrEmpty(manifestId) && string.Equals(pair.Value.Id, manifestId, StringComparison.OrdinalIgnoreCase))) == true;
 
             foreach (var row in EnumerateRows())
             {
@@ -3121,7 +3290,7 @@ public partial class ContentDetailViewModel(
                     }
                 }
 
-                if (SelectedDownloadableItem != null && SelectedDownloadableItem.IsDownloaded && IsUpdateAvailable)
+                if (SelectedDownloadableItem is { IsDownloaded: true } && IsUpdateAvailable)
                 {
                     SelectedDownloadableItem.IsUpdateAvailable = true;
                     RefreshSelectedTargetProperties();
@@ -3623,10 +3792,10 @@ public partial class ContentDetailViewModel(
         UpdateContentTypeFromParsedPage(parsedPage);
 
         // Update parsed content collections
-        Articles = parsedPage.Sections.OfType<Article>().ToObservableCollection() ?? [];
-        Videos = parsedPage.Sections.OfType<Video>().ToObservableCollection() ?? [];
-        Images = parsedPage.Sections.OfType<Image>().ToObservableCollection() ?? [];
-        Reviews = parsedPage.Sections.OfType<Review>().ToObservableCollection() ?? [];
+        Articles = parsedPage.Sections.OfType<Article>().ToObservableCollection();
+        Videos = parsedPage.Sections.OfType<Video>().ToObservableCollection();
+        Images = parsedPage.Sections.OfType<Image>().ToObservableCollection();
+        Reviews = parsedPage.Sections.OfType<Review>().ToObservableCollection();
         Comments = FlattenComments(parsedPage.Sections.OfType<Comment>()).ToObservableCollection();
 
         PopulateFilesFromParsedPage(parsedPage);
@@ -3661,8 +3830,9 @@ public partial class ContentDetailViewModel(
                 SelectedContentType = detectedType;
             }
         }
-        else if (searchResult.SourceUrl != null && searchResult.SourceUrl.Contains(ModDBConstants.ModsPathFragment, StringComparison.OrdinalIgnoreCase) &&
-                 !searchResult.SourceUrl.Contains(ModDBConstants.AddonsPathFragment, StringComparison.OrdinalIgnoreCase) &&
+        else if (searchResult.SourceUrl is { } sourceUrl &&
+                 sourceUrl.Contains(ModDBConstants.ModsPathFragment, StringComparison.OrdinalIgnoreCase) &&
+                 !sourceUrl.Contains(ModDBConstants.AddonsPathFragment, StringComparison.OrdinalIgnoreCase) &&
                  (SelectedContentType == ContentType.Addon || SelectedContentType == ContentType.UnknownContentType))
         {
             SelectedContentType = ContentType.Mod;
@@ -3811,7 +3981,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        foreach (var screenshot in screenshots.Where(screenshot => !string.IsNullOrWhiteSpace(screenshot) && !Screenshots.Contains(screenshot)))
+        foreach (var screenshot in screenshots.Where(screenshot => MediaFileHelper.IsRemoteHttpUrl(screenshot) && !Screenshots.Contains(screenshot)))
         {
             Screenshots.Add(screenshot);
         }
@@ -3860,18 +4030,7 @@ public partial class ContentDetailViewModel(
 
     private bool IsCatalogContent =>
         searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId ||
-        (searchResult.ResolverMetadata != null &&
-         searchResult.ResolverMetadata.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey));
-
-    private static bool IsVideoUrl(string url)
-    {
-        return url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase) ||
-               url.Contains("vimeo.com", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".webm", StringComparison.OrdinalIgnoreCase) ||
-               url.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase);
-    }
+        searchResult.ResolverMetadata?.ContainsKey(CatalogConstants.CatalogItemJsonMetadataKey) == true;
 
     private void PopulateCatalogAddons(CatalogContentItem catalogItem)
     {
@@ -3885,102 +4044,166 @@ public partial class ContentDetailViewModel(
 
         Addons.Clear();
 
-        if (hasAddonReleases)
+        if (hasAddonReleases && catalogItem.AddonReleases != null)
         {
-            foreach (var addonRel in catalogItem.AddonReleases)
-            {
-                var primary = addonRel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? addonRel.Artifacts.FirstOrDefault();
-                var name = !string.IsNullOrWhiteSpace(addonRel.Title) ? addonRel.Title : (primary?.Filename ?? $"Addon v{addonRel.Version}");
-                var url = primary?.DownloadUrl ?? string.Empty;
-                var size = addonRel.Artifacts.Sum(a => a.Size);
-                var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
-                var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
-
-                var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
-                    ?? catalogItem.Metadata?.BannerUrl
-                    ?? catalogItem.Metadata?.IconUrl
-                    ?? searchResult.IconUrl
-                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonRel.Version}-addon-thumb", 256, 256);
-
-                var file = new DownloadableFile(
-                    Name: name,
-                    DownloadUrl: url,
-                    SizeBytes: size > 0 ? size : null,
-                    UploadDate: addonRel.ReleaseDate,
-                    Version: addonRel.Version,
-                    Category: category,
-                    Uploader: searchResult.AuthorName,
-                    Filename: primary?.Filename ?? $"{name}.zip",
-                    ThumbnailUrl: addonThumb,
-                    Description: description,
-                    FileSectionType: FileSectionType.Addons);
-
-                var addonItem = CreateAddonItemViewModel(file);
-                Addons.Add(addonItem);
-            }
+            AddCatalogAddonReleases(catalogItem);
         }
 
-        if (hasLegacyAddons)
+        if (hasLegacyAddons && catalogItem.Addons != null)
         {
-            foreach (var addonDep in catalogItem.Addons)
-            {
-                var legacyAddonThumb = catalogItem.Metadata?.BannerUrl
-                    ?? catalogItem.Metadata?.IconUrl
-                    ?? searchResult.IconUrl
-                    ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonDep.ContentId}-thumb", 256, 256);
-
-                var file = new DownloadableFile(
-                    Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : DefaultAddonName,
-                    DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
-                    SizeBytes: null,
-                    UploadDate: null,
-                    Version: addonDep.VersionConstraint,
-                    Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
-                    Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
-                    Filename: addonDep.ContentId,
-                    ThumbnailUrl: legacyAddonThumb,
-                    Description: $"Addon dependency for {catalogItem.Name}",
-                    FileSectionType: FileSectionType.Addons);
-
-                var addonItem = CreateAddonItemViewModel(file);
-                Addons.Add(addonItem);
-            }
+            AddCatalogLegacyAddons(catalogItem);
         }
 
         OnPropertyChanged(nameof(HasAddons));
         OnPropertyChanged(nameof(AddonsCount));
     }
 
+    private void AddCatalogAddonReleases(CatalogContentItem catalogItem)
+    {
+        if (catalogItem.AddonReleases == null)
+        {
+            return;
+        }
+
+        foreach (var addonRel in catalogItem.AddonReleases)
+        {
+            var primary = addonRel.Artifacts.FirstOrDefault(a => a.IsPrimary) ?? addonRel.Artifacts.FirstOrDefault();
+            var name = !string.IsNullOrWhiteSpace(addonRel.Title) ? addonRel.Title : (primary?.Filename ?? $"Addon v{addonRel.Version}");
+            var url = primary?.DownloadUrl ?? string.Empty;
+            var size = addonRel.Artifacts.Sum(a => a.Size);
+            var category = !string.IsNullOrWhiteSpace(addonRel.Category) ? addonRel.Category : DefaultAddonName;
+            var description = !string.IsNullOrWhiteSpace(addonRel.Changelog) ? addonRel.Changelog : $"Addon for {catalogItem.Name}";
+
+            var addonThumb = addonRel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
+                ?? catalogItem.Metadata?.BannerUrl
+                ?? catalogItem.Metadata?.IconUrl
+                ?? searchResult.IconUrl
+                ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonRel.Version}-addon-thumb", 256, 256);
+
+            var file = new DownloadableFile(
+                Name: name,
+                DownloadUrl: url,
+                SizeBytes: size > 0 ? size : null,
+                UploadDate: addonRel.ReleaseDate,
+                Version: addonRel.Version,
+                Category: category,
+                Uploader: searchResult.AuthorName,
+                Filename: primary?.Filename ?? $"{name}.zip",
+                ThumbnailUrl: addonThumb,
+                Description: description,
+                FileSectionType: FileSectionType.Addons);
+
+            var addonItem = CreateAddonItemViewModel(file);
+            Addons.Add(addonItem);
+        }
+    }
+
+    private void AddCatalogLegacyAddons(CatalogContentItem catalogItem)
+    {
+        if (catalogItem.Addons == null)
+        {
+            return;
+        }
+
+        foreach (var addonDep in catalogItem.Addons)
+        {
+            var legacyAddonThumb = catalogItem.Metadata?.BannerUrl
+                ?? catalogItem.Metadata?.IconUrl
+                ?? searchResult.IconUrl
+                ?? ImageCacheConstants.GetPicsumUrl($"{catalogItem.Id}-{addonDep.ContentId}-thumb", 256, 256);
+
+            var file = new DownloadableFile(
+                Name: !string.IsNullOrWhiteSpace(addonDep.ContentId) ? addonDep.ContentId : DefaultAddonName,
+                DownloadUrl: addonDep.DefinitionUrl ?? addonDep.CatalogUrl ?? string.Empty,
+                SizeBytes: null,
+                UploadDate: null,
+                Version: addonDep.VersionConstraint,
+                Category: Enum.TryParse<ContentType>(addonDep.ContentType, true, out var parsedType) ? parsedType.GetDisplayName() : addonDep.ContentType,
+                Uploader: addonDep.PublisherId ?? searchResult.AuthorName,
+                Filename: addonDep.ContentId,
+                ThumbnailUrl: legacyAddonThumb,
+                Description: $"Addon dependency for {catalogItem.Name}",
+                FileSectionType: FileSectionType.Addons);
+
+            var addonItem = CreateAddonItemViewModel(file);
+            Addons.Add(addonItem);
+        }
+    }
+
     private void PopulateCatalogMedia(CatalogContentItem catalogItem)
+    {
+        Videos = BuildCatalogVideos(catalogItem).ToObservableCollection();
+        Images = BuildCatalogImages(catalogItem).ToObservableCollection();
+    }
+
+    private List<Video> BuildCatalogVideos(CatalogContentItem catalogItem)
     {
         var videoList = new List<Video>();
         var seenVideos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddVideo(string? url, string title)
+        var screenshots = (catalogItem.Metadata?.ScreenshotUrls ?? [])
+            .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+            .ToList();
+        var fallbackArtwork = catalogItem.Metadata?.BackdropUrl
+            ?? catalogItem.Metadata?.BannerUrl
+            ?? searchResult.IconUrl
+            ?? catalogItem.Metadata?.IconUrl;
+
+        void AddVideo(string? url, string title, int fallbackIndex = 0, IReadOnlyList<string>? specificScreenshots = null)
         {
             if (string.IsNullOrWhiteSpace(url) || !seenVideos.Add(url))
             {
                 return;
             }
 
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
+            {
+                return;
+            }
+
+            // Official video thumbnail (e.g. YouTube poster) takes priority. For hosted/direct
+            // videos, fall back to screenshots or publisher artwork so cards render rich thumbnails.
+            var thumb = MediaFileHelper.TryGetYouTubeThumbnailUrl(url);
+            if (string.IsNullOrEmpty(thumb))
+            {
+                var pool = specificScreenshots is { Count: > 0 }
+                    ? specificScreenshots
+                    : screenshots;
+
+                if (fallbackIndex >= 0 && fallbackIndex < pool.Count)
+                {
+                    thumb = pool[fallbackIndex];
+                }
+                else if (pool.Count > 0)
+                {
+                    thumb = pool[0];
+                }
+                else
+                {
+                    thumb = fallbackArtwork;
+                }
+            }
+
             videoList.Add(new Video(
                 Title: title,
-                ThumbnailUrl: catalogItem.Metadata?.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                ThumbnailUrl: thumb,
                 EmbedUrl: url,
                 Platform: "Web"));
         }
 
         if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
         {
-            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview");
+            AddVideo(catalogItem.Metadata.VideoUrl, $"{catalogItem.Name} Preview", fallbackIndex: 0);
         }
 
         if (catalogItem.Metadata?.VideoUrls != null)
         {
             var idx = 1;
+            var videoIdx = 0;
             foreach (var vid in catalogItem.Metadata.VideoUrls)
             {
-                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}");
+                AddVideo(vid, $"{catalogItem.Name} Showcase {idx++}", fallbackIndex: videoIdx++);
             }
         }
 
@@ -3988,11 +4211,20 @@ public partial class ContentDetailViewModel(
         {
             foreach (var rel in catalogItem.Releases)
             {
-                if (rel.VideoUrls == null) continue;
+                if (rel.VideoUrls == null)
+                {
+                    continue;
+                }
+
+                var releaseScreenshots = (rel.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var rIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in rel.VideoUrls)
                 {
-                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}");
+                    AddVideo(vid, $"{catalogItem.Name} v{rel.Version} Video {rIdx++}", fallbackIndex: videoIdx++, specificScreenshots: releaseScreenshots);
                 }
             }
         }
@@ -4001,23 +4233,45 @@ public partial class ContentDetailViewModel(
         {
             foreach (var addon in catalogItem.AddonReleases)
             {
-                if (addon.VideoUrls == null) continue;
+                if (addon.VideoUrls == null)
+                {
+                    continue;
+                }
+
+                var addonScreenshots = (addon.ImageUrls ?? [])
+                    .Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u))
+                    .ToList();
+
                 var aIdx = 1;
+                var videoIdx = 0;
                 foreach (var vid in addon.VideoUrls)
                 {
-                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}");
+                    AddVideo(vid, $"{addon.Title ?? DefaultAddonName} Video {aIdx++}", fallbackIndex: videoIdx++, specificScreenshots: addonScreenshots);
                 }
             }
         }
 
-        Videos = videoList.ToObservableCollection();
+        return videoList;
+    }
 
+    private List<Image> BuildCatalogImages(CatalogContentItem catalogItem)
+    {
         var imageList = new List<Image>();
         var seenImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void AddImage(string? url, string title)
         {
-            if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url)) return;
+            if (string.IsNullOrWhiteSpace(url) || !seenImages.Add(url))
+            {
+                return;
+            }
+
+            // Publisher-local file references never resolve on subscriber machines, so only remote URLs are shown.
+            if (!MediaFileHelper.IsRemoteHttpUrl(url))
+            {
+                return;
+            }
+
             imageList.Add(new Image(
                 Title: title,
                 ThumbnailUrl: url,
@@ -4037,7 +4291,11 @@ public partial class ContentDetailViewModel(
         {
             foreach (var rel in catalogItem.Releases)
             {
-                if (rel.ImageUrls == null) continue;
+                if (rel.ImageUrls == null)
+                {
+                    continue;
+                }
+
                 var rShotIndex = 1;
                 foreach (var shot in rel.ImageUrls)
                 {
@@ -4050,7 +4308,11 @@ public partial class ContentDetailViewModel(
         {
             foreach (var addon in catalogItem.AddonReleases)
             {
-                if (addon.ImageUrls == null) continue;
+                if (addon.ImageUrls == null)
+                {
+                    continue;
+                }
+
                 var aShotIndex = 1;
                 foreach (var shot in addon.ImageUrls)
                 {
@@ -4059,7 +4321,7 @@ public partial class ContentDetailViewModel(
             }
         }
 
-        Images = imageList.ToObservableCollection();
+        return imageList;
     }
 
     private async Task LoadGitHubReadmeAsync()
@@ -4104,6 +4366,173 @@ public partial class ContentDetailViewModel(
         }
     }
 
+    private void StartGeneralsOnlineNotesTask(string expectedVersion)
+    {
+        lock (_generalsOnlineSync)
+        {
+            var newTask = LoadGeneralsOnlinePatchNotesAsync(expectedVersion);
+            _generalsOnlineNotesTask = _generalsOnlineNotesTask == null || _generalsOnlineNotesTask.IsCompleted
+                ? newTask
+                : Task.WhenAll(_generalsOnlineNotesTask, newTask);
+        }
+    }
+
+    private async Task LoadGeneralsOnlinePatchNotesAsync(string expectedVersion)
+    {
+        if (patchNotesService == null || _disposed || string.IsNullOrWhiteSpace(expectedVersion))
+        {
+            return;
+        }
+
+        CancellationToken token = default;
+        CancellationTokenSource? ctsToDispose = null;
+        lock (_generalsOnlineSync)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            ctsToDispose = _generalsOnlineCts;
+            try
+            {
+                _generalsOnlineCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                token = _generalsOnlineCts.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+        }
+
+        if (ctsToDispose != null)
+        {
+            try
+            {
+                await ctsToDispose.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed by a concurrent caller.
+            }
+            finally
+            {
+                ctsToDispose.Dispose();
+            }
+        }
+
+        try
+        {
+            var notes = await patchNotesService.GetPatchNotesFormattedAsync(expectedVersion, token).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(notes) || _disposed || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (_disposed || token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                var currentVersion = searchResult.Version;
+                if (!GeneralsOnlinePatchNotesHelper.VersionsMatch(currentVersion, expectedVersion))
+                {
+                    return;
+                }
+
+                searchResult.Description = notes;
+                if (ParsedPage != null)
+                {
+                    var updatedContext = ParsedPage.Context with { Description = notes };
+                    ParsedPage = ParsedPage with { Context = updatedContext };
+                    if (searchResult.ParsedPageData != null)
+                    {
+                        searchResult.ParsedPageData = ParsedPage;
+                    }
+                }
+
+                var release = searchResult.GetData<GeneralsOnlineRelease>();
+                if (release != null)
+                {
+                    searchResult.SetData(release.WithChangelog(notes));
+                }
+
+                OnPropertyChanged(nameof(Description));
+                OnPropertyChanged(nameof(FormattedDescription));
+                onDescriptionEnriched?.Invoke(expectedVersion, notes);
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Disposed or variant swapped during fetch
+        }
+        catch (ObjectDisposedException)
+        {
+            // Disposed during fetch
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to load Generals Online patch notes on demand for {Version}", expectedVersion);
+        }
+    }
+
+    private void AttachGeneralsOnlinePatchNotesFetcher(ReleaseItemViewModel releaseItem, ContentSearchResult contentResult, ContentSearchResult? sibling = null)
+    {
+        if (patchNotesService != null &&
+            GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(contentResult) &&
+            GeneralsOnlinePatchNotesHelper.NeedsPatchNotes(releaseItem.FullDescription, releaseItem.Version))
+        {
+            releaseItem.IsDetailsLoaded = false;
+            var capturedSibling = sibling;
+            if (capturedSibling == null && variantSearchResults != null)
+            {
+                if (!string.IsNullOrWhiteSpace(releaseItem.DownloadedManifestId) &&
+                    variantSearchResults.TryGetValue(releaseItem.DownloadedManifestId, out var matchByManifest))
+                {
+                    capturedSibling = matchByManifest;
+                }
+                else if (!string.IsNullOrWhiteSpace(releaseItem.Version) &&
+                    variantSearchResults.TryGetValue(releaseItem.Version, out var matchByVersion))
+                {
+                    capturedSibling = matchByVersion;
+                }
+            }
+
+            releaseItem.FetchDetailsAsync = async (row, ct) =>
+            {
+                if (!string.IsNullOrWhiteSpace(row.Version))
+                {
+                    var notes = await patchNotesService.GetPatchNotesFormattedAsync(row.Version, ct).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(notes))
+                    {
+                        await RunOnUiThreadAsync(() =>
+                        {
+                            row.FullDescription = notes;
+                            row.IsDetailsLoaded = true;
+                            if (capturedSibling != null)
+                            {
+                                capturedSibling.Description = notes;
+                                var release = capturedSibling.GetData<GeneralsOnlineRelease>();
+                                if (release != null)
+                                {
+                                    capturedSibling.SetData(release.WithChangelog(notes));
+                                }
+                            }
+
+                            onDescriptionEnriched?.Invoke(row.Version, notes);
+                        }).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    await RunOnUiThreadAsync(() => row.IsDetailsLoaded = true).ConfigureAwait(false);
+                }
+            };
+        }
+    }
+
     private void EnqueueGitHubNotesRequest(ReleaseItemViewModel row, ContentSearchResult source, string? placeholderDescription = null)
     {
         if (gitHubApiClient == null)
@@ -4123,7 +4552,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        bool startHydration;
+        bool startHydration = false;
         lock (_gitHubNotesLock)
         {
             _pendingGitHubNotes.Add((row, owner, repo, tag, isPlaceholder ? placeholderDescription : null));
@@ -4146,7 +4575,7 @@ public partial class ContentDetailViewModel(
         {
             while (true)
             {
-                List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> pending;
+                List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> pending = [];
                 lock (_gitHubNotesLock)
                 {
                     if (_disposed || gitHubApiClient == null || _pendingGitHubNotes.Count == 0)
@@ -4168,7 +4597,7 @@ public partial class ContentDetailViewModel(
                 foreach (var group in pending.GroupBy(item => $"{item.Owner}/{item.Repo}@{item.Tag}"))
                 {
                     _cts.Token.ThrowIfCancellationRequested();
-                    string? body;
+                    string? body = null;
                     try
                     {
                         var first = group.First();
@@ -4349,7 +4778,7 @@ public partial class ContentDetailViewModel(
         var category = searchResult.ContentType.GetDisplayName();
         var uploader = searchResult.AuthorName;
 
-        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u))
+        var releaseThumb = rel.ImageUrls?.FirstOrDefault(u => MediaFileHelper.IsRemoteHttpUrl(u))
             ?? catalogItem.Metadata?.BannerUrl
             ?? catalogItem.Metadata?.IconUrl
             ?? searchResult.IconUrl
@@ -4369,7 +4798,7 @@ public partial class ContentDetailViewModel(
             Description: description,
             FileSectionType: FileSectionType.Downloads);
 
-        string releaseName;
+        string releaseName = string.Empty;
         if (!string.IsNullOrWhiteSpace(rel.Title))
         {
             releaseName = rel.Title;
@@ -4407,7 +4836,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.ImageUrls != null)
         {
-            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var img in rel.ImageUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewImages.Add(img);
             }
@@ -4415,7 +4844,7 @@ public partial class ContentDetailViewModel(
 
         if (rel.VideoUrls != null)
         {
-            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            foreach (var vid in rel.VideoUrls.Where(u => !string.IsNullOrWhiteSpace(u) && MediaFileHelper.IsRemoteHttpUrl(u)))
             {
                 releaseItem.PreviewVideos.Add(vid);
             }
@@ -4685,69 +5114,12 @@ public partial class ContentDetailViewModel(
 
         if (item is ReleaseItemViewModel relItem && relItem.Release != null)
         {
-            var rel = relItem.Release;
-            if (!rel.BundleArtifacts && rel.Artifacts.Count > 1)
-            {
-                Variants.Clear();
-                foreach (var art in rel.Artifacts)
-                {
-                    string varName;
-                    if (!string.IsNullOrWhiteSpace(art.Variant))
-                    {
-                        varName = art.Variant;
-                    }
-                    else if (!string.IsNullOrWhiteSpace(art.Filename))
-                    {
-                        varName = art.Filename;
-                    }
-                    else
-                    {
-                        varName = "Variant";
-                    }
-
-                    var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
-                    Variants.Add(new InstallableVariant
-                    {
-                        Id = !string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : art.DownloadUrl,
-                        Name = varName,
-                        ManifestId = art.Sha256,
-                        DownloadUrl = art.DownloadUrl,
-                        File = art.Filename,
-                        Size = art.Size,
-                        Sha256 = art.Sha256,
-                        VariantType = axis,
-                        IsDefault = art.IsDefaultVariant,
-                    });
-                }
-
-                var defaultVar = Variants.FirstOrDefault(v => v.IsDefault) ?? Variants[0];
-                SelectedVariant = defaultVar;
-                OnPropertyChanged(nameof(HasVariants));
-                RebuildVariantAxes();
-            }
-            else if (IsCatalogContent)
-            {
-                Variants.Clear();
-                SelectedVariant = null;
-                OnPropertyChanged(nameof(HasVariants));
-                RebuildVariantAxes();
-            }
+            PopulateVariantsFromReleaseArtifacts(relItem);
         }
 
         if (Variants.Count > 0)
         {
-            var matchingVariant = (!string.IsNullOrEmpty(item.DownloadedManifestId)
-                ? Variants.FirstOrDefault(v => string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase))
-                : null)
-                ?? Variants.FirstOrDefault(v => string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase))
-                ?? Variants.FirstOrDefault(v =>
-                    !string.IsNullOrWhiteSpace(v.Name) && !string.IsNullOrWhiteSpace(item.Name) &&
-                    (v.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
-                     item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase)))
-                ?? (item.File != null && !string.IsNullOrEmpty(item.File.Version)
-                    ? Variants.FirstOrDefault(v => v.Name.Contains(item.File.Version, StringComparison.OrdinalIgnoreCase))
-                    : null);
-
+            var matchingVariant = FindMatchingVariantForDownloadableItem(item);
             if (matchingVariant != null && !ReferenceEquals(SelectedVariant, matchingVariant))
             {
                 SelectedVariant = matchingVariant;
@@ -4765,6 +5137,77 @@ public partial class ContentDetailViewModel(
         }
 
         RefreshSelectedTargetProperties();
+    }
+
+    private void PopulateVariantsFromReleaseArtifacts(ReleaseItemViewModel relItem)
+    {
+        var rel = relItem.Release;
+        if (rel == null)
+        {
+            return;
+        }
+
+        if (!rel.BundleArtifacts && rel.Artifacts.Count > 1)
+        {
+            Variants.Clear();
+            foreach (var art in rel.Artifacts)
+            {
+                string varName = string.Empty;
+                if (!string.IsNullOrWhiteSpace(art.Variant))
+                {
+                    varName = art.Variant;
+                }
+                else if (!string.IsNullOrWhiteSpace(art.Filename))
+                {
+                    varName = art.Filename;
+                }
+                else
+                {
+                    varName = "Variant";
+                }
+
+                var axis = !string.IsNullOrWhiteSpace(art.VariantAxis) ? art.VariantAxis : "Variant";
+                Variants.Add(new InstallableVariant
+                {
+                    Id = !string.IsNullOrWhiteSpace(art.Filename) ? art.Filename : art.DownloadUrl,
+                    Name = varName,
+                    ManifestId = art.Sha256,
+                    DownloadUrl = art.DownloadUrl,
+                    File = art.Filename,
+                    Size = art.Size,
+                    Sha256 = art.Sha256,
+                    VariantType = axis,
+                    IsDefault = art.IsDefaultVariant,
+                });
+            }
+
+            var defaultVar = Variants.FirstOrDefault(v => v.IsDefault) ?? Variants[0];
+            SelectedVariant = defaultVar;
+            OnPropertyChanged(nameof(HasVariants));
+            RebuildVariantAxes();
+        }
+        else if (IsCatalogContent)
+        {
+            Variants.Clear();
+            SelectedVariant = null;
+            OnPropertyChanged(nameof(HasVariants));
+            RebuildVariantAxes();
+        }
+    }
+
+    private InstallableVariant? FindMatchingVariantForDownloadableItem(DownloadableItemViewModel item)
+    {
+        return (!string.IsNullOrEmpty(item.DownloadedManifestId)
+            ? Variants.FirstOrDefault(v => string.Equals(v.ManifestId, item.DownloadedManifestId, StringComparison.OrdinalIgnoreCase))
+            : null)
+            ?? Variants.FirstOrDefault(v => string.Equals(v.Name, item.Name, StringComparison.OrdinalIgnoreCase))
+            ?? Variants.FirstOrDefault(v =>
+                !string.IsNullOrWhiteSpace(v.Name) && !string.IsNullOrWhiteSpace(item.Name) &&
+                (v.Name.Contains(item.Name, StringComparison.OrdinalIgnoreCase) ||
+                 item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase)))
+            ?? (item.File != null && !string.IsNullOrEmpty(item.File.Version)
+                ? Variants.FirstOrDefault(v => v.Name.Contains(item.File.Version, StringComparison.OrdinalIgnoreCase))
+                : null);
     }
 
     /// <summary>
@@ -4815,6 +5258,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
+        OnPropertyChanged(nameof(ShowDeleteButton));
         OnPropertyChanged(nameof(CanChangeContentType));
         OnPropertyChanged(nameof(SelectedContentType));
         OnPropertyChanged(nameof(ContentType));
@@ -4900,145 +5344,155 @@ public partial class ContentDetailViewModel(
 
         if (updateAction != null)
         {
-            bool success;
-            try
-            {
-                var task = updateAction(cancellationToken);
-                if (task is Task<bool> boolTask)
-                {
-                    success = await boolTask;
-                }
-                else
-                {
-                    await task;
-                    success = task.IsCompletedSuccessfully;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to execute update action for {Name}", Name);
-                if (!_disposed)
-                {
-                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
-                }
-
-                return;
-            }
-
-            if (_disposed || !success)
-            {
-                if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
-                {
-                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
-                }
-
-                return;
-            }
-
-            _initialIsUpdateAvailable = false;
-            _updateTargetSearchResult = null;
-            IsUpdateAvailable = false;
-            IsDownloaded = true;
-            if (SelectedDownloadableItem != null)
-            {
-                SelectedDownloadableItem.IsUpdateAvailable = false;
-            }
-
-            RefreshSelectedTargetProperties();
-            await LoadInitialStateAsync();
+            await ExecuteCustomUpdateActionAsync(cancellationToken);
             return;
         }
 
         if (_updateTargetSearchResult != null)
         {
-            if (dialogService != null)
-            {
-                var promptTitle = FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", Name);
-                var promptMessage = !string.IsNullOrWhiteSpace(_updateTargetSearchResult.Version)
-                    ? FormatLocalizedString(
-                        "Downloads.UpdateDialog.MessageWithVersion",
-                        "{0} has an update available ({1}).\n\nHow do you want to apply this update?",
-                        Name,
-                        _updateTargetSearchResult.Version)
-                    : FormatLocalizedString(
-                        "Downloads.UpdateDialog.Message",
-                        "{0} has an update available.\n\nHow do you want to apply this update?",
-                        Name);
-
-                var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    promptTitle,
-                    promptMessage,
-                    initialDeleteOldVersions: true);
-
-                if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-            }
-
-            var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult, cancellationToken);
-            if (_disposed || !success)
-            {
-                if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
-                {
-                    DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
-                }
-
-                return;
-            }
-
-            _initialIsUpdateAvailable = false;
-            _updateTargetSearchResult = null;
-            IsUpdateAvailable = false;
-            IsDownloaded = true;
-            if (SelectedDownloadableItem != null)
-            {
-                SelectedDownloadableItem.IsUpdateAvailable = false;
-            }
-
-            RefreshSelectedTargetProperties();
-            await LoadInitialStateAsync();
+            await ExecuteUpdateTargetSearchResultAsync(cancellationToken);
             return;
         }
 
         if (SelectedDownloadableItem is ReleaseItemViewModel rel && rel.IsUpdateAvailable)
         {
-            var newerRelease = FindCandidateUpdate(rel, includeDownloaded: false)
-                ?? FindCandidateUpdate(rel, includeDownloaded: true);
-
-            if (newerRelease != null)
-            {
-                if (newerRelease.IsDownloaded)
-                {
-                    SelectDownloadableItem(newerRelease, isUserInitiated: true);
-                    rel.IsUpdateAvailable = false;
-                    IsUpdateAvailable = false;
-                    RefreshSelectedTargetProperties();
-                    DownloadStatusMessage = $"Updated to {newerRelease.Name}";
-                    return;
-                }
-
-                if (newerRelease.File != null)
-                {
-                    var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
-                    if (_disposed || !success)
-                    {
-                        return;
-                    }
-
-                    rel.IsUpdateAvailable = false;
-                    IsUpdateAvailable = false;
-                    RefreshSelectedTargetProperties();
-                    return;
-                }
-            }
+            await UpdateSelectedReleaseAsync(rel, cancellationToken);
+            return;
         }
 
         await DownloadAsync(cancellationToken);
+    }
+
+    private async Task FinalizeSuccessfulUpdateAsync()
+    {
+        _initialIsUpdateAvailable = false;
+        _updateTargetSearchResult = null;
+        IsUpdateAvailable = false;
+        IsDownloaded = true;
+        if (SelectedDownloadableItem != null)
+        {
+            SelectedDownloadableItem.IsUpdateAvailable = false;
+        }
+
+        RefreshSelectedTargetProperties();
+        await LoadInitialStateAsync();
+    }
+
+    private async Task ExecuteCustomUpdateActionAsync(CancellationToken cancellationToken)
+    {
+        bool success = false;
+        try
+        {
+            var task = updateAction!(cancellationToken);
+            if (task is Task<bool> boolTask)
+            {
+                success = await boolTask;
+            }
+            else
+            {
+                await task;
+                success = task.IsCompletedSuccessfully;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to execute update action for {Name}", Name);
+            if (!_disposed)
+            {
+                DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+            }
+
+            return;
+        }
+
+        if (_disposed || !success)
+        {
+            if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
+            {
+                DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+            }
+
+            return;
+        }
+
+        await FinalizeSuccessfulUpdateAsync();
+    }
+
+    private async Task ExecuteUpdateTargetSearchResultAsync(CancellationToken cancellationToken)
+    {
+        if (dialogService != null)
+        {
+            var promptTitle = FormatLocalizedString("Downloads.UpdateDialog.Title", "{0} Update Available", Name);
+            var promptMessage = !string.IsNullOrWhiteSpace(_updateTargetSearchResult!.Version)
+                ? FormatLocalizedString(
+                    "Downloads.UpdateDialog.MessageWithVersion",
+                    "{0} has an update available ({1}).\n\nHow do you want to apply this update?",
+                    Name,
+                    _updateTargetSearchResult.Version)
+                : FormatLocalizedString(
+                    "Downloads.UpdateDialog.Message",
+                    "{0} has an update available.\n\nHow do you want to apply this update?",
+                    Name);
+
+            var promptResult = await dialogService.ShowUpdateOptionDialogAsync(
+                promptTitle,
+                promptMessage,
+                initialDeleteOldVersions: true);
+
+            if (promptResult == null || string.Equals(promptResult.Action, "Skip", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        var success = await ExecuteDownloadFlowAsync(_updateTargetSearchResult!, cancellationToken);
+        if (_disposed || !success)
+        {
+            if (!success && !_disposed && string.IsNullOrWhiteSpace(DownloadStatusMessage))
+            {
+                DownloadStatusMessage = ContentConstants.UpdateCancelledOrFailedStatusMessage;
+            }
+
+            return;
+        }
+
+        await FinalizeSuccessfulUpdateAsync();
+    }
+
+    private async Task UpdateSelectedReleaseAsync(ReleaseItemViewModel rel, CancellationToken cancellationToken)
+    {
+        var newerRelease = FindCandidateUpdate(rel, includeDownloaded: false)
+            ?? FindCandidateUpdate(rel, includeDownloaded: true);
+
+        if (newerRelease != null)
+        {
+            if (newerRelease.IsDownloaded)
+            {
+                SelectDownloadableItem(newerRelease, isUserInitiated: true);
+                rel.IsUpdateAvailable = false;
+                IsUpdateAvailable = false;
+                RefreshSelectedTargetProperties();
+                DownloadStatusMessage = $"Updated to {newerRelease.Name}";
+                return;
+            }
+
+            if (newerRelease.File != null)
+            {
+                var success = await DownloadReleaseAsync(newerRelease, newerRelease.File, cancellationToken);
+                if (_disposed || !success)
+                {
+                    return;
+                }
+
+                rel.IsUpdateAvailable = false;
+                IsUpdateAvailable = false;
+                RefreshSelectedTargetProperties();
+            }
+        }
     }
 
     /// <summary>
@@ -5089,15 +5543,93 @@ public partial class ContentDetailViewModel(
     private async Task DownloadBundleComponentsAsync(CancellationToken cancellationToken)
     {
         var targets = BundleComponentViewModel.GetRequiredDownloadTargets(BundleComponents).ToList();
-
-        // Prompt user if any bundled components have an update available
         var updateCandidates = BundleComponents
             .Where(c => !c.IsBaseGame && c.EffectiveState == ContentState.UpdateAvailable)
             .ToList();
 
         var componentUpdates = new Dictionary<string, (UpdateDialogResult PromptResult, string? OldManifestId)>(StringComparer.OrdinalIgnoreCase);
+        await PromptBundleComponentUpdatesAsync(targets, updateCandidates, componentUpdates, cancellationToken);
 
-        if (updateCandidates.Count > 0 && dialogService != null)
+        if (targets.Count == 0)
+        {
+            if (!_disposed)
+            {
+                DownloadStatusMessage = ContentConstants.AllSelectedContentLoadedStatusMessage;
+            }
+
+            await RefreshBundleComponentStatesAsync();
+            return;
+        }
+
+        IsDownloading = true;
+        DownloadProgress = 0;
+        var failed = false;
+
+        using var scope = new DownloadNotificationScope(notificationService, Name, localization: localizationService);
+        try
+        {
+            var success = await ExecuteBundleComponentDownloadsAsync(targets, componentUpdates, scope, cancellationToken);
+            if (!success)
+            {
+                failed = true;
+                return;
+            }
+
+            if (_disposed)
+            {
+                return;
+            }
+
+            await RefreshBundleComponentStatesAsync();
+            DownloadProgress = 100;
+            DownloadStatusMessage = ContentConstants.DownloadCompleteStatusMessage;
+            IsDownloaded = AreBundleComponentsReadyForProfile;
+            if (HasBundleComponents)
+            {
+                foreach (var rel in Releases)
+                {
+                    rel.IsDownloaded = AreBundleComponentsReadyForProfile;
+                }
+            }
+
+            OnPropertyChanged(nameof(ShowDownloadButton));
+            OnPropertyChanged(nameof(ShowAddToProfileButton));
+            scope.CompleteSuccess();
+        }
+        catch (OperationCanceledException)
+        {
+            scope.CompleteCanceled();
+            throw;
+        }
+        finally
+        {
+            if (!_disposed)
+            {
+                RunOnUiThread(() =>
+                {
+                    IsDownloading = false;
+                    DownloadProgress = 0;
+                    if (!failed)
+                    {
+                        DownloadStatusMessage = null;
+                    }
+                });
+            }
+        }
+    }
+
+    private async Task PromptBundleComponentUpdatesAsync(
+        List<ContentSearchResult> targets,
+        List<BundleComponentViewModel> updateCandidates,
+        Dictionary<string, (UpdateDialogResult PromptResult, string? OldManifestId)> componentUpdates,
+        CancellationToken cancellationToken)
+    {
+        if (updateCandidates.Count == 0)
+        {
+            return;
+        }
+
+        if (dialogService != null)
         {
             foreach (var updateComp in updateCandidates)
             {
@@ -5145,143 +5677,90 @@ public partial class ContentDetailViewModel(
                     componentUpdates[candidateResult.Id] = (promptResult, oldManifestId);
                 }
 
-                if (!targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                if (targets.All(t => !string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
                 {
                     targets.Add(candidateResult);
                 }
             }
         }
-        else if (dialogService == null)
+        else
         {
             foreach (var updateComp in updateCandidates)
             {
                 var candidateResult = updateComp.GetSelectedSearchResult();
                 if (candidateResult != null &&
-                    !targets.Any(t => string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
+                    targets.All(t => !string.Equals(t.Id, candidateResult.Id, StringComparison.OrdinalIgnoreCase)))
                 {
                     targets.Add(candidateResult);
                 }
             }
         }
+    }
 
-        if (targets.Count == 0)
+    private async Task<bool> ExecuteBundleComponentDownloadsAsync(
+        List<ContentSearchResult> targets,
+        Dictionary<string, (UpdateDialogResult PromptResult, string? OldManifestId)> componentUpdates,
+        DownloadNotificationScope scope,
+        CancellationToken cancellationToken)
+    {
+        var completed = 0;
+        foreach (var target in targets)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!_disposed)
             {
-                DownloadStatusMessage = ContentConstants.AllSelectedContentLoadedStatusMessage;
+                DownloadStatusMessage = $"{ContentConstants.DownloadingStatusPrefix}{target.Name} ({completed + 1}/{targets.Count})...";
             }
 
-            await RefreshBundleComponentStatesAsync();
-            return;
-        }
-
-        IsDownloading = true;
-        DownloadProgress = 0;
-        var completed = 0;
-        var failed = false;
-
-        // One aggregated notification covers every member so a bundle never toasts per member.
-        using var scope = new DownloadNotificationScope(notificationService, Name, localization: localizationService);
-        try
-        {
-            foreach (var target in targets)
+            var progress = new Progress<ContentAcquisitionProgress>(p =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                var slice = 100.0 / targets.Count;
+                var overall = (completed * slice) + (p.ProgressPercentage * slice / 100.0);
+                scope.ReportFraction(overall / 100.0, $"{target.Name}: {p.FormatProgressStatus()}");
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_disposed || !IsDownloading)
+                    {
+                        return;
+                    }
+
+                    DownloadProgress = (int)overall;
+                    DownloadStatusMessage = $"{target.Name}: {p.FormatProgressStatus()}";
+                });
+            });
+
+            var originalContentId = target.Id ?? string.Empty;
+            var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken, suppressNotifications: true);
+            if (!result.Success || result.Data == null)
+            {
+                var errorMsg = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
+                scope.CompleteFailure(errorMsg);
                 if (!_disposed)
                 {
-                    DownloadStatusMessage = $"{ContentConstants.DownloadingStatusPrefix}{target.Name} ({completed + 1}/{targets.Count})...";
+                    DownloadStatusMessage = errorMsg;
                 }
 
-                var progress = new Progress<ContentAcquisitionProgress>(p =>
-                {
-                    var slice = 100.0 / targets.Count;
-                    var overall = (completed * slice) + (p.ProgressPercentage * slice / 100.0);
-                    scope.ReportFraction(overall / 100.0, $"{target.Name}: {p.FormatProgressStatus()}");
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        if (_disposed || !IsDownloading)
-                        {
-                            return;
-                        }
-
-                        DownloadProgress = (int)overall;
-                        DownloadStatusMessage = $"{target.Name}: {p.FormatProgressStatus()}";
-                    });
-                });
-
-                var originalContentId = target.Id ?? string.Empty;
-                var result = await downloadCoordinator.DownloadContentAsync(target, progress, cancellationToken, suppressNotifications: true);
-                if (!result.Success || result.Data == null)
-                {
-                    failed = true;
-                    var errorMsg = result.FirstError ?? ContentConstants.DownloadFailedStatusMessage;
-                    scope.CompleteFailure(errorMsg);
-                    if (!_disposed)
-                    {
-                        DownloadStatusMessage = errorMsg;
-                    }
-
-                    return;
-                }
-
-                var newManifest = result.Data;
-                var newManifestId = newManifest.Id.Value;
-
-                foreach (var component in BundleComponents)
-                {
-                    component.MarkDownloaded(originalContentId, newManifestId);
-                }
-
-                if (componentUpdates.TryGetValue(originalContentId, out var updateInfo) ||
-                    (!string.IsNullOrEmpty(target.Id) && componentUpdates.TryGetValue(target.Id, out updateInfo)))
-                {
-                    await ApplyBundleComponentUpdateStrategyAsync(target, originalContentId, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
-                }
-
-                completed++;
+                return false;
             }
 
-            if (_disposed)
+            var newManifest = result.Data;
+            var newManifestId = newManifest.Id.Value;
+
+            foreach (var component in BundleComponents)
             {
-                return;
+                component.MarkDownloaded(originalContentId, newManifestId);
             }
 
-            await RefreshBundleComponentStatesAsync();
-            DownloadProgress = 100;
-            DownloadStatusMessage = ContentConstants.DownloadCompleteStatusMessage;
-            IsDownloaded = AreBundleComponentsReadyForProfile;
-            if (HasBundleComponents)
+            if (componentUpdates.TryGetValue(originalContentId, out var updateInfo) ||
+                (!string.IsNullOrEmpty(target.Id) && componentUpdates.TryGetValue(target.Id, out updateInfo)))
             {
-                foreach (var rel in Releases)
-                {
-                    rel.IsDownloaded = AreBundleComponentsReadyForProfile;
-                }
+                await ApplyBundleComponentUpdateStrategyAsync(target, originalContentId, updateInfo.OldManifestId, newManifest, updateInfo.PromptResult, cancellationToken);
             }
 
-            OnPropertyChanged(nameof(ShowDownloadButton));
-            OnPropertyChanged(nameof(ShowAddToProfileButton));
-            scope.CompleteSuccess();
+            completed++;
         }
-        catch (OperationCanceledException)
-        {
-            scope.CompleteCanceled();
-            throw;
-        }
-        finally
-        {
-            if (!_disposed)
-            {
-                RunOnUiThread(() =>
-                {
-                    IsDownloading = false;
-                    DownloadProgress = 0;
-                    if (!failed)
-                    {
-                        DownloadStatusMessage = null;
-                    }
-                });
-            }
-        }
+
+        return true;
     }
 
     /// <summary>
@@ -5347,9 +5826,9 @@ public partial class ContentDetailViewModel(
 
         foreach (var profile in profilesResult.Data)
         {
-            bool updated;
-            bool wasModified;
-            string? createdProfileId;
+            bool updated = false;
+            bool wasModified = false;
+            string? createdProfileId = null;
             try
             {
                 (updated, wasModified, createdProfileId) = await ApplyBundleProfileUpdateAsync(profile, target, oldManifestId, newManifest, promptResult, cancellationToken);
@@ -5900,45 +6379,8 @@ public partial class ContentDetailViewModel(
         var matchingVariant = FindMatchingVariantSearchResult(file);
         var baseResult = matchingVariant ?? searchResult;
 
-        ContentType fileContentType;
-        if (overrideContentType.HasValue)
-        {
-            fileContentType = overrideContentType.Value;
-        }
-        else if (SelectedDownloadableItem?.File == file)
-        {
-            fileContentType = SelectedDownloadableItem.ContentType;
-        }
-        else if (matchingVariant != null && matchingVariant.ContentType != ContentType.UnknownContentType)
-        {
-            fileContentType = matchingVariant.ContentType;
-        }
-        else if (!string.IsNullOrWhiteSpace(file.Category))
-        {
-            fileContentType = ModDBCategoryMapper.MapCategoryByName(file.Category);
-        }
-        else
-        {
-            fileContentType = file.FileSectionType == FileSectionType.Downloads ? ContentType.Mod : searchResult.ContentType;
-        }
-
-        var rowVersion = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
-        if (!string.IsNullOrWhiteSpace(file.Version))
-        {
-            rowVersion = file.Version;
-        }
-        else if (!string.IsNullOrWhiteSpace(baseResult.Version))
-        {
-            rowVersion = baseResult.Version;
-        }
-        else if (!string.IsNullOrWhiteSpace(searchResult.Version))
-        {
-            rowVersion = searchResult.Version;
-        }
-
-        // A row download must not reuse the parent catalog ID or a shared variant ID.
-        // The coordinator publishes state for the supplied ID, so rows use their synthesized
-        // file content ID to ensure exact 1:1 live row state updates without cross-row bleed.
+        var fileContentType = DetermineFileContentType(file, matchingVariant, overrideContentType);
+        var rowVersion = DetermineFileVersion(file, baseResult);
         var rowId = CreateFileContentId(file);
 
         var rowSearchResult = new ContentSearchResult
@@ -5951,8 +6393,6 @@ public partial class ContentDetailViewModel(
             TargetGame = baseResult.TargetGame != GameType.Unknown ? baseResult.TargetGame : searchResult.TargetGame,
             LastUpdated = file.ReleaseDate ?? file.UploadDate ?? baseResult.LastUpdated ?? searchResult.LastUpdated,
 
-            // Preserve the page URL for metadata and browser Referer handling. The selected
-            // direct URL tells the resolver which already-discovered release to acquire.
             SourceUrl = !string.IsNullOrWhiteSpace(file.DetailsUrl) ? file.DetailsUrl : (baseResult.SourceUrl ?? searchResult.SourceUrl),
             SelectedDownloadUrl = !string.IsNullOrWhiteSpace(file.DownloadUrl) ? file.DownloadUrl : baseResult.SelectedDownloadUrl,
             ParsedPageData = ParsedPage ?? baseResult.ParsedPageData ?? searchResult.ParsedPageData,
@@ -5965,8 +6405,63 @@ public partial class ContentDetailViewModel(
             VariantGroupId = baseResult.VariantGroupId ?? searchResult.VariantGroupId,
         };
 
-        // Copy resolver metadata from baseResult (e.g. GitHub owner/tag, CommunityOutpost content code)
-        // so the provenance-aware state matcher and resolvers treat the row with the correct specific metadata.
+        PopulateFileResolverMetadata(rowSearchResult, file, baseResult, overrideContentType);
+        StampGitHubAssetPin(rowSearchResult, file, baseResult);
+
+        return rowSearchResult;
+    }
+
+    private ContentType DetermineFileContentType(DownloadableFile file, ContentSearchResult? matchingVariant, ContentType? overrideContentType)
+    {
+        if (overrideContentType.HasValue)
+        {
+            return overrideContentType.Value;
+        }
+
+        if (SelectedDownloadableItem?.File == file)
+        {
+            return SelectedDownloadableItem.ContentType;
+        }
+
+        if (matchingVariant is { ContentType: not ContentType.UnknownContentType })
+        {
+            return matchingVariant.ContentType;
+        }
+
+        if (!string.IsNullOrWhiteSpace(file.Category))
+        {
+            return ModDBCategoryMapper.MapCategoryByName(file.Category);
+        }
+
+        return file.FileSectionType == FileSectionType.Downloads ? ContentType.Mod : searchResult.ContentType;
+    }
+
+    private string DetermineFileVersion(DownloadableFile file, ContentSearchResult baseResult)
+    {
+        if (!string.IsNullOrWhiteSpace(file.Version))
+        {
+            return file.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(baseResult.Version))
+        {
+            return baseResult.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchResult.Version))
+        {
+            return searchResult.Version;
+        }
+
+        return CommunityOutpostCatalogConstants.DefaultMetadataVersion;
+    }
+
+    private void PopulateFileResolverMetadata(
+        ContentSearchResult rowSearchResult,
+        DownloadableFile file,
+        ContentSearchResult baseResult,
+        ContentType? overrideContentType)
+    {
         foreach (var pair in baseResult.ResolverMetadata)
         {
             rowSearchResult.ResolverMetadata[pair.Key] = pair.Value;
@@ -6017,10 +6512,6 @@ public partial class ContentDetailViewModel(
                 rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = System.Text.Json.JsonSerializer.Serialize(matchingRelease);
             }
         }
-
-        StampGitHubAssetPin(rowSearchResult, file, baseResult);
-
-        return rowSearchResult;
     }
 
     /// <summary>
@@ -6040,7 +6531,7 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        if (!release.Assets.Any(asset => string.Equals(asset.Name, file.Filename, StringComparison.OrdinalIgnoreCase)))
+        if (release.Assets.All(asset => !string.Equals(asset.Name, file.Filename, StringComparison.OrdinalIgnoreCase)))
         {
             return;
         }
@@ -6304,89 +6795,72 @@ public partial class ContentDetailViewModel(
 
     /// <summary>
     /// Opens full-screen view for the specified media item or URL.
+    /// Direct videos stream in the in-app player; embed pages open in the system browser.
     /// </summary>
     [RelayCommand]
     private void OpenFullScreenMedia(object? item)
     {
-        if (item is Image img)
+        var decision = ContentDetailMediaDisplay.Resolve(item);
+        switch (decision.Action)
         {
-            FullScreenMediaUrl = img.FullSizeUrl ?? img.ThumbnailUrl;
-            FullScreenMediaTitle = img.Title;
-            IsFullScreenMediaOpen = true;
-        }
-        else if (item is Video vid)
-        {
-            if (!string.IsNullOrWhiteSpace(vid.EmbedUrl))
-            {
-                var targetUrl = vid.EmbedUrl;
-                if (targetUrl.Contains("/embed/", StringComparison.OrdinalIgnoreCase) &&
-                    targetUrl.Contains("youtube", StringComparison.OrdinalIgnoreCase))
+            case MediaDisplayAction.PlayVideo:
+                CloseFullScreenMedia();
+                IsVideoPlayerFullscreen = false;
+                VideoPlayerUrl = decision.Url;
+                VideoPlayerTitle = item is Video video
+                    ? video.Title
+                    : GetLocalizedString("Downloads.ContentDetail.VideoPreview", "Video Preview");
+                IsVideoPlayerOpen = true;
+                break;
+            case MediaDisplayAction.OpenExternally:
+                OpenMediaExternally(decision.Url);
+                break;
+            case MediaDisplayAction.ShowImage:
+                CloseVideoPlayer();
+                FullScreenMediaUrl = decision.Url;
+                FullScreenMediaTitle = item switch
                 {
-                    var embedParts = targetUrl.Split("/embed/", StringSplitOptions.RemoveEmptyEntries);
-                    if (embedParts.Length > 1)
-                    {
-                        var id = embedParts[1].Split('?')[0];
-                        if (!string.IsNullOrWhiteSpace(id))
-                        {
-                            targetUrl = $"{ApiConstants.YouTubeWatchUrlPrefix}{id}";
-                        }
-                    }
-                }
-
-                if (Uri.TryCreate(targetUrl, UriKind.Absolute, out var videoUri) &&
-                    (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    try
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = videoUri.AbsoluteUri,
-                            UseShellExecute = true,
-                        });
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to open video in browser: {Url}", targetUrl);
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("Refusing to open non-http/https video URL in browser: {Url}", targetUrl);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(vid.ThumbnailUrl))
-            {
-                FullScreenMediaUrl = vid.ThumbnailUrl;
-                FullScreenMediaTitle = vid.Title;
+                    Video titledVideo => titledVideo.Title,
+                    Image image => image.Title,
+                    _ => GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview"),
+                };
                 IsFullScreenMediaOpen = true;
-            }
+                break;
+            default:
+                // Unpresentable references are ignored.
+                break;
         }
-        else if (item is string url && !string.IsNullOrWhiteSpace(url))
-        {
-            if (IsVideoUrl(url) && Uri.TryCreate(url, UriKind.Absolute, out var videoUri) &&
-                (videoUri.Scheme == Uri.UriSchemeHttp || videoUri.Scheme == Uri.UriSchemeHttps))
-            {
-                try
-                {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = videoUri.AbsoluteUri,
-                        UseShellExecute = true,
-                    });
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to open video in browser: {Url}", url);
-                }
-            }
+    }
 
-            FullScreenMediaUrl = url;
-            FullScreenMediaTitle = GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview");
-            IsFullScreenMediaOpen = true;
-        }
+    /// <summary>
+    /// Opens a media URL in the system browser, notifying the user when the launch fails.
+    /// </summary>
+    /// <param name="url">The URL to open.</param>
+    [RelayCommand]
+    private void OpenVideoExternally(string? url)
+    {
+        OpenMediaExternally(url);
+    }
+
+    /// <summary>
+    /// Toggles full-screen presentation mode for the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleVideoPlayerFullscreen()
+    {
+        IsVideoPlayerFullscreen = !IsVideoPlayerFullscreen;
+    }
+
+    /// <summary>
+    /// Closes the in-app video player.
+    /// </summary>
+    [RelayCommand]
+    private void CloseVideoPlayer()
+    {
+        IsVideoPlayerOpen = false;
+        IsVideoPlayerFullscreen = false;
+        VideoPlayerUrl = null;
+        VideoPlayerTitle = null;
     }
 
     /// <summary>
@@ -6398,6 +6872,18 @@ public partial class ContentDetailViewModel(
         IsFullScreenMediaOpen = false;
         FullScreenMediaUrl = null;
         FullScreenMediaTitle = null;
+    }
+
+    private void OpenMediaExternally(string? url)
+    {
+        if (!BrowserHelper.TryOpenUrl(url, logger))
+        {
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.VideoOpenFailedTitle", "Cannot Open Video"),
+                GetLocalizedString(
+                    "Downloads.ContentDetail.VideoOpenFailedMessage",
+                    "The video link could not be opened in a browser."));
+        }
     }
 
     private async Task LoadDependencySummaryAsync(string manifestId)
@@ -6765,8 +7251,9 @@ public partial class ContentDetailViewModel(
 
             var usingProfiles = profilesResult.Data ?? [];
             var typeDependents = dependentsResult.Data ?? [];
+            var companionNames = await FindOrphanCompanionNamesAsync(manifestId);
 
-            if (!await ConfirmDeleteAsync(usingProfiles, typeDependents))
+            if (!await ConfirmDeleteAsync(usingProfiles, typeDependents, companionNames))
             {
                 return;
             }
@@ -6828,7 +7315,7 @@ public partial class ContentDetailViewModel(
 
     private bool DependsOnContentType(ContentManifest candidate, ContentManifest target)
     {
-        return candidate.Dependencies != null && candidate.Dependencies.Any(dep =>
+        return candidate.Dependencies.Any(dep =>
             !dep.IsOptional &&
             (dep.InstallBehavior == DependencyInstallBehavior.RequireExisting || dep.InstallBehavior == DependencyInstallBehavior.AutoInstall) &&
             dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId &&
@@ -6836,7 +7323,10 @@ public partial class ContentDetailViewModel(
             (dep.CompatibleGameTypes.Count == 0 || target.TargetGame == GameType.Unknown || dep.CompatibleGameTypes.Contains(target.TargetGame)));
     }
 
-    private async Task<bool> ConfirmDeleteAsync(IReadOnlyList<string> usingProfiles, IReadOnlyList<string> typeDependents)
+    private async Task<bool> ConfirmDeleteAsync(
+        IReadOnlyList<string> usingProfiles,
+        IReadOnlyList<string> typeDependents,
+        IReadOnlyList<string>? companionNames = null)
     {
         if (dialogService == null)
         {
@@ -6865,6 +7355,14 @@ public partial class ContentDetailViewModel(
                 string.Join(", ", typeDependents));
         }
 
+        if (companionNames is { Count: > 0 })
+        {
+            message += " " + FormatLocalizedString(
+                "Downloads.ContentDetail.DeleteConfirmCompanionsNote",
+                "The following companion content will also be removed: {0}.",
+                string.Join(", ", companionNames));
+        }
+
         return await dialogService.ShowConfirmationAsync(
             title,
             message,
@@ -6877,6 +7375,9 @@ public partial class ContentDetailViewModel(
         IsDeleting = true;
         try
         {
+            var manifestToDeleteResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
+            var manifestToDelete = manifestToDeleteResult.Success ? manifestToDeleteResult.Data : null;
+
             var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(manifestId), cancellationToken: _cts.Token);
             if (!removeResult.Success)
             {
@@ -6892,6 +7393,31 @@ public partial class ContentDetailViewModel(
                 if (!purgeResult.Success)
                 {
                     logger.LogWarning("Deleted {ManifestId} but failed to purge its artwork: {Error}", manifestId, purgeResult.FirstError);
+                }
+            }
+
+            var removedCompanionNames = new List<string>();
+
+            // Clean up any AutoInstall companion dependencies (such as QuickMatch MapPack) that are now orphaned
+            if (manifestToDelete?.Dependencies != null && manifestToDelete.Dependencies.Count > 0)
+            {
+                var allManifestsResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
+                var profilesResult = profileManager != null
+                    ? await profileManager.GetAllProfilesAsync(_cts.Token)
+                    : null;
+
+                var canCleanUp = allManifestsResult.Success && allManifestsResult.Data != null
+                    && (profileManager == null || (profilesResult?.Success == true && profilesResult.Data != null));
+
+                if (!canCleanUp)
+                {
+                    logger.LogWarning(
+                        "Skipping orphan companion dependency cleanup for {ManifestId}: manifests or profiles could not be determined",
+                        manifestId);
+                }
+                else
+                {
+                    removedCompanionNames = await CleanupOrphanCompanionDependenciesAsync(manifestToDelete.Dependencies, allManifestsResult.Data!, profilesResult?.Data);
                 }
             }
 
@@ -6927,9 +7453,17 @@ public partial class ContentDetailViewModel(
                 }
             }
 
+            var deleteMessage = removedCompanionNames.Count > 0
+                ? FormatLocalizedString(
+                    "Downloads.ContentDetail.DeletedMessageWithCompanions",
+                    "Deleted '{0}' and companion content ({1}) and freed unused storage.",
+                    Name,
+                    string.Join(", ", removedCompanionNames))
+                : FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name);
+
             notificationService.ShowSuccess(
                 GetLocalizedString("Downloads.ContentDetail.DeletedTitle", "Download Deleted"),
-                FormatLocalizedString("Downloads.ContentDetail.DeletedMessage", "Deleted '{0}' and freed unused storage.", Name),
+                deleteMessage,
                 NotificationDurations.Medium);
 
             contentStateService.NotifyStateChanged(searchResult.Id, ContentState.NotDownloaded, manifestId);
@@ -6954,6 +7488,205 @@ public partial class ContentDetailViewModel(
         {
             IsDeleting = false;
         }
+    }
+
+    private async Task<List<string>> FindOrphanCompanionNamesAsync(string manifestId)
+    {
+        try
+        {
+            var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
+            if (!manifestResult.Success || manifestResult.Data?.Dependencies is null || manifestResult.Data.Dependencies.Count == 0)
+            {
+                return [];
+            }
+
+            var allManifestsResult = await manifestPool.GetAllManifestsAsync(_cts.Token);
+            if (!allManifestsResult.Success || allManifestsResult.Data is null)
+            {
+                return [];
+            }
+
+            var profilesResult = profileManager != null
+                ? await profileManager.GetAllProfilesAsync(_cts.Token)
+                : null;
+            var profiles = profilesResult?.Data;
+
+            var manifestList = allManifestsResult.Data
+                .Where(m => !string.Equals(m.Id.Value, manifestId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var names = new List<string>();
+            var queue = new Queue<ContentDependency>(manifestResult.Data.Dependencies);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            while (queue.Count > 0)
+            {
+                var dep = queue.Dequeue();
+                if (dep.InstallBehavior != DependencyInstallBehavior.AutoInstall ||
+                    string.IsNullOrWhiteSpace(dep.Id.Value) ||
+                    dep.Id.Value == ManifestConstants.DefaultContentDependencyId)
+                {
+                    continue;
+                }
+
+                var depId = dep.Id.Value;
+                if (!visited.Add(depId))
+                {
+                    continue;
+                }
+
+                var companion = manifestList.FirstOrDefault(m =>
+                    string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase));
+                if (companion == null)
+                {
+                    continue;
+                }
+
+                bool isStillDependedOn = manifestList.Any(m =>
+                    !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
+                    m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+
+                bool isUsedInProfile = profiles?.Any(p =>
+                    p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
+                    string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase)) == true;
+
+                if (!isStillDependedOn && !isUsedInProfile)
+                {
+                    string companionDisplayName = depId;
+                    if (!string.IsNullOrWhiteSpace(companion.Name))
+                    {
+                        companionDisplayName = companion.Name;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(dep.Name))
+                    {
+                        companionDisplayName = dep.Name;
+                    }
+
+                    names.Add(companionDisplayName);
+                    manifestList.Remove(companion);
+                    if (companion.Dependencies != null)
+                    {
+                        foreach (var child in companion.Dependencies)
+                        {
+                            queue.Enqueue(child);
+                        }
+                    }
+                }
+            }
+
+            return names;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// Cleans up any <see cref="DependencyInstallBehavior.AutoInstall"/> companion dependencies
+    /// that are no longer referenced by any remaining manifest or active profile, evaluating
+    /// transitive chains recursively.
+    /// </summary>
+    /// <param name="initialDependencies">The dependencies of the deleted manifest to evaluate.</param>
+    /// <param name="remainingManifests">The remaining manifests in the pool.</param>
+    /// <param name="profiles">The existing profiles, or null if profile manager is not configured.</param>
+    /// <returns>The list of display names of removed companion content.</returns>
+    private async Task<List<string>> CleanupOrphanCompanionDependenciesAsync(
+        IReadOnlyList<ContentDependency> initialDependencies,
+        IEnumerable<ContentManifest> remainingManifests,
+        IEnumerable<GameProfile>? profiles)
+    {
+        var manifestList = remainingManifests.ToList();
+        var profileList = profiles?.ToList();
+        var removedCompanions = new List<string>();
+        var queue = new Queue<ContentDependency>(initialDependencies);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        while (queue.Count > 0)
+        {
+            var dep = queue.Dequeue();
+            if (dep.InstallBehavior != DependencyInstallBehavior.AutoInstall ||
+                string.IsNullOrWhiteSpace(dep.Id.Value) ||
+                dep.Id.Value == ManifestConstants.DefaultContentDependencyId)
+            {
+                continue;
+            }
+
+            var depId = dep.Id.Value;
+            if (!visited.Add(depId))
+            {
+                continue;
+            }
+
+            // Treat not-found/unacquired as skip instead of attempting remove and logging failure
+            var companionManifest = manifestList.FirstOrDefault(m =>
+                string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase));
+            if (companionManifest == null)
+            {
+                logger.LogDebug("Companion dependency {DependencyId} is not installed; skipping cleanup", depId);
+                continue;
+            }
+
+            bool isStillDependedOn = manifestList.Any(m =>
+                !string.Equals(m.Id.Value, depId, StringComparison.OrdinalIgnoreCase) &&
+                m.Dependencies.Any(d => string.Equals(d.Id.Value, depId, StringComparison.OrdinalIgnoreCase)));
+
+            bool isUsedInProfile = profileList?.Any(p =>
+                p.EnabledContentIds.Contains(depId, StringComparer.OrdinalIgnoreCase) ||
+                string.Equals(p.GameClient?.Id, depId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.ToolContentId, depId, StringComparison.OrdinalIgnoreCase)) == true;
+
+            if (!isStillDependedOn && !isUsedInProfile)
+            {
+                logger.LogInformation("Cleaning up orphaned companion dependency {DependencyId}", depId);
+                var removeResult = await manifestPool.RemoveManifestAsync(ManifestId.Create(depId), cancellationToken: _cts.Token);
+                if (removeResult.Success)
+                {
+                    manifestList.Remove(companionManifest);
+                    string displayName = depId;
+                    if (!string.IsNullOrWhiteSpace(companionManifest.Name))
+                    {
+                        displayName = companionManifest.Name;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(dep.Name))
+                    {
+                        displayName = dep.Name;
+                    }
+
+                    removedCompanions.Add(displayName);
+
+                    if (artworkService != null)
+                    {
+                        var purgeResult = await artworkService.PurgeArtworkAsync(depId, _cts.Token);
+                        if (!purgeResult.Success)
+                        {
+                            logger.LogWarning(
+                                "Removed orphaned companion dependency {DependencyId} but failed to purge its artwork: {Error}",
+                                depId,
+                                purgeResult.FirstError);
+                        }
+                    }
+
+                    if (companionManifest.Dependencies != null)
+                    {
+                        foreach (var childDep in companionManifest.Dependencies)
+                        {
+                            queue.Enqueue(childDep);
+                        }
+                    }
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "Failed to remove orphaned companion dependency {DependencyId}: {Error}",
+                        depId,
+                        removeResult.FirstError);
+                }
+            }
+        }
+
+        return removedCompanions;
     }
 
     /// <summary>

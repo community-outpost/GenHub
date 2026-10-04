@@ -1283,7 +1283,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
             var fileSet = await ResolveVerificationFileSetAsync(concreteProfile, crcCalculator, fileSetService, token).ConfigureAwait(false);
 
-            bool isVerifiedRetail;
+            bool isVerifiedRetail = false;
             if (fileSet is { IsComplete: false })
             {
                 isVerifiedRetail = false;

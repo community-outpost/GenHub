@@ -57,6 +57,7 @@ public class GameLauncher(
     ISteamLauncher steamLauncher,
     IConfigurationProviderService configurationProvider,
     ILaunchReceiptService launchReceiptService,
+    IPublisherLaunchHandlerRegistry publisherLaunchHandlerRegistry,
     ILocalizationService? localizationService = null) : IGameLauncher
 {
     /// <summary>Serializes profile launch registration and destructive deletion for all callers.</summary>
@@ -157,7 +158,15 @@ public class GameLauncher(
         {
             return Path.GetFullPath(root);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
         {
             return null;
         }
@@ -184,11 +193,7 @@ public class GameLauncher(
         ILogger logger,
         ILocalizationService? localizationService)
     {
-        var executableManifestForMonitor = manifests.FirstOrDefault(m =>
-            m.ContentType == ContentType.GameClient ||
-            m.ContentType == ContentType.Executable ||
-            m.ContentType == ContentType.ModdingTool);
-        var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+        var (executableManifestForMonitor, executableFileForMonitor) = FindMonitoredExecutable(manifests, finalExecutablePath, workspacePath);
 
         if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
             effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
@@ -231,9 +236,7 @@ public class GameLauncher(
             return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(entryIdentities);
         }
 
-        var processName = executableFileForMonitor != null
-            ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-            : Path.GetFileNameWithoutExtension(finalExecutablePath);
+        var processName = Path.GetFileNameWithoutExtension(finalExecutablePath);
 
         if (!string.IsNullOrEmpty(expectedChildProcessName))
         {
@@ -288,6 +291,164 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Resolves the child process the launched entry is expected to spawn.
+    /// The game client manifest's declared launch relationship wins; manifests that
+    /// predate declarations fall back to legacy filename guessing.
+    /// </summary>
+    /// <param name="manifests">The manifests resolved for the launch.</param>
+    /// <param name="finalExecutablePath">The workspace executable being started.</param>
+    /// <param name="logger">Receives the resolution source for diagnostics.</param>
+    /// <returns>The expected child name and discovery timeout, both null for direct launches.</returns>
+    internal static (string? ChildName, TimeSpan? DiscoveryTimeout) ResolveExpectedChildProcess(
+        IReadOnlyList<ContentManifest> manifests,
+        string finalExecutablePath,
+        ILogger? logger = null)
+    {
+        var executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        var declared = executableManifest is null
+            ? null
+            : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        if (declared is null)
+        {
+            executableManifest = manifests.FirstOrDefault(m => m.ContentType == ContentType.Executable);
+            declared = executableManifest is null
+                ? null
+                : ManifestVariantResolver.ResolveLaunchRelationship(executableManifest);
+        }
+
+        if (declared is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] Using declared launch relationship from manifest '{ManifestId}': entry spawns '{Child}'",
+                executableManifest!.Id.Value,
+                declared.ProcessName);
+            return (declared.ProcessName, declared.DiscoveryTimeoutMs is > 0
+                ? TimeSpan.FromMilliseconds(declared.DiscoveryTimeoutMs.Value)
+                : null);
+        }
+
+        var legacy = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath);
+        if (legacy is not null)
+        {
+            logger?.LogInformation(
+                "[GameLauncher] No declared launch relationship; using legacy filename fallback: '{Child}'",
+                legacy);
+        }
+
+        return (legacy, null);
+    }
+
+    /// <summary>
+    /// Finds the host file corresponding to the executable being started.
+    /// Unrelated executables from other manifests are never used for its monitoring identity.
+    /// </summary>
+    /// <param name="manifests">The workspace manifests.</param>
+    /// <param name="finalExecutablePath">The executable actually being started.</param>
+    /// <param name="workspacePath">The workspace containing the executable.</param>
+    /// <returns>The manifest and executable file, either of which may be null.</returns>
+    private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests, string finalExecutablePath, string workspacePath)
+    {
+        // Search in the order the workspace resolves a shared path: higher content-type priority
+        // first, then the later manifest, so the monitored file is the one that was materialized.
+        var launchable = manifests
+            .Select((manifest, index) => (Manifest: manifest, Index: index))
+            .Where(entry =>
+                entry.Manifest.ContentType == ContentType.GameClient ||
+                entry.Manifest.ContentType == ContentType.Executable ||
+                entry.Manifest.ContentType == ContentType.ModdingTool)
+            .OrderByDescending(entry => ContentTypePriority.GetPriority(entry.Manifest.ContentType))
+            .ThenByDescending(entry => entry.Index)
+            .Select(entry => entry.Manifest)
+            .ToList();
+
+        foreach (var manifest in launchable)
+        {
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                string.Equals(
+                    f.RelativePath.Replace('\\', '/'),
+                    Path.GetRelativePath(workspacePath, finalExecutablePath).Replace('\\', '/'),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            if (file is not null)
+            {
+                return (manifest, file);
+            }
+        }
+
+        return FindAliasMonitoredExecutable(launchable, finalExecutablePath, workspacePath);
+    }
+
+    private static (ContentManifest? Manifest, ManifestFile? File) FindAliasMonitoredExecutable(
+        IReadOnlyList<ContentManifest> launchable, string finalExecutablePath, string workspacePath)
+    {
+        // Workspace preparation copies custom Windows entry points to a root generals.exe alias.
+        // Require matching bytes so an unrelated existing executable cannot borrow its identity.
+        if (!string.Equals(Path.GetRelativePath(workspacePath, finalExecutablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, null);
+        }
+
+        foreach (var manifest in launchable)
+        {
+            var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            if (!entry.Success || entry.RelativePath!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                ManifestVariantResolver.PathsMatch(f.RelativePath, entry.RelativePath));
+            if (file is not null && IsMatchingWorkspaceAlias(workspacePath, finalExecutablePath, file.RelativePath))
+            {
+                return (manifest, file);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static bool IsMatchingWorkspaceAlias(string workspacePath, string aliasPath, string relativePath)
+    {
+        try
+        {
+            var originalPath = Path.GetFullPath(Path.Combine(workspacePath, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
+            var workspaceRelative = Path.GetRelativePath(workspacePath, originalPath);
+
+            // Validate the workspace name without following links: CAS files intentionally target
+            // blobs outside the workspace. Matching bytes below establish the alias association.
+            if (Path.IsPathRooted(workspaceRelative) || workspaceRelative == ".." ||
+                workspaceRelative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            using var original = File.OpenRead(originalPath);
+            using var alias = File.OpenRead(aliasPath);
+            return original.Length == alias.Length &&
+                System.Security.Cryptography.SHA256.HashData(original).AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(alias));
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Resolves the process a CAS-symlinked bootstrapper hands the session to. A child linked into
     /// the workspace may be reported under its link or its final target, so both identities are
     /// returned. A child that is a regular file runs under its own file name.
@@ -318,7 +479,7 @@ public class GameLauncher(
             : manifests
                 .Where(m => !ReferenceEquals(m, entryManifest))
                 .Prepend(entryManifest)
-                .SelectMany(m => m.Files ?? [])
+                .SelectMany(m => ManifestVariantResolver.ResolveFiles(m))
                 .FirstOrDefault(f =>
                     Path.GetFileName(f.RelativePath.Replace('\\', '/')).Equals(childFileName, StringComparison.OrdinalIgnoreCase) &&
                     GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
@@ -1147,7 +1308,7 @@ public class GameLauncher(
         // The probe is the enumeration itself: Directory.Exists returns false for an
         // unreadable root as well as a missing one, which would report a permission
         // problem as missing content. Only DirectoryNotFoundException means absence.
-        bool hasArchive;
+        bool hasArchive = false;
         try
         {
             hasArchive = Directory
@@ -1404,7 +1565,15 @@ public class GameLauncher(
                 }
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-critical: gracefully fall back
+        }
+        catch (ArgumentException)
         {
             // Non-critical: gracefully fall back
         }
@@ -1512,7 +1681,7 @@ public class GameLauncher(
 
         var manifests = resolutionResult.Data;
         logger.LogDebug("[GameLauncher] Applying profile settings to Options.ini before workspace preparation");
-        await ApplyProfileSettingsToIniOptionsAsync(profile);
+        await ApplyProfileSettingsToIniOptionsAsync(profile, cancellationToken);
 
         progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = 20 });
 
@@ -1642,7 +1811,7 @@ public class GameLauncher(
             }
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
-            var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
+            var executableResult = ResolveFinalExecutablePath(profile, workspaceInfo, ref isSteamLaunch, ref steamInstallationLock);
             if (!executableResult.Success || executableResult.Data == null)
             {
                 await launchRegistry.UnregisterLaunchAsync(launchId);
@@ -1650,7 +1819,6 @@ public class GameLauncher(
             }
 
             var finalExecutablePath = executableResult.Data;
-            isSteamLaunch = ReevaluateSteamLaunch(isSteamLaunch, profile.Id, finalExecutablePath, ref steamInstallationLock);
 
             var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
                 profile,
@@ -1675,6 +1843,12 @@ public class GameLauncher(
             var receiptContext = BuildLaunchReceiptContext(profile, gameClient, workspaceInfo, launchConfig, manifests, launchId, installation);
             AppendConfigurationDrift(profile.Id, previousReceipt, receiptContext, receiptDriftWarnings);
 
+            var publisherHookResult = await ExecutePublisherBeforeProcessStartAsync(profile, launchConfig, launchId, cancellationToken);
+            if (publisherHookResult != null)
+            {
+                return publisherHookResult;
+            }
+
             var processResult = await LaunchProcessAsync(
                 isSteamLaunch,
                 manifests,
@@ -1696,31 +1870,14 @@ public class GameLauncher(
             var processInfo = processResult.Data;
             logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
 
-            // Update the placeholder launch entry with real process info
-            // (The placeholder was registered earlier to prevent deletion during launch)
-            var launchInfo = new GameLaunchInfo
-            {
-                LaunchId = launchId,
-                ProfileId = profile.Id,
-                WorkspaceId = workspaceInfo.Id,
-                ProcessInfo = processInfo,
-                LaunchedAt = DateTime.UtcNow,
-                ReceiptDriftWarnings = receiptDriftWarnings,
-            };
-            logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
-            await launchRegistry.RegisterLaunchAsync(launchInfo);
-            if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
-            {
-                // Keep the terminated entry so its exit code and diagnostics remain inspectable.
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
-                    LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
-            }
-
-            await RecordLaunchReceiptAsync(receiptContext);
-
-            progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
-            logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
-            return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
+            return await FinalizeLaunchAsync(
+                profile,
+                workspaceInfo,
+                processInfo,
+                launchId,
+                receiptDriftWarnings,
+                receiptContext,
+                progress);
         }
         catch (OperationCanceledException)
         {
@@ -1738,6 +1895,59 @@ public class GameLauncher(
         {
             steamInstallationLock?.Dispose();
         }
+    }
+
+    private OperationResult<string> ResolveFinalExecutablePath(
+        GameProfile profile,
+        WorkspaceInfo workspaceInfo,
+        ref bool isSteamLaunch,
+        ref IDisposable? steamInstallationLock)
+    {
+        var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
+        if (!executableResult.Success || executableResult.Data == null)
+        {
+            return OperationResult<string>.CreateFailure(executableResult.FirstError ?? "No executable path available");
+        }
+
+        var finalExecutablePath = executableResult.Data;
+        isSteamLaunch = ReevaluateSteamLaunch(isSteamLaunch, profile.Id, finalExecutablePath, ref steamInstallationLock);
+        return OperationResult<string>.CreateSuccess(finalExecutablePath);
+    }
+
+    private async Task<LaunchOperationResult<GameLaunchInfo>> FinalizeLaunchAsync(
+        GameProfile profile,
+        WorkspaceInfo workspaceInfo,
+        GameProcessInfo processInfo,
+        string launchId,
+        List<string> receiptDriftWarnings,
+        LaunchReceiptContext receiptContext,
+        IProgress<LaunchProgress>? progress)
+    {
+        // Update the placeholder launch entry with real process info
+        // (The placeholder was registered earlier to prevent deletion during launch)
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = profile.Id,
+            WorkspaceId = workspaceInfo.Id,
+            ProcessInfo = processInfo,
+            LaunchedAt = DateTime.UtcNow,
+            ReceiptDriftWarnings = receiptDriftWarnings,
+        };
+        logger.LogDebug("[GameLauncher] Updating launch registry with real process info");
+        await launchRegistry.RegisterLaunchAsync(launchInfo);
+        if (launchInfo.TerminatedAt.HasValue || launchInfo.HasFailed)
+        {
+            // Keep the terminated entry so its exit code and diagnostics remain inspectable.
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                LaunchExitMessages.Describe(launchInfo, localizationService), launchId, profile.Id);
+        }
+
+        await RecordLaunchReceiptAsync(receiptContext);
+
+        progress?.Report(new LaunchProgress { Phase = LaunchPhase.Running, PercentComplete = 100 });
+        logger.LogInformation("[GameLauncher] === Launch completed successfully for profile {ProfileId} ===", profile.Id);
+        return LaunchOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo, launchId, profile.Id);
     }
 
     private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? SteamLock)>> SetupAndAcquireWorkspaceAsync(
@@ -1867,7 +2077,7 @@ public class GameLauncher(
             steamAppId = prepResult.Data.SteamAppId;
         }
 
-        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
+        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation, manifests);
 
         var targetGame = profile.GameClient?.GameType ?? GameType.Generals;
         var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, targetGame);
@@ -2049,15 +2259,18 @@ public class GameLauncher(
         WorkspaceInfo workspaceInfo,
         Dictionary<string, string> arguments,
         GameProfile profile,
-        GameInstallation installation)
+        GameInstallation installation,
+        IReadOnlyList<ContentManifest> manifests)
     {
+        var expectedChild = ResolveExpectedChildProcess(manifests, finalExecutablePath, logger);
         return new GameLaunchConfiguration
         {
             ExecutablePath = finalExecutablePath,
             WorkingDirectory = workspaceInfo.WorkspacePath,
             Arguments = arguments,
             EnvironmentVariables = BuildEnvironmentVariables(profile.EnvironmentVariables, installation),
-            ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
+            ExpectedChildProcessName = expectedChild.ChildName,
+            ExpectedChildDiscoveryTimeout = expectedChild.DiscoveryTimeout,
             GameType = profile.GameClient?.GameType,
             GameClientId = profile.GameClient?.Id,
             GameClientName = profile.GameClient?.Name,
@@ -2252,7 +2465,7 @@ public class GameLauncher(
                 manifest.Id.Value,
                 manifest.Name,
                 manifest.ContentType,
-                manifest.Files?.Count ?? 0);
+                ManifestVariantResolver.ResolveFiles(manifest).Count);
         }
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
@@ -2406,6 +2619,9 @@ public class GameLauncher(
             logger.LogInformation("[GameLauncher] Added {Argument} argument: {Height}", GameClientConstants.YResolutionArgument, profile.VideoResolutionHeight.Value);
         }
 
+        var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+        publisherHandler.ConfigureLaunchArguments(profile, arguments);
+
         return OperationResult<Dictionary<string, string>>.CreateSuccess(arguments);
     }
 
@@ -2423,12 +2639,7 @@ public class GameLauncher(
         var steamExecutableName = GameClientConstants.GeneralsExecutable;
         logger.LogInformation("[GameLauncher] Steam executable to replace with proxy: {ExecutableName}", steamExecutableName);
 
-        string steamAppId;
-        if (SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var resolvedSteamAppId))
-        {
-            steamAppId = resolvedSteamAppId;
-        }
-        else
+        if (!SteamAppIdResolver.TryResolveSteamAppIdFromInstallationPath(actualInstallationPath, out var steamAppId))
         {
             steamAppId = profile.GameClient?.GameType == GameType.Generals
                 ? SteamConstants.GeneralsAppId
@@ -2586,7 +2797,7 @@ public class GameLauncher(
             }
 
             var drift = InstallationManifestDriftDetector.DetectDrift(
-                gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
+                gameDir, manifest.TargetGame, manifest.Version, ManifestVariantResolver.ResolveFiles(manifest), cancellationToken: cancellationToken);
             if (drift.HasDrift)
             {
                 driftedManifests.Add((manifest, drift));
@@ -2737,8 +2948,9 @@ public class GameLauncher(
     /// This ensures the game launches with the settings configured for this specific profile.
     /// </summary>
     /// <param name="profile">The game profile containing the settings to apply.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile)
+    private async Task ApplyProfileSettingsToIniOptionsAsync(GameProfile profile, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2788,70 +3000,44 @@ public class GameLauncher(
                 logger.LogInformation("[GameLauncher] Successfully wrote Options.ini for {GameType}", gameType);
             }
 
-            // Apply GeneralsOnline settings
-            await ApplyGeneralsOnlineSettingsAsync(profile);
+            // Apply publisher-specific pre-launch settings (best-effort; failures do not block launch).
+            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+            var beforeLaunchResult = await publisherHandler.BeforeLaunchAsync(profile, cancellationToken);
+            if (!beforeLaunchResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Publisher launch handler '{PublisherType}' reported before-launch failure: {Error}", publisherHandler.PublisherType, beforeLaunchResult.FirstError);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            // Don't fail the launch if Options.ini writing fails - log and continue
+            // Don't fail the launch if Options.ini writing fails - log and continue.
             logger.LogError(ex, "Failed to apply profile settings to Options.ini, continuing with launch");
         }
     }
 
-    /// <summary>
-    /// Applies GeneralsOnline-specific settings to the settings.json file.
-    /// </summary>
-    /// <remarks>
-    /// settings.json is a single global file owned by the GeneralsOnline client, not a
-    /// per-profile one. Only a GeneralsOnline profile may rewrite it: a retail, TheSuperHackers
-    /// or CommunityOutpost Zero Hour profile has nothing to say about that client's settings,
-    /// and writing anyway replaced whatever the user had configured inside the client itself.
-    /// </remarks>
-    /// <param name="profile">The game profile containing the settings.</param>
-    private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
+    private async Task<LaunchOperationResult<GameLaunchInfo>?> ExecutePublisherBeforeProcessStartAsync(
+        GameProfile profile,
+        GameLaunchConfiguration launchConfig,
+        string launchId,
+        CancellationToken cancellationToken)
     {
-        if (profile.GameClient?.GameType != GameType.ZeroHour || !profile.IsGeneralsOnlineProfile())
+        var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+        var beforeStartResult = await publisherHandler.BeforeProcessStartAsync(profile, launchConfig, cancellationToken);
+        if (!beforeStartResult.Success)
         {
-            return;
+            logger.LogError("[GameLauncher] Publisher before-process start hook failed: {Error}", beforeStartResult.FirstError);
+            await launchRegistry.UnregisterLaunchAsync(launchId);
+            return LaunchOperationResult<GameLaunchInfo>.CreateFailure(
+                beforeStartResult.FirstError ?? "Publisher pre-launch hook failed",
+                launchId,
+                profile.Id);
         }
 
-        try
-        {
-            logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
-
-            // Loaded first so the settings the client owns and the profile says nothing about
-            // survive the rewrite; the mapper then overwrites only what the profile declares.
-            var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-            if (loadResult?.Success != true || loadResult.Data == null)
-            {
-                // A missing settings.json loads as defaults and reports success, so a failure here
-                // means the client's own file exists and could not be read. Rewriting it from
-                // defaults would discard every key the client owns.
-                logger.LogWarning(
-                    "[GameLauncher] Not writing GeneralsOnline settings because settings.json could not be read: {Error}",
-                    loadResult?.FirstError ?? "LoadGeneralsOnlineSettings result was null");
-                return;
-            }
-
-            var settings = loadResult.Data;
-
-            GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
-
-            var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);
-            if (!saveResult.Success)
-            {
-                logger.LogWarning("[GameLauncher] Failed to save GeneralsOnline settings: {Error}", saveResult.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("[GameLauncher] Successfully saved GeneralsOnline settings to settings.json");
-            }
-        }
-        catch (Exception ex)
-        {
-            // Log and continue
-            logger.LogError(ex, "[GameLauncher] Failed to apply GeneralsOnline settings, continuing with launch");
-        }
+        return null;
     }
 
     private void LogMissingCasFile(ContentManifest manifest, ManifestFile file)
@@ -2879,8 +3065,8 @@ public class GameLauncher(
     }
 
     /// <summary>
-    /// Applies profile camera height and pitch settings to GameData.ini in the workspace for non-GeneralsOnline profiles.
-    /// If the profile has no custom camera settings, any previously generated GenHub camera override is cleaned up.
+    /// Applies profile camera height and pitch settings in the workspace.
+    /// If the profile has no custom camera settings, any previously generated camera override is cleaned up.
     /// </summary>
     private async Task ApplyCameraSettingsAsync(
         GameProfile profile,
@@ -2890,8 +3076,10 @@ public class GameLauncher(
     {
         try
         {
-            if (profile.IsGeneralsOnlineProfile())
+            var publisherHandler = publisherLaunchHandlerRegistry.GetHandler(profile);
+            if (!publisherHandler.SupportsCameraSettingsOverride(profile))
             {
+                logger.LogDebug("[GameLauncher] Camera settings override skipped by publisher launch handler for profile {ProfileId}", profile.Id);
                 return;
             }
 
@@ -2925,16 +3113,9 @@ public class GameLauncher(
         string actualInstallationPath,
         CancellationToken cancellationToken)
     {
-        string? iniContent = null;
-        if (File.Exists(iniPath))
-        {
-            iniContent = await File.ReadAllTextAsync(iniPath, cancellationToken);
-        }
-        else
-        {
-            iniContent = TryExtractGameDataIniFromBig(workspacePath) ??
-                         TryExtractGameDataIniFromBig(actualInstallationPath);
-        }
+        var iniContent = File.Exists(iniPath)
+            ? await File.ReadAllTextAsync(iniPath, cancellationToken)
+            : (TryExtractGameDataIniFromBig(workspacePath) ?? TryExtractGameDataIniFromBig(actualInstallationPath));
 
         if (string.IsNullOrEmpty(iniContent))
         {
@@ -2981,7 +3162,7 @@ public class GameLauncher(
 
         var lines = await File.ReadAllLinesAsync(iniPath, cancellationToken);
         var firstLine = lines.Length > 0 ? lines[0] : null;
-        if (firstLine != null && firstLine.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase))
+        if (firstLine?.StartsWith("; GenHub Camera Override", StringComparison.OrdinalIgnoreCase) == true)
         {
             File.Delete(iniPath);
             logger.LogInformation("[GameLauncher] Removed GenHub camera override from {IniPath} to restore default camera settings", iniPath);

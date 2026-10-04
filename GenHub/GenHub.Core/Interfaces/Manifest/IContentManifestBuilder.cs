@@ -331,6 +331,7 @@ public interface IContentManifestBuilder
     /// <param name="statusMessage">Optional user-facing status message.</param>
     /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
     /// <param name="stepKey">Optional unique step key for tracking execution.</param>
+    /// <param name="argumentBindings">Optional bindings filling arguments from delivered files.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPostInstallStep(
         string name,
@@ -341,7 +342,8 @@ public interface IContentManifestBuilder
         bool requiresElevation = false,
         string? statusMessage = null,
         bool runOnce = false,
-        string? stepKey = null);
+        string? stepKey = null,
+        List<InstallationArgumentBinding>? argumentBindings = null);
 
     /// <summary>
     /// Adds a post-installation step using an existing <see cref="InstallationStep"/> instance.
@@ -387,6 +389,14 @@ public interface IContentManifestBuilder
     /// <param name="entryPoint">The relative path of the entry point file.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder WithEntryPoint(string? entryPoint);
+
+    /// <summary>
+    /// Declares the process the entry point spawns and hands the session to.
+    /// </summary>
+    /// <param name="processName">The child process name, without extension or path. Null or blank clears the declaration.</param>
+    /// <param name="discoveryTimeoutMs">How long to wait for the child in milliseconds, or null for the pipeline default.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithLaunchRelationship(string? processName, int? discoveryTimeoutMs = null);
 
     /// <summary>
     /// Explicitly sets the manifest ID, bypassing automatic generation.

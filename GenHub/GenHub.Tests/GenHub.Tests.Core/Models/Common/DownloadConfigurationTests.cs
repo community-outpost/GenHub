@@ -111,4 +111,20 @@ public class DownloadConfigurationTests
         // Assert
         Assert.Equal(bufferSize, config.BufferSize);
     }
+
+    /// <summary>
+    /// Verifies that ExpectedHash trims leading and trailing whitespace.
+    /// </summary>
+    [Fact]
+    public void ExpectedHash_TrimsWhitespace()
+    {
+        // Arrange & Act
+        var config = new DownloadConfiguration
+        {
+            ExpectedHash = "  085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE \t ",
+        };
+
+        // Assert
+        Assert.Equal("085726A5DB6C885EB17F5A38F1B4B3D1899FCB57A03A5B4BE83C0214AFF13FEE", config.ExpectedHash);
+    }
 }

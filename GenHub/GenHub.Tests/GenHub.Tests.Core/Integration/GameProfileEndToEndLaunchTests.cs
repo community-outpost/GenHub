@@ -20,7 +20,9 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.Launching;
+using GenHub.Features.Launching.Publishers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -87,6 +89,13 @@ public class GameProfileEndToEndLaunchTests : IDisposable
         receiptService.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<LaunchReceipt>.CreateSuccess(new LaunchReceipt()));
 
+        var publisherRegistry = new PublisherLaunchHandlerRegistry(
+            [
+                new GeneralsOnlineLaunchHandler(_gameSettingsServiceMock.Object, NullLogger<GeneralsOnlineLaunchHandler>.Instance),
+                new DefaultPublisherLaunchHandler(),
+            ],
+            NullLogger<PublisherLaunchHandlerRegistry>.Instance);
+
         _gameLauncher = new GameLauncher(
             _launcherLoggerMock.Object,
             _profileManager,
@@ -102,7 +111,8 @@ public class GameProfileEndToEndLaunchTests : IDisposable
             _profileContentLinkerMock.Object,
             _steamLauncherMock.Object,
             _configurationProviderServiceMock.Object,
-            receiptService.Object);
+            receiptService.Object,
+            publisherRegistry);
     }
 
     /// <inheritdoc/>

@@ -244,7 +244,7 @@ public class HotkeyPackageService(
     /// </summary>
     private static CsfFile LoadBaseCsf(HotkeyProfile profile)
     {
-        string presetFile;
+        string presetFile = string.Empty;
         if (profile.BasePreset?.Contains(GenHotkeysConstants.PresetLegionnaire, StringComparison.OrdinalIgnoreCase) == true)
         {
             presetFile = GenHotkeysConstants.PresetsLegionnaireEn;

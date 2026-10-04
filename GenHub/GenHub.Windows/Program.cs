@@ -162,7 +162,7 @@ public class Program
 
     private static void ForwardCommandLineCommands(string[] args, ILogger bootstrapLogger)
     {
-        string command;
+        string command = string.Empty;
         var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
         if (!string.IsNullOrEmpty(profileShareUri) &&
             profileShareUri.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))

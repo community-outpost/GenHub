@@ -533,7 +533,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
 
         try
         {
-            string destination;
+            string destination = string.Empty;
 
             // Content-based classification: executables (Windows PE/MZ, Linux ELF, macOS Mach-O) convert to .exe,
             // BIG archives convert to .big, and unrecognized formats remain untouched in SkippedFiles.

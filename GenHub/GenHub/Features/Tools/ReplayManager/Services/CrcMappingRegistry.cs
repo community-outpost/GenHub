@@ -145,12 +145,12 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         }
     }
 
-    private static string CreateCrcPairKey(string exeCrc, string iniCrc)
-    {
-        return $"{NormalizeHex(exeCrc)}:{NormalizeHex(iniCrc)}";
-    }
-
-    private static string NormalizeHex(string? value)
+    /// <summary>
+    /// Normalizes a hexadecimal string by trimming whitespace and stripping any leading "0x" prefix.
+    /// </summary>
+    /// <param name="value">The hexadecimal string to normalize.</param>
+    /// <returns>An uppercase hexadecimal string without prefix, or an empty string.</returns>
+    internal static string NormalizeHex(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -164,6 +164,11 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         }
 
         return trimmed.ToUpperInvariant();
+    }
+
+    private static string CreateCrcPairKey(string exeCrc, string iniCrc)
+    {
+        return $"{NormalizeHex(exeCrc)}:{NormalizeHex(iniCrc)}";
     }
 
     private static void AddOrUpdatePairEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder pairBuilder, CrcMappingEntry entry)
@@ -198,13 +203,9 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
             return;
         }
 
-        if (!entryIsSteam && !existingIsSteam)
+        if (!entryIsSteam && !existingIsSteam && ShouldReplaceByPatchAndDate(entry, existing, preferDataPatch: false))
         {
-            int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
-            if (dateCmp > 0 || (dateCmp == 0 && CompareVersions(entry.Version, existing.Version) > 0))
-            {
-                exeBuilder[normalizedExe] = entry;
-            }
+            exeBuilder[normalizedExe] = entry;
         }
     }
 
@@ -259,13 +260,36 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
         return lengthCmp != 0 ? lengthCmp : string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Adds or updates an INI CRC mapping entry in the builder using deterministic disambiguation precedence:
-    /// 1. Entries with a non-empty <see cref="CrcMappingEntry.DataPatchManifestId"/> take priority over entries without one.
-    /// 2. If both entries have (or neither has) a data patch manifest ID, newer <see cref="CrcMappingEntry.BuildDate"/> takes precedence.
-    /// 3. If build dates are equal, higher semantic/alphanumeric version via <see cref="CompareVersions"/> takes precedence.
-    /// Note: EAC and non-EAC variants for the same release share identical patch properties and data patch names.
-    /// </summary>
+    private static bool ShouldReplaceByPatchAndDate(CrcMappingEntry entry, CrcMappingEntry existing, bool preferDataPatch)
+    {
+        bool entryHasDataPatch = !string.IsNullOrEmpty(entry.DataPatchManifestId);
+        bool existingHasDataPatch = !string.IsNullOrEmpty(existing.DataPatchManifestId);
+
+        if (entryHasDataPatch != existingHasDataPatch)
+        {
+            return preferDataPatch ? entryHasDataPatch : !entryHasDataPatch;
+        }
+
+        return IsNewerRelease(entry, existing);
+    }
+
+    private static bool IsNewerRelease(CrcMappingEntry entry, CrcMappingEntry existing)
+    {
+        int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
+        if (dateCmp != 0)
+        {
+            return dateCmp > 0;
+        }
+
+        int versionCmp = CompareVersions(entry.Version, existing.Version);
+        if (versionCmp != 0)
+        {
+            return versionCmp > 0;
+        }
+
+        return string.Compare(entry.ManifestId, existing.ManifestId, StringComparison.OrdinalIgnoreCase) > 0;
+    }
+
     private static void AddOrUpdateIniEntry(ImmutableDictionary<string, CrcMappingEntry>.Builder iniBuilder, CrcMappingEntry entry)
     {
         var normalizedIni = NormalizeHex(entry.IniCrc);
@@ -280,19 +304,7 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
             return;
         }
 
-        if (string.IsNullOrEmpty(existing.DataPatchManifestId) && !string.IsNullOrEmpty(entry.DataPatchManifestId))
-        {
-            iniBuilder[normalizedIni] = entry;
-            return;
-        }
-
-        if (!string.IsNullOrEmpty(existing.DataPatchManifestId) && string.IsNullOrEmpty(entry.DataPatchManifestId))
-        {
-            return;
-        }
-
-        int dateCmp = string.Compare(entry.BuildDate, existing.BuildDate, StringComparison.OrdinalIgnoreCase);
-        if (dateCmp > 0 || (dateCmp == 0 && CompareVersions(entry.Version, existing.Version) > 0))
+        if (ShouldReplaceByPatchAndDate(entry, existing, preferDataPatch: true))
         {
             iniBuilder[normalizedIni] = entry;
         }
@@ -356,7 +368,17 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
 
             return JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
         }
-        catch (Exception ex) when (ex is JsonException or InvalidOperationException or IOException)
+        catch (JsonException ex)
+        {
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+            return null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
+            return null;
+        }
+        catch (IOException ex)
         {
             logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
             return null;

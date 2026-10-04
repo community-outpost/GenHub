@@ -511,10 +511,52 @@ public static class GenPatcherContentRegistry
         var hyphenIdx = candidate.IndexOf('-');
         if (hyphenIdx > 0)
         {
-            candidate = candidate[..hyphenIdx];
+            var prefix = candidate[..hyphenIdx];
+            if (TryParsePatchCode(prefix.ToLowerInvariant()) != null)
+            {
+                return prefix.ToLowerInvariant();
+            }
         }
 
         return candidate.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Extracts the content code from manifest tags, prioritizing known content codes.
+    /// </summary>
+    /// <param name="tags">The tags collection to search.</param>
+    /// <returns>The normalized content code if found; otherwise null.</returns>
+    public static string? TryGetContentCodeFromTags(IEnumerable<string>? tags)
+    {
+        if (tags == null)
+        {
+            return null;
+        }
+
+        string? firstCandidate = null;
+        foreach (var tag in tags.Where(t => !string.IsNullOrEmpty(t) && t.StartsWith(ManifestTagConstants.ContentCodePrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            var rawValue = tag[ManifestTagConstants.ContentCodePrefix.Length..].Trim();
+            if (string.IsNullOrEmpty(rawValue))
+            {
+                continue;
+            }
+
+            var candidate = NormalizeContentCode(rawValue);
+            if (string.IsNullOrEmpty(candidate))
+            {
+                continue;
+            }
+
+            if (IsKnownCode(candidate))
+            {
+                return candidate;
+            }
+
+            firstCandidate ??= candidate;
+        }
+
+        return firstCandidate;
     }
 
     /// <summary>
@@ -529,11 +571,17 @@ public static class GenPatcherContentRegistry
     /// <summary>
     /// Checks if a content code is known.
     /// </summary>
-    /// <param name="contentCode">The content code to check.</param>
+    /// <param name="contentCode">The content code to check (can be null or empty).</param>
     /// <returns>true if the content code is known; otherwise, false.</returns>
-    public static bool IsKnownCode(string contentCode)
+    public static bool IsKnownCode(string? contentCode)
     {
-        return KnownContent.ContainsKey(contentCode.ToLowerInvariant());
+        if (string.IsNullOrWhiteSpace(contentCode))
+        {
+            return false;
+        }
+
+        var normalized = contentCode.Trim().ToLowerInvariant();
+        return KnownContent.ContainsKey(normalized) || TryParsePatchCode(normalized) != null;
     }
 
     /// <summary>

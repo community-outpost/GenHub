@@ -75,7 +75,7 @@ public sealed class MappedImageRegistry(ISageMappedImageParser parser, ILogger<M
         Array.Sort(files, CompareSageLoadOrder);
         var errors = new List<string>();
 
-        int generation;
+        int generation = 0;
         lock (_syncLock)
         {
             generation = ++_scanGeneration;
