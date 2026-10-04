@@ -978,7 +978,7 @@ public partial class PublishShareViewModel(
         return allCleaned;
     }
 
-/// <summary>
+    /// <summary>
     /// Marks a catalog as having unpublished changes.
     /// </summary>
     /// <param name="catalogId">The catalog ID.</param>
@@ -9284,6 +9284,10 @@ public partial class PublishShareViewModel(
             if (!string.Equals(existingArt.DownloadUrl, directUrl, StringComparison.OrdinalIgnoreCase))
             {
                 InvalidateProbedArtifactSize(existingArt.DownloadUrl);
+                if (asset.FileSize <= 0)
+                {
+                    existingArt.Size = 0;
+                }
             }
 
             existingArt.DownloadUrl = directUrl;

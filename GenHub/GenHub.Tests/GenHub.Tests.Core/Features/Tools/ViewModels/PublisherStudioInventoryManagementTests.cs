@@ -770,6 +770,7 @@ public class PublisherStudioInventoryManagementTests
         finally
         {
             PublishShareViewModel.HttpClientOverrideForTesting = null;
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = false;
             CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
             client.Dispose();
             handler.Dispose();
@@ -1624,12 +1625,15 @@ public class PublisherStudioInventoryManagementTests
         }
     }
 
+    /// <summary>
+    /// Tests that updating project artifact sizes propagates probed sizes to addon releases.
+    /// </summary>
     [Fact]
     public void UpdateProjectArtifactSizes_PropagatesSizeToAddonReleases()
     {
-        var project = new PublisherProject
+        var project = new PublisherStudioProject
         {
-            Name = "Addon Test",
+            ProjectName = "Addon Test",
             ProjectPath = "/dummy/project",
         };
         var catalog = new PublisherCatalog();
@@ -1662,6 +1666,9 @@ public class PublisherStudioInventoryManagementTests
         Assert.Equal(4242, addonRelease.Artifacts[0].Size);
     }
 
+    /// <summary>
+    /// Tests that <see cref="PublishShareViewModel.AllowUnresolvableUrlsForTesting"/> defaults to false and can be toggled.
+    /// </summary>
     [Fact]
     public void AllowUnresolvableUrlsForTesting_DefaultsToFalse_CanBeToggled()
     {
