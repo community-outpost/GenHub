@@ -38,6 +38,11 @@ public static class OnlineConstants
     public const int ReconnectMaxDelaySeconds = 30;
 
     /// <summary>
+    /// Prefix for online error codes.
+    /// </summary>
+    public const string ErrorCodePrefix = "online.";
+
+    /// <summary>
     /// Error code when a game profile required for launch cannot be found.
     /// </summary>
     public const string ErrorProfileMissing = "online.launch.profile-missing";

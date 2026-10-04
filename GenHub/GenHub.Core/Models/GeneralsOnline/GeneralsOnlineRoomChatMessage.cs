@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using System;
 using System.Text.Json.Serialization;
 
@@ -36,10 +37,5 @@ public sealed class GeneralsOnlineRoomChatMessage
     /// Gets the receive time in local time for display.
     /// </summary>
     [JsonIgnore]
-    public DateTime ReceivedAtLocal => ReceivedAtUtc.Kind switch
-    {
-        DateTimeKind.Utc => ReceivedAtUtc.ToLocalTime(),
-        DateTimeKind.Unspecified => DateTime.SpecifyKind(ReceivedAtUtc, DateTimeKind.Utc).ToLocalTime(),
-        _ => ReceivedAtUtc,
-    };
+    public DateTime ReceivedAtLocal => ChatTimestampHelper.ToLocalTime(ReceivedAtUtc);
 }

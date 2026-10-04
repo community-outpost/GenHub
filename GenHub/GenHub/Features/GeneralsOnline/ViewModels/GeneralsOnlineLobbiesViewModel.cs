@@ -2308,7 +2308,15 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     /// <returns>True if the session was successfully recovered; false if unauthenticated.</returns>
     private async Task<bool> TryRecoverSessionAsync(CancellationToken cancellationToken)
     {
-        await _sessionRecoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            await _sessionRecoveryLock.WaitAsync(cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return false;
+        }
+
         try
         {
             if (!IsAuthenticated)
@@ -2351,9 +2359,13 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             {
                 await _authService.LogoutAsync(cancellationToken);
             }
-            catch
+            catch (OperationCanceledException)
             {
-                // Best effort logout on failure
+                throw;
+            }
+            catch (Exception logoutEx)
+            {
+                _logger.LogDebug(logoutEx, "Best-effort Generals Online logout during recovery failure skipped.");
             }
 
             SyncAuthProps();
@@ -2363,7 +2375,14 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
         finally
         {
-            _sessionRecoveryLock.Release();
+            try
+            {
+                _sessionRecoveryLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed while session recovery was in flight.
+            }
         }
     }
 
@@ -2981,7 +3000,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         string detailText;
         if (!string.IsNullOrWhiteSpace(detail)
             && !detail.StartsWith(GeneralsOnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
-            && !detail.StartsWith("online.", StringComparison.Ordinal)
+            && !detail.StartsWith(OnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
             && _dependencies?.LocalizationService is { } loc
             && loc.TryGetString(detail, out var localized))
         {
