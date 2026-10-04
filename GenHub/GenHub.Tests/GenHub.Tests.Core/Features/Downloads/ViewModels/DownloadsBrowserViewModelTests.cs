@@ -809,27 +809,43 @@ public class DownloadsBrowserViewModelTests
         var publisherA = viewModel.Publishers.First(p => p.PublisherId == "sub-a");
         var publisherB = viewModel.Publishers.First(p => p.PublisherId == "sub-b");
 
+        static async Task WaitForExpectedItemAsync(DownloadsBrowserViewModel vm, string expectedId)
+        {
+            var timeout = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < timeout)
+            {
+                if (vm.ContentItems.Count == 1 &&
+                    vm.ContentItems[0].SearchResult.Id == expectedId &&
+                    !vm.IsLoading)
+                {
+                    return;
+                }
+
+                await Task.Delay(25);
+            }
+        }
+
         // Load A into cache
         viewModel.SelectedPublisher = publisherA;
-        await Task.Delay(50);
+        await WaitForExpectedItemAsync(viewModel, "mod-a1");
         Assert.Single(viewModel.ContentItems);
         Assert.Equal("mod-a1", viewModel.ContentItems[0].SearchResult.Id);
 
         // Load B into cache
         viewModel.SelectedPublisher = publisherB;
-        await Task.Delay(50);
+        await WaitForExpectedItemAsync(viewModel, "mod-b1");
         Assert.Single(viewModel.ContentItems);
         Assert.Equal("mod-b1", viewModel.ContentItems[0].SearchResult.Id);
 
         // Switch back to A (cache hit)
         viewModel.SelectedPublisher = publisherA;
-        await Task.Delay(50);
+        await WaitForExpectedItemAsync(viewModel, "mod-a1");
         Assert.Single(viewModel.ContentItems);
         Assert.Equal("mod-a1", viewModel.ContentItems[0].SearchResult.Id);
 
         // Switch back to B (cache hit)
         viewModel.SelectedPublisher = publisherB;
-        await Task.Delay(50);
+        await WaitForExpectedItemAsync(viewModel, "mod-b1");
         Assert.Single(viewModel.ContentItems);
         Assert.Equal("mod-b1", viewModel.ContentItems[0].SearchResult.Id);
     }
