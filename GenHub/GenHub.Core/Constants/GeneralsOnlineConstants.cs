@@ -97,8 +97,8 @@ public static class GeneralsOnlineConstants
     /// <summary>Path to publisher logo asset.</summary>
     public const string LogoSource = UriConstants.GeneralsOnlineLogoUri;
 
-    /// <summary>Path to publisher cover asset.</summary>
-    public const string CoverSource = "/Assets/Covers/usa-cover.jpg";
+    /// <summary>Avalonia asset URI for publisher cover asset.</summary>
+    public const string CoverSource = UriConstants.UsaCoverUri;
 
     /// <summary>Portable release description suffix.</summary>
     public const string PortableReleaseSuffix = " portable release";

@@ -75,6 +75,13 @@ jobs:
             exit 1
           fi
 
+          git fetch origin --tags --force
+          tag_target=$(git rev-parse -q --verify "refs/tags/v$version^{commit}" 2>/dev/null || true)
+          if [[ -n "$tag_target" && "$tag_target" != "$sha" ]]; then
+            echo "::error::Tag v$version already exists and points to $tag_target, which differs from release commit $sha."
+            exit 1
+          fi
+
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -446,8 +453,23 @@ jobs:
 
       - name: Run Release Tests
         run: |
-          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
-            -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork"
+          set -o pipefail
+          if ! test_projects=$(find GenHub/GenHub.Tests -name "*.csproj" | sort); then
+            echo "::error::Failed to discover test projects."
+            exit 1
+          fi
+          test_count=0
+          while IFS= read -r test_project; do
+            [[ -z "$test_project" ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}" --filter "Category!=LiveNetwork"
+            test_count=$((test_count + 1))
+          done <<< "$test_projects"
+          if [ "$test_count" -eq 0 ]; then
+            echo "::error::No macOS-compatible test projects found."
+            exit 1
+          fi
 
       - name: Publish macOS App
         run: |
@@ -640,7 +662,7 @@ jobs:
           echo "FALLBACK_BODY<<EOF" >> $GITHUB_OUTPUT
           echo "## GenHub Alpha v${VERSION}" >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
-          echo "### 🆕 What's New" >> $GITHUB_OUTPUT
+          echo "### What's New" >> $GITHUB_OUTPUT
           echo "**${COUNT} commits** included:" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -686,7 +708,7 @@ jobs:
           body: |
             ${{ steps.release_drafter.outputs.body != '' && steps.release_drafter.outputs.body || steps.info.outputs.FALLBACK_BODY }}
 
-            ### 🔧 Assets
+            ### Assets
             - **Windows Installer:** [GenHub-win-Setup.exe](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-win-Setup.exe) *(supports custom install directory via `--installto <path>` / `-t <path>`)*
             - **Windows Portable:** [GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub-${{ steps.info.outputs.VERSION }}-win-portable.zip)
             - **Linux Installer:** [GenHub.AppImage](https://github.com/${{ github.repository }}/releases/download/v${{ steps.info.outputs.VERSION }}/GenHub.AppImage)

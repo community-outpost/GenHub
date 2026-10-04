@@ -11,41 +11,41 @@ include-pre-releases: true
 prerelease: true
 
 categories:
-  - title: '🚀 New Features & Enhancements'
+  - title: 'New Features & Enhancements'
     labels:
       - 'Enhancement'
       - 'enhancement'
       - 'Feature'
       - 'feature'
       - 'feat'
-  - title: '🎨 User Interface & Experience'
+  - title: 'User Interface & Experience'
     labels:
       - 'GUI'
       - 'Design'
       - 'ui'
       - 'ux'
-  - title: '🛠️ Tools & Engine Integrations'
+  - title: 'Tools & Engine Integrations'
     labels:
       - 'Tools'
       - 'tools'
       - 'Mapping'
-  - title: '📦 Content Pipeline & Distribution'
+  - title: 'Content Pipeline & Distribution'
     labels:
       - 'Content-Pipeline'
-  - title: '🐛 Bug Fixes & Stability'
+  - title: 'Bug Fixes & Stability'
     labels:
       - 'Fix'
       - 'Bug'
       - 'bug'
-  - title: '⚙️ Core Engine & Services'
+  - title: 'Core Engine & Services'
     labels:
       - 'Core-service'
       - 'Architecture'
-  - title: '⚡ Performance'
+  - title: 'Performance'
     labels:
       - 'Performance'
       - 'performance'
-  - title: '🧰 Maintenance & Code Quality'
+  - title: 'Maintenance & Code Quality'
     labels:
       - 'Refactor'
       - 'refactor'
@@ -54,7 +54,7 @@ categories:
       - 'chore'
       - 'Infrastructure'
       - 'Testing'
-  - title: '📖 Documentation'
+  - title: 'Documentation'
     labels:
       - 'Documentation'
       - 'documentation'

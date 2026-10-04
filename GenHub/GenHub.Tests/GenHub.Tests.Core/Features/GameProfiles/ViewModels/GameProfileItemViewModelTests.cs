@@ -611,6 +611,59 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that custom covers ending with the default cover filename are not overwritten by publisher branding.
+    /// </summary>
+    [Fact]
+    public void Construction_CustomCoverEndingWithUsaCoverFilename_PreservedByPublisherBranding()
+    {
+        var customCoverPath = "/custom/path/my-usa-cover.jpg";
+        var customProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-custom-cover",
+            Name = "Custom Cover Profile",
+            CoverPath = customCoverPath,
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmCustom = new GameProfileItemViewModel("test-profile-custom-cover", customProfile, null!, customCoverPath);
+        Assert.Equal(customCoverPath, vmCustom.CoverImagePath);
+    }
+
+    /// <summary>
+    /// Verifies that default USA cover sentinels (URI, legacy relative, and backslash paths) are replaced with publisher branding.
+    /// </summary>
+    /// <param name="sentinelCoverPath">The sentinel cover path representation to test.</param>
+    [Theory]
+    [InlineData(UriConstants.UsaCoverUri)]
+    [InlineData("/Assets/Covers/usa-cover.jpg")]
+    [InlineData(@"Assets\Covers\usa-cover.jpg")]
+    [InlineData("/assets/covers/USA-Cover.jpg")]
+    [InlineData("avares://GenHub/assets/covers/USA-Cover.jpg")]
+    public void Construction_DefaultUsaCoverSentinels_ReplacedByPublisherBranding(string sentinelCoverPath)
+    {
+        var sentinelProfile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "test-profile-sentinel-cover",
+            Name = "Sentinel Cover Profile",
+            CoverPath = sentinelCoverPath,
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "1.000.thesuperhackers.gameclient.zerohour",
+                Name = "The Super Hackers",
+                PublisherType = "thesuperhackers",
+            },
+        };
+
+        var vmSentinel = new GameProfileItemViewModel("test-profile-sentinel-cover", sentinelProfile, null!, sentinelCoverPath);
+        Assert.Equal(SuperHackersConstants.ZeroHourCoverSource, vmSentinel.CoverImagePath);
+    }
+
+    /// <summary>
     /// Verifies that IsSteamIntegrationSupported evaluates both Steam installation and Windows binary format.
     /// </summary>
     [Fact]

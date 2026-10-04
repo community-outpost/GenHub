@@ -47,6 +47,7 @@ URI scheme constants for handling different types of URIs and paths.
 - `GeneralsIconUri`: Icon URI for Generals game type (`"avares://GenHub/Assets/Icons/generals-icon.png"`)
 - `ZeroHourIconUri`: Icon URI for Zero Hour game type (`"avares://GenHub/Assets/Icons/zerohour-icon.png"`)
 - `DefaultIconUri`: Default icon URI for unknown game types (`"avares://GenHub/Assets/Icons/generalshub-icon.png"`)
+- `UsaCoverUri`: Cover URI for USA cover asset (`"avares://GenHub/Assets/Covers/usa-cover.jpg"`)
 
 ### AppConstants
 
@@ -1048,9 +1049,21 @@ Error messages for manifests whose files or platform variants cannot be stored, 
 | `FileCollectionIsNull` | `"Manifest Files collection{0} is null."` | Structural check of a null file list; `{0}` is the location suffix, such as `" in variant 1"` |
 | `FileEntryIsNull` | `"File at index {0}{1} is null."` | Structural check of a null file entry; `{0}` is the file index, `{1}` the location suffix |
 | `FileEntryMissingRelativePath` | `"File at index {0}{1} is missing its RelativePath."` | Structural check of a file entry without a relative path; `{0}` is the file index, `{1}` the location suffix |
+| `InvalidFilePathOutsideContentDirectory` | `"Invalid file path (outside content directory): {0}"` | Integrity check of a file whose path resolves outside content directory; `{0}` is the relative path |
+| `CasCheckFailedForHash` | `"CAS check failed for hash {0}: {1}"` | Integrity check of a CAS-backed file whose existence check failed; `{0}` is the hash, `{1}` the error reason |
+| `ContentAddressableMissingHash` | `"ContentAddressable file missing hash: {0}"` | Integrity check of a ContentAddressable file missing its hash; `{0}` is the relative path |
+| `FileNotFound` | `"File not found: {0}"` | Integrity check of a missing file; `{0}` is the relative path |
+| `HashMismatchForFile` | `"Hash mismatch for file: {0}"` | Integrity check of a file with mismatched hash; `{0}` is the relative path |
+| `ContentDirectoryDoesNotExist` | `"Content directory does not exist: {0}"` | Extraneous file check when target content directory does not exist; `{0}` is the content path |
+| `ExtraneousFileDetected` | `"Extraneous file detected (not in manifest): {0}"` | Extraneous file detected in content directory; `{0}` is the relative path |
+| `ManifestIdMissing` | `"Manifest Id is missing."` | Structural check of a manifest missing an ID |
+| `ManifestNameMissing` | `"Manifest Name is missing."` | Structural check of a manifest missing a name |
+| `ManifestVersionMissing` | `"Manifest Version is missing."` | Structural check of a manifest missing a version |
+| `ManifestContainsNoFiles` | `"Manifest contains no files."` | Structural check of a manifest with no declared files |
+| `VariantLocationSuffix` | `" in variant {0}"` | Suffix for file issues located in a variant; `{0}` is the variant index |
 | `UnsupportedManifestFormatVersionKey` | `"Manifest.Format.Unsupported"` | Resource key for `UnsupportedManifestFormatVersion` |
 | `UnsupportedManifestFormatVersion` | `"Manifest '{0}' declares format version {1}, but this version of GenHub supports up to format version {2}. Update GenHub to install it."` | Rejecting a manifest whose format is newer than this build supports; `{0}` is the manifest ID, `{1}` the declared format, `{2}` the highest supported format |
-| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | Exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
+| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | English fallback when exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
 
 ---
 
@@ -1680,7 +1693,7 @@ Constants for Generals Online content discovery and manifest creation.
 - `GameDataSubdirectory`: Subdirectory within the portable ZIP containing GeneralsOnline game data (`"GeneralsOnlineGameData"`)
 - `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline", "quickmatch", "competitive"]`)
 - `GameDataTags`: Default tags for GameData patch manifests (`["patch", "generalsonline"]`)
-- `CoverSource`: Path for cover images (`"/Assets/Covers/usa-cover.jpg"`)
+- `CoverSource`: Avalonia asset URI for cover images (`"avares://GenHub/Assets/Covers/usa-cover.jpg"`, referenced via `UriConstants.UsaCoverUri`)
 - `UnknownVersion`: Default version string when unknown (`"unknown"`)
 
 ### CNCLabsConstants Class

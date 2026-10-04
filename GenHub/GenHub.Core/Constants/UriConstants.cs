@@ -218,6 +218,11 @@ public static class UriConstants
     public const string UsaCoverFilename = "usa-cover.jpg";
 
     /// <summary>
+    /// Cover URI for USA cover asset.
+    /// </summary>
+    public const string UsaCoverUri = "avares://GenHub/Assets/Covers/usa-cover.jpg";
+
+    /// <summary>
     /// Filename for GLA cover.
     /// </summary>
     public const string GlaCoverFilename = "gla-cover.jpg";

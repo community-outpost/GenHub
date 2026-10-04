@@ -1,10 +1,12 @@
 namespace GenHub.Tests.Core.Infrastructure;
 
+using Xunit;
+
 /// <summary>
 /// Reports a test as skipped on hosts that cannot create symbolic links, such as Windows without
 /// Developer Mode or elevation, so a run shows whether symlink coverage really executed.
 /// </summary>
-public sealed class SymlinkFactAttribute : FactAttribute
+public class SymlinkFactAttribute : FactAttribute
 {
     private static readonly Lazy<bool> SymbolicLinksSupported = new(ProbeSymbolicLinks);
 

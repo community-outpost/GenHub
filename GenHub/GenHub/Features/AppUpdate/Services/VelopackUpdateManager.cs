@@ -243,7 +243,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var owner = pathParts[0];
             var repo = pathParts[1];
 
-            _logger.LogInformation("🔍 Fetching releases from GitHub API: {Owner}/{Repo}", owner, repo);
+            _logger.LogInformation("Fetching releases from GitHub API: {Owner}/{Repo}", owner, repo);
 
             var json = await FetchGitHubReleasesJsonAsync(owner, repo, cancellationToken);
             if (json == null)
@@ -292,7 +292,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return updateInfo;
             }
 
-            _logger.LogWarning("⚠️ Update detected via GitHub API but UpdateManager unavailable (running from debug)");
+            _logger.LogWarning("Update detected via GitHub API but UpdateManager unavailable (running from debug)");
             _logger.LogWarning("   Install the app using Setup.exe to enable automatic updates");
 
             _cachedUpdateInfo = null;

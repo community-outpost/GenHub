@@ -58,7 +58,76 @@ public static class ManifestErrorMessages
     public const string FileEntryMissingRelativePath = "File at index {0}{1} is missing its RelativePath.";
 
     /// <summary>
-    /// Error message for exporting a profile whose manifest has no variant for the current host.
+    /// Validation message for a file whose path resolves outside the content directory.
+    /// {0} is the relative path.
+    /// </summary>
+    public const string InvalidFilePathOutsideContentDirectory = "Invalid file path (outside content directory): {0}";
+
+    /// <summary>
+    /// Validation message for a CAS existence check failure.
+    /// {0} is the hash and {1} is the error reason.
+    /// </summary>
+    public const string CasCheckFailedForHash = "CAS check failed for hash {0}: {1}";
+
+    /// <summary>
+    /// Validation message for a ContentAddressable file entry missing its hash.
+    /// {0} is the relative path.
+    /// </summary>
+    public const string ContentAddressableMissingHash = "ContentAddressable file missing hash: {0}";
+
+    /// <summary>
+    /// Validation message for a file that does not exist.
+    /// {0} is the relative path.
+    /// </summary>
+    public const string FileNotFound = "File not found: {0}";
+
+    /// <summary>
+    /// Validation message for a file whose hash does not match the manifest.
+    /// {0} is the relative path.
+    /// </summary>
+    public const string HashMismatchForFile = "Hash mismatch for file: {0}";
+
+    /// <summary>
+    /// Validation message when the target content directory does not exist.
+    /// {0} is the content path.
+    /// </summary>
+    public const string ContentDirectoryDoesNotExist = "Content directory does not exist: {0}";
+
+    /// <summary>
+    /// Validation message for an extraneous file detected in the content directory.
+    /// {0} is the relative path.
+    /// </summary>
+    public const string ExtraneousFileDetected = "Extraneous file detected (not in manifest): {0}";
+
+    /// <summary>
+    /// Validation message for a manifest missing an ID.
+    /// </summary>
+    public const string ManifestIdMissing = "Manifest Id is missing.";
+
+    /// <summary>
+    /// Validation message for a manifest missing a name.
+    /// </summary>
+    public const string ManifestNameMissing = "Manifest Name is missing.";
+
+    /// <summary>
+    /// Validation message for a manifest missing a version.
+    /// </summary>
+    public const string ManifestVersionMissing = "Manifest Version is missing.";
+
+    /// <summary>
+    /// Validation message for a manifest containing no files.
+    /// </summary>
+    public const string ManifestContainsNoFiles = "Manifest contains no files.";
+
+    /// <summary>
+    /// Format string for variant location suffix in file structure validation.
+    /// {0} is the variant index.
+    /// </summary>
+    public const string VariantLocationSuffix = " in variant {0}";
+
+    /// <summary>
+    /// English fallback error message for exporting a profile whose manifest has no variant for the current host.
+    /// Used as fallback anchor for <see cref="ProfileSharingConstants.CannotExportNoHostVariantErrorKey"/>.
     /// {0} is the manifest name and {1} is the host runtime identifier.
     /// </summary>
     public const string CannotExportNoHostVariant = "Cannot export '{0}': no variant supports this host ({1}).";
