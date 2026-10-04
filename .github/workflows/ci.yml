@@ -712,6 +712,11 @@ jobs:
 
       - name: Run macOS Tests
         run: |
+          set -o pipefail
+          if ! test_projects=$(find GenHub/GenHub.Tests -name "*.csproj" | sort); then
+            echo "::error::Failed to discover test projects."
+            exit 1
+          fi
           test_count=0
           while IFS= read -r test_project; do
             [[ -z "$test_project" ]] && continue
@@ -719,7 +724,7 @@ jobs:
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
             test_count=$((test_count + 1))
-          done < <(find GenHub/GenHub.Tests -name "*.csproj" | sort)
+          done <<< "$test_projects"
           if [ "$test_count" -eq 0 ]; then
             echo "::error::No matching test projects found."
             exit 1

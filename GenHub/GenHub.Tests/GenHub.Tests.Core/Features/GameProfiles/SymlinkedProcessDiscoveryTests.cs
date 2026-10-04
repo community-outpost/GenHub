@@ -69,15 +69,9 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     /// <summary>
     /// A game started through a CAS symlink is discovered with the identities the launcher resolves.
     /// </summary>
-    [SymlinkFact]
+    [SymlinkProcessExecutionFact]
     public void ProcessStartedThroughACasSymlink_IsDiscoveredWithTheResolvedIdentities()
     {
-        if (OperatingSystem.IsMacOS() && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
-        {
-            // Apple Mobile File Integrity terminates ad-hoc signed copies of arm64e system binaries on Apple Silicon.
-            return;
-        }
-
         var store = Directory.CreateDirectory(Path.Combine(_root, "objects", "ab")).FullName;
         var workspace = Directory.CreateDirectory(Path.Combine(_root, "workspace")).FullName;
         var blob = Path.Combine(store, ObjectHash);
