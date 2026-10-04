@@ -72,6 +72,12 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     [SymlinkFact]
     public void ProcessStartedThroughACasSymlink_IsDiscoveredWithTheResolvedIdentities()
     {
+        if (OperatingSystem.IsMacOS())
+        {
+            // Apple Mobile File Integrity terminates ad-hoc signed copies of arm64e system binaries on Apple Silicon.
+            return;
+        }
+
         var store = Directory.CreateDirectory(Path.Combine(_root, "objects", "ab")).FullName;
         var workspace = Directory.CreateDirectory(Path.Combine(_root, "workspace")).FullName;
         var blob = Path.Combine(store, ObjectHash);
