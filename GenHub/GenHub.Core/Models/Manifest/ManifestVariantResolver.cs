@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -111,6 +112,49 @@ public static class ManifestVariantResolver
     }
 
     /// <summary>
+    /// Copies a manifest and makes the given files the ones it resolves to on the runtime: the
+    /// matching variant's files, or the flat list when the manifest declares no variants.
+    /// <para>
+    /// For a manifest built from a delivered payload. The other variants are kept, so the copy
+    /// still describes every platform the release supports. A variant manifest's root file list
+    /// is never resolved, so the copy clears it rather than carry stale entries.
+    /// </para>
+    /// </summary>
+    /// <param name="original">The manifest to copy.</param>
+    /// <param name="files">The files delivered for the runtime.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    /// <returns>The copy.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The manifest declares variants and none matches the runtime, so there is nowhere to put the files.
+    /// </exception>
+    public static ContentManifest CopyWithResolvedFiles(
+        ContentManifest original,
+        List<ManifestFile> files,
+        string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(original);
+        ArgumentNullException.ThrowIfNull(files);
+
+        if (!SupportsRuntime(original, runtimeIdentifier))
+        {
+            throw new InvalidOperationException(string.Format(
+                CultureInfo.InvariantCulture,
+                ManifestErrorMessages.NoHostVariantForManifest,
+                original.Id,
+                runtimeIdentifier ?? CurrentRuntimeIdentifier));
+        }
+
+        var copy = new ContentManifest(original);
+        ReplaceResolvedFiles(copy, files, runtimeIdentifier);
+        if (copy.Variants.Count > 0)
+        {
+            copy.Files = [];
+        }
+
+        return copy;
+    }
+
+    /// <summary>
     /// Rewrites every file the manifest declares, in the flat list and in each variant.
     /// </summary>
     /// <param name="manifest">The manifest to update.</param>
@@ -171,6 +215,22 @@ public static class ManifestVariantResolver
     }
 
     /// <summary>
+    /// Gets the declared entry point without falling back to detection: the matching
+    /// variant's when variants are declared, otherwise the manifest-level one.
+    /// </summary>
+    /// <param name="manifest">The manifest to inspect.</param>
+    /// <param name="runtimeIdentifier">Host runtime identifier; defaults to the current host.</param>
+    /// <returns>The declared relative entry point, or <c>null</c> when none applies.</returns>
+    public static string? GetDeclaredEntryPoint(ContentManifest manifest, string? runtimeIdentifier = null)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        return manifest.Variants.Count == 0
+            ? manifest.EntryPoint
+            : ResolveVariant(manifest, runtimeIdentifier)?.EntryPoint;
+    }
+
+    /// <summary>
     /// Resolves the relative path of the file to launch.
     /// <para>
     /// The chain is deliberately explicit, and refuses to guess at the end:
@@ -192,11 +252,8 @@ public static class ManifestVariantResolver
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
-        var variant = ResolveVariant(manifest, runtimeIdentifier);
         var files = ResolveFiles(manifest, runtimeIdentifier);
-        var declared = manifest.Variants.Count == 0
-            ? manifest.EntryPoint
-            : variant?.EntryPoint;
+        var declared = GetDeclaredEntryPoint(manifest, runtimeIdentifier);
 
         if (!string.IsNullOrWhiteSpace(declared))
         {

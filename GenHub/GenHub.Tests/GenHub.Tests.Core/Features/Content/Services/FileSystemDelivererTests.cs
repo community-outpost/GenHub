@@ -25,6 +25,7 @@ public sealed class FileSystemDelivererTests
     private readonly Mock<IConfigurationProviderService> _configProviderMock = new();
     private readonly List<string> _builtFilePaths = [];
     private string? _builtEntryPoint;
+    private (string? ProcessName, int? DiscoveryTimeoutMs)? _builtLaunchRelationship;
 
     /// <summary>
     /// Verifies that CanDeliver returns false when the manifest has no files.
@@ -174,6 +175,36 @@ public sealed class FileSystemDelivererTests
     }
 
     /// <summary>
+    /// The delivered manifest is flat, so it carries the host variant's launch
+    /// relationship. The root and foreign variant relationships are ignored.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_VariantManifest_CarriesHostVariantLaunchRelationshipAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = VariantManifestFixture.Create(
+                [CreateLocalFile(directory.FullName, "generalszh")],
+                [new ManifestFile { RelativePath = "generalszh.exe", SourceType = ContentSourceType.ContentAddressable }]);
+            manifest.LaunchRelationship = new LaunchRelationship { ProcessName = "root.exe" };
+            manifest.Variants[0].LaunchRelationship = new LaunchRelationship { ProcessName = "foreign.exe" };
+            manifest.Variants[1].LaunchRelationship = new LaunchRelationship { ProcessName = "game.dat", DiscoveryTimeoutMs = 4000 };
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(("game.dat", 4000), _builtLaunchRelationship);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
     /// A flat manifest still delivers its root files unchanged.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -197,6 +228,40 @@ public sealed class FileSystemDelivererTests
             Assert.True(result.Success, result.FirstError);
             Assert.Equal(["a.big", "b.big"], _builtFilePaths);
             Assert.Null(_builtEntryPoint);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A flat manifest keeps its declared entry point and launch relationship together, so
+    /// the launcher does not pair a guessed entry with the declared child process.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_FlatManifest_CarriesRootEntryPointAndLaunchRelationshipAsync()
+    {
+        var directory = Directory.CreateTempSubdirectory();
+        try
+        {
+            _configProviderMock.Setup(c => c.GetWorkspacePath()).Returns(directory.FullName);
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.test.gameclient.zerohour"),
+                Name = "Test",
+                ContentType = ContentType.GameClient,
+                Files = [CreateLocalFile(directory.FullName, "launcher.exe"), CreateLocalFile(directory.FullName, "generals.exe")],
+                EntryPoint = "launcher.exe",
+                LaunchRelationship = new LaunchRelationship { ProcessName = "generals" },
+            };
+
+            var result = await CreateDeliverer().DeliverContentAsync(manifest, directory.FullName);
+
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal("launcher.exe", _builtEntryPoint);
+            Assert.Equal(("generals", (int?)null), _builtLaunchRelationship);
         }
         finally
         {
@@ -317,6 +382,10 @@ public sealed class FileSystemDelivererTests
         builderMock
             .Setup(b => b.WithEntryPoint(It.IsAny<string?>()))
             .Callback<string?>(entryPoint => _builtEntryPoint = entryPoint)
+            .Returns(builderMock.Object);
+        builderMock
+            .Setup(b => b.WithLaunchRelationship(It.IsAny<string?>(), It.IsAny<int?>()))
+            .Callback<string?, int?>((processName, timeout) => _builtLaunchRelationship = (processName, timeout))
             .Returns(builderMock.Object);
         builderMock.Setup(b => b.AddRequiredDirectories(It.IsAny<string[]>())).Returns(builderMock.Object);
         builderMock.Setup(b => b.Build()).Returns(() => new ContentManifest

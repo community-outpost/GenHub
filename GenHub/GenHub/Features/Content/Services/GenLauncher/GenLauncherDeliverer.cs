@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -164,6 +165,12 @@ public class GenLauncherDeliverer(
         if (string.IsNullOrWhiteSpace(targetDirectory))
         {
             return OperationResult<ContentManifest>.CreateFailure("Target directory cannot be empty");
+        }
+
+        if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, packageManifest.Id, ManifestVariantResolver.CurrentRuntimeIdentifier));
         }
 
         try
