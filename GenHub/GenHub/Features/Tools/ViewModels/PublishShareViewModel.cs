@@ -1864,11 +1864,23 @@ public partial class PublishShareViewModel(
             ? FindHostingArtifactByUrl(artifact.DownloadUrl)
             : _currentHostingState?.Artifacts.FirstOrDefault(a => a.FileName == artifact.Filename);
         artHosting ??= FindUnresolvedHostingArtifact(artifact.Filename, artifact.Size);
-        var artSize = artifact.Size > 0
-            ? artifact.Size
-            : (artHosting?.FileSize > 0
-                ? artHosting.FileSize
-                : (_probedArtifactSizes.TryGetValue(artifact.DownloadUrl ?? string.Empty, out var cachedArtSize) ? cachedArtSize : 0));
+        var artSize = artifact.Size;
+        if (artSize <= 0)
+        {
+            if (artHosting?.FileSize > 0)
+            {
+                artSize = artHosting.FileSize;
+            }
+            else if (_probedArtifactSizes.TryGetValue(artifact.DownloadUrl ?? string.Empty, out var cachedArtSize))
+            {
+                artSize = cachedArtSize;
+            }
+            else
+            {
+                artSize = 0;
+            }
+        }
+
         if (artSize > 0 && artifact.Size <= 0)
         {
             artifact.Size = artSize;
@@ -2059,33 +2071,48 @@ public partial class PublishShareViewModel(
 
         foreach (var namedCatalog in project.Catalogs)
         {
-            if (namedCatalog.Catalog?.Content == null)
+            UpdateCatalogArtifactSizes(namedCatalog.Catalog, url, size);
+        }
+    }
+
+    private void UpdateCatalogArtifactSizes(PublisherCatalog? catalog, string url, long size)
+    {
+        if (catalog?.Content == null)
+        {
+            return;
+        }
+
+        foreach (var content in catalog.Content)
+        {
+            if (content == null)
             {
                 continue;
             }
 
-            foreach (var content in namedCatalog.Catalog.Content)
+            UpdateContentArtifactSizes(content, url, size);
+        }
+    }
+
+    private void UpdateContentArtifactSizes(CatalogContentItem content, string url, long size)
+    {
+        foreach (var release in AllContentReleases(content))
+        {
+            UpdateReleaseArtifactSizes(release, url, size);
+        }
+    }
+
+    private void UpdateReleaseArtifactSizes(ContentRelease release, string url, long size)
+    {
+        if (release.Artifacts == null)
+        {
+            return;
+        }
+
+        foreach (var art in release.Artifacts)
+        {
+            if (art.Size <= 0 && string.Equals(art.DownloadUrl, url, StringComparison.OrdinalIgnoreCase))
             {
-                if (content == null)
-                {
-                    continue;
-                }
-
-                foreach (var release in AllContentReleases(content))
-                {
-                    if (release.Artifacts == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (var art in release.Artifacts)
-                    {
-                        if (art.Size <= 0 && string.Equals(art.DownloadUrl, url, StringComparison.OrdinalIgnoreCase))
-                        {
-                            art.Size = size;
-                        }
-                    }
-                }
+                art.Size = size;
             }
         }
     }
@@ -2507,49 +2534,58 @@ public partial class PublishShareViewModel(
     private Dictionary<string, List<AssetReference>> BuildUrlReferenceIndex()
     {
         var index = new Dictionary<string, List<AssetReference>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var catalog in project.Catalogs)
+        foreach (var catalog in project.Catalogs.Where(c => c != null))
         {
-            if (catalog == null)
-            {
-                continue;
-            }
-
-            AddUrlReference(index, catalog.IconUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotIcon));
-            if (catalog.Catalog != null)
-            {
-                AddUrlReference(index, catalog.Catalog.IconUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotIcon));
-                AddUrlReference(index, catalog.Catalog.AvatarUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotAvatar));
-                if (catalog.Catalog.Publisher != null)
-                {
-                    AddUrlReference(index, catalog.Catalog.Publisher.AvatarUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotAvatar));
-                }
-
-                if (catalog.Catalog.Content != null)
-                {
-                    foreach (var content in catalog.Catalog.Content)
-                    {
-                        if (content != null)
-                        {
-                            IndexContentReferences(index, catalog, content);
-                        }
-                    }
-                }
-            }
+            IndexCatalogReferences(index, catalog);
         }
 
-        var pubName = !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Name)
-            ? project.Catalog!.Publisher!.Name
-            : (!string.IsNullOrWhiteSpace(project.ProjectName)
+        IndexProjectDefinitionReferences(index);
+        return index;
+    }
+
+    private void IndexCatalogReferences(Dictionary<string, List<AssetReference>> index, NamedCatalog catalog)
+    {
+        AddUrlReference(index, catalog.IconUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotIcon));
+        if (catalog.Catalog == null)
+        {
+            return;
+        }
+
+        AddUrlReference(index, catalog.Catalog.IconUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotIcon));
+        AddUrlReference(index, catalog.Catalog.AvatarUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotAvatar));
+        if (catalog.Catalog.Publisher != null)
+        {
+            AddUrlReference(index, catalog.Catalog.Publisher.AvatarUrl, new AssetReference(catalog.Id, catalog.Name, null, null, null, MediaSlotAvatar));
+        }
+
+        if (catalog.Catalog.Content != null)
+        {
+            foreach (var content in catalog.Catalog.Content.Where(c => c != null))
+            {
+                IndexContentReferences(index, catalog, content);
+            }
+        }
+    }
+
+    private void IndexProjectDefinitionReferences(Dictionary<string, List<AssetReference>> index)
+    {
+        var pubName = project.Catalog?.Publisher?.Name;
+        if (string.IsNullOrWhiteSpace(pubName))
+        {
+            pubName = !string.IsNullOrWhiteSpace(project.ProjectName)
                 ? project.ProjectName
-                : GetLocalizedString("Tools.PublisherStudio.Publish.UnknownPublisher", "Publisher"));
-        var pubId = !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id)
-            ? project.Catalog!.Publisher!.Id
-            : ManifestConstants.PublisherContentIdPrefix;
+                : GetLocalizedString("Tools.PublisherStudio.Publish.UnknownPublisher", "Publisher");
+        }
+
+        var pubId = project.Catalog?.Publisher?.Id;
+        if (string.IsNullOrWhiteSpace(pubId))
+        {
+            pubId = ManifestConstants.PublisherContentIdPrefix;
+        }
+
         AddUrlReference(index, project.Catalog?.Publisher?.AvatarUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotAvatar));
         AddUrlReference(index, project.Catalog?.IconUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotIcon));
         AddUrlReference(index, project.Catalog?.AvatarUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotAvatar));
-
-        return index;
     }
 
     private void IndexContentReferences(Dictionary<string, List<AssetReference>> index, NamedCatalog catalog, CatalogContentItem content)
@@ -2557,23 +2593,17 @@ public partial class PublishShareViewModel(
         IndexMetadataReferences(index, catalog, content);
         if (content.Releases != null)
         {
-            foreach (var release in content.Releases)
+            foreach (var release in content.Releases.Where(r => r != null))
             {
-                if (release != null)
-                {
-                    IndexReleaseReferences(index, catalog, content, release);
-                }
+                IndexReleaseReferences(index, catalog, content, release);
             }
         }
 
         if (content.AddonReleases != null)
         {
-            foreach (var addon in content.AddonReleases)
+            foreach (var addon in content.AddonReleases.Where(a => a != null))
             {
-                if (addon != null)
-                {
-                    IndexReleaseReferences(index, catalog, content, addon);
-                }
+                IndexReleaseReferences(index, catalog, content, addon);
             }
         }
     }
@@ -2617,12 +2647,9 @@ public partial class PublishShareViewModel(
 
         if (release.Artifacts != null)
         {
-            foreach (var artifact in release.Artifacts)
+            foreach (var artifact in release.Artifacts.Where(a => a != null))
             {
-                if (artifact != null)
-                {
-                    AddUrlReference(index, artifact.DownloadUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotArtifact));
-                }
+                AddUrlReference(index, artifact.DownloadUrl, new AssetReference(catalog.Id, catalog.Name, content.Id, content.Name, release.Version, MediaSlotArtifact));
             }
         }
 
@@ -2837,12 +2864,9 @@ public partial class PublishShareViewModel(
         item.Children.Clear();
         if (catalog.Catalog?.Content != null)
         {
-            foreach (var content in catalog.Catalog.Content)
+            foreach (var content in catalog.Catalog.Content.Where(c => c != null))
             {
-                if (content != null)
-                {
-                    item.Children.Add(BuildContentChild(content, item.Url));
-                }
+                item.Children.Add(BuildContentChild(content, item.Url));
             }
         }
 
@@ -2885,8 +2909,8 @@ public partial class PublishShareViewModel(
     private HostedAssetChildViewModel BuildContentChild(CatalogContentItem content, string copyUrl)
     {
         var releaseCount = (content.Releases?.Count ?? 0) + (content.AddonReleases?.Count ?? 0);
-        var fileCount = (content.Releases?.SelectMany(r => r.Artifacts ?? [])?.Count() ?? 0) +
-            (content.AddonReleases?.SelectMany(r => r.Artifacts ?? [])?.Count() ?? 0);
+        var fileCount = (content.Releases?.SelectMany(r => r.Artifacts ?? []).Count() ?? 0) +
+            (content.AddonReleases?.SelectMany(r => r.Artifacts ?? []).Count() ?? 0);
         var contentTypeKey = $"ContentType.{content.ContentType}";
         var contentTypeLabel = GetLocalizedString(contentTypeKey, content.ContentType.GetDisplayName());
         if (string.Equals(contentTypeLabel, contentTypeKey, StringComparison.Ordinal))
@@ -5009,7 +5033,7 @@ public partial class PublishShareViewModel(
                 "Tools.PublisherStudio.Publish.MediaUploadFailedFormat",
                 "Failed to upload media {0}: {1}",
                 item.DisplayName,
-                result?.FirstError ?? "Unknown error");
+                result.FirstError ?? "Unknown error");
             return FailMediaUpload(msg, suppressNotifications);
         }
 
@@ -8003,69 +8027,87 @@ public partial class PublishShareViewModel(
     {
         var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         AddCloudUrl(urls, catalog.IconUrl);
-        if (catalog.Catalog != null)
+        if (catalog.Catalog == null)
         {
-            AddCloudUrl(urls, catalog.Catalog.IconUrl);
-            AddCloudUrl(urls, catalog.Catalog.AvatarUrl);
-            AddCloudUrl(urls, catalog.Catalog.Publisher?.AvatarUrl);
+            return urls;
+        }
 
-            if (catalog.Catalog.Content != null)
+        AddCloudUrl(urls, catalog.Catalog.IconUrl);
+        AddCloudUrl(urls, catalog.Catalog.AvatarUrl);
+        AddCloudUrl(urls, catalog.Catalog.Publisher?.AvatarUrl);
+
+        if (catalog.Catalog.Content != null)
+        {
+            foreach (var content in catalog.Catalog.Content)
             {
-                foreach (var content in catalog.Catalog.Content)
-                {
-                    foreach (var release in content.Releases.Concat(content.AddonReleases))
-                    {
-                        foreach (var artifact in release.Artifacts)
-                        {
-                            AddCloudUrl(urls, artifact.DownloadUrl);
-                        }
-
-                        if (release.ImageUrls != null)
-                        {
-                            foreach (var url in release.ImageUrls)
-                            {
-                                AddCloudUrl(urls, url);
-                            }
-                        }
-
-                        if (release.VideoUrls != null)
-                        {
-                            foreach (var url in release.VideoUrls)
-                            {
-                                AddCloudUrl(urls, url);
-                            }
-                        }
-                    }
-
-                    var metadata = content.Metadata;
-                    if (metadata != null)
-                    {
-                        if (metadata.ScreenshotUrls != null)
-                        {
-                            foreach (var url in metadata.ScreenshotUrls)
-                            {
-                                AddCloudUrl(urls, url);
-                            }
-                        }
-
-                        if (metadata.VideoUrls != null)
-                        {
-                            foreach (var url in metadata.VideoUrls)
-                            {
-                                AddCloudUrl(urls, url);
-                            }
-                        }
-
-                        AddCloudUrl(urls, metadata.VideoUrl);
-                        AddCloudUrl(urls, metadata.IconUrl);
-                        AddCloudUrl(urls, metadata.BannerUrl);
-                        AddCloudUrl(urls, metadata.BackdropUrl);
-                    }
-                }
+                CollectContentFileUrls(urls, content);
             }
         }
 
         return urls;
+    }
+
+    private void CollectContentFileUrls(HashSet<string> urls, CatalogContentItem content)
+    {
+        foreach (var release in content.Releases.Concat(content.AddonReleases))
+        {
+            CollectReleaseFileUrls(urls, release);
+        }
+
+        CollectMetadataFileUrls(urls, content.Metadata);
+    }
+
+    private void CollectReleaseFileUrls(HashSet<string> urls, ContentRelease release)
+    {
+        foreach (var artifact in release.Artifacts)
+        {
+            AddCloudUrl(urls, artifact.DownloadUrl);
+        }
+
+        if (release.ImageUrls != null)
+        {
+            foreach (var url in release.ImageUrls)
+            {
+                AddCloudUrl(urls, url);
+            }
+        }
+
+        if (release.VideoUrls != null)
+        {
+            foreach (var url in release.VideoUrls)
+            {
+                AddCloudUrl(urls, url);
+            }
+        }
+    }
+
+    private void CollectMetadataFileUrls(HashSet<string> urls, ContentRichMetadata? metadata)
+    {
+        if (metadata == null)
+        {
+            return;
+        }
+
+        if (metadata.ScreenshotUrls != null)
+        {
+            foreach (var url in metadata.ScreenshotUrls)
+            {
+                AddCloudUrl(urls, url);
+            }
+        }
+
+        if (metadata.VideoUrls != null)
+        {
+            foreach (var url in metadata.VideoUrls)
+            {
+                AddCloudUrl(urls, url);
+            }
+        }
+
+        AddCloudUrl(urls, metadata.VideoUrl);
+        AddCloudUrl(urls, metadata.IconUrl);
+        AddCloudUrl(urls, metadata.BannerUrl);
+        AddCloudUrl(urls, metadata.BackdropUrl);
     }
 
     private void AddCloudUrl(HashSet<string> urls, string? url)
@@ -8593,8 +8635,16 @@ public partial class PublishShareViewModel(
             return [];
         }
 
-        var affected = new List<NamedCatalog>();
+        ClearDefinitionMediaReferences(url);
 
+        var affected = project.Catalogs.Where(catalog => RemoveCatalogMediaReferences(catalog, url)).ToList();
+
+        ClearProjectCatalogMediaReferences(url);
+        return affected;
+    }
+
+    private void ClearDefinitionMediaReferences(string url)
+    {
         var definitionMediaCleared = false;
         if (string.Equals(project.Catalog?.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(UploadHierarchy.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -8609,80 +8659,88 @@ public partial class PublishShareViewModel(
             definitionMediaCleared = true;
         }
 
-        foreach (var catalog in project.Catalogs)
-        {
-            var removedAny = false;
-            if (string.Equals(catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
-            {
-                catalog.IconUrl = null;
-                removedAny = true;
-            }
-
-            if (catalog.Catalog != null)
-            {
-                if (string.Equals(catalog.Catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
-                {
-                    catalog.Catalog.IconUrl = null;
-                    removedAny = true;
-                }
-
-                if (string.Equals(catalog.Catalog.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
-                {
-                    catalog.Catalog.AvatarUrl = null;
-                    removedAny = true;
-                }
-
-                if (catalog.Catalog.Publisher != null &&
-                    string.Equals(catalog.Catalog.Publisher.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
-                {
-                    catalog.Catalog.Publisher.AvatarUrl = null;
-                    removedAny = true;
-                }
-
-                if (catalog.Catalog.Content != null)
-                {
-                    foreach (var content in catalog.Catalog.Content)
-                    {
-                        removedAny |= RemoveContentMediaReferences(content, url);
-                        foreach (var release in content.Releases.Concat(content.AddonReleases))
-                        {
-                            removedAny |= RemoveReleaseMediaReferences(release, url);
-                        }
-                    }
-                }
-            }
-
-            if (removedAny)
-            {
-                affected.Add(catalog);
-            }
-        }
-
-        if (project.Catalog != null)
-        {
-            if (string.Equals(project.Catalog.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
-            {
-                project.Catalog.Publisher!.AvatarUrl = null;
-            }
-
-            if (string.Equals(project.Catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
-            {
-                project.Catalog.IconUrl = null;
-            }
-
-            if (string.Equals(project.Catalog.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
-            {
-                project.Catalog.AvatarUrl = null;
-            }
-        }
-
         if (definitionMediaCleared)
         {
             HasDefinitionChanges = true;
             NotifyDefinitionStale();
         }
+    }
 
-        return affected;
+    private bool RemoveCatalogMediaReferences(NamedCatalog catalog, string url)
+    {
+        var removedAny = false;
+        if (string.Equals(catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            catalog.IconUrl = null;
+            removedAny = true;
+        }
+
+        if (catalog.Catalog != null)
+        {
+            removedAny |= RemovePublisherCatalogMediaReferences(catalog.Catalog, url);
+        }
+
+        return removedAny;
+    }
+
+    private bool RemovePublisherCatalogMediaReferences(PublisherCatalog catalog, string url)
+    {
+        var removedAny = false;
+        if (string.Equals(catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            catalog.IconUrl = null;
+            removedAny = true;
+        }
+
+        if (string.Equals(catalog.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            catalog.AvatarUrl = null;
+            removedAny = true;
+        }
+
+        if (catalog.Publisher != null &&
+            string.Equals(catalog.Publisher.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            catalog.Publisher.AvatarUrl = null;
+            removedAny = true;
+        }
+
+        if (catalog.Content != null)
+        {
+            foreach (var content in catalog.Content)
+            {
+                removedAny |= RemoveContentMediaReferences(content, url);
+                foreach (var release in content.Releases.Concat(content.AddonReleases))
+                {
+                    removedAny |= RemoveReleaseMediaReferences(release, url);
+                }
+            }
+        }
+
+        return removedAny;
+    }
+
+    private void ClearProjectCatalogMediaReferences(string url)
+    {
+        if (project.Catalog == null)
+        {
+            return;
+        }
+
+        if (string.Equals(project.Catalog.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            project.Catalog.Publisher!.AvatarUrl = null;
+        }
+
+        if (string.Equals(project.Catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            project.Catalog.IconUrl = null;
+        }
+
+        if (string.Equals(project.Catalog.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            project.Catalog.AvatarUrl = null;
+        }
     }
 
     private bool RemoveContentMediaReferences(CatalogContentItem content, string url)
@@ -9362,13 +9420,40 @@ public partial class PublishShareViewModel(
 
         var fileName = asset.Name;
         var stem = Path.GetFileNameWithoutExtension(fileName);
-        var directUrl = asset.Url;
+        var content = GetOrCreateContentItem(ActiveCatalog, stem);
+        var release = GetOrCreateRelease(content);
+        UpsertReleaseArtifact(release, asset);
 
-        // Find matching content item, or fallback to first, or create new
-        var content = ActiveCatalog.Catalog.Content.FirstOrDefault(c =>
+        // Mark catalog dirty
+        ActiveCatalog.Catalog.LastUpdated = DateTime.UtcNow;
+        MarkActiveCatalogStale();
+
+        // Save project
+        if (SaveProjectCallback != null)
+        {
+            await SaveProjectCallback();
+        }
+
+        // Refresh studio child view models
+        if (ProjectReloadCallback != null)
+        {
+            await ProjectReloadCallback();
+        }
+
+        RefreshHostedAssets();
+
+        notificationService?.ShowSuccess(
+            GetLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedTitle", "Artifact Added"),
+            FormatLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat", "Added '{0}' to catalog '{1}'.", fileName, ActiveCatalog.Name),
+            autoDismissMs: 4000);
+    }
+
+    private CatalogContentItem GetOrCreateContentItem(NamedCatalog activeCatalog, string stem)
+    {
+        var content = activeCatalog.Catalog.Content.FirstOrDefault(c =>
             string.Equals(c.Name, stem, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(c.Id, stem, StringComparison.OrdinalIgnoreCase)) ??
-            ActiveCatalog.Catalog.Content.FirstOrDefault();
+            activeCatalog.Catalog.Content.FirstOrDefault();
 
         if (content == null)
         {
@@ -9380,9 +9465,14 @@ public partial class PublishShareViewModel(
                 Description = stem,
                 Releases = [],
             };
-            ActiveCatalog.Catalog.Content.Add(content);
+            activeCatalog.Catalog.Content.Add(content);
         }
 
+        return content;
+    }
+
+    private ContentRelease GetOrCreateRelease(CatalogContentItem content)
+    {
         var release = content.Releases.FirstOrDefault();
         if (release == null)
         {
@@ -9395,7 +9485,13 @@ public partial class PublishShareViewModel(
             content.Releases.Add(release);
         }
 
-        // Check if artifact already exists in this release
+        return release;
+    }
+
+    private void UpsertReleaseArtifact(ContentRelease release, HostedAssetItemViewModel asset)
+    {
+        var fileName = asset.Name;
+        var directUrl = asset.Url;
         var existingArt = release.Artifacts.FirstOrDefault(a =>
             string.Equals(a.Filename, fileName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(a.DownloadUrl, directUrl, StringComparison.OrdinalIgnoreCase));
@@ -9432,29 +9528,6 @@ public partial class PublishShareViewModel(
                 Sha256 = asset.Sha256 ?? string.Empty,
             });
         }
-
-        // Mark catalog dirty
-        ActiveCatalog.Catalog.LastUpdated = DateTime.UtcNow;
-        MarkActiveCatalogStale();
-
-        // Save project
-        if (SaveProjectCallback != null)
-        {
-            await SaveProjectCallback();
-        }
-
-        // Refresh studio child view models
-        if (ProjectReloadCallback != null)
-        {
-            await ProjectReloadCallback();
-        }
-
-        RefreshHostedAssets();
-
-        notificationService?.ShowSuccess(
-            GetLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedTitle", "Artifact Added"),
-            FormatLocalizedString("Tools.PublisherStudio.Hosting.ArtifactAddedToCatalogFormat", "Added '{0}' to catalog '{1}'.", fileName, ActiveCatalog.Name),
-            autoDismissMs: 4000);
     }
 
     private async Task<string?> DownloadStringFromUrlAsync(string url, CancellationToken cancellationToken = default)
