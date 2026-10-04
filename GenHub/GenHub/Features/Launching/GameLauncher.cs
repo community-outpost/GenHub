@@ -193,11 +193,7 @@ public class GameLauncher(
         ILogger logger,
         ILocalizationService? localizationService)
     {
-        var executableManifestForMonitor = manifests.FirstOrDefault(m =>
-            m.ContentType == ContentType.GameClient ||
-            m.ContentType == ContentType.Executable ||
-            m.ContentType == ContentType.ModdingTool);
-        var executableFileForMonitor = executableManifestForMonitor?.Files?.FirstOrDefault(f => f.IsExecutable);
+        var (executableManifestForMonitor, executableFileForMonitor) = FindMonitoredExecutable(manifests, finalExecutablePath, workspacePath);
 
         if (executableFileForMonitor is { SourceType: ContentSourceType.ContentAddressable } &&
             effectiveStrategy == WorkspaceStrategy.SymlinkOnly)
@@ -240,9 +236,7 @@ public class GameLauncher(
             return OperationResult<IReadOnlyList<GameProcessIdentity>>.CreateSuccess(entryIdentities);
         }
 
-        var processName = executableFileForMonitor != null
-            ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
-            : Path.GetFileNameWithoutExtension(finalExecutablePath);
+        var processName = Path.GetFileNameWithoutExtension(finalExecutablePath);
 
         if (!string.IsNullOrEmpty(expectedChildProcessName))
         {
@@ -345,6 +339,116 @@ public class GameLauncher(
     }
 
     /// <summary>
+    /// Finds the host file corresponding to the executable being started.
+    /// Unrelated executables from other manifests are never used for its monitoring identity.
+    /// </summary>
+    /// <param name="manifests">The workspace manifests.</param>
+    /// <param name="finalExecutablePath">The executable actually being started.</param>
+    /// <param name="workspacePath">The workspace containing the executable.</param>
+    /// <returns>The manifest and executable file, either of which may be null.</returns>
+    private static (ContentManifest? Manifest, ManifestFile? File) FindMonitoredExecutable(IReadOnlyList<ContentManifest> manifests, string finalExecutablePath, string workspacePath)
+    {
+        // Search in the order the workspace resolves a shared path: higher content-type priority
+        // first, then the later manifest, so the monitored file is the one that was materialized.
+        var launchable = manifests
+            .Select((manifest, index) => (Manifest: manifest, Index: index))
+            .Where(entry =>
+                entry.Manifest.ContentType == ContentType.GameClient ||
+                entry.Manifest.ContentType == ContentType.Executable ||
+                entry.Manifest.ContentType == ContentType.ModdingTool)
+            .OrderByDescending(entry => ContentTypePriority.GetPriority(entry.Manifest.ContentType))
+            .ThenByDescending(entry => entry.Index)
+            .Select(entry => entry.Manifest)
+            .ToList();
+
+        foreach (var manifest in launchable)
+        {
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                string.Equals(
+                    f.RelativePath.Replace('\\', '/'),
+                    Path.GetRelativePath(workspacePath, finalExecutablePath).Replace('\\', '/'),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal));
+            if (file is not null)
+            {
+                return (manifest, file);
+            }
+        }
+
+        return FindAliasMonitoredExecutable(launchable, finalExecutablePath, workspacePath);
+    }
+
+    private static (ContentManifest? Manifest, ManifestFile? File) FindAliasMonitoredExecutable(
+        IReadOnlyList<ContentManifest> launchable, string finalExecutablePath, string workspacePath)
+    {
+        // Workspace preparation copies custom Windows entry points to a root generals.exe alias.
+        // Require matching bytes so an unrelated existing executable cannot borrow its identity.
+        if (!string.Equals(Path.GetRelativePath(workspacePath, finalExecutablePath), GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return (null, null);
+        }
+
+        foreach (var manifest in launchable)
+        {
+            var entry = ManifestVariantResolver.ResolveEntryPoint(manifest);
+            if (!entry.Success || entry.RelativePath!.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var file = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f =>
+                ManifestVariantResolver.PathsMatch(f.RelativePath, entry.RelativePath));
+            if (file is not null && IsMatchingWorkspaceAlias(workspacePath, finalExecutablePath, file.RelativePath))
+            {
+                return (manifest, file);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static bool IsMatchingWorkspaceAlias(string workspacePath, string aliasPath, string relativePath)
+    {
+        try
+        {
+            var originalPath = Path.GetFullPath(Path.Combine(workspacePath, relativePath.Replace('\\', Path.DirectorySeparatorChar)));
+            var workspaceRelative = Path.GetRelativePath(workspacePath, originalPath);
+
+            // Validate the workspace name without following links: CAS files intentionally target
+            // blobs outside the workspace. Matching bytes below establish the alias association.
+            if (Path.IsPathRooted(workspaceRelative) || workspaceRelative == ".." ||
+                workspaceRelative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            using var original = File.OpenRead(originalPath);
+            using var alias = File.OpenRead(aliasPath);
+            return original.Length == alias.Length &&
+                System.Security.Cryptography.SHA256.HashData(original).AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(alias));
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Resolves the process a CAS-symlinked bootstrapper hands the session to. A child linked into
     /// the workspace may be reported under its link or its final target, so both identities are
     /// returned. A child that is a regular file runs under its own file name.
@@ -375,7 +479,7 @@ public class GameLauncher(
             : manifests
                 .Where(m => !ReferenceEquals(m, entryManifest))
                 .Prepend(entryManifest)
-                .SelectMany(m => m.Files ?? [])
+                .SelectMany(m => ManifestVariantResolver.ResolveFiles(m))
                 .FirstOrDefault(f =>
                     Path.GetFileName(f.RelativePath.Replace('\\', '/')).Equals(childFileName, StringComparison.OrdinalIgnoreCase) &&
                     GetRelativeDirectory(f.RelativePath).Equals(entryDirectory, StringComparison.OrdinalIgnoreCase));
@@ -2361,7 +2465,7 @@ public class GameLauncher(
                 manifest.Id.Value,
                 manifest.Name,
                 manifest.ContentType,
-                manifest.Files?.Count ?? 0);
+                ManifestVariantResolver.ResolveFiles(manifest).Count);
         }
 
         return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
@@ -2693,7 +2797,7 @@ public class GameLauncher(
             }
 
             var drift = InstallationManifestDriftDetector.DetectDrift(
-                gameDir, manifest.TargetGame, manifest.Version, manifest.Files, cancellationToken: cancellationToken);
+                gameDir, manifest.TargetGame, manifest.Version, ManifestVariantResolver.ResolveFiles(manifest), cancellationToken: cancellationToken);
             if (drift.HasDrift)
             {
                 driftedManifests.Add((manifest, drift));

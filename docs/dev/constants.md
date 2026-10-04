@@ -235,6 +235,12 @@ Constants related to workspace management and configuration.
 
 - `DefaultWorkspaceStrategy`: The default workspace strategy to use when none is specified (`WorkspaceStrategy.HardLink`)
 - `ZeroCopyElevationGuidance`: Guidance message appended to errors when zero-copy hard links or symlinks cannot be created (`"To use zero-copy workspaces without copying game files, ensure GenHub has permission to create links (on Windows, enable Developer Mode or run as Administrator)."`)
+- `SourcePathIsDirectoryMessage`: Error when a workspace source points to a directory instead of a file (`"Source path is a directory: {0}"`)
+- `SkippedMissingSourceFileMessageKey`: Resource key for the validation issue on a file skipped because its source is missing (`"Workspace.Validation.SkippedMissingSourceFile"`)
+- `SkippedSourceFilesTitleKey`: Resource key for the title of the skipped files notification (`"Workspace.Notification.SkippedSourceFiles.Title"`)
+- `SkippedSourceFilesMessageKey`: Resource key for the message of the skipped files notification (`"Workspace.Notification.SkippedSourceFiles.Message"`)
+- `MaxSkippedSourceFilesListed`: Maximum number of skipped file names listed in the notification (`5`)
+- `SkippedSourceFilesLog`: Log template for skipped missing workspace sources
 
 ---
 ## CommandLineConstants Class
@@ -316,6 +322,7 @@ File and directory name constants to prevent typos and ensure consistency.
 | `ManifestFileExtension`     | `".manifest.json"`  | File extension for manifest files |
 | `UserDataManifestExtension` | `".userdata.json"`  | File extension for user data manifest files |
 | `BackupExtension`           | `".ghbak"`          | File extension for backup files   |
+| `GenPatcherBackupInfix`     | `".genpatcher"`     | Infix for GenPatcher rename backups, as in `dbghelp.dll.genpatcher.ghbak` |
 
 ### JSON Files
 
@@ -1020,6 +1027,26 @@ Storage and CAS (Content-Addressable Storage) related constants.
 ### CAS Maintenance
 
 - `AutoGcIntervalDays`: 1
+
+---
+
+## ManifestErrorMessages Class
+
+Error messages for manifests whose files or platform variants cannot be stored, retrieved or validated. Messages with placeholders are composite format strings.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `NullFileEntries` | `"Manifest contains a null variant or file entry or file collection"` | Storing a manifest with a null variant, file entry or file collection |
+| `NoHostVariant` | `"Manifest has no variant for this host"` | Storing a manifest with no variant for the current host |
+| `NoHostVariantForManifest` | `"Manifest {0} has no variant for this host ({1})"` | Retrieving a manifest with no variant for the current host; `{0}` is the manifest ID, `{1}` the runtime identifier |
+| `RequiredFileUnavailableInCas` | `"Required file {0} is unavailable in CAS"` | A required file whose CAS object is missing; `{0}` is the relative path |
+| `NoHostVariantForValidation` | `"Manifest has no variant supporting this host ({0})."` | Validating a manifest with no variant for the current host; `{0}` is the runtime identifier |
+| `ManifestFileMissingRelativePath` | `"Manifest file is missing its RelativePath."` | Integrity check of a file entry without a relative path |
+| `VariantIsNull` | `"Variant at index {0} is null."` | Structural check of a null variant; `{0}` is the variant index |
+| `FileCollectionIsNull` | `"Manifest Files collection{0} is null."` | Structural check of a null file list; `{0}` is the location suffix, such as `" in variant 1"` |
+| `FileEntryIsNull` | `"File at index {0}{1} is null."` | Structural check of a null file entry; `{0}` is the file index, `{1}` the location suffix |
+| `FileEntryMissingRelativePath` | `"File at index {0}{1} is missing its RelativePath."` | Structural check of a file entry without a relative path; `{0}` is the file index, `{1}` the location suffix |
+| `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | Exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
 
 ---
 
@@ -2048,3 +2075,23 @@ Constants for launching Windows games through Wine on Linux and macOS (`IGameLau
 | `HostRootDrivePrefix` | `"Z:"` | Wine drive prefix mapped to the host filesystem root (Proton uses the same mapping) |
 | `WindowsExecutableExtension` | `".exe"` | Executable extension the Wine runner wraps |
 | `CrossOverWineBinaryPath` | `"/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine"` | CrossOver bundled Wine binary absolute path on macOS |
+
+## StartupExitCodeConstants Class
+
+Windows NTSTATUS exit codes that a game client reports when it fails to start, and the resource keys that explain them to the user (`LaunchExitMessages`).
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `StatusAccessViolation` | `0xC0000005` | The process read or wrote memory it does not own |
+| `StatusInvalidImageFormat` | `0xC000007B` | An image is not valid for this system, often a 32-bit and 64-bit mismatch |
+| `StatusDllNotFound` | `0xC0000135` | The loader could not find a DLL the executable imports |
+| `StatusDllInitFailed` | `0xC0000142` | A DLL initialization routine failed |
+| `StatusStackBufferOverrun` | `0xC0000409` | A stack buffer overrun or fail-fast request ended the process |
+| `HexFormat` | `"X8"` | Format that renders an exit code as its eight-digit hexadecimal value |
+| `ImmediateExitExplainedKey` | `"Launch.ExitCode.ImmediateExitExplained"` | Message for an immediate exit with a known code |
+| `LauncherExitExplainedKey` | `"Launch.ExitCode.LauncherExitExplained"` | Message for a launcher exit with a known code before its child starts |
+| `AccessViolationKey` | `"Launch.ExitCode.AccessViolation"` | Explains `StatusAccessViolation` |
+| `InvalidImageFormatKey` | `"Launch.ExitCode.InvalidImageFormat"` | Explains `StatusInvalidImageFormat` |
+| `DllNotFoundKey` | `"Launch.ExitCode.DllNotFound"` | Explains `StatusDllNotFound` |
+| `DllInitFailedKey` | `"Launch.ExitCode.DllInitFailed"` | Explains `StatusDllInitFailed` |
+| `StackBufferOverrunKey` | `"Launch.ExitCode.StackBufferOverrun"` | Explains `StatusStackBufferOverrun` |

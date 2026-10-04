@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Manifest;
@@ -23,7 +24,7 @@ public class ContentManifest
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentManifest"/> class by performing a shallow copy of collections.
-    /// Elements and complex nested models are shared by reference.
+    /// Variant containers and their lists are copied; file entries and other nested models remain shared.
     /// </summary>
     /// <param name="other">The instance to copy from.</param>
     public ContentManifest(ContentManifest other)
@@ -45,7 +46,13 @@ public class ContentManifest
         ContentReferences = other.ContentReferences != null ? [.. other.ContentReferences] : [];
         KnownAddons = other.KnownAddons != null ? [.. other.KnownAddons] : [];
         Files = other.Files != null ? [.. other.Files] : [];
-        Variants = other.Variants != null ? [.. other.Variants] : [];
+        Variants = other.Variants?.Select(v => v is null ? null! : new ArtifactVariant
+        {
+            RuntimeIdentifiers = v.RuntimeIdentifiers is null ? [] : [.. v.RuntimeIdentifiers],
+            EntryPoint = v.EntryPoint,
+            LaunchRelationship = v.LaunchRelationship,
+            Files = v.Files is null ? null! : [.. v.Files],
+        }).ToList() ?? [];
         EntryPoint = other.EntryPoint;
         LaunchRelationship = other.LaunchRelationship;
         RequiredDirectories = other.RequiredDirectories != null ? [.. other.RequiredDirectories] : [];

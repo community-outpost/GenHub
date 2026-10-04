@@ -415,7 +415,7 @@ public class CommunityOutpostResolver(
     {
         if (context.Filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var file in builtManifest.Files)
+            foreach (var file in ManifestVariantResolver.EnumerateAllFiles(builtManifest))
             {
                 if (file.RelativePath == context.Filename)
                 {
@@ -425,9 +425,10 @@ public class CommunityOutpostResolver(
             }
         }
 
-        if (context.FileSize > 0 && builtManifest.Files.Count > 0)
+        var firstFile = ManifestVariantResolver.EnumerateAllFiles(builtManifest).FirstOrDefault();
+        if (context.FileSize > 0 && firstFile != null)
         {
-            builtManifest.Files[0].Size = context.FileSize;
+            firstFile.Size = context.FileSize;
         }
     }
 

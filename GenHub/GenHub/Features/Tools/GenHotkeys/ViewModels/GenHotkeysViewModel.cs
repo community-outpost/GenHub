@@ -1545,9 +1545,9 @@ public partial class GenHotkeysViewModel(
             return true;
         }
 
-        return m.Files?.Any(f =>
+        return ManifestVariantResolver.ResolveFiles(m).Any(f =>
             f.RelativePath?.EndsWith(expectedBigFileName, StringComparison.OrdinalIgnoreCase) == true ||
-            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true) == true;
+            f.RelativePath?.EndsWith(legacyBigFileName, StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private static HotkeyActionViewModel CreateActionViewModel(

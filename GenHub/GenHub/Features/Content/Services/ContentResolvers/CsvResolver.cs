@@ -111,7 +111,7 @@ public class CsvResolver(
             logger.LogInformation(
                 "Successfully resolved CSV catalog manifest {ManifestId} with {FileCount} files",
                 manifest.Id.Value,
-                manifest.Files.Count);
+                ManifestVariantResolver.EnumerateAllFiles(manifest).Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }

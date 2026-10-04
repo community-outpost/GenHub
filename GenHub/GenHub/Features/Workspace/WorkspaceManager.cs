@@ -1,6 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Workspace;
@@ -9,6 +10,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Core.Models.Workspace;
+using GenHub.Features.Launching;
 using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
@@ -33,7 +35,9 @@ public class WorkspaceManager(
     ICasReferenceTracker casReferenceTracker,
     IWorkspaceValidator workspaceValidator,
     WorkspaceReconciler reconciler,
-    ITelemetryService? telemetryService = null
+    ITelemetryService? telemetryService = null,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null
 ) : IWorkspaceManager
 {
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -96,6 +100,7 @@ public class WorkspaceManager(
         configuration.SkipCleanup = skipCleanup;
 
         logger.LogInformation("[Workspace] Executing strategy preparation (skipCleanup: {SkipCleanup})", skipCleanup);
+        configuration.ClearSkippedSourceFiles();
         var workspaceInfo = await strategy.PrepareAsync(configuration, progress, cancellationToken);
 
         if (workspaceInfo == null || !workspaceInfo.IsPrepared)
@@ -115,6 +120,7 @@ public class WorkspaceManager(
         }
 
         logger.LogDebug("[Workspace] Strategy preparation completed successfully");
+        ReportSkippedSourceFiles(workspaceInfo, configuration);
         return await ValidateAndFinalizeWorkspaceAsync(workspaceInfo, configuration, cancellationToken);
     }
 
@@ -723,6 +729,36 @@ public class WorkspaceManager(
         TrackWorkspacePrepared(workspaceInfo.Id, workspaceInfo.Strategy.ToString(), configuration.Manifests?.Count ?? 0, false, true);
 
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
+    }
+
+    private void ReportSkippedSourceFiles(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var skipped = configuration.SkippedSourceFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (skipped.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var relativePath in skipped)
+        {
+            workspaceInfo.ValidationIssues.Add(new ValidationIssue(
+                LaunchExitMessages.GetString(WorkspaceConstants.SkippedMissingSourceFileMessageKey, localizationService, relativePath),
+                ValidationSeverity.Warning)
+            {
+                IssueType = ValidationIssueType.MissingFile,
+            });
+        }
+
+        logger.LogWarning(WorkspaceConstants.SkippedSourceFilesLog, skipped.Count, string.Join(", ", skipped));
+
+        notificationService?.ShowWarning(
+            LaunchExitMessages.GetString(WorkspaceConstants.SkippedSourceFilesTitleKey, localizationService),
+            LaunchExitMessages.GetString(
+                WorkspaceConstants.SkippedSourceFilesMessageKey,
+                localizationService,
+                skipped.Count,
+                string.Join(", ", skipped.Take(WorkspaceConstants.MaxSkippedSourceFilesListed))),
+            NotificationDurations.VeryLong);
     }
 
     private void TrackWorkspacePrepared(string workspaceId, string strategy, int manifestCount, bool isReused, bool success, string? errorMessage = null)

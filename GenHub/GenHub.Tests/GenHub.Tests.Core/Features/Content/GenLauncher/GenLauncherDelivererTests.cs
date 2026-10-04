@@ -9,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.GenLauncher;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -151,6 +152,37 @@ public sealed class GenLauncherDelivererTests
                 Directory.Delete(targetDir, recursive: true);
             }
         }
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync downloads only the host variant's files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithVariantManifest_DownloadsOnlyHostVariantAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadServiceMock);
+        var deliverer = CreateDeliverer();
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "variant-host.zip", DownloadUrl = VariantDownloadRecorder.HostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GenLauncher };
+
+        try
+        {
+            await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+
+        requested.Should().NotBeEmpty();
+        requested.Should().OnlyContain(url => url == VariantDownloadRecorder.HostUrl);
     }
 
     /// <summary>

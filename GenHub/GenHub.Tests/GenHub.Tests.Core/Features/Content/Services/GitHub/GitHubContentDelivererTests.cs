@@ -11,6 +11,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.GitHub;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Tests.Core.Infrastructure;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -68,6 +69,77 @@ public class GitHubContentDelivererTests
         };
 
         deliverer.CanDeliver(manifest).Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Tests that CanDeliver reads the host variant's download URLs, not another platform's.
+    /// </summary>
+    /// <param name="hostUrl">The download URL in the host variant.</param>
+    /// <param name="foreignUrl">The download URL in the foreign variant.</param>
+    /// <param name="expected">Whether the deliverer should accept the manifest.</param>
+    [Theory]
+    [InlineData("https://github.com/user/repo/host.zip", "https://example.com/foreign.zip", true)]
+    [InlineData("https://example.com/host.zip", "https://github.com/user/repo/foreign.zip", false)]
+    public void CanDeliver_WithVariantManifest_UsesHostVariant(string hostUrl, string foreignUrl, bool expected)
+    {
+        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "host.zip", DownloadUrl = hostUrl }],
+            [new ManifestFile { RelativePath = "foreign.zip", DownloadUrl = foreignUrl }]);
+
+        deliverer.CanDeliver(manifest).Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Tests that DeliverContentAsync downloads only the host variant's files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithVariantManifest_DownloadsOnlyHostVariantAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadService);
+        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var targetDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var manifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "variant-host.zip", DownloadUrl = VariantDownloadRecorder.HostUrl, SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+
+        try
+        {
+            await deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(targetDir))
+            {
+                Directory.Delete(targetDir, recursive: true);
+            }
+        }
+
+        requested.Should().Equal(VariantDownloadRecorder.HostUrl);
+    }
+
+    /// <summary>
+    /// A manifest with no variant for this host fails delivery and validation without downloading.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverAndValidate_WithoutHostVariant_FailWithoutDownloadingAsync()
+    {
+        var requested = VariantDownloadRecorder.Record(_downloadService);
+        var deliverer = new GitHubContentDeliverer(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+        var manifest = VariantManifestFixture.Create(
+            [],
+            [new ManifestFile { RelativePath = "variant-foreign.zip", DownloadUrl = VariantDownloadRecorder.ForeignUrl, SourceType = ContentSourceType.RemoteDownload }]);
+        manifest.Variants.RemoveAt(1);
+
+        var delivery = await deliverer.DeliverContentAsync(manifest, Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), null, CancellationToken.None);
+        var validation = await deliverer.ValidateContentAsync(manifest, CancellationToken.None);
+
+        delivery.Success.Should().BeFalse();
+        delivery.FirstError.Should().Contain("has no variant for this host");
+        validation.Success.Should().BeFalse();
+        requested.Should().BeEmpty();
     }
 
     /// <summary>
@@ -129,7 +201,10 @@ public class GitHubContentDelivererTests
                 Name = "Item (RU)",
                 ContentType = ContentType.Addon,
                 Metadata = new ContentMetadata { SelectedVariantId = "ru" },
-                Files = [new ManifestFile { RelativePath = "data.big" }],
+                Files = [],
+                Variants = VariantManifestFixture.Create(
+                    [new ManifestFile { RelativePath = "data.big", SourceType = ContentSourceType.LocalFile }],
+                    [new ManifestFile { RelativePath = "foreign.big", SourceType = ContentSourceType.RemoteDownload }]).Variants,
             };
 
             var factoryMock = new Mock<IPublisherManifestFactory>();
@@ -186,6 +261,9 @@ public class GitHubContentDelivererTests
             result.Data!.Id.Value.Should().Be("1.0.github.addon.item-ru");
             result.Data.Name.Should().Be("Item (RU)");
             result.Data.Metadata?.SelectedVariantId.Should().Be("ru");
+            ManifestVariantResolver.ResolveFiles(variantRu).Single().SourceType.Should().Be(ContentSourceType.ContentAddressable);
+            ManifestVariantResolver.EnumerateAllFiles(variantRu).Single(f => f.RelativePath == "foreign.big")
+                .SourceType.Should().Be(ContentSourceType.RemoteDownload);
         }
         finally
         {

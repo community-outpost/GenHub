@@ -21,11 +21,13 @@ using GenHub.Core.Models.Tools;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
@@ -436,6 +438,51 @@ public class ProfileSharingServiceTests
 
         Assert.Equal("1.0.generalsonline.gameclient.generalsonline", package.RequiredManifests[0].ManifestId);
         Assert.DoesNotContain(package.RequiredManifests, m => m.ManifestId == "1.104.steam.gameinstallation.zerohour");
+    }
+
+    /// <summary>
+    /// Verifies that exporting a variant manifest shares the host variant's files.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    /// <param name="supportsHost">Whether the manifest declares a matching host variant.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExportProfile_WithVariantManifest_SharesHostVariantFilesAsync(bool supportsHost)
+    {
+        var profile = CreateTestProfile("profile-export-variants", "Variant Test");
+        profile.EnabledContentIds = ["1.0.test.gameclient.variants"];
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-export-variants", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        var clientManifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "client-host.zip", DownloadUrl = "https://example.invalid/client-host.zip", SourceType = ContentSourceType.RemoteDownload }],
+            [new ManifestFile { RelativePath = "client-foreign.zip", DownloadUrl = "https://example.invalid/client-foreign.zip", SourceType = ContentSourceType.RemoteDownload }]);
+
+        if (!supportsHost)
+        {
+            clientManifest.Variants.Remove(ManifestVariantResolver.ResolveVariant(clientManifest)!);
+        }
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.test.gameclient.variants", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        var uriResult = await _service.ExportProfileToUriAsync("profile-export-variants");
+        if (!supportsHost)
+        {
+            Assert.False(uriResult.Success);
+            Assert.Contains("no variant supports this host", uriResult.FirstError);
+            return;
+        }
+
+        Assert.True(uriResult.Success, uriResult.FirstError);
+        var dataParam = uriResult.Data!.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
+        var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+
+        var dependency = Assert.Single(package!.RequiredManifests);
+        Assert.Equal("client-host.zip", Assert.Single(dependency.Files).RelativePath);
     }
 
     /// <summary>
@@ -924,6 +971,83 @@ public class ProfileSharingServiceTests
             Assert.NotNull(result.Data);
             uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
             uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), "https://utfs.io/f/testupload.zip", It.IsAny<string>(), "key123", "token123", It.IsAny<string>(), ProfileSharingConstants.UploadCategoryProfiles, It.IsAny<GameType?>()), Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that exporting local variant content packages and uploads only the host variant's files.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_WithLocalVariantManifest_UploadsOnlyHostVariantFilesAsync()
+    {
+        const string hostHash = "a3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        const string foreignHash = "f3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, "host content");
+        var localProfile = CreateTestProfile("local-variant-profile", "Local Variant Setup");
+        localProfile.EnabledContentIds = ["1.0.local.mod.variantmod"];
+
+        var casMock = new Mock<ICasService>();
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+        uploadHistoryMock.Setup(h => h.CanUploadAsync(It.IsAny<long>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        casMock.Setup(c => c.GetContentPathAsync(hostHash, It.IsAny<ContentType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempFile));
+
+        var uploadedEntries = new List<string>();
+        uploadThingMock.Setup(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, IProgress<double>, CancellationToken>((path, _, _) =>
+            {
+                using var archive = ZipFile.OpenRead(path);
+                uploadedEntries.AddRange(archive.Entries.Select(e => e.FullName));
+            })
+            .ReturnsAsync(OperationResult<UploadResult>.CreateSuccess(new UploadResult("https://utfs.io/f/variant.zip", "key123", "token123")));
+
+        var localManifest = VariantManifestFixture.Create(
+            [new ManifestFile { RelativePath = "Data/INI/Host.ini", Hash = hostHash, Size = 12 }],
+            [new ManifestFile { RelativePath = "Data/INI/Foreign.ini", Hash = foreignHash, Size = 12 }]);
+        localManifest.Id = ManifestId.Create("1.0.local.mod.variantmod");
+        localManifest.ContentType = ContentType.Mod;
+        localManifest.Publisher = new PublisherInfo
+        {
+            Name = "GenHub (Local)",
+            PublisherType = PublisherTypeConstants.Local,
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("local-variant-profile", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(localProfile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.local.mod.variantmod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(localManifest));
+
+        var serviceWithUpload = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        try
+        {
+            var result = await serviceWithUpload.ExportProfileToUriAsync("local-variant-profile");
+
+            Assert.True(result.Success, result.FirstError);
+            uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Once);
+            casMock.Verify(c => c.GetContentPathAsync(foreignHash, It.IsAny<ContentType>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.Contains(uploadedEntries, entry => entry.EndsWith("Host.ini", StringComparison.Ordinal));
+            Assert.DoesNotContain(uploadedEntries, entry => entry.EndsWith("Foreign.ini", StringComparison.Ordinal));
         }
         finally
         {

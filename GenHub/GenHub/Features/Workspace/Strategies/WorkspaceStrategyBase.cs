@@ -9,6 +9,7 @@ using GenHub.Infrastructure.Exceptions;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -241,19 +242,50 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Validates that the source file exists and logs appropriate warnings.
+    /// Validates that a source file exists. A missing source is skipped with a warning and recorded
+    /// on the configuration so the workspace manager can report it after preparation.
     /// </summary>
     /// <param name="sourcePath">The source file path.</param>
-    /// <param name="relativePath">The relative path for logging.</param>
-    /// <returns>True if the file exists; otherwise, false.</returns>
-    protected bool ValidateSourceFile(string sourcePath, string relativePath)
+    /// <param name="relativePath">The workspace-relative path of the file.</param>
+    /// <param name="configuration">The workspace configuration that collects skipped files.</param>
+    /// <returns><c>true</c> when the source file exists; <c>false</c> when it is confirmed missing.</returns>
+    /// <exception cref="IOException">
+    /// The source path is a directory, or its attributes cannot be read for a reason other than a missing file.
+    /// </exception>
+    /// <exception cref="UnauthorizedAccessException">The source path or one of its parents is inaccessible.</exception>
+    protected bool ValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration)
     {
-        if (File.Exists(sourcePath))
+        try
         {
+            var attributes = File.GetAttributes(sourcePath);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                // Probe the final target explicitly: attributes on a dangling link can still succeed.
+                var target = File.ResolveLinkTarget(sourcePath, returnFinalTarget: true);
+                if (target != null)
+                {
+                    attributes = File.GetAttributes(target.FullName);
+                }
+            }
+
+            if ((attributes & FileAttributes.Directory) != 0)
+            {
+                throw new IOException(string.Format(CultureInfo.InvariantCulture, WorkspaceConstants.SourcePathIsDirectoryMessage, sourcePath));
+            }
+
             return true;
+        }
+        catch (FileNotFoundException)
+        {
+            // Only a confirmed missing source can be skipped.
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A missing parent also means the source is absent.
         }
 
         logger.LogWarning("Source file not found: {SourcePath} (relative: {RelativePath})", sourcePath, relativePath);
+        configuration.RecordSkippedSourceFile(relativePath);
         return false;
     }
 
@@ -297,7 +329,7 @@ public abstract class WorkspaceStrategyBase<T>(
     {
         long totalSize = 0L;
 
-        foreach (var file in configuration.Manifests.SelectMany(m => m.Files))
+        foreach (var file in configuration.Manifests.SelectMany(m => ManifestVariantResolver.ResolveFiles(m)))
         {
             var sourcePath = Path.Combine(configuration.BaseInstallationPath, file.RelativePath);
             var actualSize = GetFileSizeSafe(sourcePath);
@@ -381,7 +413,7 @@ public abstract class WorkspaceStrategyBase<T>(
                 await ProcessCasFileAsync(file, manifest.ContentType, targetPath, cancellationToken);
                 break;
             case ContentSourceType.GameInstallation:
-                await ProcessGameInstallationFileAsync(file, targetPath, configuration, cancellationToken);
+                await ProcessGameInstallationFileAsync(file, manifest, targetPath, configuration, cancellationToken);
                 break;
             case ContentSourceType.LocalFile:
                 await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
@@ -443,19 +475,16 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Stub for processing game installation files. Should be implemented in concrete strategies as needed.
+    /// Processes a game installation file. By default it is handled the same as a local file.
     /// </summary>
     /// <param name="file">The manifest file representing the game installation content.</param>
+    /// <param name="manifest">The manifest containing the file.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    /// <exception cref="NotSupportedException">Thrown when the strategy does not support processing game installation files.</exception>
-    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // Default: throw if not supported by strategy
-        throw new NotSupportedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
-    }
+    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken) =>
+        ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
 
     /// <summary>
     /// Stub for processing local files. Should be implemented in concrete strategies as needed.
@@ -690,7 +719,7 @@ public abstract class WorkspaceStrategyBase<T>(
 
         var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
         var executableExistsInManifest = configuration.Manifests
-            .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
+            .SelectMany(m => ManifestVariantResolver.ResolveFiles(m))
             .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
 
         if (executableExistsInManifest)

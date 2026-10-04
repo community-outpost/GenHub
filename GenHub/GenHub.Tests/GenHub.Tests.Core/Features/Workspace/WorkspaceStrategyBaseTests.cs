@@ -65,10 +65,12 @@ public class WorkspaceStrategyBaseTests : IDisposable
         File.WriteAllText(testFile, "test content");
 
         // Act
-        var result = _strategy.TestValidateSourceFile(testFile, "test.txt");
+        var configuration = new WorkspaceConfiguration();
+        var result = _strategy.TestValidateSourceFile(testFile, "test.txt", configuration);
 
         // Assert
         Assert.True(result);
+        Assert.Empty(configuration.SkippedSourceFiles);
     }
 
     /// <summary>
@@ -81,10 +83,12 @@ public class WorkspaceStrategyBaseTests : IDisposable
         var nonExistentFile = Path.Combine(_tempDir, "nonexistent.txt");
 
         // Act
-        var result = _strategy.TestValidateSourceFile(nonExistentFile, "nonexistent.txt");
+        var configuration = new WorkspaceConfiguration();
+        var result = _strategy.TestValidateSourceFile(nonExistentFile, "nonexistent.txt", configuration);
 
         // Assert
         Assert.False(result);
+        Assert.Equal("nonexistent.txt", Assert.Single(configuration.SkippedSourceFiles));
     }
 
     /// <summary>
@@ -335,8 +339,10 @@ public class WorkspaceStrategyBaseTests : IDisposable
         /// </summary>
         /// <param name="sourcePath">The source path.</param>
         /// <param name="relativePath">The relative path.</param>
+        /// <param name="configuration">The configuration that records skipped files.</param>
         /// <returns>True if valid; otherwise, false.</returns>
-        public bool TestValidateSourceFile(string sourcePath, string relativePath) => ValidateSourceFile(sourcePath, relativePath);
+        public bool TestValidateSourceFile(string sourcePath, string relativePath, WorkspaceConfiguration configuration) =>
+            ValidateSourceFile(sourcePath, relativePath, configuration);
 
         /// <summary>
         /// Exposes CreateBaseWorkspaceInfo for testing.

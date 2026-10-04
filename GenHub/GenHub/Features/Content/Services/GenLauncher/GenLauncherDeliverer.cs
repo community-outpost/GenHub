@@ -148,7 +148,7 @@ public class GenLauncherDeliverer(
     {
         ArgumentNullException.ThrowIfNull(manifest);
 
-        var isValid = manifest.Files.Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl));
+        var isValid = ManifestVariantResolver.ResolveFiles(manifest).Any(f => !string.IsNullOrWhiteSpace(f.DownloadUrl));
         return Task.FromResult(OperationResult<bool>.CreateSuccess(isValid));
     }
 
@@ -171,7 +171,7 @@ public class GenLauncherDeliverer(
             logger.LogInformation("Delivering GenLauncher package {Name} v{Version} to {Dir}", packageManifest.Name, packageManifest.Version, targetDirectory);
             Directory.CreateDirectory(targetDirectory);
 
-            var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)).ToList();
+            var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest).Where(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)).ToList();
             if (filesToDownload.Count == 0)
             {
                 return OperationResult<ContentManifest>.CreateFailure("Manifest does not contain any downloadable files");

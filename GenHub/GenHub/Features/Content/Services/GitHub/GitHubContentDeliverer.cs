@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -48,7 +49,7 @@ public class GitHubContentDeliverer(
     public bool CanDeliver(ContentManifest manifest)
     {
         // Can deliver if files have GitHub download URLs
-        return manifest.Files.Any(f =>
+        return ManifestVariantResolver.ResolveFiles(manifest).Any(f =>
             !string.IsNullOrEmpty(f.DownloadUrl) &&
             IsGitHubUrl(f.DownloadUrl));
     }
@@ -60,10 +61,15 @@ public class GitHubContentDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        if (!ManifestVariantResolver.SupportsRuntime(packageManifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(CreateUnsupportedRuntimeMessage(packageManifest));
+        }
+
         try
         {
             // Download all files (validate no duplicate paths to prevent data loss)
-            var filesToDownload = packageManifest.Files
+            var filesToDownload = ManifestVariantResolver.ResolveFiles(packageManifest)
                 .Where(f => !string.IsNullOrEmpty(f.DownloadUrl))
                 .ToList();
 
@@ -213,10 +219,15 @@ public class GitHubContentDeliverer(
     public Task<OperationResult<bool>> ValidateContentAsync(
         ContentManifest manifest, CancellationToken cancellationToken = default)
     {
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return Task.FromResult(OperationResult<bool>.CreateFailure(CreateUnsupportedRuntimeMessage(manifest)));
+        }
+
         try
         {
             // Validate that all required URLs are GitHub URLs
-            foreach (var file in manifest.Files.Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest).Where(f => f.IsRequired && !string.IsNullOrEmpty(f.DownloadUrl)))
             {
                 if (file.DownloadUrl != null && !IsGitHubUrl(file.DownloadUrl))
                 {
@@ -232,6 +243,9 @@ public class GitHubContentDeliverer(
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
     }
+
+    private static string CreateUnsupportedRuntimeMessage(ContentManifest manifest) =>
+        string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForManifest, manifest.Id, ManifestVariantResolver.CurrentRuntimeIdentifier);
 
     /// <summary>
     /// Validates that a URL is a legitimate GitHub URL.
@@ -356,7 +370,7 @@ public class GitHubContentDeliverer(
 
                     // Update file source types to ContentAddressable since files are now in CAS
                     // This ensures validation checks CAS instead of filesystem paths
-                    foreach (var file in manifest.Files)
+                    foreach (var file in ManifestVariantResolver.ResolveFiles(manifest))
                     {
                         file.SourceType = ContentSourceType.ContentAddressable;
                     }
