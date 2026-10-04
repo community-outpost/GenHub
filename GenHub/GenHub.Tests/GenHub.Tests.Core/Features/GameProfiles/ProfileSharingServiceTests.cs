@@ -89,6 +89,36 @@ public class ProfileSharingServiceTests
             NullLogger<ProfileSharingService>.Instance);
     }
 
+    /// <summary>Missing manifest errors use the injected localization service.</summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToJsonAsync_WithMissingManifest_LocalizesErrorAsync()
+    {
+        const string missingId = "1.0.local.mod.missing";
+        var profile = CreateTestProfile("missing-profile", "Missing Profile");
+        profile.EnabledContentIds = [missingId];
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(missingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+        var localization = new Mock<GenHub.Core.Interfaces.Common.ILocalizationService>();
+        localization.Setup(l => l.GetString(ProfileSharingConstants.ReferencedManifestMissingMessageKey, It.IsAny<object[]>()))
+            .Returns((string key, object[] args) => $"Localized: {args[0]}");
+        using var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            localizationService: localization.Object);
+
+        var result = await service.ExportProfileToJsonAsync(profile.Id);
+
+        Assert.False(result.Success);
+        Assert.Equal($"Localized: {missingId}", result.FirstError);
+    }
+
     /// <summary>
     /// Verifies that exporting a valid profile produces a properly formatted genhub:// URI.
     /// </summary>

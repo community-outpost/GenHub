@@ -17846,4 +17846,10 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>Cannot share local content '{0}': it has no files to upload, so recipients could not install it.</value>
   </data>
+  <data name="ProfileSharing_DependencyExportFailed" xml:space="preserve">
+    <value>Failed to process dependency for {0}.</value>
+  </data>
+  <data name="ProfileSharing_ReferencedManifestMissing" xml:space="preserve">
+    <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
+  </data>
 </root>

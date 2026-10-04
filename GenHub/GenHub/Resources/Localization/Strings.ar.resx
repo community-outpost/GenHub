@@ -17787,4 +17787,10 @@ Error: فشل: {3}
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>لا يمكن مشاركة المحتوى المحلي '{0}': لا يحتوي على ملفات لرفعها، لذا لن يتمكن المستلمون من تثبيته.</value>
   </data>
+  <data name="ProfileSharing_DependencyExportFailed" xml:space="preserve">
+    <value>تعذرت معالجة التبعية لـ {0}.</value>
+  </data>
+  <data name="ProfileSharing_ReferencedManifestMissing" xml:space="preserve">
+    <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
+  </data>
 </root>

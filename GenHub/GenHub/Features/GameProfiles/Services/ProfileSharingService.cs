@@ -2144,7 +2144,7 @@ public class ProfileSharingService(
             if (!dependencyResult.Success || dependencyResult.Data == null)
             {
                 return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    dependencyResult.FirstError ?? string.Format(CultureInfo.InvariantCulture, ProfileSharingConstants.DependencyExportFailedMessage, manifest.Id));
+                    dependencyResult.FirstError ?? LaunchExitMessages.GetString(ProfileSharingConstants.DependencyExportFailedMessageKey, localizationService, manifest.Id));
             }
 
             manifests.Add(dependencyResult.Data);
@@ -2196,7 +2196,7 @@ public class ProfileSharingService(
         }
 
         return OperationResult<ContentManifest?>.CreateFailure(
-            $"Content manifest '{contentId}' referenced by profile could not be found in local manifest pool.");
+            LaunchExitMessages.GetString(ProfileSharingConstants.ReferencedManifestMissingMessageKey, localizationService, contentId));
     }
 
     private async Task<OperationResult<SharedManifestDependency>> BuildManifestDependencyAsync(
