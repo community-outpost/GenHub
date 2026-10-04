@@ -712,12 +712,18 @@ jobs:
 
       - name: Run macOS Tests
         run: |
-          shopt -s globstar nullglob
-          for test_project in ${{ env.TEST_PROJECTS }}; do
+          test_count=0
+          while IFS= read -r test_project; do
+            [[ -z "$test_project" ]] && continue
             [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
-          done
+            test_count=$((test_count + 1))
+          done < <(find GenHub/GenHub.Tests -name "*.csproj" | sort)
+          if [ "$test_count" -eq 0 ]; then
+            echo "No matching test projects found!"
+            exit 1
+          fi
 
   # Launches the real native engine with no game data at all and requires the abort the
   # engine is known to produce (exit code 1 once INI loading finds nothing to read). No

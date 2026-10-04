@@ -443,17 +443,18 @@ jobs:
 
       - name: Run Release Tests
         run: |
-          shopt -s globstar nullglob
-          test_projects=(${{ env.TEST_PROJECTS }})
-          if [ "${#test_projects[@]}" -eq 0 ]; then
+          test_count=0
+          while IFS= read -r test_project; do
+            [[ -z "$test_project" ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}" --filter "Category!=LiveNetwork"
+            test_count=$((test_count + 1))
+          done < <(find GenHub/GenHub.Tests -name "*.csproj" | sort)
+          if [ "$test_count" -eq 0 ]; then
             echo "::error::No macOS-compatible test projects found."
             exit 1
           fi
-
-          for test_project in "${test_projects[@]}"; do
-            [[ "$test_project" == *Windows* || "$test_project" == *Linux* ]] && continue
-            dotnet test "$test_project" -c "${{ env.BUILD_CONFIGURATION }}" --filter "Category!=LiveNetwork"
-          done
 
       - name: Publish macOS App
         run: |
