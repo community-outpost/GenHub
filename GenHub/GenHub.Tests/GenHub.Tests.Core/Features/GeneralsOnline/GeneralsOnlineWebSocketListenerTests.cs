@@ -262,6 +262,26 @@ public class GeneralsOnlineWebSocketListenerTests
         Assert.Equal("spam", notice.Reason);
     }
 
+    /// <summary>
+    /// Tests that DisconnectAsync and DisposeAsync can be called concurrently without unhandled ObjectDisposedException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DisconnectAndDispose_ConcurrentExecution_ShouldNotThrowAsync()
+    {
+        // Arrange
+        var listener = CreateListener();
+        var connectResult = await listener.ConnectAsync("ws://127.0.0.1:9/", "session-token");
+        Assert.True(connectResult.Success);
+
+        // Act & Assert: run disconnect and dispose concurrently
+        var disconnectTask = Task.Run(async () => await listener.DisconnectAsync());
+        var disposeTask = Task.Run(async () => await listener.DisposeAsync());
+
+        await Task.WhenAll(disconnectTask, disposeTask.AsTask());
+        Assert.False(listener.IsConnected);
+    }
+
     private static GeneralsOnlineWebSocketListener CreateListener()
     {
         return new GeneralsOnlineWebSocketListener(Mock.Of<ILogger<GeneralsOnlineWebSocketListener>>());

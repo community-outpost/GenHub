@@ -297,7 +297,13 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
                 // Already disposed.
             }
 
-            _loopCts.Dispose();
+            try
+            {
+                _loopCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         _socket?.Dispose();
@@ -323,14 +329,38 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
         {
             try
             {
-                await _loopCts.CancelAsync();
+                await _loopCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
                 // Already disposed.
             }
 
-            _loopCts.Dispose();
+            try
+            {
+                _loopCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
+        if (_loopTask is not null)
+        {
+            try
+            {
+                await _loopTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on shutdown.
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently.
+            }
+
+            _loopTask = null;
         }
 
         _socket?.Dispose();
@@ -647,6 +677,11 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             {
                 break;
             }
+            catch (ObjectDisposedException ex)
+            {
+                logger.LogDebug(ex, "Generals Online WebSocket listener disposed during loop run.");
+                break;
+            }
             catch (WebSocketException ex)
             {
                 logger.LogWarning(ex, "Generals Online WebSocket dropped; retrying in {Delay}s.", delaySeconds);
@@ -709,7 +744,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
         try
         {
             socket.Options.SetRequestHeader("Authorization", $"Bearer {_sessionToken}");
-            await socket.ConnectAsync(new Uri(_webSocketUri), cancellationToken);
+            await socket.ConnectAsync(new Uri(_webSocketUri), cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -748,9 +783,13 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             WebSocketReceiveResult? frame = null;
             try
             {
-                frame = await socket.ReceiveAsync(_receiveBuffer, cancellationToken);
+                frame = await socket.ReceiveAsync(_receiveBuffer, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
             {
                 break;
             }
@@ -899,7 +938,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
         string failedMessage,
         CancellationToken cancellationToken)
     {
-        var socket = await WaitForOpenSocketAsync(cancellationToken);
+        var socket = await WaitForOpenSocketAsync(cancellationToken).ConfigureAwait(false);
         if (socket is null)
         {
             return OperationResult<bool>.CreateFailure(closedMessage);
@@ -907,7 +946,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
 
         try
         {
-            await _sendLock.WaitAsync(cancellationToken);
+            await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
@@ -927,7 +966,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
                 return OperationResult<bool>.CreateFailure(closedMessage);
             }
 
-            await socket.SendAsync(Encoding.UTF8.GetBytes(payload), WebSocketMessageType.Text, true, cancellationToken);
+            await socket.SendAsync(Encoding.UTF8.GetBytes(payload), WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
         }
         catch (WebSocketException ex)
         {
@@ -965,7 +1004,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
         {
             if (socket.State == WebSocketState.Open)
             {
-                await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, "Message too large", cancellationToken);
+                await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, "Message too large", cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -991,8 +1030,23 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
 
         if (_loopCts is not null)
         {
-            await _loopCts.CancelAsync();
-            _loopCts.Dispose();
+            try
+            {
+                await _loopCts.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently by Dispose()/DisposeAsync().
+            }
+
+            try
+            {
+                _loopCts.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
             _loopCts = null;
         }
 
@@ -1000,11 +1054,15 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
         {
             try
             {
-                await _loopTask;
+                await _loopTask.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 // Expected on shutdown.
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposed concurrently during shutdown.
             }
 
             _loopTask = null;
