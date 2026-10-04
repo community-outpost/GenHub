@@ -2123,16 +2123,10 @@ public class ProfileSharingService(
                 continue;
             }
 
-            if (!ManifestVariantResolver.SupportsRuntime(manifest))
+            var exportError = GetManifestExportError(manifest, allowCloudUpload);
+            if (exportError != null)
             {
-                return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier));
-            }
-
-            if (allowCloudUpload && IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
-            {
-                return OperationResult<SharedGameProfilePackage>.CreateFailure(
-                    LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, manifest.Name));
+                return OperationResult<SharedGameProfilePackage>.CreateFailure(exportError);
             }
 
             sourceManifests.Add(manifest);
@@ -2176,6 +2170,21 @@ public class ProfileSharingService(
         };
 
         return OperationResult<SharedGameProfilePackage>.CreateSuccess(package);
+    }
+
+    private string? GetManifestExportError(ContentManifest manifest, bool allowCloudUpload)
+    {
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            return string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CannotExportNoHostVariant, manifest.Name, ManifestVariantResolver.CurrentRuntimeIdentifier);
+        }
+
+        if (allowCloudUpload && IsCustomLocalManifest(manifest) && ManifestVariantResolver.ResolveFiles(manifest).Count == 0)
+        {
+            return LaunchExitMessages.GetString(ProfileSharingConstants.LocalContentHasNoFilesToShareErrorKey, localizationService, manifest.Name);
+        }
+
+        return null;
     }
 
     private async Task<OperationResult<ContentManifest?>> ResolveProfileContentManifestAsync(
