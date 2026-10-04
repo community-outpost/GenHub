@@ -49,8 +49,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         // Deduplicate files for accurate estimation - only include workspace-targeted files
         var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
 
-        // HardLink strategy enforces zero-copy (hard links or symlinks)
-        return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
+        // Links are zero-copy, but executables and quarantined macOS libraries get private copies.
+        return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes) + EstimatePrivateCopyBytes(allFiles);
     }
 
     /// <inheritdoc/>
@@ -112,24 +112,38 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, cancellationToken);
-                        if (linked)
+                        if (await EnsureExecutableAsync(file, destinationPath, cancellationToken))
                         {
-                            linkedFiles++;
+                            totalBytesProcessed += new FileInfo(destinationPath).Length;
                         }
+                        else
+                        {
+                            if (linked)
+                            {
+                                linkedFiles++;
+                            }
 
-                        totalBytesProcessed += bytes;
+                            totalBytesProcessed += bytes;
+                        }
                     }
                     else
                     {
                         var processResult = await ProcessStandardFileAsync(file, manifest, destinationPath, configuration, sameVolume, cancellationToken);
                         if (!processResult.Skipped)
                         {
-                            if (processResult.HardLinked)
+                            if (await EnsureExecutableAsync(file, destinationPath, cancellationToken))
                             {
-                                linkedFiles++;
+                                totalBytesProcessed += new FileInfo(destinationPath).Length;
                             }
+                            else
+                            {
+                                if (processResult.HardLinked)
+                                {
+                                    linkedFiles++;
+                                }
 
-                            totalBytesProcessed += processResult.BytesProcessed;
+                                totalBytesProcessed += processResult.BytesProcessed;
+                            }
                         }
                     }
                 }

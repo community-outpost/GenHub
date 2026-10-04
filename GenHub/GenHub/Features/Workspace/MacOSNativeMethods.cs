@@ -60,6 +60,27 @@ internal static partial class MacOSNativeMethods
     }
 
     /// <summary>
+    /// Determines whether a file, or the file a symlink resolves to, carries the quarantine
+    /// attribute. The resolved file is the one Gatekeeper checks when it is run or loaded.
+    /// </summary>
+    /// <param name="path">The absolute path of the file to check.</param>
+    /// <returns>
+    /// <c>true</c> when the file is quarantined, or when the attribute could not be read for
+    /// any reason other than its absence. A private copy is the safe answer to an unknown.
+    /// Always <c>false</c> off macOS.
+    /// </returns>
+    internal static bool IsQuarantined(string path)
+    {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return false;
+        }
+
+        return GetExtendedAttribute(path, QuarantineAttribute, IntPtr.Zero, 0, 0, 0) >= 0
+            || Marshal.GetLastPInvokeError() != ENOATTR;
+    }
+
+    /// <summary>
     /// Renames a file without replacing an existing destination, <c>renamex_np(2)</c> with
     /// <c>RENAME_EXCL</c>. The rename is atomic and never falls back to copying.
     /// </summary>
@@ -74,6 +95,9 @@ internal static partial class MacOSNativeMethods
 
     [LibraryImport("libc", EntryPoint = "renamex_np", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int RenameExtended(string sourcePath, string destinationPath, uint flags);
+
+    [LibraryImport("libc", EntryPoint = "getxattr", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial nint GetExtendedAttribute(string path, string name, IntPtr value, nuint size, uint position, int options);
 
     [LibraryImport("libc", EntryPoint = "removexattr", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int RemoveExtendedAttribute(string path, string name, int options);

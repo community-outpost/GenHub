@@ -45,8 +45,9 @@ public sealed class SymlinkOnlyStrategy(
     /// <inheritdoc/>
     public override long EstimateDiskUsage(WorkspaceConfiguration configuration)
     {
-        // Symbolic links use minimal space - approximate 1KB per link for metadata
-        return configuration.GetWorkspaceUniqueFiles().Count() * LinkOverheadBytes;
+        // Symbolic links use about 1KB each. Executables and quarantined macOS libraries get private copies.
+        var files = configuration.GetWorkspaceUniqueFiles().ToList();
+        return (files.Count * LinkOverheadBytes) + EstimatePrivateCopyBytes(files);
     }
 
     /// <inheritdoc/>
