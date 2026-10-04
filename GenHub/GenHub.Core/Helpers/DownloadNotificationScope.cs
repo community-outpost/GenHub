@@ -35,6 +35,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
     private bool _dismissed;
     private bool _disposed;
     private ContentAcquisitionPhase? _lastReportedPhase;
+    private string? _lastReportedOperation;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadNotificationScope"/> class
@@ -119,10 +120,18 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
         var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
         _lastReportedPhase = value.Phase;
 
+        var op = value.CurrentOperation ?? string.Empty;
+        var opChanged = !string.Equals(_lastReportedOperation, op, StringComparison.Ordinal);
+        var isProgressTick = !string.IsNullOrEmpty(_lastReportedOperation) &&
+                             StatusShowsPercentage(_lastReportedOperation) &&
+                             StatusShowsPercentage(op);
+        var forceUpdate = phaseChanged || (opChanged && !isProgressTick);
+        _lastReportedOperation = op;
+
         var status = value.FormatProgressStatus();
         var isMultiFile = value.TotalFiles > 1;
         var includePrefix = isMultiFile || !StatusShowsPercentage(status);
-        UpdatePinnedToast(clamped, status, includePercentagePrefix: includePrefix, forceUpdate: phaseChanged);
+        UpdatePinnedToast(clamped, status, includePercentagePrefix: includePrefix, forceUpdate: forceUpdate);
     }
 
     /// <summary>
@@ -360,18 +369,18 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return false;
         }
 
-        var trimmed = status.TrimEnd();
-        if (trimmed.EndsWith('%'))
+        var idx = status.IndexOf('%');
+        while (idx > 0)
         {
-            var lastSpace = trimmed.LastIndexOf(' ');
-            var percentToken = lastSpace >= 0 ? trimmed[(lastSpace + 1)..^1] : trimmed[..^1];
-            if (int.TryParse(percentToken, out _))
+            if (char.IsAsciiDigit(status[idx - 1]))
             {
                 return true;
             }
+
+            idx = status.IndexOf('%', idx + 1);
         }
 
-        return trimmed.Length >= 4 && trimmed.Contains("% -");
+        return false;
     }
 
     private void UpdatePinnedToast(

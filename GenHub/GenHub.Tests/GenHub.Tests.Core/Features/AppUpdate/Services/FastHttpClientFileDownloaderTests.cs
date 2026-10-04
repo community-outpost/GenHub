@@ -535,7 +535,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that an unsafe initial download URL (e.g. localhost/loopback) throws SecurityException.
+    /// Tests that an unsafe initial download URL (e.g. private network) throws SecurityException.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -545,7 +545,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         var targetFile = Path.Combine(_tempDirectory, "unsafe-url.bin");
 
         await Assert.ThrowsAsync<SecurityException>(
-            () => downloader.DownloadFile("http://127.0.0.1/exploit.bin", targetFile, _ => { }, null, 30));
+            () => downloader.DownloadFile("http://192.168.1.1/exploit.bin", targetFile, _ => { }, null, 30));
 
         Assert.False(File.Exists(targetFile));
     }
@@ -562,7 +562,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
             var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new ByteArrayContent([1, 2, 3, 4]),
-                RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://127.0.0.1/private-exploit.bin"),
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://192.168.1.1/private-exploit.bin"),
             };
             return response;
         });
@@ -574,5 +574,33 @@ public class FastHttpClientFileDownloaderTests : IDisposable
             () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30));
 
         Assert.False(File.Exists(targetFile));
+    }
+
+    /// <summary>
+    /// Tests that a loopback URL is permitted for local staging without throwing SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_WithLoopbackUrl_PermitsDownloadWithoutSecurityExceptionAsync()
+    {
+        var payload = new byte[] { 10, 20, 30, 40 };
+        var handler = new TestHttpMessageHandler(request =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(payload),
+                RequestMessage = request,
+            };
+            return response;
+        });
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "loopback.bin");
+
+        await downloader.DownloadFile("http://127.0.0.1:8080/releases.win.json", targetFile, _ => { }, null, 30);
+
+        Assert.True(File.Exists(targetFile));
+        var downloadedBytes = await File.ReadAllBytesAsync(targetFile);
+        Assert.Equal(payload, downloadedBytes);
     }
 }

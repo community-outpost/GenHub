@@ -881,13 +881,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 timeout: 300,
                 cancelToken: cancellationToken);
 
-            var isDirectExe = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
-            if (TryInstallDirectExecutable(targetFilePath, isDirectExe, progress))
-            {
-                return;
-            }
-
-            await InstallFromExtractedArtifactAsync(tempDir, targetFilePath, artifactInfo, label, progress, cancellationToken).ConfigureAwait(false);
+            await InstallDownloadedBuildAsync(targetFilePath, targetFileName, progress, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -1621,7 +1615,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 comSpec = Path.Combine(Environment.SystemDirectory, "cmd.exe");
             }
 
-            var cmdArgs = $"/c timeout /t 1 /nobreak >nul && start \"\" \"{stagedExe}\" {arguments}".Trim();
+            var cmdArgs = $"/c \"ping 127.0.0.1 -n 2 >nul & start \"\" \"{stagedExe}\" {arguments}\"".Trim();
             startInfo = new ProcessStartInfo(comSpec, cmdArgs)
             {
                 UseShellExecute = false,
@@ -1659,11 +1653,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             if (VelopackBundleExtractor.TryExtractBundle(targetPath, extractedNupkg, out var bundleBytes))
             {
                 _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}'", bundleBytes, targetPath);
-                await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
-                return;
+                try
+                {
+                    await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetPath), targetPath, progress, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to apply local Velopack update from extracted bundle for '{Exe}'; falling back to direct installer launch", targetPath);
+                }
             }
 
-            _logger.LogInformation("'{Exe}' is not a Velopack bundle; launching standalone installer process", targetPath);
+            _logger.LogInformation("'{Exe}' is not a Velopack bundle or Velopack update was unavailable; launching standalone installer process", targetPath);
             LaunchInstallerProcess(targetPath, progress);
         }
         finally
@@ -1687,8 +1688,22 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
             if (nupkgFiles.Length > 0)
             {
-                await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
-                return;
+                var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
+                    .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                var fallbackExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles.FirstOrDefault();
+
+                try
+                {
+                    await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), fallbackExe, progress, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                catch (Exception ex) when (fallbackExe != null && File.Exists(fallbackExe))
+                {
+                    _logger.LogWarning(ex, "Failed to apply local Velopack update from zip nupkg; falling back to direct installer '{Exe}'", fallbackExe);
+                    LaunchInstallerProcess(fallbackExe, progress);
+                    return;
+                }
             }
 
             await InstallZipExeCandidateAsync(tempDir, progress, cancellationToken).ConfigureAwait(false);
@@ -1718,8 +1733,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         if (VelopackBundleExtractor.TryExtractBundle(targetExe, extractedNupkg, out var bundleBytes))
         {
             _logger.LogInformation("Successfully extracted {Bytes:N0}-byte embedded Velopack nupkg from '{Exe}' inside zip", bundleBytes, targetExe);
-            await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), progress, cancellationToken).ConfigureAwait(false);
-            return;
+            try
+            {
+                await InstallLocalNupkgAsync(extractedNupkg, tempDir, Path.GetFileName(targetExe), targetExe, progress, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to apply local Velopack update from zip exe; falling back to direct installer '{Exe}'", targetExe);
+            }
         }
 
         LaunchInstallerProcess(targetExe, progress);
@@ -1734,7 +1756,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         try
         {
             Directory.CreateDirectory(tempDir);
-            await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), progress, cancellationToken).ConfigureAwait(false);
+            await InstallLocalNupkgAsync(targetPath, tempDir, Path.GetFileName(targetPath), null, progress, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -1798,32 +1820,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return (downloadUrl, headers);
     }
 
-    private bool TryInstallDirectExecutable(string targetFilePath, bool isDirectExe, IProgress<UpdateProgress>? progress)
-    {
-        var isExe = IsWindowsExecutable(targetFilePath);
-        if (!isDirectExe && !isExe)
-        {
-            return false;
-        }
-
-        if (!isExe)
-        {
-            throw new InvalidOperationException("Downloaded artifact was expected to be an executable installer, but the file does not have a valid Windows executable (PE/MZ) header.");
-        }
-
-        var exePath = targetFilePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-            ? targetFilePath
-            : Path.ChangeExtension(targetFilePath, ".exe");
-
-        if (!string.Equals(targetFilePath, exePath, StringComparison.OrdinalIgnoreCase) && !File.Exists(exePath))
-        {
-            File.Move(targetFilePath, exePath);
-        }
-
-        LaunchInstallerProcess(exePath, progress);
-        return true;
-    }
-
     private async Task<bool> TryInstallFromLocalCacheAsync(
         ArtifactUpdateInfo artifactInfo,
         IProgress<UpdateProgress>? progress,
@@ -1860,189 +1856,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 _logger.LogTrace(ex, "Failed to clean up local build path {Path}", localPath);
             }
         }
-    }
-
-    private string GetArtifactChannel(ArtifactUpdateInfo artifactInfo)
-    {
-        if (artifactInfo.PullRequestNumber.HasValue)
-        {
-            return $"{TelemetryConstants.PullRequestChannelPrefix}{artifactInfo.PullRequestNumber.Value}";
-        }
-
-        return !string.IsNullOrEmpty(artifactInfo.ArtifactName)
-            ? artifactInfo.ArtifactName
-            : TelemetryChannel;
-    }
-
-    private async Task InstallFromExtractedArtifactAsync(
-        string tempDir,
-        string targetFilePath,
-        ArtifactUpdateInfo artifactInfo,
-        string label,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
-        ZipArchiveGuard.ExtractToDirectory(targetFilePath, tempDir, cancellationToken);
-
-        var nupkgFiles = Directory.GetFiles(tempDir, "*.nupkg", SearchOption.AllDirectories);
-        if (nupkgFiles.Length == 0)
-        {
-            var exeFiles = Directory.GetFiles(tempDir, "*.exe", SearchOption.AllDirectories)
-                .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-
-            if (exeFiles.Length > 0)
-            {
-                var targetExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles[0];
-                LaunchInstallerProcess(targetExe, progress);
-                return;
-            }
-
-            throw new FileNotFoundException("No .nupkg or installer file found in artifact");
-        }
-
-        var nupkgFile = nupkgFiles[0];
-        _logger.LogInformation("Found nupkg: {File}", Path.GetFileName(nupkgFile));
-
-        var (releasesPath, nupkgFileName, fileVersion, sha1, sha256, fileLength) =
-            await CreateLocalReleasesJsonAsync(tempDir, nupkgFile, artifactInfo.Version, cancellationToken).ConfigureAwait(false);
-
-        progress?.Report(new UpdateProgress { Status = "Starting local server...", PercentComplete = 50 });
-
-        var port = FindAvailablePort();
-        using var server = new SimpleHttpServer(nupkgFile, releasesPath, port, _logger);
-        server.Start();
-
-        var artifactChannel = GetArtifactChannel(artifactInfo);
-        var updateRequest = new LocalVelopackUpdateRequest(
-            server,
-            port,
-            fileVersion,
-            nupkgFileName,
-            sha1,
-            sha256,
-            fileLength,
-            label,
-            artifactChannel);
-
-        await ExecuteLocalVelopackUpdateAsync(
-            updateRequest,
-            progress,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<(string ReleasesPath, string NupkgFileName, string FileVersion, string Sha1, string Sha256, long FileLength)> CreateLocalReleasesJsonAsync(
-        string tempDir,
-        string nupkgFile,
-        string fallbackVersion,
-        CancellationToken cancellationToken)
-    {
-        var releasesPath = Path.Combine(tempDir, "releases.win.json");
-        var nupkgFileName = Path.GetFileName(nupkgFile);
-        var fileInfo = new FileInfo(nupkgFile);
-        var sha1 = CalculateSHA1(nupkgFile);
-        var sha256 = CalculateSHA256(nupkgFile);
-
-        var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
-        var fileVersion = versionMatch.Success ? versionMatch.Groups[1].Value : fallbackVersion;
-
-        var releasesJson = new
-        {
-            Assets = new[]
-            {
-                new
-                {
-                    PackageId = AppConstants.AppName,
-                    Version = fileVersion,
-                    Type = "Full",
-                    FileName = nupkgFileName,
-                    SHA1 = sha1,
-                    SHA256 = sha256,
-                    Size = fileInfo.Length,
-                },
-            },
-        };
-
-        var jsonContent = JsonSerializer.Serialize(releasesJson);
-        await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken).ConfigureAwait(false);
-        _logger.LogInformation("Created releases.win.json with version {Version}", fileVersion);
-
-        return (releasesPath, nupkgFileName, fileVersion, sha1, sha256, fileInfo.Length);
-    }
-
-    private sealed record LocalVelopackUpdateRequest(
-        SimpleHttpServer Server,
-        int Port,
-        string FileVersion,
-        string NupkgFileName,
-        string Sha1,
-        string Sha256,
-        long FileSize,
-        string Label,
-        string ArtifactChannel);
-
-    private async Task ExecuteLocalVelopackUpdateAsync(
-        LocalVelopackUpdateRequest request,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        progress?.Report(new UpdateProgress { Status = "Preparing update...", PercentComplete = 60 });
-        progress?.Report(new UpdateProgress { Status = "Downloading update...", PercentComplete = 70 });
-
-        var source = new SimpleWebSource($"http://localhost:{request.Port}/{request.Server.SecretToken}/", _fileDownloader);
-        var localUpdateManager = new UpdateManager(source);
-
-        var asset = new VelopackAsset
-        {
-            PackageId = AppConstants.AppName,
-            Version = SemanticVersion.Parse(request.FileVersion),
-            Type = VelopackAssetType.Full,
-            FileName = request.NupkgFileName,
-            SHA1 = request.Sha1,
-            SHA256 = request.Sha256,
-            Size = request.FileSize,
-        };
-
-        var updateInfo = new UpdateInfo(asset, true);
-
-        await localUpdateManager.DownloadUpdatesAsync(
-            updateInfo,
-            p =>
-            {
-                progress?.Report(new UpdateProgress
-                {
-                    Status = "Downloading update...",
-                    PercentComplete = 70 + (int)(p * 0.2),
-                });
-            },
-            cancellationToken).ConfigureAwait(false);
-
-        _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
-        {
-            [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
-            [TelemetryConstants.Properties.ToVersion] = request.FileVersion,
-            [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
-            [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
-            [TelemetryConstants.Properties.Channel] = request.ArtifactChannel,
-            [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-        });
-
-        progress?.Report(new UpdateProgress { Status = "Installing update...", PercentComplete = 90 });
-
-        CleanStrayAppDirectoryArtifacts();
-        _logger.LogInformation("Applying {Label} update and restarting", request.Label);
-
-        await TrackUpdateAppliedAndFlushAsync(request.FileVersion, request.ArtifactChannel, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
-
-        _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - waiting for exit...");
-        await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
-
-        _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
-        throw new InvalidOperationException("Application did not exit after applying update");
     }
 
     private void CleanupTempDirectory(string? tempDir)
@@ -2174,6 +1987,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         string nupkgFile,
         string tempDir,
         string releaseTitle,
+        string? fallbackExePath,
         IProgress<UpdateProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -2217,7 +2031,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         };
 
         var jsonContent = JsonSerializer.Serialize(releasesJson);
-        await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken);
+        await File.WriteAllTextAsync(releasesPath, jsonContent, cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("Created local {FileName} for build '{Title}' with version {Version}", releasesFileName, releaseTitle, fileVersion);
 
         progress?.Report(new UpdateProgress { Status = "Starting local installation server...", PercentComplete = 50 });
@@ -2254,11 +2068,47 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     PercentComplete = 60 + (int)(p * 0.3),
                 });
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+
+        _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateDownloaded, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.FromVersion] = CurrentAppVersion,
+            [TelemetryConstants.Properties.ToVersion] = fileVersion,
+            [TelemetryConstants.Properties.FullDisplayVersion] = AppConstants.FullDisplayVersion,
+            [TelemetryConstants.Properties.BuildChannel] = AppConstants.BuildChannel,
+            [TelemetryConstants.Properties.Channel] = TelemetryChannel,
+            [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+        });
 
         progress?.Report(new UpdateProgress { Status = "Applying update and restarting...", PercentComplete = 100 });
         _logger.LogInformation("Applying update from local build package and restarting");
-        localUpdateManager.ApplyUpdatesAndRestart(updateInfo);
+
+        CleanStrayAppDirectoryArtifacts();
+        await TrackUpdateAppliedAndFlushAsync(fileVersion, TelemetryChannel, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            localUpdateManager.ApplyUpdatesAndRestart(updateInfo.TargetFullRelease);
+
+            _logger.LogWarning("ApplyUpdatesAndRestart returned without exiting - waiting for exit...");
+            await Task.Delay(AppUpdateConstants.PostUpdateExitDelay, cancellationToken).ConfigureAwait(false);
+
+            if (fallbackExePath != null && File.Exists(fallbackExePath))
+            {
+                _logger.LogWarning("Application did not exit after ApplyUpdatesAndRestart. Falling back to launching installer '{Exe}'", fallbackExePath);
+                LaunchInstallerProcess(fallbackExePath, progress);
+                return;
+            }
+
+            _logger.LogError("Application did not exit after ApplyUpdatesAndRestart. Update may have failed.");
+            throw new InvalidOperationException("Application did not exit after applying update");
+        }
+        catch (Exception ex) when (fallbackExePath != null && File.Exists(fallbackExePath))
+        {
+            _logger.LogWarning(ex, "Failed to apply local Velopack update; falling back to direct installer '{Exe}'", fallbackExePath);
+            LaunchInstallerProcess(fallbackExePath, progress);
+        }
     }
 
     private HttpClient CreateConfiguredHttpClient()

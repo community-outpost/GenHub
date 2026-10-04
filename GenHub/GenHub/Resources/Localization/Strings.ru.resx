@@ -18134,6 +18134,7 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  </data>
   <data name="Updates.CustomBuilds.Label" xml:space="preserve">
     <value>Пользовательские сборки и форки</value>
   </data>
