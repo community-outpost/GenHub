@@ -7,6 +7,9 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class WorkspaceConstants
 {
+    /// <summary>Error when a workspace source points to a directory instead of a file.</summary>
+    public const string SourcePathIsDirectoryMessage = "Source path is a directory: {0}";
+
     /// <summary>
     /// The default workspace strategy to use when none is specified.
     /// Default is HardLink as it provides space-efficient file management with good compatibility.

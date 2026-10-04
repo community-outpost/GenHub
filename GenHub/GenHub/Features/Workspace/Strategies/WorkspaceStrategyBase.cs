@@ -265,7 +265,7 @@ public abstract class WorkspaceStrategyBase<T>(
 
             if ((attributes & FileAttributes.Directory) != 0)
             {
-                throw new IOException($"Source path is a directory: {sourcePath}");
+                throw new IOException(string.Format(System.Globalization.CultureInfo.InvariantCulture, WorkspaceConstants.SourcePathIsDirectoryMessage, sourcePath));
             }
 
             return true;
