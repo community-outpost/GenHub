@@ -154,7 +154,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
                     {
                         // Resolve source path supporting multi-source installations
                         var sourcePath = ResolveSourcePath(file, manifest, configuration);
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
                         {
                             continue;
                         }
@@ -267,7 +267,7 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }

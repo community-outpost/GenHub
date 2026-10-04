@@ -17843,6 +17843,15 @@ Mapped image texture reference</value>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>The launcher exited with code {0} before starting {1}. {2}</value>
   </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Title" xml:space="preserve">
+    <value>Some files were skipped</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
+    <value>{0} file(s) were skipped because their source files are missing: {1}</value>
+  </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>Skipped {0}: its source file is missing.</value>
+  </data>
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>Cannot share local content '{0}': it has no files to upload, so recipients could not install it.</value>
   </data>

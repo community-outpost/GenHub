@@ -7,6 +7,9 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class WorkspaceConstants
 {
+    /// <summary>Error when a workspace source points to a directory instead of a file.</summary>
+    public const string SourcePathIsDirectoryMessage = "Source path is a directory: {0}";
+
     /// <summary>
     /// The default workspace strategy to use when none is specified.
     /// Default is HardLink as it provides space-efficient file management with good compatibility.
@@ -58,4 +61,28 @@ public static class WorkspaceConstants
     /// Delta reason for optional files skipped by configuration.
     /// </summary>
     public const string OptionalFileSkippedReason = "Optional file skipped or removed by configuration";
+
+    /// <summary>
+    /// Resource key for a workspace file skipped because its source file is missing. {0} is the relative path.
+    /// </summary>
+    public const string SkippedMissingSourceFileMessageKey = "Workspace.Validation.SkippedMissingSourceFile";
+
+    /// <summary>
+    /// Resource key for the title of the notification that lists skipped workspace files.
+    /// </summary>
+    public const string SkippedSourceFilesTitleKey = "Workspace.Notification.SkippedSourceFiles.Title";
+
+    /// <summary>
+    /// Resource key for the message of the notification that lists skipped workspace files.
+    /// {0} is the number of files and {1} the file list.
+    /// </summary>
+    public const string SkippedSourceFilesMessageKey = "Workspace.Notification.SkippedSourceFiles.Message";
+
+    /// <summary>
+    /// Maximum number of skipped file names listed in the notification.
+    /// </summary>
+    public const int MaxSkippedSourceFilesListed = 5;
+
+    /// <summary>Log template for skipped missing workspace sources.</summary>
+    public const string SkippedSourceFilesLog = "[Workspace] Skipped {Count} file(s) whose source is missing: {Files}";
 }

@@ -185,7 +185,7 @@ public sealed class SymlinkOnlyStrategy(
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }

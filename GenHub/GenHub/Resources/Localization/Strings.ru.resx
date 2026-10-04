@@ -17784,6 +17784,15 @@ Error: не удалось: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>Программа запуска завершилась с кодом {0} до запуска {1}. {2}</value>
   </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Title" xml:space="preserve">
+    <value>Некоторые файлы пропущены</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
+    <value>Пропущено файлов: {0}, так как их исходные файлы отсутствуют: {1}</value>
+  </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>Пропущен {0}: исходный файл отсутствует.</value>
+  </data>
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>Невозможно поделиться локальным содержимым «{0}»: в нём нет файлов для загрузки, поэтому получатели не смогут его установить.</value>
   </data>
