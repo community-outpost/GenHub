@@ -144,7 +144,7 @@ public sealed class FullCopyStrategy(
                             // Resolve source path supporting multi-source installations
                             var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-                            if (ValidateSourceFile(sourcePath, file.RelativePath))
+                            if (ValidateSourceFile(sourcePath, file.RelativePath, configuration))
                             {
                                 await FileOperations.CopyFileAsync(sourcePath, destinationPath, ct);
 
@@ -229,7 +229,7 @@ public sealed class FullCopyStrategy(
     {
         var sourcePath = ResolveSourcePath(file, manifest, configuration);
 
-        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        if (!ValidateSourceFile(sourcePath, file.RelativePath, configuration))
         {
             return;
         }

@@ -7,7 +7,7 @@ using System.Resources;
 
 namespace GenHub.Features.Launching;
 
-/// <summary>Shared localized messages for launch completion.</summary>
+/// <summary>Localized launch diagnostics and shared resource lookup for standalone callers.</summary>
 internal static class LaunchExitMessages
 {
     private static readonly ResourceManager Resources = new(LocalizationConstants.StringResourceBaseName, typeof(LaunchExitMessages).Assembly);
@@ -98,7 +98,7 @@ internal static class LaunchExitMessages
             : GetString(StartupExitCodeConstants.LauncherExitExplainedKey, localization, exitCode, expectedName, explanation);
     }
 
-    /// <summary>Resolves a launch message for both DI and standalone callers.</summary>
+    /// <summary>Resolves a resource message for both DI and standalone callers.</summary>
     /// <param name="key">The resource key.</param>
     /// <param name="localization">The application localization service, when available.</param>
     /// <param name="arguments">The format arguments.</param>

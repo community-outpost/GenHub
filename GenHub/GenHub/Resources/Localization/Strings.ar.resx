@@ -17784,6 +17784,15 @@ Error: فشل: {3}
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Title" xml:space="preserve">
+    <value>تم تخطي بعض الملفات</value>
+  </data>
+  <data name="Workspace.Notification.SkippedSourceFiles.Message" xml:space="preserve">
+    <value>تم تخطي {0} من الملفات لأن ملفاتها المصدرية مفقودة: {1}</value>
+  </data>
+  <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
+    <value>تم تخطي {0}: ملفه المصدري مفقود.</value>
+  </data>
   <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
     <value>تمت مشاركة '{0}' للمنصة {1} ولا يمكن تثبيته على هذه المنصة ({2}).</value>
   </data>
