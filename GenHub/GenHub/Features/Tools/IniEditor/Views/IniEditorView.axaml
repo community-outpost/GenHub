@@ -13,6 +13,36 @@
              x:Class="GenHub.Features.Tools.IniEditor.Views.IniEditorView"
              x:DataType="vm:IniEditorViewModel">
   <UserControl.Resources>
+    <DataTemplate x:Key="IniSuggestionItemTemplate" x:DataType="vm:IniSuggestionItem">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <material:MaterialIcon Kind="{Binding IconKind}" Width="13" Height="13"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding Label}" FontSize="10"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="IniFieldKeySuggestionTemplate" x:DataType="x:String">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <material:MaterialIcon Kind="Key" Width="13" Height="13"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding}" FontSize="10"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="IniFlagSuggestionTemplate" x:DataType="x:String">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <material:MaterialIcon Kind="Flag" Width="13" Height="13"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding}" FontSize="10"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+    </DataTemplate>
     <DataTemplate x:Key="IniFieldRowActionsTemplate" x:DataType="vm:IniFieldRowViewModel">
       <StackPanel Orientation="Horizontal">
         <Button x:CompileBindings="False"
@@ -24,6 +54,16 @@
                 ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.GoToDefinitionTooltip}"
                 VerticalAlignment="Center">
           <material:MaterialIcon Kind="ArrowRightBoldCircleOutline" Width="12" Height="12"
+                                 Foreground="{DynamicResource AccentBrush}"/>
+        </Button>
+        <Button x:CompileBindings="False"
+                Command="{Binding DataContext.LocateFieldInRawCommand, ElementName=Root}"
+                CommandParameter="{Binding}"
+                Padding="3,1" Margin="2,0,0,0"
+                Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.LocateFieldTooltip}"
+                VerticalAlignment="Center">
+          <material:MaterialIcon Kind="TextSearch" Width="12" Height="12"
                                  Foreground="{DynamicResource AccentBrush}"/>
         </Button>
         <Button x:CompileBindings="False"
@@ -56,63 +96,58 @@
               BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
               ToolTip.Tip="{Binding Tooltip}">
         <Grid RowDefinitions="Auto,Auto">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding !IsPercentPair}">
+          <!-- Label line: every value editor renders below it on its own line -->
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
             <Image Grid.Column="0"
                    Source="{Binding TextureThumbnail}"
                    Width="18" Height="18" Margin="0,0,5,0"
                    Stretch="Uniform"
                    VerticalAlignment="Center"
                    IsVisible="{Binding TextureThumbnail, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-            <TextBlock Grid.Column="1"
-                       Text="{Binding Key}"
-                       FontSize="10" FontWeight="SemiBold"
-                       Foreground="{DynamicResource TextPrimary}"
-                       VerticalAlignment="Center"
-                       TextTrimming="CharacterEllipsis"
-                       MaxWidth="110" Margin="0,0,6,0"/>
-            <!-- Standard value edit when not KindOf or a pair -->
-            <Grid Grid.Column="2" IsVisible="{Binding IsPlainValue}" VerticalAlignment="Center">
-              <TextBox Text="{Binding Value, Mode=TwoWay}"
-                       IsVisible="{Binding !HasValuePicker}"
-                       FontSize="10" ToolTip.Tip="{Binding Description}"/>
-              <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasValuePicker}">
-                <AutoCompleteBox Grid.Column="0" x:CompileBindings="False"
-                                 Text="{Binding Value, Mode=TwoWay}"
-                                 ItemsSource="{Binding Suggestions}"
-                                 IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
-                                 FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
-                                 FontSize="10" ToolTip.Tip="{Binding Description}"/>
-                <Button Grid.Column="1" x:CompileBindings="False"
-                        Command="{Binding ToggleSuggestionsCommand}"
-                        Padding="3,1" Margin="2,0,0,0"
-                        Background="Transparent" BorderThickness="0"
-                        ToolTip.Tip="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
-                        AutomationProperties.Name="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
-                        VerticalAlignment="Center">
-                  <material:MaterialIcon Kind="{Binding FieldIconKind}" Width="13" Height="13"
-                                         Foreground="{DynamicResource AccentBrush}"/>
-                </Button>
-              </Grid>
-            </Grid>
-            <!-- Spacer keeps the actions right-aligned for KindOf rows -->
-            <Border Grid.Column="2" IsVisible="{Binding IsKindOf}"/>
-            <ContentControl Grid.Column="3"
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <TextBlock Text="{Binding Key}"
+                         FontSize="10" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextPrimary}"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding ModuleName}"
+                         IsVisible="{Binding HasModuleName}"
+                         FontSize="9"
+                         Foreground="{DynamicResource TextSecondary}"
+                         VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <ContentControl Grid.Column="2"
                             Content="{Binding}"
                             ContentTemplate="{StaticResource IniFieldRowActionsTemplate}"
                             VerticalAlignment="Center"/>
           </Grid>
-          <!-- Pair header spans the full card width so long keys stay readable -->
-          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" IsVisible="{Binding IsPercentPair}">
-            <TextBlock Grid.Column="0"
-                       Text="{Binding Key}"
-                       FontSize="10" FontWeight="SemiBold"
-                       Foreground="{DynamicResource TextPrimary}"
-                       VerticalAlignment="Center"
-                       TextTrimming="CharacterEllipsis" Margin="0,0,6,0"/>
-            <ContentControl Grid.Column="1"
-                            Content="{Binding}"
-                            ContentTemplate="{StaticResource IniFieldRowActionsTemplate}"
-                            VerticalAlignment="Center"/>
+
+          <!-- Standard value edit when not KindOf or a pair -->
+          <Grid Grid.Row="1" Margin="0,4,0,0" IsVisible="{Binding IsPlainValue}">
+            <TextBox Text="{Binding Value, Mode=TwoWay}"
+                     IsVisible="{Binding !HasValuePicker}"
+                     FontSize="10" ToolTip.Tip="{Binding Description}"/>
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasValuePicker}">
+              <AutoCompleteBox Grid.Column="0" x:CompileBindings="False"
+                               Text="{Binding Value, Mode=TwoWay}"
+                               ItemsSource="{Binding Suggestions}"
+                               ValueMemberBinding="{Binding Label}"
+                               ItemTemplate="{StaticResource IniSuggestionItemTemplate}"
+                               IsDropDownOpen="{Binding IsSuggestionsOpen, Mode=TwoWay}"
+                               FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
+                               FontSize="10" ToolTip.Tip="{Binding Description}"/>
+              <Button Grid.Column="1" x:CompileBindings="False"
+                      Command="{Binding ToggleSuggestionsCommand}"
+                      Padding="3,1" Margin="2,0,0,0"
+                      Background="Transparent" BorderThickness="0"
+                      ToolTip.Tip="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                      AutomationProperties.Name="{localization:Localize Tools.IniEditor.Fields.OpenSuggestionsTooltip}"
+                      VerticalAlignment="Center">
+                <material:MaterialIcon Kind="{Binding FieldIconKind}" Width="13" Height="13"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+              </Button>
+            </Grid>
           </Grid>
 
           <!-- Target plus percent pair edit, e.g. ProductionTimeChange -->
@@ -131,6 +166,8 @@
             <AutoCompleteBox Grid.Column="1" x:CompileBindings="False"
                              Text="{Binding PairTarget, Mode=TwoWay}"
                              ItemsSource="{Binding PairTargetSuggestions}"
+                             ValueMemberBinding="{Binding Label}"
+                             ItemTemplate="{StaticResource IniSuggestionItemTemplate}"
                              IsDropDownOpen="{Binding IsPairSuggestionsOpen, Mode=TwoWay}"
                              FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="220"
                              Watermark="{localization:Localize Tools.IniEditor.Fields.PairTargetWatermark}"
@@ -176,6 +213,7 @@
             <Grid ColumnDefinitions="*,Auto">
               <AutoCompleteBox Grid.Column="0" Text="{Binding SelectedFlagToAdd, Mode=TwoWay}"
                                ItemsSource="{Binding AvailableKindOfFlags}"
+                               ItemTemplate="{StaticResource IniFlagSuggestionTemplate}"
                                FilterMode="Contains" MinimumPrefixLength="0" MaxDropDownHeight="200"
                                Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
                                ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
@@ -203,6 +241,8 @@
     <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+Shift+Z" Command="{Binding RedoCommand}"/>
     <KeyBinding Gesture="Ctrl+D" Command="{Binding DuplicateCommand}"/>
+    <KeyBinding Gesture="Alt+Left" Command="{Binding GoBackCommand}"/>
+    <KeyBinding Gesture="Alt+Right" Command="{Binding GoForwardCommand}"/>
     <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"/>
     <KeyBinding Gesture="Ctrl+X" Command="{Binding CutCommand}"/>
     <KeyBinding Gesture="Ctrl+V" Command="{Binding PasteCommand}"/>
@@ -725,6 +765,20 @@
             <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="4,0,4,8">
               <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Button Command="{Binding GoBackCommand}"
+                          Padding="6,2" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Navigation.BackTooltip}"
+                          AutomationProperties.Name="{localization:Localize Tools.IniEditor.Navigation.BackTooltip}">
+                    <material:MaterialIcon Kind="ArrowLeft" Width="13" Height="13"/>
+                  </Button>
+                  <Button Command="{Binding GoForwardCommand}"
+                          Padding="6,2" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Navigation.ForwardTooltip}"
+                          AutomationProperties.Name="{localization:Localize Tools.IniEditor.Navigation.ForwardTooltip}">
+                    <material:MaterialIcon Kind="ArrowRight" Width="13" Height="13"/>
+                  </Button>
                   <material:MaterialIcon Kind="ViewDashboardOutline" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
                   <TextBlock Text="{localization:Localize Tools.IniEditor.Canvas.Title}"
                              FontWeight="Bold" FontSize="13"
@@ -809,6 +863,7 @@
                                          IsPanMode="{Binding IsPanMode, Mode=TwoWay}"
                                          Background="Transparent"
                                          ClipToBounds="True">
+              <Border MaxWidth="{Binding $parent[ScrollViewer].Viewport.Width}">
               <StackPanel Spacing="12" Margin="14" HorizontalAlignment="Stretch">
                 <!-- Live validation issues -->
                 <Border Background="{DynamicResource SurfaceElevatedBrush}"
@@ -929,6 +984,47 @@
                                       Background="Transparent"/>
                       </Grid>
                     </Border>
+                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.RelatedCommands}"
+                               IsVisible="{Binding HasPreviewCommandIcons}"
+                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <ItemsControl ItemsSource="{Binding PreviewCommandIcons}"
+                                  IsVisible="{Binding HasPreviewCommandIcons}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PreviewCommandIconItem">
+                          <Button x:CompileBindings="False"
+                                  Command="{Binding DataContext.SelectPreviewCommandIconCommand, ElementName=Root}"
+                                  CommandParameter="{Binding}"
+                                  Padding="4,3" Margin="0,1,4,1" Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                  CornerRadius="6" Cursor="Hand"
+                                  ToolTip.Tip="{Binding Label}">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <Border Width="26" Height="26" CornerRadius="5"
+                                      Background="{DynamicResource SurfaceSubtleBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                      ClipToBounds="True" VerticalAlignment="Center">
+                                <Panel>
+                                  <Image Source="{Binding Icon}" Stretch="UniformToFill"
+                                         IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                  <material:MaterialIcon Kind="ViewGridOutline" Width="14" Height="14"
+                                                         Foreground="{DynamicResource AccentBrush}"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                         IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNull}}"/>
+                                </Panel>
+                              </Border>
+                              <TextBlock Text="{Binding Label}" FontSize="10" FontWeight="SemiBold"
+                                         Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"
+                                         TextTrimming="CharacterEllipsis" MaxWidth="140"/>
+                            </StackPanel>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <TextBlock Text="{Binding PreviewStatusText}" IsVisible="{Binding HasPreviewScene}"
                                FontSize="10" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.DoubleClickHint}"
@@ -990,9 +1086,22 @@
                         <TextBlock Text="{Binding PreviewFrameCount}" FontSize="9" MinWidth="20"/>
                       </StackPanel>
                     </Grid>
-                    <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.Subobjects}"
-                               IsVisible="{Binding HasPreviewScene}"
-                               FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasPreviewScene}">
+                      <TextBlock Grid.Column="0"
+                                 Text="{localization:Localize Tools.IniEditor.Preview3D.Subobjects}"
+                                 FontWeight="SemiBold" FontSize="11" Foreground="{DynamicResource TextPrimary}"
+                                 VerticalAlignment="Center"/>
+                      <Button Grid.Column="1"
+                              Command="{Binding ClearPreviewMeshIsolationCommand}"
+                              IsVisible="{Binding HasPreviewMeshIsolation}"
+                              Padding="6,2"
+                              Background="Transparent"
+                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                              CornerRadius="6"
+                              Content="{localization:Localize Tools.IniEditor.Preview3D.ShowAllMeshes}"
+                              ToolTip.Tip="{localization:Localize Tools.IniEditor.Preview3D.ShowAllMeshes}"
+                              FontSize="10"/>
+                    </Grid>
                     <ListBox x:Name="SubObjectListBox"
                              ItemsSource="{Binding PreviewMeshes}"
                              SelectedItem="{Binding SelectedPreviewMesh, Mode=TwoWay}"
@@ -1002,7 +1111,7 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                       <ListBox.ItemsPanel>
                         <ItemsPanelTemplate>
-                          <UniformGrid Columns="2"/>
+                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="4" MaxColumns="4"/>
                         </ItemsPanelTemplate>
                       </ListBox.ItemsPanel>
                       <ListBox.ItemTemplate>
@@ -1018,26 +1127,27 @@
                               <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
                                          Foreground="{DynamicResource TextPrimary}"
                                          TextTrimming="CharacterEllipsis"/>
-                              <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock Text="{Binding TriangleCount}" FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
+                              <WrapPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding TriangleCount}" FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"/>
                                 <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.SubobjectDetails}"
-                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"/>
-                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"/>
+                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"
                                            IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                 <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.MeshBoneLabel}"
-                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"
                                            IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <TextBlock Text="{Binding BoneName}" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="{Binding BoneName}" FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="140"
                                            IsVisible="{Binding BoneName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"
                                            IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                 <TextBlock Text="{localization:Localize Tools.IniEditor.Preview3D.MeshTextureLabel}"
-                                           FontSize="9" Foreground="{DynamicResource TextSecondary}"
+                                           FontSize="9" Foreground="{DynamicResource TextSecondary}" Margin="0,0,4,0"
                                            IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                 <TextBlock Text="{Binding TextureName}" FontSize="9" Foreground="{DynamicResource TextSecondary}"
-                                           TextTrimming="CharacterEllipsis"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="140"
                                            IsVisible="{Binding TextureName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                              </StackPanel>
+                              </WrapPanel>
                             </StackPanel>
                           </Border>
                         </DataTemplate>
@@ -1454,6 +1564,9 @@
                       </StackPanel>
                     </Grid>
                     <TextBox Text="{Binding RawPreviewText, Mode=TwoWay}"
+                             SelectionStart="{Binding RawPreviewSelectionStart, Mode=TwoWay}"
+                             SelectionEnd="{Binding RawPreviewSelectionEnd, Mode=TwoWay}"
+                             CaretIndex="{Binding RawPreviewCaretIndex, Mode=TwoWay}"
                              IsReadOnly="{Binding !HasSelectedBlock}"
                              AcceptsReturn="True" AcceptsTab="True"
                              FontFamily="Consolas,Menlo,monospace"
@@ -1470,6 +1583,7 @@
                   </StackPanel>
                 </Border>
               </StackPanel>
+              </Border>
             </editors:EditorCanvasControl>
           </DockPanel>
         </Border>
@@ -1502,7 +1616,7 @@
                                   Margin="4,4,4,0">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
+                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2" MinColumnWidth="200"/>
                         </ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
                     </ItemsControl>
@@ -1539,7 +1653,7 @@
                                   ItemTemplate="{StaticResource IniFieldRowTemplate}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2"/>
+                          <controls:TwoColumnPanel ColumnSpacing="6" RowSpacing="2" MinColumnWidth="200"/>
                         </ItemsPanelTemplate>
                       </ItemsControl.ItemsPanel>
                     </ItemsControl>
@@ -1553,6 +1667,7 @@
                   <AutoCompleteBox Grid.Column="0"
                                    Text="{Binding NewFieldKey, Mode=TwoWay}"
                                    ItemsSource="{Binding AvailableFieldKeys}"
+                                   ItemTemplate="{StaticResource IniFieldKeySuggestionTemplate}"
                                    IsDropDownOpen="{Binding IsNewFieldKeyDropdownOpen, Mode=TwoWay}"
                                    FilterMode="Contains"
                                    MinimumPrefixLength="0"
@@ -1577,8 +1692,11 @@
                            Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
                            FontSize="11"/>
-                  <AutoCompleteBox Text="{Binding NewFieldValue, Mode=TwoWay}"
+                  <AutoCompleteBox x:CompileBindings="False"
+                                   Text="{Binding NewFieldValue, Mode=TwoWay}"
                                    ItemsSource="{Binding NewFieldValueSuggestions}"
+                                   ValueMemberBinding="{Binding Label}"
+                                   ItemTemplate="{StaticResource IniSuggestionItemTemplate}"
                                    IsVisible="{Binding HasNewFieldValueSuggestions}"
                                    FilterMode="Contains"
                                    MinimumPrefixLength="0"

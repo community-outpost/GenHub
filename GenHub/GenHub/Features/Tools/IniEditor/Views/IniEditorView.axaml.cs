@@ -47,6 +47,11 @@ public partial class IniEditorView : UserControl
         };
     }
 
+    private bool IsTextInputFocused()
+    {
+        return TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox;
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
@@ -75,6 +80,11 @@ public partial class IniEditorView : UserControl
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not IniEditorViewModel viewModel || !IsPrimaryShortcut(e))
+        {
+            return;
+        }
+
+        if (IsTextInputFocused() && e.Key is Key.Z or Key.Y)
         {
             return;
         }

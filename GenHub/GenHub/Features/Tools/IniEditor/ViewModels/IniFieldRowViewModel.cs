@@ -69,6 +69,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
         ReferenceBlockType = metadata.ReferenceBlockType;
         IsTexture = metadata.IsTexture;
         PairTargetSuggestions = metadata.PairTargets;
+        ModuleName = metadata.ModuleName;
         _onChanged = onChanged;
         _onEditCommitted = onEditCommitted;
         _value = fields[fieldIndex].Value;
@@ -111,9 +112,20 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     public string? Tooltip { get; }
 
     /// <summary>
+    /// Gets the owning module header when the row comes from a child module
+    /// fallback, or null for direct block fields.
+    /// </summary>
+    public string? ModuleName { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the row comes from a child module fallback.
+    /// </summary>
+    public bool HasModuleName => !string.IsNullOrEmpty(ModuleName);
+
+    /// <summary>
     /// Gets searchable value suggestions, when any.
     /// </summary>
-    public IReadOnlyList<string>? Suggestions { get; }
+    public IReadOnlyList<IniSuggestionItem>? Suggestions { get; }
 
     /// <summary>
     /// Gets a value indicating whether the row offers a searchable value dropdown.
@@ -183,7 +195,7 @@ public sealed partial class IniFieldRowViewModel : ObservableObject
     /// <summary>
     /// Gets known target names offered by the pair target dropdown.
     /// </summary>
-    public IReadOnlyList<string>? PairTargetSuggestions { get; }
+    public IReadOnlyList<IniSuggestionItem>? PairTargetSuggestions { get; }
 
     /// <summary>
     /// Gets a value indicating whether the pair target dropdown has entries.

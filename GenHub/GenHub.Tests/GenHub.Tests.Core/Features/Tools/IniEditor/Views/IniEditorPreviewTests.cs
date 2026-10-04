@@ -397,7 +397,10 @@ public sealed class IniEditorPreviewTests
             Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
             Assert.True(viewModel.HasPreviewModelSource);
             Assert.Equal("Tools.IniEditor.Preview3D.ViaSource", viewModel.PreviewModelSourceText);
-            Assert.False(viewModel.HasFieldRows);
+            Assert.True(viewModel.HasFieldRows);
+            var moduleRow = Assert.Single(viewModel.FieldRows);
+            Assert.Equal("StartingLevel", moduleRow.Key);
+            Assert.Equal("Behavior = VeterancyGainCreate ModuleTag_HeIden", moduleRow.ModuleName);
             Assert.True(viewModel.HasSelectedBlockModules);
 
             bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(5));
@@ -436,7 +439,10 @@ public sealed class IniEditorPreviewTests
 
             Assert.Equal("AirF_AmericaVehicleComanche", viewModel.SelectedBlockTitle);
             Assert.True(viewModel.HasPreviewScene);
-            Assert.False(viewModel.HasFieldRows);
+            Assert.True(viewModel.HasFieldRows);
+            var nestedRow = Assert.Single(viewModel.FieldRows);
+            Assert.Equal("StartingLevel", nestedRow.Key);
+            Assert.True(nestedRow.HasModuleName);
 
             var behaviorNode = Assert.Single(moduleNode.Children);
             viewModel.SelectedNode = behaviorNode;
@@ -444,7 +450,9 @@ public sealed class IniEditorPreviewTests
             Assert.Equal("AirF_AmericaVehicleComanche", viewModel.SelectedBlockTitle);
             Assert.True(viewModel.HasPreviewScene);
             Assert.True(viewModel.HasFieldRows);
-            Assert.Single(viewModel.FieldRows);
+            var directRow = Assert.Single(viewModel.FieldRows);
+            Assert.Equal("StartingLevel", directRow.Key);
+            Assert.False(directRow.HasModuleName);
         }
         finally
         {
@@ -631,6 +639,241 @@ public sealed class IniEditorPreviewTests
         {
             Directory.Delete(folder, true);
         }
+    }
+
+    /// <summary>
+    /// Verifies that back and forward traverse the viewed block history.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task NavigationHistory_BackForward_RestoresSelectionsAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        foreach (var name in new[] { "Alpha", "Bravo", "Charlie" })
+        {
+            viewModel.NewBlockType = "Object";
+            viewModel.NewBlockName = name;
+            viewModel.AddBlockCommand.Execute(null);
+        }
+
+        var alpha = FindNodeByName(viewModel, "Alpha");
+        var bravo = FindNodeByName(viewModel, "Bravo");
+        var charlie = FindNodeByName(viewModel, "Charlie");
+        Assert.NotNull(alpha);
+        Assert.NotNull(bravo);
+        Assert.NotNull(charlie);
+        viewModel.SelectedNode = alpha;
+        viewModel.SelectedNode = bravo;
+        viewModel.SelectedNode = charlie;
+
+        Assert.True(viewModel.CanGoBack);
+        Assert.False(viewModel.CanGoForward);
+
+        await viewModel.GoBackCommand.ExecuteAsync(null);
+        Assert.Equal("Bravo", viewModel.SelectedNode?.Block.Name);
+        Assert.True(viewModel.CanGoForward);
+
+        await viewModel.GoBackCommand.ExecuteAsync(null);
+        Assert.Equal("Alpha", viewModel.SelectedNode?.Block.Name);
+
+        await viewModel.GoForwardCommand.ExecuteAsync(null);
+        Assert.Equal("Bravo", viewModel.SelectedNode?.Block.Name);
+
+        viewModel.SelectedNode = charlie;
+        Assert.False(viewModel.CanGoForward);
+        Assert.True(viewModel.CanGoBack);
+    }
+
+    /// <summary>
+    /// Verifies that locating a field highlights its line in the raw preview.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task LocateFieldInRaw_HighlightsFieldLineAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        viewModel.FileExplorer.Directory = Path.GetTempPath();
+        await viewModel.NewDocumentCommand.ExecuteAsync(null);
+        viewModel.NewBlockType = "Object";
+        viewModel.NewBlockName = "Tank";
+        viewModel.AddBlockCommand.Execute(null);
+        viewModel.NewFieldKey = "Model";
+        viewModel.NewFieldValue = "TestUnit";
+        viewModel.AddFieldCommand.Execute(null);
+
+        var node = FindNodeByName(viewModel, "Tank");
+        Assert.NotNull(node);
+        viewModel.SelectedNode = node;
+
+        IniFieldRowViewModel? row = null;
+        foreach (var candidate in viewModel.FieldRows)
+        {
+            if (string.Equals(candidate.Key, "Model", StringComparison.OrdinalIgnoreCase))
+            {
+                row = candidate;
+            }
+        }
+
+        Assert.NotNull(row);
+        viewModel.LocateFieldInRawCommand.Execute(row);
+
+        int start = viewModel.RawPreviewSelectionStart;
+        int end = viewModel.RawPreviewSelectionEnd;
+        Assert.True(start >= 0);
+        Assert.True(end > start);
+        Assert.Equal("Model = TestUnit", viewModel.RawPreviewText.Substring(start, end - start).Trim());
+    }
+
+    /// <summary>
+    /// Verifies that an engine-only command set previews a referencing object model.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingEngineOnlyCommandSet_PreviewsReferencerModelAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubFallback{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "Set.ini"), EngineOnlySetIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Objects.ini"), EngineSetOwnerIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "Set.ini")));
+            var setNode = FindNodeByName(viewModel, "EngineSet");
+            Assert.NotNull(setNode);
+            viewModel.SelectedNode = setNode;
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(10));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+            Assert.Equal("Tools.IniEditor.Preview3D.ViaSource", viewModel.PreviewModelSourceText);
+            Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a map-style faction variant resolves its model from the full
+    /// folder definition when the open document only carries a stub base block.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingMapVariantWithStubbedBase_PreviewsFolderBaseModelAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object, useRealReferenceService: true);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubMapBase{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(folder, "map.ini"), MapVariantIni());
+            await File.WriteAllTextAsync(Path.Combine(folder, "Objects.ini"), FolderBaseIni());
+
+            Assert.True(await viewModel.OpenFolderAsync(folder));
+            Assert.True(await viewModel.OpenFileAsync(Path.Combine(folder, "map.ini")));
+            var variant = FindNodeByName(viewModel, "AirF_TestTank");
+            Assert.NotNull(variant);
+            viewModel.SelectedNode = variant;
+
+            bool loaded = await WaitForAsync(() => viewModel.HasPreviewScene, TimeSpan.FromSeconds(10));
+            Assert.True(loaded);
+            Assert.Equal("TestUnit", viewModel.SelectedBlockModel);
+            Assert.Equal("TestUnit", viewModel.PreviewModelName);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that selecting a module-only block surfaces its module fields
+    /// with the owning module caption instead of an empty panel.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectingModuleOnlyBlock_ShowsModuleFieldsAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        var filePath = Path.Combine(Path.GetTempPath(), $"GenHubModuleFields{Guid.NewGuid():N}.ini");
+        await File.WriteAllTextAsync(filePath, MapVariantIni());
+        try
+        {
+            Assert.True(await viewModel.OpenFileAsync(filePath));
+            var variant = FindNodeByName(viewModel, "AirF_TestTank");
+            Assert.NotNull(variant);
+            viewModel.SelectedNode = variant;
+
+            Assert.True(viewModel.HasFieldRows);
+            var nested = Assert.Single(viewModel.FieldRows);
+            Assert.Equal("StartingLevel", nested.Key);
+            Assert.Equal("HEROIC", nested.Value);
+            Assert.Equal("Behavior = VeterancyGainCreate ModuleTag_Held", nested.ModuleName);
+            Assert.True(nested.HasModuleName);
+
+            var flat = FindNodeByName(viewModel, "FlatTank");
+            Assert.NotNull(flat);
+            viewModel.SelectedNode = flat;
+
+            var direct = Assert.Single(viewModel.FieldRows);
+            Assert.Equal("StartingLevel", direct.Key);
+            Assert.Equal("AddModule", direct.ModuleName);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that picking a preview mesh isolates it in the viewport and
+    /// that clearing the pick restores the full scene.
+    /// </summary>
+    [AvaloniaFact]
+    public void SelectingPreviewMesh_IsolatesItInViewport()
+    {
+        using var viewModel = CreateViewModel((IW3dModelResolver?)null);
+        viewModel.PreviewMeshes.Add(new W3dPreviewMeshItem(0, "C.BOX", 10, 8, null, null));
+        viewModel.PreviewMeshes.Add(new W3dPreviewMeshItem(1, "C.WORKER", 176, 120, null, null));
+        viewModel.PreviewMeshes.Add(new W3dPreviewMeshItem(2, "C.MINED_SKIN", 54, 40, null, null));
+
+        viewModel.SelectedPreviewMesh = viewModel.PreviewMeshes[1];
+
+        Assert.True(viewModel.HasPreviewMeshIsolation);
+        Assert.Equal(1, viewModel.PreviewSelectedMeshIndex);
+        Assert.NotNull(viewModel.PreviewHiddenMeshNames);
+        Assert.DoesNotContain("C.WORKER", viewModel.PreviewHiddenMeshNames);
+        Assert.Contains("C.BOX", viewModel.PreviewHiddenMeshNames);
+        Assert.Contains("C.MINED_SKIN", viewModel.PreviewHiddenMeshNames);
+
+        viewModel.ClearPreviewMeshIsolationCommand.Execute(null);
+
+        Assert.False(viewModel.HasPreviewMeshIsolation);
+        Assert.Null(viewModel.SelectedPreviewMesh);
+        Assert.Null(viewModel.PreviewHiddenMeshNames);
+
+        viewModel.PreviewSelectedMeshIndex = 0;
+
+        Assert.True(viewModel.HasPreviewMeshIsolation);
+        Assert.Equal(viewModel.PreviewMeshes[0], viewModel.SelectedPreviewMesh);
+        Assert.NotNull(viewModel.PreviewHiddenMeshNames);
+        Assert.DoesNotContain("C.BOX", viewModel.PreviewHiddenMeshNames);
+
+        viewModel.PreviewSelectedMeshIndex = -1;
+
+        Assert.False(viewModel.HasPreviewMeshIsolation);
+        Assert.Null(viewModel.PreviewHiddenMeshNames);
     }
 
     /// <summary>
@@ -877,6 +1120,55 @@ public sealed class IniEditorPreviewTests
     {
         return "Object TestDropShip\n" +
             "  Model = TestUnit\n" +
+            "End\n";
+    }
+
+    private static string EngineOnlySetIni()
+    {
+        return "CommandSet EngineSet\n" +
+            "  11 = Command_AttackMove\n" +
+            "  13 = Command_Guard\n" +
+            "End\n";
+    }
+
+    private static string EngineSetOwnerIni()
+    {
+        return "Object EngineTank\n" +
+            "  CommandSet = EngineSet\n" +
+            "  Model = TestUnit\n" +
+            "End\n";
+    }
+
+    private static string MapVariantIni()
+    {
+        return "Object AirF_TestTank\n" +
+            "  AddModule\n" +
+            "    Behavior = VeterancyGainCreate ModuleTag_Held\n" +
+            "      StartingLevel = HEROIC\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n" +
+            "Object TestTank\n" +
+            "  AddModule\n" +
+            "    Behavior = VeterancyGainCreate ModuleTag_Held\n" +
+            "    End\n" +
+            "  End\n" +
+            "End\n" +
+            "Object FlatTank\n" +
+            "  AddModule\n" +
+            "    StartingLevel = HEROIC\n" +
+            "  End\n" +
+            "End\n";
+    }
+
+    private static string FolderBaseIni()
+    {
+        return "Object TestTank\n" +
+            "  Draw = W3DModelDraw ModuleTag_01\n" +
+            "    DefaultConditionState\n" +
+            "      Model = TestUnit\n" +
+            "    End\n" +
+            "  End\n" +
             "End\n";
     }
 

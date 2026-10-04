@@ -15491,6 +15491,9 @@ https://example.com/screenshot2.png</value>
   <data name="Tools.IniEditor.Properties.GoToDefinitionTooltip" xml:space="preserve">
     <value>الانتقال إلى التعريف المرجعي</value>
   </data>
+  <data name="Tools.IniEditor.Properties.LocateFieldTooltip" xml:space="preserve">
+    <value>تمييز هذا الحقل في المعاينة الخام</value>
+  </data>
   <data name="Tools.IniEditor.Properties.NewKeyWatermark" xml:space="preserve">
     <value>مفتاح الحقل الجديد...</value>
   </data>
@@ -17956,6 +17959,9 @@ Error: فشل: {3}
   <data name="Tools.IniEditor.Preview3D.Subobjects" xml:space="preserve">
     <value>الأجزاء الفرعية</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ShowAllMeshes" xml:space="preserve">
+    <value>إظهار الكل</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.MeshBoneLabel" xml:space="preserve">
     <value>عظمة</value>
   </data>
@@ -17970,6 +17976,15 @@ Error: فشل: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
     <value>الكائنات المرتبطة</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedCommands" xml:space="preserve">
+    <value>الأوامر المرتبطة</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.BackTooltip" xml:space="preserve">
+    <value>الرجوع إلى المقطع المعروض سابقا</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.ForwardTooltip" xml:space="preserve">
+    <value>التقدم إلى المقطع المعروض التالي</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
     <value>اسحب للتدوير • العجلة للتقريب • السحب بالزر الأيمن أو Shift للتحريك • WASD للحركة • نقرة مزدوجة لإعادة الضبط</value>

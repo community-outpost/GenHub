@@ -964,6 +964,12 @@ public static class IniConstants
         /// <summary>Maximum undo history entries.</summary>
         public const int MaxUndoHistory = 200;
 
+        /// <summary>Maximum block navigation history entries.</summary>
+        public const int MaxNavigationHistory = 100;
+
+        /// <summary>Maximum command button icons shown on the preview strip.</summary>
+        public const int MaxCommandIcons = 12;
+
         /// <summary>Debounce delay before refreshing previews after an edit, in milliseconds.</summary>
         public const int PreviewRefreshDebounceMs = 250;
 

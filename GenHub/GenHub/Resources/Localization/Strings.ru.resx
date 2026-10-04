@@ -15398,6 +15398,9 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Tools.IniEditor.Properties.GoToDefinitionTooltip" xml:space="preserve">
     <value>Перейти к определению</value>
   </data>
+  <data name="Tools.IniEditor.Properties.LocateFieldTooltip" xml:space="preserve">
+    <value>Подсветить это поле в исходном тексте</value>
+  </data>
   <data name="Tools.IniEditor.Properties.NewKeyWatermark" xml:space="preserve">
     <value>Новый ключ поля...</value>
   </data>
@@ -17956,6 +17959,9 @@ Error: не удалось: {3}
   <data name="Tools.IniEditor.Preview3D.Subobjects" xml:space="preserve">
     <value>Подобъекты</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ShowAllMeshes" xml:space="preserve">
+    <value>Показать все</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.MeshBoneLabel" xml:space="preserve">
     <value>Кость</value>
   </data>
@@ -17970,6 +17976,15 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
     <value>Связанные объекты</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedCommands" xml:space="preserve">
+    <value>Связанные команды</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.BackTooltip" xml:space="preserve">
+    <value>Назад к предыдущему блоку</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.ForwardTooltip" xml:space="preserve">
+    <value>Вперёд к следующему блоку</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
     <value>Перетаскивание — поворот • Колесо — масштаб • Правая кнопка или Shift — панорама • WASD — движение • Двойной щелчок — сброс</value>

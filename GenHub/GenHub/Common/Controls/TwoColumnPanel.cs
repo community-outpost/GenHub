@@ -6,8 +6,10 @@ using System;
 namespace GenHub.Common.Controls;
 
 /// <summary>
-/// Panel arranging children in two columns with independent row heights.
-/// Unlike a uniform grid, a tall child does not stretch its neighbors.
+/// Panel arranging children in a responsive flex grid with independent row heights.
+/// Unlike a uniform grid, a tall child does not stretch its neighbors, and the
+/// column count shrinks as the panel narrows so cards never squeeze below
+/// <see cref="MinColumnWidth"/>.
 /// </summary>
 public sealed class TwoColumnPanel : Panel
 {
@@ -22,6 +24,23 @@ public sealed class TwoColumnPanel : Panel
     /// </summary>
     public static readonly StyledProperty<double> RowSpacingProperty =
         AvaloniaProperty.Register<TwoColumnPanel, double>(nameof(RowSpacing), defaultValue: 2.0);
+
+    /// <summary>
+    /// The minimum column width before the grid drops a column.
+    /// </summary>
+    public static readonly StyledProperty<double> MinColumnWidthProperty =
+        AvaloniaProperty.Register<TwoColumnPanel, double>(nameof(MinColumnWidth), defaultValue: EditorConstants.TwoColumnDefaultWidth);
+
+    /// <summary>
+    /// The maximum column count on wide layouts.
+    /// </summary>
+    public static readonly StyledProperty<int> MaxColumnsProperty =
+        AvaloniaProperty.Register<TwoColumnPanel, int>(nameof(MaxColumns), defaultValue: 2);
+
+    static TwoColumnPanel()
+    {
+        AffectsMeasure<TwoColumnPanel>(ColumnSpacingProperty, RowSpacingProperty, MinColumnWidthProperty, MaxColumnsProperty);
+    }
 
     /// <summary>
     /// Gets or sets the horizontal gap between columns.
@@ -41,18 +60,37 @@ public sealed class TwoColumnPanel : Panel
         set => SetValue(RowSpacingProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the minimum column width before the grid drops a column.
+    /// </summary>
+    public double MinColumnWidth
+    {
+        get => GetValue(MinColumnWidthProperty);
+        set => SetValue(MinColumnWidthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum column count on wide layouts.
+    /// </summary>
+    public int MaxColumns
+    {
+        get => GetValue(MaxColumnsProperty);
+        set => SetValue(MaxColumnsProperty, value);
+    }
+
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        double columnWidth = ColumnWidth(availableSize.Width, true);
-        double[] heights = [0, 0];
-        bool[] started = [false, false];
+        int columns = ColumnCount(availableSize.Width);
+        double columnWidth = ColumnWidth(availableSize.Width, columns, true);
+        var heights = new double[columns];
+        var started = new bool[columns];
 
         for (int i = 0; i < Children.Count; i++)
         {
             var child = Children[i];
             child.Measure(new Size(columnWidth, double.PositiveInfinity));
-            int column = i % 2;
+            int column = i % columns;
             if (started[column])
             {
                 heights[column] += RowSpacing;
@@ -62,21 +100,30 @@ public sealed class TwoColumnPanel : Panel
             started[column] = true;
         }
 
-        double width = double.IsInfinity(availableSize.Width) ? (columnWidth * 2) + ColumnSpacing : availableSize.Width;
-        return new Size(width, Math.Max(heights[0], heights[1]));
+        double width = double.IsInfinity(availableSize.Width)
+            ? (columnWidth * columns) + (ColumnSpacing * (columns - 1))
+            : availableSize.Width;
+        double height = 0;
+        foreach (var columnHeight in heights)
+        {
+            height = Math.Max(height, columnHeight);
+        }
+
+        return new Size(width, height);
     }
 
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
-        double columnWidth = ColumnWidth(finalSize.Width, false);
-        double[] tops = [0, 0];
+        int columns = ColumnCount(finalSize.Width);
+        double columnWidth = ColumnWidth(finalSize.Width, columns, false);
+        var tops = new double[columns];
 
         for (int i = 0; i < Children.Count; i++)
         {
             var child = Children[i];
-            int column = i % 2;
-            double left = column == 0 ? 0 : columnWidth + ColumnSpacing;
+            int column = i % columns;
+            double left = column * (columnWidth + ColumnSpacing);
             double height = child.DesiredSize.Height;
             child.Arrange(new Rect(left, tops[column], columnWidth, height));
             tops[column] += height + RowSpacing;
@@ -85,11 +132,24 @@ public sealed class TwoColumnPanel : Panel
         return finalSize;
     }
 
-    private double ColumnWidth(double availableWidth, bool measure)
+    private int ColumnCount(double availableWidth)
+    {
+        int max = Math.Max(MaxColumns, 1);
+        double min = MinColumnWidth;
+        if (double.IsInfinity(availableWidth) || availableWidth <= 0 || min <= 0 || !double.IsFinite(min))
+        {
+            return max;
+        }
+
+        int fit = (int)Math.Floor((availableWidth + ColumnSpacing) / (min + ColumnSpacing));
+        return Math.Clamp(fit, 1, max);
+    }
+
+    private double ColumnWidth(double availableWidth, int columns, bool measure)
     {
         if (!double.IsInfinity(availableWidth) && availableWidth > 0)
         {
-            return Math.Max((availableWidth - ColumnSpacing) / 2, 0);
+            return Math.Max((availableWidth - (ColumnSpacing * (columns - 1))) / columns, 0);
         }
 
         if (!measure)

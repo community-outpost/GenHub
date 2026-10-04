@@ -15550,6 +15550,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.Properties.GoToDefinitionTooltip" xml:space="preserve">
     <value>Go to referenced definition</value>
   </data>
+  <data name="Tools.IniEditor.Properties.LocateFieldTooltip" xml:space="preserve">
+    <value>Highlight this field in the raw preview</value>
+  </data>
   <data name="Tools.IniEditor.Properties.NewKeyWatermark" xml:space="preserve">
     <value>New field key...</value>
   </data>
@@ -18015,6 +18018,9 @@ Mapped image texture reference</value>
   <data name="Tools.IniEditor.Preview3D.Subobjects" xml:space="preserve">
     <value>Sub-objects</value>
   </data>
+  <data name="Tools.IniEditor.Preview3D.ShowAllMeshes" xml:space="preserve">
+    <value>Show all</value>
+  </data>
   <data name="Tools.IniEditor.Preview3D.MeshBoneLabel" xml:space="preserve">
     <value>Bone</value>
   </data>
@@ -18029,6 +18035,15 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
     <value>Related objects</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedCommands" xml:space="preserve">
+    <value>Related commands</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.BackTooltip" xml:space="preserve">
+    <value>Go back to the previously viewed block</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.ForwardTooltip" xml:space="preserve">
+    <value>Go forward to the next viewed block</value>
   </data>
   <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
     <value>Drag to orbit • Wheel to zoom • Right-drag or Shift+drag to pan • WASD to move • Double-click to reset</value>

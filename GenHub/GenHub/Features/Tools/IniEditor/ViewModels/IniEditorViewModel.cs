@@ -84,6 +84,8 @@ public sealed partial class IniEditorViewModel(
 
     private readonly Stack<IniEditAction> _undoStack = new();
     private readonly Stack<IniEditAction> _redoStack = new();
+    private readonly List<NavigationEntry> _navigationBack = [];
+    private readonly List<NavigationEntry> _navigationForward = [];
     private readonly Dictionary<string, Bitmap?> _textureThumbnails = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<GameInstallation> _installations = [];
     private readonly List<IniTextureItemViewModel> _allTextureItems = [];
@@ -95,6 +97,7 @@ public sealed partial class IniEditorViewModel(
     private IniEditAction? _savedTopAction;
     private bool _isRebuilding;
     private bool _isSyncingSelection;
+    private bool _isNavigatingHistory;
     private IniBlock? _lastEditableBlock;
     private CancellationTokenSource? _previewCts;
     private CancellationTokenSource? _modelPreviewCts;
@@ -114,6 +117,9 @@ public sealed partial class IniEditorViewModel(
     private IReadOnlyList<IReadOnlyList<string>> _compositePivotNames = [];
     private IniBlock? _lastHighlightBlock;
     private int _lastHighlightMeshCount = -1;
+    private bool _isPreviewHighlightSync;
+    private HashSet<string>? _previewStateHiddenMeshNames;
+    private string? _previewIsolatedMeshName;
     private CancellationTokenSource? _filterCts;
     private CancellationTokenSource? _thumbnailCts;
     private CancellationTokenSource? _rawEditCts;
@@ -367,13 +373,31 @@ public sealed partial class IniEditorViewModel(
     /// Gets the value suggestions for the current new field key.
     /// </summary>
     [ObservableProperty]
-    private ObservableCollection<string> _newFieldValueSuggestions = [];
+    private ObservableCollection<IniSuggestionItem> _newFieldValueSuggestions = [];
 
     /// <summary>
     /// Gets or sets the raw preview text for two-way block editing.
     /// </summary>
     [ObservableProperty]
     private string _rawPreviewText = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the raw preview selection start for field locate highlights.
+    /// </summary>
+    [ObservableProperty]
+    private int _rawPreviewSelectionStart;
+
+    /// <summary>
+    /// Gets or sets the raw preview selection end for field locate highlights.
+    /// </summary>
+    [ObservableProperty]
+    private int _rawPreviewSelectionEnd;
+
+    /// <summary>
+    /// Gets or sets the raw preview caret index, moved to located fields.
+    /// </summary>
+    [ObservableProperty]
+    private int _rawPreviewCaretIndex;
 
     /// <summary>
     /// Gets or sets the title of the selected block.
@@ -551,6 +575,11 @@ public sealed partial class IniEditorViewModel(
     public bool HasPreviewMeshModules => PreviewMeshModules.Count > 0;
 
     /// <summary>
+    /// Gets a value indicating whether one preview mesh is isolated in the viewport.
+    /// </summary>
+    public bool HasPreviewMeshIsolation => !string.IsNullOrEmpty(_previewIsolatedMeshName);
+
+    /// <summary>
     /// Gets the preview sub-object rows.
     /// </summary>
     public ObservableCollection<W3dPreviewMeshItem> PreviewMeshes { get; } = [];
@@ -595,6 +624,16 @@ public sealed partial class IniEditorViewModel(
     /// Gets the related object cards for reference blocks such as command sets.
     /// </summary>
     public ObservableCollection<IniCanvasCardViewModel> PreviewRelatedObjects { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the preview has command button icons.
+    /// </summary>
+    public bool HasPreviewCommandIcons => PreviewCommandIcons.Count > 0;
+
+    /// <summary>
+    /// Gets the command button icons grouped with the selected set or button.
+    /// </summary>
+    public ObservableCollection<PreviewCommandIconItem> PreviewCommandIcons { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether the preview has a cross-file resolution path.
@@ -698,9 +737,10 @@ public sealed partial class IniEditorViewModel(
     }
 
     /// <summary>
-    /// Gets the canvas content font size scaled by the shared zoom factor.
+    /// Gets the canvas content font size. The shared zoom factor already scales
+    /// the whole canvas through the layout transform, so the font stays constant.
     /// </summary>
-    public double CanvasFontSize => 12 * Zoom;
+    public double CanvasFontSize => 12;
 
     /// <inheritdoc />
     public override bool CanSave => HasDocument;
@@ -715,16 +755,16 @@ public sealed partial class IniEditorViewModel(
     public override bool CanRedo => _redoStack.Count > 0;
 
     /// <inheritdoc />
-    public override bool CanCopy => HasDocument && EditableSelectedNode != null;
+    public override bool CanCopy => !IsTextInputFocused() && HasDocument && EditableSelectedNode != null;
 
     /// <inheritdoc />
-    public override bool CanCut => HasDocument && EditableSelectedNode != null;
+    public override bool CanCut => !IsTextInputFocused() && HasDocument && EditableSelectedNode != null;
 
     /// <inheritdoc />
-    public override bool CanPaste => HasDocument;
+    public override bool CanPaste => !IsTextInputFocused() && HasDocument;
 
     /// <inheritdoc />
-    public override bool CanDuplicate => HasDocument && EditableSelectedNode != null;
+    public override bool CanDuplicate => !IsTextInputFocused() && HasDocument && EditableSelectedNode != null;
 
     /// <summary>
     /// Gets the health stat label for the canvas summary card.
@@ -757,7 +797,17 @@ public sealed partial class IniEditorViewModel(
     public string ModulesLabel => Localization.GetString("Tools.IniEditor.Canvas.ModulesLabel");
 
     /// <inheritdoc />
-    public override bool CanDelete => HasDocument && EditableSelectedNode != null;
+    public override bool CanDelete => !IsTextInputFocused() && HasDocument && EditableSelectedNode != null;
+
+    /// <summary>
+    /// Gets a value indicating whether navigation history can go back.
+    /// </summary>
+    public bool CanGoBack => _navigationBack.Count > 1;
+
+    /// <summary>
+    /// Gets a value indicating whether navigation history can go forward.
+    /// </summary>
+    public bool CanGoForward => _navigationForward.Count > 0;
 
     /// <summary>
     /// Gets the shared file explorer listing INI files.
@@ -1270,12 +1320,6 @@ public sealed partial class IniEditorViewModel(
         }
 
         DeleteBlock(EditableSelectedNode);
-    }
-
-    /// <inheritdoc />
-    protected override void OnZoomChanged()
-    {
-        OnPropertyChanged(nameof(CanvasFontSize));
     }
 
     /// <inheritdoc />
@@ -2043,7 +2087,7 @@ public sealed partial class IniEditorViewModel(
             }
         }
 
-        var baseOutcome = await ResolveIndexedBaseObjectAsync(root, entryIndex, rootReferencers, cancellationToken).ConfigureAwait(false);
+        var baseOutcome = await ResolveIndexedBaseObjectAsync(root, rootReferencers, cancellationToken).ConfigureAwait(false);
         if (baseOutcome == null)
         {
             logger.LogInformation(
@@ -2168,7 +2212,6 @@ public sealed partial class IniEditorViewModel(
 
     private async Task<CrossFileOutcome?> ResolveIndexedBaseObjectAsync(
         IniBlock root,
-        Dictionary<string, IniReferenceEntry> entryIndex,
         IReadOnlyList<IniReferenceEntry> rootReferencers,
         CancellationToken cancellationToken)
     {
@@ -2182,18 +2225,10 @@ public sealed partial class IniEditorViewModel(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var candidate = root.Name[(index + 1)..];
-            if (entryIndex.TryGetValue($"{IniConstants.BlockTypes.Object}\n{candidate}", out var entry))
+            var outcome = await ResolveBaseCandidateAsync(root, candidate, rootReferencers, cancellationToken).ConfigureAwait(false);
+            if (outcome != null)
             {
-                var block = await CloneTargetAsync(new WalkTarget(entry.BlockType, entry.Name, null, entry), cancellationToken).ConfigureAwait(false);
-                var model = block == null ? string.Empty : FindFieldValue(block, IniConstants.FieldKeys.Model) ?? FindNestedModel(block);
-                if (!string.IsNullOrEmpty(model))
-                {
-                    return new CrossFileOutcome(
-                        model,
-                        block,
-                        [RootResolutionHop(root), HopForEntry(entry, false)],
-                        rootReferencers);
-                }
+                return outcome;
             }
 
             index = root.Name.IndexOf('_', index + 1);
@@ -2201,6 +2236,41 @@ public sealed partial class IniEditorViewModel(
 
         return null;
     }
+
+    private async Task<CrossFileOutcome?> ResolveBaseCandidateAsync(
+        IniBlock root,
+        string candidate,
+        IReadOnlyList<IniReferenceEntry> rootReferencers,
+        CancellationToken cancellationToken)
+    {
+        // The collapsed entry index lets an open-document stub shadow the full
+        // folder or vanilla definition of the same base name, so every origin
+        // is tried in priority order until one carries a model.
+        foreach (var entry in OrderedBaseEntries(candidate))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var block = await CloneTargetAsync(new WalkTarget(entry.BlockType, entry.Name, null, entry), cancellationToken).ConfigureAwait(false);
+            var model = block == null ? string.Empty : FindFieldValue(block, IniConstants.FieldKeys.Model) ?? FindNestedModel(block);
+            if (!string.IsNullOrEmpty(model))
+            {
+                return new CrossFileOutcome(
+                    model,
+                    block,
+                    [RootResolutionHop(root), HopForEntry(entry, false)],
+                    rootReferencers);
+            }
+        }
+
+        return null;
+    }
+
+    private IEnumerable<IniReferenceEntry> OrderedBaseEntries(string candidate) =>
+        referenceService.Entries
+            .Where(entry =>
+                string.Equals(entry.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(entry.Name, candidate, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(static entry => entry.Source)
+            .ThenBy(static entry => entry.FilePath, PathHelper.PathComparer);
 
     private async Task<IniBlock?> CloneTargetAsync(WalkTarget target, CancellationToken cancellationToken)
     {
@@ -2283,7 +2353,13 @@ public sealed partial class IniEditorViewModel(
         }
 
         OnPropertyChanged(nameof(HasPreviewReferencers));
-        if (string.IsNullOrEmpty(outcome.Model) || !string.IsNullOrEmpty(SelectedBlockModel))
+        if (string.IsNullOrEmpty(outcome.Model))
+        {
+            TryQueueReferencerModelPreview(root, outcome.Referencers);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(SelectedBlockModel))
         {
             return;
         }
@@ -2300,6 +2376,8 @@ public sealed partial class IniEditorViewModel(
             QueueCompositePreviewRefresh(root);
         }
     }
+
+    private sealed record NavigationEntry(string? FilePath, string BlockType, string Name);
 
     private sealed record WalkTarget(string BlockType, string Name, IniBlock? Block, IniReferenceEntry? Entry);
 
@@ -2396,24 +2474,70 @@ public sealed partial class IniEditorViewModel(
     {
         if (block == null)
         {
-            PreviewHiddenMeshNames = null;
-            return;
-        }
-
-        var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var defaultState = FindDefaultConditionState(block);
-        if (defaultState != null)
-        {
-            CollectStateSubObjectVisibility(defaultState, hidden, shown);
+            _previewStateHiddenMeshNames = null;
         }
         else
         {
-            CollectStateSubObjectVisibility(block, hidden, shown);
+            var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var shown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var defaultState = FindDefaultConditionState(block);
+            if (defaultState != null)
+            {
+                CollectStateSubObjectVisibility(defaultState, hidden, shown);
+            }
+            else
+            {
+                CollectStateSubObjectVisibility(block, hidden, shown);
+            }
+
+            hidden.ExceptWith(shown);
+            _previewStateHiddenMeshNames = hidden.Count > 0 ? hidden : null;
         }
 
-        hidden.ExceptWith(shown);
+        UpdatePreviewMeshVisibility();
+    }
+
+    private void UpdatePreviewMeshVisibility()
+    {
+        // Drop stale isolation while scenes rebuild between selection and
+        // resolve, when the mesh list no longer carries the isolated name.
+        if (!string.IsNullOrEmpty(_previewIsolatedMeshName) &&
+            PreviewMeshes.All(mesh => !string.Equals(mesh.Name, _previewIsolatedMeshName, StringComparison.OrdinalIgnoreCase)))
+        {
+            _previewIsolatedMeshName = null;
+            OnPropertyChanged(nameof(HasPreviewMeshIsolation));
+        }
+
+        var hidden = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (_previewStateHiddenMeshNames != null)
+        {
+            hidden.UnionWith(_previewStateHiddenMeshNames);
+        }
+
+        if (!string.IsNullOrEmpty(_previewIsolatedMeshName))
+        {
+            // Isolation hides every mesh except the picked one so stacked
+            // sub-objects can be inspected one at a time. An explicit pick
+            // wins over condition-state hiding.
+            foreach (var mesh in PreviewMeshes)
+            {
+                if (!string.Equals(mesh.Name, _previewIsolatedMeshName, StringComparison.OrdinalIgnoreCase))
+                {
+                    hidden.Add(mesh.Name);
+                }
+            }
+
+            hidden.Remove(_previewIsolatedMeshName);
+        }
+
         PreviewHiddenMeshNames = hidden.Count > 0 ? hidden : null;
+    }
+
+    private void UpdatePreviewMeshIsolation(W3dPreviewMeshItem? mesh)
+    {
+        _previewIsolatedMeshName = mesh?.Name;
+        UpdatePreviewMeshVisibility();
+        OnPropertyChanged(nameof(HasPreviewMeshIsolation));
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as an instance helper to satisfy member ordering.")]
@@ -3266,11 +3390,37 @@ public sealed partial class IniEditorViewModel(
         }
 
         var suggestions = BuildSuggestionScope();
-        for (var i = 0; i < block.Fields.Count; i++)
+        AddFieldRows(block, null, suggestions);
+        if (FieldRows.Count == 0)
         {
-            var key = block.Fields[i].Key;
+            // Module-only stubs such as map.ini AddModule overrides carry no
+            // direct fields, so surface their nested module fields instead of
+            // leaving the panel empty.
+            foreach (var child in block.Children)
+            {
+                AddModuleFieldRows(child, suggestions);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasFieldRows));
+    }
+
+    private void AddModuleFieldRows(IniBlock module, SuggestionScope suggestions)
+    {
+        AddFieldRows(module, module.DisplayHeader, suggestions);
+        foreach (var child in module.Children)
+        {
+            AddModuleFieldRows(child, suggestions);
+        }
+    }
+
+    private void AddFieldRows(IniBlock owner, string? moduleName, SuggestionScope suggestions)
+    {
+        for (var i = 0; i < owner.Fields.Count; i++)
+        {
+            var key = owner.Fields[i].Key;
             var fieldIndex = i;
-            var known = schemaService.TryGetField(block.BlockType, key, out var schema);
+            var known = schemaService.TryGetField(owner.BlockType, key, out var schema);
             var metadata = new IniFieldMetadata(
                 schema?.Description,
                 known,
@@ -3278,16 +3428,15 @@ public sealed partial class IniEditorViewModel(
                 ResolveSuggestions(key, schema, suggestions),
                 ResolveReferenceBlockType(key, schema),
                 IsTextureSuggestionKey(key, schema),
-                ResolvePairTargets(key, schema, suggestions));
+                ResolvePairTargets(key, schema, suggestions),
+                moduleName);
             FieldRows.Add(new IniFieldRowViewModel(
-                block.Fields,
+                owner.Fields,
                 fieldIndex,
                 metadata,
                 MarkDocumentDirty,
-                (oldValue, newValue) => PushFieldValueUndo(block.Fields, key, fieldIndex, oldValue, newValue)));
+                (oldValue, newValue) => PushFieldValueUndo(owner.Fields, key, fieldIndex, oldValue, newValue)));
         }
-
-        OnPropertyChanged(nameof(HasFieldRows));
     }
 
     private void RebuildGlobalFieldRows()
@@ -4160,28 +4309,28 @@ public sealed partial class IniEditorViewModel(
         return index.ToDictionary(static entry => entry.Key, static entry => (IReadOnlyList<string>)entry.Value, StringComparer.OrdinalIgnoreCase);
     }
 
-    private IReadOnlyList<string>? ResolveSuggestions(string key, IniFieldSchema? schema, SuggestionScope scope)
+    private IReadOnlyList<IniSuggestionItem>? ResolveSuggestions(string key, IniFieldSchema? schema, SuggestionScope scope)
     {
         if (string.Equals(key, IniConstants.FieldKeys.KindOf, StringComparison.OrdinalIgnoreCase))
         {
-            return IniConstants.KindOfFlags.All;
+            return WrapSuggestions(IniConstants.KindOfFlags.All, "Flag");
         }
 
         if (string.Equals(key, IniConstants.FieldKeys.Side, StringComparison.OrdinalIgnoreCase))
         {
-            return scope.Sides;
+            return WrapSuggestions(scope.Sides, "AccountGroup");
         }
 
-        var merged = new List<string>();
+        var merged = new List<IniSuggestionItem>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (schema?.Options != null)
         {
-            AddUniqueSuggestions(merged, seen, schema.Options);
+            AddUniqueSuggestions(merged, seen, schema.Options, "FormatListBulleted");
         }
 
         if (IsTextureSuggestionKey(key, schema) && scope.Textures != null)
         {
-            AddUniqueSuggestions(merged, seen, scope.Textures);
+            AddUniqueSuggestions(merged, seen, scope.Textures, "ImageOutline");
         }
 
         var refType = ResolveReferenceBlockType(key, schema);
@@ -4190,33 +4339,41 @@ public sealed partial class IniEditorViewModel(
             var refs = ResolveReferenceSuggestions(refType, scope.References);
             if (refs != null)
             {
-                AddUniqueSuggestions(merged, seen, refs);
+                AddUniqueSuggestions(merged, seen, refs, IniBlockIconHelper.GetIconKind(refType));
             }
         }
 
         var documentValues = scope.GetDocumentValues(key);
         if (documentValues != null)
         {
-            AddUniqueSuggestions(merged, seen, documentValues);
+            AddUniqueSuggestions(merged, seen, documentValues, "TextBox");
         }
 
         return merged.Count > 0 ? merged : null;
     }
 
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private void AddUniqueSuggestions(List<string> merged, HashSet<string> seen, IReadOnlyList<string> candidates)
+    private void AddUniqueSuggestions(List<IniSuggestionItem> merged, HashSet<string> seen, IReadOnlyList<string> candidates, string iconKind)
     {
-        merged.AddRange(candidates.Where(seen.Add));
+        merged.AddRange(candidates.Where(seen.Add).Select(candidate => new IniSuggestionItem(candidate, iconKind)));
     }
 
-    private IReadOnlyList<string>? ResolvePairTargets(string key, IniFieldSchema? schema, SuggestionScope scope)
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private IReadOnlyList<IniSuggestionItem> WrapSuggestions(IReadOnlyList<string> names, string iconKind)
+    {
+        return names.Select(name => new IniSuggestionItem(name, iconKind)).ToList();
+    }
+
+    private IReadOnlyList<IniSuggestionItem>? ResolvePairTargets(string key, IniFieldSchema? schema, SuggestionScope scope)
     {
         if (!string.Equals(key, IniConstants.FieldKeys.ProductionTimeChange, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        return ResolveReferenceSuggestions(schema?.ReferenceBlockType ?? IniConstants.BlockTypes.Object, scope.References);
+        var refType = schema?.ReferenceBlockType ?? IniConstants.BlockTypes.Object;
+        var names = ResolveReferenceSuggestions(refType, scope.References);
+        return names == null ? null : WrapSuggestions(names, IniBlockIconHelper.GetIconKind(refType));
     }
 
     private IReadOnlyList<string>? ResolveTextureSuggestions()
@@ -4805,6 +4962,11 @@ public sealed partial class IniEditorViewModel(
             _lastEditableBlock = value.Block;
         }
 
+        if (!_isNavigatingHistory && value is { IsGroupHeader: false })
+        {
+            RecordNavigation(value);
+        }
+
         RefreshSelectionDependents();
     }
 
@@ -5006,6 +5168,14 @@ public sealed partial class IniEditorViewModel(
                 card.Portrait = portrait;
             }
         }
+
+        var block = ResolveCanvasRootNode()?.Block;
+        if (block != null &&
+            (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase)))
+        {
+            RebuildPreviewCommandIcons(block);
+        }
     }
 
     private void RebuildCanvasBlockCards()
@@ -5095,6 +5265,161 @@ public sealed partial class IniEditorViewModel(
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanGoBack))]
+    private async Task GoBackAsync(CancellationToken cancellationToken = default)
+    {
+        if (_navigationBack.Count < 2)
+        {
+            return;
+        }
+
+        var current = _navigationBack[^1];
+        _navigationBack.RemoveAt(_navigationBack.Count - 1);
+        _navigationForward.Add(current);
+        RefreshNavigationCommands();
+        await NavigateToEntryAsync(_navigationBack[^1], cancellationToken).ConfigureAwait(false);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoForward))]
+    private async Task GoForwardAsync(CancellationToken cancellationToken = default)
+    {
+        if (_navigationForward.Count == 0)
+        {
+            return;
+        }
+
+        var entry = _navigationForward[^1];
+        _navigationForward.RemoveAt(_navigationForward.Count - 1);
+        _navigationBack.Add(entry);
+        RefreshNavigationCommands();
+        await NavigateToEntryAsync(entry, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task NavigateToEntryAsync(NavigationEntry entry, CancellationToken cancellationToken)
+    {
+        _isNavigatingHistory = true;
+        try
+        {
+            if (!string.IsNullOrEmpty(entry.FilePath) &&
+                !string.Equals(entry.FilePath, FilePath, PathHelper.PathComparison) &&
+                !await OpenFileAsync(entry.FilePath, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            var target = FindNodeByName(RootNodes, entry.BlockType, entry.Name);
+            if (target != null)
+            {
+                ExpandGroupForNode(target);
+                SelectedNode = target;
+            }
+        }
+        finally
+        {
+            _isNavigatingHistory = false;
+        }
+    }
+
+    private void RecordNavigation(IniTreeNodeViewModel node)
+    {
+        var entry = new NavigationEntry(FilePath, node.Block.BlockType, node.Block.Name);
+        if (_navigationBack.Count > 0 && _navigationBack[^1] == entry)
+        {
+            return;
+        }
+
+        _navigationBack.Add(entry);
+        if (_navigationBack.Count > IniConstants.Editor.MaxNavigationHistory)
+        {
+            _navigationBack.RemoveAt(0);
+        }
+
+        _navigationForward.Clear();
+        RefreshNavigationCommands();
+    }
+
+    private void RefreshNavigationCommands()
+    {
+        GoBackCommand.NotifyCanExecuteChanged();
+        GoForwardCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanGoBack));
+        OnPropertyChanged(nameof(CanGoForward));
+    }
+
+    [RelayCommand]
+    private void SelectPreviewCommandIcon(PreviewCommandIconItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var target = FindNode(RootNodes, item.Block);
+        if (target != null)
+        {
+            ExpandGroupForNode(target);
+            SelectedNode = target;
+        }
+    }
+
+    private void RebuildPreviewCommandIcons(IniBlock block)
+    {
+        PreviewCommandIcons.Clear();
+        var seen = new HashSet<IniBlock>();
+        if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase))
+        {
+            AddCommandIconsForSet(block, seen);
+        }
+        else if (string.Equals(block.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
+        {
+            AddCommandIcon(block, seen);
+            AddSiblingCommandIcons(block, seen);
+        }
+
+        OnPropertyChanged(nameof(HasPreviewCommandIcons));
+    }
+
+    private void AddSiblingCommandIcons(IniBlock button, HashSet<IniBlock> seen)
+    {
+        if (_document == null)
+        {
+            return;
+        }
+
+        foreach (var set in _document.Blocks.Where(candidate =>
+            string.Equals(candidate.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase) &&
+            candidate.Fields.Any(field => string.Equals(field.Value.Trim(), button.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            AddCommandIconsForSet(set, seen);
+        }
+    }
+
+    private void AddCommandIconsForSet(IniBlock set, HashSet<IniBlock> seen)
+    {
+        foreach (var value in set.Fields.Select(field => field.Value).Where(candidate => !string.IsNullOrWhiteSpace(candidate)))
+        {
+            foreach (var button in FindBlocks(IniConstants.BlockTypes.CommandButton, value.Trim()))
+            {
+                AddCommandIcon(button, seen);
+            }
+        }
+    }
+
+    private void AddCommandIcon(IniBlock button, HashSet<IniBlock> seen)
+    {
+        if (PreviewCommandIcons.Count >= IniConstants.Editor.MaxCommandIcons || !seen.Add(button))
+        {
+            return;
+        }
+
+        var imageName = FindFieldValue(button, IniConstants.FieldKeys.ButtonImage)?.Trim();
+        IImage? icon = !string.IsNullOrWhiteSpace(imageName) && _textureThumbnails.TryGetValue(imageName, out var thumb)
+            ? thumb
+            : null;
+        var label = !string.IsNullOrWhiteSpace(button.Name) ? button.Name : button.BlockType;
+        PreviewCommandIcons.Add(new PreviewCommandIconItem(button, label, icon));
+    }
+
     [RelayCommand]
     private void ApplyTextureToSelectedBlock(string? textureName)
     {
@@ -5148,6 +5473,33 @@ public sealed partial class IniEditorViewModel(
             NotificationDurations.Medium);
     }
 
+    [RelayCommand]
+    private void LocateFieldInRaw(IniFieldRowViewModel? row)
+    {
+        if (row == null || string.IsNullOrEmpty(RawPreviewText) || string.IsNullOrWhiteSpace(row.Key))
+        {
+            return;
+        }
+
+        int offset = 0;
+        foreach (var line in RawPreviewText.Split('\n'))
+        {
+            var trimmed = line.TrimStart();
+            if (trimmed.Length > row.Key.Length &&
+                trimmed.StartsWith(row.Key, StringComparison.OrdinalIgnoreCase) &&
+                trimmed[row.Key.Length] is '=' or ' ' or '\t' or ':')
+            {
+                int length = line.EndsWith('\r') ? line.Length - 1 : line.Length;
+                RawPreviewSelectionStart = offset;
+                RawPreviewSelectionEnd = offset + length;
+                RawPreviewCaretIndex = offset;
+                return;
+            }
+
+            offset += line.Length + 1;
+        }
+    }
+
     /// <summary>
     /// Resolves the canvas root node: the nearest enclosing object for child
     /// selections, the selected root itself for object-level selections, or the
@@ -5195,7 +5547,15 @@ public sealed partial class IniEditorViewModel(
 
         _lastHighlightBlock = selected;
         _lastHighlightMeshCount = PreviewMeshes.Count;
-        PreviewSelectedMeshIndex = FindReferencedPreviewMeshIndex(selected);
+        _isPreviewHighlightSync = true;
+        try
+        {
+            PreviewSelectedMeshIndex = FindReferencedPreviewMeshIndex(selected);
+        }
+        finally
+        {
+            _isPreviewHighlightSync = false;
+        }
     }
 
     /// <summary>
@@ -5258,6 +5618,7 @@ public sealed partial class IniEditorViewModel(
         ApplyVisualObjectPortrait(block);
         ApplyVisualObjectLists(block, node);
         RebuildPreviewRelatedObjects(block);
+        RebuildPreviewCommandIcons(block);
         RebuildSelectedBlockAssets(block, node);
         RebuildPreviewHiddenMeshes(EditableSelectedNode?.Block ?? block);
 
@@ -5297,6 +5658,8 @@ public sealed partial class IniEditorViewModel(
         SelectedBlockModules.Clear();
         PreviewRelatedObjects.Clear();
         OnPropertyChanged(nameof(HasPreviewRelatedObjects));
+        PreviewCommandIcons.Clear();
+        OnPropertyChanged(nameof(HasPreviewCommandIcons));
         CancelDeferred(ref _xrefsCts);
         _xrefsGeneration++;
         PreviewResolutionPath.Clear();
@@ -5304,7 +5667,8 @@ public sealed partial class IniEditorViewModel(
         OnPropertyChanged(nameof(HasPreviewResolutionPath));
         OnPropertyChanged(nameof(HasPreviewReferencers));
         SelectedBlockAssets.Clear();
-        PreviewHiddenMeshNames = null;
+        _previewStateHiddenMeshNames = null;
+        UpdatePreviewMeshVisibility();
         HasSelectedBlockAssets = false;
         SelectedBlockVitals = [];
         OnPropertyChanged(nameof(HasSelectedBlockVitals));
@@ -5320,6 +5684,101 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
+        QueueModelPreviewFor(model);
+    }
+
+    private void TryQueueReferencerModelPreview(IniBlock root, IReadOnlyList<IniReferenceEntry> referencers)
+    {
+        if (!string.IsNullOrEmpty(SelectedBlockModel) || HasPreviewScene || IsPreviewLoading)
+        {
+            return;
+        }
+
+        if (!string.Equals(root.BlockType, IniConstants.BlockTypes.CommandSet, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(root.BlockType, IniConstants.BlockTypes.CommandButton, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        foreach (var referencer in referencers)
+        {
+            if (!string.Equals(referencer.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var target = FindBlocks(referencer.BlockType, referencer.Name).FirstOrDefault();
+            var model = target == null ? null : ResolveBlockModel(target);
+            if (string.IsNullOrEmpty(model))
+            {
+                continue;
+            }
+
+            PreviewModelSourceText = Localization.GetString("Tools.IniEditor.Preview3D.ViaSource", referencer.Name);
+            OnPropertyChanged(nameof(HasPreviewModelSource));
+            QueueModelPreviewFor(model);
+            return;
+        }
+
+        QueueCrossFileReferencerModelPreview(root, referencers);
+    }
+
+    private void QueueCrossFileReferencerModelPreview(IniBlock root, IReadOnlyList<IniReferenceEntry> referencers)
+    {
+        var entry = referencers.FirstOrDefault(referencer =>
+            string.Equals(referencer.BlockType, IniConstants.BlockTypes.Object, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrEmpty(referencer.FilePath));
+        if (entry == null)
+        {
+            return;
+        }
+
+        ScheduleDeferred(ref _xrefsCts, IniConstants.Editor.ModelPreviewDebounceMs, token => _ = RefreshCrossFileReferencerModelAsync(root, entry, token), logger);
+    }
+
+    private async Task RefreshCrossFileReferencerModelAsync(IniBlock root, IniReferenceEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var cloned = await referenceService.CloneBlockAsync(entry, cancellationToken).ConfigureAwait(false);
+            var model = cloned is { Success: true } && cloned.Data != null
+                ? FindFieldValue(cloned.Data, IniConstants.FieldKeys.Model)?.Trim()
+                : null;
+            if (string.IsNullOrEmpty(model))
+            {
+                return;
+            }
+
+            PostToUIThread(() =>
+            {
+                if (cancellationToken.IsCancellationRequested || !ReferenceEquals(ResolveCanvasRootNode()?.Block, root))
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(SelectedBlockModel) || HasPreviewScene || IsPreviewLoading)
+                {
+                    return;
+                }
+
+                PreviewModelSourceText = Localization.GetString("Tools.IniEditor.Preview3D.ViaSource", entry.Name);
+                OnPropertyChanged(nameof(HasPreviewModelSource));
+                QueueModelPreviewFor(model);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Fire-and-forget worker boundary: a failed fallback must never break selection.
+            logger.LogWarning(ex, "Cross-file referencer model resolution threw for {Block}", entry.Name);
+        }
+    }
+
+    private void QueueModelPreviewFor(string model)
+    {
         if (string.Equals(model, _lastPreviewModel, StringComparison.OrdinalIgnoreCase) && (HasPreviewScene || _lastPreviewFailed))
         {
             RebuildPreviewMeshModules();
@@ -5499,9 +5958,15 @@ public sealed partial class IniEditorViewModel(
             return;
         }
 
-        if (parts.Count < 2)
+        if (parts.Count == 0)
         {
             PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, "Tools.IniEditor.Preview3D.NotFound", false));
+            return;
+        }
+
+        if (parts.Count == 1)
+        {
+            ApplySingleCompositePart(parts[0], generation, cancellationToken);
             return;
         }
 
@@ -5531,6 +5996,42 @@ public sealed partial class IniEditorViewModel(
         {
             logger.LogWarning(ex, "Failed to build composite preview scene for {Block}", root.Name);
             PostToUIThread(() => ApplyPreviewFailure(root.Name, generation, PreviewParseErrorKey, false));
+        }
+    }
+
+    private void ApplySingleCompositePart(CompositePreviewPart part, int generation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var textures = part.Resolved.Textures.ToDictionary(texture => texture.Name, texture => texture.Texture, StringComparer.OrdinalIgnoreCase);
+            var bones = BoneMap(part.Resolved.Model);
+            var discarded = new List<string>();
+            var scene = W3dSceneBuilder.Build(part.Resolved.Model, textures, bones, discarded);
+            if (discarded.Count > 0)
+            {
+                logger.LogInformation("Single-part composite preview for {Model} dropped {Count} textures disabled by shader flags", part.Model, discarded.Count);
+            }
+
+            if (generation != _modelPreviewGeneration || cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            PostToUIThread(() =>
+            {
+                PreviewModelSourceText = Localization.GetString("Tools.IniEditor.Preview3D.ViaSource", part.Block.Name);
+                OnPropertyChanged(nameof(HasPreviewModelSource));
+                ApplyPreviewResolved(part.Model, generation, part.Resolved, scene);
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException)
+        {
+            logger.LogWarning(ex, "Failed to build single-part composite preview scene for {Model}", part.Model);
+            PostToUIThread(() => ApplyPreviewFailure(part.Model, generation, PreviewParseErrorKey, true));
         }
     }
 
@@ -6327,6 +6828,16 @@ public sealed partial class IniEditorViewModel(
 
         RebuildPreviewMeshModules();
         SyncCardHighlight();
+        if (_isPreviewHighlightSync)
+        {
+            // Sidebar highlight takes over the viewport so explicit mesh
+            // isolation yields to the newly highlighted context.
+            UpdatePreviewMeshIsolation(null);
+        }
+        else
+        {
+            UpdatePreviewMeshIsolation(SelectedPreviewMesh);
+        }
     }
 
     partial void OnSelectedPreviewMeshChanged(W3dPreviewMeshItem? value)
@@ -6348,6 +6859,13 @@ public sealed partial class IniEditorViewModel(
 
         RebuildPreviewMeshModules();
         SyncCardHighlight();
+        UpdatePreviewMeshIsolation(value);
+    }
+
+    [RelayCommand]
+    private void ClearPreviewMeshIsolation()
+    {
+        SelectedPreviewMesh = null;
     }
 
     partial void OnSelectedPreviewClipChanged(W3dAnimationClip? value)

@@ -616,7 +616,7 @@ public class IniEditorViewTests
             var first = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(0));
             var second = Assert.IsAssignableFrom<Control>(fieldPanel.ContainerFromIndex(1));
             Assert.NotEqual(first.Bounds.X, second.Bounds.X);
-            Assert.True(first.Bounds.Height < 56, $"Field card too tall for single-row density: {first.Bounds.Height}");
+            Assert.True(first.Bounds.Height < 72, $"Field card too tall for label-on-top density: {first.Bounds.Height}");
         }
         finally
         {
