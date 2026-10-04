@@ -43,7 +43,7 @@ public class FastHttpClientFileDownloader(
         var host = context.DnsEndPoint.Host;
         if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
         {
-            throw new HttpRequestException($"Invalid host name: '{host}'.");
+            throw new SecurityException($"Invalid host name: '{host}'.");
         }
 
         var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
@@ -75,7 +75,51 @@ public class FastHttpClientFileDownloader(
 
         if (!addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
         {
-            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, host));
+            throw new SecurityException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, host));
+        }
+    }
+
+    private static bool IsNonRecoverableDownloadException(Exception ex)
+    {
+        if (ex is OperationCanceledException or InvalidDataException or SecurityException)
+        {
+            return true;
+        }
+
+        if (ex is AggregateException agg)
+        {
+            return agg.Flatten().InnerExceptions.Any(IsNonRecoverableDownloadException);
+        }
+
+        for (var current = ex.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is OperationCanceledException or InvalidDataException or SecurityException)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static async Task ValidateHostAddressesAsync(string url, CancellationToken cancellationToken)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            if (uri.HostNameType == UriHostNameType.Unknown)
+            {
+                throw new SecurityException($"Invalid host name: '{uri.Host}'.");
+            }
+
+            try
+            {
+                var addresses = await Dns.GetHostAddressesAsync(uri.Host, cancellationToken).ConfigureAwait(false);
+                ValidateResolvedAddresses(uri.Host, addresses);
+            }
+            catch (SocketException)
+            {
+                // DNS lookup failure will be handled downstream by the HTTP client
+            }
         }
     }
 
@@ -488,7 +532,7 @@ public class FastHttpClientFileDownloader(
                         cancelToken).ConfigureAwait(false);
                     return;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!IsNonRecoverableDownloadException(ex))
                 {
                     logger?.LogWarning(ex, "Parallel download failed for {Url}; falling back to single-stream download", url);
                 }
@@ -531,13 +575,14 @@ public class FastHttpClientFileDownloader(
             await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
-        catch (Exception ex) when (ex is not (OperationCanceledException or InvalidDataException or SecurityException))
+        catch (Exception ex) when (!IsNonRecoverableDownloadException(ex))
         {
             logger?.LogWarning(
                 ex,
                 "Parallel download encountered an issue for {Url}. Falling back to default downloader",
                 url);
 
+            await ValidateHostAddressesAsync(url, cancelToken).ConfigureAwait(false);
             await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
