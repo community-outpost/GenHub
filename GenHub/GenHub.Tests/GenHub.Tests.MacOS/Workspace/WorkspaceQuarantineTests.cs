@@ -12,7 +12,7 @@ using Moq;
 using System.Diagnostics;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
-namespace GenHub.Tests.Core.Features.Workspace;
+namespace GenHub.Tests.MacOS.Workspace;
 
 /// <summary>
 /// Tests that a quarantined native install yields a workspace macOS will run, under every strategy.
@@ -51,17 +51,14 @@ public sealed class WorkspaceQuarantineTests : IDisposable
     [InlineData(WorkspaceStrategy.FullCopy)]
     public async Task PrepareAsync_QuarantinedNativeInstall_WorkspaceCodeIsNotQuarantinedAsync(WorkspaceStrategy strategyType)
     {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return;
-        }
-
         var engine = CreateQuarantinedFile(EngineName, executable: true);
         var library = CreateQuarantinedFile(LibraryName, executable: false);
 
         var workspace = await CreateStrategy(strategyType).PrepareAsync(CreateConfiguration(strategyType), null, CancellationToken.None);
 
         Assert.True(workspace.IsPrepared, string.Join("; ", workspace.ValidationIssues.Select(i => i.Message)));
+        Assert.True(File.Exists(Path.Combine(workspace.WorkspacePath, EngineName)), $"{strategyType} did not create the engine.");
+        Assert.True(File.Exists(Path.Combine(workspace.WorkspacePath, LibraryName)), $"{strategyType} did not create the library.");
         Assert.False(HasQuarantine(Path.Combine(workspace.WorkspacePath, EngineName)), $"{strategyType} left the engine quarantined.");
         Assert.False(HasQuarantine(Path.Combine(workspace.WorkspacePath, LibraryName)), $"{strategyType} left the library quarantined.");
         Assert.True(HasQuarantine(engine), $"{strategyType} changed the user's engine binary.");

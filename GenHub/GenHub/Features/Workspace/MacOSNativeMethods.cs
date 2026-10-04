@@ -64,7 +64,11 @@ internal static partial class MacOSNativeMethods
     /// attribute. The resolved file is the one Gatekeeper checks when it is run or loaded.
     /// </summary>
     /// <param name="path">The absolute path of the file to check.</param>
-    /// <returns><c>true</c> when the file is quarantined; always <c>false</c> off macOS.</returns>
+    /// <returns>
+    /// <c>true</c> when the file is quarantined, or when the attribute could not be read for
+    /// any reason other than its absence. A private copy is the safe answer to an unknown.
+    /// Always <c>false</c> off macOS.
+    /// </returns>
     internal static bool IsQuarantined(string path)
     {
         if (!OperatingSystem.IsMacOS())
@@ -72,7 +76,8 @@ internal static partial class MacOSNativeMethods
             return false;
         }
 
-        return GetExtendedAttribute(path, QuarantineAttribute, IntPtr.Zero, 0, 0, 0) >= 0;
+        return GetExtendedAttribute(path, QuarantineAttribute, IntPtr.Zero, 0, 0, 0) >= 0
+            || Marshal.GetLastPInvokeError() != ENOATTR;
     }
 
     /// <summary>

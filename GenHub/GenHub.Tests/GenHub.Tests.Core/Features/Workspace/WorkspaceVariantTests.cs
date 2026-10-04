@@ -160,6 +160,36 @@ public sealed class WorkspaceVariantTests : IDisposable
         Assert.Equal(expected, strategy.EstimateDiskUsage(configuration));
     }
 
+    /// <summary>
+    /// Link strategies give executables a private copy on Unix, so the estimate counts
+    /// their full size rather than only the link overhead.
+    /// </summary>
+    /// <param name="strategyType">The strategy under test.</param>
+    [Theory]
+    [InlineData(WorkspaceStrategy.SymlinkOnly)]
+    [InlineData(WorkspaceStrategy.HardLink)]
+    public void EstimateDiskUsage_LinkStrategies_CountExecutableCopiesOnUnix(WorkspaceStrategy strategyType)
+    {
+        const long executableSize = 50_000_000;
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.test.gameclient.estimate"),
+            ContentType = ContentType.GameClient,
+            Files = [new() { RelativePath = HostFileName, Size = executableSize, IsExecutable = true, SourceType = ContentSourceType.GameInstallation }],
+        };
+
+        var estimate = CreateStrategy(strategyType).EstimateDiskUsage(CreateConfiguration(strategyType, manifest));
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.True(estimate < executableSize);
+        }
+        else
+        {
+            Assert.True(estimate >= executableSize, $"{strategyType} estimated {estimate} bytes for a {executableSize}-byte executable.");
+        }
+    }
+
     /// <summary>Progress completes using the same unique workspace entries that are processed.</summary>
     /// <returns>The asynchronous test.</returns>
     [Fact]

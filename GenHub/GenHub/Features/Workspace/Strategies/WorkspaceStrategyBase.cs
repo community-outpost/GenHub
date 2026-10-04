@@ -174,6 +174,25 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
+    /// Estimates the bytes that <see cref="EnsureExecutableAsync"/> may copy for files a
+    /// link-based strategy would otherwise share. Executables always get a private copy.
+    /// On macOS a shared library may too, if it is quarantined, so its size is counted.
+    /// </summary>
+    /// <param name="files">The workspace files.</param>
+    /// <returns>The total size of the files that may be copied.</returns>
+    protected static long EstimatePrivateCopyBytes(IEnumerable<ManifestFile> files)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return 0;
+        }
+
+        return files
+            .Where(f => f.IsExecutable || (OperatingSystem.IsMacOS() && ExecutableFileClassifier.IsUnixSharedLibrary(f.RelativePath)))
+            .Sum(f => Math.Max(0, f.Size));
+    }
+
+    /// <summary>
     /// Cleans up the workspace directory if a failure occurs during workspace preparation.
     /// Ensures that no partial or corrupted workspace directories are left behind.
     /// Logs the cleanup operation and any exceptions encountered.

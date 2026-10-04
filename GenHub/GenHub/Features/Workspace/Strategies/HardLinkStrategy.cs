@@ -49,8 +49,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         // Deduplicate files for accurate estimation - only include workspace-targeted files
         var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
 
-        // HardLink strategy enforces zero-copy (hard links or symlinks)
-        return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
+        // Links are zero-copy, but executables and quarantined macOS libraries get private copies.
+        return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes) + EstimatePrivateCopyBytes(allFiles);
     }
 
     /// <inheritdoc/>
@@ -112,6 +112,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, cancellationToken);
+                        await EnsureExecutableAsync(file, destinationPath, cancellationToken);
                         if (linked)
                         {
                             linkedFiles++;
