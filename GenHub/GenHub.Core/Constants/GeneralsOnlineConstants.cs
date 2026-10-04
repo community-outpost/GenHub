@@ -91,8 +91,8 @@ public static class GeneralsOnlineConstants
 
     // ===== UI and Branding =====
 
-    /// <summary>Theme color for Generals Online branding (hex format, GO orange/gold).</summary>
-    public const string ThemeColor = "#FF8C00";
+    /// <summary>Theme color for Generals Online branding (hex format, GO sky blue).</summary>
+    public const string ThemeColor = "#00A3FF";
 
     /// <summary>Path to publisher logo asset.</summary>
     public const string LogoSource = UriConstants.GeneralsOnlineLogoUri;

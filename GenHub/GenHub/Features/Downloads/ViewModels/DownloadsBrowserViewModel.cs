@@ -665,6 +665,88 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Resolves the default content search result variant for a group.
+    /// </summary>
+    /// <param name="groupItems">The collection of content search results in the group.</param>
+    /// <param name="primaryItem">The fallback primary search result.</param>
+    /// <returns>The resolved default search result.</returns>
+    internal static ContentSearchResult ResolveDefaultVariant(IReadOnlyList<ContentSearchResult> groupItems, ContentSearchResult primaryItem)
+    {
+        return groupItems.FirstOrDefault(i =>
+            i.Variants?.Any(v => v.IsDefault && (v.ManifestId == i.Id || i.Id?.EndsWith($".{v.ManifestId}", StringComparison.OrdinalIgnoreCase) == true)) == true)
+            ?? groupItems.FirstOrDefault(i =>
+                i.ContentType == ContentType.GameClient &&
+                (i.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true) &&
+                (i.Id?.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.Name?.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) == true))
+            ?? groupItems.FirstOrDefault(i =>
+                i.ContentType == ContentType.GameClient &&
+                (i.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true))
+            ?? groupItems.FirstOrDefault(i =>
+                i.ContentType == ContentType.GameClient &&
+                (i.ProviderName?.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true ||
+                 i.ResolverId?.Contains(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true) &&
+                i.TargetGame == GameType.ZeroHour)
+            ?? groupItems.FirstOrDefault(i => i.ContentType == ContentType.GameClient)
+            ?? groupItems.FirstOrDefault(i => i.Variants?.Any(v => v.IsDefault) == true)
+            ?? primaryItem;
+    }
+
+    /// <summary>
+    /// Selects the default variant on a content card view model based on the group and default variant.
+    /// </summary>
+    /// <param name="variantVm">The content card view model.</param>
+    /// <param name="groupItems">The collection of content search results in the group.</param>
+    /// <param name="primaryItem">The primary search result for the card.</param>
+    /// <param name="defaultVariant">The default search result variant.</param>
+    internal static void SelectDefaultVariant(
+        ContentGridItemViewModel variantVm,
+        IReadOnlyList<ContentSearchResult> groupItems,
+        ContentSearchResult primaryItem,
+        ContentSearchResult defaultVariant)
+    {
+        if (variantVm.Variants.Count == 0)
+        {
+            return;
+        }
+
+        InstallableVariant? defaultSelection = null;
+        if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVars)
+        {
+            var defVarInfo = singleVars.FirstOrDefault(v => v.IsDefault) ?? singleVars[0];
+            defaultSelection = variantVm.Variants.FirstOrDefault(v =>
+                (!string.IsNullOrEmpty(defVarInfo.ManifestId) &&
+                 string.Equals(v.ManifestId, defVarInfo.ManifestId, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(v.Name, defVarInfo.Name, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(defVarInfo.Name) &&
+                 v.Name.EndsWith(defVarInfo.Name, StringComparison.OrdinalIgnoreCase)));
+        }
+        else if (groupItems.Count > 1)
+        {
+            var defaultSibling = groupItems.FirstOrDefault(sibling =>
+                sibling.Variants?.Any(v => v.IsDefault && (
+                    string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true))) == true);
+
+            if (defaultSibling != null)
+            {
+                defaultSelection = variantVm.Variants.FirstOrDefault(v =>
+                    string.Equals(v.ManifestId, defaultSibling.Id, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        variantVm.SelectedVariant = defaultSelection
+            ?? variantVm.Variants.FirstOrDefault(v => string.Equals(v.ManifestId, defaultVariant.Id, StringComparison.OrdinalIgnoreCase))
+            ?? variantVm.Variants.FirstOrDefault(v => v.Name.Contains(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase))
+            ?? variantVm.Variants.FirstOrDefault(v => v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
+            ?? variantVm.Variants[^1];
+    }
+
+    /// <summary>
     /// Cleans up in-flight browse operations and disposes un-retained items.
     /// </summary>
     /// <param name="publisherId">The publisher ID whose in-flight operation completed or faulted.</param>
@@ -956,19 +1038,6 @@ public sealed partial class DownloadsBrowserViewModel(
             .ToList();
     }
 
-    private static ContentSearchResult ResolveDefaultVariant(IReadOnlyList<ContentSearchResult> groupItems, ContentSearchResult primaryItem)
-    {
-        return groupItems.FirstOrDefault(i =>
-            i.Variants?.Any(v => v.IsDefault && (v.ManifestId == i.Id || i.Id?.EndsWith($".{v.ManifestId}", StringComparison.OrdinalIgnoreCase) == true)) == true)
-            ?? groupItems.FirstOrDefault(i =>
-                i.ContentType == ContentType.GameClient &&
-                (i.ProviderName?.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true ||
-                 i.ResolverId?.Contains(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true) &&
-                i.TargetGame == GameType.ZeroHour)
-            ?? groupItems.FirstOrDefault(i => i.Variants?.Any(v => v.IsDefault) == true)
-            ?? primaryItem;
-    }
-
     private static void PopulateSynthesizedVariants(
         ContentGridItemViewModel variantVm,
         ContentSearchResult primaryItem,
@@ -1089,48 +1158,6 @@ public sealed partial class DownloadsBrowserViewModel(
 
             variantVm.AddVariant(installable, sibling);
         }
-    }
-
-    private static void SelectDefaultVariant(
-        ContentGridItemViewModel variantVm,
-        IReadOnlyList<ContentSearchResult> groupItems,
-        ContentSearchResult primaryItem,
-        ContentSearchResult defaultVariant)
-    {
-        if (variantVm.Variants.Count == 0)
-        {
-            return;
-        }
-
-        InstallableVariant? defaultSelection = null;
-        if (groupItems.Count == 1 && primaryItem.Variants is { Count: > 0 } singleVars)
-        {
-            var defVarInfo = singleVars.FirstOrDefault(v => v.IsDefault) ?? singleVars[0];
-            defaultSelection = variantVm.Variants.FirstOrDefault(v =>
-                (!string.IsNullOrEmpty(defVarInfo.ManifestId) &&
-                 string.Equals(v.ManifestId, defVarInfo.ManifestId, StringComparison.OrdinalIgnoreCase)) ||
-                string.Equals(v.Name, defVarInfo.Name, StringComparison.OrdinalIgnoreCase) ||
-                (!string.IsNullOrEmpty(defVarInfo.Name) &&
-                 v.Name.EndsWith(defVarInfo.Name, StringComparison.OrdinalIgnoreCase)));
-        }
-        else if (groupItems.Count > 1)
-        {
-            var defaultSibling = groupItems.FirstOrDefault(sibling =>
-                sibling.Variants?.Any(v => v.IsDefault && (
-                    string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
-                    (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true))) == true);
-
-            if (defaultSibling != null)
-            {
-                defaultSelection = variantVm.Variants.FirstOrDefault(v =>
-                    string.Equals(v.ManifestId, defaultSibling.Id, StringComparison.OrdinalIgnoreCase));
-            }
-        }
-
-        variantVm.SelectedVariant = defaultSelection
-            ?? variantVm.Variants.FirstOrDefault(v => string.Equals(v.ManifestId, defaultVariant.Id, StringComparison.OrdinalIgnoreCase))
-            ?? variantVm.Variants.FirstOrDefault(v => v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase))
-            ?? variantVm.Variants[^1];
     }
 
     /// <summary>
@@ -2813,7 +2840,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 break;
             }
 
-            var primaryItem = group[0];
+            var primaryItem = ResolveDefaultVariant(group, group[0]);
             if (existingIds.Contains(primaryItem.Id))
             {
                 continue;

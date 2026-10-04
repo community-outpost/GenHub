@@ -51,12 +51,16 @@ public class GeneralsOnlineManifestFactory(
     /// <param name="DownloadPageUrl">The download page URL.</param>
     /// <param name="IconUrl">The content icon URL.</param>
     /// <param name="CoverSource">The cover artwork source.</param>
+    /// <param name="DefaultTags">The default tags configured for the provider, if any.</param>
+    /// <param name="Description">The provider description, if any.</param>
     private readonly record struct ProviderResolvedEndpoints(
         string WebsiteUrl,
         string SupportUrl,
         string DownloadPageUrl,
         string IconUrl,
-        string CoverSource);
+        string CoverSource,
+        IReadOnlyList<string>? DefaultTags,
+        string? Description);
 
     private static readonly MmddyyQfeVersionScheme GeneralsOnlineVersionScheme = new();
 
@@ -76,8 +80,7 @@ public class GeneralsOnlineManifestFactory(
         string displayName)
     {
         var endpoints = ResolveProviderEndpoints();
-        var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
-        var tags = provider?.DefaultTags ?? [.. GeneralsOnlineConstants.Tags];
+        var tags = endpoints.DefaultTags ?? [.. GeneralsOnlineConstants.Tags];
 
         // Parse version to extract numeric version (remove dots and QFE markers)
         var userVersion = ParseVersionForManifestId(release.Version);
@@ -96,7 +99,7 @@ public class GeneralsOnlineManifestFactory(
 
         var description = isTestEnv
             ? GeneralsOnlineConstants.TestEnvironmentDescription
-            : (provider?.Description ?? GeneralsOnlineConstants.ShortDescription);
+            : (endpoints.Description ?? GeneralsOnlineConstants.ShortDescription);
 
         var dependencies = isTestEnv
             ? GeneralsOnlineDependencyBuilder.GetDependenciesForTestEnvironment(userVersion)
@@ -535,7 +538,14 @@ public class GeneralsOnlineManifestFactory(
         var configuredCover = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.CoverUrl);
         var coverSource = !string.IsNullOrWhiteSpace(configuredCover) ? configuredCover : GeneralsOnlineConstants.CoverSource;
 
-        return new ProviderResolvedEndpoints(websiteUrl, supportUrl, downloadPageUrl, iconUrl, coverSource);
+        return new ProviderResolvedEndpoints(
+            websiteUrl,
+            supportUrl,
+            downloadPageUrl,
+            iconUrl,
+            coverSource,
+            provider?.DefaultTags,
+            provider?.Description);
     }
 
     /// <summary>

@@ -954,6 +954,57 @@ public sealed class ContentGridItemViewModelTests
         Assert.Equal(testDescription, searchResult.Description);
     }
 
+    /// <summary>
+    /// Verifies that switching SelectedVariant updates tags on the search result and notifies card tag properties.
+    /// </summary>
+    [Fact]
+    public void SelectedVariant_WhenChanged_SwapsTagsAndNotifiesProperties()
+    {
+        var primarySr = new ContentSearchResult
+        {
+            Id = "client-manifest-id",
+            Name = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+        };
+        primarySr.Tags.Add("client-tag");
+
+        var patchSr = new ContentSearchResult
+        {
+            Id = "patch-manifest-id",
+            Name = "Generals Online Game Data",
+            ContentType = ContentType.Patch,
+        };
+        patchSr.Tags.Add("patch-tag-1");
+        patchSr.Tags.Add("patch-tag-2");
+
+        var viewModel = CreateViewModel(primarySr);
+        var clientVariant = new InstallableVariant { Name = "60Hz", ManifestId = primarySr.Id };
+        var patchVariant = new InstallableVariant { Name = "Game Data", ManifestId = patchSr.Id };
+
+        viewModel.AddVariant(clientVariant, primarySr);
+        viewModel.AddVariant(patchVariant, patchSr);
+        viewModel.SelectedVariant = clientVariant;
+
+        var notifiedProperties = new List<string>();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != null)
+            {
+                notifiedProperties.Add(e.PropertyName);
+            }
+        };
+
+        // Act: switch to patch variant
+        viewModel.SelectedVariant = patchVariant;
+
+        // Assert: tags swapped and properties notified
+        Assert.Equal(["patch-tag-1", "patch-tag-2"], viewModel.SearchResult.Tags);
+        Assert.Contains(nameof(ContentGridItemViewModel.CardTags), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.DisplayCardTags), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.HasCardTags), notifiedProperties);
+        Assert.Contains(nameof(ContentGridItemViewModel.Tags), notifiedProperties);
+    }
+
     private static void MarkAllSelectedDownloaded(ContentGridItemViewModel viewModel)
     {
         foreach (var component in viewModel.BundleComponents)

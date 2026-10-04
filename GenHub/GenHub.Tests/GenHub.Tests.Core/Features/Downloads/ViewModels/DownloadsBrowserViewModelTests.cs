@@ -3036,6 +3036,90 @@ public class DownloadsBrowserViewModelTests
         Assert.False(viewModel.CanReloadCatalog);
     }
 
+    /// <summary>
+    /// Verifies that ResolveDefaultVariant selects the Generals Online 60Hz game client
+    /// over game data patches, map packs, and test clients.
+    /// </summary>
+    [Fact]
+    public void ResolveDefaultVariant_GeneralsOnlineReleaseGroup_Selects60HzGameClientOverGameDataPatch()
+    {
+        // Arrange
+        var patch = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.patch.gamedata",
+            Name = "Generals Online Game Data",
+            ContentType = ContentType.Patch,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var mapPack = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.mappack.quickmatchmaps",
+            Name = "Generals Online QuickMatch MapPack",
+            ContentType = ContentType.MapPack,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var testClient = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.test",
+            Name = "Generals Online Test GameClient",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var client60Hz = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.60hz",
+            Name = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        var group = new List<ContentSearchResult> { patch, mapPack, testClient, client60Hz };
+
+        // Act
+        var selected = DownloadsBrowserViewModel.ResolveDefaultVariant(group, group[0]);
+
+        // Assert: 60Hz Game Client must be selected, NOT the patch or map pack
+        Assert.Same(client60Hz, selected);
+    }
+
+    /// <summary>
+    /// Verifies that SelectDefaultVariant selects the 60Hz variant on the card view model.
+    /// </summary>
+    [Fact]
+    public void SelectDefaultVariant_GeneralsOnlineGroup_Selects60HzVariant()
+    {
+        // Arrange
+        var patch = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.patch.gamedata",
+            Name = "Generals Online Game Data",
+            ContentType = ContentType.Patch,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var client60Hz = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.60hz",
+            Name = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        var group = new List<ContentSearchResult> { patch, client60Hz };
+        var card = new ContentGridItemViewModel(client60Hz, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+
+        var patchVariant = new InstallableVariant { Name = "Generals Online Game Data", ManifestId = patch.Id };
+        var clientVariant = new InstallableVariant { Name = "GeneralsOnline 60Hz", ManifestId = client60Hz.Id };
+
+        card.AddVariant(patchVariant, patch);
+        card.AddVariant(clientVariant, client60Hz);
+
+        // Act
+        DownloadsBrowserViewModel.SelectDefaultVariant(card, group, client60Hz, client60Hz);
+
+        // Assert
+        Assert.Same(clientVariant, card.SelectedVariant);
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,

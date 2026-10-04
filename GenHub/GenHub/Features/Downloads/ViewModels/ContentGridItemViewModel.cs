@@ -1581,6 +1581,10 @@ public sealed partial class ContentGridItemViewModel(
             OnPropertyChanged(nameof(ContentTypeDisplay));
             OnPropertyChanged(nameof(CategoryBadge));
             OnPropertyChanged(nameof(HasCategoryBadge));
+            OnPropertyChanged(nameof(CardTags));
+            OnPropertyChanged(nameof(DisplayCardTags));
+            OnPropertyChanged(nameof(HasCardTags));
+            OnPropertyChanged(nameof(Tags));
             return;
         }
 
@@ -1626,6 +1630,11 @@ public sealed partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ContentTypeDisplay));
         OnPropertyChanged(nameof(CategoryBadge));
         OnPropertyChanged(nameof(HasCategoryBadge));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(CardTags));
+        OnPropertyChanged(nameof(DisplayCardTags));
+        OnPropertyChanged(nameof(HasCardTags));
+        OnPropertyChanged(nameof(Tags));
 
         _ = LoadIconAsync();
     }
