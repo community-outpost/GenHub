@@ -536,6 +536,9 @@ public class ContentManifestPoolTests : IDisposable
         var result = await _manifestPool.AddManifestAsync(manifest);
 
         Assert.True(result.Success, result.FirstError);
+        _referenceTrackerMock.Verify(
+            x => x.TrackManifestReferencesAsync(manifest.Id.Value, It.Is<ContentManifest>(m => m.Variants.Count == manifest.Variants.Count), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
