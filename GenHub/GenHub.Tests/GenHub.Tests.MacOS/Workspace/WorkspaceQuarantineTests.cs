@@ -21,6 +21,7 @@ public sealed class WorkspaceQuarantineTests : IDisposable
 {
     private const string EngineName = "generalszh";
     private const string LibraryName = "libSDL3.dylib";
+    private const int XattrTimeoutMs = 10_000;
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"genhub-quarantine-{Guid.NewGuid():N}");
     private readonly string _installDir;
@@ -63,6 +64,25 @@ public sealed class WorkspaceQuarantineTests : IDisposable
         Assert.False(HasQuarantine(Path.Combine(workspace.WorkspacePath, LibraryName)), $"{strategyType} left the library quarantined.");
         Assert.True(HasQuarantine(engine), $"{strategyType} changed the user's engine binary.");
         Assert.True(HasQuarantine(library), $"{strategyType} changed the user's library.");
+    }
+
+    /// <summary>
+    /// A hard-link workspace reports the real size of a private executable copy, not the
+    /// link overhead, so the workspace size shown to the user matches the disk it uses.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task PrepareAsync_HardLinkPrivateCopy_CountsTheCopiedBytesAsync()
+    {
+        const int engineSize = 256 * 1024;
+        var engine = CreateQuarantinedFile(EngineName, executable: true);
+        await File.WriteAllBytesAsync(engine, new byte[engineSize]);
+        CreateQuarantinedFile(LibraryName, executable: false);
+
+        var workspace = await CreateStrategy(WorkspaceStrategy.HardLink).PrepareAsync(CreateConfiguration(WorkspaceStrategy.HardLink), null, CancellationToken.None);
+
+        Assert.True(workspace.IsPrepared, string.Join("; ", workspace.ValidationIssues.Select(i => i.Message)));
+        Assert.True(workspace.TotalSizeBytes >= engineSize, $"Reported {workspace.TotalSizeBytes} bytes for a {engineSize}-byte private copy.");
     }
 
     /// <inheritdoc/>
@@ -110,9 +130,14 @@ public sealed class WorkspaceQuarantineTests : IDisposable
         })!;
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(XattrTimeoutMs))
+        {
+            process.Kill(entireProcessTree: true);
+            Assert.Fail($"xattr {string.Join(' ', arguments)} did not exit within {XattrTimeoutMs} ms.");
+        }
+
         outputTask.GetAwaiter().GetResult();
         errorTask.GetAwaiter().GetResult();
-        process.WaitForExit();
         return process.ExitCode;
     }
 

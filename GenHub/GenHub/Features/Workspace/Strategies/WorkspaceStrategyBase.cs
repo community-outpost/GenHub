@@ -573,18 +573,18 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="file">The manifest entry that was just materialised.</param>
     /// <param name="targetPath">Its absolute path in the workspace.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A task representing the operation.</returns>
-    protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    /// <returns><c>true</c> when the entry was replaced with a workspace-owned copy.</returns>
+    protected async Task<bool> EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows() || !File.Exists(targetPath))
         {
-            return;
+            return false;
         }
 
         if (!file.IsExecutable
             && !(ExecutableFileClassifier.IsUnixSharedLibrary(file.RelativePath) && MacOSNativeMethods.IsQuarantined(targetPath)))
         {
-            return;
+            return false;
         }
 
         try
@@ -609,6 +609,7 @@ public abstract class WorkspaceStrategyBase<T>(
             }
 
             Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
+            return true;
         }
         catch (Exception ex)
         {

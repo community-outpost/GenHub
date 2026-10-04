@@ -112,27 +112,38 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
                         var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, cancellationToken);
-                        await EnsureExecutableAsync(file, destinationPath, cancellationToken);
-                        if (linked)
+                        if (await EnsureExecutableAsync(file, destinationPath, cancellationToken))
                         {
-                            linkedFiles++;
+                            totalBytesProcessed += new FileInfo(destinationPath).Length;
                         }
+                        else
+                        {
+                            if (linked)
+                            {
+                                linkedFiles++;
+                            }
 
-                        totalBytesProcessed += bytes;
+                            totalBytesProcessed += bytes;
+                        }
                     }
                     else
                     {
                         var processResult = await ProcessStandardFileAsync(file, manifest, destinationPath, configuration, sameVolume, cancellationToken);
                         if (!processResult.Skipped)
                         {
-                            await EnsureExecutableAsync(file, destinationPath, cancellationToken);
-
-                            if (processResult.HardLinked)
+                            if (await EnsureExecutableAsync(file, destinationPath, cancellationToken))
                             {
-                                linkedFiles++;
+                                totalBytesProcessed += new FileInfo(destinationPath).Length;
                             }
+                            else
+                            {
+                                if (processResult.HardLinked)
+                                {
+                                    linkedFiles++;
+                                }
 
-                            totalBytesProcessed += processResult.BytesProcessed;
+                                totalBytesProcessed += processResult.BytesProcessed;
+                            }
                         }
                     }
                 }
