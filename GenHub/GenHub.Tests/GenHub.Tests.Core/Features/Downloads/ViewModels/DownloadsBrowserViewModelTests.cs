@@ -3121,8 +3121,40 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that SelectDefaultVariant does not select the 60Hz variant fallback for non-Generals-Online content.
+    /// Verifies that ResolveDefaultVariant respects catalog-declared default variant over generic GameClient for non-Generals-Online content.
     /// </summary>
+    [Fact]
+    public void ResolveDefaultVariant_GenericGroupWithCatalogDefaultAndGameClient_PrefersCatalogDefault()
+    {
+        // Arrange
+        var gameClientItem = new ContentSearchResult
+        {
+            Id = "generic.gameclient",
+            Name = "Generic GameClient",
+            ContentType = ContentType.GameClient,
+            ProviderName = "ModDB",
+        };
+        var defaultModItem = new ContentSearchResult
+        {
+            Id = "generic.mod",
+            Name = "Generic Default Mod",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+            Variants =
+            [
+                new InstallableVariant { Name = "Default Mod Variant", ManifestId = "generic.mod", IsDefault = true },
+            ],
+        };
+
+        var group = new List<ContentSearchResult> { gameClientItem, defaultModItem };
+
+        // Act
+        var resolved = DownloadsBrowserViewModel.ResolveDefaultVariant(group, gameClientItem);
+
+        // Assert: Catalog-declared default item should be authoritative over arbitrary GameClient
+        Assert.Same(defaultModItem, resolved);
+    }
+
     [Fact]
     public void SelectDefaultVariant_NonGeneralsOnlineGroup_DoesNotSelect60HzFallback()
     {

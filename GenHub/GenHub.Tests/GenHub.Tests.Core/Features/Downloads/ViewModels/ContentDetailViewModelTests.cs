@@ -4020,15 +4020,19 @@ public sealed class ContentDetailViewModelTests
             Id = "item.v1",
             Name = "Item V1",
             ContentType = ContentType.Mod,
-            Tags = ["tag1", "tag2"],
         };
+        initial.Tags.Add("tag1");
+        initial.Tags.Add("tag2");
+
         var variant2 = new ContentSearchResult
         {
             Id = "item.v2",
             Name = "Item V2",
             ContentType = ContentType.Mod,
-            Tags = ["tagA", "tagB", "tagC"],
         };
+        variant2.Tags.Add("tagA");
+        variant2.Tags.Add("tagB");
+        variant2.Tags.Add("tagC");
 
         var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
         {

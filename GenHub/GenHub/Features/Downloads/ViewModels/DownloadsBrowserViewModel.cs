@@ -711,8 +711,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 (i.ProviderName?.Contains(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true ||
                  i.ResolverId?.Contains(PublisherTypeConstants.GitHub, StringComparison.OrdinalIgnoreCase) == true) &&
                 i.TargetGame == GameType.ZeroHour)
-            ?? groupItems.FirstOrDefault(i => i.ContentType == ContentType.GameClient)
             ?? groupItems.FirstOrDefault(i => i.Variants?.Any(v => v.IsDefault) == true)
+            ?? groupItems.FirstOrDefault(i => i.ContentType == ContentType.GameClient)
             ?? primaryItem;
     }
 
