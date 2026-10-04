@@ -488,7 +488,7 @@ public class ManifestVariantResolverTests
     {
         var original = new ContentManifest
         {
-            Files = [],
+            Files = [File("stale.big")],
             Variants =
             [
                 new() { RuntimeIdentifiers = ["win-x64"], EntryPoint = "generalszh.exe", Files = [File("generalszh.exe", true)] },
@@ -505,7 +505,7 @@ public class ManifestVariantResolverTests
         Assert.Equal("generalszh.exe", Assert.Single(copy.Variants[0].Files).RelativePath);
         Assert.Equal("generalszh", ManifestVariantResolver.ResolveEntryPoint(copy, "osx-arm64").RelativePath);
         Assert.Equal("generalszh.tar.gz", Assert.Single(original.Variants[1].Files).RelativePath);
-        Assert.Empty(original.Files);
+        Assert.Equal("stale.big", Assert.Single(original.Files).RelativePath);
     }
 
     /// <summary>

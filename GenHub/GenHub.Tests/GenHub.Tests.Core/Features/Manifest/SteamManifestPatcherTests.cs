@@ -99,18 +99,23 @@ public class SteamManifestPatcherTests : IDisposable
     }
 
     /// <summary>
-    /// For a variant manifest, standalone mode clears the host variant's relationship.
+    /// For a variant manifest, standalone mode clears the host variant's relationship and
+    /// any stale root relationship left by earlier patching.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
     public async Task PatchManifestAsync_StandaloneModeVariantManifest_ClearsHostVariantRelationshipAsync()
     {
         const string manifestId = "1.104.steam.gameclient.zerohour";
-        WriteVariantManifest(manifestId, new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
+        WriteVariantManifest(
+            manifestId,
+            new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName },
+            new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
 
         await PatchAsync(manifestId, useSteamLaunch: false);
 
         var patched = ReadManifest(manifestId);
+        Assert.Null(patched.LaunchRelationship);
         Assert.Null(patched.Variants[1].LaunchRelationship);
         Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(patched));
     }
@@ -153,7 +158,7 @@ public class SteamManifestPatcherTests : IDisposable
         File.WriteAllText(Path.Combine(_manifestsDirectory, $"{manifestId}.manifest.json"), json);
     }
 
-    private void WriteVariantManifest(string manifestId, LaunchRelationship? hostRelationship)
+    private void WriteVariantManifest(string manifestId, LaunchRelationship? hostRelationship, LaunchRelationship? rootRelationship = null)
     {
         var manifest = VariantManifestFixture.Create(
             [
@@ -163,6 +168,7 @@ public class SteamManifestPatcherTests : IDisposable
             [new() { RelativePath = GameClientConstants.GeneralsExecutable }]);
         manifest.Id = manifestId;
         manifest.Variants[1].LaunchRelationship = hostRelationship;
+        manifest.LaunchRelationship = rootRelationship;
         var json = JsonSerializer.Serialize(manifest);
         File.WriteAllText(Path.Combine(_manifestsDirectory, $"{manifestId}.manifest.json"), json);
     }

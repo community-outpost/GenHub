@@ -212,6 +212,7 @@ public class SteamManifestPatcher(
         if (variant is not null)
         {
             variant.LaunchRelationship = relationship;
+            manifest.LaunchRelationship = null;
         }
         else
         {

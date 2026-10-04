@@ -116,7 +116,8 @@ public static class ManifestVariantResolver
     /// matching variant's files, or the flat list when the manifest declares no variants.
     /// <para>
     /// For a manifest built from a delivered payload. The other variants are kept, so the copy
-    /// still describes every platform the release supports.
+    /// still describes every platform the release supports. A variant manifest's root file list
+    /// is never resolved, so the copy clears it rather than carry stale entries.
     /// </para>
     /// </summary>
     /// <param name="original">The manifest to copy.</param>
@@ -145,6 +146,11 @@ public static class ManifestVariantResolver
 
         var copy = new ContentManifest(original);
         ReplaceResolvedFiles(copy, files, runtimeIdentifier);
+        if (copy.Variants.Count > 0)
+        {
+            copy.Files = [];
+        }
+
         return copy;
     }
 
