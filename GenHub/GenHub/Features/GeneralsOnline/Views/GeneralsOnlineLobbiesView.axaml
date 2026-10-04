@@ -68,8 +68,13 @@
                         <Button Classes="toolbar-btn"
                                 Content="{localization:Localize Online.GeneralsOnline.Action.SignIn}"
                                 Command="{Binding SignInCommand}"
-                                IsVisible="{Binding !IsAuthenticated}"
+                                IsVisible="{Binding CanShowSignInButton}"
                                 AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.SignIn}" />
+                        <Button Classes="toolbar-btn"
+                                Content="{localization:Localize Common.Cancel}"
+                                Command="{Binding CancelSignInCommand}"
+                                IsVisible="{Binding IsSigningIn}"
+                                AutomationProperties.Name="{localization:Localize Common.Cancel}" />
                         <Button Classes="toolbar-btn"
                                 Content="{localization:Localize Online.GeneralsOnline.Action.SignOut}"
                                 Command="{Binding SignOutCommand}"
@@ -736,14 +741,14 @@
                                                                        Foreground="{DynamicResource TextPrimary}"
                                                                        TextWrapping="Wrap"
                                                                        IsVisible="{Binding !IsOwn}">
-                                                                <Run Text="{Binding ReceivedAtUtc, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                                <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
                                                             </TextBlock>
                                                             <TextBlock FontSize="12"
                                                                        Foreground="{DynamicResource AccentBrush}"
                                                                        TextWrapping="Wrap"
                                                                        TextAlignment="Right"
                                                                        IsVisible="{Binding IsOwn}">
-                                                                <Run Text="{Binding ReceivedAtUtc, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                                <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
                                                             </TextBlock>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -936,7 +941,7 @@
                                                            Foreground="{DynamicResource TextPrimary}"
                                                            TextWrapping="Wrap"
                                                            Margin="0,2">
-                                                    <Run Text="{Binding ReceivedAtUtc, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                    <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
                                                 </TextBlock>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>

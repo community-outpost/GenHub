@@ -46,6 +46,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     private readonly GeneralsOnlineLobbiesDependencies? _dependencies;
 
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly SemaphoreSlim _sessionRecoveryLock = new(1, 1);
     private readonly Dictionary<long, GeneralsOnlineProfileMatch> _bestMatchByLobby = [];
     private readonly Dictionary<long, int> _latencyByLobby = [];
     private readonly Dictionary<long, ObservableCollection<GeneralsOnlineFriendChatMessage>> _dmThreads = [];
@@ -58,6 +59,8 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     private CancellationTokenSource? _selectedDetailCts;
     private int _refreshPending;
     private long _refreshArrivalTicket;
+    private CancellationTokenSource? _signInCts;
+    private DateTime _lastSessionRecoveryUtc = DateTime.MinValue;
     private long _refreshCoveredTicket;
     private long _lastHintRefreshTicks;
     private long? _detailLobbyId;
@@ -233,12 +236,21 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsAuthenticated))]
+    [NotifyPropertyChangedFor(nameof(CanShowSignInButton))]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
     [NotifyCanExecuteChangedFor(nameof(SignOutCommand))]
     [NotifyCanExecuteChangedFor(nameof(LaunchCommand))]
     [NotifyCanExecuteChangedFor(nameof(SendRoomChatCommand))]
     [NotifyCanExecuteChangedFor(nameof(SendDmCommand))]
     private GeneralsOnlineAuthState _authState = GeneralsOnlineAuthState.Unauthenticated;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSignIn))]
+    [NotifyPropertyChangedFor(nameof(CanShowSignInButton))]
+    [NotifyPropertyChangedFor(nameof(CanCancelSignIn))]
+    [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelSignInCommand))]
+    private bool _isSigningIn;
 
     [ObservableProperty]
     private string? _displayName;
@@ -286,6 +298,12 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
     public bool IsAuthenticated => AuthState == GeneralsOnlineAuthState.Authenticated;
+
+    /// <summary>
+    /// Gets a value indicating whether the sign-in button should be shown.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; bound from XAML as an instance property.")]
+    public bool CanShowSignInButton => !IsAuthenticated && !IsSigningIn;
 
     /// <summary>
     /// Gets a value indicating whether the filtered lobby list is non-empty.
@@ -478,6 +496,15 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     }
 
     /// <summary>
+    /// Cancels an in-progress browser sign-in attempt.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanCancelSignIn))]
+    public void CancelSignIn()
+    {
+        _signInCts?.Cancel();
+    }
+
+    /// <summary>
     /// Signs in through the browser game-code flow.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -485,15 +512,20 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     public async Task SignInAsync(CancellationToken cancellationToken = default)
     {
+        _signInCts?.Dispose();
+        _signInCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var token = _signInCts.Token;
+
         try
         {
+            IsSigningIn = true;
             IsLoading = true;
             _notificationService.ShowInfo(
                 GetString("Online.GeneralsOnline.Auth.SignInTitle"),
                 GetString("Online.GeneralsOnline.Auth.BrowserMessage"),
                 NotificationDurations.Medium);
 
-            var result = await _authService.LoginWithBrowserAsync(cancellationToken);
+            var result = await _authService.LoginWithBrowserAsync(token);
             if (!result.Success || result.Data is null)
             {
                 ShowAuthFailureToast(result);
@@ -506,12 +538,16 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
                 GetString("Online.GeneralsOnline.Auth.WelcomeTitle"),
                 GetString("Online.GeneralsOnline.Auth.WelcomeMessage", DisplayName ?? string.Empty),
                 NotificationDurations.Long);
-            await ConnectWebSocketAsync(cancellationToken);
-            await RefreshAsync(cancellationToken);
+            await ConnectWebSocketAsync(token);
+            await RefreshAsync(token);
         }
         catch (OperationCanceledException)
         {
-            throw;
+            _logger.LogInformation("Generals Online browser sign-in was cancelled.");
+            if (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -520,7 +556,10 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
         finally
         {
+            IsSigningIn = false;
             IsLoading = false;
+            _signInCts?.Dispose();
+            _signInCts = null;
         }
     }
 
@@ -1052,6 +1091,10 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             _selectedDetailCts = null;
         }
 
+        _signInCts?.Cancel();
+        _signInCts?.Dispose();
+        _signInCts = null;
+        _sessionRecoveryLock.Dispose();
         _refreshLock.Dispose();
     }
 
@@ -1080,7 +1123,9 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             ?? rooms.FirstOrDefault();
     }
 
-    private bool CanSignIn => !IsLoading && !IsAuthenticated;
+    private bool CanSignIn => !IsLoading && !IsAuthenticated && !IsSigningIn;
+
+    private bool CanCancelSignIn => IsSigningIn;
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; used as an instance CanExecute predicate.")]
     private bool CanLaunch => SelectedLobby is not null && !IsLoading;
@@ -1356,8 +1401,32 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
         if (lobbies is null || !lobbies.Success || lobbies.Data is null)
         {
-            HandleLobbiesLoadFailure(lobbies, background);
-            return;
+            if (string.Equals(lobbies?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
+            {
+                if (await TryRecoverSessionAsync(cancellationToken))
+                {
+                    lobbies = await GetLobbiesWithRoomDanceAsync(cancellationToken);
+                    if (!IsAuthenticated)
+                    {
+                        return;
+                    }
+
+                    if (lobbies is null || !lobbies.Success || lobbies.Data is null)
+                    {
+                        HandleLobbiesLoadFailure(lobbies, background);
+                        return;
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else
+            {
+                HandleLobbiesLoadFailure(lobbies, background);
+                return;
+            }
         }
 
         lobbies = await RetryEmptyLobbiesIfRoomNotSelectedAsync(lobbies, cancellationToken);
@@ -1375,6 +1444,12 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
     private void HandleLobbiesLoadFailure(OperationResult<GeneralsOnlineLobbiesResult>? lobbies, bool background)
     {
+        var error = lobbies?.Errors.FirstOrDefault();
+        if (string.Equals(error, GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         // Keep stale lobbies on transient failures: clearing the list on
         // every blip flashes the UI empty during the refresh storm.
         var forbidden = string.Equals(
@@ -1490,6 +1565,18 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             var friends = await _apiClient.GetFriendsAsync(cancellationToken);
             if (!IsAuthenticated || !friends.Success || friends.Data is null)
             {
+                if (IsAuthenticated && string.Equals(friends?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
+                {
+                    if (await TryRecoverSessionAsync(cancellationToken))
+                    {
+                        friends = await _apiClient.GetFriendsAsync(cancellationToken);
+                        if (IsAuthenticated && friends.Success && friends.Data is not null)
+                        {
+                            SyncFriends(friends.Data.Friends, friends.Data.PendingRequests);
+                        }
+                    }
+                }
+
                 return;
             }
 
@@ -1534,6 +1621,18 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             var rooms = await _apiClient.GetRoomsAsync(cancellationToken);
             if (!IsAuthenticated || !rooms.Success || rooms.Data is null)
             {
+                if (IsAuthenticated && string.Equals(rooms?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
+                {
+                    if (await TryRecoverSessionAsync(cancellationToken))
+                    {
+                        rooms = await _apiClient.GetRoomsAsync(cancellationToken);
+                        if (IsAuthenticated && rooms.Success && rooms.Data is not null)
+                        {
+                            SyncRooms(rooms.Data);
+                        }
+                    }
+                }
+
                 return;
             }
 
@@ -2200,7 +2299,75 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
     }
 
-    private async Task ConnectWebSocketAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Attempts to recover an expired session by performing a stored-token login,
+    /// reconnecting the WebSocket with the new session token, and falling back
+    /// to unauthenticated if recovery fails.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the session was successfully recovered; false if unauthenticated.</returns>
+    private async Task<bool> TryRecoverSessionAsync(CancellationToken cancellationToken)
+    {
+        await _sessionRecoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!IsAuthenticated)
+            {
+                return false;
+            }
+
+            if (DateTime.UtcNow - _lastSessionRecoveryUtc < TimeSpan.FromSeconds(2))
+            {
+                return IsAuthenticated;
+            }
+
+            _logger.LogInformation("Generals Online session expired. Attempting recovery via stored token.");
+            var login = await _authService.TryLoginWithStoredTokenAsync(cancellationToken);
+            SyncAuthProps();
+
+            if (login.Success && IsAuthenticated)
+            {
+                _lastSessionRecoveryUtc = DateTime.UtcNow;
+                _logger.LogInformation("Recovered Generals Online session for {DisplayName}.", DisplayName);
+                await ConnectWebSocketAsync(cancellationToken, forceReconnect: true);
+                return true;
+            }
+
+            _logger.LogWarning("Generals Online session recovery failed. Falling back to unauthenticated.");
+            await _authService.LogoutAsync(cancellationToken);
+            SyncAuthProps();
+            ClearLobbies();
+            await DisconnectWebSocketAsync();
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error during Generals Online session recovery.");
+            try
+            {
+                await _authService.LogoutAsync(cancellationToken);
+            }
+            catch
+            {
+                // Best effort logout on failure
+            }
+
+            SyncAuthProps();
+            ClearLobbies();
+            await DisconnectWebSocketAsync();
+            return false;
+        }
+        finally
+        {
+            _sessionRecoveryLock.Release();
+        }
+    }
+
+    private async Task ConnectWebSocketAsync(CancellationToken cancellationToken = default, bool forceReconnect = false)
     {
         var wsListener = _dependencies?.WsListener;
         if (wsListener is null)
@@ -2208,7 +2375,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             return;
         }
 
-        if (wsListener.IsConnected)
+        if (wsListener.IsConnected && !forceReconnect)
         {
             if (!_roomSelected)
             {
@@ -2811,9 +2978,20 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
     private void ShowErrorToast(string titleKey, string? detail)
     {
-        var detailText = string.IsNullOrWhiteSpace(detail) || detail.StartsWith(GeneralsOnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
-            ? GetString("Online.Error.GenericDetail")
-            : OnlineLogScrubber.Scrub(detail);
+        string detailText;
+        if (!string.IsNullOrWhiteSpace(detail)
+            && !detail.StartsWith(GeneralsOnlineConstants.ErrorCodePrefix, StringComparison.Ordinal)
+            && !detail.StartsWith("online.", StringComparison.Ordinal)
+            && _dependencies?.LocalizationService is { } loc
+            && loc.TryGetString(detail, out var localized))
+        {
+            detailText = localized;
+        }
+        else
+        {
+            detailText = GetString("Online.Error.GenericDetail");
+        }
+
         _notificationService.ShowError(GetString(titleKey), detailText, NotificationDurations.Long);
     }
 

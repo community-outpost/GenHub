@@ -38,4 +38,15 @@ public sealed class GeneralsOnlineFriendChatMessage
     /// </summary>
     [JsonIgnore]
     public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Gets the receive time in local time for display.
+    /// </summary>
+    [JsonIgnore]
+    public DateTime ReceivedAtLocal => ReceivedAtUtc.Kind switch
+    {
+        DateTimeKind.Utc => ReceivedAtUtc.ToLocalTime(),
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(ReceivedAtUtc, DateTimeKind.Utc).ToLocalTime(),
+        _ => ReceivedAtUtc,
+    };
 }

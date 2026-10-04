@@ -1765,6 +1765,160 @@ public class GeneralsOnlineLobbiesViewModelTests
         return new Fakes(api, auth, compatibility, notifications, launch);
     }
 
+    /// <summary>
+    /// Tests that an expired session on lobbies load recovers via stored-token login and retries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Refresh_WhenLobbiesReturnAuthRequired_ShouldAttemptSessionRecoveryAndRetryAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        var ws = new Mock<IGeneralsOnlineWebSocketListener>();
+        ws.SetupGet(w => w.IsConnected).Returns(true);
+        ws.Setup(w => w.ConnectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var testLobby = new GeneralsOnlineLobby { LobbyId = 9842, MapName = "Tournament Desert" };
+        var successResult = new GeneralsOnlineLobbiesResult { Lobbies = [testLobby] };
+
+        fakes.Api.SetupSequence(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateFailure(GeneralsOnlineConstants.ErrorAuthRequired))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(successResult));
+
+        fakes.Auth.Setup(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LoginResult>.CreateSuccess(new LoginResult { Token = "new_token" }));
+
+        using var vm = CreateViewModel(fakes, ws.Object);
+
+        // Act
+        await vm.RefreshAsync();
+
+        // Assert
+        fakes.Auth.Verify(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()), Times.Once);
+        ws.Verify(w => w.ConnectAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        Assert.Single(vm.Lobbies);
+        Assert.True(vm.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Tests that session recovery failure falls back to unauthenticated and clears lobbies.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Refresh_WhenSessionRecoveryFails_ShouldFallbackToUnauthenticatedAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        fakes.Api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateFailure(GeneralsOnlineConstants.ErrorAuthRequired));
+
+        fakes.Auth.Setup(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LoginResult>.CreateFailure(GeneralsOnlineConstants.ErrorAuthRequired));
+
+        using var vm = CreateViewModel(fakes);
+
+        // Act
+        await vm.RefreshAsync();
+
+        // Assert
+        fakes.Auth.Verify(a => a.TryLoginWithStoredTokenAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fakes.Auth.Verify(a => a.LogoutAsync(It.IsAny<CancellationToken>()), Times.Once);
+        Assert.False(vm.IsAuthenticated);
+        Assert.Empty(vm.Lobbies);
+    }
+
+    /// <summary>
+    /// Tests that launch errors or unlocalized English details show generic error detail in toasts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task Launch_WhenLaunchFailsWithOnlineCode_ShouldShowGenericDetailToastAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        var lobby = new GeneralsOnlineLobby { LobbyId = 9842, MapName = "Tournament Desert" };
+        fakes.Api.Setup(a => a.GetLobbiesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineLobbiesResult>.CreateSuccess(new GeneralsOnlineLobbiesResult { Lobbies = [lobby] }));
+
+        fakes.Launch.Setup(l => l.PlayAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<OnlinePlayResult>.CreateFailure(OnlineConstants.ErrorLaunchFailed));
+
+        using var vm = CreateViewModel(fakes);
+        await vm.RefreshAsync();
+        vm.SelectedLobby = vm.Lobbies.FirstOrDefault();
+
+        // Act
+        await vm.LaunchCommand.ExecuteAsync(null);
+
+        // Assert
+        fakes.Notifications.Verify(
+            n => n.ShowError(
+                "Online.GeneralsOnline.Launch.FailedTitle",
+                "Online.Error.GenericDetail",
+                NotificationDurations.Long,
+                false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that cancelling browser sign-in resets loading and signing in states.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SignIn_WhenCancelled_ShouldResetStateAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: false);
+        var tcs = new TaskCompletionSource<OperationResult<LoginResult>>();
+
+        fakes.Auth.Setup(a => a.LoginWithBrowserAsync(It.IsAny<CancellationToken>()))
+            .Returns(async (CancellationToken ct) =>
+            {
+                using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+                return await tcs.Task;
+            });
+
+        using var vm = CreateViewModel(fakes);
+
+        // Act
+        var signInTask = vm.SignInCommand.ExecuteAsync(null);
+        Assert.True(vm.IsSigningIn);
+        Assert.True(vm.IsLoading);
+        Assert.True(vm.CanCancelSignIn);
+
+        vm.CancelSignInCommand.Execute(null);
+        await signInTask;
+
+        // Assert
+        Assert.False(vm.IsSigningIn);
+        Assert.False(vm.IsLoading);
+        Assert.False(vm.IsAuthenticated);
+    }
+
+    /// <summary>
+    /// Tests chat message local time conversion.
+    /// </summary>
+    [Fact]
+    public void ChatMessages_ReceivedAtLocal_ConvertsUtcToLocal()
+    {
+        var utc = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        var roomMsg = new GeneralsOnlineRoomChatMessage { ReceivedAtUtc = utc };
+        var friendMsg = new GeneralsOnlineFriendChatMessage { ReceivedAtUtc = utc };
+
+        Assert.Equal(utc.ToLocalTime(), roomMsg.ReceivedAtLocal);
+        Assert.Equal(utc.ToLocalTime(), friendMsg.ReceivedAtLocal);
+    }
+
+    /// <summary>
+    /// Tests that GeneralsOnlineConstants.LogoSource points to the existing logo asset.
+    /// </summary>
+    [Fact]
+    public void LogoSource_PointsToGeneralsOnlineLogo()
+    {
+        Assert.Equal("avares://GenHub/Assets/Logos/generalsonline-logo.png", GeneralsOnlineConstants.LogoSource);
+    }
+
     private static GeneralsOnlineLobbiesViewModel CreateViewModel(
         Fakes? fakes = null,
         IGeneralsOnlineWebSocketListener? wsListener = null)
