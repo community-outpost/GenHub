@@ -847,13 +847,15 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <param name="cached">Whether the pool reports the original manifest as acquired.</param>
     /// <param name="unsupportedSuccess">Whether acquisition succeeds with a foreign-only manifest.</param>
+    /// <param name="foreignCacheVariant">Whether the cached manifest explicitly supports only another platform.</param>
     /// <returns>A task representing the test.</returns>
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
     [InlineData(true, true)]
-    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_ReResolvesSharedVersionAsync(bool cached, bool unsupportedSuccess)
+    [InlineData(true, false, true)]
+    public async Task ImportSharedProfileAsync_WithDependencyForOtherPlatform_ReResolvesSharedVersionAsync(bool cached, bool unsupportedSuccess, bool foreignCacheVariant = false)
     {
         const string manifestId = "1.0.moddb.mod.crossplatform";
         var dependency = new SharedManifestDependency
@@ -878,6 +880,7 @@ public class ProfileSharingServiceTests
             {
                 Id = ManifestId.Create(manifestId),
                 Files = [new ManifestFile { RelativePath = "foreign.big" }],
+                Variants = foreignCacheVariant ? [new ArtifactVariant { RuntimeIdentifiers = [VariantManifestFixture.ForeignRuntimeIdentifier] }] : [],
             }));
         var unsupported = new ContentSearchResult { Id = "unsupported", Name = "Cross Platform Mod", Version = "1.0", ProviderName = "ModDB", ContentType = ContentType.Mod };
         _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(unsupported, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
