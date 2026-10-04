@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,6 +18,11 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class VlcRuntimeService : IVlcRuntimeService
 {
+    /// <summary>
+    /// Expected SHA-512 digest of the official VideoLAN.LibVLC.Windows 3.0.24 NuGet package.
+    /// </summary>
+    public const string DefaultPackageSha512 = "1ADE0A9399D2355559EF3EDD1671C37F0A4B40C408A964C9E9FB211673FFD00DDEAD4741923ECBE4F2E65AB5719045528745859390978B012EF0C7BF7370DBEE";
+
     private const string PrimaryDownloadUrl = "https://globalcdn.nuget.org/packages/videolan.libvlc.windows.3.0.24.nupkg";
     private const string FallbackDownloadUrl = "https://www.nuget.org/api/v2/package/VideoLAN.LibVLC.Windows/3.0.24";
     private const string X64EntryPrefix = "build/x64/";
@@ -28,6 +34,7 @@ public class VlcRuntimeService : IVlcRuntimeService
     private readonly SemaphoreSlim _installLock = new(1, 1);
     private readonly string _runtimeDir;
     private readonly string? _systemVlcDir;
+    private readonly string? _expectedSha512;
 
     private VlcRuntimeStatus _status = VlcRuntimeStatus.NotInstalled;
     private string? _runtimeDirectory;
@@ -42,7 +49,8 @@ public class VlcRuntimeService : IVlcRuntimeService
             httpClient,
             logger,
             Path.Combine(AppDataPathHelper.GetDataRoot(), "runtimes", "vlc", "win-x64"),
-            GetDefaultSystemVlcPath())
+            GetDefaultSystemVlcPath(),
+            DefaultPackageSha512)
     {
     }
 
@@ -53,16 +61,19 @@ public class VlcRuntimeService : IVlcRuntimeService
     /// <param name="logger">The logger instance.</param>
     /// <param name="runtimeDirectory">The destination directory for the native runtime.</param>
     /// <param name="systemVlcDirectory">The system VLC installation directory to check, if any.</param>
+    /// <param name="expectedSha512">Optional expected SHA-512 hash of the package to verify integrity.</param>
     internal VlcRuntimeService(
         HttpClient httpClient,
         ILogger<VlcRuntimeService> logger,
         string runtimeDirectory,
-        string? systemVlcDirectory = null)
+        string? systemVlcDirectory = null,
+        string? expectedSha512 = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _runtimeDir = runtimeDirectory ?? throw new ArgumentNullException(nameof(runtimeDirectory));
         _systemVlcDir = systemVlcDirectory;
+        _expectedSha512 = expectedSha512;
     }
 
     /// <inheritdoc/>
@@ -150,6 +161,23 @@ public class VlcRuntimeService : IVlcRuntimeService
 
                 cancellationToken.ThrowIfCancellationRequested();
 
+                // Verify package hash if configured
+                if (!string.IsNullOrWhiteSpace(_expectedSha512))
+                {
+                    using (var fs = File.OpenRead(tempArchive))
+                    using (var sha = SHA512.Create())
+                    {
+                        var hashBytes = await sha.ComputeHashAsync(fs, cancellationToken).ConfigureAwait(false);
+                        var actualHash = Convert.ToHexString(hashBytes);
+                        if (!string.Equals(actualHash, _expectedSha512, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger.LogError("Downloaded LibVLC package SHA-512 mismatch. Expected {Expected}, got {Actual}", _expectedSha512, actualHash);
+                            _status = VlcRuntimeStatus.Failed;
+                            return false;
+                        }
+                    }
+                }
+
                 // Unpack x64 binaries from nupkg/zip
                 _logger.LogInformation("Extracting native LibVLC x64 binaries to staging directory...");
                 Directory.CreateDirectory(stagingDir);
@@ -188,7 +216,7 @@ public class VlcRuntimeService : IVlcRuntimeService
                     }
                 }
 
-                // Verify extraction
+                // Verify extraction contains core binaries
                 var libvlc = Path.Combine(stagingDir, "libvlc.dll");
                 var libvlccore = Path.Combine(stagingDir, "libvlccore.dll");
                 if (!File.Exists(libvlc) || !File.Exists(libvlccore))
@@ -196,33 +224,52 @@ public class VlcRuntimeService : IVlcRuntimeService
                     throw new FileNotFoundException("Extracted LibVLC staging folder does not contain essential DLLs.");
                 }
 
-                // Promote staging directory to final target directory
-                if (Directory.Exists(_runtimeDir))
-                {
-                    try
-                    {
-                        Directory.Delete(_runtimeDir, recursive: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to clean existing runtime directory prior to upgrade; overwriting in-place.");
-                    }
-                }
-
+                // Promote staging directory to final target directory atomically
                 var targetParent = Path.GetDirectoryName(_runtimeDir);
                 if (!string.IsNullOrWhiteSpace(targetParent))
                 {
                     Directory.CreateDirectory(targetParent);
                 }
 
-                if (!Directory.Exists(_runtimeDir))
+                string? backupDir = null;
+                try
                 {
+                    if (Directory.Exists(_runtimeDir))
+                    {
+                        backupDir = _runtimeDir + ".old." + Guid.NewGuid().ToString("N");
+                        Directory.Move(_runtimeDir, backupDir);
+                    }
+
                     Directory.Move(stagingDir, _runtimeDir);
+
+                    if (backupDir != null && Directory.Exists(backupDir))
+                    {
+                        try
+                        {
+                            Directory.Delete(backupDir, recursive: true);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
+                        }
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    // Copy recursively if Move is blocked
-                    CopyDirectory(stagingDir, _runtimeDir);
+                    _logger.LogError(ex, "Failed to promote LibVLC staging directory into runtime directory.");
+                    if (backupDir != null && Directory.Exists(backupDir) && !Directory.Exists(_runtimeDir))
+                    {
+                        try
+                        {
+                            Directory.Move(backupDir, _runtimeDir);
+                        }
+                        catch (Exception restoreEx)
+                        {
+                            _logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
+                        }
+                    }
+
+                    throw;
                 }
 
                 _runtimeDirectory = _runtimeDir;
@@ -322,23 +369,6 @@ public class VlcRuntimeService : IVlcRuntimeService
         {
             _logger.LogWarning(ex, "Download failed from {Url}", url);
             return false;
-        }
-    }
-
-    private void CopyDirectory(string sourceDir, string targetDir)
-    {
-        Directory.CreateDirectory(targetDir);
-        foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(sourceDir, file);
-            var dest = Path.Combine(targetDir, relative);
-            var parent = Path.GetDirectoryName(dest);
-            if (!string.IsNullOrWhiteSpace(parent))
-            {
-                Directory.CreateDirectory(parent);
-            }
-
-            File.Copy(file, dest, overwrite: true);
         }
     }
 }

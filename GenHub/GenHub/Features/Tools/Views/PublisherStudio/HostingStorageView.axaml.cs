@@ -52,7 +52,7 @@ public partial class HostingStorageView : UserControl
         return false;
     }
 
-    private static void OnAssetRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnAssetRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border row || row.DataContext is not HostedAssetItemViewModel item)
         {

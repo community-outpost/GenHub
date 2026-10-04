@@ -11,6 +11,7 @@ using LibVLCSharp.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Input;
 
 namespace GenHub.Common.Controls;
@@ -144,6 +145,7 @@ public partial class VideoPlayerView : UserControl
     private bool isUnavailable;
     private bool isDownloadPromptVisible;
     private bool isDownloadingComponent;
+    private CancellationTokenSource? downloadCts;
     private double downloadProgress;
     private string downloadStatusText = string.Empty;
     private bool isPlaying;
@@ -487,6 +489,10 @@ public partial class VideoPlayerView : UserControl
     /// <inheritdoc />
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
+        downloadCts?.Cancel();
+        downloadCts?.Dispose();
+        downloadCts = null;
+
         VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
         videoHostAttached = false;
         StopPlayback();
@@ -888,6 +894,11 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
+        downloadCts?.Cancel();
+        downloadCts?.Dispose();
+        downloadCts = new CancellationTokenSource();
+        var cancellationToken = downloadCts.Token;
+
         IsDownloadPromptVisible = false;
         IsDownloadingComponent = true;
         DownloadProgress = 0;
@@ -910,7 +921,12 @@ public partial class VideoPlayerView : UserControl
 
         try
         {
-            var success = await runtimeService.InstallRuntimeAsync(progress).ConfigureAwait(true);
+            var success = await runtimeService.InstallRuntimeAsync(progress, cancellationToken).ConfigureAwait(true);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
             IsDownloadingComponent = false;
 
             if (success)
@@ -927,6 +943,11 @@ public partial class VideoPlayerView : UserControl
                 IsUnavailable = true;
                 HasError = true;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            IsDownloadingComponent = false;
+            IsDownloadPromptVisible = true;
         }
         catch (Exception ex)
         {

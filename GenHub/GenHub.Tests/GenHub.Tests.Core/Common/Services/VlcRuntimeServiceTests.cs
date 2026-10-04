@@ -63,8 +63,9 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         }
         else
         {
-            // Non-Windows discovers system VLC dynamically or reports unsupported
-            Assert.True(service.Status == VlcRuntimeStatus.Available || service.Status == VlcRuntimeStatus.UnsupportedPlatform);
+            // Non-Windows discovers system VLC dynamically
+            Assert.True(service.IsAvailable());
+            Assert.Equal(VlcRuntimeStatus.Available, service.Status);
         }
     }
 
@@ -128,7 +129,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             });
 
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var progressReported = false;
         var progress = new Progress<double>(p =>
@@ -159,6 +160,86 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that InstallRuntimeAsync replaces an existing runtime directory atomically.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallRuntimeAsync_ExistingDirectory_ReplacesAtomicallyAsync()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(testTargetDirectory);
+        File.WriteAllText(Path.Combine(testTargetDirectory, "old_file.txt"), "stale content");
+
+        var zipBytes = CreateSampleNupkgArchive(
+            ("build/x64/libvlc.dll", "new-libvlc"),
+            ("build/x64/libvlccore.dll", "new-libvlccore"));
+
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(zipBytes),
+            });
+
+        var httpClient = new HttpClient(mockHandler.Object);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+
+        var result = await service.InstallRuntimeAsync();
+
+        Assert.True(result);
+        Assert.Equal(VlcRuntimeStatus.Available, service.Status);
+        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlc.dll")));
+        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlccore.dll")));
+        Assert.False(File.Exists(Path.Combine(testTargetDirectory, "old_file.txt")));
+    }
+
+    /// <summary>
+    /// Verifies that InstallRuntimeAsync rejects downloads whose SHA-512 does not match the expected hash.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallRuntimeAsync_Sha512Mismatch_RejectsAndReturnsFalseAsync()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        var zipBytes = CreateSampleNupkgArchive(
+            ("build/x64/libvlc.dll", "mock-libvlc"),
+            ("build/x64/libvlccore.dll", "mock-libvlccore"));
+
+        var mockHandler = new Mock<HttpMessageHandler>();
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(zipBytes),
+            });
+
+        var httpClient = new HttpClient(mockHandler.Object);
+        const string wrongSha512 = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: wrongSha512);
+
+        var result = await service.InstallRuntimeAsync();
+
+        Assert.False(result);
+        Assert.Equal(VlcRuntimeStatus.Failed, service.Status);
+        Assert.False(Directory.Exists(testTargetDirectory));
+    }
+
+    /// <summary>
     /// Verifies that InstallRuntimeAsync safely rejects zip archives containing zip-slip directory traversal paths.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -185,7 +266,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             });
 
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var result = await service.InstallRuntimeAsync();
 
@@ -211,7 +292,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
 
         var mockHandler = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.InstallRuntimeAsync(cancellationToken: cts.Token));
     }

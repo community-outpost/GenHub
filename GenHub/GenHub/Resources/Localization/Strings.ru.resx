@@ -17899,7 +17899,7 @@ Error: не удалось: {3}
     <value>Этот файл не входит в текущий проект. Разверните строку для предпросмотра содержимого.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
-    <value>Определение: {0}</value>
+    <value>Каталог: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
     <value>Указано в {0} · элементов: {1}</value>
