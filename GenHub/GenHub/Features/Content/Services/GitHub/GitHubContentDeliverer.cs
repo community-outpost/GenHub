@@ -106,11 +106,16 @@ public class GitHubContentDeliverer(
                     Directory.CreateDirectory(localDir);
                 }
 
+                // Capture immutable snapshot of loop state for progress reporting
+                long fileBaseBytes = previousFilesBytes;
+                int fileIndex = currentFileIndex;
+                string fileRelativePath = file.RelativePath;
+
                 // Create progress adapter for download progress (0-100% scale)
                 IProgress<DownloadProgress>? downloadProgress = null;
                 if (progress != null)
                 {
-                    downloadProgress = new Progress<DownloadProgress>(dp =>
+                    downloadProgress = new SynchronousProgress<DownloadProgress>(dp =>
                     {
                         double currentProgress = 0.0;
                         long aggregateBytesProcessed = 0L;
@@ -118,14 +123,14 @@ public class GitHubContentDeliverer(
 
                         if (totalBytesAllFiles > 0)
                         {
-                            aggregateBytesProcessed = previousFilesBytes + dp.BytesReceived;
+                            aggregateBytesProcessed = fileBaseBytes + dp.BytesReceived;
                             aggregateTotalBytes = totalBytesAllFiles;
                             currentProgress = Math.Clamp((double)aggregateBytesProcessed / totalBytesAllFiles * 100.0, 0, 100);
                         }
                         else
                         {
                             double fileProgressRange = 100.0 / totalFiles;
-                            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
+                            double baseProgress = (fileIndex - 1) * fileProgressRange;
                             currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
                             aggregateBytesProcessed = dp.BytesReceived;
                             aggregateTotalBytes = dp.TotalBytes;
@@ -136,33 +141,33 @@ public class GitHubContentDeliverer(
                             Phase = ContentAcquisitionPhase.Downloading,
                             ProgressPercentage = currentProgress,
                             CurrentOperation = totalFiles > 1
-                                ? $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                                : $"{file.RelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                            FilesProcessed = currentFileIndex - 1,
+                                ? $"{fileRelativePath} ({fileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
+                                : $"{fileRelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
+                            FilesProcessed = fileIndex - 1,
                             TotalFiles = totalFiles,
                             TotalBytes = aggregateTotalBytes,
                             BytesProcessed = aggregateBytesProcessed,
-                            CurrentFile = file.RelativePath,
+                            CurrentFile = fileRelativePath,
                         });
                     });
                 }
 
                 var startingProgress = totalBytesAllFiles > 0
-                    ? Math.Clamp((double)previousFilesBytes / totalBytesAllFiles * 100.0, 0, 100)
-                    : (double)(currentFileIndex - 1) / totalFiles * 100;
+                    ? Math.Clamp((double)fileBaseBytes / totalBytesAllFiles * 100.0, 0, 100)
+                    : (double)(fileIndex - 1) / totalFiles * 100;
 
                 progress?.Report(new ContentAcquisitionProgress
                 {
                     Phase = ContentAcquisitionPhase.Downloading,
                     ProgressPercentage = startingProgress,
                     CurrentOperation = totalFiles > 1
-                        ? $"Connecting to download {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
-                        : $"Connecting to download {file.RelativePath}...",
-                    CurrentFile = file.RelativePath,
-                    FilesProcessed = currentFileIndex - 1,
+                        ? $"Connecting to download {fileRelativePath} ({fileIndex}/{totalFiles})..."
+                        : $"Connecting to download {fileRelativePath}...",
+                    CurrentFile = fileRelativePath,
+                    FilesProcessed = fileIndex - 1,
                     TotalFiles = totalFiles,
                     TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
-                    BytesProcessed = previousFilesBytes,
+                    BytesProcessed = fileBaseBytes,
                 });
 
                 var downloadConfig = new DownloadConfiguration
@@ -377,7 +382,7 @@ public class GitHubContentDeliverer(
                     manifestDirectory);
 
                 // Create adapter for storage progress (0-100% scale)
-                var storageProgress = new Progress<ContentStorageProgress>(p =>
+                var storageProgress = new SynchronousProgress<ContentStorageProgress>(p =>
                 {
                     progress?.Report(new ContentAcquisitionProgress
                     {
@@ -513,5 +518,10 @@ public class GitHubContentDeliverer(
                 }
             },
             cancellationToken);
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 }

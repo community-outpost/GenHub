@@ -159,7 +159,7 @@ public abstract class BaseContentProvider : IContentProvider
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = ContentConstants.ProgressStepDownloading,
+                ProgressPercentage = 0,
                 CurrentOperation = "Connecting to download server...",
             });
 

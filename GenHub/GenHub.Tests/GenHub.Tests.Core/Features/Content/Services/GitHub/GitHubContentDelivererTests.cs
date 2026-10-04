@@ -587,7 +587,14 @@ public class GitHubContentDelivererTests
     {
         var targetDirectory = CreateWorkingDirectory();
         var progressReports = new List<ContentAcquisitionProgress>();
-        var progress = new Progress<ContentAcquisitionProgress>(p => progressReports.Add(p));
+        var syncLock = new object();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
+        {
+            lock (syncLock)
+            {
+                progressReports.Add(p);
+            }
+        });
 
         try
         {
@@ -696,5 +703,10 @@ public class GitHubContentDelivererTests
                 cancellation.Cancel();
             }
         }
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
+    {
+        public void Report(T value) => action(value);
     }
 }
