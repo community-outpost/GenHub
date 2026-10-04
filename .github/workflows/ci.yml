@@ -92,14 +92,14 @@ jobs:
 
       - name: Changes Summary
         run: |
-          echo "### 🔍 File Changes Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Core: ${{ steps.filter.outputs.core == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- UI: ${{ steps.filter.outputs.ui == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Windows: ${{ steps.filter.outputs.windows == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Linux: ${{ steps.filter.outputs.linux == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- macOS: ${{ steps.filter.outputs.macos == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Tests: ${{ steps.filter.outputs.tests == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "### File Changes Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Core: ${{ steps.filter.outputs.core == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- UI: ${{ steps.filter.outputs.ui == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Windows: ${{ steps.filter.outputs.windows == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: ${{ steps.filter.outputs.linux == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: ${{ steps.filter.outputs.macos == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests: ${{ steps.filter.outputs.tests == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && 'Yes' || 'No' }}" >> $GITHUB_STEP_SUMMARY
 
   validate-localization:
     name: Validate Localization
@@ -712,8 +712,12 @@ jobs:
 
       - name: Run macOS Tests
         run: |
-          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
-            -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+          shopt -s globstar nullglob
+          for test_project in ${{ env.TEST_PROJECTS }}; do
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+          done
 
   # Launches the real native engine with no game data at all and requires the abort the
   # engine is known to produce (exit code 1 once INI loading finds nothing to read). No
@@ -723,7 +727,7 @@ jobs:
   engine-launch-smoke:
     name: Engine Launch Smoke Test
     needs: detect-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.macos == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.macos == 'true' || needs.detect-changes.outputs.tests == 'true' }}
     # macos-14 and newer are Apple Silicon, matching the arm64 engine asset.
     runs-on: macos-15
     permissions:
@@ -800,17 +804,17 @@ jobs:
       # such rather than as a failure.
       - name: Generate Summary
         run: |
-          echo "### 🚀 GenHub CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "### GenHub CI Results" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || needs.build-windows.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || needs.build-linux.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || needs.build-macos.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && '✅ Passed' || needs.test-windows.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && '✅ Passed' || needs.test-linux.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && '✅ Passed' || needs.test-macos.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && '✅ Passed' || needs.engine-launch-smoke.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Localization | ${{ needs.validate-localization.result == 'success' && '✅ Passed' || needs.validate-localization.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && 'Passed' || needs.build-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && 'Passed' || needs.build-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && 'Passed' || needs.build-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && 'Passed' || needs.test-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && 'Passed' || needs.test-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && 'Passed' || needs.test-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && 'Passed' || needs.engine-launch-smoke.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Localization | ${{ needs.validate-localization.result == 'success' && 'Passed' || needs.validate-localization.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
       # Turns the summary into a real gate: branch protection can require this one
       # check and a failed or cancelled job anywhere in `needs` blocks the merge.

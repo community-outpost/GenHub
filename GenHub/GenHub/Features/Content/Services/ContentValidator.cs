@@ -139,7 +139,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 var relativePath = Path.GetRelativePath(fullContentRoot, resolvedFilePath);
                 if (relativePath == ".." || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
                 {
-                    fileIssues.Add(new ValidationIssue($"Invalid file path (outside content directory): {file.RelativePath}", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.InvalidFilePathOutsideContentDirectory, file.RelativePath), ValidationSeverity.Error));
                     return fileIssues;
                 }
 
@@ -155,14 +155,14 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 {
                     if (string.IsNullOrWhiteSpace(file.Hash))
                     {
-                        fileIssues.Add(new ValidationIssue($"ContentAddressable file missing hash: {file.RelativePath}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ContentAddressableMissingHash, file.RelativePath), ValidationSeverity.Error));
                         return fileIssues;
                     }
 
                     var casExistsResult = await _casService.ExistsAsync(file.Hash, cancellationToken);
                     if (!casExistsResult.Success)
                     {
-                        fileIssues.Add(new ValidationIssue($"CAS check failed for hash {file.Hash}: {casExistsResult.FirstError}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CasCheckFailedForHash, file.Hash, casExistsResult.FirstError), ValidationSeverity.Error));
                         return fileIssues;
                     }
 
@@ -175,7 +175,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
                 if (!fileExists)
                 {
-                    fileIssues.Add(new ValidationIssue($"File not found: {file.RelativePath}", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileNotFound, file.RelativePath), ValidationSeverity.Error));
                     return fileIssues;
                 }
 
@@ -185,7 +185,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                     var isHashValid = await _fileOperations.VerifyFileHashAsync(resolvedFilePath, file.Hash, cancellationToken);
                     if (!isHashValid)
                     {
-                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Warning));
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.HashMismatchForFile, file.RelativePath), ValidationSeverity.Warning));
                     }
                 }
 
@@ -226,7 +226,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         if (!Directory.Exists(contentPath))
         {
-            issues.Add(new ValidationIssue($"Content directory does not exist: {contentPath}", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ContentDirectoryDoesNotExist, contentPath), ValidationSeverity.Error));
             return new ValidationResult(manifest.Id, issues);
         }
 
@@ -278,7 +278,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             foreach (var extraneousFile in extraneousFiles)
             {
                 issues.Add(new ValidationIssue(
-                    $"Extraneous file detected (not in manifest): {extraneousFile}",
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ExtraneousFileDetected, extraneousFile),
                     ValidationSeverity.Warning)
                 {
                     // Typed and pathed so consumers can recognise these structurally;
@@ -328,7 +328,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         if (string.IsNullOrWhiteSpace(manifest.Id))
         {
-            issues.Add(new ValidationIssue("Manifest Id is missing.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestIdMissing, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         // Enforce deterministic ID scheme using centralized validator
@@ -339,12 +339,12 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
 
         if (string.IsNullOrWhiteSpace(manifest.Name))
         {
-            issues.Add(new ValidationIssue("Manifest Name is missing.", ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestNameMissing, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Version))
         {
-            issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestVersionMissing, ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         AddFileStructureIssues(ManifestVariantResolver.GetDeclaredFileLists(manifest)[0], string.Empty, issues);
@@ -359,13 +359,13 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                     continue;
                 }
 
-                AddFileStructureIssues(variant.Files, $" in variant {variantIndex}", issues);
+                AddFileStructureIssues(variant.Files, string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.VariantLocationSuffix, variantIndex), issues);
             }
         }
 
         if (!ManifestVariantResolver.EnumerateAllFiles(manifest).Any())
         {
-            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestContainsNoFiles, ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         return issues;
