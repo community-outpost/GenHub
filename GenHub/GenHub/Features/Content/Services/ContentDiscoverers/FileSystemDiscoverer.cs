@@ -81,6 +81,15 @@ public class FileSystemDiscoverer : IContentDiscoverer
         {
             var manifest = manifestEntry.Value;
 
+            if (!ManifestVariantResolver.SupportsRuntime(manifest))
+            {
+                _logger.LogDebug(
+                    "Skipping manifest {ManifestId}: no variant for runtime {RuntimeIdentifier}",
+                    manifest.Id,
+                    ManifestVariantResolver.CurrentRuntimeIdentifier);
+                continue;
+            }
+
             if (MatchesQuery(manifest, query))
             {
                 var discovered = new ContentSearchResult

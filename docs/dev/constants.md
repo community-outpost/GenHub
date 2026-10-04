@@ -347,6 +347,8 @@ Constants related to manifest ID generation, validation, and file operations.
 | ------------------------------ | -------------------- | ------------------------------------------------------------------------------------- |
 | `DefaultManifestFormatVersion` | `1`                  | Default manifest format version (integer)                                             |
 | `DefaultManifestVersion`       | `"1.0"`              | Default manifest version as string                                                    |
+| `VariantsManifestFormatVersion` | `2` | Manifest format version that introduces artifact variants |
+| `MaxSupportedManifestFormatVersion` | `2` | Highest manifest format version this build ingests; newer formats are rejected |
 | `PublisherContentIdPrefix`     | `"publisher"`        | Prefix for publisher content IDs                                                      |
 | `BaseGameIdPrefix`             | `"gameinstallation"` | Prefix for game installation IDs                                                      |
 | `SimpleIdPrefix`               | `"simple"`           | Prefix for simple test IDs                                                            |
@@ -1046,6 +1048,8 @@ Error messages for manifests whose files or platform variants cannot be stored, 
 | `FileCollectionIsNull` | `"Manifest Files collection{0} is null."` | Structural check of a null file list; `{0}` is the location suffix, such as `" in variant 1"` |
 | `FileEntryIsNull` | `"File at index {0}{1} is null."` | Structural check of a null file entry; `{0}` is the file index, `{1}` the location suffix |
 | `FileEntryMissingRelativePath` | `"File at index {0}{1} is missing its RelativePath."` | Structural check of a file entry without a relative path; `{0}` is the file index, `{1}` the location suffix |
+| `UnsupportedManifestFormatVersionKey` | `"Manifest.Format.Unsupported"` | Resource key for `UnsupportedManifestFormatVersion` |
+| `UnsupportedManifestFormatVersion` | `"Manifest '{0}' declares format version {1}, but this version of GenHub supports up to format version {2}. Update GenHub to install it."` | Rejecting a manifest whose format is newer than this build supports; `{0}` is the manifest ID, `{1}` the declared format, `{2}` the highest supported format |
 | `CannotExportNoHostVariant` | `"Cannot export '{0}': no variant supports this host ({1})."` | Exporting a profile whose manifest has no variant for the current host; `{0}` is the manifest name, `{1}` the runtime identifier |
 
 ---

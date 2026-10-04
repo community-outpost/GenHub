@@ -271,7 +271,7 @@ public class ManifestDiscoveryService(
     }
 
     /// <summary>
-    /// Applies the variant ingestion gate, logging and rejecting when it does not pass.
+    /// Applies the manifest format gate, logging and rejecting when it does not pass.
     /// </summary>
     /// <param name="manifest">The deserialized manifest.</param>
     /// <param name="source">Where it came from, named in the rejection log.</param>

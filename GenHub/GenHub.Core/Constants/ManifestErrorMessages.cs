@@ -62,4 +62,15 @@ public static class ManifestErrorMessages
     /// {0} is the manifest name and {1} is the host runtime identifier.
     /// </summary>
     public const string CannotExportNoHostVariant = "Cannot export '{0}': no variant supports this host ({1}).";
+
+    /// <summary>
+    /// Resource key for <see cref="UnsupportedManifestFormatVersion"/>.
+    /// </summary>
+    public const string UnsupportedManifestFormatVersionKey = "Manifest.Format.Unsupported";
+
+    /// <summary>
+    /// English fallback when a manifest declares a newer format than this build supports.
+    /// {0} is the manifest ID, {1} the declared format and {2} the highest supported format.
+    /// </summary>
+    public const string UnsupportedManifestFormatVersion = "Manifest '{0}' declares format version {1}, but this version of GenHub supports up to format version {2}. Update GenHub to install it.";
 }
