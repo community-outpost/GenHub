@@ -2537,8 +2537,14 @@ public partial class PublishShareViewModel(
             }
         }
 
-        var pubName = project.Catalog?.Publisher?.Name ?? (!string.IsNullOrWhiteSpace(project.ProjectName) ? project.ProjectName : GetLocalizedString("Tools.PublisherStudio.Publish.UnknownPublisher", "Publisher"));
-        var pubId = project.Catalog?.Publisher?.Id ?? "publisher";
+        var pubName = !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Name)
+            ? project.Catalog!.Publisher!.Name
+            : (!string.IsNullOrWhiteSpace(project.ProjectName)
+                ? project.ProjectName
+                : GetLocalizedString("Tools.PublisherStudio.Publish.UnknownPublisher", "Publisher"));
+        var pubId = !string.IsNullOrWhiteSpace(project.Catalog?.Publisher?.Id)
+            ? project.Catalog!.Publisher!.Id
+            : ManifestConstants.PublisherContentIdPrefix;
         AddUrlReference(index, project.Catalog?.Publisher?.AvatarUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotAvatar));
         AddUrlReference(index, project.Catalog?.IconUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotIcon));
         AddUrlReference(index, project.Catalog?.AvatarUrl, new AssetReference(pubId, pubName, null, null, null, MediaSlotAvatar));
@@ -7657,7 +7663,6 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        IsUploading = true;
         try
         {
             await EnsureHostingStatesLoadedAsync(cancellationToken);
@@ -7681,13 +7686,13 @@ public partial class PublishShareViewModel(
         }
         finally
         {
-            IsUploading = false;
             try
             {
                 _publishGate.Release();
             }
             catch (ObjectDisposedException)
             {
+                // Gate was disposed during shutdown.
             }
         }
     }
@@ -8589,6 +8594,21 @@ public partial class PublishShareViewModel(
         }
 
         var affected = new List<NamedCatalog>();
+
+        var definitionMediaCleared = false;
+        if (string.Equals(project.Catalog?.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(UploadHierarchy.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            UploadHierarchy.AvatarUrl = null;
+            definitionMediaCleared = true;
+        }
+
+        if (string.Equals(project.Catalog?.IconUrl, url, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(project.Catalog?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            definitionMediaCleared = true;
+        }
+
         foreach (var catalog in project.Catalogs)
         {
             var removedAny = false;
@@ -8638,36 +8658,22 @@ public partial class PublishShareViewModel(
             }
         }
 
-        var definitionMediaCleared = false;
-        if (string.Equals(project.Catalog?.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
+        if (project.Catalog != null)
         {
-            if (project.Catalog?.Publisher != null)
+            if (string.Equals(project.Catalog.Publisher?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
             {
-                project.Catalog.Publisher.AvatarUrl = null;
+                project.Catalog.Publisher!.AvatarUrl = null;
             }
 
-            UploadHierarchy.AvatarUrl = null;
-            definitionMediaCleared = true;
-        }
-
-        if (string.Equals(project.Catalog?.IconUrl, url, StringComparison.OrdinalIgnoreCase))
-        {
-            if (project.Catalog != null)
+            if (string.Equals(project.Catalog.IconUrl, url, StringComparison.OrdinalIgnoreCase))
             {
                 project.Catalog.IconUrl = null;
             }
 
-            definitionMediaCleared = true;
-        }
-
-        if (string.Equals(project.Catalog?.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
-        {
-            if (project.Catalog != null)
+            if (string.Equals(project.Catalog.AvatarUrl, url, StringComparison.OrdinalIgnoreCase))
             {
                 project.Catalog.AvatarUrl = null;
             }
-
-            definitionMediaCleared = true;
         }
 
         if (definitionMediaCleared)

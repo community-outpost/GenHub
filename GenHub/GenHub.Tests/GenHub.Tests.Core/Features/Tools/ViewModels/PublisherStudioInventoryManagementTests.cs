@@ -1800,6 +1800,46 @@ public class PublisherStudioInventoryManagementTests
     }
 
     /// <summary>
+    /// Tests that deleting a hosted media asset clears URL references and flags definition changes
+    /// when the definition and catalog share the same PublisherCatalog instance.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeleteHostedAsset_SharedCatalogAndDefinitionInstance_ClearsUrlsAndMarksDefinitionChangesAsync()
+    {
+        var project = CreateInventoryProject();
+        const string sharedIconUrl = "https://drive.google.com/uc?export=download&id=shared-icon";
+
+        // Simulate AttachCatalogToProject where project.Catalog and project.Catalogs[0].Catalog are the same instance.
+        project.Catalog!.IconUrl = sharedIconUrl;
+        project.Catalogs[0].Catalog = project.Catalog;
+
+        var provider = CreateDriveProvider();
+        using var vm = CreateViewModel(project, provider);
+        var state = vm.CurrentHostingState;
+        Assert.NotNull(state);
+
+        state.Artifacts.Add(new ArtifactHostingInfo
+        {
+            FileId = "icon-file-id",
+            FileName = "shared-icon.png",
+            Url = sharedIconUrl,
+            FileSize = 1024,
+        });
+
+        vm.RefreshHostedAssets();
+        vm.ConfirmationCallback = (_, _) => Task.FromResult(true);
+
+        var iconAsset = vm.HostedAssets.Single(a => a.Name == "shared-icon.png");
+        await vm.DeleteHostedAssetCommand.ExecuteAsync(iconAsset);
+
+        provider.Verify(p => p.DeleteFileAsync("icon-file-id", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Null(project.Catalog.IconUrl);
+        Assert.Null(project.Catalogs[0].Catalog.IconUrl);
+        Assert.True(vm.HasDefinitionChanges);
+    }
+
+    /// <summary>
     /// Tests that deleting a hosted asset holds the publish gate, preventing concurrent publish operations.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -1839,6 +1879,7 @@ public class PublisherStudioInventoryManagementTests
 
         await deleteStarted.Task;
 
+        Assert.False(vm.IsUploading);
         var (acquired, cts) = await vm.TryBeginPublishAsyncForTesting();
         gateAcquiredDuringDelete = acquired;
         cts?.Dispose();
@@ -1887,6 +1928,7 @@ public class PublisherStudioInventoryManagementTests
 
             Assert.Equal(0, handler.CallCount);
             Assert.False(row.RemotePreviewLoaded);
+            Assert.NotNull(row.ChildrenLoadError);
         }
         finally
         {
