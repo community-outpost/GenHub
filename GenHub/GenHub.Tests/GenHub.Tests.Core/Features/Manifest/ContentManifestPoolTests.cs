@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
@@ -581,6 +583,28 @@ public class ContentManifestPoolTests : IDisposable
         _referenceTrackerMock.Verify(
             x => x.TrackManifestReferencesAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// The newer-format rejection is user-facing, so it is resolved through localization.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task AddManifestAsync_WithNewerFormat_ReturnsLocalizedRejectionAsync()
+    {
+        var manifest = CreateTestManifest();
+        manifest.SchemaVersion = "3";
+        var localization = new Mock<ILocalizationService>();
+        string? localized = "localized rejection";
+        localization
+            .Setup(l => l.TryGetString(ManifestErrorMessages.UnsupportedManifestFormatVersionKey, out localized, It.IsAny<object?[]>()))
+            .Returns(true);
+        var pool = new ContentManifestPool(_storageServiceMock.Object, _referenceTrackerMock.Object, _loggerMock.Object, localization.Object);
+
+        var result = await pool.AddManifestAsync(manifest, _tempDirectory);
+
+        Assert.False(result.Success);
+        Assert.Contains("localized rejection", result.FirstError);
     }
 
     /// <summary>

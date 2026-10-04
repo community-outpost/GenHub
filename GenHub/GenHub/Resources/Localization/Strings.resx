@@ -1125,6 +1125,9 @@
   <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Game client '{0}' declares variant entry point '{1}', which was not found in its payload.</value>
   </data>
+  <data name="Manifest.Format.Unsupported" xml:space="preserve">
+    <value>Manifest '{0}' declares format version {1}, but this version of GenHub supports up to format version {2}. Update GenHub to install it.</value>
+  </data>
   <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
     <value>'{0}' cannot be installed directly. {1}</value>
   </data>

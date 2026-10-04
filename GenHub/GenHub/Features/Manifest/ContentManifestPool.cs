@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
@@ -25,10 +26,12 @@ namespace GenHub.Features.Manifest;
 /// <param name="storageService">The service for storing content.</param>
 /// <param name="referenceTracker">The tracker for CAS references.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="localizationService">Resolves user-facing rejection messages; English when null.</param>
 public class ContentManifestPool(
     IContentStorageService storageService,
     ICasReferenceTracker referenceTracker,
-    ILogger<ContentManifestPool> logger) : IContentManifestPool
+    ILogger<ContentManifestPool> logger,
+    ILocalizationService? localizationService = null) : IContentManifestPool
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -350,13 +353,13 @@ public class ContentManifestPool(
     /// </summary>
     /// <param name="manifest">The manifest to validate.</param>
     /// <returns>A validation result.</returns>
-    private static OperationResult<bool> ValidateManifest(ContentManifest manifest)
+    private OperationResult<bool> ValidateManifest(ContentManifest manifest)
     {
         var errors = new List<string>();
 
         // Applied here rather than at each caller: both AddManifestAsync overloads run
         // this, and every deliverer, resolver and detector reaches the pool through them.
-        if (!ManifestIngestionGate.TryAccept(manifest, out var formatRejection))
+        if (!ManifestIngestionGate.TryAccept(manifest, out var formatRejection, localizationService))
         {
             errors.Add(formatRejection!);
         }

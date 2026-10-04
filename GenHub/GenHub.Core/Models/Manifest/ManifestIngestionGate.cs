@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using System.Globalization;
 
 namespace GenHub.Core.Models.Manifest;
@@ -22,8 +24,9 @@ public static class ManifestIngestionGate
     /// When the manifest is rejected, a message naming the manifest and the reason;
     /// otherwise <c>null</c>.
     /// </param>
+    /// <param name="localizationService">Resolves the rejection message; English when null.</param>
     /// <returns><c>true</c> when the manifest may be ingested; otherwise <c>false</c>.</returns>
-    public static bool TryAccept(ContentManifest? manifest, out string? rejectionReason)
+    public static bool TryAccept(ContentManifest? manifest, out string? rejectionReason, ILocalizationService? localizationService = null)
     {
         rejectionReason = null;
 
@@ -38,8 +41,8 @@ public static class ManifestIngestionGate
             return true;
         }
 
-        rejectionReason = string.Format(
-            CultureInfo.InvariantCulture,
+        rejectionReason = localizationService.GetLocalizedString(
+            ManifestErrorMessages.UnsupportedManifestFormatVersionKey,
             ManifestErrorMessages.UnsupportedManifestFormatVersion,
             manifest.Id.Value,
             manifest.SchemaVersion,
