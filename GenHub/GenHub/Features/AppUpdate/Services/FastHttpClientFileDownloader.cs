@@ -46,7 +46,10 @@ public class FastHttpClientFileDownloader(
             throw new SecurityException($"Invalid host name: '{host}'.");
         }
 
-        var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectCts.CancelAfter(TimeSpan.FromSeconds(30));
+
+        var addresses = await Dns.GetHostAddressesAsync(host, connectCts.Token).ConfigureAwait(false);
         ValidateResolvedAddresses(host, addresses);
 
         var sortedAddresses = addresses
@@ -56,7 +59,7 @@ public class FastHttpClientFileDownloader(
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
         try
         {
-            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, connectCts.Token).ConfigureAwait(false);
             return new NetworkStream(socket, ownsSocket: true);
         }
         catch

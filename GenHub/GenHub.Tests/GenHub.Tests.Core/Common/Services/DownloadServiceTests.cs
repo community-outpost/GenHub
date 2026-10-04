@@ -1210,6 +1210,74 @@ public class DownloadServiceTests
     }
 
     /// <summary>
+    /// Verifies that GitHub Actions artifact zip endpoints bypass parallel chunk download and stream sequentially.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenUrlIsGitHubArtifactZip_BypassesParallelDownloadAndDownloadsSequentiallyAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var fullData = new byte[totalBytes];
+        Array.Fill(fullData, (byte)5);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"artifact_{Guid.NewGuid():N}.bin");
+        var chunkRequestsCount = 0;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                if (request.Headers.Range != null)
+                {
+                    Interlocked.Increment(ref chunkRequestsCount);
+                }
+
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullData),
+                };
+                response.Content.Headers.ContentLength = totalBytes;
+                response.Headers.AcceptRanges.Add("bytes");
+                response.Headers.ETag = new EntityTagHeaderValue("\"etag-artifact\"");
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("https://api.github.com/repos/owner/repo/actions/artifacts/12345/zip"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
+            Assert.Equal(0, chunkRequestsCount);
+
+            var written = File.ReadAllBytes(tempFile);
+            Assert.Equal(totalBytes, written.Length);
+            Assert.Equal(5, written[0]);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that when parallel chunk download fails, the service falls back gracefully to sequential download.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
