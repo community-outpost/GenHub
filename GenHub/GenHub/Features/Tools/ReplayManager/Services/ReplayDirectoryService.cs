@@ -3248,12 +3248,12 @@ public sealed class ReplayDirectoryService(
             var launchResult = additionalArguments != null && additionalArguments.Count > 0
                 ? await launcherFacade.LaunchProfileAsync(
                     profileId,
-                    skipUserDataCleanup: true,
+                    skipUserDataCleanup: false,
                     additionalArguments: additionalArguments,
                     cancellationToken: ct)
                 : await launcherFacade.LaunchProfileAsync(
                     profileId,
-                    skipUserDataCleanup: true,
+                    skipUserDataCleanup: false,
                     cancellationToken: ct);
 
             if (launchResult.Success)
