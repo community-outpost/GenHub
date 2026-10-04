@@ -148,4 +148,22 @@ public sealed class VariantSwapTests
         Assert.Same(newPage, target.ParsedPageData);
         Assert.Same(newPayload, target.Data);
     }
+
+    /// <summary>
+    /// Verifies that Apply copies tags onto the target result.
+    /// </summary>
+    [Fact]
+    public void Apply_CopiesTags()
+    {
+        var target = new ContentSearchResult { Id = "parent", Name = "Parent" };
+        target.Tags.Add("old-tag");
+
+        var source = new ContentSearchResult { Id = "child", Name = "Child" };
+        source.Tags.Add("new-tag-1");
+        source.Tags.Add("new-tag-2");
+
+        VariantSwap.Apply(target, source);
+
+        Assert.Equal(["new-tag-1", "new-tag-2"], target.Tags);
+    }
 }

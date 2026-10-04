@@ -102,7 +102,7 @@ public class ContentCardBadgeHelperTests
             ProviderName = "GitHub",
         };
 
-        Assert.Equal(PublisherInfoConstants.GeneralsOnline.LogoSource, ContentCardBadgeHelper.GetThumbnailUrl(generalsOnlineResult));
+        Assert.Equal(GeneralsOnlineConstants.CoverSource, ContentCardBadgeHelper.GetThumbnailUrl(generalsOnlineResult));
         Assert.Equal("avares://GenHub/Assets/Covers/gla-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(communityOutpostResult));
         Assert.Equal("avares://GenHub/Assets/Covers/china-cover.jpg", ContentCardBadgeHelper.GetThumbnailUrl(superHackersResult));
 

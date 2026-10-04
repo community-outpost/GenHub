@@ -189,9 +189,9 @@ public sealed class DownloadedContentDiscoverer(
         if (!string.IsNullOrWhiteSpace(manifest.Metadata?.VariantGroupId))
         {
             if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest) &&
-                IsLegacyGeneralsOnlineGroupId(manifest.Metadata.VariantGroupId, manifest.ContentType))
+                IsTypedGeneralsOnlineGroupId(manifest.Metadata.VariantGroupId))
             {
-                return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.ContentType, manifest.Version);
+                return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
             }
 
             return manifest.Metadata.VariantGroupId;
@@ -202,7 +202,7 @@ public sealed class DownloadedContentDiscoverer(
         // publishers are untouched: coincidental version equality must never merge them.
         if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
         {
-            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.ContentType, manifest.Version);
+            return GeneralsOnlineVariantGrouping.BuildVariantGroupId(manifest.Version);
         }
 
         // Legacy Community Outpost pool entries predate variant group stamping; derive it so
@@ -224,7 +224,7 @@ public sealed class DownloadedContentDiscoverer(
         return null;
     }
 
-    private static bool IsLegacyGeneralsOnlineGroupId(string? groupId, ContentType contentType)
+    private static bool IsTypedGeneralsOnlineGroupId(string? groupId)
     {
         if (string.IsNullOrWhiteSpace(groupId))
         {
@@ -232,13 +232,18 @@ public sealed class DownloadedContentDiscoverer(
         }
 
         var prefix = $"{GeneralsOnlineConstants.PublisherType}-";
-        var typedPrefix = $"{GeneralsOnlineConstants.PublisherType}-{contentType.ToString().ToLowerInvariant()}-";
-        return groupId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
-            !groupId.StartsWith(typedPrefix, StringComparison.OrdinalIgnoreCase);
+        return groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyGameClientGroupSegment, StringComparison.OrdinalIgnoreCase) ||
+               groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyPatchGroupSegment, StringComparison.OrdinalIgnoreCase) ||
+               groupId.StartsWith(prefix + GeneralsOnlineConstants.LegacyMapPackGroupSegment, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveCoverFallback(ContentManifest manifest)
     {
+        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
+        {
+            return GeneralsOnlineConstants.CoverSource;
+        }
+
         if (manifest.ContentType == ContentType.GameClient)
         {
             return manifest.TargetGame == GameType.Generals
@@ -253,22 +258,21 @@ public sealed class DownloadedContentDiscoverer(
 
     private string? ResolveVariantFamilyName(ContentManifest manifest)
     {
-        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
-        {
-            if (manifest.Metadata is { VariantFamilyName: { Length: > 0 } familyName } &&
-                !string.IsNullOrWhiteSpace(familyName) &&
-                !IsLegacyGeneralsOnlineGroupId(manifest.Metadata.VariantGroupId, manifest.ContentType))
-            {
-                return familyName;
-            }
-
-            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.ContentType, manifest.Version, localizationService);
-        }
-
         if (manifest.Metadata is { VariantFamilyName: { Length: > 0 } storedFamilyName } &&
             !string.IsNullOrWhiteSpace(storedFamilyName))
         {
+            if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest) &&
+                IsTypedGeneralsOnlineGroupId(manifest.Metadata?.VariantGroupId))
+            {
+                return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version, localizationService);
+            }
+
             return storedFamilyName;
+        }
+
+        if (GeneralsOnlineVariantGrouping.IsGeneralsOnlineManifest(manifest))
+        {
+            return GeneralsOnlineVariantGrouping.BuildVariantFamilyName(manifest.Version, localizationService);
         }
 
         if (CommunityOutpostVariantGrouping.TryGetVariantContentCode(manifest, out var contentCode))

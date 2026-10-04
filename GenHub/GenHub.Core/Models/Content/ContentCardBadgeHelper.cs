@@ -214,7 +214,7 @@ public static partial class ContentCardBadgeHelper
 
         if (IsGeneralsOnline(result))
         {
-            return PublisherInfoConstants.GeneralsOnline.LogoSource;
+            return GeneralsOnlineConstants.CoverSource;
         }
 
         if (IsCommunityOutpost(result))

@@ -4008,6 +4008,59 @@ public sealed class ContentDetailViewModelTests
         Assert.Equal(fetchedNotes, enrichedDescription);
     }
 
+    /// <summary>
+    /// Verifies that switching variant in ContentDetailViewModel synchronizes Tags and raises PropertyChanged for Tags.
+    /// </summary>
+    [Fact]
+    public void SelectedVariant_WhenSwapped_SynchronizesTagsAndRaisesPropertyChanged()
+    {
+        // Arrange
+        var initial = new ContentSearchResult
+        {
+            Id = "item.v1",
+            Name = "Item V1",
+            ContentType = ContentType.Mod,
+        };
+        initial.Tags.Add("tag1");
+        initial.Tags.Add("tag2");
+
+        var variant2 = new ContentSearchResult
+        {
+            Id = "item.v2",
+            Name = "Item V2",
+            ContentType = ContentType.Mod,
+        };
+        variant2.Tags.Add("tagA");
+        variant2.Tags.Add("tagB");
+        variant2.Tags.Add("tagC");
+
+        var variants = new Dictionary<string, ContentSearchResult>(StringComparer.OrdinalIgnoreCase)
+        {
+            [initial.Id] = initial,
+            [variant2.Id] = variant2,
+        };
+
+        var viewModel = CreateViewModel(initial, new Mock<IContentDownloadCoordinator>().Object, variantSearchResults: variants);
+        Assert.Equal(["tag1", "tag2"], viewModel.Tags);
+
+        var installableV2 = new InstallableVariant { Name = "Item V2", ManifestId = variant2.Id };
+        viewModel.Variants =
+        [
+            new InstallableVariant { Name = "Item V1", ManifestId = initial.Id },
+            installableV2,
+        ];
+
+        var raisedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName);
+
+        // Act
+        viewModel.SelectedVariant = installableV2;
+
+        // Assert
+        Assert.Equal(["tagA", "tagB", "tagC"], viewModel.Tags);
+        Assert.Contains(nameof(ContentDetailViewModel.Tags), raisedProperties);
+    }
+
     private static Mock<IContentManifestPool> CreateManifestPoolMock(ContentManifest doomedManifest, IReadOnlyList<ContentManifest>? allManifests = null)
     {
         var manifestPool = new Mock<IContentManifestPool>();
