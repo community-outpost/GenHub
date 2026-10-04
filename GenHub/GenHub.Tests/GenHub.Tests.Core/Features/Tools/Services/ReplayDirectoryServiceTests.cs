@@ -332,7 +332,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("existing-profile-id", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("existing-profile-id", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -995,7 +995,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("auto-created-profile-99", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("auto-created-profile-99", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -1096,7 +1096,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("recreated-profile-100", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("recreated-profile-100", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -1846,7 +1846,7 @@ public sealed class ReplayDirectoryServiceTests
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(existingProfile));
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync(existingProfileId, true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -1860,7 +1860,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(12345, result.Data.ProcessInfo?.ProcessId);
-        _mockLauncherFacade.Verify(l => l.LaunchProfileAsync(existingProfileId, false, It.IsAny<CancellationToken>()), Times.Once());
+        _mockLauncherFacade.Verify(l => l.LaunchProfileAsync(existingProfileId, true, It.IsAny<CancellationToken>()), Times.Once());
         _mockProfileManager.Verify(p => p.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never());
     }
 
@@ -2353,7 +2353,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("created-retail-profile", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("created-retail-profile", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -3541,7 +3541,7 @@ public sealed class ReplayDirectoryServiceTests
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(explicitProfile));
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("explicit-user-profile-id", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -3556,7 +3556,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal("explicit-user-profile-id", replay.MatchingProfileId);
         Assert.Equal("MP Custom Profile", replay.MatchingProfileName);
         _mockLauncherFacade.Verify(
-            l => l.LaunchProfileAsync("explicit-user-profile-id", false, It.IsAny<CancellationToken>()),
+            l => l.LaunchProfileAsync("explicit-user-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once());
     }
 
@@ -3578,7 +3578,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("failing-profile-id", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("failing-profile-id", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateFailure("Game process failed to start"));
 
         var service = new ReplayDirectoryService(
@@ -5004,12 +5004,12 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that LaunchReplayAsync calls LaunchProfileAsync with skipUserDataCleanup: false
-    /// to ensure stale or conflicting user data from previous profiles is cleaned up before launching.
+    /// Verifies that LaunchReplayAsync calls LaunchProfileAsync with skipUserDataCleanup: true
+    /// to ensure non-conflicting custom maps from the previous profile are preserved when launching.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task LaunchReplayAsync_PassesSkipUserDataCleanupFalseToLauncherFacadeAsync()
+    public async Task LaunchReplayAsync_PassesSkipUserDataCleanupTrueToLauncherFacadeAsync()
     {
         var replay = new ReplayFile
         {
@@ -5035,7 +5035,7 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         _mockLauncherFacade
-            .Setup(l => l.LaunchProfileAsync("test-profile-id", false, It.IsAny<CancellationToken>()))
+            .Setup(l => l.LaunchProfileAsync("test-profile-id", true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
 
         var service = new ReplayDirectoryService(
@@ -5048,7 +5048,7 @@ public sealed class ReplayDirectoryServiceTests
 
         Assert.True(result.Success);
         _mockLauncherFacade.Verify(
-            l => l.LaunchProfileAsync("test-profile-id", false, It.IsAny<CancellationToken>()),
+            l => l.LaunchProfileAsync("test-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once());
     }
 

@@ -765,7 +765,7 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
                 new UserDataFileEntry
                 {
                     AbsolutePath = @"C:\Users\User\Documents\Command and Conquer Generals Zero Hour Data\Maps\Battle Plan ZH v3\Battle Plan ZH v3.map",
-                    RelativePath = @"Maps\Battle Plan ZH v3\Battle Plan ZH v3.map",
+                    RelativePath = @"Battle Plan ZH v3\Battle Plan ZH v3.map",
                     InstallTarget = ContentInstallTarget.UserMapsDirectory,
                 },
             ],

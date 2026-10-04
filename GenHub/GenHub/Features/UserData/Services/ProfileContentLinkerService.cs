@@ -25,6 +25,22 @@ public class ProfileContentLinkerService(
     IUserDataTracker userDataTracker,
     ILogger<ProfileContentLinkerService> logger) : IProfileContentLinker
 {
+    private sealed class UserDataFileKeyEqualityComparer : IEqualityComparer<(ContentInstallTarget Target, string RelativePath)>
+    {
+        public static readonly UserDataFileKeyEqualityComparer Instance = new();
+
+        public bool Equals((ContentInstallTarget Target, string RelativePath) x, (ContentInstallTarget Target, string RelativePath) y)
+        {
+            return x.Target == y.Target &&
+                   string.Equals(x.RelativePath, y.RelativePath, PathHelper.PathComparison);
+        }
+
+        public int GetHashCode((ContentInstallTarget Target, string RelativePath) obj)
+        {
+            return HashCode.Combine(obj.Target, PathHelper.PathComparer.GetHashCode(obj.RelativePath));
+        }
+    }
+
     private const string UnknownErrorMessage = "unknown error";
     private static readonly ConcurrentDictionary<GameType, SemaphoreSlim> _gameSyncLocks = new();
     private static readonly ConcurrentDictionary<GameType, string> _activeProfileByGame = new();
@@ -102,7 +118,7 @@ public class ProfileContentLinkerService(
                     var newUserDataFiles = newManifestList
                         .Where(HasProfileUserData)
                         .SelectMany(GetUserDataFiles)
-                        .Select(f => (f.InstallTarget, RelativePath: f.RelativePath.Replace('\\', '/').Trim('/')))
+                        .Select(f => (f.InstallTarget, RelativePath: NormalizeUserDataRelativePath(f.InstallTarget, f.RelativePath)))
                         .ToHashSet(UserDataFileKeyEqualityComparer.Instance);
 
                     var fileCount = matchingManifests.Sum(m => m.InstalledFiles.Count);
@@ -127,7 +143,7 @@ public class ProfileContentLinkerService(
                         }
 
                         var hasCollision = manifest.InstalledFiles.Any(f =>
-                            newUserDataFiles.Contains((f.InstallTarget, f.RelativePath.Replace('\\', '/').Trim('/'))));
+                            newUserDataFiles.Contains((f.InstallTarget, NormalizeUserDataRelativePath(f.InstallTarget, f.RelativePath))));
 
                         if (hasCollision)
                         {
@@ -365,6 +381,23 @@ public class ProfileContentLinkerService(
             PatchSourceFile = file.PatchSourceFile,
             PackageInfo = file.PackageInfo,
         };
+    }
+
+    /// <summary>
+    /// Normalizes a user data file's relative path for collision checking, stripping any leading
+    /// "Maps/" segment for map targets so paths are compared canonically.
+    /// </summary>
+    private static string NormalizeUserDataRelativePath(ContentInstallTarget installTarget, string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').Trim('/');
+        const string mapsPrefix = "Maps/";
+        if (installTarget == ContentInstallTarget.UserMapsDirectory &&
+            normalized.StartsWith(mapsPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[mapsPrefix.Length..];
+        }
+
+        return normalized;
     }
 
     private bool HasProfileUserData(ContentManifest manifest)
@@ -792,21 +825,5 @@ public class ProfileContentLinkerService(
             manifest.Version,
             manifest.Name,
             cancellationToken);
-    }
-
-    private sealed class UserDataFileKeyEqualityComparer : IEqualityComparer<(ContentInstallTarget Target, string RelativePath)>
-    {
-        public static readonly UserDataFileKeyEqualityComparer Instance = new();
-
-        public bool Equals((ContentInstallTarget Target, string RelativePath) x, (ContentInstallTarget Target, string RelativePath) y)
-        {
-            return x.Target == y.Target &&
-                   string.Equals(x.RelativePath, y.RelativePath, PathHelper.PathComparison);
-        }
-
-        public int GetHashCode((ContentInstallTarget Target, string RelativePath) obj)
-        {
-            return HashCode.Combine(obj.Target, PathHelper.PathComparer.GetHashCode(obj.RelativePath));
-        }
     }
 }
