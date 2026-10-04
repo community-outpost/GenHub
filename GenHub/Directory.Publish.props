@@ -16,6 +16,10 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'mscordbi'" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('mscordaccore'))" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'Microsoft.DiaSymReader.Native.amd64'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'Microsoft.DiaSymReader.Native.arm64'" />
+
+      <!-- Testing and driver artifacts: never shipped in release publish output. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('.playwright'))" />
     </ItemGroup>
   </Target>
 </Project>
