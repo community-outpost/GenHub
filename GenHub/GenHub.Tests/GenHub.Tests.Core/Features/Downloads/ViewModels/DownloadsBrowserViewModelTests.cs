@@ -3142,7 +3142,7 @@ public class DownloadsBrowserViewModelTests
             ProviderName = "ModDB",
             Variants =
             [
-                new InstallableVariant { Name = "Default Mod Variant", ManifestId = "generic.mod", IsDefault = true },
+                new ContentVariantInfo { Id = "generic.mod", Name = "Default Mod Variant", ManifestId = "generic.mod", IsDefault = true },
             ],
         };
 
@@ -3155,6 +3155,9 @@ public class DownloadsBrowserViewModelTests
         Assert.Same(defaultModItem, resolved);
     }
 
+    /// <summary>
+    /// Verifies that SelectDefaultVariant does not select the 60Hz variant fallback for non-Generals-Online content.
+    /// </summary>
     [Fact]
     public void SelectDefaultVariant_NonGeneralsOnlineGroup_DoesNotSelect60HzFallback()
     {
