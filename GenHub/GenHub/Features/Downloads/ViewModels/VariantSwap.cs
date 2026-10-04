@@ -211,6 +211,12 @@ public static class VariantSwap
             target.ScreenshotUrls.Add(url);
         }
 
+        target.Tags.Clear();
+        foreach (var tag in source.Tags)
+        {
+            target.Tags.Add(tag);
+        }
+
         target.Metadata.Clear();
         foreach (var kvp in source.Metadata)
         {

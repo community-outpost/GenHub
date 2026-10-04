@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -193,7 +194,7 @@ public sealed partial class ImportProfileInspectionViewModel(
             return string.Format(System.Globalization.CultureInfo.CurrentCulture, format, formattedBytes);
         }
 
-        if ((result?.MissingManifestCount ?? 0) > 0)
+        if (result?.Manifests.Any(m => !m.IsCachedLocally && !ProfileSharingService.CannotBeAcquired(m)) == true)
         {
             return locService?.GetString("GameProfiles.ImportInspection.Button.ImportAndDownload") ?? "Import & Download";
         }
@@ -293,6 +294,8 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var addedMissingDownloadSources = false;
+        var addedOtherPlatformWarnings = false;
+        var addedPlatformResolutionWarnings = false;
         foreach (var code in codes)
         {
             if (code == ProfileSecurityWarningCode.MissingDownloadSource)
@@ -306,11 +309,53 @@ public sealed partial class ImportProfileInspectionViewModel(
                 continue;
             }
 
+            if (code == ProfileSecurityWarningCode.RequiresPlatformResolution)
+            {
+                if (!addedPlatformResolutionWarnings)
+                {
+                    addedPlatformResolutionWarnings = true;
+                    AddManifestWarningsOrGeneric(
+                        warnings,
+                        result.Manifests
+                            .Where(ProfileSharingService.RequiresPlatformResolution)
+                            .Select(manifest => ProfileSharingService.FormatPlatformResolution(manifest, localizationService)),
+                        localizationService.GetLocalizedString(ProfileSharingConstants.PlatformResolutionGenericWarningKey, ProfileSharingConstants.PlatformResolutionGenericWarning));
+                }
+
+                continue;
+            }
+
+            if (code == ProfileSecurityWarningCode.BuiltForOtherPlatform)
+            {
+                if (!addedOtherPlatformWarnings)
+                {
+                    addedOtherPlatformWarnings = true;
+                    AddManifestWarningsOrGeneric(
+                        warnings,
+                        result.Manifests
+                            .Where(ProfileSharingService.IsLocalBuiltForOtherPlatform)
+                            .Select(manifest => ProfileSharingService.FormatBuiltForOtherPlatform(manifest, localizationService)),
+                        localizationService.GetLocalizedString(ProfileSharingConstants.BuiltForOtherPlatformGenericWarningKey, ProfileSharingConstants.BuiltForOtherPlatformGenericWarning));
+                }
+
+                continue;
+            }
+
             var localized = ResolveWarningCodeText(code, localizationService);
             if (!string.IsNullOrWhiteSpace(localized))
             {
                 warnings.Add(localized);
             }
+        }
+    }
+
+    private static void AddManifestWarningsOrGeneric(List<string> warnings, IEnumerable<string> manifestWarnings, string genericWarning)
+    {
+        var count = warnings.Count;
+        warnings.AddRange(manifestWarnings);
+        if (warnings.Count == count)
+        {
+            warnings.Add(genericWarning);
         }
     }
 
@@ -320,7 +365,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         ILocalizationService? localizationService)
     {
         var uncachedSourceless = result.Manifests
-            .Where(ProfileSharingService.CannotBeAcquired)
+            .Where(ProfileSharingService.HasNoDownloadSource)
             .ToList();
 
         if (uncachedSourceless.Count > 0)
@@ -409,7 +454,7 @@ public sealed partial class ImportProfileInspectionViewModel(
         SharedProfileInspectionResult result,
         ILocalizationService? localizationService)
     {
-        if (result.MissingManifestCount > 0 && result.TotalDownloadBytesRequired == 0)
+        if (result.TotalDownloadBytesRequired == 0 && result.Manifests.Any(m => !m.IsCachedLocally && !ProfileSharingService.CannotBeAcquired(m)))
         {
             var msg = localizationService?.GetString("GameProfiles.ImportInspection.Warning.MissingSizes")
                 ?? "Some required dependencies do not report an exact download size. Additional downloads will occur during import.";

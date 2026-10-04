@@ -147,6 +147,8 @@ jobs:
       - name: Publish Windows App
         shell: pwsh
         run: |
+          if (Test-Path "win-publish") { Remove-Item -Recurse -Force "win-publish" }
+          if (Test-Path "velopack-release-windows") { Remove-Item -Recurse -Force "velopack-release-windows" }
           dotnet publish "${{ env.WINDOWS_PROJECT }}" `
             -c ${{ env.BUILD_CONFIGURATION }} `
             -r win-x64 `
@@ -165,6 +167,7 @@ jobs:
         id: delta_baseline
         shell: pwsh
         run: |
+          if (Test-Path "velopack-release-windows") { Remove-Item -Recurse -Force "velopack-release-windows" }
           New-Item -ItemType Directory -Force -Path velopack-release-windows | Out-Null
           vpk download github `
             --repoUrl "https://github.com/${{ github.repository }}" `
@@ -194,6 +197,8 @@ jobs:
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} `
             --packDir win-publish `
             --mainExe GenHub.Windows.exe `
+            --runtime win-x64 `
+            --channel win `
             --packTitle "GenHub" `
             --packAuthors "Community Outpost" `
             --icon GenHub/GenHub/Assets/Icons/generalshub.ico `
@@ -258,7 +263,8 @@ jobs:
       - name: Enforce Installer Size Budget
         shell: pwsh
         run: |
-          $budgetMB = 85
+          # 145 MB budget: base GenHub (~80 MB) + LibVLC Windows x64 native video player runtime (~48 MB compressed) + headroom
+          $budgetMB = 145
           $setup = Get-ChildItem -Path velopack-release-windows/*-Setup.exe | Select-Object -First 1
           $sizeMB = $setup.Length / 1MB
           Write-Host ("Setup.exe: {0:N1} MB (budget {1} MB)" -f $sizeMB, $budgetMB)
@@ -319,6 +325,7 @@ jobs:
 
       - name: Publish Linux App
         run: |
+          rm -rf linux-publish velopack-release-linux
           dotnet publish "${{ env.LINUX_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r linux-x64 \
@@ -335,6 +342,7 @@ jobs:
       - name: Download Previous Release For Deltas
         id: delta_baseline
         run: |
+          rm -rf velopack-release-linux
           mkdir -p velopack-release-linux
           download_ok=0
           if vpk download github \
@@ -363,6 +371,8 @@ jobs:
             --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
             --packDir linux-publish \
             --mainExe GenHub.Linux \
+            --runtime linux-x64 \
+            --channel linux \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
@@ -441,6 +451,7 @@ jobs:
 
       - name: Publish macOS App
         run: |
+          rm -rf macos-publish macos-dist velopack-release-macos
           dotnet publish "${{ env.MACOS_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r osx-arm64 \
@@ -505,6 +516,7 @@ jobs:
       - name: Download Previous Release For Deltas
         id: delta_baseline
         run: |
+          rm -rf velopack-release-macos
           mkdir -p velopack-release-macos
           download_ok=0
           if vpk download github \
@@ -541,6 +553,8 @@ jobs:
             --packVersion "${{ steps.buildinfo.outputs.VERSION }}" \
             --packDir macos-dist/GenHub.app \
             --mainExe GenHub.MacOS \
+            --runtime osx-arm64 \
+            --channel osx \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             $ICON_ARG \

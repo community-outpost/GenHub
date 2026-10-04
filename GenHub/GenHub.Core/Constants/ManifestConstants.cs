@@ -85,10 +85,15 @@ public static class ManifestConstants
     /// <remarks>
     /// Bumped from <see cref="DefaultManifestFormatVersion"/> so that a manifest using
     /// variants is identifiable as such rather than presenting as a version 1 manifest
-    /// with an unexpected field. Ingestion rejects this version for now — see
-    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// with an unexpected field.
     /// </remarks>
     public const int VariantsManifestFormatVersion = 2;
+
+    /// <summary>
+    /// Highest manifest format version this build ingests. Newer formats are rejected by
+    /// <see cref="Models.Manifest.ManifestIngestionGate"/>.
+    /// </summary>
+    public const int MaxSupportedManifestFormatVersion = VariantsManifestFormatVersion;
 
     /// <summary>
     /// Prefix for publisher content IDs.

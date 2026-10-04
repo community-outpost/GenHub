@@ -1125,6 +1125,9 @@
   <data name="Manifest.VariantEntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Игровой клиент '{0}' объявляет точку входа варианта '{1}', которая не найдена в его содержимом.</value>
   </data>
+  <data name="Manifest.Format.Unsupported" xml:space="preserve">
+    <value>Манифест '{0}' объявляет версию формата {1}, но эта версия GenHub поддерживает формат до версии {2}. Обновите GenHub, чтобы установить его.</value>
+  </data>
   <data name="ContentFormat.Rejection.CannotInstallDirectly" xml:space="preserve">
     <value>Не удаётся установить '{0}' напрямую. {1}</value>
   </data>
@@ -17835,6 +17838,27 @@ Error: не удалось: {3}
   </data>
   <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
     <value>Пропущен {0}: исходный файл отсутствует.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.BuiltForOtherPlatform" xml:space="preserve">
+    <value>«{0}» опубликован для {1} и не может быть установлен на этой платформе ({2}).</value>
+  </data>
+  <data name="GameProfiles.Share.Error.UnsupportedSchemaVersion" xml:space="preserve">
+    <value>Неподдерживаемая версия схемы пакета {0}. Эта версия GenHub поддерживает версии до {1}.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoHostVariant" xml:space="preserve">
+    <value>Невозможно экспортировать «{0}»: ни один вариант не поддерживает эту платформу ({1}).</value>
+  </data>
+  <data name="GameProfiles.Share.Warning.PlatformResolution" xml:space="preserve">
+    <value>«{0}» версии {1} необходимо найти у подключённого поставщика для этой платформы. Размер загрузки неизвестен; импорт завершится ошибкой, если совместимая сборка этой версии недоступна.</value>
+  </data>
+  <data name="GameProfiles.Share.Error.NoCompatiblePlatformBuild" xml:space="preserve">
+    <value>Сборка «{0}» версии {1} для этой платформы ({2}) не найдена ни в одном подключённом источнике контента.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.BuiltForOtherPlatformGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов опубликованы для другой платформы и не могут быть установлены на этой.</value>
+  </data>
+  <data name="GameProfiles.ImportInspection.Warning.PlatformResolutionGeneric" xml:space="preserve">
+    <value>Один или несколько необходимых компонентов необходимо найти у подключённого поставщика для этой платформы. Размер загрузки неизвестен.</value>
   </data>
   <data name="GameProfiles.Share.Error.LocalContentHasNoFiles" xml:space="preserve">
     <value>Невозможно поделиться локальным содержимым «{0}»: в нём нет файлов для загрузки, поэтому получатели не смогут его установить.</value>

@@ -174,6 +174,25 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
+    /// Estimates the bytes that <see cref="EnsureExecutableAsync"/> may copy for files a
+    /// link-based strategy would otherwise share. Executables always get a private copy.
+    /// On macOS a shared library may too, if it is quarantined, so its size is counted.
+    /// </summary>
+    /// <param name="files">The workspace files.</param>
+    /// <returns>The total size of the files that may be copied.</returns>
+    protected static long EstimatePrivateCopyBytes(IEnumerable<ManifestFile> files)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return 0;
+        }
+
+        return files
+            .Where(f => f.IsExecutable || (OperatingSystem.IsMacOS() && ExecutableFileClassifier.IsUnixSharedLibrary(f.RelativePath)))
+            .Sum(f => Math.Max(0, f.Size));
+    }
+
+    /// <summary>
     /// Cleans up the workspace directory if a failure occurs during workspace preparation.
     /// Ensures that no partial or corrupted workspace directories are left behind.
     /// Logs the cleanup operation and any exceptions encountered.
@@ -543,18 +562,29 @@ public abstract class WorkspaceStrategyBase<T>(
     /// those and gigabytes of data, so the deduplication that matters is untouched.
     /// </para>
     /// <para>
-    /// No-op on Windows, which has no execute bit, and for files that do not need one.
+    /// On macOS a quarantined shared library gets the same private copy. Gatekeeper refuses
+    /// to load quarantined code, and a hard link or symlink would leave the attribute on the
+    /// user's own install. The copy carries no quarantine and leaves the original untouched.
+    /// </para>
+    /// <para>
+    /// No-op on Windows, which has no execute bit, and for files that need neither change.
     /// </para>
     /// </summary>
     /// <param name="file">The manifest entry that was just materialised.</param>
     /// <param name="targetPath">Its absolute path in the workspace.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>A task representing the operation.</returns>
-    protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    /// <returns><c>true</c> when the entry was replaced with a workspace-owned copy.</returns>
+    protected async Task<bool> EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
     {
-        if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
+        if (OperatingSystem.IsWindows() || !File.Exists(targetPath))
         {
-            return;
+            return false;
+        }
+
+        if (!file.IsExecutable
+            && !(ExecutableFileClassifier.IsUnixSharedLibrary(file.RelativePath) && MacOSNativeMethods.IsQuarantined(targetPath)))
+        {
+            return false;
         }
 
         try
@@ -579,6 +609,7 @@ public abstract class WorkspaceStrategyBase<T>(
             }
 
             Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
+            return true;
         }
         catch (Exception ex)
         {

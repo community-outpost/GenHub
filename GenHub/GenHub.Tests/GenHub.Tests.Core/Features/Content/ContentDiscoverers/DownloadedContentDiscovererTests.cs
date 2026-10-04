@@ -369,12 +369,12 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that legacy GeneralsOnline pool entries without stored grouping isolate distinct
-    /// content types by version while other releases stay separate.
+    /// Verifies that GeneralsOnline pool entries collapse all content types (game client, patch,
+    /// mappack) of the same release version into a single variant group, while other releases stay separate.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
-    public async Task DiscoverAsync_LegacyGeneralsOnlineManifests_IsolateContentTypesAsync()
+    public async Task DiscoverAsync_GeneralsOnlineManifests_GroupsByReleaseVersionAsync()
     {
         var client = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
         var gameData = CreateGeneralsOnlineManifest("1.329261.generalsonline.patch.gamedata", "GeneralsOnline Game Data", ContentType.Patch, "032926_QFE1");
@@ -390,12 +390,13 @@ public sealed class DownloadedContentDiscovererTests
         var gameDataItem = Assert.Single(result.Data.Items, item => item.Id == gameData.Id.Value);
         var nextQfeItem = Assert.Single(result.Data.Items, item => item.Id == nextQfe.Id.Value);
         Assert.NotNull(clientItem.VariantGroupId);
-        Assert.NotEqual(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
-        Assert.Equal("generalsonline-gameclient-032926_qfe1", clientItem.VariantGroupId);
-        Assert.Equal("generalsonline-patch-032926_qfe1", gameDataItem.VariantGroupId);
+        Assert.Equal(clientItem.VariantGroupId, gameDataItem.VariantGroupId);
+        Assert.Equal("generalsonline-032926_qfe1", clientItem.VariantGroupId);
         Assert.NotEqual(clientItem.VariantGroupId, nextQfeItem.VariantGroupId);
-        Assert.Equal("Generals Online Game Client 032926_QFE1", clientItem.VariantFamilyName);
-        Assert.Equal("Generals Online Patch 032926_QFE1", gameDataItem.VariantFamilyName);
+        Assert.Equal("generalsonline-032926_qfe2", nextQfeItem.VariantGroupId);
+        Assert.Equal("Generals Online 032926_QFE1", clientItem.VariantFamilyName);
+        Assert.Equal("Generals Online 032926_QFE1", gameDataItem.VariantFamilyName);
+        Assert.Equal("Generals Online 032926_QFE2", nextQfeItem.VariantFamilyName);
     }
 
     /// <summary>
@@ -608,15 +609,14 @@ public sealed class DownloadedContentDiscovererTests
     }
 
     /// <summary>
-    /// Verifies that legacy GeneralsOnline group ids without content type segment are migrated
-    /// to the new type-isolated format.
+    /// Verifies that GeneralsOnline group id resolves to the release version group.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
-    public async Task DiscoverAsync_LegacyGeneralsOnlineGroupId_MigratesToTypedGroupAsync()
+    public async Task DiscoverAsync_GeneralsOnlineGroupId_ResolvesToVersionGroupAsync()
     {
         var manifest = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
-        manifest.Metadata = new ContentMetadata { VariantGroupId = "generalsonline-032926_qfe1" };
+        manifest.Metadata = new ContentMetadata { VariantGroupId = "generalsonline-gameclient-032926_qfe1" };
 
         var discoverer = CreateDiscoverer([manifest]);
 
@@ -624,28 +624,26 @@ public sealed class DownloadedContentDiscovererTests
 
         Assert.True(result.Success);
         var item = Assert.Single(result.Data!.Items);
-        Assert.Equal("generalsonline-gameclient-032926_qfe1", item.VariantGroupId);
+        Assert.Equal("generalsonline-032926_qfe1", item.VariantGroupId);
+        Assert.Equal(GeneralsOnlineConstants.CoverSource, item.BannerUrl);
     }
 
     /// <summary>
-    /// Verifies that GeneralsOnline family name respects localization service when provided.
+    /// Verifies that GeneralsOnline family name uses the release version.
     /// </summary>
     /// <returns>A task that represents the asynchronous test.</returns>
     [Fact]
-    public async Task DiscoverAsync_GeneralsOnline_LocalizesVariantFamilyNameAsync()
+    public async Task DiscoverAsync_GeneralsOnline_ResolvesVariantFamilyNameAsync()
     {
         var manifest = CreateGeneralsOnlineManifest("1.329261.generalsonline.gameclient.60hz", "GeneralsOnline 60Hz", ContentType.GameClient, "032926_QFE1");
-        var localization = new Mock<ILocalizationService>();
-        var localized = "Игровой клиент";
-        localization.Setup(loc => loc.TryGetString("ContentType.GameClient", out localized)).Returns(true);
 
-        var discoverer = CreateDiscoverer([manifest], localizationService: localization);
+        var discoverer = CreateDiscoverer([manifest]);
 
         var result = await discoverer.DiscoverAsync(new ContentSearchQuery { Take = 10 });
 
         Assert.True(result.Success);
         var item = Assert.Single(result.Data!.Items);
-        Assert.Equal("Generals Online Игровой клиент 032926_QFE1", item.VariantFamilyName);
+        Assert.Equal("Generals Online 032926_QFE1", item.VariantFamilyName);
     }
 
     private static DownloadedContentDiscoverer CreateDiscoverer(

@@ -3036,6 +3036,196 @@ public class DownloadsBrowserViewModelTests
         Assert.False(viewModel.CanReloadCatalog);
     }
 
+    /// <summary>
+    /// Verifies that ResolveDefaultVariant selects the Generals Online 60Hz game client
+    /// over game data patches, map packs, and test clients.
+    /// </summary>
+    [Fact]
+    public void ResolveDefaultVariant_GeneralsOnlineReleaseGroup_Selects60HzGameClientOverGameDataPatch()
+    {
+        // Arrange
+        var patch = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.patch.gamedata",
+            Name = "Generals Online Game Data",
+            ContentType = ContentType.Patch,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var mapPack = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.mappack.quickmatchmaps",
+            Name = "Generals Online QuickMatch MapPack",
+            ContentType = ContentType.MapPack,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var testClient = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.test",
+            Name = "Generals Online Test GameClient",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var client60Hz = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.60hz",
+            Name = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        var group = new List<ContentSearchResult> { patch, mapPack, testClient, client60Hz };
+
+        // Act
+        var selected = DownloadsBrowserViewModel.ResolveDefaultVariant(group, group[0]);
+
+        // Assert: 60Hz Game Client must be selected, NOT the patch or map pack
+        Assert.Same(client60Hz, selected);
+    }
+
+    /// <summary>
+    /// Verifies that SelectDefaultVariant selects the 60Hz variant on the card view model.
+    /// </summary>
+    [Fact]
+    public void SelectDefaultVariant_GeneralsOnlineGroup_Selects60HzVariant()
+    {
+        // Arrange
+        var patch = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.patch.gamedata",
+            Name = "Generals Online Game Data",
+            ContentType = ContentType.Patch,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+        var client60Hz = new ContentSearchResult
+        {
+            Id = "1.928260.generalsonline.gameclient.60hz",
+            Name = "GeneralsOnline 60Hz",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.GeneralsOnline,
+        };
+
+        var group = new List<ContentSearchResult> { patch, client60Hz };
+        var card = new ContentGridItemViewModel(client60Hz, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+
+        var patchVariant = new InstallableVariant { Name = "Generals Online Game Data", ManifestId = patch.Id };
+        var clientVariant = new InstallableVariant { Name = "GeneralsOnline 60Hz", ManifestId = client60Hz.Id };
+
+        card.AddVariant(patchVariant, patch);
+        card.AddVariant(clientVariant, client60Hz);
+
+        // Act
+        DownloadsBrowserViewModel.SelectDefaultVariant(card, group, client60Hz, client60Hz);
+
+        // Assert
+        Assert.Same(clientVariant, card.SelectedVariant);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveDefaultVariant respects catalog-declared default variant over generic GameClient for non-Generals-Online content.
+    /// </summary>
+    [Fact]
+    public void ResolveDefaultVariant_GenericGroupWithCatalogDefaultAndGameClient_PrefersCatalogDefault()
+    {
+        // Arrange
+        var gameClientItem = new ContentSearchResult
+        {
+            Id = "generic.gameclient",
+            Name = "Generic GameClient",
+            ContentType = ContentType.GameClient,
+            ProviderName = "ModDB",
+        };
+        var defaultModItem = new ContentSearchResult
+        {
+            Id = "generic.mod",
+            Name = "Generic Default Mod",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+            Variants =
+            [
+                new ContentVariantInfo { Id = "generic.mod", Name = "Default Mod Variant", ManifestId = "generic.mod", IsDefault = true },
+            ],
+        };
+
+        var group = new List<ContentSearchResult> { gameClientItem, defaultModItem };
+
+        // Act
+        var resolved = DownloadsBrowserViewModel.ResolveDefaultVariant(group, gameClientItem);
+
+        // Assert: Catalog-declared default item should be authoritative over arbitrary GameClient
+        Assert.Same(defaultModItem, resolved);
+    }
+
+    /// <summary>
+    /// Verifies that SelectDefaultVariant does not select the 60Hz variant fallback for non-Generals-Online content.
+    /// </summary>
+    [Fact]
+    public void SelectDefaultVariant_NonGeneralsOnlineGroup_DoesNotSelect60HzFallback()
+    {
+        // Arrange
+        var generic1 = new ContentSearchResult
+        {
+            Id = "generic.mod.item1",
+            Name = "Generic Mod",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+        var generic2 = new ContentSearchResult
+        {
+            Id = "generic.mod.item2",
+            Name = "Generic Mod 60Hz Edition",
+            ContentType = ContentType.Mod,
+            ProviderName = "ModDB",
+        };
+
+        var group = new List<ContentSearchResult> { generic1, generic2 };
+        var card = new ContentGridItemViewModel(generic1, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+
+        var defaultVariant = new InstallableVariant { Name = "Generic Mod Standard", ManifestId = "non-matching-id" };
+        var variant60Hz = new InstallableVariant { Name = "Generic Mod 60Hz Edition", ManifestId = generic2.Id };
+        var lastVariant = new InstallableVariant { Name = "Generic Mod Last", ManifestId = "last-id" };
+
+        card.AddVariant(defaultVariant, generic1);
+        card.AddVariant(variant60Hz, generic2);
+        card.AddVariant(lastVariant, generic1);
+
+        // Act: defaultVariant.Id does not match card variant ManifestIds, so it hits the fallbacks.
+        // Since it is NOT Generals Online, the 60Hz fallback must be bypassed, falling back to last variant.
+        DownloadsBrowserViewModel.SelectDefaultVariant(card, group, generic1, generic1);
+
+        // Assert: Must NOT select variant60Hz; should fall back to the last variant
+        Assert.Same(lastVariant, card.SelectedVariant);
+    }
+
+    /// <summary>
+    /// Verifies that MatchesNotificationTarget matches either primary card ID or child variant ManifestId.
+    /// </summary>
+    [Fact]
+    public void MatchesNotificationTarget_MatchesByPrimaryIdOrVariantManifestId()
+    {
+        // Arrange
+        var primaryResult = new ContentSearchResult
+        {
+            Id = "primary.client.id",
+            Name = "Primary Client",
+            ContentType = ContentType.GameClient,
+        };
+        var card = new ContentGridItemViewModel(primaryResult, Mock.Of<IContentStateService>(), Mock.Of<ILogger<ContentGridItemViewModel>>());
+        var patchResult = new ContentSearchResult
+        {
+            Id = "sibling.patch.id",
+            Name = "Patch",
+            ContentType = ContentType.Patch,
+        };
+        card.AddVariant(new InstallableVariant { Name = "Patch", ManifestId = patchResult.Id }, patchResult);
+
+        var unrelatedItem = new ContentSearchResult { Id = "other.id", Name = "Other" };
+
+        // Act & Assert
+        Assert.True(DownloadsBrowserViewModel.MatchesNotificationTarget(card, primaryResult));
+        Assert.True(DownloadsBrowserViewModel.MatchesNotificationTarget(card, patchResult));
+        Assert.False(DownloadsBrowserViewModel.MatchesNotificationTarget(card, unrelatedItem));
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,

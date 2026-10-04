@@ -120,6 +120,24 @@ public class SteamManifestPatcherTests : IDisposable
         Assert.Null(ManifestVariantResolver.ResolveLaunchRelationship(patched));
     }
 
+    /// <summary>
+    /// A stale root relationship is cleared even when the host variant has none, so
+    /// standalone patching leaves nothing behind for a root reader.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task PatchManifestAsync_StandaloneModeVariantManifest_ClearsStaleRootRelationshipWithoutHostRelationshipAsync()
+    {
+        const string manifestId = "1.104.steam.gameclient.zerohour";
+        WriteVariantManifest(manifestId, null, new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
+
+        await PatchAsync(manifestId, useSteamLaunch: false);
+
+        var patched = ReadManifest(manifestId);
+        Assert.Null(patched.LaunchRelationship);
+        Assert.Null(patched.Variants[1].LaunchRelationship);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {

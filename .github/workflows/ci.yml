@@ -223,6 +223,9 @@ jobs:
             "-p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
           )
 
+          Write-Host "Cleaning publish directory..."
+          if (Test-Path "win-publish") { Remove-Item -Recurse -Force "win-publish" }
+
           Write-Host "Publishing Windows application"
           Write-Host "Version: ${{ steps.buildinfo.outputs.VERSION }}"
           dotnet publish "${{ env.WINDOWS_PROJECT }}" `
@@ -239,11 +242,14 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Creating Velopack package..."
+          if (Test-Path "velopack-release") { Remove-Item -Recurse -Force "velopack-release" }
           vpk pack `
             --packId GenHub `
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} `
             --packDir win-publish `
             --mainExe GenHub.Windows.exe `
+            --runtime win-x64 `
+            --channel win `
             --packTitle "GenHub" `
             --packAuthors "Community Outpost" `
             --icon GenHub/GenHub/Assets/Icons/generalshub.ico `
@@ -351,6 +357,9 @@ jobs:
         run: |
           BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
 
+          echo "Cleaning publish directory..."
+          rm -rf linux-publish
+
           echo "Publishing Linux application"
           dotnet publish "${{ env.LINUX_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
@@ -365,11 +374,14 @@ jobs:
       - name: Create Velopack Package
         run: |
           echo "Creating Velopack package..."
+          rm -rf velopack-release
           vpk pack \
             --packId GenHub \
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} \
             --packDir linux-publish \
             --mainExe GenHub.Linux \
+            --runtime linux-x64 \
+            --channel linux \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
@@ -473,6 +485,9 @@ jobs:
         run: |
           BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
 
+          echo "Cleaning publish, dist, and release directories..."
+          rm -rf macos-publish macos-dist velopack-release
+
           dotnet publish "${{ env.MACOS_PROJECT }}" \
             -c ${{ env.BUILD_CONFIGURATION }} \
             -r osx-arm64 \
@@ -559,6 +574,8 @@ jobs:
             --packVersion ${{ steps.buildinfo.outputs.VERSION }} \
             --packDir macos-dist/GenHub.app \
             --mainExe GenHub.MacOS \
+            --runtime osx-arm64 \
+            --channel osx \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             $ICON_ARG \

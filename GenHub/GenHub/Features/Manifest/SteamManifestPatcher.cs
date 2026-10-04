@@ -142,13 +142,14 @@ public class SteamManifestPatcher(
         var supportsLaunch = manifest.ContentType is ContentType.GameClient or ContentType.Executable;
         if (gameDat != null && supportsLaunch)
         {
-            if (!string.Equals(GetLaunchRelationship(manifest)?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(GetLaunchRelationship(manifest)?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase)
+                || HasStaleRootLaunchRelationship(manifest))
             {
                 SetLaunchRelationship(manifest, new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
                 changed = true;
             }
         }
-        else if (GetLaunchRelationship(manifest) is not null)
+        else if (GetLaunchRelationship(manifest) is not null || HasStaleRootLaunchRelationship(manifest))
         {
             SetLaunchRelationship(manifest, null);
             changed = true;
@@ -187,7 +188,7 @@ public class SteamManifestPatcher(
             changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
         }
 
-        if (GetLaunchRelationship(manifest) is not null)
+        if (GetLaunchRelationship(manifest) is not null || HasStaleRootLaunchRelationship(manifest))
         {
             SetLaunchRelationship(manifest, null);
             changed = true;
@@ -205,6 +206,13 @@ public class SteamManifestPatcher(
         var variant = ManifestVariantResolver.ResolveVariant(manifest);
         return variant is null ? manifest.LaunchRelationship : variant.LaunchRelationship;
     }
+
+    /// <summary>
+    /// Determines whether a variant manifest still carries a root relationship from earlier
+    /// patching. The launcher ignores it once variants exist, so patching clears it.
+    /// </summary>
+    private static bool HasStaleRootLaunchRelationship(ContentManifest manifest) =>
+        manifest.LaunchRelationship is not null && ManifestVariantResolver.ResolveVariant(manifest) is not null;
 
     private static void SetLaunchRelationship(ContentManifest manifest, LaunchRelationship? relationship)
     {

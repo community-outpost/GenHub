@@ -11,6 +11,13 @@ namespace GenHub.Core.Models.GameProfile;
 public sealed class SharedManifestDependency
 {
     /// <summary>
+    /// Gets a value indicating whether inspection requires provider resolution instead of the sender's files.
+    /// This derived state is kept when foreign download metadata is removed from the preview.
+    /// </summary>
+    [JsonIgnore]
+    public bool RequiresProviderResolution { get; init; }
+
+    /// <summary>
     /// Gets the unique identifier of the manifest.
     /// </summary>
     public required string ManifestId { get; init; }
@@ -78,4 +85,23 @@ public sealed class SharedManifestDependency
     /// Gets the file entries for downloading this content.
     /// </summary>
     public IReadOnlyList<ManifestFile> Files { get; init; } = [];
+
+    /// <summary>
+    /// Gets the runtime identifiers the shared files are built for, such as <c>osx-arm64</c>.
+    /// <para>
+    /// Null when the files run on any platform: the manifest has no variants, or the exporter
+    /// resolved a platform-neutral variant. Packages written before this property existed leave
+    /// it null as well.
+    /// </para>
+    /// </summary>
+    public IReadOnlyList<string>? RuntimeIdentifiers { get; init; }
+
+    /// <summary>
+    /// Determines whether the shared files can run on the given runtime.
+    /// </summary>
+    /// <param name="runtimeIdentifier">The recipient's runtime identifier.</param>
+    /// <returns><c>true</c> when the files are platform-neutral or built for the runtime.</returns>
+    public bool SupportsRuntime(string runtimeIdentifier) =>
+        RuntimeIdentifiers is not { Count: > 0 } ||
+        RuntimeIdentifiers.Contains(runtimeIdentifier, StringComparer.OrdinalIgnoreCase);
 }
