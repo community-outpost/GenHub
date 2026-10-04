@@ -734,7 +734,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private static bool IsDefaultUsaCover(string coverPath)
     {
         var normalized = NormalizeCoverPath(coverPath).Replace('\\', '/').TrimStart('/');
-        return string.Equals(normalized, $"Assets/Covers/{UriConstants.UsaCoverFilename}", StringComparison.OrdinalIgnoreCase) ||
+        var relativeSentinel = $"{UriConstants.CoversDirectoryPath.Trim('/')}/{UriConstants.UsaCoverFilename}";
+        return string.Equals(normalized, relativeSentinel, StringComparison.OrdinalIgnoreCase) ||
                string.Equals(normalized, UriConstants.UsaCoverUri, StringComparison.OrdinalIgnoreCase);
     }
 

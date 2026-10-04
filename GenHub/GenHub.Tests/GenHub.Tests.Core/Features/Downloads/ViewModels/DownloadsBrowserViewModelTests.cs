@@ -809,7 +809,7 @@ public class DownloadsBrowserViewModelTests
         var publisherA = viewModel.Publishers.First(p => p.PublisherId == "sub-a");
         var publisherB = viewModel.Publishers.First(p => p.PublisherId == "sub-b");
 
-        static async Task WaitForExpectedItemAsync(DownloadsBrowserViewModel vm, string expectedId)
+        static async Task WaitForExpectedItemAsync(DownloadsBrowserViewModel vm, string expectedId, CancellationToken cancellationToken = default)
         {
             var timeout = DateTime.UtcNow.AddSeconds(5);
             while (DateTime.UtcNow < timeout)
@@ -822,7 +822,7 @@ public class DownloadsBrowserViewModelTests
                     return;
                 }
 
-                await Task.Delay(25);
+                await Task.Delay(25, cancellationToken);
             }
 
             var snapshot = vm.ContentItems;
