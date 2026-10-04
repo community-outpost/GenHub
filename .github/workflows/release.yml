@@ -196,6 +196,7 @@ jobs:
             --packDir win-publish `
             --mainExe GenHub.Windows.exe `
             --runtime win-x64 `
+            --channel win `
             --packTitle "GenHub" `
             --packAuthors "Community Outpost" `
             --icon GenHub/GenHub/Assets/Icons/generalshub.ico `
@@ -368,6 +369,7 @@ jobs:
             --packDir linux-publish \
             --mainExe GenHub.Linux \
             --runtime linux-x64 \
+            --channel linux \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             --icon GenHub/GenHub/Assets/Icons/generalshub-icon.png \
@@ -548,6 +550,7 @@ jobs:
             --packDir macos-dist/GenHub.app \
             --mainExe GenHub.MacOS \
             --runtime osx-arm64 \
+            --channel osx \
             --packTitle "GenHub" \
             --packAuthors "Community Outpost" \
             $ICON_ARG \
