@@ -40,7 +40,7 @@ public partial class WindowsFileOperationsService(
             await CopyFileAsync(pathResult.Data, destinationPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.LogError(ex, "Failed to copy from CAS for hash {Hash} to {TargetPath}", hash, destinationPath);
             return false;
@@ -96,7 +96,7 @@ public partial class WindowsFileOperationsService(
             Logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Logger.LogError(ex, "Failed to create {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);
             return false;
