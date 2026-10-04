@@ -542,6 +542,15 @@ public partial class VideoPlayerView : UserControl
         }
     }
 
+    private static void ResetInitializationState()
+    {
+        lock (SyncRoot)
+        {
+            initializationAttempted = false;
+            initializationFailed = false;
+        }
+    }
+
     private static IVlcRuntimeService? ResolveVlcRuntimeService()
     {
         if (Application.Current?.TryGetResource("VlcRuntimeService", theme: null, out var resource) == true &&
@@ -599,10 +608,27 @@ public partial class VideoPlayerView : UserControl
     {
         ResetStage();
         var runtimeService = ResolveVlcRuntimeService();
+        bool isAvailable = runtimeService?.IsAvailable() == true;
         string? runtimeDir = runtimeService?.RuntimeDirectory;
-        if (runtimeDir == null && runtimeService?.IsAvailable() == true)
+
+        if (runtimeService != null && !isAvailable)
         {
-            runtimeDir = runtimeService.RuntimeDirectory;
+            IsLoading = false;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                runtimeService.Status != VlcRuntimeStatus.UnsupportedPlatform)
+            {
+                IsDownloadPromptVisible = true;
+                IsUnavailable = false;
+                HasError = false;
+            }
+            else
+            {
+                IsDownloadPromptVisible = false;
+                IsUnavailable = true;
+                HasError = true;
+            }
+
+            return;
         }
 
         var libVlc = EnsureLibVLC(runtimeDir);
@@ -875,8 +901,7 @@ public partial class VideoPlayerView : UserControl
 
     private void OnRetryClicked(object? sender, RoutedEventArgs e)
     {
-        initializationAttempted = false;
-        initializationFailed = false;
+        ResetInitializationState();
         if (!string.IsNullOrWhiteSpace(SourceUrl))
         {
             StartPlayback(SourceUrl);
@@ -894,8 +919,13 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
-        downloadCts?.Cancel();
-        downloadCts?.Dispose();
+        if (downloadCts != null)
+        {
+            await downloadCts.CancelAsync().ConfigureAwait(true);
+            downloadCts.Dispose();
+            downloadCts = null;
+        }
+
         downloadCts = new CancellationTokenSource();
         var cancellationToken = downloadCts.Token;
 
@@ -931,8 +961,7 @@ public partial class VideoPlayerView : UserControl
 
             if (success)
             {
-                initializationAttempted = false;
-                initializationFailed = false;
+                ResetInitializationState();
                 if (!string.IsNullOrWhiteSpace(SourceUrl))
                 {
                     StartPlayback(SourceUrl);

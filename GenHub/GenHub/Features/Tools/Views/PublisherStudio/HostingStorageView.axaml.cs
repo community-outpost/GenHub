@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.ViewModels;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Features.Tools.Views.PublisherStudio;
 
@@ -52,6 +53,7 @@ public partial class HostingStorageView : UserControl
         return false;
     }
 
+    [SuppressMessage("csharpsquid", "S2325", Justification = "Avalonia compiled bindings require instance methods for event handlers in XAML code-behind")]
     private void OnAssetRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border row || row.DataContext is not HostedAssetItemViewModel item)

@@ -3,6 +3,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -23,11 +24,15 @@ public class VlcRuntimeService : IVlcRuntimeService
     /// </summary>
     public const string DefaultPackageSha512 = "1ADE0A9399D2355559EF3EDD1671C37F0A4B40C408A964C9E9FB211673FFD00DDEAD4741923ECBE4F2E65AB5719045528745859390978B012EF0C7BF7370DBEE";
 
+    [SuppressMessage("csharpsquid", "S1075", Justification = "Official NuGet package download endpoints for VideoLAN.LibVLC.Windows")]
     private const string PrimaryDownloadUrl = "https://globalcdn.nuget.org/packages/videolan.libvlc.windows.3.0.24.nupkg";
+
+    [SuppressMessage("csharpsquid", "S1075", Justification = "Official NuGet package download endpoints for VideoLAN.LibVLC.Windows")]
     private const string FallbackDownloadUrl = "https://www.nuget.org/api/v2/package/VideoLAN.LibVLC.Windows/3.0.24";
-    private const string X64EntryPrefix = "build/x64/";
-    private const string IncludePrefix = "build/x64/include/";
+
     private const int BufferSize = 81920;
+
+    private static readonly TimeSpan DownloadInactivityTimeout = TimeSpan.FromSeconds(60);
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<VlcRuntimeService> _logger;
@@ -48,7 +53,7 @@ public class VlcRuntimeService : IVlcRuntimeService
         : this(
             httpClient,
             logger,
-            Path.Combine(AppDataPathHelper.GetDataRoot(), "runtimes", "vlc", "win-x64"),
+            GetDefaultRuntimeDirectory(),
             GetDefaultSystemVlcPath(),
             DefaultPackageSha512)
     {
@@ -125,6 +130,14 @@ public class VlcRuntimeService : IVlcRuntimeService
             return false;
         }
 
+        var prefixes = GetPackagePrefixes();
+        if (prefixes == null)
+        {
+            _logger.LogError("Unsupported process architecture for native LibVLC package: {Architecture}", RuntimeInformation.ProcessArchitecture);
+            _status = VlcRuntimeStatus.UnsupportedPlatform;
+            return false;
+        }
+
         if (IsAvailable())
         {
             return true;
@@ -139,138 +152,34 @@ public class VlcRuntimeService : IVlcRuntimeService
             }
 
             _status = VlcRuntimeStatus.Downloading;
+            var targetParent = Path.GetDirectoryName(_runtimeDir) ?? Path.GetTempPath();
+            Directory.CreateDirectory(targetParent);
+
             var tempArchive = Path.Combine(Path.GetTempPath(), $"genhub-vlc-{Guid.NewGuid():N}.tmp");
-            var stagingDir = Path.Combine(Path.GetTempPath(), $"genhub-vlc-staging-{Guid.NewGuid():N}");
+            var stagingDir = Path.Combine(targetParent, $".staging-{Guid.NewGuid():N}");
 
             try
             {
-                // Download package with fallback
-                var downloaded = await TryDownloadAsync(PrimaryDownloadUrl, tempArchive, progress, cancellationToken).ConfigureAwait(false);
+                var downloaded = await DownloadPackageAsync(tempArchive, progress, cancellationToken).ConfigureAwait(false);
                 if (!downloaded)
                 {
-                    _logger.LogWarning("Primary LibVLC download failed, attempting fallback URL...");
-                    downloaded = await TryDownloadAsync(FallbackDownloadUrl, tempArchive, progress, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (!downloaded)
-                {
-                    _logger.LogError("Failed to download LibVLC package from all available sources.");
                     _status = VlcRuntimeStatus.Failed;
                     return false;
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Verify package hash if configured
-                if (!string.IsNullOrWhiteSpace(_expectedSha512))
+                var hashValid = await VerifyPackageHashAsync(tempArchive, cancellationToken).ConfigureAwait(false);
+                if (!hashValid)
                 {
-                    using (var fs = File.OpenRead(tempArchive))
-                    using (var sha = SHA512.Create())
-                    {
-                        var hashBytes = await sha.ComputeHashAsync(fs, cancellationToken).ConfigureAwait(false);
-                        var actualHash = Convert.ToHexString(hashBytes);
-                        if (!string.Equals(actualHash, _expectedSha512, StringComparison.OrdinalIgnoreCase))
-                        {
-                            _logger.LogError("Downloaded LibVLC package SHA-512 mismatch. Expected {Expected}, got {Actual}", _expectedSha512, actualHash);
-                            _status = VlcRuntimeStatus.Failed;
-                            return false;
-                        }
-                    }
+                    _status = VlcRuntimeStatus.Failed;
+                    return false;
                 }
 
-                // Unpack x64 binaries from nupkg/zip
-                _logger.LogInformation("Extracting native LibVLC x64 binaries to staging directory...");
-                Directory.CreateDirectory(stagingDir);
-                var canonicalStaging = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+                _logger.LogInformation("Extracting native LibVLC binaries to staging directory...");
+                await ExtractPackagePayloadAsync(tempArchive, stagingDir, prefixes.Value.EntryPrefix, prefixes.Value.IncludePrefix, cancellationToken).ConfigureAwait(false);
 
-                using (var archive = ZipFile.OpenRead(tempArchive))
-                {
-                    foreach (var entry in archive.Entries)
-                    {
-                        var entryName = entry.FullName.Replace('\\', '/');
-                        if (!entryName.StartsWith(X64EntryPrefix, StringComparison.OrdinalIgnoreCase) ||
-                            entryName.StartsWith(IncludePrefix, StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-
-                        var relativePath = entryName[X64EntryPrefix.Length..];
-                        if (string.IsNullOrWhiteSpace(relativePath) || relativePath.EndsWith('/'))
-                        {
-                            continue;
-                        }
-
-                        var destPath = Path.GetFullPath(Path.Combine(stagingDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
-                        if (!destPath.StartsWith(canonicalStaging, StringComparison.Ordinal))
-                        {
-                            throw new InvalidOperationException($"Invalid archive entry path: {entry.FullName}");
-                        }
-
-                        var destDir = Path.GetDirectoryName(destPath);
-                        if (!string.IsNullOrWhiteSpace(destDir))
-                        {
-                            Directory.CreateDirectory(destDir);
-                        }
-
-                        entry.ExtractToFile(destPath, overwrite: true);
-                    }
-                }
-
-                // Verify extraction contains core binaries
-                var libvlc = Path.Combine(stagingDir, "libvlc.dll");
-                var libvlccore = Path.Combine(stagingDir, "libvlccore.dll");
-                if (!File.Exists(libvlc) || !File.Exists(libvlccore))
-                {
-                    throw new FileNotFoundException("Extracted LibVLC staging folder does not contain essential DLLs.");
-                }
-
-                // Promote staging directory to final target directory atomically
-                var targetParent = Path.GetDirectoryName(_runtimeDir);
-                if (!string.IsNullOrWhiteSpace(targetParent))
-                {
-                    Directory.CreateDirectory(targetParent);
-                }
-
-                string? backupDir = null;
-                try
-                {
-                    if (Directory.Exists(_runtimeDir))
-                    {
-                        backupDir = _runtimeDir + ".old." + Guid.NewGuid().ToString("N");
-                        Directory.Move(_runtimeDir, backupDir);
-                    }
-
-                    Directory.Move(stagingDir, _runtimeDir);
-
-                    if (backupDir != null && Directory.Exists(backupDir))
-                    {
-                        try
-                        {
-                            Directory.Delete(backupDir, recursive: true);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to promote LibVLC staging directory into runtime directory.");
-                    if (backupDir != null && Directory.Exists(backupDir) && !Directory.Exists(_runtimeDir))
-                    {
-                        try
-                        {
-                            Directory.Move(backupDir, _runtimeDir);
-                        }
-                        catch (Exception restoreEx)
-                        {
-                            _logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
-                        }
-                    }
-
-                    throw;
-                }
+                PromoteStagingDirectory(stagingDir, _runtimeDir);
 
                 _runtimeDirectory = _runtimeDir;
                 _status = VlcRuntimeStatus.Available;
@@ -279,29 +188,7 @@ public class VlcRuntimeService : IVlcRuntimeService
             }
             finally
             {
-                if (File.Exists(tempArchive))
-                {
-                    try
-                    {
-                        File.Delete(tempArchive);
-                    }
-                    catch
-                    {
-                        // Ignore temp cleanup
-                    }
-                }
-
-                if (Directory.Exists(stagingDir))
-                {
-                    try
-                    {
-                        Directory.Delete(stagingDir, recursive: true);
-                    }
-                    catch
-                    {
-                        // Ignore temp cleanup
-                    }
-                }
+                CleanupArtifacts(tempArchive, stagingDir);
             }
         }
         catch (OperationCanceledException)
@@ -321,6 +208,28 @@ public class VlcRuntimeService : IVlcRuntimeService
         }
     }
 
+    private static string GetDefaultRuntimeDirectory()
+    {
+        var arch = RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X86 => "win-x86",
+            Architecture.X64 => "win-x64",
+            _ => "win-" + RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
+        };
+
+        return Path.Combine(AppDataPathHelper.GetDataRoot(), "runtimes", "vlc", arch);
+    }
+
+    private static (string EntryPrefix, string IncludePrefix)? GetPackagePrefixes()
+    {
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X64 => ("build/x64/", "build/x64/include/"),
+            Architecture.X86 => ("build/x86/", "build/x86/include/"),
+            _ => null,
+        };
+    }
+
     private static string? GetDefaultSystemVlcPath()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -334,40 +243,248 @@ public class VlcRuntimeService : IVlcRuntimeService
             : null;
     }
 
+    [SuppressMessage("csharpsquid", "S2325", Justification = "Static utility method for directory copying")]
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var targetFilePath = Path.Combine(destinationDir, Path.GetFileName(file));
+            File.Copy(file, targetFilePath, overwrite: true);
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            var targetSubDirPath = Path.Combine(destinationDir, Path.GetFileName(subDir));
+            CopyDirectory(subDir, targetSubDirPath);
+        }
+    }
+
+    private static void CleanupArtifacts(string? tempFile, string? stagingDir)
+    {
+        if (!string.IsNullOrWhiteSpace(tempFile) && File.Exists(tempFile))
+        {
+            try
+            {
+                File.Delete(tempFile);
+            }
+            catch
+            {
+                // Ignore temp cleanup failure
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(stagingDir) && Directory.Exists(stagingDir))
+        {
+            try
+            {
+                Directory.Delete(stagingDir, recursive: true);
+            }
+            catch
+            {
+                // Ignore temp cleanup failure
+            }
+        }
+    }
+
+    private static async Task ExtractPackagePayloadAsync(
+        string archivePath,
+        string stagingDir,
+        string entryPrefix,
+        string includePrefix,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(stagingDir);
+        var canonicalStaging = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+
+        await using var archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+        using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
+
+        foreach (var entry in archive.Entries)
+        {
+            var entryName = entry.FullName.Replace('\\', '/');
+            if (!entryName.StartsWith(entryPrefix, StringComparison.OrdinalIgnoreCase) ||
+                entryName.StartsWith(includePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relativePath = entryName[entryPrefix.Length..];
+            if (string.IsNullOrWhiteSpace(relativePath) || relativePath.EndsWith('/'))
+            {
+                continue;
+            }
+
+            var destPath = Path.GetFullPath(Path.Combine(stagingDir, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+            if (!destPath.StartsWith(canonicalStaging, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Invalid archive entry path: {entry.FullName}");
+            }
+
+            var destDir = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrWhiteSpace(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            await using var entryStream = entry.Open();
+            await using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
+            await entryStream.CopyToAsync(destStream, cancellationToken).ConfigureAwait(false);
+        }
+
+        var libvlc = Path.Combine(stagingDir, "libvlc.dll");
+        var libvlccore = Path.Combine(stagingDir, "libvlccore.dll");
+        if (!File.Exists(libvlc) || !File.Exists(libvlccore))
+        {
+            throw new FileNotFoundException("Extracted LibVLC staging folder does not contain essential DLLs.");
+        }
+    }
+
+    private async Task<bool> DownloadPackageAsync(string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
+    {
+        var downloaded = await TryDownloadAsync(PrimaryDownloadUrl, destinationPath, progress, cancellationToken).ConfigureAwait(false);
+        if (!downloaded)
+        {
+            _logger.LogWarning("Primary LibVLC download failed, attempting fallback URL...");
+            downloaded = await TryDownloadAsync(FallbackDownloadUrl, destinationPath, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!downloaded)
+        {
+            _logger.LogError("Failed to download LibVLC package from all available sources.");
+        }
+
+        return downloaded;
+    }
+
+    private async Task<bool> VerifyPackageHashAsync(string archivePath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_expectedSha512))
+        {
+            return true;
+        }
+
+        await using var fs = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
+        using var sha = SHA512.Create();
+        var hashBytes = await sha.ComputeHashAsync(fs, cancellationToken).ConfigureAwait(false);
+        var actualHash = Convert.ToHexString(hashBytes);
+
+        if (!string.Equals(actualHash, _expectedSha512, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogError("Downloaded LibVLC package SHA-512 mismatch. Expected {Expected}, got {Actual}", _expectedSha512, actualHash);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void PromoteStagingDirectory(string stagingDir, string targetDir)
+    {
+        string? backupDir = null;
+        try
+        {
+            if (Directory.Exists(targetDir))
+            {
+                backupDir = targetDir + ".old." + Guid.NewGuid().ToString("N");
+                try
+                {
+                    Directory.Move(targetDir, backupDir);
+                }
+                catch (IOException)
+                {
+                    CopyDirectory(stagingDir, targetDir);
+                    return;
+                }
+            }
+
+            try
+            {
+                Directory.Move(stagingDir, targetDir);
+            }
+            catch (IOException)
+            {
+                CopyDirectory(stagingDir, targetDir);
+            }
+
+            if (backupDir != null && Directory.Exists(backupDir))
+            {
+                try
+                {
+                    Directory.Delete(backupDir, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (backupDir != null && Directory.Exists(backupDir) && !Directory.Exists(targetDir))
+            {
+                try
+                {
+                    Directory.Move(backupDir, targetDir);
+                }
+                catch (Exception restoreEx)
+                {
+                    _logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
+                }
+            }
+
+            throw new InvalidOperationException("Failed to promote LibVLC staging directory into runtime directory.", ex);
+        }
+    }
+
     private async Task<bool> TryDownloadAsync(string url, string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         try
         {
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            using var timeoutCts = new CancellationTokenSource(DownloadInactivityTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 return false;
             }
 
             var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-            await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var contentStream = await response.Content.ReadAsStreamAsync(linkedCts.Token).ConfigureAwait(false);
             await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
 
             var buffer = new byte[BufferSize];
             long totalRead = 0;
             int bytesRead;
 
-            while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            while (true)
             {
+                timeoutCts.CancelAfter(DownloadInactivityTimeout);
+                bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), linkedCts.Token).ConfigureAwait(false);
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
                 totalRead += bytesRead;
 
                 if (totalBytes > 0 && progress != null)
                 {
-                    progress.Report(Math.Min(1.0, (double)totalRead / totalBytes));
+                    progress.Report((double)totalRead / totalBytes);
                 }
             }
 
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "Download failed from {Url}", url);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Download failed or timed out from {Url}", url);
             return false;
         }
     }

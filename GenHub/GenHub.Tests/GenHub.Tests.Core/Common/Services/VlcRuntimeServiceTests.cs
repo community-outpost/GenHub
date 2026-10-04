@@ -70,6 +70,34 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that IsAvailable detects local on-demand VLC runtime when DLLs exist in the target directory.
+    /// </summary>
+    [Fact]
+    public void IsAvailable_TargetDirectoryDLLsPresent_ReturnsTrue()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(testTargetDirectory);
+        File.WriteAllText(Path.Combine(testTargetDirectory, "libvlc.dll"), "fake-libvlc");
+        File.WriteAllText(Path.Combine(testTargetDirectory, "libvlccore.dll"), "fake-vlccore");
+
+        var mockHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(mockHandler.Object);
+        var service = new VlcRuntimeService(
+            httpClient,
+            NullLogger<VlcRuntimeService>.Instance,
+            testTargetDirectory,
+            systemVlcDirectory: null);
+
+        Assert.True(service.IsAvailable());
+        Assert.Equal(VlcRuntimeStatus.Available, service.Status);
+        Assert.Equal(testTargetDirectory, service.RuntimeDirectory);
+    }
+
+    /// <summary>
     /// Verifies that IsAvailable detects system VLC when DLLs exist in the specified system VLC directory.
     /// </summary>
     [Fact]
@@ -99,7 +127,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that InstallRuntimeAsync correctly extracts x64 binaries from a nupkg archive and promotes them.
+    /// Verifies that InstallRuntimeAsync correctly extracts native binaries from a nupkg archive and promotes them.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -110,12 +138,14 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             return;
         }
 
+        var active = GetActivePrefix();
+        var inactive = GetInactivePrefix();
         var zipBytes = CreateSampleNupkgArchive(
-            ("build/x64/libvlc.dll", "mock-libvlc-content"),
-            ("build/x64/libvlccore.dll", "mock-libvlccore-content"),
-            ("build/x64/plugins/access/libaccess_http_plugin.dll", "mock-plugin-content"),
-            ("build/win-x86/libvlc.dll", "should-not-extract-x86"),
-            ("build/x64/include/vlc/vlc.h", "should-not-extract-headers"));
+            (active + "libvlc.dll", "mock-libvlc-content"),
+            (active + "libvlccore.dll", "mock-libvlccore-content"),
+            (active + "plugins/access/libaccess_http_plugin.dll", "mock-plugin-content"),
+            (inactive + "libvlc.dll", "should-not-extract-inactive"),
+            (active + "include/vlc/vlc.h", "should-not-extract-headers"));
 
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler.Protected()
@@ -174,9 +204,10 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         Directory.CreateDirectory(testTargetDirectory);
         File.WriteAllText(Path.Combine(testTargetDirectory, "old_file.txt"), "stale content");
 
+        var active = GetActivePrefix();
         var zipBytes = CreateSampleNupkgArchive(
-            ("build/x64/libvlc.dll", "new-libvlc"),
-            ("build/x64/libvlccore.dll", "new-libvlccore"));
+            (active + "libvlc.dll", "new-libvlc"),
+            (active + "libvlccore.dll", "new-libvlccore"));
 
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler.Protected()
@@ -213,9 +244,10 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             return;
         }
 
+        var active = GetActivePrefix();
         var zipBytes = CreateSampleNupkgArchive(
-            ("build/x64/libvlc.dll", "mock-libvlc"),
-            ("build/x64/libvlccore.dll", "mock-libvlccore"));
+            (active + "libvlc.dll", "mock-libvlc"),
+            (active + "libvlccore.dll", "mock-libvlccore"));
 
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler.Protected()
@@ -251,8 +283,9 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             return;
         }
 
+        var active = GetActivePrefix();
         var zipBytes = CreateSampleNupkgArchive(
-            ("build/x64/../../escape.dll", "malicious-escape-content"));
+            (active + "../../escape.dll", "malicious-escape-content"));
 
         var mockHandler = new Mock<HttpMessageHandler>();
         mockHandler.Protected()
@@ -295,6 +328,24 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.InstallRuntimeAsync(cancellationToken: cts.Token));
+    }
+
+    private static string GetActivePrefix()
+    {
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X86 => "build/x86/",
+            _ => "build/x64/",
+        };
+    }
+
+    private static string GetInactivePrefix()
+    {
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.X86 => "build/x64/",
+            _ => "build/x86/",
+        };
     }
 
     private static byte[] CreateSampleNupkgArchive(params (string EntryName, string Content)[] entries)
