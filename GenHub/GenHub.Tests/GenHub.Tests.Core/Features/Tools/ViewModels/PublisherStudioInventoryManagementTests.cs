@@ -1842,7 +1842,7 @@ public class PublisherStudioInventoryManagementTests
             {
                 deleteStarted.TrySetResult(true);
                 await allowDeleteToComplete.Task;
-                return true;
+                return OperationResult<bool>.CreateSuccess(true);
             });
 
         using var vm = CreateViewModel(project, provider);
@@ -1882,11 +1882,8 @@ public class PublisherStudioInventoryManagementTests
     public async Task ExpandCloudOnlyCatalog_LoopbackUrl_StrictlyRejectedEvenWithBypassFlagAsync()
     {
         var project = CreateInventoryProject();
-        var handler = new CountingJsonHandler("{}");
+        var handler = new CountingJsonHandler("{}", "127.0.0.1");
         var client = new HttpClient(handler);
-        PublishShareViewModel.HttpClientOverrideForTesting = client;
-        PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
-        CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
 
         try
         {
@@ -1906,6 +1903,10 @@ public class PublisherStudioInventoryManagementTests
             vm.RefreshHostedAssets();
 
             var row = vm.HostedAssets.Single(a => a.Name == "catalog-loopback.json");
+            PublishShareViewModel.HttpClientOverrideForTesting = client;
+            PublishShareViewModel.AllowUnresolvableUrlsForTesting = true;
+            CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
+
             row.IsExpanded = true;
             await WaitForPreviewAsync(row);
 
