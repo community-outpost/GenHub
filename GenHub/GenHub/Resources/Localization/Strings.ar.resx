@@ -13830,6 +13830,18 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
     <value>فتح في المتصفح</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptTitle" xml:space="preserve">
+    <value>مكون مشغل الوسائط مطلوب</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
+    <value>لتشغيل مقاطع الفيديو داخل GenHub، يلزم تنزيل مكتبة الوسائط لمرة واحدة (~48 ميجابايت). هل ترغب في تنزيلها الآن؟</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
+    <value>تنزيل وتفعيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadingProgress" xml:space="preserve">
+    <value>جارٍ تنزيل مكونات مشغل الوسائط... {0}%</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>إصدارات بديلة (مثل اللغات والدقات)</value>
   </data>

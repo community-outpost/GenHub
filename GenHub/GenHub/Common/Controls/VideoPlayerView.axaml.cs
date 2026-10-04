@@ -8,7 +8,9 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using LibVLCSharp.Shared;
+using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
 
 namespace GenHub.Common.Controls;
@@ -61,6 +63,30 @@ public partial class VideoPlayerView : UserControl
     /// </summary>
     public static readonly DirectProperty<VideoPlayerView, bool> IsUnavailableProperty =
         AvaloniaProperty.RegisterDirect<VideoPlayerView, bool>(nameof(IsUnavailable), o => o.IsUnavailable);
+
+    /// <summary>
+    /// Defines the <see cref="IsDownloadPromptVisible"/> property.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, bool> IsDownloadPromptVisibleProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, bool>(nameof(IsDownloadPromptVisible), o => o.IsDownloadPromptVisible);
+
+    /// <summary>
+    /// Defines the <see cref="IsDownloadingComponent"/> property.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, bool> IsDownloadingComponentProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, bool>(nameof(IsDownloadingComponent), o => o.IsDownloadingComponent);
+
+    /// <summary>
+    /// Defines the <see cref="DownloadProgress"/> property.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, double> DownloadProgressProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, double>(nameof(DownloadProgress), o => o.DownloadProgress);
+
+    /// <summary>
+    /// Defines the <see cref="DownloadStatusText"/> property.
+    /// </summary>
+    public static readonly DirectProperty<VideoPlayerView, string> DownloadStatusTextProperty =
+        AvaloniaProperty.RegisterDirect<VideoPlayerView, string>(nameof(DownloadStatusText), o => o.DownloadStatusText);
 
     /// <summary>
     /// Defines the <see cref="IsPlaying"/> property.
@@ -116,6 +142,10 @@ public partial class VideoPlayerView : UserControl
     private bool isLoading = true;
     private bool hasError;
     private bool isUnavailable;
+    private bool isDownloadPromptVisible;
+    private bool isDownloadingComponent;
+    private double downloadProgress;
+    private string downloadStatusText = string.Empty;
     private bool isPlaying;
     private bool isMuted;
     private bool isVideoSurfaceVisible;
@@ -141,6 +171,7 @@ public partial class VideoPlayerView : UserControl
         MuteButton.Click += OnMuteClicked;
         FullscreenButton.Click += OnFullscreenClicked;
         RetryButton.Click += OnRetryClicked;
+        DownloadCodecsButton.Click += OnDownloadCodecsClicked;
         StageBorder.DoubleTapped += OnStageDoubleTapped;
 
         PositionSlider.AddHandler(InputElement.PointerPressedEvent, OnScrubStarted, RoutingStrategies.Tunnel);
@@ -225,6 +256,50 @@ public partial class VideoPlayerView : UserControl
             SetAndRaise(IsUnavailableProperty, ref isUnavailable, value);
             UpdateSurfaceVisibility();
         }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the download codecs prompt is shown.
+    /// </summary>
+    public bool IsDownloadPromptVisible
+    {
+        get => isDownloadPromptVisible;
+        private set
+        {
+            SetAndRaise(IsDownloadPromptVisibleProperty, ref isDownloadPromptVisible, value);
+            UpdateSurfaceVisibility();
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether codecs are actively being downloaded.
+    /// </summary>
+    public bool IsDownloadingComponent
+    {
+        get => isDownloadingComponent;
+        private set
+        {
+            SetAndRaise(IsDownloadingComponentProperty, ref isDownloadingComponent, value);
+            UpdateSurfaceVisibility();
+        }
+    }
+
+    /// <summary>
+    /// Gets the current download progress percentage (0 - 100).
+    /// </summary>
+    public double DownloadProgress
+    {
+        get => downloadProgress;
+        private set => SetAndRaise(DownloadProgressProperty, ref downloadProgress, value);
+    }
+
+    /// <summary>
+    /// Gets the status text during component download.
+    /// </summary>
+    public string DownloadStatusText
+    {
+        get => downloadStatusText;
+        private set => SetAndRaise(DownloadStatusTextProperty, ref downloadStatusText, value);
     }
 
     /// <summary>
@@ -418,7 +493,7 @@ public partial class VideoPlayerView : UserControl
         base.OnDetachedFromVisualTree(e);
     }
 
-    private static LibVLC? EnsureLibVLC()
+    private static LibVLC? EnsureLibVLC(string? customLibVlcPath = null)
     {
         lock (SyncRoot)
         {
@@ -427,7 +502,7 @@ public partial class VideoPlayerView : UserControl
                 return sharedLibVlc;
             }
 
-            if (initializationAttempted && initializationFailed)
+            if (initializationAttempted && initializationFailed && customLibVlcPath == null)
             {
                 return null;
             }
@@ -435,8 +510,17 @@ public partial class VideoPlayerView : UserControl
             initializationAttempted = true;
             try
             {
-                LibVLCSharp.Shared.Core.Initialize();
+                if (!string.IsNullOrWhiteSpace(customLibVlcPath))
+                {
+                    LibVLCSharp.Shared.Core.Initialize(customLibVlcPath);
+                }
+                else
+                {
+                    LibVLCSharp.Shared.Core.Initialize();
+                }
+
                 sharedLibVlc = new LibVLC("--no-video-title-show");
+                initializationFailed = false;
                 return sharedLibVlc;
             }
             catch (Exception ex) when (ex is DllNotFoundException
@@ -450,6 +534,17 @@ public partial class VideoPlayerView : UserControl
                 return null;
             }
         }
+    }
+
+    private static IVlcRuntimeService? ResolveVlcRuntimeService()
+    {
+        if (Application.Current?.TryGetResource("VlcRuntimeService", theme: null, out var resource) == true &&
+            resource is IVlcRuntimeService service)
+        {
+            return service;
+        }
+
+        return App.Services?.GetService<IVlcRuntimeService>();
     }
 
     private static string GetLocalizedString(string key, string fallback, params object[] args)
@@ -491,21 +586,41 @@ public partial class VideoPlayerView : UserControl
 
     private void UpdateSurfaceVisibility()
     {
-        IsVideoSurfaceVisible = !isLoading && !hasError && !isUnavailable;
+        IsVideoSurfaceVisible = !isLoading && !hasError && !isUnavailable && !isDownloadPromptVisible && !isDownloadingComponent;
     }
 
     private void StartPlayback(string url)
     {
         ResetStage();
-        var libVlc = EnsureLibVLC();
+        var runtimeService = ResolveVlcRuntimeService();
+        string? runtimeDir = runtimeService?.RuntimeDirectory;
+        if (runtimeDir == null && runtimeService?.IsAvailable() == true)
+        {
+            runtimeDir = runtimeService.RuntimeDirectory;
+        }
+
+        var libVlc = EnsureLibVLC(runtimeDir);
         if (libVlc == null)
         {
             IsLoading = false;
-            IsUnavailable = true;
-            HasError = true;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                (runtimeService == null || runtimeService.Status != VlcRuntimeStatus.UnsupportedPlatform))
+            {
+                IsDownloadPromptVisible = true;
+                IsUnavailable = false;
+                HasError = false;
+            }
+            else
+            {
+                IsDownloadPromptVisible = false;
+                IsUnavailable = true;
+                HasError = true;
+            }
+
             return;
         }
 
+        IsDownloadPromptVisible = false;
         try
         {
             var player = new MediaPlayer(libVlc);
@@ -585,6 +700,8 @@ public partial class VideoPlayerView : UserControl
         StopPlayback();
         HasError = false;
         IsUnavailable = false;
+        IsDownloadPromptVisible = false;
+        IsDownloadingComponent = false;
         IsPlaying = false;
         IsMuted = false;
         isScrubbing = false;
@@ -752,9 +869,71 @@ public partial class VideoPlayerView : UserControl
 
     private void OnRetryClicked(object? sender, RoutedEventArgs e)
     {
+        initializationAttempted = false;
+        initializationFailed = false;
         if (!string.IsNullOrWhiteSpace(SourceUrl))
         {
             StartPlayback(SourceUrl);
+        }
+    }
+
+    private async void OnDownloadCodecsClicked(object? sender, RoutedEventArgs e)
+    {
+        var runtimeService = ResolveVlcRuntimeService();
+        if (runtimeService == null)
+        {
+            IsDownloadPromptVisible = false;
+            IsUnavailable = true;
+            HasError = true;
+            return;
+        }
+
+        IsDownloadPromptVisible = false;
+        IsDownloadingComponent = true;
+        DownloadProgress = 0;
+        DownloadStatusText = GetLocalizedString(
+            "Downloads.ContentDetail.VideoPlayer.DownloadingProgress",
+            "Downloading media player components... {0}%",
+            0);
+
+        var progress = new Progress<double>(percent =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                DownloadProgress = percent * 100.0;
+                DownloadStatusText = GetLocalizedString(
+                    "Downloads.ContentDetail.VideoPlayer.DownloadingProgress",
+                    "Downloading media player components... {0}%",
+                    (int)Math.Round(percent * 100));
+            });
+        });
+
+        try
+        {
+            var success = await runtimeService.InstallRuntimeAsync(progress).ConfigureAwait(true);
+            IsDownloadingComponent = false;
+
+            if (success)
+            {
+                initializationAttempted = false;
+                initializationFailed = false;
+                if (!string.IsNullOrWhiteSpace(SourceUrl))
+                {
+                    StartPlayback(SourceUrl);
+                }
+            }
+            else
+            {
+                IsUnavailable = true;
+                HasError = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to install VLC runtime: {ex.Message}");
+            IsDownloadingComponent = false;
+            IsUnavailable = true;
+            HasError = true;
         }
     }
 
@@ -775,7 +954,7 @@ public partial class VideoPlayerView : UserControl
                 isUpdatingSliderFromTimer = false;
             }
 
-            CommitSeek();
+            SeekToSliderPosition(slider.Value);
         }
     }
 
@@ -792,39 +971,43 @@ public partial class VideoPlayerView : UserControl
         }
 
         isScrubbing = false;
-        CommitSeek();
+        SeekToSliderPosition(PositionSlider.Value);
     }
 
     private void OnPositionSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
-        if (isUpdatingSliderFromTimer || isScrubbing)
+        if (isUpdatingSliderFromTimer)
         {
             return;
         }
 
-        CommitSeek();
+        if (isScrubbing)
+        {
+            SeekToSliderPosition(e.NewValue);
+        }
     }
 
-    private void CommitSeek()
+    private void SeekToSliderPosition(double sliderValue)
     {
+        var player = mediaPlayer;
+        if (player == null || HasError)
+        {
+            return;
+        }
+
+        var targetRatio = (float)Math.Clamp(sliderValue / PositionScale, 0.0, 1.0);
         try
         {
-            if (mediaPlayer != null && !HasError)
+            player.Position = targetRatio;
+            if (player.Length > 0)
             {
-                var targetPos = (float)Math.Clamp(PositionSlider.Value / PositionScale, 0.0, 1.0);
-                if (mediaPlayer.Length > 0)
-                {
-                    mediaPlayer.Time = (long)(targetPos * mediaPlayer.Length);
-                }
-                else
-                {
-                    mediaPlayer.Position = targetPos;
-                }
+                var targetTime = (long)(targetRatio * player.Length);
+                PositionText = FormatTime(targetTime) + " / " + FormatTime(player.Length);
             }
         }
         catch (Exception ex) when (ex is VLCException or InvalidOperationException)
         {
-            System.Diagnostics.Debug.WriteLine($"Video seek failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Slider seek failed: {ex.Message}");
         }
     }
 }

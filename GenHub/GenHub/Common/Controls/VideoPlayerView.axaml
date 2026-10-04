@@ -34,6 +34,65 @@
                                HorizontalAlignment="Center" />
                 </StackPanel>
 
+                <!-- On-demand component download prompt overlay -->
+                <StackPanel Spacing="16"
+                            Margin="24"
+                            MaxWidth="440"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsDownloadPromptVisible, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}">
+                    <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"
+                              Width="40"
+                              Height="40"
+                              Foreground="{DynamicResource AccentBrush}"
+                              HorizontalAlignment="Center" />
+                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadPromptTitle}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage}"
+                               FontSize="13"
+                               Foreground="#B0BEC5"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="10"
+                                HorizontalAlignment="Center">
+                        <Button x:Name="DownloadCodecsButton"
+                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadAction}"
+                                Padding="16,8"
+                                Cursor="Hand" />
+                        <Button Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
+                                Command="{Binding FallbackCommand, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                                Padding="16,8"
+                                Cursor="Hand" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- On-demand downloading progress overlay -->
+                <StackPanel Spacing="12"
+                            Margin="24"
+                            MaxWidth="360"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsVisible="{Binding IsDownloadingComponent, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}">
+                    <ProgressBar Minimum="0"
+                                 Maximum="100"
+                                 Value="{Binding DownloadProgress, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                                 Width="240"
+                                 Height="8"
+                                 HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding DownloadStatusText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                               FontSize="13"
+                               Foreground="White"
+                               TextAlignment="Center"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
                 <!-- Error overlay -->
                 <StackPanel Spacing="12"
                             Margin="24"
@@ -80,12 +139,10 @@
             <!-- Rewind 10s -->
             <Button x:Name="RewindButton"
                     Grid.Column="0"
-                    Margin="0,0,4,0"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
-                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Rewind}">
+                    Classes="subtle"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Rewind}"
+                    Padding="8"
+                    Margin="0,0,4,0">
                 <PathIcon Data="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
                           Width="16"
                           Height="16" />
@@ -94,17 +151,17 @@
             <!-- Play / Pause -->
             <Button x:Name="PlayPauseButton"
                     Grid.Column="1"
-                    Margin="4,0"
-                    Width="44"
-                    Height="44"
-                    CornerRadius="22"
-                    Cursor="Hand"
-                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.PlayPause}">
+                    Classes="subtle"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.PlayPause}"
+                    Padding="10"
+                    Margin="0,0,4,0">
                 <Panel>
+                    <!-- Play glyph -->
                     <PathIcon Data="M8 5v14l11-7z"
                               Width="18"
                               Height="18"
                               IsVisible="{Binding !IsPlaying, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <!-- Pause glyph -->
                     <PathIcon Data="M6 5h4v14H6zM14 5h4v14h-4z"
                               Width="18"
                               Height="18"
@@ -115,44 +172,40 @@
             <!-- Fast Forward 10s -->
             <Button x:Name="FastForwardButton"
                     Grid.Column="2"
-                    Margin="4,0,8,0"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
-                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.FastForward}">
+                    Classes="subtle"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.FastForward}"
+                    Padding="8"
+                    Margin="0,0,8,0">
                 <PathIcon Data="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 8-8 8-8z"
                           Width="16"
                           Height="16" />
             </Button>
 
-            <!-- Position Slider -->
+            <!-- Timeline Scrubber -->
             <Slider x:Name="PositionSlider"
                     Grid.Column="3"
-                    Margin="8,0"
                     Minimum="0"
                     Maximum="1000"
-                    MinHeight="32"
-                    Foreground="{DynamicResource AccentBrush}"
-                    VerticalAlignment="Center" />
+                    Value="0"
+                    VerticalAlignment="Center"
+                    Margin="4,0" />
 
-            <!-- Position Text -->
-            <TextBlock Grid.Column="4"
+            <!-- Position / Duration Text -->
+            <TextBlock x:Name="PositionTextBlock"
+                       Grid.Column="4"
                        Text="{Binding PositionText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
-                       Margin="8,0"
-                       FontSize="13"
-                       Foreground="{DynamicResource TextSecondary}"
-                       VerticalAlignment="Center" />
+                       FontSize="12"
+                       Foreground="#9E9E9E"
+                       VerticalAlignment="Center"
+                       Margin="8,0" />
 
             <!-- Mute / Unmute -->
             <Button x:Name="MuteButton"
                     Grid.Column="5"
-                    Margin="8,0,4,0"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
-                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.MuteUnmute}">
+                    Classes="subtle"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.MuteUnmute}"
+                    Padding="8"
+                    Margin="4,0">
                 <Panel>
                     <PathIcon Data="M3 9v6h4l5 5V4L7 9H3z"
                               Width="16"
@@ -165,20 +218,20 @@
                 </Panel>
             </Button>
 
-            <!-- Fullscreen Button -->
+            <!-- Fullscreen -->
             <Button x:Name="FullscreenButton"
                     Grid.Column="6"
-                    Margin="4,0,0,0"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
-                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
+                    Classes="subtle"
+                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}"
+                    Padding="8"
+                    Margin="4,0,0,0">
                 <Panel>
+                    <!-- Enter fullscreen glyph -->
                     <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
                               Width="16"
                               Height="16"
                               IsVisible="{Binding !IsFullscreen, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
+                    <!-- Exit fullscreen glyph -->
                     <PathIcon Data="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"
                               Width="16"
                               Height="16"

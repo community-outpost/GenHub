@@ -45,15 +45,12 @@
 
         <PackageReference Include="Markdown.Avalonia" />
         <PackageReference Include="Material.Icons.Avalonia" />
-        <!-- In-app video playback (managed LibVLCSharp bindings stay cross-platform) -->
+        <!-- In-app video playback (managed LibVLCSharp bindings stay cross-platform).
+             Native LibVLC binaries are decoupled across all platforms to debloat build artifacts:
+             Windows installs on-demand via IVlcRuntimeService into local app data or uses system VLC.
+             Linux/macOS discover system VLC dynamically. -->
         <PackageReference Include="LibVLCSharp" />
         <PackageReference Include="LibVLCSharp.Avalonia" />
-        <!-- Windows-only natives: the package copies all VLC trees unconditionally,
-             so it must not ride along into Linux/macOS outputs. -->
-        <PackageReference Include="VideoLAN.LibVLC.Windows" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-        <!-- No macOS natives: VideoLAN.LibVLC.Mac ships x86_64-only libvlc while GenHub
-             publishes osx-arm64 exclusively, so the payload could never load. macOS
-             falls back to the system browser via the player's unavailable state. -->
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="Microsoft.Extensions.Http" />

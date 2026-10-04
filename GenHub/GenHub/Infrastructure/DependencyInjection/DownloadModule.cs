@@ -45,6 +45,14 @@ public static class DownloadModule
         });
         services.AddSingleton<IDownloadService>(serviceProvider => serviceProvider.GetRequiredService<DownloadService>());
 
+        // IVlcRuntimeService manages detection and on-demand installation of native LibVLC binaries
+        services.AddSingleton<IVlcRuntimeService>(serviceProvider =>
+        {
+            var httpClient = serviceProvider.GetRequiredService<HttpClient>();
+            var logger = serviceProvider.GetService<ILogger<VlcRuntimeService>>() ?? NullLogger<VlcRuntimeService>.Instance;
+            return new VlcRuntimeService(httpClient, logger);
+        });
+
         // Note: IContentStateService is registered as Singleton in ContentPipelineModule.AddSharedComponents
         // to ensure a single instance with consistent state change events.
 
