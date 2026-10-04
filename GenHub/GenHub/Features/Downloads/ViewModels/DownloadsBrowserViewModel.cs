@@ -2770,10 +2770,10 @@ public sealed partial class DownloadsBrowserViewModel(
                         })
                         .FirstOrDefault(m => m.Item != null);
 
-                    if (match != null)
+                    if (match?.Item is { } item)
                     {
                         var matchingVariant = match.Card.Variants.FirstOrDefault(v =>
-                            string.Equals(v.ManifestId, match.Item.Id, StringComparison.OrdinalIgnoreCase));
+                            string.Equals(v.ManifestId, item.Id, StringComparison.OrdinalIgnoreCase));
                         if (matchingVariant != null)
                         {
                             match.Card.SelectedVariant = matchingVariant;
