@@ -142,15 +142,15 @@ public class SteamManifestPatcher(
         var supportsLaunch = manifest.ContentType is ContentType.GameClient or ContentType.Executable;
         if (gameDat != null && supportsLaunch)
         {
-            if (!string.Equals(manifest.LaunchRelationship?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(GetLaunchRelationship(manifest)?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase))
             {
-                manifest.LaunchRelationship = new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName };
+                SetLaunchRelationship(manifest, new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
                 changed = true;
             }
         }
-        else if (manifest.LaunchRelationship is not null)
+        else if (GetLaunchRelationship(manifest) is not null)
         {
-            manifest.LaunchRelationship = null;
+            SetLaunchRelationship(manifest, null);
             changed = true;
         }
 
@@ -187,13 +187,37 @@ public class SteamManifestPatcher(
             changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
         }
 
-        if (manifest.LaunchRelationship is not null)
+        if (GetLaunchRelationship(manifest) is not null)
         {
-            manifest.LaunchRelationship = null;
+            SetLaunchRelationship(manifest, null);
             changed = true;
         }
 
         return changed;
+    }
+
+    /// <summary>
+    /// Gets the launch relationship the launcher uses: the host variant's when the manifest
+    /// declares variants, otherwise the manifest's own.
+    /// </summary>
+    private static LaunchRelationship? GetLaunchRelationship(ContentManifest manifest)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        return variant is null ? manifest.LaunchRelationship : variant.LaunchRelationship;
+    }
+
+    private static void SetLaunchRelationship(ContentManifest manifest, LaunchRelationship? relationship)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        if (variant is not null)
+        {
+            variant.LaunchRelationship = relationship;
+            manifest.LaunchRelationship = null;
+        }
+        else
+        {
+            manifest.LaunchRelationship = relationship;
+        }
     }
 
     private static bool UpdateEntryPoint(ContentManifest manifest, string path)

@@ -580,7 +580,12 @@ public class ContentOrchestrator : IContentOrchestrator
                         }
                     }
 
-                    await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken: cancellationToken);
+                    var addResult = await _manifestPool.AddManifestAsync(prepareResult.Data, stagingDir, cancellationToken: cancellationToken);
+                    if (!addResult.Success)
+                    {
+                        _logger.LogError("Failed to store acquired manifest {ManifestId}: {Error}", prepareResult.Data.Id, addResult.FirstError);
+                        return OperationResult<ContentManifest>.CreateFailure(addResult);
+                    }
                 }
                 else
                 {
