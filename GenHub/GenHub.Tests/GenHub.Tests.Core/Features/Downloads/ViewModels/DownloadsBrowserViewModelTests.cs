@@ -814,8 +814,9 @@ public class DownloadsBrowserViewModelTests
             var timeout = DateTime.UtcNow.AddSeconds(5);
             while (DateTime.UtcNow < timeout)
             {
-                if (vm.ContentItems.Count == 1 &&
-                    vm.ContentItems[0].SearchResult.Id == expectedId &&
+                var items = vm.ContentItems;
+                if (items.Count == 1 &&
+                    items[0].SearchResult.Id == expectedId &&
                     !vm.IsLoading)
                 {
                     return;
@@ -823,6 +824,10 @@ public class DownloadsBrowserViewModelTests
 
                 await Task.Delay(25);
             }
+
+            var snapshot = vm.ContentItems;
+            var currentId = snapshot.Count > 0 ? snapshot[0].SearchResult.Id : "<empty>";
+            Assert.Fail($"Timed out waiting for expected item '{expectedId}'. Current count: {snapshot.Count}, current ID: '{currentId}', IsLoading: {vm.IsLoading}");
         }
 
         // Load A into cache
