@@ -34,6 +34,7 @@ public class VlcRuntimeService(
     private const int BufferSize = 81920;
 
     private static readonly TimeSpan DownloadInactivityTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan StaleDirectoryThreshold = TimeSpan.FromHours(1);
 
     private readonly SemaphoreSlim _installLock = new(1, 1);
     private readonly string _runtimeDir = runtimeDirectory ?? GetDefaultRuntimeDirectory();
@@ -271,15 +272,37 @@ public class VlcRuntimeService(
 
         try
         {
+            var cutoff = DateTime.UtcNow - StaleDirectoryThreshold;
+
             foreach (var dir in Directory.EnumerateDirectories(targetParent, ".staging-*"))
             {
-                CleanupDirectorySilently(dir);
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
+                    {
+                        CleanupDirectorySilently(dir);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignore per-directory inspection/deletion failure
+                }
             }
 
             var oldPattern = targetDirName + ".old.*";
             foreach (var dir in Directory.EnumerateDirectories(targetParent, oldPattern))
             {
-                CleanupDirectorySilently(dir);
+                try
+                {
+                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
+                    {
+                        CleanupDirectorySilently(dir);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Ignore per-directory inspection/deletion failure
+                }
             }
         }
         catch (Exception)

@@ -492,8 +492,7 @@ public partial class VideoPlayerView : UserControl
     /// <inheritdoc />
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        downloadCts?.Cancel();
-        downloadCts = null;
+        _ = CancelActiveDownloadAsync();
 
         VideoHost.AttachedToVisualTree -= OnVideoHostAttached;
         videoHostAttached = false;
@@ -699,6 +698,9 @@ public partial class VideoPlayerView : UserControl
 
     private void StopPlayback()
     {
+        _ = CancelActiveDownloadAsync();
+        IsDownloadingComponent = false;
+
         positionTimer.Stop();
         VideoHost.MediaPlayer = null;
 
@@ -907,14 +909,7 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
-        try
-        {
-            await CancelActiveDownloadAsync().ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to cancel previous VLC download: {ex.Message}");
-        }
+        await CancelActiveDownloadAsync().ConfigureAwait(true);
 
         var activeCts = new CancellationTokenSource();
         downloadCts = activeCts;
@@ -956,13 +951,12 @@ public partial class VideoPlayerView : UserControl
 
     private async Task CancelActiveDownloadAsync()
     {
-        if (downloadCts != null)
+        var oldCts = Interlocked.Exchange(ref downloadCts, null);
+        if (oldCts != null)
         {
-            var oldCts = downloadCts;
-            downloadCts = null;
             try
             {
-                await oldCts.CancelAsync().ConfigureAwait(true);
+                await oldCts.CancelAsync().ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is ObjectDisposedException or AggregateException or OperationCanceledException)
             {
