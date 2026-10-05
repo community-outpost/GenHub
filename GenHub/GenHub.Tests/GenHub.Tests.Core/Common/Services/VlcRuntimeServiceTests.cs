@@ -179,18 +179,19 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
         var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: expectedSha);
 
-        var progressReported = false;
+        var progressTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var progress = new Progress<double>(p =>
         {
             if (p > 0)
             {
-                progressReported = true;
+                progressTcs.TrySetResult(true);
             }
         });
 
         var result = await service.InstallRuntimeAsync(progress);
 
         Assert.True(result.Success);
+        var progressReported = await Task.WhenAny(progressTcs.Task, Task.Delay(5000)).ConfigureAwait(true) == progressTcs.Task;
         Assert.True(progressReported);
         Assert.Equal(VlcRuntimeStatus.Available, service.Status);
         Assert.True(service.IsAvailable());
