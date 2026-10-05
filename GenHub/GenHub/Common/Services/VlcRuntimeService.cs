@@ -311,15 +311,8 @@ public class VlcRuntimeService(
             timestampMs >= MinValidTimestampMs &&
             timestampMs <= MaxValidTimestampMs)
         {
-            try
-            {
-                utcDateTime = DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime;
-                return true;
-            }
-            catch (ArgumentOutOfRangeException)
-            {
-                // Fallback on unexpected out-of-range values
-            }
+            utcDateTime = DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime;
+            return true;
         }
 
         utcDateTime = default;

@@ -37,17 +37,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        try
-        {
-            if (Directory.Exists(testTargetDirectory))
-            {
-                Directory.Delete(testTargetDirectory, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Ignore test cleanup exceptions
-        }
+        DeleteDirectorySilently(testTargetDirectory);
     }
 
     /// <summary>
@@ -378,25 +368,10 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         }
         finally
         {
-            if (Directory.Exists(outOfRangeStaging))
-            {
-                Directory.Delete(outOfRangeStaging, true);
-            }
-
-            if (Directory.Exists(normalStaleStaging))
-            {
-                Directory.Delete(normalStaleStaging, true);
-            }
-
-            if (Directory.Exists(outOfRangeBackup))
-            {
-                Directory.Delete(outOfRangeBackup, true);
-            }
-
-            if (Directory.Exists(normalStaleBackup))
-            {
-                Directory.Delete(normalStaleBackup, true);
-            }
+            DeleteDirectorySilently(outOfRangeStaging);
+            DeleteDirectorySilently(normalStaleStaging);
+            DeleteDirectorySilently(outOfRangeBackup);
+            DeleteDirectorySilently(normalStaleBackup);
         }
     }
 
@@ -476,5 +451,20 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         }
 
         return memoryStream.ToArray();
+    }
+
+    private static void DeleteDirectorySilently(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignore test cleanup exceptions
+        }
     }
 }
