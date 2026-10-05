@@ -109,6 +109,21 @@ public static class ContentConstants
     public const int ProgressStepCompleted = 100;
 
     /// <summary>
+    /// Total number of standard acquisition pipeline stages.
+    /// </summary>
+    public const int TotalPipelineStages = 5;
+
+    /// <summary>
+    /// Stage index for extracting payload archives (Stage 3).
+    /// </summary>
+    public const int PipelineStageExtracting = 3;
+
+    /// <summary>
+    /// Stage index for validating extracted files (Stage 4).
+    /// </summary>
+    public const int PipelineStageValidating = 4;
+
+    /// <summary>
     /// Default minimum percentage for progress normalization (0.0).
     /// </summary>
     public const double ProgressMinPercentage = 0.0;

@@ -86,4 +86,17 @@ public sealed class DownloadProgressThrottleTests
         Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Downloading, 10, now));
         Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Downloading, 11, now + Stopwatch.Frequency));
     }
+
+    /// <summary>
+    /// Verifies that transitioning from a positive stage to stage 0 (unstaged) always forwards.
+    /// </summary>
+    [Fact]
+    public void ShouldForward_TransitionToStageZero_AlwaysForwards()
+    {
+        var throttle = new DownloadProgressThrottle(minIntervalMs: 60000);
+        var now = Stopwatch.GetTimestamp();
+
+        Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Extracting, 50, 1, now));
+        Assert.True(throttle.ShouldForward(ContentAcquisitionPhase.Extracting, 55, 0, now + (Stopwatch.Frequency / 1000)));
+    }
 }

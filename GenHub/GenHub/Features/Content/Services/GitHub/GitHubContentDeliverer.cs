@@ -93,7 +93,7 @@ public class GitHubContentDeliverer(
             var downloadedFiles = new List<string>();
             int currentFileIndex = 0;
             int totalFiles = filesToDownload.Count;
-            long totalBytesAllFiles = filesToDownload.Sum(f => f.Size > 0 ? f.Size : 0L);
+            long totalBytesAllFiles = filesToDownload.All(f => f.Size > 0) ? filesToDownload.Sum(f => f.Size) : 0L;
             long previousFilesBytes = 0L;
 
             foreach (var file in filesToDownload)
@@ -352,10 +352,16 @@ public class GitHubContentDeliverer(
                 originalManifest.Id);
 
             // Use the factory to create manifests from extracted content
-            var manifestResult = await factory.CreateManifestsFromExtractedContentAsync(
-                originalManifest,
-                extractedDirectory,
-                cancellationToken);
+            var manifestResult = progress != null
+                ? await factory.CreateManifestsFromExtractedContentAsync(
+                    originalManifest,
+                    extractedDirectory,
+                    progress,
+                    cancellationToken).ConfigureAwait(false)
+                : await factory.CreateManifestsFromExtractedContentAsync(
+                    originalManifest,
+                    extractedDirectory,
+                    cancellationToken).ConfigureAwait(false);
 
             var manifests = manifestResult.Data ?? [];
             if (!manifestResult.Success || manifests.Count == 0)
@@ -518,10 +524,5 @@ public class GitHubContentDeliverer(
                 }
             },
             cancellationToken);
-    }
-
-    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
     }
 }

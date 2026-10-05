@@ -36,14 +36,17 @@ public static class ContentAcquisitionProgressExtensions
         // If op starts with the stage description or its first word, avoid repeating it
         if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(op))
         {
-            if (op.StartsWith(desc, StringComparison.OrdinalIgnoreCase))
+            if (op.StartsWith(desc, StringComparison.OrdinalIgnoreCase) &&
+                (op.Length == desc.Length || op[desc.Length] is ':' or ' '))
             {
                 op = op.Substring(desc.Length).TrimStart(':', ' ');
             }
             else
             {
                 var firstWord = desc.Split(' ')[0];
-                if (firstWord.Length > 2 && op.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase))
+                if (firstWord.Length > 2 &&
+                    op.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase) &&
+                    (op.Length == firstWord.Length || op[firstWord.Length] is ':' or ' '))
                 {
                     op = op.Substring(firstWord.Length).TrimStart(':', ' ');
                 }

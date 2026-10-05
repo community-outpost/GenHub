@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -520,18 +521,29 @@ public class ContentOrchestrator : IContentOrchestrator
                     prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
                     {
                         var isExtracting = p.Phase == ContentAcquisitionPhase.Extracting ||
-                                           p.CurrentStage == 3 ||
+                                           p.CurrentStage == ContentConstants.PipelineStageExtracting ||
                                            (!string.IsNullOrEmpty(p.StageDescription) &&
-                                            p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase));
+                                            (p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase) ||
+                                             p.StageDescription.Contains("Process", StringComparison.OrdinalIgnoreCase)));
 
-                        var isValidating = p.Phase == ContentAcquisitionPhase.ValidatingFiles ||
-                                           p.CurrentStage == 4;
+                        var isValidatingOrStoring = p.Phase is ContentAcquisitionPhase.ValidatingFiles or ContentAcquisitionPhase.StoringInCas ||
+                                                   p.CurrentStage == ContentConstants.PipelineStageValidating;
 
-                        var effectivePhase = isExtracting
-                            ? ContentAcquisitionPhase.Extracting
-                            : isValidating
-                                ? ContentAcquisitionPhase.ValidatingFiles
-                                : p.Phase;
+                        ContentAcquisitionPhase effectivePhase;
+                        if (isExtracting)
+                        {
+                            effectivePhase = ContentAcquisitionPhase.Extracting;
+                        }
+                        else if (isValidatingOrStoring)
+                        {
+                            effectivePhase = p.Phase == ContentAcquisitionPhase.StoringInCas
+                                ? ContentAcquisitionPhase.StoringInCas
+                                : ContentAcquisitionPhase.ValidatingFiles;
+                        }
+                        else
+                        {
+                            effectivePhase = p.Phase;
+                        }
 
                         var rawPct = p.ProgressPercentage > 0 ? p.ProgressPercentage : p.StageProgress;
                         var normalized = Math.Clamp(rawPct, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
@@ -545,10 +557,11 @@ public class ContentOrchestrator : IContentOrchestrator
                                 ContentConstants.ProgressStepValidatingFiles,
                                 ContentConstants.ProgressStepExtracting);
                         }
-                        else if (isValidating)
+                        else if (isValidatingOrStoring)
                         {
+                            var storeSpan = (double)(ContentConstants.ProgressStepStoring - ContentConstants.ProgressStepExtracting);
                             scaledPct = Math.Clamp(
-                                ContentConstants.ProgressStepExtracting + (int)Math.Round(normalized * (ContentConstants.ProgressStepStoring - ContentConstants.ProgressStepExtracting)),
+                                ContentConstants.ProgressStepExtracting + (int)Math.Round(normalized * storeSpan),
                                 ContentConstants.ProgressStepExtracting,
                                 ContentConstants.ProgressStepStoring);
                         }
@@ -905,10 +918,5 @@ public class ContentOrchestrator : IContentOrchestrator
             _installationCasPoolService,
             _logger,
             cancellationToken);
-    }
-
-    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
     }
 }
