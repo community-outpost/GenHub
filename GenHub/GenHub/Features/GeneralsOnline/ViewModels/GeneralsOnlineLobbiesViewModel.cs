@@ -541,9 +541,9 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             await ConnectWebSocketAsync(token);
             await RefreshAsync(token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Generals Online browser sign-in was cancelled.");
+            _logger.LogInformation(ex, "Generals Online browser sign-in was cancelled.");
             if (cancellationToken.IsCancellationRequested)
             {
                 throw;
@@ -1123,8 +1123,10 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             ?? rooms.FirstOrDefault();
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; used as an instance CanExecute predicate.")]
     private bool CanSignIn => !IsLoading && !IsAuthenticated && !IsSigningIn;
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; used as an instance CanExecute predicate.")]
     private bool CanCancelSignIn => IsSigningIn;
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Reads generated MVVM properties Sonar cannot see; used as an instance CanExecute predicate.")]
@@ -1390,6 +1392,47 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
     }
 
+    private async Task<OperationResult<GeneralsOnlineLobbiesResult>?> EnsureValidLobbiesAsync(
+        OperationResult<GeneralsOnlineLobbiesResult>? lobbies,
+        bool background,
+        CancellationToken cancellationToken)
+    {
+        if (lobbies is { Success: true, Data: not null })
+        {
+            return lobbies;
+        }
+
+        var isAuthRequired = string.Equals(
+            lobbies?.Errors.FirstOrDefault(),
+            GeneralsOnlineConstants.ErrorAuthRequired,
+            StringComparison.Ordinal);
+
+        if (!isAuthRequired)
+        {
+            HandleLobbiesLoadFailure(lobbies, background);
+            return null;
+        }
+
+        if (!await TryRecoverSessionAsync(cancellationToken) || !IsAuthenticated)
+        {
+            return null;
+        }
+
+        var reloaded = await GetLobbiesWithRoomDanceAsync(cancellationToken);
+        if (!IsAuthenticated)
+        {
+            return null;
+        }
+
+        if (reloaded is not { Success: true, Data: not null })
+        {
+            HandleLobbiesLoadFailure(reloaded, background);
+            return null;
+        }
+
+        return reloaded;
+    }
+
     private async Task LoadLobbiesAsync(bool background, CancellationToken cancellationToken)
     {
         var lobbies = await GetLobbiesWithRoomDanceAsync(cancellationToken);
@@ -1399,34 +1442,10 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             return;
         }
 
-        if (lobbies is null || !lobbies.Success || lobbies.Data is null)
+        lobbies = await EnsureValidLobbiesAsync(lobbies, background, cancellationToken);
+        if (lobbies?.Data is null)
         {
-            if (string.Equals(lobbies?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
-            {
-                if (await TryRecoverSessionAsync(cancellationToken))
-                {
-                    lobbies = await GetLobbiesWithRoomDanceAsync(cancellationToken);
-                    if (!IsAuthenticated)
-                    {
-                        return;
-                    }
-
-                    if (lobbies is null || !lobbies.Success || lobbies.Data is null)
-                    {
-                        HandleLobbiesLoadFailure(lobbies, background);
-                        return;
-                    }
-                }
-                else
-                {
-                    return;
-                }
-            }
-            else
-            {
-                HandleLobbiesLoadFailure(lobbies, background);
-                return;
-            }
+            return;
         }
 
         lobbies = await RetryEmptyLobbiesIfRoomNotSelectedAsync(lobbies, cancellationToken);
@@ -1434,8 +1453,8 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         HasLobbiesNotice = false;
         LobbiesWarningText = null;
         _lastLobbiesError = null;
-        UpdateLatencies(lobbies.Data!);
-        SyncLobbies(lobbies.Data!.Lobbies);
+        UpdateLatencies(lobbies.Data);
+        SyncLobbies(lobbies.Data.Lobbies);
         UpdateLobbyCounts();
         UpdateAvailableRegions();
         await UpdateCompatibilityAsync(cancellationToken);
@@ -1556,31 +1575,41 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
     }
 
+    private async Task<OperationResult<T>?> FetchWithAuthRecoveryAsync<T>(
+        Func<CancellationToken, Task<OperationResult<T>>> fetchFunc,
+        CancellationToken cancellationToken)
+    {
+        var result = await fetchFunc(cancellationToken);
+        if (IsAuthenticated && result is { Success: true, Data: not null })
+        {
+            return result;
+        }
+
+        if (IsAuthenticated
+            && string.Equals(result?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal)
+            && await TryRecoverSessionAsync(cancellationToken))
+        {
+            var retried = await fetchFunc(cancellationToken);
+            if (IsAuthenticated && retried is { Success: true, Data: not null })
+            {
+                return retried;
+            }
+        }
+
+        return null;
+    }
+
     private async Task LoadFriendsAsync(CancellationToken cancellationToken)
     {
         // Auxiliary decoration: failures stay silent so a social outage never
         // blocks the lobby list or spams error toasts.
         try
         {
-            var friends = await _apiClient.GetFriendsAsync(cancellationToken);
-            if (!IsAuthenticated || !friends.Success || friends.Data is null)
+            var friends = await FetchWithAuthRecoveryAsync(ct => _apiClient.GetFriendsAsync(ct), cancellationToken);
+            if (friends?.Data is not null)
             {
-                if (IsAuthenticated && string.Equals(friends?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
-                {
-                    if (await TryRecoverSessionAsync(cancellationToken))
-                    {
-                        friends = await _apiClient.GetFriendsAsync(cancellationToken);
-                        if (IsAuthenticated && friends.Success && friends.Data is not null)
-                        {
-                            SyncFriends(friends.Data.Friends, friends.Data.PendingRequests);
-                        }
-                    }
-                }
-
-                return;
+                SyncFriends(friends.Data.Friends, friends.Data.PendingRequests);
             }
-
-            SyncFriends(friends.Data.Friends, friends.Data.PendingRequests);
         }
         catch (OperationCanceledException)
         {
@@ -1618,25 +1647,11 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
         try
         {
-            var rooms = await _apiClient.GetRoomsAsync(cancellationToken);
-            if (!IsAuthenticated || !rooms.Success || rooms.Data is null)
+            var rooms = await FetchWithAuthRecoveryAsync(ct => _apiClient.GetRoomsAsync(ct), cancellationToken);
+            if (rooms?.Data is not null)
             {
-                if (IsAuthenticated && string.Equals(rooms?.Errors.FirstOrDefault(), GeneralsOnlineConstants.ErrorAuthRequired, StringComparison.Ordinal))
-                {
-                    if (await TryRecoverSessionAsync(cancellationToken))
-                    {
-                        rooms = await _apiClient.GetRoomsAsync(cancellationToken);
-                        if (IsAuthenticated && rooms.Success && rooms.Data is not null)
-                        {
-                            SyncRooms(rooms.Data);
-                        }
-                    }
-                }
-
-                return;
+                SyncRooms(rooms.Data);
             }
-
-            SyncRooms(rooms.Data);
         }
         catch (OperationCanceledException)
         {

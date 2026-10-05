@@ -282,6 +282,22 @@ public class GeneralsOnlineWebSocketListenerTests
         Assert.False(listener.IsConnected);
     }
 
+    /// <summary>
+    /// Tests that ConnectAsync returns failure when the listener is disposed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ConnectAsync_WhenDisposed_ReturnsFailureAsync()
+    {
+        var listener = CreateListener();
+        await listener.DisposeAsync();
+
+        var result = await listener.ConnectAsync("ws://127.0.0.1:9/", "session-token");
+
+        Assert.False(result.Success);
+        Assert.Contains("Listener has been disposed.", result.Errors);
+    }
+
     private static GeneralsOnlineWebSocketListener CreateListener()
     {
         return new GeneralsOnlineWebSocketListener(Mock.Of<ILogger<GeneralsOnlineWebSocketListener>>());

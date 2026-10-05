@@ -137,6 +137,11 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             ThrowIfDisposed();
             await StopLoopAsync().ConfigureAwait(false);
 
+            if (_disposed)
+            {
+                return OperationResult<bool>.CreateFailure("Listener has been disposed.");
+            }
+
             _webSocketUri = webSocketUri;
             _sessionToken = sessionToken;
 
@@ -303,6 +308,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             }
             catch (ObjectDisposedException)
             {
+                // Already disposed.
             }
         }
 
@@ -342,6 +348,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             }
             catch (ObjectDisposedException)
             {
+                // Already disposed.
             }
         }
 
@@ -1045,6 +1052,7 @@ public sealed class GeneralsOnlineWebSocketListener(ILogger<GeneralsOnlineWebSoc
             }
             catch (ObjectDisposedException)
             {
+                // Already disposed.
             }
 
             _loopCts = null;
