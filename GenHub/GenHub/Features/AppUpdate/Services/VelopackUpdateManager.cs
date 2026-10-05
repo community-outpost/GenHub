@@ -1615,6 +1615,16 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         var customPath = _installationLocationTracker?.GetRegisteredCustomInstallPath();
+        if (stagedExe.IndexOfAny(['"', '&', '|', '<', '>', '^', '%', '\r', '\n']) >= 0)
+        {
+            throw new InvalidOperationException($"Installer path contains invalid characters: {stagedExe}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(customPath) && customPath.IndexOfAny(['"', '&', '|', '<', '>', '^', '%', '\r', '\n']) >= 0)
+        {
+            throw new InvalidOperationException($"Custom install path contains invalid characters: {customPath}");
+        }
+
         var arguments = string.Empty;
         if (!string.IsNullOrWhiteSpace(customPath))
         {
