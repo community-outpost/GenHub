@@ -373,6 +373,8 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             Assert.True(Directory.Exists(testTargetDirectory));
             Assert.False(Directory.Exists(normalStaleStaging));
             Assert.False(Directory.Exists(normalStaleBackup));
+            Assert.True(Directory.Exists(outOfRangeStaging));
+            Assert.True(Directory.Exists(outOfRangeBackup));
         }
         finally
         {
