@@ -1449,6 +1449,10 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
 
         lobbies = await RetryEmptyLobbiesIfRoomNotSelectedAsync(lobbies, cancellationToken);
+        if (lobbies.Data is null)
+        {
+            return;
+        }
 
         HasLobbiesNotice = false;
         LobbiesWarningText = null;
