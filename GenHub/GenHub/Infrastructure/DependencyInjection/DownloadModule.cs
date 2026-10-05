@@ -110,21 +110,30 @@ public static class DownloadModule
         MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
         ConnectCallback = async (context, cancellationToken) =>
         {
-            if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
+            var targetHost = context.InitialRequestMessage?.RequestUri?.Host;
+            var isProxy = !string.IsNullOrEmpty(targetHost) &&
+                          !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
+
+            var hostToValidate = isProxy ? targetHost! : context.DnsEndPoint.Host;
+            if (Uri.CheckHostName(hostToValidate) == UriHostNameType.Unknown)
             {
-                throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
+                throw new HttpRequestException($"Invalid host name: '{hostToValidate}'.");
             }
 
             using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             connectCts.CancelAfter(TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds));
 
-            var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false);
-            if (addresses.Length == 0 || !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
+            var validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
+            if (validationAddresses.Length == 0 || !validationAddresses.All(NetworkSecurityHelper.IsSafeIpAddress))
             {
-                throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or reserved IP address.");
+                throw new HttpRequestException($"Host '{hostToValidate}' resolved to an unsafe or reserved IP address.");
             }
 
-            var sortedAddresses = addresses
+            var connectAddresses = isProxy
+                ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
+                : validationAddresses;
+
+            var sortedAddresses = connectAddresses
                 .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
                 .ToArray();
 

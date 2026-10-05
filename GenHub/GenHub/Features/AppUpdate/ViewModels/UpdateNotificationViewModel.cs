@@ -40,6 +40,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 {
     private const string InstallationFailedLocalizationKey = "Updates.Status.InstallationFailed";
 
+    private static readonly IComparer<string> ReleaseVersionComparer = Comparer<string>.Create((a, b) =>
+    {
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
+        return 0;
+    });
+
     private static readonly Lazy<string> CachedCurrentAppVersion = new(() =>
     {
         try
@@ -667,12 +674,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var releaseIdCounter = 1L;
 
         foreach (var rel in item.Releases
-            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
-            {
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-                return 0;
-            }))
+            .OrderByDescending(r => r.Version, ReleaseVersionComparer)
             .ThenByDescending(r => r.ReleaseDate))
         {
             var art = rel.Artifacts.FirstOrDefault(a => a.IsPrimary && !string.IsNullOrWhiteSpace(a.DownloadUrl)) ??
@@ -725,12 +727,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         var latestRelease = matchedItem.Releases
             .Where(r => r.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)))
-            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
-            {
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-                return 0;
-            }))
+            .OrderByDescending(r => r.Version, ReleaseVersionComparer)
             .ThenByDescending(r => r.ReleaseDate)
             .FirstOrDefault();
 
@@ -817,12 +814,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     var latestRel = item.Releases
                         .Where(r => r.Artifacts.Any(a => !string.IsNullOrWhiteSpace(a.DownloadUrl)))
-                        .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
-                        {
-                            if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-                            if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-                            return 0;
-                        }))
+                        .OrderByDescending(r => r.Version, ReleaseVersionComparer)
                         .ThenByDescending(r => r.ReleaseDate)
                         .FirstOrDefault();
                     AvailableCustomBuilds.Add(new CustomBuildSubscriptionItem

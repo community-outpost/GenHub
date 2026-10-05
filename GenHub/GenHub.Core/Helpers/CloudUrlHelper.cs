@@ -148,9 +148,31 @@ public static partial class CloudUrlHelper
         return resolvedUri is not null &&
                IsAllowedGoogleDriveHost(resolvedUri) &&
                (resolvedUri.AbsolutePath.EndsWith("/uc", StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith("/download", StringComparison.OrdinalIgnoreCase)) &&
-               resolvedUri.Query.Contains("export=download", StringComparison.OrdinalIgnoreCase)
+               HasExportDownloadParam(resolvedUri.Query)
             ? resolvedUri.ToString()
             : null;
+    }
+
+    private static bool HasExportDownloadParam(string query)
+    {
+        if (string.IsNullOrEmpty(query))
+        {
+            return false;
+        }
+
+        var trimmed = query.TrimStart('?');
+        foreach (var segment in trimmed.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = segment.Split('=', 2);
+            if (parts.Length == 2 &&
+                parts[0].Equals("export", StringComparison.OrdinalIgnoreCase) &&
+                parts[1].Equals("download", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string? TryExtractFromFormAction(string html, Uri? requestUri)

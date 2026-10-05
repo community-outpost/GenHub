@@ -138,7 +138,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
         }
 
         var status = value.FormatProgressStatus();
-        var includePrefix = !StatusShowsPercentage(status);
+        var includePrefix = value.TotalFiles > 1 || !StatusShowsPercentage(status);
         UpdatePinnedToast(clamped, status, includePercentagePrefix: includePrefix, forceUpdate: forceUpdate);
     }
 

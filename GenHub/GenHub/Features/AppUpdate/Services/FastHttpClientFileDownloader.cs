@@ -32,27 +32,35 @@ public class FastHttpClientFileDownloader(
         MaxConnectionsPerServer = 32,
         EnableMultipleHttp2Connections = true,
         AutomaticDecompression = DecompressionMethods.All,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
-        ConnectTimeout = TimeSpan.FromSeconds(30),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(DownloadDefaults.HttpPooledConnectionLifetimeMinutes),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
+        ConnectTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds),
         ConnectCallback = ConnectCallbackAsync,
     };
 
     private static async ValueTask<Stream> ConnectCallbackAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
     {
-        var host = context.DnsEndPoint.Host;
-        if (Uri.CheckHostName(host) == UriHostNameType.Unknown)
+        var targetHost = context.InitialRequestMessage?.RequestUri?.Host;
+        var isProxy = !string.IsNullOrEmpty(targetHost) &&
+                      !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
+
+        var hostToValidate = isProxy ? targetHost! : context.DnsEndPoint.Host;
+        if (Uri.CheckHostName(hostToValidate) == UriHostNameType.Unknown)
         {
-            throw new SecurityException($"Invalid host name: '{host}'.");
+            throw new SecurityException($"Invalid host name: '{hostToValidate}'.");
         }
 
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectCts.CancelAfter(TimeSpan.FromSeconds(30));
+        connectCts.CancelAfter(TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds));
 
-        var addresses = await Dns.GetHostAddressesAsync(host, connectCts.Token).ConfigureAwait(false);
-        ValidateResolvedAddresses(host, addresses);
+        var validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
+        ValidateResolvedAddresses(hostToValidate, validationAddresses);
 
-        var sortedAddresses = addresses
+        var connectAddresses = isProxy
+            ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
+            : validationAddresses;
+
+        var sortedAddresses = connectAddresses
             .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
             .ToArray();
 

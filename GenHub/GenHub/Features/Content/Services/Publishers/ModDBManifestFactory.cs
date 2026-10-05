@@ -139,8 +139,8 @@ public class ModDBManifestFactory(
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = stageProgress,
-                CurrentStage = 3,
-                TotalStages = 5,
+                CurrentStage = ContentConstants.PipelineStageExtracting,
+                TotalStages = ContentConstants.TotalPipelineStages,
                 StageDescription = "Processing files",
                 CurrentOperation = $"Hashing {relativePath} ({i + 1}/{allFiles.Count})",
                 CurrentFile = relativePath,

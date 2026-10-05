@@ -117,4 +117,34 @@ public class GenHubBuildInspectorTests
         Assert.Equal("9.9.9", info.Version);
         Assert.Equal("Release", info.SuggestedCategory);
     }
+
+    /// <summary>
+    /// Verifies that bare genhub tag is not treated as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void IsGenHubApplicationBuild_BareGenHubTag_ReturnsFalse()
+    {
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.Mod, "Shockwave Mod", ["genhub"]);
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Verifies that genhub-build tag is treated as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void IsGenHubApplicationBuild_GenHubBuildTag_ReturnsTrue()
+    {
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.Mod, "Shockwave Mod", ["genhub-build"]);
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Verifies that builder tools with GenHub in name are not treated as GenHub application builds.
+    /// </summary>
+    [Fact]
+    public void IsGenHubApplicationBuild_GenHubMapBuilder_ReturnsFalse()
+    {
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.ModdingTool, "GenHub Map Builder", []);
+        Assert.False(result);
+    }
 }

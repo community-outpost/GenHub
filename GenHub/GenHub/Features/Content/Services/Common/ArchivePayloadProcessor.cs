@@ -1342,8 +1342,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = stageProgress,
-                CurrentStage = 3,
-                TotalStages = 5,
+                CurrentStage = ContentConstants.PipelineStageExtracting,
+                TotalStages = ContentConstants.TotalPipelineStages,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {fileName}",
                 CurrentFile = fileName,
@@ -1482,8 +1482,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             Phase = ContentAcquisitionPhase.Extracting,
             ProgressPercentage = stageProgress,
-            CurrentStage = 3,
-            TotalStages = 5,
+            CurrentStage = ContentConstants.PipelineStageExtracting,
+            TotalStages = ContentConstants.TotalPipelineStages,
             StageDescription = ExtractingFilesStageDescription,
             CurrentOperation = $"Extracting {fileName}",
             CurrentFile = fileName,
@@ -1999,8 +1999,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = stageProgress,
-                CurrentStage = 3,
-                TotalStages = 5,
+                CurrentStage = ContentConstants.PipelineStageExtracting,
+                TotalStages = ContentConstants.TotalPipelineStages,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
                 CurrentFile = shortName,
@@ -2062,8 +2062,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 ProgressPercentage = stageProgress,
-                CurrentStage = 3,
-                TotalStages = 5,
+                CurrentStage = ContentConstants.PipelineStageExtracting,
+                TotalStages = ContentConstants.TotalPipelineStages,
                 StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
                 CurrentFile = shortName,

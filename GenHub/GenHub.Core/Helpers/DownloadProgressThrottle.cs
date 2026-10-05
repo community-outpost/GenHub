@@ -16,7 +16,7 @@ public sealed class DownloadProgressThrottle
     private readonly long _minIntervalTicks;
     private long _lastForwardTimestamp;
     private ContentAcquisitionPhase? _lastPhase;
-    private int _lastStage;
+    private int? _lastStage;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DownloadProgressThrottle"/> class.
@@ -61,7 +61,7 @@ public sealed class DownloadProgressThrottle
     /// <returns>True when the report should be forwarded; otherwise false.</returns>
     internal bool ShouldForward(ContentAcquisitionPhase phase, double percentage, int stage, long timestamp)
     {
-        var stageChanged = stage > 0 && stage != _lastStage;
+        var stageChanged = _lastStage.HasValue && stage != _lastStage.Value;
         if (_lastForwardTimestamp == 0 || phase != _lastPhase || stageChanged || percentage >= 100)
         {
             _lastForwardTimestamp = timestamp;
