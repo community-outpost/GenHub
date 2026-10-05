@@ -4606,9 +4606,9 @@ public sealed partial class DownloadsBrowserViewModel(
                         Directory.Delete(dir, recursive: true);
                     }
                 }
-                catch
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // Best effort cleanup of previous installations
+                    logger.LogDebug(ex, "Failed to clean stale build directory '{Directory}'", dir);
                 }
             }
         }

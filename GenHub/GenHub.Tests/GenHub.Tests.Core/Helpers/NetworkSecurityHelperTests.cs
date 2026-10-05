@@ -251,20 +251,34 @@ public class NetworkSecurityHelperTests
     public async Task ConnectSocketWithSsrfCheckAsync_DirectIPv6Loopback_ThrowsSecurityException()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
-        var context = CreateConnectionContext(new DnsEndPoint("::1", 8080), request);
+        var context = CreateConnectionContext(new DnsEndPoint("[::1]", 8080), request);
 
         await Assert.ThrowsAsync<SecurityException>(() =>
             NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
     }
 
     /// <summary>
-    /// Verifies that proxy mode connecting to an untrusted/loopback target throws a SecurityException.
+    /// Verifies that proxy mode connecting to an IPv4 untrusted/loopback target throws a SecurityException.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetLoopback_ThrowsSecurityException()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://127.0.0.1:8080/test");
+        var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that proxy mode connecting to an IPv6 untrusted/loopback target throws a SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetIPv6Loopback_ThrowsSecurityException()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
         var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
 
         await Assert.ThrowsAsync<SecurityException>(() =>

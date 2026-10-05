@@ -949,12 +949,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             throw new FileNotFoundException($"Target build file not found: '{targetPath}'");
         }
 
-        if (ZipValidation.IsValidZipFile(targetPath))
-        {
-            await InstallZipBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
         var extension = Path.GetExtension(targetPath).ToLowerInvariant();
         switch (extension)
         {
@@ -968,6 +962,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 await InstallNupkgBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
                 break;
             default:
+                if (ZipValidation.IsValidZipFile(targetPath))
+                {
+                    await InstallZipBuildAsync(targetPath, progress, cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
                 throw new NotSupportedException($"Unsupported build file extension: '{extension}'");
         }
     }

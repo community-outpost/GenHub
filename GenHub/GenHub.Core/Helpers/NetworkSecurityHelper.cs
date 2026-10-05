@@ -236,10 +236,13 @@ public static class NetworkSecurityHelper
     {
         createValidationException ??= static msg => new SecurityException(msg);
 
-        // Normalize using IdnHost to strip IPv6 literal brackets and normalize IDN names, matching DnsEndPoint.Host
+        // Normalize IDN names using IdnHost and canonicalize IPv6 literal brackets on both sides for proxy comparison
         var targetHost = context.InitialRequestMessage?.RequestUri?.IdnHost;
         var isProxy = !string.IsNullOrEmpty(targetHost) &&
-                      !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
+                      !string.Equals(
+                          CanonicalizeHostForComparison(targetHost),
+                          CanonicalizeHostForComparison(context.DnsEndPoint.Host),
+                          StringComparison.OrdinalIgnoreCase);
 
         var hostToValidate = isProxy ? targetHost! : context.DnsEndPoint.Host;
         if (Uri.CheckHostName(hostToValidate) == UriHostNameType.Unknown)
@@ -285,6 +288,18 @@ public static class NetworkSecurityHelper
             socket.Dispose();
             throw;
         }
+    }
+
+    private static string CanonicalizeHostForComparison(string? host)
+    {
+        if (string.IsNullOrEmpty(host))
+        {
+            return string.Empty;
+        }
+
+        return host.Length > 2 && host.StartsWith('[') && host.EndsWith(']')
+            ? host[1..^1]
+            : host;
     }
 
     private static bool TryGetCandidateUri(string? url, [NotNullWhen(true)] out Uri? uri, out string? failureReason)
