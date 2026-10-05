@@ -147,4 +147,20 @@ public class UserDataPathHelperTests
             }
         }
     }
+
+    /// <summary>
+    /// Tests that resolving a path within a filesystem root directory succeeds and does not throw an exception.
+    /// </summary>
+    [Fact]
+    public void ResolveUserDataTargetPath_WhenBasePathIsFileSystemRoot_ResolvesPathWithoutThrowing()
+    {
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+        var resolved = UserDataPathHelper.ResolveUserDataTargetPath(
+            ContentInstallTarget.UserMapsDirectory,
+            "MyMap/MyMap.map",
+            root);
+
+        Assert.NotNull(resolved);
+        Assert.StartsWith(root, resolved, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    }
 }

@@ -108,8 +108,11 @@ internal static class UserDataPathHelper
 
         var fullPath = Path.GetFullPath(targetPath);
         var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(userDataBasePath));
+        var containmentPrefix = basePath == Path.GetPathRoot(basePath)
+            ? basePath
+            : basePath + Path.DirectorySeparatorChar;
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, comparison))
+        if (!fullPath.StartsWith(containmentPrefix, comparison))
         {
             throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
         }
