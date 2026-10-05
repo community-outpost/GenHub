@@ -36,6 +36,11 @@ public static class NetworkSecurityConstants
     public const string LoopbackIpv6 = "::1";
 
     /// <summary>
+    /// Error message format when a host name is invalid or unknown.
+    /// </summary>
+    public const string InvalidHostFormat = "Invalid host name: '{0}'.";
+
+    /// <summary>
     /// Error message format when no IP addresses were found for a host.
     /// </summary>
     public const string NoIpAddressesFoundFormat = "No IP addresses found for host '{0}'.";
