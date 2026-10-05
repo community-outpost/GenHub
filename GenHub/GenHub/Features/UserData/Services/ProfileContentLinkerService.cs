@@ -117,13 +117,32 @@ public class ProfileContentLinkerService(
                         .Select(m => m.Id.Value)
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                    var newUserDataFiles = newManifestList
-                        .Where(HasProfileUserData)
-                        .SelectMany(GetUserDataFiles)
-                        .Select(f => (f.InstallTarget, RelativePath: NormalizeUserDataRelativePath(f.InstallTarget, f.RelativePath)))
-                        .ToHashSet(UserDataFileKeyEqualityComparer.Instance);
+                    var newUserDataFiles = new HashSet<(ContentInstallTarget InstallTarget, string RelativePath)>(UserDataFileKeyEqualityComparer.Instance);
 
-                    var fileCount = matchingManifests.Sum(m => m.InstalledFiles.Count);
+                    foreach (var newManifest in newManifestList)
+                    {
+                        if (!HasProfileUserData(newManifest))
+                        {
+                            continue;
+                        }
+
+                        var manifestUserFiles = GetUserDataFiles(newManifest);
+                        var manifestMapNames = UserDataPathHelper.ExtractCandidateMapNames(manifestUserFiles);
+                        string? manifestSingleMapBaseName = manifestMapNames.Count == 1 ? manifestMapNames[0] : null;
+
+                        foreach (var file in manifestUserFiles)
+                        {
+                            var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
+                                file.InstallTarget,
+                                file.RelativePath,
+                                manifestSingleMapBaseName,
+                                manifestMapNames);
+
+                            newUserDataFiles.Add((file.InstallTarget, normalizedPath));
+                        }
+                    }
+
+                    var fileCount = matchingManifests.Sum(m => m.InstalledFiles?.Count ?? 0);
                     if (fileCount > 100)
                     {
                         logger.LogInformation("[ProfileContentLinker] Linking large number of maps ({Count}). This might take a while.", fileCount);
@@ -144,8 +163,24 @@ public class ProfileContentLinkerService(
                             continue;
                         }
 
-                        var hasCollision = manifest.InstalledFiles.Any(f =>
-                            newUserDataFiles.Contains((f.InstallTarget, NormalizeUserDataRelativePath(f.InstallTarget, f.RelativePath))));
+                        var oldMapFiles = (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>())
+                            .Where(f => f.InstallTarget == ContentInstallTarget.UserMapsDirectory)
+                            .Select(f => f.RelativePath)
+                            .ToList();
+
+                        var oldMapNames = UserDataPathHelper.ExtractCandidateMapNames(oldMapFiles);
+                        string? oldSingleMapBaseName = oldMapNames.Count == 1 ? oldMapNames[0] : null;
+
+                        var hasCollision = (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Any(f =>
+                        {
+                            var normalizedPath = UserDataPathHelper.NormalizeUserDataRelativePath(
+                                f.InstallTarget,
+                                f.RelativePath,
+                                oldSingleMapBaseName,
+                                oldMapNames);
+
+                            return newUserDataFiles.Contains((f.InstallTarget, normalizedPath));
+                        });
 
                         if (hasCollision)
                         {
@@ -160,7 +195,7 @@ public class ProfileContentLinkerService(
                             manifest.ManifestId,
                             newProfileId,
                             targetGame,
-                            manifest.InstalledFiles.Select(f => new ManifestFile
+                            (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Select(f => new ManifestFile
                             {
                                 RelativePath = f.RelativePath,
                                 Hash = f.SourceHash ?? f.CasHash ?? string.Empty,
@@ -383,103 +418,6 @@ public class ProfileContentLinkerService(
             PatchSourceFile = file.PatchSourceFile,
             PackageInfo = file.PackageInfo,
         };
-    }
-
-    /// <summary>
-    /// Normalizes a user data file's relative path for collision checking, stripping any leading
-    /// directory prefixes (e.g. "Maps/", "Replays/", "Screenshots/") and canonicalizing map folder
-    /// structures so paths are compared consistently across different archive layouts.
-    /// </summary>
-    private static string NormalizeUserDataRelativePath(ContentInstallTarget installTarget, string relativePath)
-    {
-        var normalized = relativePath.Replace('\\', '/').Trim('/');
-        return installTarget switch
-        {
-            ContentInstallTarget.UserMapsDirectory => NormalizeMapRelativePath(normalized),
-            ContentInstallTarget.UserReplaysDirectory => StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Replays),
-            ContentInstallTarget.UserScreenshotsDirectory => StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Screenshots),
-            _ => normalized,
-        };
-    }
-
-    /// <summary>
-    /// Normalizes a relative map path to ensure comparison matches the destination directory
-    /// structure used by UserDataTrackerService.
-    /// </summary>
-    private static string NormalizeMapRelativePath(string normalized)
-    {
-        var pathUnderMaps = StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Maps);
-        var slashIdx = pathUnderMaps.LastIndexOf('/');
-        if (slashIdx < 0)
-        {
-            var ext = Path.GetExtension(pathUnderMaps);
-            if (IsSupportedMapExtension(ext))
-            {
-                var baseName = Path.GetFileNameWithoutExtension(pathUnderMaps);
-                if (baseName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-                {
-                    baseName = Path.GetFileNameWithoutExtension(baseName);
-                }
-
-                if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
-                    baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
-                {
-                    var stripped = baseName[..^4];
-                    return $"{stripped}/{stripped}.tga";
-                }
-
-                return $"{baseName}/{pathUnderMaps}";
-            }
-
-            return pathUnderMaps;
-        }
-
-        var directoryPart = pathUnderMaps[..slashIdx];
-        var fileName = pathUnderMaps[(slashIdx + 1)..];
-
-        var folderName = Path.GetFileName(directoryPart);
-        if (folderName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
-        {
-            folderName = Path.GetFileNameWithoutExtension(folderName);
-        }
-
-        var fileExt = Path.GetExtension(fileName);
-        var fileBase = Path.GetFileNameWithoutExtension(fileName);
-
-        if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
-            (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
-             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
-             fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase)))
-        {
-            fileName = folderName + ".tga";
-        }
-
-        return $"{folderName}/{fileName}";
-    }
-
-    /// <summary>
-    /// Determines whether the specified file extension is a supported map file or companion file.
-    /// </summary>
-    private static bool IsSupportedMapExtension(string ext) =>
-        ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
-        ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
-        ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
-        ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
-        ext.Equals(".wak", StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Strips a leading directory name from a relative path if present.
-    /// </summary>
-    private static string StripLeadingDirectory(string path, string directoryName)
-    {
-        var normalized = path.Replace('\\', '/');
-        var prefix = directoryName + "/";
-        if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return normalized[prefix.Length..];
-        }
-
-        return path;
     }
 
     private bool HasProfileUserData(ContentManifest manifest)
@@ -825,7 +763,7 @@ public class ProfileContentLinkerService(
                 manifest.ManifestId,
                 profileId,
                 targetGame,
-                manifest.InstalledFiles.Select(f => new ManifestFile
+                (manifest.InstalledFiles ?? Enumerable.Empty<UserDataFileEntry>()).Select(f => new ManifestFile
                 {
                     RelativePath = f.RelativePath,
                     Hash = f.SourceHash ?? f.CasHash ?? string.Empty,
