@@ -10,7 +10,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +24,7 @@ public class VlcRuntimeService(
     ILogger<VlcRuntimeService> logger,
     string? runtimeDirectory = null,
     string? systemVlcDirectory = null,
-    string? expectedSha512 = null) : IVlcRuntimeService
+    string? expectedSha512 = VlcRuntimeConstants.DefaultPackageSha512) : IVlcRuntimeService
 {
     /// <summary>
     /// Expected SHA-512 digest of the official VideoLAN.LibVLC.Windows 3.0.24 NuGet package.
@@ -40,7 +39,9 @@ public class VlcRuntimeService(
     private readonly SemaphoreSlim _installLock = new(1, 1);
     private readonly string _runtimeDir = runtimeDirectory ?? GetDefaultRuntimeDirectory();
     private readonly string? _systemVlcDir = systemVlcDirectory ?? (runtimeDirectory == null ? GetDefaultSystemVlcPath() : null);
-    private readonly string? _expectedSha512 = expectedSha512;
+    private readonly string? _expectedSha512 = expectedSha512 == VlcRuntimeConstants.DefaultPackageSha512
+        ? VlcRuntimeConstants.ExpectedSha512
+        : expectedSha512;
 
     private VlcRuntimeStatus _status = VlcRuntimeStatus.NotInstalled;
     private string? _runtimeDirectory;
@@ -126,8 +127,9 @@ public class VlcRuntimeService(
 
             CleanupStaleDirectories(targetParent, Path.GetFileName(_runtimeDir));
 
-            var tempArchive = Path.Combine(Path.GetTempPath(), $"genhub-vlc-{Guid.NewGuid():N}.tmp");
-            var stagingDir = Path.Combine(targetParent, $".staging-{Guid.NewGuid():N}");
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var tempArchive = Path.Combine(Path.GetTempPath(), $"genhub-vlc-{timestamp}-{Guid.NewGuid():N}.tmp");
+            var stagingDir = Path.Combine(targetParent, $".staging-{timestamp}-{Guid.NewGuid():N}");
 
             try
             {
@@ -274,42 +276,55 @@ public class VlcRuntimeService(
         try
         {
             var cutoff = DateTime.UtcNow - StaleDirectoryThreshold;
-
-            foreach (var dir in Directory.EnumerateDirectories(targetParent, ".staging-*"))
-            {
-                try
-                {
-                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
-                    {
-                        CleanupDirectorySilently(dir);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Ignore per-directory inspection/deletion failure
-                }
-            }
-
-            var oldPattern = targetDirName + ".old.*";
-            foreach (var dir in Directory.EnumerateDirectories(targetParent, oldPattern))
-            {
-                try
-                {
-                    if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
-                    {
-                        CleanupDirectorySilently(dir);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Ignore per-directory inspection/deletion failure
-                }
-            }
+            CleanupDirectoriesOlderThan(targetParent, ".staging-*", cutoff);
+            CleanupDirectoriesOlderThan(targetParent, targetDirName + ".old.*", cutoff);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Ignore directory enumeration failures
         }
+    }
+
+    private static void CleanupDirectoriesOlderThan(string targetParent, string searchPattern, DateTime cutoff)
+    {
+        foreach (var dir in Directory.EnumerateDirectories(targetParent, searchPattern))
+        {
+            try
+            {
+                if (IsDirectoryOlderThan(dir, cutoff))
+                {
+                    CleanupDirectorySilently(dir);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore per-directory inspection/deletion failure
+            }
+        }
+    }
+
+    private static bool IsDirectoryOlderThan(string dirPath, DateTime cutoff)
+    {
+        var dirName = Path.GetFileName(dirPath);
+        if (dirName.StartsWith(".staging-", StringComparison.OrdinalIgnoreCase))
+        {
+            var stagingParts = dirName[".staging-".Length..].Split('-');
+            if (stagingParts.Length > 0 && long.TryParse(stagingParts[0], out var timestampMs))
+            {
+                return DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime < cutoff;
+            }
+        }
+        else
+        {
+            var parts = dirName.Split('.');
+            var oldIdx = Array.IndexOf(parts, "old");
+            if (oldIdx >= 0 && oldIdx + 1 < parts.Length && long.TryParse(parts[oldIdx + 1], out var timestampMs))
+            {
+                return DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime < cutoff;
+            }
+        }
+
+        return Directory.GetLastWriteTimeUtc(dirPath) < cutoff;
     }
 
     [SuppressMessage("SonarQube", "S6966:Await OpenAsync instead", Justification = "ZipArchiveEntry.Open does not provide an async alternative in .NET")]
@@ -325,7 +340,6 @@ public class VlcRuntimeService(
 
         await using var archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
         using var archive = new ZipArchive(archiveStream, ZipArchiveMode.Read);
-
         foreach (var entry in archive.Entries)
         {
             var entryName = entry.FullName.Replace('\\', '/');
@@ -432,7 +446,8 @@ public class VlcRuntimeService(
 
     private string BackupExistingTarget(string targetDir)
     {
-        var backupDir = targetDir + ".old." + Guid.NewGuid().ToString("N");
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var backupDir = $"{targetDir}.old.{timestamp}.{Guid.NewGuid():N}";
         try
         {
             Directory.Move(targetDir, backupDir);

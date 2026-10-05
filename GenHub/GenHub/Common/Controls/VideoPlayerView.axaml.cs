@@ -148,6 +148,7 @@ public partial class VideoPlayerView : UserControl
     private bool isUnavailable;
     private bool isDownloadPromptVisible;
     private bool isDownloadingComponent;
+    private bool isStartingDownload;
     private CancellationTokenSource? downloadCts;
     private double downloadProgress;
     private string downloadStatusText = string.Empty;
@@ -902,43 +903,56 @@ public partial class VideoPlayerView : UserControl
 
     private async void OnDownloadCodecsClicked(object? sender, RoutedEventArgs e)
     {
-        var runtimeService = ResolveVlcRuntimeService();
-        if (runtimeService == null)
+        if (isStartingDownload || isDownloadingComponent)
         {
-            SetCodecDownloadFailedState();
             return;
         }
 
-        await CancelActiveDownloadAsync().ConfigureAwait(true);
-
-        var activeCts = new CancellationTokenSource();
-        downloadCts = activeCts;
-
-        InitializeDownloadUi();
-        var progress = CreateDownloadProgress(activeCts);
-
+        isStartingDownload = true;
         try
         {
-            var result = await runtimeService.InstallRuntimeAsync(progress, activeCts.Token).ConfigureAwait(true);
-            HandleInstallResult(result, activeCts);
-        }
-        catch (OperationCanceledException)
-        {
-            HandleInstallCancelled(activeCts);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to install VLC runtime: {ex.Message}");
-            HandleInstallError(activeCts);
+            var runtimeService = ResolveVlcRuntimeService();
+            if (runtimeService == null)
+            {
+                SetCodecDownloadFailedState();
+                return;
+            }
+
+            await CancelActiveDownloadAsync().ConfigureAwait(true);
+
+            var activeCts = new CancellationTokenSource();
+            downloadCts = activeCts;
+
+            InitializeDownloadUi();
+            var progress = CreateDownloadProgress(activeCts);
+
+            try
+            {
+                var result = await runtimeService.InstallRuntimeAsync(progress, activeCts.Token).ConfigureAwait(true);
+                HandleInstallResult(result, activeCts);
+            }
+            catch (OperationCanceledException)
+            {
+                HandleInstallCancelled(activeCts);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to install VLC runtime: {ex.Message}");
+                HandleInstallError(activeCts);
+            }
+            finally
+            {
+                if (ReferenceEquals(downloadCts, activeCts))
+                {
+                    downloadCts = null;
+                }
+
+                activeCts.Dispose();
+            }
         }
         finally
         {
-            if (ReferenceEquals(downloadCts, activeCts))
-            {
-                downloadCts = null;
-            }
-
-            activeCts.Dispose();
+            isStartingDownload = false;
         }
     }
 
