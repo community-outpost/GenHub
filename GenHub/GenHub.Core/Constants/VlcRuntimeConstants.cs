@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
 
@@ -45,6 +46,7 @@ public static class VlcRuntimeConstants
     /// <summary>
     /// Default fallback download URL for VideoLAN.LibVLC.Windows NuGet package.
     /// </summary>
+    [SuppressMessage("SonarQube", "S1075:URIs should not be hardcoded", Justification = "NuGet v2 package download URL fallback")]
     public const string DefaultFallbackDownloadUrl = "https://www.nuget.org/api/v2/package/VideoLAN.LibVLC.Windows/3.0.24";
 
     /// <summary>

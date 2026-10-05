@@ -22,7 +22,7 @@ namespace GenHub.Common.Services;
 public class VlcRuntimeService(
     HttpClient httpClient,
     ILogger<VlcRuntimeService> logger,
-    string? runtimeDirectory = null,
+    string? runtimeDirectory,
     string? systemVlcDirectory = null,
     string? expectedSha512 = null) : IVlcRuntimeService
 {
@@ -303,6 +303,7 @@ public class VlcRuntimeService(
         }
     }
 
+    [SuppressMessage("SonarQube", "S6966:Await OpenAsync instead", Justification = "ZipArchiveEntry.Open does not provide an async alternative in .NET")]
     private static async Task ExtractPackagePayloadAsync(
         string archivePath,
         string stagingDir,
@@ -343,7 +344,7 @@ public class VlcRuntimeService(
                 Directory.CreateDirectory(destDir);
             }
 
-            await using var entryStream = entry.Open();
+            using var entryStream = entry.Open();
             await using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true);
             await entryStream.CopyToAsync(destStream, cancellationToken).ConfigureAwait(false);
         }
@@ -402,77 +403,93 @@ public class VlcRuntimeService(
         {
             if (Directory.Exists(targetDir))
             {
-                backupDir = targetDir + ".old." + Guid.NewGuid().ToString("N");
-                try
+                backupDir = BackupExistingTarget(stagingDir, targetDir);
+                if (backupDir == null)
                 {
-                    Directory.Move(targetDir, backupDir);
-                }
-                catch (IOException ex)
-                {
-                    logger.LogWarning(ex, "Directory.Move target to backup failed, attempting copy fallback");
-                    try
-                    {
-                        CopyDirectory(stagingDir, targetDir);
-                        return;
-                    }
-                    catch (Exception copyEx)
-                    {
-                        CleanupDirectorySilently(targetDir);
-                        throw new InvalidOperationException("Failed to copy staging directory into target directory during fallback.", copyEx);
-                    }
+                    return;
                 }
             }
 
-            try
-            {
-                Directory.Move(stagingDir, targetDir);
-            }
-            catch (IOException ex)
-            {
-                logger.LogWarning(ex, "Directory.Move staging to target failed, attempting copy fallback");
-                try
-                {
-                    CopyDirectory(stagingDir, targetDir);
-                }
-                catch (Exception copyEx)
-                {
-                    CleanupDirectorySilently(targetDir);
-                    throw new InvalidOperationException("Failed to copy staging directory into target directory.", copyEx);
-                }
-            }
-
-            if (backupDir != null && Directory.Exists(backupDir))
-            {
-                try
-                {
-                    Directory.Delete(backupDir, recursive: true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
-                }
-            }
+            MoveOrCopyDirectory(stagingDir, targetDir);
+            CleanupBackupSilently(backupDir);
         }
         catch (Exception ex)
         {
-            if (backupDir != null && Directory.Exists(backupDir))
-            {
-                CleanupDirectorySilently(targetDir);
-                try
-                {
-                    Directory.Move(backupDir, targetDir);
-                }
-                catch (Exception restoreEx)
-                {
-                    logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
-                }
-            }
-            else
-            {
-                CleanupDirectorySilently(targetDir);
-            }
-
+            RollbackPromotion(backupDir, targetDir);
             throw new InvalidOperationException("Failed to promote LibVLC staging directory into runtime directory.", ex);
+        }
+    }
+
+    private string? BackupExistingTarget(string stagingDir, string targetDir)
+    {
+        var backupDir = targetDir + ".old." + Guid.NewGuid().ToString("N");
+        try
+        {
+            Directory.Move(targetDir, backupDir);
+            return backupDir;
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Directory.Move target to backup failed, attempting copy fallback");
+            CopyStagingFallback(stagingDir, targetDir);
+            return null;
+        }
+    }
+
+    private void MoveOrCopyDirectory(string sourceDir, string destinationDir)
+    {
+        try
+        {
+            Directory.Move(sourceDir, destinationDir);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Directory.Move staging to target failed, attempting copy fallback");
+            CopyStagingFallback(sourceDir, destinationDir);
+        }
+    }
+
+    private void CopyStagingFallback(string sourceDir, string targetDir)
+    {
+        try
+        {
+            CopyDirectory(sourceDir, targetDir);
+        }
+        catch (Exception copyEx)
+        {
+            CleanupDirectorySilently(targetDir);
+            throw new InvalidOperationException("Failed to copy staging directory into target directory.", copyEx);
+        }
+    }
+
+    private void CleanupBackupSilently(string? backupDir)
+    {
+        if (backupDir != null && Directory.Exists(backupDir))
+        {
+            try
+            {
+                Directory.Delete(backupDir, recursive: true);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
+            }
+        }
+    }
+
+    private void RollbackPromotion(string? backupDir, string targetDir)
+    {
+        CleanupDirectorySilently(targetDir);
+        if (backupDir != null && Directory.Exists(backupDir))
+        {
+            try
+            {
+                Directory.Move(backupDir, targetDir);
+            }
+            catch (Exception restoreEx)
+            {
+                logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
+            }
         }
     }
 
@@ -531,22 +548,26 @@ public class VlcRuntimeService(
 
     private sealed class MonotonicProgress(IProgress<double> target) : IProgress<double>
     {
-        private double _maxProgress;
+        private long _maxProgressBits;
 
         public void Report(double value)
         {
             var clamped = Math.Clamp(value, 0.0, 1.0);
-            var current = Volatile.Read(ref _maxProgress);
-            while (clamped > current)
+            while (true)
             {
-                var previous = Interlocked.CompareExchange(ref _maxProgress, clamped, current);
-                if (previous == current)
+                var currentBits = Volatile.Read(ref _maxProgressBits);
+                var current = BitConverter.Int64BitsToDouble(currentBits);
+                if (clamped <= current)
+                {
+                    break;
+                }
+
+                var newBits = BitConverter.DoubleToInt64Bits(clamped);
+                if (Interlocked.CompareExchange(ref _maxProgressBits, newBits, currentBits) == currentBits)
                 {
                     target.Report(clamped);
                     break;
                 }
-
-                current = previous;
             }
         }
     }

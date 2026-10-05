@@ -8,11 +8,13 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
 using LibVLCSharp.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 
 namespace GenHub.Common.Controls;
@@ -634,23 +636,9 @@ public partial class VideoPlayerView : UserControl
         if (libVlc == null)
         {
             IsLoading = false;
-
-            // If the runtime was reportedly available on disk but failed to initialize,
-            // routing back to the download prompt would cause an infinite loop.
-            // Show the error overlay with fallback instead.
-            if (!isAvailable && runtimeService?.IsInstallSupported == true)
-            {
-                IsDownloadPromptVisible = true;
-                IsUnavailable = false;
-                HasError = false;
-            }
-            else
-            {
-                IsDownloadPromptVisible = false;
-                IsUnavailable = true;
-                HasError = true;
-            }
-
+            IsDownloadPromptVisible = false;
+            IsUnavailable = true;
+            HasError = true;
             return;
         }
 
@@ -915,12 +903,52 @@ public partial class VideoPlayerView : UserControl
         var runtimeService = ResolveVlcRuntimeService();
         if (runtimeService == null)
         {
-            IsDownloadPromptVisible = false;
-            IsUnavailable = true;
-            HasError = true;
+            SetCodecDownloadFailedState();
             return;
         }
 
+        await CancelActiveDownloadAsync().ConfigureAwait(true);
+
+        var activeCts = new CancellationTokenSource();
+        downloadCts = activeCts;
+
+        InitializeDownloadUi();
+        var progress = CreateDownloadProgress(activeCts);
+
+        try
+        {
+            var result = await runtimeService.InstallRuntimeAsync(progress, activeCts.Token).ConfigureAwait(true);
+            HandleInstallResult(result, activeCts);
+        }
+        catch (OperationCanceledException)
+        {
+            HandleInstallCancelled(activeCts);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to install VLC runtime: {ex.Message}");
+            HandleInstallError(activeCts);
+        }
+        finally
+        {
+            if (ReferenceEquals(downloadCts, activeCts))
+            {
+                downloadCts = null;
+            }
+
+            activeCts.Dispose();
+        }
+    }
+
+    private void SetCodecDownloadFailedState()
+    {
+        IsDownloadPromptVisible = false;
+        IsUnavailable = true;
+        HasError = true;
+    }
+
+    private async Task CancelActiveDownloadAsync()
+    {
         if (downloadCts != null)
         {
             var oldCts = downloadCts;
@@ -934,11 +962,10 @@ public partial class VideoPlayerView : UserControl
                 // Ignore cancellation exceptions from previous install
             }
         }
+    }
 
-        var activeCts = new CancellationTokenSource();
-        downloadCts = activeCts;
-        var cancellationToken = activeCts.Token;
-
+    private void InitializeDownloadUi()
+    {
         IsDownloadPromptVisible = false;
         IsDownloadingComponent = true;
         DownloadProgress = 0;
@@ -946,8 +973,12 @@ public partial class VideoPlayerView : UserControl
             "Downloads.ContentDetail.VideoPlayer.DownloadingProgress",
             "Downloading media player components... {0}%",
             0);
+    }
 
-        var progress = new Progress<double>(percent =>
+    private IProgress<double> CreateDownloadProgress(CancellationTokenSource activeCts)
+    {
+        var cancellationToken = activeCts.Token;
+        return new Progress<double>(percent =>
         {
             if (!ReferenceEquals(downloadCts, activeCts) || cancellationToken.IsCancellationRequested)
             {
@@ -968,65 +999,53 @@ public partial class VideoPlayerView : UserControl
                     (int)Math.Round(percent * 100));
             });
         });
+    }
 
-        try
+    private void HandleInstallResult(OperationResult<bool> result, CancellationTokenSource activeCts)
+    {
+        if (!ReferenceEquals(downloadCts, activeCts))
         {
-            var result = await runtimeService.InstallRuntimeAsync(progress, cancellationToken).ConfigureAwait(true);
+            return;
+        }
 
-            if (!ReferenceEquals(downloadCts, activeCts))
+        if (activeCts.Token.IsCancellationRequested)
+        {
+            HandleInstallCancelled(activeCts);
+            return;
+        }
+
+        IsDownloadingComponent = false;
+        if (result.Success)
+        {
+            ResetInitializationState();
+            if (!string.IsNullOrWhiteSpace(SourceUrl))
             {
-                return;
+                StartPlayback(SourceUrl);
             }
+        }
+        else
+        {
+            IsUnavailable = true;
+            HasError = true;
+        }
+    }
 
-            if (cancellationToken.IsCancellationRequested)
-            {
-                IsDownloadingComponent = false;
-                IsDownloadPromptVisible = true;
-                return;
-            }
-
+    private void HandleInstallCancelled(CancellationTokenSource activeCts)
+    {
+        if (ReferenceEquals(downloadCts, activeCts))
+        {
             IsDownloadingComponent = false;
+            IsDownloadPromptVisible = true;
+        }
+    }
 
-            if (result.Success)
-            {
-                ResetInitializationState();
-                if (!string.IsNullOrWhiteSpace(SourceUrl))
-                {
-                    StartPlayback(SourceUrl);
-                }
-            }
-            else
-            {
-                IsUnavailable = true;
-                HasError = true;
-            }
-        }
-        catch (OperationCanceledException)
+    private void HandleInstallError(CancellationTokenSource activeCts)
+    {
+        if (ReferenceEquals(downloadCts, activeCts))
         {
-            if (ReferenceEquals(downloadCts, activeCts))
-            {
-                IsDownloadingComponent = false;
-                IsDownloadPromptVisible = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to install VLC runtime: {ex.Message}");
-            if (ReferenceEquals(downloadCts, activeCts))
-            {
-                IsDownloadingComponent = false;
-                IsUnavailable = true;
-                HasError = true;
-            }
-        }
-        finally
-        {
-            if (ReferenceEquals(downloadCts, activeCts))
-            {
-                downloadCts = null;
-            }
-
-            activeCts.Dispose();
+            IsDownloadingComponent = false;
+            IsUnavailable = true;
+            HasError = true;
         }
     }
 
