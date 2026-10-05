@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -41,9 +42,17 @@ public class GitHubManifestFactory(
     }
 
     /// <inheritdoc />
+    public Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default) =>
+        CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+
+    /// <inheritdoc />
     public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Creating GitHub manifests from extracted content in: {Directory}", extractedDirectory);
@@ -75,6 +84,9 @@ public class GitHubManifestFactory(
 
         logger.LogInformation("Found {FileCount} files in {Directory}", allFiles.Length, extractedDirectory);
 
+        var totalFiles = allFiles.Length;
+        var processedCount = 0;
+
         // Parallelize hashing for better performance
         var fileProcessingTasks = allFiles.Select(async filePath =>
         {
@@ -88,6 +100,22 @@ public class GitHubManifestFactory(
 
             // Compute hash for ContentAddressable storage
             string fileHash = await hashProvider.ComputeFileHashAsync(filePath, cancellationToken);
+
+            var count = Interlocked.Increment(ref processedCount);
+            if (progress != null && totalFiles > 0)
+            {
+                progress.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.ValidatingFiles,
+                    TotalFiles = totalFiles,
+                    FilesProcessed = count,
+                    CurrentOperation = $"Hashing {relativePath}",
+                    StageDescription = "Validating files",
+                    CurrentStage = ContentConstants.PipelineStageValidating,
+                    TotalStages = ContentConstants.TotalPipelineStages,
+                    StageProgress = (double)count / totalFiles * 100.0,
+                });
+            }
 
             // Classify from content: extensionless native binaries count, libraries do not.
             bool isExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, filePath);

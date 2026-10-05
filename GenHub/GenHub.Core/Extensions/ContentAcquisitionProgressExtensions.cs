@@ -58,7 +58,7 @@ public static class ContentAcquisitionProgressExtensions
             ? $"{desc}: {op}"
             : desc;
 
-        string percentPart = progress.StageProgress is > 0 and < 100
+        string percentPart = progress.StageProgress is > 0 and < 100 && progress.TotalFiles <= 1
             ? $" ({progress.StageProgress:F0}%)"
             : string.Empty;
 

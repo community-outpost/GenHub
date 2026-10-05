@@ -3,6 +3,7 @@ using GenHub.Core.Services.Tools;
 using System;
 using System.IO;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;
 
@@ -124,7 +125,7 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_BareGenHubTag_ReturnsFalse()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.Mod, "Shockwave Mod", ["genhub"]);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, "Shockwave Mod", ["genhub"]);
         Assert.False(result);
     }
 
@@ -134,7 +135,7 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_GenHubBuildTag_ReturnsTrue()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.Mod, "Shockwave Mod", ["genhub-build"]);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, "Shockwave Mod", ["genhub-build"]);
         Assert.True(result);
     }
 
@@ -144,7 +145,7 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_GenHubMapBuilder_ReturnsFalse()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(GenHub.Core.Models.Enums.ContentType.ModdingTool, "GenHub Map Builder", []);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool, "GenHub Map Builder", []);
         Assert.False(result);
     }
 }

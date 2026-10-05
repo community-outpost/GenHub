@@ -26,11 +26,6 @@ public static class GenHubBuildConstants
     public const string OfficialContentId = "genhub";
 
     /// <summary>
-    /// Tag identifier for genhub builds.
-    /// </summary>
-    public const string GenHubTag = "genhub";
-
-    /// <summary>
     /// Tag identifier for genhub-build tag.
     /// </summary>
     public const string GenHubBuildTag = "genhub-build";
