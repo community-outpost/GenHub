@@ -32,6 +32,8 @@ public class VlcRuntimeService(
     public const string DefaultPackageSha512 = VlcRuntimeConstants.DefaultPackageSha512;
 
     private const int BufferSize = 81920;
+    private const long MinValidTimestampMs = 0L;
+    private const long MaxValidTimestampMs = 253_402_300_799_999L;
 
     private static readonly TimeSpan DownloadInactivityTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan StaleDirectoryThreshold = TimeSpan.FromHours(1);
@@ -303,24 +305,45 @@ public class VlcRuntimeService(
         }
     }
 
+    private static bool TryParseDirectoryTimestamp(string value, out DateTime utcDateTime)
+    {
+        if (long.TryParse(value, out var timestampMs) &&
+            timestampMs >= MinValidTimestampMs &&
+            timestampMs <= MaxValidTimestampMs)
+        {
+            try
+            {
+                utcDateTime = DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime;
+                return true;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Fallback on unexpected out-of-range values
+            }
+        }
+
+        utcDateTime = default;
+        return false;
+    }
+
     private static bool IsDirectoryOlderThan(string dirPath, DateTime cutoff)
     {
         var dirName = Path.GetFileName(dirPath);
         if (dirName.StartsWith(".staging-", StringComparison.OrdinalIgnoreCase))
         {
             var stagingParts = dirName[".staging-".Length..].Split('-');
-            if (stagingParts.Length > 0 && long.TryParse(stagingParts[0], out var timestampMs))
+            if (stagingParts.Length > 0 && TryParseDirectoryTimestamp(stagingParts[0], out var dirTime))
             {
-                return DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime < cutoff;
+                return dirTime < cutoff;
             }
         }
         else
         {
             var parts = dirName.Split('.');
             var oldIdx = Array.IndexOf(parts, "old");
-            if (oldIdx >= 0 && oldIdx + 1 < parts.Length && long.TryParse(parts[oldIdx + 1], out var timestampMs))
+            if (oldIdx >= 0 && oldIdx + 1 < parts.Length && TryParseDirectoryTimestamp(parts[oldIdx + 1], out var dirTime))
             {
-                return DateTimeOffset.FromUnixTimeMilliseconds(timestampMs).UtcDateTime < cutoff;
+                return dirTime < cutoff;
             }
         }
 
@@ -555,7 +578,7 @@ public class VlcRuntimeService(
                     break;
                 }
 
-                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), linkedCts.Token).ConfigureAwait(false);
                 totalRead += bytesRead;
 
                 if (totalBytes > 0 && progress != null)
