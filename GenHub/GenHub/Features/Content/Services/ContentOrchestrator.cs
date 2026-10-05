@@ -520,14 +520,15 @@ public class ContentOrchestrator : IContentOrchestrator
                 {
                     prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
                     {
-                        var isExtracting = p.Phase == ContentAcquisitionPhase.Extracting ||
-                                           p.CurrentStage == ContentConstants.PipelineStageExtracting ||
-                                           (!string.IsNullOrEmpty(p.StageDescription) &&
-                                            (p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase) ||
-                                             p.StageDescription.Contains("Process", StringComparison.OrdinalIgnoreCase)));
-
                         var isValidatingOrStoring = p.Phase is ContentAcquisitionPhase.ValidatingFiles or ContentAcquisitionPhase.StoringInCas ||
                                                    p.CurrentStage == ContentConstants.PipelineStageValidating;
+
+                        var isExtracting = !isValidatingOrStoring &&
+                                           (p.Phase == ContentAcquisitionPhase.Extracting ||
+                                            p.CurrentStage == ContentConstants.PipelineStageExtracting ||
+                                            (!string.IsNullOrEmpty(p.StageDescription) &&
+                                             (p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase) ||
+                                              p.StageDescription.Contains("Process", StringComparison.OrdinalIgnoreCase))));
 
                         ContentAcquisitionPhase effectivePhase;
                         if (isExtracting)

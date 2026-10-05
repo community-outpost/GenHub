@@ -236,7 +236,8 @@ public static class NetworkSecurityHelper
     {
         createValidationException ??= static msg => new SecurityException(msg);
 
-        var targetHost = context.InitialRequestMessage?.RequestUri?.Host;
+        // Normalize using IdnHost to strip IPv6 literal brackets and normalize IDN names, matching DnsEndPoint.Host
+        var targetHost = context.InitialRequestMessage?.RequestUri?.IdnHost;
         var isProxy = !string.IsNullOrEmpty(targetHost) &&
                       !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
 

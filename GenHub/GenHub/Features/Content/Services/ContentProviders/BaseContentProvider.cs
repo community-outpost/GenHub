@@ -433,16 +433,11 @@ public abstract class BaseContentProvider : IContentProvider
                 return deliveryResult;
             }
 
-            var manifestResult = progress != null
-                ? await manifestFactory.CreateManifestsFromExtractedContentAsync(
-                    manifest,
-                    workingDirectory,
-                    progress,
-                    cancellationToken).ConfigureAwait(false)
-                : await manifestFactory.CreateManifestsFromExtractedContentAsync(
-                    manifest,
-                    workingDirectory,
-                    cancellationToken).ConfigureAwait(false);
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
 
             if (!manifestResult.Success)
             {

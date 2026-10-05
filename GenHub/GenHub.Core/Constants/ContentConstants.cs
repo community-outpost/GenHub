@@ -114,12 +114,12 @@ public static class ContentConstants
     public const int TotalPipelineStages = 5;
 
     /// <summary>
-    /// Stage index for extracting payload archives (Stage 3).
+    /// Stage index for extracting payload archives (1-based; Stage 3 of 5).
     /// </summary>
     public const int PipelineStageExtracting = 3;
 
     /// <summary>
-    /// Stage index for validating extracted files (Stage 4).
+    /// Stage index for validating extracted files (1-based; Stage 4 of 5).
     /// </summary>
     public const int PipelineStageValidating = 4;
 
