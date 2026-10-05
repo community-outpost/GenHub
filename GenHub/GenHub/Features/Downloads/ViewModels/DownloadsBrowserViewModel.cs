@@ -4606,7 +4606,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         Directory.Delete(dir, recursive: true);
                     }
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
                 {
                     logger.LogDebug(ex, "Failed to clean stale build directory '{Directory}'", dir);
                 }

@@ -148,4 +148,14 @@ public class GenHubBuildInspectorTests
         var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool, "GenHub Map Builder", []);
         Assert.False(result);
     }
+
+    /// <summary>
+    /// Verifies that ContentType.GenHubBuild is treated as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void IsGenHubApplicationBuild_ContentTypeGenHubBuild_ReturnsTrue()
+    {
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild, "Any Name", []);
+        Assert.True(result);
+    }
 }

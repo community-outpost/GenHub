@@ -47,15 +47,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return true;
         }
 
-        return !string.IsNullOrWhiteSpace(name) &&
-               name.StartsWith("GenHub", StringComparison.OrdinalIgnoreCase) &&
-               contentType is ContentType.GameClient or ContentType.Executable or ContentType.ModdingTool or ContentType.UnknownContentType &&
-               !name.Contains("Builder", StringComparison.OrdinalIgnoreCase) &&
-               !name.Contains("Map", StringComparison.OrdinalIgnoreCase) &&
-               (name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("PR #", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("Build", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("Fork", StringComparison.OrdinalIgnoreCase));
+        return false;
     }
 
     /// <inheritdoc />
