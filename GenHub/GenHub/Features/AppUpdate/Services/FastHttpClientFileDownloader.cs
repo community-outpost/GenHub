@@ -35,47 +35,11 @@ public class FastHttpClientFileDownloader(
         PooledConnectionLifetime = TimeSpan.FromMinutes(DownloadDefaults.HttpPooledConnectionLifetimeMinutes),
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
         ConnectTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds),
-        ConnectCallback = ConnectCallbackAsync,
+        ConnectCallback = static (context, cancellationToken) => NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(
+            context,
+            DownloadDefaults.HttpConnectTimeoutSeconds,
+            cancellationToken),
     };
-
-    private static async ValueTask<Stream> ConnectCallbackAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)
-    {
-        var targetHost = context.InitialRequestMessage?.RequestUri?.Host;
-        var isProxy = !string.IsNullOrEmpty(targetHost) &&
-                      !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
-
-        var hostToValidate = isProxy ? targetHost! : context.DnsEndPoint.Host;
-        if (Uri.CheckHostName(hostToValidate) == UriHostNameType.Unknown)
-        {
-            throw new SecurityException($"Invalid host name: '{hostToValidate}'.");
-        }
-
-        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        connectCts.CancelAfter(TimeSpan.FromSeconds(DownloadDefaults.HttpConnectTimeoutSeconds));
-
-        var validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
-        ValidateResolvedAddresses(hostToValidate, validationAddresses);
-
-        var connectAddresses = isProxy
-            ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
-            : validationAddresses;
-
-        var sortedAddresses = connectAddresses
-            .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
-            .ToArray();
-
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-        try
-        {
-            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, connectCts.Token).ConfigureAwait(false);
-            return new NetworkStream(socket, ownsSocket: true);
-        }
-        catch
-        {
-            socket.Dispose();
-            throw;
-        }
-    }
 
     private static void ValidateResolvedAddresses(string host, IPAddress[] addresses)
     {

@@ -3,9 +3,13 @@ namespace GenHub.Core.Helpers;
 using GenHub.Core.Constants;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -212,6 +216,75 @@ public static class NetworkSecurityHelper
     /// <returns><c>true</c> if the URI host is blocked; otherwise, <c>false</c>.</returns>
     public static bool IsBlockedHostName(Uri uri) =>
         uri.IsLoopback || IsBlockedHostName(uri.Host);
+
+    /// <summary>
+    /// Connects a TCP socket with SSRF validation, supporting HTTP/HTTPS proxy scenarios.
+    /// In direct mode, verifies that the host resolves to safe, non-private IP addresses before connecting.
+    /// In proxy mode (when the target host differs from the connect host), validates the target host against
+    /// safe IP address rules for SSRF protection, while connecting to the proxy host.
+    /// </summary>
+    /// <param name="context">The SocketsHttpConnectionContext provided by SocketsHttpHandler.</param>
+    /// <param name="connectTimeoutSeconds">Connection timeout in seconds.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <param name="createValidationException">Optional factory to create the exception when validation fails; defaults to SecurityException.</param>
+    /// <returns>A connected Stream (NetworkStream).</returns>
+    public static async ValueTask<Stream> ConnectSocketWithSsrfCheckAsync(
+        SocketsHttpConnectionContext context,
+        int connectTimeoutSeconds,
+        CancellationToken cancellationToken,
+        Func<string, Exception>? createValidationException = null)
+    {
+        createValidationException ??= static msg => new SecurityException(msg);
+
+        var targetHost = context.InitialRequestMessage?.RequestUri?.Host;
+        var isProxy = !string.IsNullOrEmpty(targetHost) &&
+                      !string.Equals(targetHost, context.DnsEndPoint.Host, StringComparison.OrdinalIgnoreCase);
+
+        var hostToValidate = isProxy ? targetHost! : context.DnsEndPoint.Host;
+        if (Uri.CheckHostName(hostToValidate) == UriHostNameType.Unknown)
+        {
+            throw createValidationException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.InvalidHostFormat, hostToValidate));
+        }
+
+        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectCts.CancelAfter(TimeSpan.FromSeconds(connectTimeoutSeconds));
+
+        var validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
+        if (validationAddresses.Length == 0)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, hostToValidate));
+        }
+
+        if (!validationAddresses.All(IsSafeIpAddress))
+        {
+            throw createValidationException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, hostToValidate));
+        }
+
+        var connectAddresses = isProxy
+            ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
+            : validationAddresses;
+
+        if (connectAddresses.Length == 0)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, context.DnsEndPoint.Host));
+        }
+
+        var sortedAddresses = connectAddresses
+            .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
+            .ToArray();
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        try
+        {
+            await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, connectCts.Token).ConfigureAwait(false);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
 
     private static bool TryGetCandidateUri(string? url, [NotNullWhen(true)] out Uri? uri, out string? failureReason)
     {
