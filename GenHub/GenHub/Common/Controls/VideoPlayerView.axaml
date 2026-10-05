@@ -6,6 +6,24 @@
              x:Class="GenHub.Common.Controls.VideoPlayerView"
              x:DataType="local:VideoPlayerView"
              Focusable="True">
+
+    <UserControl.Styles>
+        <Style Selector="Button.transport-btn">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="CornerRadius" Value="18" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="8" />
+        </Style>
+        <Style Selector="Button.transport-btn-large">
+            <Setter Property="Width" Value="44" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="CornerRadius" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="10" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="*,Auto">
         <!-- Flexible video stage: fills the parent dialog area -->
         <Border x:Name="StageBorder"
@@ -28,7 +46,7 @@
                     <ProgressBar IsIndeterminate="True"
                                  Width="200"
                                  HorizontalAlignment="Center" />
-                    <TextBlock Text="{Binding LoadingText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
+                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.LoadingVideo}"
                                FontSize="13"
                                Foreground="White"
                                HorizontalAlignment="Center" />
@@ -138,13 +156,9 @@
               VerticalAlignment="Center">
             <!-- Rewind 10s -->
             <Button x:Name="RewindButton"
+                    Classes="transport-btn"
                     Grid.Column="0"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Rewind}"
-                    Padding="8"
                     Margin="0,0,4,0">
                 <PathIcon Data="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
                           Width="16"
@@ -153,13 +167,9 @@
 
             <!-- Play / Pause -->
             <Button x:Name="PlayPauseButton"
+                    Classes="transport-btn-large"
                     Grid.Column="1"
-                    Width="44"
-                    Height="44"
-                    CornerRadius="22"
-                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.PlayPause}"
-                    Padding="10"
                     Margin="0,0,4,0">
                 <Panel>
                     <!-- Play glyph -->
@@ -177,13 +187,9 @@
 
             <!-- Fast Forward 10s -->
             <Button x:Name="FastForwardButton"
+                    Classes="transport-btn"
                     Grid.Column="2"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.FastForward}"
-                    Padding="8"
                     Margin="0,0,8,0">
                 <PathIcon Data="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 8-8 8-8z"
                           Width="16"
@@ -210,13 +216,9 @@
 
             <!-- Mute / Unmute -->
             <Button x:Name="MuteButton"
+                    Classes="transport-btn"
                     Grid.Column="5"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.MuteUnmute}"
-                    Padding="8"
                     Margin="4,0">
                 <Panel>
                     <PathIcon Data="M3 9v6h4l5 5V4L7 9H3z"
@@ -232,13 +234,9 @@
 
             <!-- Fullscreen -->
             <Button x:Name="FullscreenButton"
+                    Classes="transport-btn"
                     Grid.Column="6"
-                    Width="36"
-                    Height="36"
-                    CornerRadius="18"
-                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}"
-                    Padding="8"
                     Margin="4,0,0,0">
                 <Panel>
                     <!-- Enter fullscreen glyph -->

@@ -24,7 +24,7 @@ public class VlcRuntimeService(
     ILogger<VlcRuntimeService> logger,
     string? runtimeDirectory,
     string? systemVlcDirectory = null,
-    string? expectedSha512 = null) : IVlcRuntimeService
+    string? expectedSha512 = VlcRuntimeConstants.DefaultPackageSha512) : IVlcRuntimeService
 {
     /// <summary>
     /// Expected SHA-512 digest of the official VideoLAN.LibVLC.Windows 3.0.24 NuGet package.
@@ -253,7 +253,7 @@ public class VlcRuntimeService(
             {
                 File.Delete(tempFile);
             }
-            catch
+            catch (Exception)
             {
                 // Ignore temp cleanup failure
             }
@@ -270,7 +270,7 @@ public class VlcRuntimeService(
             {
                 Directory.Delete(path, recursive: true);
             }
-            catch
+            catch (Exception)
             {
                 // Ignore cleanup failure
             }
@@ -297,7 +297,7 @@ public class VlcRuntimeService(
                 CleanupDirectorySilently(dir);
             }
         }
-        catch
+        catch (Exception)
         {
             // Ignore directory enumeration failures
         }
@@ -399,15 +399,12 @@ public class VlcRuntimeService(
     private void PromoteStagingDirectory(string stagingDir, string targetDir)
     {
         string? backupDir = null;
+        var targetExisted = Directory.Exists(targetDir);
         try
         {
-            if (Directory.Exists(targetDir))
+            if (targetExisted)
             {
-                backupDir = BackupExistingTarget(stagingDir, targetDir);
-                if (backupDir == null)
-                {
-                    return;
-                }
+                backupDir = BackupExistingTarget(targetDir);
             }
 
             MoveOrCopyDirectory(stagingDir, targetDir);
@@ -415,12 +412,16 @@ public class VlcRuntimeService(
         }
         catch (Exception ex)
         {
-            RollbackPromotion(backupDir, targetDir);
+            if (!targetExisted || backupDir != null)
+            {
+                RollbackPromotion(backupDir, targetDir);
+            }
+
             throw new InvalidOperationException("Failed to promote LibVLC staging directory into runtime directory.", ex);
         }
     }
 
-    private string? BackupExistingTarget(string stagingDir, string targetDir)
+    private string BackupExistingTarget(string targetDir)
     {
         var backupDir = targetDir + ".old." + Guid.NewGuid().ToString("N");
         try
@@ -430,9 +431,8 @@ public class VlcRuntimeService(
         }
         catch (IOException ex)
         {
-            logger.LogWarning(ex, "Directory.Move target to backup failed, attempting copy fallback");
-            CopyStagingFallback(stagingDir, targetDir);
-            return null;
+            logger.LogWarning(ex, "Directory.Move target to backup failed; aborting promotion to preserve existing files.");
+            throw;
         }
     }
 
@@ -488,7 +488,15 @@ public class VlcRuntimeService(
             }
             catch (Exception restoreEx)
             {
-                logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
+                logger.LogWarning(restoreEx, "Directory.Move failed during rollback of backup runtime directory {BackupDir}; attempting copy fallback", backupDir);
+                try
+                {
+                    CopyDirectory(backupDir, targetDir);
+                }
+                catch (Exception copyEx)
+                {
+                    logger.LogError(copyEx, "Failed to restore backup runtime directory {BackupDir} via copy fallback", backupDir);
+                }
             }
         }
     }
@@ -553,6 +561,11 @@ public class VlcRuntimeService(
         public void Report(double value)
         {
             var clamped = Math.Clamp(value, 0.0, 1.0);
+            if (double.IsNaN(clamped))
+            {
+                return;
+            }
+
             while (true)
             {
                 var currentBits = Volatile.Read(ref _maxProgressBits);

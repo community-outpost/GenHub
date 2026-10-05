@@ -13,7 +13,6 @@ using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -45,7 +44,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
                 Directory.Delete(testTargetDirectory, recursive: true);
             }
         }
-        catch
+        catch (Exception)
         {
             // Ignore test cleanup exceptions
         }

@@ -957,9 +957,13 @@ public partial class VideoPlayerView : UserControl
             {
                 await oldCts.CancelAsync().ConfigureAwait(true);
             }
-            catch
+            catch (ObjectDisposedException)
             {
-                // Ignore cancellation exceptions from previous install
+                // Ignore CTS disposal race from previous install completion
+            }
+            finally
+            {
+                oldCts.Dispose();
             }
         }
     }
