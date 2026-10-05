@@ -923,4 +923,145 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that SwitchProfileUserDataAsync correctly normalizes flat map paths (e.g. "FlatMap.map")
+    /// when comparing collisions against nested map paths (e.g. "Maps\\FlatMap\\FlatMap.map").
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SwitchProfileUserDataAsync_WhenOldManifestHasFlatMap_CorrectlyIdentifiesCollisionWithNestedIncomingMapAsync()
+    {
+        // Arrange
+        const string oldProfileId = "profile-old-flat";
+        const string newProfileId = "profile-new-nested";
+        const GameType gameType = GameType.ZeroHour;
+
+        const string conflictingOldFlatManifestId = "1.0.0.map.flatbattleplan";
+        const string nonConflictingOldFlatManifestId = "1.0.0.map.uniquecustommap";
+        const string incomingNewNestedManifestId = "1.0.1.mappack.nestedpack";
+
+        var conflictingOldManifest = new UserDataManifest
+        {
+            ManifestId = conflictingOldFlatManifestId,
+            ProfileId = oldProfileId,
+            TargetGame = GameType.ZeroHour,
+            InstalledFiles =
+            [
+                new UserDataFileEntry
+                {
+                    AbsolutePath = @"C:\Users\User\Documents\Command and Conquer Generals Zero Hour Data\Maps\FlatBattlePlan\FlatBattlePlan.map",
+                    RelativePath = "FlatBattlePlan.map",
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                },
+            ],
+        };
+
+        var nonConflictingOldManifest = new UserDataManifest
+        {
+            ManifestId = nonConflictingOldFlatManifestId,
+            ProfileId = oldProfileId,
+            TargetGame = GameType.ZeroHour,
+            InstalledFiles =
+            [
+                new UserDataFileEntry
+                {
+                    AbsolutePath = @"C:\Users\User\Documents\Command and Conquer Generals Zero Hour Data\Maps\UniqueCustomMap\UniqueCustomMap.map",
+                    RelativePath = "UniqueCustomMap.map",
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                },
+            ],
+        };
+
+        var incomingNewManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(incomingNewNestedManifestId),
+            Name = "Nested Map Pack",
+            ContentType = ContentType.MapPack,
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = @"Maps\FlatBattlePlan\FlatBattlePlan.map",
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                    Hash = "nested-hash",
+                    Size = 1234,
+                },
+            ],
+        };
+
+        _userDataTrackerMock.Setup(t => t.GetProfileUserDataAsync(oldProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess(
+                [conflictingOldManifest, nonConflictingOldManifest]));
+
+        _userDataTrackerMock.Setup(t => t.DeactivateProfileUserDataAsync(oldProfileId, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _userDataTrackerMock.Setup(t => t.GetGameUserDataAsync(gameType, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess([]));
+
+        _userDataTrackerMock.Setup(t => t.GetUserDataManifestAsync(It.IsAny<string>(), newProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<UserDataManifest?>.CreateSuccess(null));
+
+        _userDataTrackerMock.Setup(t => t.InstallUserDataAsync(
+            It.IsAny<string>(),
+            newProfileId,
+            gameType,
+            It.IsAny<IEnumerable<ManifestFile>>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string manifestId, string profileId, GameType game, IEnumerable<ManifestFile> _, string _, string _, CancellationToken _) =>
+                OperationResult<UserDataManifest>.CreateSuccess(new UserDataManifest { ManifestId = manifestId, ProfileId = profileId, TargetGame = game }));
+
+        _userDataTrackerMock.Setup(t => t.ActivateProfileUserDataAsync(newProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _linkerService.SwitchProfileUserDataAsync(
+            oldProfileId: oldProfileId,
+            newProfileId: newProfileId,
+            newManifests: [incomingNewManifest],
+            targetGame: gameType,
+            skipCleanup: true);
+
+        // Assert
+        Assert.True(result.Success);
+
+        // Conflicting flat map should NOT have been adopted
+        _userDataTrackerMock.Verify(
+            t => t.InstallUserDataAsync(
+                conflictingOldFlatManifestId,
+                newProfileId,
+                gameType,
+                It.IsAny<IEnumerable<ManifestFile>>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        // Non-conflicting flat custom map SHOULD have been adopted
+        _userDataTrackerMock.Verify(
+            t => t.InstallUserDataAsync(
+                nonConflictingOldFlatManifestId,
+                newProfileId,
+                gameType,
+                It.IsAny<IEnumerable<ManifestFile>>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Incoming nested manifest should be installed
+        _userDataTrackerMock.Verify(
+            t => t.InstallUserDataAsync(
+                incomingNewNestedManifestId,
+                newProfileId,
+                gameType,
+                It.IsAny<IEnumerable<ManifestFile>>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.UserData;
@@ -83,6 +84,8 @@ public class ProfileContentLinkerService(
             }
         }
 
+        var newManifestList = (newManifests as IReadOnlyList<ContentManifest>) ?? newManifests.ToList();
+
         logger.LogInformation(
             "[ProfileContentLinker] Switching user data from profile {OldProfileId} to {NewProfileId} (skipCleanup: {SkipCleanup})",
             oldProfileId ?? "(none)",
@@ -110,7 +113,6 @@ public class ProfileContentLinkerService(
                         .Where(m => m.TargetGame == targetGame || m.TargetGame == GameType.Unknown)
                         .ToList();
 
-                    var newManifestList = (newManifests as IReadOnlyList<ContentManifest>) ?? newManifests.ToList();
                     var newManifestIds = newManifestList
                         .Select(m => m.Id.Value)
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -179,7 +181,7 @@ public class ProfileContentLinkerService(
             }
 
             // Prepare new profile's user data (deactivates other active profiles for targetGame)
-            return await PrepareProfileUserDataInternalAsync(newProfileId, newManifests, targetGame, cancellationToken);
+            return await PrepareProfileUserDataInternalAsync(newProfileId, newManifestList, targetGame, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -385,19 +387,74 @@ public class ProfileContentLinkerService(
 
     /// <summary>
     /// Normalizes a user data file's relative path for collision checking, stripping any leading
-    /// "Maps/" segment for map targets so paths are compared canonically.
+    /// directory prefixes (e.g. "Maps/", "Replays/", "Screenshots/") and canonicalizing map folder
+    /// structures so paths are compared consistently across different archive layouts.
     /// </summary>
     private static string NormalizeUserDataRelativePath(ContentInstallTarget installTarget, string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/').Trim('/');
-        const string mapsPrefix = "Maps/";
-        if (installTarget == ContentInstallTarget.UserMapsDirectory &&
-            normalized.StartsWith(mapsPrefix, StringComparison.OrdinalIgnoreCase))
+        return installTarget switch
         {
-            normalized = normalized[mapsPrefix.Length..];
+            ContentInstallTarget.UserMapsDirectory => NormalizeMapRelativePath(normalized),
+            ContentInstallTarget.UserReplaysDirectory => StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Replays),
+            ContentInstallTarget.UserScreenshotsDirectory => StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Screenshots),
+            _ => normalized,
+        };
+    }
+
+    private static string NormalizeMapRelativePath(string normalized)
+    {
+        var pathUnderMaps = StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Maps);
+        var slashIdx = pathUnderMaps.LastIndexOf('/');
+        if (slashIdx < 0)
+        {
+            if (pathUnderMaps.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseName = Path.GetFileNameWithoutExtension(pathUnderMaps);
+                if (baseName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseName = Path.GetFileNameWithoutExtension(baseName);
+                }
+
+                return $"{baseName}/{pathUnderMaps}";
+            }
+
+            return pathUnderMaps;
         }
 
-        return normalized;
+        var directoryPart = pathUnderMaps[..slashIdx];
+        var fileName = pathUnderMaps[(slashIdx + 1)..];
+
+        var folderName = Path.GetFileName(directoryPart);
+        if (folderName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+        {
+            folderName = Path.GetFileNameWithoutExtension(folderName);
+        }
+
+        var fileExt = Path.GetExtension(fileName);
+        var fileBase = Path.GetFileNameWithoutExtension(fileName);
+
+        if (fileExt.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+            (fileBase.Equals("map", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.Equals("preview", StringComparison.OrdinalIgnoreCase) ||
+             fileBase.EndsWith("_art", StringComparison.OrdinalIgnoreCase)))
+        {
+            fileName = folderName + ".tga";
+        }
+
+        return $"{folderName}/{fileName}";
+    }
+
+    private static string StripLeadingDirectory(string path, string directoryName)
+    {
+        var normalized = path.Replace('\\', '/');
+        var prefix = directoryName + "/";
+        if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized[prefix.Length..];
+        }
+
+        return path;
     }
 
     private bool HasProfileUserData(ContentManifest manifest)
