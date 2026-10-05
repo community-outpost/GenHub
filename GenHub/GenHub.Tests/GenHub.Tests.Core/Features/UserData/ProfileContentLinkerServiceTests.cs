@@ -954,6 +954,12 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
                     RelativePath = "FlatBattlePlan.map",
                     InstallTarget = ContentInstallTarget.UserMapsDirectory,
                 },
+                new UserDataFileEntry
+                {
+                    AbsolutePath = @"C:\Users\User\Documents\Command and Conquer Generals Zero Hour Data\Maps\FlatBattlePlan\FlatBattlePlan.ini",
+                    RelativePath = "FlatBattlePlan.ini",
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                },
             ],
         };
 
@@ -986,6 +992,13 @@ public sealed class ProfileContentLinkerServiceTests : IDisposable
                     InstallTarget = ContentInstallTarget.UserMapsDirectory,
                     Hash = "nested-hash",
                     Size = 1234,
+                },
+                new ManifestFile
+                {
+                    RelativePath = @"Maps\FlatBattlePlan\FlatBattlePlan.ini",
+                    InstallTarget = ContentInstallTarget.UserMapsDirectory,
+                    Hash = "nested-ini-hash",
+                    Size = 567,
                 },
             ],
         };

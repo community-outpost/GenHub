@@ -402,18 +402,30 @@ public class ProfileContentLinkerService(
         };
     }
 
+    /// <summary>
+    /// Normalizes a relative map path to ensure comparison matches the destination directory
+    /// structure used by UserDataTrackerService.
+    /// </summary>
     private static string NormalizeMapRelativePath(string normalized)
     {
         var pathUnderMaps = StripLeadingDirectory(normalized, GameSettingsConstants.FolderNames.Maps);
         var slashIdx = pathUnderMaps.LastIndexOf('/');
         if (slashIdx < 0)
         {
-            if (pathUnderMaps.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
+            var ext = Path.GetExtension(pathUnderMaps);
+            if (IsSupportedMapExtension(ext))
             {
                 var baseName = Path.GetFileNameWithoutExtension(pathUnderMaps);
                 if (baseName.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
                 {
                     baseName = Path.GetFileNameWithoutExtension(baseName);
+                }
+
+                if (ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) &&
+                    baseName.EndsWith("_art", StringComparison.OrdinalIgnoreCase))
+                {
+                    var stripped = baseName[..^4];
+                    return $"{stripped}/{stripped}.tga";
                 }
 
                 return $"{baseName}/{pathUnderMaps}";
@@ -445,6 +457,19 @@ public class ProfileContentLinkerService(
         return $"{folderName}/{fileName}";
     }
 
+    /// <summary>
+    /// Determines whether the specified file extension is a supported map file or companion file.
+    /// </summary>
+    private static bool IsSupportedMapExtension(string ext) =>
+        ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".str", StringComparison.OrdinalIgnoreCase) ||
+        ext.Equals(".wak", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Strips a leading directory name from a relative path if present.
+    /// </summary>
     private static string StripLeadingDirectory(string path, string directoryName)
     {
         var normalized = path.Replace('\\', '/');
