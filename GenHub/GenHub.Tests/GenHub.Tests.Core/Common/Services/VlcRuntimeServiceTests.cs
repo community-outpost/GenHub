@@ -334,6 +334,71 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that InstallRuntimeAsync succeeds even when target directory parent contains stale staging and backup directories with out-of-range timestamps.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [WindowsFact]
+    public async Task InstallRuntimeAsync_StaleDirectoriesWithOutOfRangeTimestamp_CleansUpAndInstallsSuccessfullyAsync()
+    {
+        if (!IsSupportedWindowsPlatform())
+        {
+            return;
+        }
+
+        var parent = Path.GetDirectoryName(testTargetDirectory)!;
+        var outOfRangeStaging = Path.Combine(parent, $".staging-9999999999999999-{Guid.NewGuid():N}");
+        var normalStaleStaging = Path.Combine(parent, $".staging-{DateTimeOffset.UtcNow.AddHours(-2).ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}");
+        var targetName = Path.GetFileName(testTargetDirectory);
+        var outOfRangeBackup = Path.Combine(parent, $"{targetName}.old.9999999999999999.{Guid.NewGuid():N}");
+        var normalStaleBackup = Path.Combine(parent, $"{targetName}.old.{DateTimeOffset.UtcNow.AddHours(-2).ToUnixTimeMilliseconds()}.{Guid.NewGuid():N}");
+
+        Directory.CreateDirectory(outOfRangeStaging);
+        Directory.CreateDirectory(normalStaleStaging);
+        Directory.CreateDirectory(outOfRangeBackup);
+        Directory.CreateDirectory(normalStaleBackup);
+
+        try
+        {
+            var active = GetActivePrefix();
+            var zipBytes = CreateSampleNupkgArchive(
+                (active + "libvlc.dll", "mock-libvlc"),
+                (active + "libvlccore.dll", "mock-libvlccore"));
+
+            var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
+            var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+
+            var result = await service.InstallRuntimeAsync();
+
+            Assert.True(result.Success);
+            Assert.True(Directory.Exists(testTargetDirectory));
+            Assert.False(Directory.Exists(normalStaleStaging));
+            Assert.False(Directory.Exists(normalStaleBackup));
+        }
+        finally
+        {
+            if (Directory.Exists(outOfRangeStaging))
+            {
+                Directory.Delete(outOfRangeStaging, true);
+            }
+
+            if (Directory.Exists(normalStaleStaging))
+            {
+                Directory.Delete(normalStaleStaging, true);
+            }
+
+            if (Directory.Exists(outOfRangeBackup))
+            {
+                Directory.Delete(outOfRangeBackup, true);
+            }
+
+            if (Directory.Exists(normalStaleBackup))
+            {
+                Directory.Delete(normalStaleBackup, true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that InstallRuntimeAsync honors cancellation token.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
