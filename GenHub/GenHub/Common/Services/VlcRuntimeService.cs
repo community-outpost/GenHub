@@ -22,9 +22,9 @@ namespace GenHub.Common.Services;
 public class VlcRuntimeService(
     HttpClient httpClient,
     ILogger<VlcRuntimeService> logger,
-    string? runtimeDirectory,
+    string? runtimeDirectory = null,
     string? systemVlcDirectory = null,
-    string? expectedSha512 = VlcRuntimeConstants.DefaultPackageSha512) : IVlcRuntimeService
+    string? expectedSha512 = null) : IVlcRuntimeService
 {
     /// <summary>
     /// Expected SHA-512 digest of the official VideoLAN.LibVLC.Windows 3.0.24 NuGet package.
@@ -42,21 +42,6 @@ public class VlcRuntimeService(
 
     private VlcRuntimeStatus _status = VlcRuntimeStatus.NotInstalled;
     private string? _runtimeDirectory;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="VlcRuntimeService"/> class with default paths and SHA-512 validation.
-    /// </summary>
-    /// <param name="httpClient">The HTTP client used for downloading runtime packages.</param>
-    /// <param name="logger">The logger instance.</param>
-    public VlcRuntimeService(HttpClient httpClient, ILogger<VlcRuntimeService> logger)
-        : this(
-            httpClient,
-            logger,
-            null,
-            null,
-            VlcRuntimeConstants.ExpectedSha512)
-    {
-    }
 
     /// <inheritdoc/>
     public VlcRuntimeStatus Status => _status;

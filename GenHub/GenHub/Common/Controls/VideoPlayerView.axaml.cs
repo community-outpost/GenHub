@@ -907,7 +907,14 @@ public partial class VideoPlayerView : UserControl
             return;
         }
 
-        await CancelActiveDownloadAsync().ConfigureAwait(true);
+        try
+        {
+            await CancelActiveDownloadAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to cancel previous VLC download: {ex.Message}");
+        }
 
         var activeCts = new CancellationTokenSource();
         downloadCts = activeCts;
@@ -957,9 +964,9 @@ public partial class VideoPlayerView : UserControl
             {
                 await oldCts.CancelAsync().ConfigureAwait(true);
             }
-            catch (ObjectDisposedException)
+            catch (Exception ex) when (ex is ObjectDisposedException or AggregateException or OperationCanceledException)
             {
-                // Ignore CTS disposal race from previous install completion
+                // Ignore CTS cancellation, disposal race, or aggregate faults from registered callbacks
             }
             finally
             {

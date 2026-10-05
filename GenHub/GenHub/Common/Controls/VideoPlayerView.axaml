@@ -46,7 +46,7 @@
                     <ProgressBar IsIndeterminate="True"
                                  Width="200"
                                  HorizontalAlignment="Center" />
-                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.LoadingVideo}"
+                    <TextBlock Text="{Binding LoadingText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
                                FontSize="13"
                                Foreground="White"
                                HorizontalAlignment="Center" />

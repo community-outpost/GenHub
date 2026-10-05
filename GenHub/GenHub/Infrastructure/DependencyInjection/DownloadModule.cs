@@ -54,7 +54,12 @@ public static class DownloadModule
             ConfigureDownloadClient(downloadClient, configProvider);
 
             var logger = serviceProvider.GetService<ILogger<VlcRuntimeService>>() ?? NullLogger<VlcRuntimeService>.Instance;
-            return new VlcRuntimeService(downloadClient, logger);
+            return new VlcRuntimeService(
+                downloadClient,
+                logger,
+                runtimeDirectory: null,
+                systemVlcDirectory: null,
+                expectedSha512: VlcRuntimeConstants.ExpectedSha512);
         });
 
         // Note: IContentStateService is registered as Singleton in ContentPipelineModule.AddSharedComponents
