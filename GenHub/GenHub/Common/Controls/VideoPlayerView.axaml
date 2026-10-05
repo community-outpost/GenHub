@@ -54,7 +54,7 @@
                                HorizontalAlignment="Center" />
                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage}"
                                FontSize="13"
-                               Foreground="#B0BEC5"
+                               Foreground="{DynamicResource TextSecondary}"
                                TextWrapping="Wrap"
                                TextAlignment="Center"
                                HorizontalAlignment="Center" />
@@ -139,7 +139,10 @@
             <!-- Rewind 10s -->
             <Button x:Name="RewindButton"
                     Grid.Column="0"
-                    Classes="subtle"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Rewind}"
                     Padding="8"
                     Margin="0,0,4,0">
@@ -151,7 +154,10 @@
             <!-- Play / Pause -->
             <Button x:Name="PlayPauseButton"
                     Grid.Column="1"
-                    Classes="subtle"
+                    Width="44"
+                    Height="44"
+                    CornerRadius="22"
+                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.PlayPause}"
                     Padding="10"
                     Margin="0,0,4,0">
@@ -172,7 +178,10 @@
             <!-- Fast Forward 10s -->
             <Button x:Name="FastForwardButton"
                     Grid.Column="2"
-                    Classes="subtle"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.FastForward}"
                     Padding="8"
                     Margin="0,0,8,0">
@@ -195,14 +204,17 @@
                        Grid.Column="4"
                        Text="{Binding PositionText, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
                        FontSize="12"
-                       Foreground="#9E9E9E"
+                       Foreground="{DynamicResource TextSecondary}"
                        VerticalAlignment="Center"
                        Margin="8,0" />
 
             <!-- Mute / Unmute -->
             <Button x:Name="MuteButton"
                     Grid.Column="5"
-                    Classes="subtle"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.MuteUnmute}"
                     Padding="8"
                     Margin="4,0">
@@ -221,7 +233,10 @@
             <!-- Fullscreen -->
             <Button x:Name="FullscreenButton"
                     Grid.Column="6"
-                    Classes="subtle"
+                    Width="36"
+                    Height="36"
+                    CornerRadius="18"
+                    Cursor="Hand"
                     ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}"
                     Padding="8"
                     Margin="4,0,0,0">

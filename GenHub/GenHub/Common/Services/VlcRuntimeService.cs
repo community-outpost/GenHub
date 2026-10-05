@@ -1,6 +1,8 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -17,35 +19,32 @@ namespace GenHub.Common.Services;
 /// <summary>
 /// Service managing discovery and on-demand installation of the native LibVLC runtime.
 /// </summary>
-public class VlcRuntimeService : IVlcRuntimeService
+public class VlcRuntimeService(
+    HttpClient httpClient,
+    ILogger<VlcRuntimeService> logger,
+    string? runtimeDirectory = null,
+    string? systemVlcDirectory = null,
+    string? expectedSha512 = null) : IVlcRuntimeService
 {
     /// <summary>
     /// Expected SHA-512 digest of the official VideoLAN.LibVLC.Windows 3.0.24 NuGet package.
     /// </summary>
-    public const string DefaultPackageSha512 = "1ADE0A9399D2355559EF3EDD1671C37F0A4B40C408A964C9E9FB211673FFD00DDEAD4741923ECBE4F2E65AB5719045528745859390978B012EF0C7BF7370DBEE";
-
-    [SuppressMessage("csharpsquid", "S1075", Justification = "Official NuGet package download endpoints for VideoLAN.LibVLC.Windows")]
-    private const string PrimaryDownloadUrl = "https://globalcdn.nuget.org/packages/videolan.libvlc.windows.3.0.24.nupkg";
-
-    [SuppressMessage("csharpsquid", "S1075", Justification = "Official NuGet package download endpoints for VideoLAN.LibVLC.Windows")]
-    private const string FallbackDownloadUrl = "https://www.nuget.org/api/v2/package/VideoLAN.LibVLC.Windows/3.0.24";
+    public const string DefaultPackageSha512 = VlcRuntimeConstants.DefaultPackageSha512;
 
     private const int BufferSize = 81920;
 
     private static readonly TimeSpan DownloadInactivityTimeout = TimeSpan.FromSeconds(60);
 
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<VlcRuntimeService> _logger;
     private readonly SemaphoreSlim _installLock = new(1, 1);
-    private readonly string _runtimeDir;
-    private readonly string? _systemVlcDir;
-    private readonly string? _expectedSha512;
+    private readonly string _runtimeDir = runtimeDirectory ?? GetDefaultRuntimeDirectory();
+    private readonly string? _systemVlcDir = systemVlcDirectory ?? (runtimeDirectory == null ? GetDefaultSystemVlcPath() : null);
+    private readonly string? _expectedSha512 = expectedSha512;
 
     private VlcRuntimeStatus _status = VlcRuntimeStatus.NotInstalled;
     private string? _runtimeDirectory;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="VlcRuntimeService"/> class.
+    /// Initializes a new instance of the <see cref="VlcRuntimeService"/> class with default paths and SHA-512 validation.
     /// </summary>
     /// <param name="httpClient">The HTTP client used for downloading runtime packages.</param>
     /// <param name="logger">The logger instance.</param>
@@ -53,32 +52,10 @@ public class VlcRuntimeService : IVlcRuntimeService
         : this(
             httpClient,
             logger,
-            GetDefaultRuntimeDirectory(),
-            GetDefaultSystemVlcPath(),
-            DefaultPackageSha512)
+            null,
+            null,
+            VlcRuntimeConstants.ExpectedSha512)
     {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="VlcRuntimeService"/> class with custom directories for testing.
-    /// </summary>
-    /// <param name="httpClient">The HTTP client used for downloading runtime packages.</param>
-    /// <param name="logger">The logger instance.</param>
-    /// <param name="runtimeDirectory">The destination directory for the native runtime.</param>
-    /// <param name="systemVlcDirectory">The system VLC installation directory to check, if any.</param>
-    /// <param name="expectedSha512">Optional expected SHA-512 hash of the package to verify integrity.</param>
-    internal VlcRuntimeService(
-        HttpClient httpClient,
-        ILogger<VlcRuntimeService> logger,
-        string runtimeDirectory,
-        string? systemVlcDirectory = null,
-        string? expectedSha512 = null)
-    {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _runtimeDir = runtimeDirectory ?? throw new ArgumentNullException(nameof(runtimeDirectory));
-        _systemVlcDir = systemVlcDirectory;
-        _expectedSha512 = expectedSha512;
     }
 
     /// <inheritdoc/>
@@ -86,6 +63,11 @@ public class VlcRuntimeService : IVlcRuntimeService
 
     /// <inheritdoc/>
     public string? RuntimeDirectory => _runtimeDirectory;
+
+    /// <inheritdoc/>
+    public bool IsInstallSupported =>
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+        RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.X86;
 
     /// <inheritdoc/>
     public bool IsAvailable()
@@ -121,26 +103,26 @@ public class VlcRuntimeService : IVlcRuntimeService
     }
 
     /// <inheritdoc/>
-    public async Task<bool> InstallRuntimeAsync(IProgress<double>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<bool>> InstallRuntimeAsync(IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!IsInstallSupported)
         {
-            _logger.LogWarning("On-demand LibVLC acquisition is only supported on Windows.");
+            logger.LogWarning("On-demand LibVLC acquisition is only supported on Windows (x64/x86).");
             _status = VlcRuntimeStatus.UnsupportedPlatform;
-            return false;
+            return OperationResult<bool>.CreateFailure("On-demand LibVLC acquisition is only supported on Windows (x64/x86).");
         }
 
         var prefixes = GetPackagePrefixes();
         if (prefixes == null)
         {
-            _logger.LogError("Unsupported process architecture for native LibVLC package: {Architecture}", RuntimeInformation.ProcessArchitecture);
+            logger.LogError("Unsupported process architecture for native LibVLC package: {Architecture}", RuntimeInformation.ProcessArchitecture);
             _status = VlcRuntimeStatus.UnsupportedPlatform;
-            return false;
+            return OperationResult<bool>.CreateFailure($"Unsupported process architecture for native LibVLC package: {RuntimeInformation.ProcessArchitecture}");
         }
 
         if (IsAvailable())
         {
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
 
         await _installLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -148,12 +130,14 @@ public class VlcRuntimeService : IVlcRuntimeService
         {
             if (IsAvailable())
             {
-                return true;
+                return OperationResult<bool>.CreateSuccess(true);
             }
 
             _status = VlcRuntimeStatus.Downloading;
             var targetParent = Path.GetDirectoryName(_runtimeDir) ?? Path.GetTempPath();
             Directory.CreateDirectory(targetParent);
+
+            CleanupStaleDirectories(targetParent, Path.GetFileName(_runtimeDir));
 
             var tempArchive = Path.Combine(Path.GetTempPath(), $"genhub-vlc-{Guid.NewGuid():N}.tmp");
             var stagingDir = Path.Combine(targetParent, $".staging-{Guid.NewGuid():N}");
@@ -164,27 +148,27 @@ public class VlcRuntimeService : IVlcRuntimeService
                 if (!downloaded)
                 {
                     _status = VlcRuntimeStatus.Failed;
-                    return false;
+                    return OperationResult<bool>.CreateFailure("Failed to download LibVLC package from all available sources.");
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var hashValid = await VerifyPackageHashAsync(tempArchive, cancellationToken).ConfigureAwait(false);
-                if (!hashValid)
+                var hashResult = await VerifyPackageHashAsync(tempArchive, cancellationToken).ConfigureAwait(false);
+                if (!hashResult.Success)
                 {
                     _status = VlcRuntimeStatus.Failed;
-                    return false;
+                    return hashResult;
                 }
 
-                _logger.LogInformation("Extracting native LibVLC binaries to staging directory...");
+                logger.LogInformation("Extracting native LibVLC binaries to staging directory...");
                 await ExtractPackagePayloadAsync(tempArchive, stagingDir, prefixes.Value.EntryPrefix, prefixes.Value.IncludePrefix, cancellationToken).ConfigureAwait(false);
 
                 PromoteStagingDirectory(stagingDir, _runtimeDir);
 
                 _runtimeDirectory = _runtimeDir;
                 _status = VlcRuntimeStatus.Available;
-                _logger.LogInformation("Successfully installed native LibVLC runtime to {RuntimeDirectory}", _runtimeDir);
-                return true;
+                logger.LogInformation("Successfully installed native LibVLC runtime to {RuntimeDirectory}", _runtimeDir);
+                return OperationResult<bool>.CreateSuccess(true);
             }
             finally
             {
@@ -198,9 +182,9 @@ public class VlcRuntimeService : IVlcRuntimeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to install LibVLC runtime.");
+            logger.LogError(ex, "Failed to install LibVLC runtime.");
             _status = VlcRuntimeStatus.Failed;
-            return false;
+            return OperationResult<bool>.CreateFailure($"Failed to install LibVLC runtime: {ex.Message}");
         }
         finally
         {
@@ -212,20 +196,20 @@ public class VlcRuntimeService : IVlcRuntimeService
     {
         var arch = RuntimeInformation.ProcessArchitecture switch
         {
-            Architecture.X86 => "win-x86",
-            Architecture.X64 => "win-x64",
+            Architecture.X86 => VlcRuntimeConstants.WinX86Directory,
+            Architecture.X64 => VlcRuntimeConstants.WinX64Directory,
             _ => "win-" + RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
         };
 
-        return Path.Combine(AppDataPathHelper.GetDataRoot(), "runtimes", "vlc", arch);
+        return Path.Combine(AppDataPathHelper.GetDataRoot(), VlcRuntimeConstants.RuntimesDirectoryName, VlcRuntimeConstants.VlcDirectoryName, arch);
     }
 
     private static (string EntryPrefix, string IncludePrefix)? GetPackagePrefixes()
     {
         return RuntimeInformation.ProcessArchitecture switch
         {
-            Architecture.X64 => ("build/x64/", "build/x64/include/"),
-            Architecture.X86 => ("build/x86/", "build/x86/include/"),
+            Architecture.X64 => (VlcRuntimeConstants.X64EntryPrefix, VlcRuntimeConstants.X64IncludePrefix),
+            Architecture.X86 => (VlcRuntimeConstants.X86EntryPrefix, VlcRuntimeConstants.X86IncludePrefix),
             _ => null,
         };
     }
@@ -275,16 +259,47 @@ public class VlcRuntimeService : IVlcRuntimeService
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(stagingDir) && Directory.Exists(stagingDir))
+        CleanupDirectorySilently(stagingDir);
+    }
+
+    private static void CleanupDirectorySilently(string? path)
+    {
+        if (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
         {
             try
             {
-                Directory.Delete(stagingDir, recursive: true);
+                Directory.Delete(path, recursive: true);
             }
             catch
             {
-                // Ignore temp cleanup failure
+                // Ignore cleanup failure
             }
+        }
+    }
+
+    private static void CleanupStaleDirectories(string targetParent, string targetDirName)
+    {
+        if (!Directory.Exists(targetParent))
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories(targetParent, ".staging-*"))
+            {
+                CleanupDirectorySilently(dir);
+            }
+
+            var oldPattern = targetDirName + ".old.*";
+            foreach (var dir in Directory.EnumerateDirectories(targetParent, oldPattern))
+            {
+                CleanupDirectorySilently(dir);
+            }
+        }
+        catch
+        {
+            // Ignore directory enumeration failures
         }
     }
 
@@ -343,26 +358,27 @@ public class VlcRuntimeService : IVlcRuntimeService
 
     private async Task<bool> DownloadPackageAsync(string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        var downloaded = await TryDownloadAsync(PrimaryDownloadUrl, destinationPath, progress, cancellationToken).ConfigureAwait(false);
+        var monotonicProgress = progress != null ? new MonotonicProgress(progress) : null;
+        var downloaded = await TryDownloadAsync(VlcRuntimeConstants.PrimaryDownloadUrl, destinationPath, monotonicProgress, cancellationToken).ConfigureAwait(false);
         if (!downloaded)
         {
-            _logger.LogWarning("Primary LibVLC download failed, attempting fallback URL...");
-            downloaded = await TryDownloadAsync(FallbackDownloadUrl, destinationPath, progress, cancellationToken).ConfigureAwait(false);
+            logger.LogWarning("Primary LibVLC download failed, attempting fallback URL...");
+            downloaded = await TryDownloadAsync(VlcRuntimeConstants.FallbackDownloadUrl, destinationPath, monotonicProgress, cancellationToken).ConfigureAwait(false);
         }
 
         if (!downloaded)
         {
-            _logger.LogError("Failed to download LibVLC package from all available sources.");
+            logger.LogError("Failed to download LibVLC package from all available sources.");
         }
 
         return downloaded;
     }
 
-    private async Task<bool> VerifyPackageHashAsync(string archivePath, CancellationToken cancellationToken)
+    private async Task<OperationResult<bool>> VerifyPackageHashAsync(string archivePath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_expectedSha512))
         {
-            return true;
+            return OperationResult<bool>.CreateSuccess(true);
         }
 
         await using var fs = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, useAsync: true);
@@ -372,11 +388,11 @@ public class VlcRuntimeService : IVlcRuntimeService
 
         if (!string.Equals(actualHash, _expectedSha512, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogError("Downloaded LibVLC package SHA-512 mismatch. Expected {Expected}, got {Actual}", _expectedSha512, actualHash);
-            return false;
+            logger.LogError("Downloaded LibVLC package SHA-512 mismatch. Expected {Expected}, got {Actual}", _expectedSha512, actualHash);
+            return OperationResult<bool>.CreateFailure($"Downloaded LibVLC package SHA-512 mismatch. Expected {_expectedSha512}, got {actualHash}");
         }
 
-        return true;
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private void PromoteStagingDirectory(string stagingDir, string targetDir)
@@ -391,10 +407,19 @@ public class VlcRuntimeService : IVlcRuntimeService
                 {
                     Directory.Move(targetDir, backupDir);
                 }
-                catch (IOException)
+                catch (IOException ex)
                 {
-                    CopyDirectory(stagingDir, targetDir);
-                    return;
+                    logger.LogWarning(ex, "Directory.Move target to backup failed, attempting copy fallback");
+                    try
+                    {
+                        CopyDirectory(stagingDir, targetDir);
+                        return;
+                    }
+                    catch (Exception copyEx)
+                    {
+                        CleanupDirectorySilently(targetDir);
+                        throw new InvalidOperationException("Failed to copy staging directory into target directory during fallback.", copyEx);
+                    }
                 }
             }
 
@@ -402,9 +427,18 @@ public class VlcRuntimeService : IVlcRuntimeService
             {
                 Directory.Move(stagingDir, targetDir);
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                CopyDirectory(stagingDir, targetDir);
+                logger.LogWarning(ex, "Directory.Move staging to target failed, attempting copy fallback");
+                try
+                {
+                    CopyDirectory(stagingDir, targetDir);
+                }
+                catch (Exception copyEx)
+                {
+                    CleanupDirectorySilently(targetDir);
+                    throw new InvalidOperationException("Failed to copy staging directory into target directory.", copyEx);
+                }
             }
 
             if (backupDir != null && Directory.Exists(backupDir))
@@ -415,22 +449,27 @@ public class VlcRuntimeService : IVlcRuntimeService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
+                    logger.LogWarning(ex, "Failed to clean up old runtime backup directory {BackupDir}", backupDir);
                 }
             }
         }
         catch (Exception ex)
         {
-            if (backupDir != null && Directory.Exists(backupDir) && !Directory.Exists(targetDir))
+            if (backupDir != null && Directory.Exists(backupDir))
             {
+                CleanupDirectorySilently(targetDir);
                 try
                 {
                     Directory.Move(backupDir, targetDir);
                 }
                 catch (Exception restoreEx)
                 {
-                    _logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
+                    logger.LogError(restoreEx, "Failed to restore backup runtime directory {BackupDir}", backupDir);
                 }
+            }
+            else
+            {
+                CleanupDirectorySilently(targetDir);
             }
 
             throw new InvalidOperationException("Failed to promote LibVLC staging directory into runtime directory.", ex);
@@ -444,7 +483,7 @@ public class VlcRuntimeService : IVlcRuntimeService
             using var timeoutCts = new CancellationTokenSource(DownloadInactivityTimeout);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token).ConfigureAwait(false);
+            using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 return false;
@@ -472,7 +511,8 @@ public class VlcRuntimeService : IVlcRuntimeService
 
                 if (totalBytes > 0 && progress != null)
                 {
-                    progress.Report((double)totalRead / totalBytes);
+                    var fraction = Math.Clamp((double)totalRead / totalBytes, 0.0, 1.0);
+                    progress.Report(fraction);
                 }
             }
 
@@ -484,8 +524,30 @@ public class VlcRuntimeService : IVlcRuntimeService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Download failed or timed out from {Url}", url);
+            logger.LogWarning(ex, "Download failed or timed out from {Url}", url);
             return false;
+        }
+    }
+
+    private sealed class MonotonicProgress(IProgress<double> target) : IProgress<double>
+    {
+        private double _maxProgress;
+
+        public void Report(double value)
+        {
+            var clamped = Math.Clamp(value, 0.0, 1.0);
+            var current = Volatile.Read(ref _maxProgress);
+            while (clamped > current)
+            {
+                var previous = Interlocked.CompareExchange(ref _maxProgress, clamped, current);
+                if (previous == current)
+                {
+                    target.Report(clamped);
+                    break;
+                }
+
+                current = previous;
+            }
         }
     }
 }

@@ -13834,7 +13834,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Требуется компонент видеоплеера</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
-    <value>Для воспроизведения видео в GenHub требуется разовая загрузка медиабиблиотеки (~48 МБ). Загрузить сейчас?</value>
+    <value>Для воспроизведения видео в GenHub требуется разовая загрузка медиабиблиотеки (~140 МБ). Загрузить сейчас?</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
     <value>Загрузить и включить</value>

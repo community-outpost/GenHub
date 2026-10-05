@@ -13895,7 +13895,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Media Player Component Required</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
-    <value>To play videos inside GenHub, a one-time media library download is required (~48 MB). Would you like to download it now?</value>
+    <value>To play videos inside GenHub, a one-time media library download is required (~140 MB). Would you like to download it now?</value>
   </data>
   <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
     <value>Download &amp; Enable</value>
