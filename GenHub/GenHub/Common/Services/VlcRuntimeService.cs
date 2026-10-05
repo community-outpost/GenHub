@@ -10,6 +10,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -239,7 +240,7 @@ public class VlcRuntimeService(
             {
                 File.Delete(tempFile);
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Ignore temp cleanup failure
             }
@@ -256,7 +257,7 @@ public class VlcRuntimeService(
             {
                 Directory.Delete(path, recursive: true);
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Ignore cleanup failure
             }
@@ -283,7 +284,7 @@ public class VlcRuntimeService(
                         CleanupDirectorySilently(dir);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // Ignore per-directory inspection/deletion failure
                 }
@@ -299,13 +300,13 @@ public class VlcRuntimeService(
                         CleanupDirectorySilently(dir);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
                     // Ignore per-directory inspection/deletion failure
                 }
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
         {
             // Ignore directory enumeration failures
         }

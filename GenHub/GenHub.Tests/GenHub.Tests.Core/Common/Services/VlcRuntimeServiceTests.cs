@@ -44,7 +44,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
                 Directory.Delete(testTargetDirectory, recursive: true);
             }
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Ignore test cleanup exceptions
         }
