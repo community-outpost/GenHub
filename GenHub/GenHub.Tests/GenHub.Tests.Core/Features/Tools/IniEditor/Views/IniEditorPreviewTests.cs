@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -688,6 +689,143 @@ public sealed class IniEditorPreviewTests
     }
 
     /// <summary>
+    /// Verifies that back and forward across files restore the recorded file
+    /// and selection with the selection rebuilds on the UI thread.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task NavigationHistory_CrossFileBackForward_RestoresSelectionsAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubNavCross{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        var fileA = Path.Combine(folder, "A.ini");
+        var fileB = Path.Combine(folder, "B.ini");
+        try
+        {
+            await File.WriteAllTextAsync(fileA, CrossFileNavIni("Alpha1", "Alpha2"));
+            await File.WriteAllTextAsync(fileB, CrossFileNavIni("Bravo1", "Bravo2"));
+
+            Assert.True(await viewModel.OpenFileAsync(fileA));
+            var alpha2 = FindNodeByName(viewModel, "Alpha2");
+            Assert.NotNull(alpha2);
+            viewModel.SelectedNode = alpha2;
+
+            Assert.True(await viewModel.OpenFileAsync(fileB));
+            var bravo2 = FindNodeByName(viewModel, "Bravo2");
+            Assert.NotNull(bravo2);
+            viewModel.SelectedNode = bravo2;
+
+            // Release builds compile out Avalonia's thread guard, so capture
+            // the raising thread directly: every field-rows mutation must
+            // happen on the UI thread.
+            int offThreadRaises = 0;
+            void OnFieldRowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+            {
+                if (!Dispatcher.UIThread.CheckAccess())
+                {
+                    Interlocked.Increment(ref offThreadRaises);
+                }
+            }
+
+            viewModel.FieldRows.CollectionChanged += OnFieldRowsChanged;
+            try
+            {
+                // Drive back from a pool thread so the post-open selection
+                // restore deterministically runs off the UI thread, matching
+                // the real cross-file continuation after OpenFileAsync.
+                for (int i = 0; i < 4 && string.Equals(viewModel.FilePath, fileB, StringComparison.OrdinalIgnoreCase) && viewModel.CanGoBack; i++)
+                {
+                    var back = Task.Run(() => viewModel.GoBackCommand.ExecuteAsync(null));
+                    Assert.True(await WaitForAsync(() => back.IsCompleted, TimeSpan.FromSeconds(10)));
+                    await back;
+                }
+
+                Assert.Equal(fileA, viewModel.FilePath);
+                Assert.StartsWith("Alpha", viewModel.SelectedNode?.Block.Name, StringComparison.Ordinal);
+
+                for (int i = 0; i < 4 && string.Equals(viewModel.FilePath, fileA, StringComparison.OrdinalIgnoreCase) && viewModel.CanGoForward; i++)
+                {
+                    await viewModel.GoForwardCommand.ExecuteAsync(null);
+                }
+
+                Assert.Equal(fileB, viewModel.FilePath);
+                Assert.StartsWith("Bravo", viewModel.SelectedNode?.Block.Name, StringComparison.Ordinal);
+            }
+            finally
+            {
+                viewModel.FieldRows.CollectionChanged -= OnFieldRowsChanged;
+            }
+
+            Assert.Equal(0, offThreadRaises);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that selecting a canvas card from another file opens that file
+    /// and restores the selection on the UI thread.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [AvaloniaFact]
+    public async Task SelectBlockCard_CrossFile_RestoresSelectionAsync()
+    {
+        var mockResolver = ResolverReturning(ResolvedModel());
+        using var viewModel = CreateViewModel(mockResolver.Object);
+        var folder = Path.Combine(Path.GetTempPath(), $"GenHubCardCross{Guid.NewGuid():N}");
+        Directory.CreateDirectory(folder);
+        var fileA = Path.Combine(folder, "A.ini");
+        var fileB = Path.Combine(folder, "B.ini");
+        try
+        {
+            await File.WriteAllTextAsync(fileA, CrossFileNavIni("Alpha1", "Alpha2"));
+            await File.WriteAllTextAsync(fileB, CrossFileNavIni("Bravo1", "Bravo2"));
+
+            Assert.True(await viewModel.OpenFileAsync(fileA));
+            var alphaNode = FindNodeByName(viewModel, "Alpha2");
+            Assert.NotNull(alphaNode);
+            var card = new IniCanvasCardViewModel(alphaNode.Block, "Alpha2", "Object", null, null, [], fileA);
+
+            Assert.True(await viewModel.OpenFileAsync(fileB));
+            viewModel.ShowAllBlocksOnCanvas = false;
+
+            int offThreadRaises = 0;
+            void OnFieldRowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+            {
+                if (!Dispatcher.UIThread.CheckAccess())
+                {
+                    Interlocked.Increment(ref offThreadRaises);
+                }
+            }
+
+            viewModel.FieldRows.CollectionChanged += OnFieldRowsChanged;
+            try
+            {
+                var select = Task.Run(() => viewModel.SelectBlockCardCommand.ExecuteAsync(card));
+                Assert.True(await WaitForAsync(() => select.IsCompleted, TimeSpan.FromSeconds(10)));
+                await select;
+
+                Assert.Equal(fileA, viewModel.FilePath);
+                Assert.Equal("Alpha2", viewModel.SelectedNode?.Block.Name);
+            }
+            finally
+            {
+                viewModel.FieldRows.CollectionChanged -= OnFieldRowsChanged;
+            }
+
+            Assert.Equal(0, offThreadRaises);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that locating a field highlights its line in the raw preview.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -1169,6 +1307,16 @@ public sealed class IniEditorPreviewTests
             "      Model = TestUnit\n" +
             "    End\n" +
             "  End\n" +
+            "End\n";
+    }
+
+    private static string CrossFileNavIni(string first, string second)
+    {
+        return "Object " + first + "\n" +
+            "  Side = TestSide\n" +
+            "End\n" +
+            "Object " + second + "\n" +
+            "  Side = TestSide\n" +
             "End\n";
     }
 

@@ -5260,8 +5260,15 @@ public sealed partial class IniEditorViewModel(
 
         if (targetNode != null)
         {
-            ExpandGroupForNode(targetNode);
-            SelectedNode = targetNode;
+            // A cross-file open resumes off the UI thread, so restore the
+            // selection through the dispatcher: the selection rebuilds touch
+            // bound collections.
+            var node = targetNode;
+            await InvokeOnUIThreadAsync(() =>
+            {
+                ExpandGroupForNode(node);
+                SelectedNode = node;
+            }).ConfigureAwait(false);
         }
     }
 
@@ -5307,12 +5314,18 @@ public sealed partial class IniEditorViewModel(
                 return;
             }
 
-            var target = FindNodeByName(RootNodes, entry.BlockType, entry.Name);
-            if (target != null)
+            // The open resumes off the UI thread, so restore expansion and
+            // selection through the dispatcher: the selection rebuilds touch
+            // bound collections.
+            await InvokeOnUIThreadAsync(() =>
             {
-                ExpandGroupForNode(target);
-                SelectedNode = target;
-            }
+                var target = FindNodeByName(RootNodes, entry.BlockType, entry.Name);
+                if (target != null)
+                {
+                    ExpandGroupForNode(target);
+                    SelectedNode = target;
+                }
+            }).ConfigureAwait(false);
         }
         finally
         {
