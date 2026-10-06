@@ -410,6 +410,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("multi-pub", savedSubscription.PublisherId);
         Assert.Equal(mapsUrl, savedSubscription.CatalogUrl);
         Assert.Equal(definitionUrl, savedSubscription.DefinitionUrl);
+        Assert.Equal("maps", savedSubscription.SelectedCatalogId);
         _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
