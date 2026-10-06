@@ -216,6 +216,35 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that a legacy subscription without SelectedCatalogId in a multi-catalog definition
+    /// does not silently migrate to the primary catalog URL when its catalog URL does not match.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_LegacySubscriptionInMultiCatalogDefinition_DoesNotMigrateToPrimaryCatalogUrlAsync()
+    {
+        // Arrange: Legacy subscription with no SelectedCatalogId pointing to an unlisted/old catalog URL
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = null,
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/main.json\"},{\"id\":\"secondary\",\"name\":\"Secondary\",\"url\":\"https://example.com/secondary.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert: must NOT silently switch to main.json
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal("https://example.com/old-maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
     /// Tests that checking for updates when there's no definition URL returns false.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
