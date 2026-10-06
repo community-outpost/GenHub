@@ -5842,7 +5842,11 @@ public partial class ContentDetailViewModel(
                         GameClient = rollbackProfile.GameClient,
                         ActiveWorkspaceId = string.Empty,
                     };
-                    await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
+                    var rollbackResult = await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
+                    if (rollbackResult.Failed)
+                    {
+                        logger.LogWarning("Failed to rollback profile {ProfileId} during failed bundle update: {Error}", rollbackProfile.Id, rollbackResult.FirstError);
+                    }
                 }
                 catch (Exception ex)
                 {

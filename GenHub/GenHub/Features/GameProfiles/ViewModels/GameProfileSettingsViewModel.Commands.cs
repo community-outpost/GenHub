@@ -1071,7 +1071,12 @@ public partial class GameProfileSettingsViewModel
 
         if (!liveUpdateResult.Success)
         {
-            StatusMessage = $"Live sync failed: {liveUpdateResult.FirstError}";
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveSyncFailed",
+                    "Live sync failed: {0}"),
+                liveUpdateResult.FirstError);
             _localNotificationService.ShowWarning(
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Title", "Live Update Failed"),
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Message", $"Live content synchronization failed: {liveUpdateResult.FirstError}. Profile changes were not saved.", liveUpdateResult.FirstError));
@@ -1088,11 +1093,11 @@ public partial class GameProfileSettingsViewModel
         // when a running update fails to persist, so this handler reports the error
         // and surfaces any live rollback failure.
         var errors = string.Join(", ", result.Errors);
-        StatusMessage = $"Failed to update profile: {errors}";
-        _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
         var title = GetErrorLoadingProfileTitle();
         var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
-        _notificationService?.ShowError(title, string.Format(CultureInfo.CurrentCulture, msgFormat, errors));
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, msgFormat, errors);
+        _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
+        _notificationService?.ShowError(title, StatusMessage);
 
         if (result.LiveRollbackAttempted && !result.LiveRollbackSucceeded)
         {
