@@ -1,6 +1,8 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -435,6 +437,133 @@ public partial class GenHotkeysViewModel(
             GetLocalizedString("Tools.GenHotkeys.Notification.HotkeyReset.Title", "Hotkey Reset"),
             message,
             NotificationDurations.Short);
+    }
+
+    /// <summary>
+    /// Opens a file picker allowing the user to select a custom cameo image for the selected action button.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task BrowseCustomCameoAsync()
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        var topLevel = GetTopLevel();
+        if (topLevel?.StorageProvider == null)
+        {
+            return;
+        }
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = GetLocalizedString("Tools.GenHotkeys.SelectCameoImage", "Select Custom Cameo Image"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(GetLocalizedString("Tools.GenHotkeys.ImageFiles", "Supported Images (*.png, *.tga, *.jpg, *.jpeg, *.bmp, *.webp)"))
+                {
+                    Patterns = ["*.png", "*.tga", "*.jpg", "*.jpeg", "*.bmp", "*.webp"],
+                },
+            ],
+        });
+
+        if (files is { Count: > 0 })
+        {
+            var filePath = files[0].Path.LocalPath;
+            if (File.Exists(filePath))
+            {
+                SelectedAction.CustomImagePath = filePath;
+                SelectedProfile.CustomCameoMappings[SelectedAction.IconName] = filePath;
+                await LoadCustomBitmapAsync(filePath, bmp => SelectedAction.IconBitmap = bmp);
+                await SaveCurrentProfileAsync(CancellationToken.None);
+                var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", SelectedAction.DisplayName);
+                StatusMessage = successMsg;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resets the cameo image of the selected action back to the original game texture.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ResetCustomCameoAsync()
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        SelectedAction.CustomImagePath = null;
+        SelectedProfile.CustomCameoMappings.Remove(SelectedAction.IconName);
+        await LoadBitmapAsync(SelectedAction.IconName, SelectedGame, bmp => SelectedAction.IconBitmap = bmp);
+        await SaveCurrentProfileAsync(CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", SelectedAction.DisplayName);
+        StatusMessage = resetMsg;
+    }
+
+    /// <summary>
+    /// Resets the display title of the selected action back to its default value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ResetTitleAsync()
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        SelectedAction.DisplayName = SelectedAction.DefaultDisplayName;
+        SelectedProfile.TitleMappings.Remove(SelectedAction.HotkeyString);
+        await SaveCurrentProfileAsync(CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", SelectedAction.DisplayName);
+        StatusMessage = resetMsg;
+    }
+
+    /// <summary>
+    /// Resets the tooltip description of the selected action back to its default value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task ResetTooltipAsync()
+    {
+        if (SelectedAction == null || SelectedProfile == null)
+        {
+            return;
+        }
+
+        SelectedAction.Tooltip = SelectedAction.DefaultTooltip;
+        var label = SelectedAction.TooltipString ?? SelectedAction.HotkeyString;
+        if (!string.IsNullOrEmpty(label))
+        {
+            SelectedProfile.TooltipMappings.Remove(label);
+        }
+
+        await SaveCurrentProfileAsync(CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", SelectedAction.DisplayName);
+        StatusMessage = resetMsg;
+    }
+
+    /// <summary>
+    /// Begins adding or editing a description for the selected action button.
+    /// </summary>
+    [RelayCommand]
+    public void StartAddDescription()
+    {
+        if (SelectedAction == null)
+        {
+            return;
+        }
+
+        SelectedAction.IsEditingDescription = true;
+        if (SelectedAction.Tooltip == null)
+        {
+            SelectedAction.Tooltip = string.Empty;
+        }
     }
 
     /// <summary>
@@ -975,6 +1104,12 @@ public partial class GenHotkeysViewModel(
                     }
 
                     addonCheckCts.Dispose();
+                }
+
+                if (_subscribedAction != null)
+                {
+                    _subscribedAction.PropertyChanged -= OnSubscribedActionPropertyChanged;
+                    _subscribedAction = null;
                 }
 
                 if (localizationService != null)
@@ -1553,26 +1688,52 @@ public partial class GenHotkeysViewModel(
     private static HotkeyActionViewModel CreateActionViewModel(
         HotkeyAction action,
         HotkeyProfile? selectedProfile,
-        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
+        Action<Action<Bitmap?>, string, string?, CancellationToken> loadBitmapForIcon,
         CancellationToken cancellationToken)
     {
+        var customTitle = selectedProfile != null && selectedProfile.TitleMappings.TryGetValue(action.HotkeyString, out var mappedTitle)
+            ? mappedTitle
+            : action.DisplayName;
+
+        var customTooltip = action.Tooltip;
+        if (selectedProfile != null)
+        {
+            var label = action.TooltipString ?? action.HotkeyString;
+            if (!string.IsNullOrEmpty(label) && selectedProfile.TooltipMappings.TryGetValue(label, out var mappedTooltip))
+            {
+                customTooltip = mappedTooltip;
+            }
+        }
+
+        string? customImage = null;
+        if (selectedProfile != null && selectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var mappedImg) && File.Exists(mappedImg))
+        {
+            customImage = mappedImg;
+        }
+
         var actionVm = new HotkeyActionViewModel
         {
             IconName = action.IconName,
             HotkeyString = action.HotkeyString,
-            DisplayName = action.DisplayName,
+            TooltipString = action.TooltipString,
+            DisplayName = customTitle,
+            DefaultDisplayName = action.DefaultDisplayName,
+            Tooltip = customTooltip,
+            DefaultTooltip = action.DefaultTooltip,
+            CustomImagePath = customImage,
             DefaultHotkey = action.DefaultHotkey,
             Hotkey = ResolveCurrentActionHotkey(action, selectedProfile),
         };
 
-        loadBitmapForIcon(bmp => actionVm.IconBitmap = bmp, action.IconName, cancellationToken);
+        actionVm.UpdateInGameTitleBreakdown();
+        loadBitmapForIcon(bmp => actionVm.IconBitmap = bmp, action.IconName, customImage, cancellationToken);
         return actionVm;
     }
 
     private static HotkeyGameObjectViewModel CreateGameObjectViewModel(
         HotkeyGameObject obj,
         HotkeyProfile? selectedProfile,
-        Action<Action<Bitmap?>, string, CancellationToken> loadBitmapForIcon,
+        Action<Action<Bitmap?>, string, string?, CancellationToken> loadBitmapForIcon,
         CancellationToken cancellationToken)
     {
         var vm = new HotkeyGameObjectViewModel
@@ -1583,7 +1744,7 @@ public partial class GenHotkeysViewModel(
             IconName = obj.IconName,
         };
 
-        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, cancellationToken);
+        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, null, cancellationToken);
 
         foreach (var layout in obj.KeyboardLayouts)
         {
@@ -1910,11 +2071,64 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    private HotkeyActionViewModel? _subscribedAction;
+
     partial void OnSelectedActionChanged(HotkeyActionViewModel? value)
     {
+        if (_subscribedAction != null)
+        {
+            _subscribedAction.PropertyChanged -= OnSubscribedActionPropertyChanged;
+            _subscribedAction = null;
+        }
+
         ApplyToAllButtonText = value != null && !string.IsNullOrWhiteSpace(value.DisplayName)
             ? GetLocalizedString("Tools.GenHotkeys.ApplyToAllMatching", "Apply to all {0}", value.DisplayName)
             : GetLocalizedString(LocalizationKeyDefaultApplyToAll, DefaultApplyToAllText);
+
+        if (value != null)
+        {
+            _subscribedAction = value;
+            value.PropertyChanged += OnSubscribedActionPropertyChanged;
+        }
+    }
+
+    private void OnSubscribedActionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not HotkeyActionViewModel action || SelectedProfile == null)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(HotkeyActionViewModel.DisplayName))
+        {
+            if (string.Equals(action.DisplayName, action.DefaultDisplayName, StringComparison.Ordinal))
+            {
+                SelectedProfile.TitleMappings.Remove(action.HotkeyString);
+            }
+            else if (!string.IsNullOrEmpty(action.DisplayName))
+            {
+                SelectedProfile.TitleMappings[action.HotkeyString] = action.DisplayName;
+            }
+
+            _ = SaveCurrentProfileAsync(CancellationToken.None);
+        }
+        else if (e.PropertyName == nameof(HotkeyActionViewModel.Tooltip))
+        {
+            var label = action.TooltipString ?? action.HotkeyString;
+            if (!string.IsNullOrEmpty(label))
+            {
+                if (string.Equals(action.Tooltip, action.DefaultTooltip, StringComparison.Ordinal))
+                {
+                    SelectedProfile.TooltipMappings.Remove(label);
+                }
+                else if (action.Tooltip != null)
+                {
+                    SelectedProfile.TooltipMappings[label] = action.Tooltip;
+                }
+
+                _ = SaveCurrentProfileAsync(CancellationToken.None);
+            }
+        }
     }
 
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
@@ -1994,11 +2208,51 @@ public partial class GenHotkeysViewModel(
         ValidateConflicts();
     }
 
+    private TopLevel? GetTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow is null ? null : TopLevel.GetTopLevel(desktop.MainWindow);
+        }
+
+        return null;
+    }
+
+    private async Task LoadCustomBitmapAsync(string filePath, Action<Bitmap?> onLoaded)
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var fs = File.OpenRead(filePath);
+                var bmp = new Bitmap(fs);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!_isDisposed)
+                    {
+                        onLoaded(bmp);
+                    }
+                });
+            });
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or NotSupportedException)
+        {
+            logger.LogWarning(ex, "Failed to load custom cameo bitmap from {Path}", filePath);
+        }
+    }
+
     private void LoadBitmapForIcon(
         Action<Bitmap?> setBitmap,
         string iconName,
+        string? customImagePath,
         CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrWhiteSpace(customImagePath) && File.Exists(customImagePath))
+        {
+            _ = LoadCustomBitmapAsync(customImagePath, setBitmap);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(iconName))
         {
             return;
@@ -2116,6 +2370,39 @@ public partial class GenHotkeysViewModel(
                     else
                     {
                         action.Hotkey = action.DefaultHotkey;
+                    }
+
+                    if (!string.IsNullOrEmpty(action.HotkeyString) &&
+                        SelectedProfile.TitleMappings.TryGetValue(action.HotkeyString, out var mappedTitle))
+                    {
+                        action.DisplayName = mappedTitle;
+                    }
+                    else
+                    {
+                        action.DisplayName = action.DefaultDisplayName;
+                    }
+
+                    var tooltipLabel = action.TooltipString ?? action.HotkeyString;
+                    if (!string.IsNullOrEmpty(tooltipLabel) &&
+                        SelectedProfile.TooltipMappings.TryGetValue(tooltipLabel, out var mappedTooltip))
+                    {
+                        action.Tooltip = mappedTooltip;
+                    }
+                    else
+                    {
+                        action.Tooltip = action.DefaultTooltip;
+                    }
+
+                    if (SelectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
+                        File.Exists(customPath))
+                    {
+                        action.CustomImagePath = customPath;
+                        _ = LoadCustomBitmapAsync(customPath, bmp => action.IconBitmap = bmp);
+                    }
+                    else
+                    {
+                        action.CustomImagePath = null;
+                        _ = LoadBitmapAsync(action.IconName, SelectedGame, bmp => action.IconBitmap = bmp);
                     }
                 }
             }

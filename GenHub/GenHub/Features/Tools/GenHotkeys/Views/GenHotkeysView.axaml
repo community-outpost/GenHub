@@ -340,7 +340,7 @@
     </Border>
 
     <!-- MAIN BODY: FACTIONS + ENTITIES + COMMAND CARDS + KEYBOARD ASSIGNMENT -->
-    <Grid Grid.Row="1" ColumnDefinitions="250,*,320" Margin="0,0,0,8">
+    <Grid Grid.Row="1" ColumnDefinitions="250,*,380" Margin="0,0,0,8">
       <!-- LEFT: Factions & GameObjects List with Faction Icons -->
       <Border Grid.Column="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="8" Margin="0,0,8,0">
         <Grid RowDefinitions="Auto,*">
@@ -540,168 +540,314 @@
         </Grid>
       </Border>
 
-      <!-- RIGHT: Interactive Virtual Keyboard & Hotkey Assignment Bar -->
+      <!-- RIGHT: Interactive Virtual Keyboard, In-Game Tooltip Preview & Cameo Controls -->
       <Border Grid.Column="2" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="12">
-        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
-          <TextBlock Grid.Row="0" Text="{localization:Localize Tools.GenHotkeys.HotkeyAssignmentTitle}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{localization:Localize Tools.GenHotkeys.HotkeyAssignmentTitle}" FontSize="15" FontWeight="Bold"/>
 
-          <!-- Selected Action Summary Box with Larger Cameo -->
-          <Border Grid.Row="1" Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="8" Margin="0,0,0,12"
-                  IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <!-- Live Preview Cameo with superimposed hotkey -->
-              <Grid Grid.Column="0" Width="72" Height="58" Margin="0,0,8,0">
-                <Image Source="{Binding SelectedAction.IconBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <Border IsVisible="{Binding OverlayEnabled}"
-                        HorizontalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToHorizontalAlignmentConverter}}"
-                        VerticalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToVerticalAlignmentConverter}}"
-                        Background="{DynamicResource SurfaceElevatedDarkBrush}"
-                        BorderBrush="{Binding SelectedAction.IsConflict, Converter={StaticResource BoolToBorderConverter}}"
-                        BorderThickness="1.5"
-                        CornerRadius="4"
-                        Padding="4,1"
-                        Margin="2">
-                  <TextBlock Text="{Binding SelectedAction.HotkeyBadge}" FontSize="11" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}"/>
+            <!-- Selected Action Inspector (Only visible when an action is selected) -->
+            <StackPanel IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}" Spacing="10">
+
+              <!-- Cameo Image & Overlay Customizer Card -->
+              <Border Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="10" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
+                  <!-- Live Preview Cameo with superimposed hotkey -->
+                  <Grid Grid.Column="0" Width="75" Height="60" Margin="0,0,10,0">
+                    <Border CornerRadius="4" ClipToBounds="True" Background="#111111" BorderBrush="#333333" BorderThickness="1">
+                      <Image Source="{Binding SelectedAction.IconBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Border IsVisible="{Binding OverlayEnabled}"
+                            HorizontalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToHorizontalAlignmentConverter}}"
+                            VerticalAlignment="{Binding SelectedCorner, Converter={StaticResource CornerToVerticalAlignmentConverter}}"
+                            Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                            BorderBrush="{Binding SelectedAction.IsConflict, Converter={StaticResource BoolToBorderConverter}}"
+                            BorderThickness="1.5"
+                            CornerRadius="4"
+                            Padding="4,1"
+                            Margin="2">
+                      <TextBlock Text="{Binding SelectedAction.HotkeyBadge}" FontSize="11" FontWeight="ExtraBold" Foreground="{DynamicResource GeneralsAccentBrush}"/>
+                    </Border>
+                  </Grid>
+
+                  <!-- Cameo Controls -->
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                    <TextBlock Text="{Binding SelectedAction.IconName}" FontSize="11" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{localization:Localize Tools.GenHotkeys.CustomCameoActive}" IsVisible="{Binding SelectedAction.HasCustomImage}" FontSize="10" Foreground="{DynamicResource GeneralsAccentBrush}"/>
+                    <TextBlock Text="{localization:Localize Tools.GenHotkeys.DefaultGameCameo}" IsVisible="{Binding !SelectedAction.HasCustomImage}" FontSize="10" Opacity="0.6"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                      <Button Content="{localization:Localize Tools.GenHotkeys.ChangeCameo}"
+                              Command="{Binding BrowseCustomCameoCommand}"
+                              Classes="Secondary"
+                              Height="26"
+                              Padding="8,2"
+                              FontSize="11"
+                              ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ChangeCameoTooltip}"/>
+                      <Button Content="{localization:Localize Tools.GenHotkeys.ResetCameo}"
+                              Command="{Binding ResetCustomCameoCommand}"
+                              IsEnabled="{Binding SelectedAction.CanResetCameo}"
+                              Classes="Secondary"
+                              Height="26"
+                              Padding="8,2"
+                              FontSize="11"
+                              ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ResetCameoTooltip}"/>
+                    </StackPanel>
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <!-- In-Game Tooltip Preview (Byte-for-byte replica of ControlBarPopupDescription.wnd) -->
+              <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.GenHotkeys.TooltipPreviewTitle}" FontSize="11" FontWeight="SemiBold" Opacity="0.8"/>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Button Content="{localization:Localize Tools.GenHotkeys.ResetTitle}"
+                            Command="{Binding ResetTitleCommand}"
+                            IsEnabled="{Binding SelectedAction.CanResetDisplayName}"
+                            Classes="Hyperlink"
+                            FontSize="10"
+                            Padding="2,0"/>
+                    <Button Content="{localization:Localize Tools.GenHotkeys.ResetTooltip}"
+                            Command="{Binding ResetTooltipCommand}"
+                            IsEnabled="{Binding SelectedAction.CanResetTooltip}"
+                            Classes="Hyperlink"
+                            FontSize="10"
+                            Padding="2,0"/>
+                  </StackPanel>
+                </Grid>
+
+                <!-- SAGE In-Game Tooltip Box: Solid dark background (#0B0B0B), 1px border (#333333) -->
+                <Border Background="#0B0B0B" BorderBrush="#333333" BorderThickness="1" CornerRadius="4" Padding="10,8" MinHeight="50">
+                  <StackPanel Spacing="5">
+                    <!-- Title: SAGE HOTKEY_TEXT centered with in-game hilite green #03C400 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                      <TextBlock Text="{Binding SelectedAction.TitleBeforeHotkey}"
+                                 Foreground="#FEFEFE"
+                                 FontFamily="Arial, sans-serif"
+                                 FontSize="12"
+                                 FontWeight="Bold"/>
+                      <TextBlock Text="{Binding SelectedAction.TitleHotkeyChar}"
+                                 Foreground="#03C400"
+                                 FontFamily="Arial, sans-serif"
+                                 FontSize="12"
+                                 FontWeight="Bold"/>
+                      <TextBlock Text="{Binding SelectedAction.TitleAfterHotkey}"
+                                 Foreground="#FEFEFE"
+                                 FontFamily="Arial, sans-serif"
+                                 FontSize="12"
+                                 FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <!-- Separator line -->
+                    <Border Height="1" Background="#222222" Margin="4,2"/>
+
+                    <!-- Description: Left-aligned in-game description text -->
+                    <TextBlock Text="{Binding SelectedAction.Tooltip}"
+                               Foreground="#E0E0E0"
+                               FontFamily="Arial, sans-serif"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding SelectedAction.HasTooltip}"/>
+
+                    <!-- '+ Add description' prompt shown right where description would appear if none exists -->
+                    <Button Command="{Binding StartAddDescriptionCommand}"
+                            Classes="Secondary"
+                            HorizontalAlignment="Center"
+                            Padding="10,4"
+                            Margin="0,2,0,0"
+                            IsVisible="{Binding !SelectedAction.HasTooltip}">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" Foreground="{DynamicResource GeneralsAccentBrush}"/>
+                        <TextBlock Text="{localization:Localize Tools.GenHotkeys.AddDescriptionPrompt}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource GeneralsAccentBrush}"/>
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
                 </Border>
-              </Grid>
+              </StackPanel>
 
-              <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="{Binding SelectedAction.DisplayName}" FontWeight="Bold" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{Binding SelectedAction.HotkeyString}" FontSize="10" Opacity="0.5" TextTrimming="CharacterEllipsis"/>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.DefaultLabel}" FontSize="10" Opacity="0.6"/>
-                  <TextBlock Text="{Binding SelectedAction.DefaultHotkey}" FontSize="10" Opacity="0.6"/>
-                </StackPanel>
+              <!-- Inline Quick Editors for Title & Description -->
+              <StackPanel Spacing="6">
+                <!-- Title Field -->
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.GenHotkeys.TitleFieldLabel}" FontSize="11" FontWeight="SemiBold" Width="68" VerticalAlignment="Center" Opacity="0.7"/>
+                  <TextBox Grid.Column="1"
+                           Text="{Binding SelectedAction.DisplayName, Mode=TwoWay}"
+                           Height="28"
+                           FontSize="11"
+                           VerticalContentAlignment="Center"
+                           Watermark="{localization:Localize Tools.GenHotkeys.TitleWatermark}"/>
+                </Grid>
+
+                <!-- Tooltip Description Field (Shown if has tooltip or editing started) -->
+                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding SelectedAction.HasTooltip}">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.GenHotkeys.TooltipFieldLabel}" FontSize="11" FontWeight="SemiBold" Width="68" VerticalAlignment="Top" Margin="0,6,0,0" Opacity="0.7"/>
+                  <TextBox Grid.Column="1"
+                           Text="{Binding SelectedAction.Tooltip, Mode=TwoWay}"
+                           AcceptsReturn="True"
+                           TextWrapping="Wrap"
+                           MinHeight="52"
+                           MaxHeight="90"
+                           FontSize="11"
+                           Watermark="{localization:Localize Tools.GenHotkeys.TooltipWatermark}"/>
+                </Grid>
               </StackPanel>
 
               <!-- Current Key Indicator -->
-              <Border Grid.Column="2"
-                      Background="{DynamicResource GeneralsAccentBrush}"
-                      CornerRadius="8"
-                      Width="44" Height="44"
-                      VerticalAlignment="Center">
-                <TextBlock Text="{Binding SelectedAction.HotkeyBadge}"
-                           FontSize="20" FontWeight="Bold"
-                           Foreground="{DynamicResource WindowBackground}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <Border Background="{DynamicResource SurfaceElevatedDarkBrush}" CornerRadius="8" Padding="8" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="{localization:Localize Tools.GenHotkeys.AssignedKeyLabel}" FontSize="11" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,2,0,0">
+                      <TextBlock Text="{localization:Localize Tools.GenHotkeys.DefaultLabel}" FontSize="10" Opacity="0.6"/>
+                      <TextBlock Text="{Binding SelectedAction.DefaultHotkey}" FontSize="10" Opacity="0.6"/>
+                    </StackPanel>
+                  </StackPanel>
+                  <Border Grid.Column="1"
+                          Background="{DynamicResource GeneralsAccentBrush}"
+                          CornerRadius="6"
+                          Width="36" Height="36">
+                    <TextBlock Text="{Binding SelectedAction.HotkeyBadge}"
+                               FontSize="16" FontWeight="Bold"
+                               Foreground="{DynamicResource WindowBackground}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                </Grid>
               </Border>
-            </Grid>
-          </Border>
 
-          <!-- Instructions -->
-          <TextBlock Grid.Row="2" Text="{localization:Localize Tools.GenHotkeys.KeyboardInstructions}" FontSize="11" Opacity="0.7" Margin="0,0,0,8" TextWrapping="Wrap"/>
+              <!-- Virtual Keyboard Layout (QWERTY) -->
+              <StackPanel Spacing="4">
+                <TextBlock Text="{localization:Localize Tools.GenHotkeys.KeyboardInstructions}" FontSize="11" Opacity="0.7" TextWrapping="Wrap"/>
 
-          <!-- Virtual Keyboard Layout (QWERTY) -->
-          <StackPanel Grid.Row="3" Spacing="4" VerticalAlignment="Top">
-            <!-- Row 1: Q W E R T Y U I O P -->
-            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-              <Button Content="Q" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Q" Width="26" Height="28" Padding="0"/>
-              <Button Content="W" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="W" Width="26" Height="28" Padding="0"/>
-              <Button Content="E" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="E" Width="26" Height="28" Padding="0"/>
-              <Button Content="R" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="R" Width="26" Height="28" Padding="0"/>
-              <Button Content="T" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="T" Width="26" Height="28" Padding="0"/>
-              <Button Content="Y" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Y" Width="26" Height="28" Padding="0"/>
-              <Button Content="U" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="U" Width="26" Height="28" Padding="0"/>
-              <Button Content="I" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="I" Width="26" Height="28" Padding="0"/>
-              <Button Content="O" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="O" Width="26" Height="28" Padding="0"/>
-              <Button Content="P" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="P" Width="26" Height="28" Padding="0"/>
-            </StackPanel>
+                <StackPanel Spacing="3" VerticalAlignment="Top" Margin="0,4,0,0">
+                  <!-- Row 1: Q W E R T Y U I O P -->
+                  <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                    <Button Content="Q" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Q" Width="26" Height="28" Padding="0"/>
+                    <Button Content="W" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="W" Width="26" Height="28" Padding="0"/>
+                    <Button Content="E" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="E" Width="26" Height="28" Padding="0"/>
+                    <Button Content="R" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="R" Width="26" Height="28" Padding="0"/>
+                    <Button Content="T" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="T" Width="26" Height="28" Padding="0"/>
+                    <Button Content="Y" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Y" Width="26" Height="28" Padding="0"/>
+                    <Button Content="U" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="U" Width="26" Height="28" Padding="0"/>
+                    <Button Content="I" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="I" Width="26" Height="28" Padding="0"/>
+                    <Button Content="O" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="O" Width="26" Height="28" Padding="0"/>
+                    <Button Content="P" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="P" Width="26" Height="28" Padding="0"/>
+                  </StackPanel>
 
-            <!-- Row 2: A S D F G H J K L -->
-            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-              <Button Content="A" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="A" Width="28" Height="28" Padding="0"/>
-              <Button Content="S" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="S" Width="28" Height="28" Padding="0"/>
-              <Button Content="D" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="D" Width="28" Height="28" Padding="0"/>
-              <Button Content="F" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="F" Width="28" Height="28" Padding="0"/>
-              <Button Content="G" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="G" Width="28" Height="28" Padding="0"/>
-              <Button Content="H" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="H" Width="28" Height="28" Padding="0"/>
-              <Button Content="J" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="J" Width="28" Height="28" Padding="0"/>
-              <Button Content="K" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="K" Width="28" Height="28" Padding="0"/>
-              <Button Content="L" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="L" Width="28" Height="28" Padding="0"/>
-            </StackPanel>
+                  <!-- Row 2: A S D F G H J K L -->
+                  <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                    <Button Content="A" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="A" Width="28" Height="28" Padding="0"/>
+                    <Button Content="S" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="S" Width="28" Height="28" Padding="0"/>
+                    <Button Content="D" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="D" Width="28" Height="28" Padding="0"/>
+                    <Button Content="F" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="F" Width="28" Height="28" Padding="0"/>
+                    <Button Content="G" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="G" Width="28" Height="28" Padding="0"/>
+                    <Button Content="H" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="H" Width="28" Height="28" Padding="0"/>
+                    <Button Content="J" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="J" Width="28" Height="28" Padding="0"/>
+                    <Button Content="K" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="K" Width="28" Height="28" Padding="0"/>
+                    <Button Content="L" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="L" Width="28" Height="28" Padding="0"/>
+                  </StackPanel>
 
-            <!-- Row 3: Z X C V B N M -->
-            <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
-              <Button Content="Z" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Z" Width="30" Height="28" Padding="0"/>
-              <Button Content="X" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="X" Width="30" Height="28" Padding="0"/>
-              <Button Content="C" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="C" Width="30" Height="28" Padding="0"/>
-              <Button Content="V" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="V" Width="30" Height="28" Padding="0"/>
-              <Button Content="B" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="B" Width="30" Height="28" Padding="0"/>
-              <Button Content="N" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="N" Width="30" Height="28" Padding="0"/>
-              <Button Content="M" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="M" Width="30" Height="28" Padding="0"/>
-            </StackPanel>
-
-            <!-- Row 4: Action Reset, Clear, and Bulk Apply Controls -->
-            <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="0,8,0,0">
-              <Grid ColumnDefinitions="*,*">
-                <Button Grid.Column="0"
-                        Content="{localization:Localize Tools.GenHotkeys.ResetToDefaultButton}"
-                        Command="{Binding ResetKeyToDefaultCommand}"
-                        Classes="Secondary"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Height="28"
-                        Margin="0,0,3,0"
-                        ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ResetToDefaultTooltip}"/>
-                <Button Grid.Column="1"
-                        Content="{localization:Localize Tools.GenHotkeys.ClearKeyButton}"
-                        Command="{Binding ClearHotkeyCommand}"
-                        Classes="Secondary"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Height="28"
-                        Margin="3,0,0,0"
-                        ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ClearKeyTooltip}"/>
-              </Grid>
-
-              <Button Command="{Binding ApplyToAllMatchingActionsCommand}"
-                      Classes="Secondary"
-                      IsVisible="{Binding SelectedAction, Converter={StaticResource NotNullConverter}}"
-                      HorizontalAlignment="Stretch"
-                      HorizontalContentAlignment="Center"
-                      MinHeight="38"
-                      Margin="0,6,0,0"
-                      Padding="10,6"
-                      ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ApplyToAllTooltip}">
-                <TextBlock Text="{Binding ApplyToAllButtonText}"
-                           TextWrapping="Wrap"
-                           TextAlignment="Center"
-                           FontSize="11"
-                           FontWeight="Medium"
-                           LineHeight="15"
-                           Margin="6,2"
-                           MaxLines="2"
-                           TextTrimming="CharacterEllipsis"/>
-              </Button>
-            </StackPanel>
-          </StackPanel>
-
-          <!-- Conflict Status Panel with Quick Navigation -->
-          <Border Grid.Row="4" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,10,0,0"
-                  IsVisible="{Binding HasConflicts}">
-            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding ConflictStatusText}"
-                           FontWeight="SemiBold"
-                           FontSize="12"
-                           Foreground="{DynamicResource ErrorBrush}"
-                           TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center"/>
-              </StackPanel>
-              <Button Grid.Column="1"
-                      Command="{Binding SelectNextConflictCommand}"
-                      Classes="Secondary"
-                      Padding="8,4"
-                      ToolTip.Tip="{localization:Localize Tools.GenHotkeys.NextConflictTooltip}">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.NextConflictButton}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                  <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" VerticalAlignment="Center"/>
+                  <!-- Row 3: Z X C V B N M -->
+                  <StackPanel Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center">
+                    <Button Content="Z" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="Z" Width="30" Height="28" Padding="0"/>
+                    <Button Content="X" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="X" Width="30" Height="28" Padding="0"/>
+                    <Button Content="C" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="C" Width="30" Height="28" Padding="0"/>
+                    <Button Content="V" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="V" Width="30" Height="28" Padding="0"/>
+                    <Button Content="B" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="B" Width="30" Height="28" Padding="0"/>
+                    <Button Content="N" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="N" Width="30" Height="28" Padding="0"/>
+                    <Button Content="M" Click="OnKeyButtonClicked" Classes="KeyButton" Tag="M" Width="30" Height="28" Padding="0"/>
+                  </StackPanel>
                 </StackPanel>
-              </Button>
-            </Grid>
-          </Border>
-        </Grid>
+              </StackPanel>
+
+              <!-- Action Reset, Clear, and Bulk Apply Controls -->
+              <StackPanel Spacing="6" HorizontalAlignment="Stretch" Margin="0,4,0,0">
+                <Grid ColumnDefinitions="*,*">
+                  <Button Grid.Column="0"
+                          Content="{localization:Localize Tools.GenHotkeys.ResetToDefaultButton}"
+                          Command="{Binding ResetKeyToDefaultCommand}"
+                          Classes="Secondary"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Center"
+                          Height="28"
+                          Margin="0,0,3,0"
+                          ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ResetToDefaultTooltip}"/>
+                  <Button Grid.Column="1"
+                          Content="{localization:Localize Tools.GenHotkeys.ClearKeyButton}"
+                          Command="{Binding ClearHotkeyCommand}"
+                          Classes="Secondary"
+                          HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Center"
+                          Height="28"
+                          Margin="3,0,0,0"
+                          ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ClearKeyTooltip}"/>
+                </Grid>
+
+                <Button Command="{Binding ApplyToAllMatchingActionsCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        MinHeight="38"
+                        Padding="10,6"
+                        ToolTip.Tip="{localization:Localize Tools.GenHotkeys.ApplyToAllTooltip}">
+                  <TextBlock Text="{Binding ApplyToAllButtonText}"
+                             TextWrapping="Wrap"
+                             TextAlignment="Center"
+                             FontSize="11"
+                             FontWeight="Medium"
+                             LineHeight="15"
+                             Margin="6,2"
+                             MaxLines="2"
+                             TextTrimming="CharacterEllipsis"/>
+                </Button>
+              </StackPanel>
+
+              <!-- Conflict Status Panel with Quick Navigation -->
+              <Border Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,4,0,0"
+                      IsVisible="{Binding HasConflicts}">
+                <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource ToolIcon.AlertTriangle}" Width="14" Height="14" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ConflictStatusText}"
+                               FontWeight="SemiBold"
+                               FontSize="12"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Command="{Binding SelectNextConflictCommand}"
+                          Classes="Secondary"
+                          Padding="8,4"
+                          ToolTip.Tip="{localization:Localize Tools.GenHotkeys.NextConflictTooltip}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="{localization:Localize Tools.GenHotkeys.NextConflictButton}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+              </Border>
+
+            </StackPanel>
+
+            <!-- Placeholder when no action is selected -->
+            <Border IsVisible="{Binding !SelectedAction, Converter={StaticResource NotNullConverter}}"
+                    Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                    CornerRadius="8"
+                    Padding="16"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Center">
+              <TextBlock Text="{localization:Localize Tools.GenHotkeys.SelectActionPrompt}"
+                         Opacity="0.6"
+                         TextWrapping="Wrap"
+                         TextAlignment="Center"
+                         FontSize="12"/>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
       </Border>
     </Grid>
 

@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -53,12 +54,17 @@ public class HotkeyPackageService(
             await GenerateGeneralsCsfAsync(profile, stagingDir, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Step 2: Render and stamp icon overlays (if enabled)
-            if (profile.OverlayEnabled)
+            // Step 2: Render and stamp icon overlays (if enabled or if custom cameos exist)
+            var hasCustomCameos = profile.CustomCameoMappings.Count > 0;
+            if (profile.OverlayEnabled || hasCustomCameos)
             {
                 await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Step 2.5: Generate CommandButton.ini delta (if custom tooltips are set)
+            await GenerateCommandButtonIniAsync(profile, stagingDir, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // Step 3: Pack staging folder into !Hotkeys_<ProfileName>_<Game>.big
@@ -123,6 +129,35 @@ public class HotkeyPackageService(
         foreach (var (label, key) in profile.KeyMappings)
         {
             SetLabelAndAliases(baseCsf, label, key);
+        }
+
+        // Apply customized display titles
+        foreach (var (label, title) in profile.TitleMappings)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                continue;
+            }
+
+            if (profile.KeyMappings.TryGetValue(label, out var key))
+            {
+                baseCsf.SetString(label, CsfFile.SetHotkey(title, key));
+            }
+            else
+            {
+                var existing = baseCsf.GetString(label);
+                var existingHk = !string.IsNullOrEmpty(existing) ? CsfFile.ExtractHotkey(existing) : null;
+                baseCsf.SetString(label, existingHk.HasValue ? CsfFile.SetHotkey(title, existingHk.Value) : title);
+            }
+        }
+
+        // Apply customized tooltip descriptions
+        foreach (var (label, description) in profile.TooltipMappings)
+        {
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                baseCsf.SetString(label, description);
+            }
         }
 
         // Synchronize all shortcut aliases with their primary labels in baseCsf
@@ -414,7 +449,19 @@ public class HotkeyPackageService(
                 }
 
                 var assignedHotkey = ResolveActionHotkey(action, profile);
-                if (assignedHotkey.HasValue)
+                var hasCustomCameo = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) && File.Exists(customPath);
+
+                if (hasCustomCameo)
+                {
+                    await TryRenderCustomCameoTgaAsync(
+                        action.IconName,
+                        customPath!,
+                        profile.OverlayEnabled ? assignedHotkey : null,
+                        profile,
+                        texturesDir,
+                        cancellationToken);
+                }
+                else if (profile.OverlayEnabled && assignedHotkey.HasValue)
                 {
                     await TryRenderOverlayTgaAsync(
                         action.IconName,
@@ -463,6 +510,100 @@ public class HotkeyPackageService(
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
         }
+    }
+
+    private async Task TryRenderCustomCameoTgaAsync(
+        string iconName,
+        string customImagePath,
+        char? hotkey,
+        HotkeyProfile profile,
+        string texturesDir,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var customBytes = await File.ReadAllBytesAsync(customImagePath, cancellationToken);
+            byte[] tgaBytes;
+            if (hotkey.HasValue)
+            {
+                tgaBytes = await iconOverlayService.GenerateOverlayTgaAsync(
+                    customBytes,
+                    hotkey.Value,
+                    profile.OverlayCorner,
+                    cancellationToken);
+            }
+            else
+            {
+                tgaBytes = await iconOverlayService.ConvertToTgaAsync(
+                    customBytes,
+                    cancellationToken);
+            }
+
+            var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
+            await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SixLabors.ImageSharp.ImageFormatException)
+        {
+            logger.LogWarning(ex, "Failed to export custom cameo TGA for '{Icon}' from '{Path}'", iconName, customImagePath);
+        }
+    }
+
+    private async Task GenerateCommandButtonIniAsync(
+        HotkeyProfile profile,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        if (profile.TooltipMappings.Count == 0)
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("; Custom CommandButton Tooltip DescriptLabels generated by GenHotkeys");
+        sb.AppendLine("; SAGE Game Engine merges these overrides on startup");
+        sb.AppendLine();
+
+        var writtenCount = 0;
+        foreach (var (label, _) in profile.TooltipMappings)
+        {
+            var buttonName = ResolveCommandButtonName(label);
+            if (!string.IsNullOrEmpty(buttonName))
+            {
+                sb.AppendLine($"CommandButton {buttonName}");
+                sb.AppendLine($"  DescriptLabel = {label}");
+                sb.AppendLine("End");
+                sb.AppendLine();
+                writtenCount++;
+            }
+        }
+
+        if (writtenCount > 0)
+        {
+            var iniDir = Path.Combine(stagingDir, "Data", "INI");
+            Directory.CreateDirectory(iniDir);
+            var iniPath = Path.Combine(iniDir, "CommandButton.ini");
+            await File.WriteAllTextAsync(iniPath, sb.ToString(), cancellationToken);
+        }
+    }
+
+    private string? ResolveCommandButtonName(string tooltipLabel)
+    {
+        return tooltipLabel switch
+        {
+            "CONTROLBAR:ToolTipStop" => "Command_Stop",
+            "CONTROLBAR:ToolTipGuard" => "Command_Guard",
+            "CONTROLBAR:ToolTipAttackMove" => "Command_AttackMove",
+            "CONTROLBAR:ToolTipDisarmMinesAtPosition" => "Command_DisarmMinesAtPosition",
+            "CONTROLBAR:ToolTipGuardFlyingUnitsOnly" => "Command_AirGuard",
+            "CONTROLBAR:ToolTipEvacuate" => "Command_Evacuate",
+            "CONTROLBAR:ToolTipSell" => "Command_Sell",
+            "CONTROLBAR:ToolTipRallyPoint" => "Command_SetRallyPoint",
+            _ => null,
+        };
     }
 
     private async Task<OperationResult<ContentManifest>> RegisterAddonManifestAsync(

@@ -40,6 +40,15 @@ public partial class HotkeyProfile : ObservableObject
     /// <summary>Gets or sets the set of hotkey labels explicitly cleared by the user.</summary>
     public HashSet<string> ClearedKeys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gets or sets custom tooltip descriptions keyed by tooltip or hotkey CSF label.</summary>
+    public Dictionary<string, string> TooltipMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom button display titles keyed by hotkey CSF label.</summary>
+    public Dictionary<string, string> TitleMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom cameo image paths keyed by button IconName.</summary>
+    public Dictionary<string, string> CustomCameoMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Gets or sets the creation timestamp.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -53,5 +62,8 @@ public partial class HotkeyProfile : ObservableObject
     {
         KeyMappings = new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase);
         ClearedKeys = new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase);
+        TooltipMappings = new Dictionary<string, string>(TooltipMappings, StringComparer.OrdinalIgnoreCase);
+        TitleMappings = new Dictionary<string, string>(TitleMappings, StringComparer.OrdinalIgnoreCase);
+        CustomCameoMappings = new Dictionary<string, string>(CustomCameoMappings, StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -97,6 +97,32 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    public Task<byte[]> ConvertToTgaAsync(
+        byte[] sourceIconBytes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sourceIconBytes);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var image = Image.Load<Rgba32>(sourceIconBytes);
+                using var ms = new MemoryStream();
+                var tgaEncoder = new TgaEncoder
+                {
+                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
+                    Compression = TgaCompression.None,
+                };
+
+                image.Save(ms, tgaEncoder);
+                return ms.ToArray();
+            },
+            cancellationToken);
+    }
+
     private static void StampBadge(Image<Rgba32> image, char character, OverlayCorner corner)
     {
         const int scale = 2; // 2x crisp scale for 5x7 font -> 10x14 solid character
@@ -131,22 +157,24 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
             var rowBits = glyphRows[row];
             for (var col = 0; col < 5; col++)
             {
-                var isPixelSet = ((rowBits >> (4 - col)) & 1) == 1;
-                if (isPixelSet)
+                var isSet = ((rowBits >> (4 - col)) & 1) == 1;
+                if (!isSet)
                 {
-                    DrawScaledPixel(image, textStartX + (col * scale), textStartY + (row * scale), scale);
+                    continue;
                 }
-            }
-        }
-    }
 
-    private static void DrawScaledPixel(Image<Rgba32> image, int px, int py, int scale)
-    {
-        for (var dy = 0; dy < scale; dy++)
-        {
-            for (var dx = 0; dx < scale; dx++)
-            {
-                SetPixelSafe(image, px + dx, py + dy, TextColor);
+                for (var dy = 0; dy < scale; dy++)
+                {
+                    for (var dx = 0; dx < scale; dx++)
+                    {
+                        var px = textStartX + (col * scale) + dx;
+                        var py = textStartY + (row * scale) + dy;
+                        if (px >= 0 && px < image.Width && py >= 0 && py < image.Height)
+                        {
+                            image[px, py] = TextColor;
+                        }
+                    }
+                }
             }
         }
     }
@@ -161,38 +189,35 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         const int margin = 2;
         return corner switch
         {
-            OverlayCorner.TopRight => (Math.Max(0, imageWidth - badgeWidth - margin), margin),
-            OverlayCorner.BottomLeft => (margin, Math.Max(0, imageHeight - badgeHeight - margin)),
-            OverlayCorner.BottomRight => (Math.Max(0, imageWidth - badgeWidth - margin), Math.Max(0, imageHeight - badgeHeight - margin)),
-            _ => (margin, margin), // TopLeft
+            OverlayCorner.TopLeft => (margin, margin),
+            OverlayCorner.TopRight => (imageWidth - badgeWidth - margin, margin),
+            OverlayCorner.BottomLeft => (margin, imageHeight - badgeHeight - margin),
+            OverlayCorner.BottomRight => (imageWidth - badgeWidth - margin, imageHeight - badgeHeight - margin),
+            _ => (margin, margin),
         };
     }
 
     private static void DrawBadgeBox(
         Image<Rgba32> image,
-        int startX,
-        int startY,
+        int x,
+        int y,
         int width,
         int height,
         Rgba32 fill,
         Rgba32 border)
     {
-        for (var y = 0; y < height; y++)
+        for (var py = y; py < y + height; py++)
         {
-            for (var x = 0; x < width; x++)
+            for (var px = x; px < x + width; px++)
             {
-                var isBorder = x == 0 || x == width - 1 || y == 0 || y == height - 1;
-                var color = isBorder ? border : fill;
-                SetPixelSafe(image, startX + x, startY + y, color);
-            }
-        }
-    }
+                if (px < 0 || px >= image.Width || py < 0 || py >= image.Height)
+                {
+                    continue;
+                }
 
-    private static void SetPixelSafe(Image<Rgba32> image, int x, int y, Rgba32 color)
-    {
-        if (x >= 0 && x < image.Width && y >= 0 && y < image.Height)
-        {
-            image[x, y] = color;
+                var isBorder = px == x || px == x + width - 1 || py == y || py == y + height - 1;
+                image[px, py] = isBorder ? border : fill;
+            }
         }
     }
 }

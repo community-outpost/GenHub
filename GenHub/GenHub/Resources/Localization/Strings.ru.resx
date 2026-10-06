@@ -5281,6 +5281,30 @@
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>Обновить существующий аддон '{0}' с текущими настройками горячих клавиш.</value>
   </data>
+  <data name="Tools.GenHotkeys.ChangeCameo" xml:space="preserve">
+    <value>Change Image...</value>
+  </data>
+  <data name="Tools.GenHotkeys.ChangeCameoTooltip" xml:space="preserve">
+    <value>Browse custom PNG, TGA, or BMP image for this cameo</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameo" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameoTooltip" xml:space="preserve">
+    <value>Reset to original game cameo texture</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipPreviewTitle" xml:space="preserve">
+    <value>In-Game Tooltip Preview</value>
+  </data>
+  <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
+    <value>+ Add description</value>
+  </data>
+  <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
+    <value>Assigned Hotkey</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectActionPrompt" xml:space="preserve">
+    <value>Select an action button to edit its hotkey, cameo image, title, and tooltip.</value>
+  </data>
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>Выбор игрового клиента</value>
   </data>
@@ -18134,5 +18158,47 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  </data>
+  <data name="Tools.GenHotkeys.CustomCameoActive" xml:space="preserve">
+    <value>Custom Cameo active</value>
+  </data>
+  <data name="Tools.GenHotkeys.DefaultGameCameo" xml:space="preserve">
+    <value>Default Game Cameo</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTitle" xml:space="preserve">
+    <value>Reset Title</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTooltip" xml:space="preserve">
+    <value>Reset Tooltip</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleFieldLabel" xml:space="preserve">
+    <value>Title:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleWatermark" xml:space="preserve">
+    <value>Action Title</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipFieldLabel" xml:space="preserve">
+    <value>Tooltip:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipWatermark" xml:space="preserve">
+    <value>Action Tooltip Description</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectCameoImage" xml:space="preserve">
+    <value>Select Cameo Image</value>
+  </data>
+  <data name="Tools.GenHotkeys.ImageFiles" xml:space="preserve">
+    <value>Image Files</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoApplied" xml:space="preserve">
+    <value>Custom cameo set for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoReset" xml:space="preserve">
+    <value>Custom cameo reset to default for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TitleReset" xml:space="preserve">
+    <value>Title reset to default for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
+    <value>Tooltip reset to default for {0}</value>
   </data>
 </root>
