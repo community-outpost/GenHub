@@ -677,7 +677,25 @@ public sealed partial class ProfileSelectionViewModel(
 
     private void HandleAddContentSuccess(GameProfile profile, string selectedContentName, AddToProfileResult result)
     {
-        if (result.WasContentSwapped)
+        if (result.WasAppliedLive)
+        {
+            logger.LogInformation("Successfully added content to profile '{ProfileName}' and applied it to the running game", profile.Name);
+
+            if (result.WasContentSwapped)
+            {
+                logger.LogInformation(
+                    "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
+                    result.SwappedContentName,
+                    selectedContentName,
+                    profile.Name);
+            }
+
+            // The profile manager live-synchronized the change; confirm it landed in-game.
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Title", "Added to Profile (Live)"),
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Message", $"'{selectedContentName}' has been added to profile '{profile.Name}' and applied to the running game.", selectedContentName, profile.Name));
+        }
+        else if (result.WasContentSwapped)
         {
             logger.LogInformation(
                 "Content swap: replaced {OldContent} with {NewContent} in profile {ProfileName}",
@@ -692,15 +710,6 @@ public sealed partial class ProfileSelectionViewModel(
             notificationService.ShowSuccess(
                 localizationService.GetLocalizedString("Common.Notification.ContentUpdated.Title", "Content Updated"),
                 replacedText);
-        }
-        else if (result.WasAppliedLive)
-        {
-            logger.LogInformation("Successfully added content to profile '{ProfileName}' and applied it to the running game", profile.Name);
-
-            // The profile manager live-synchronized the change; confirm it landed in-game.
-            notificationService.ShowSuccess(
-                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Title", "Added to Profile (Live)"),
-                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Message", $"'{selectedContentName}' has been added to profile '{profile.Name}' and applied to the running game.", selectedContentName, profile.Name));
         }
         else
         {

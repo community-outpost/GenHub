@@ -1,13 +1,11 @@
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
-using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
@@ -25,19 +23,19 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 /// <summary>
 /// Verifies that <see cref="ProfileContentService"/> reports whether an add-to-profile
 /// operation landed in an active game session. Live synchronization itself is owned by the
-/// profile manager's single live-sync pipeline; the service only surfaces the outcome.
+/// profile manager's single live-sync pipeline; the service surfaces the outcome directly from the manager result.
 /// </summary>
 public sealed class ProfileContentServiceLiveTests
 {
     /// <summary>
-    /// Verifies that adding a map to a running profile reports it as applied live.
+    /// Verifies that adding a map when the manager reports live application reports it as applied live.
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task AddContentToProfileAsync_WhenProfileIsRunning_ReportsAppliedLiveAsync()
+    public async Task AddContentToProfileAsync_WhenAppliedLiveByManager_ReportsAppliedLiveAsync()
     {
         // Arrange
-        var fixture = new LiveFixture(running: true);
+        var fixture = new LiveFixture(appliedLive: true);
 
         // Act
         var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, LiveFixture.MapId);
@@ -50,14 +48,14 @@ public sealed class ProfileContentServiceLiveTests
     }
 
     /// <summary>
-    /// Verifies that adding a map to an idle profile does not report it as applied live.
+    /// Verifies that adding a map when the manager does not report live application reports it as not applied live.
     /// </summary>
     /// <returns>A task representing the test operation.</returns>
     [Fact]
-    public async Task AddContentToProfileAsync_WhenProfileIsIdle_ReportsNotAppliedLiveAsync()
+    public async Task AddContentToProfileAsync_WhenNotAppliedLiveByManager_ReportsNotAppliedLiveAsync()
     {
         // Arrange
-        var fixture = new LiveFixture(running: false);
+        var fixture = new LiveFixture(appliedLive: false);
 
         // Act
         var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, LiveFixture.MapId);
@@ -69,31 +67,13 @@ public sealed class ProfileContentServiceLiveTests
         Assert.Contains(LiveFixture.MapId, fixture.CapturedRequest.EnabledContentIds, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Verifies that a missing launch registry degrades to not applied live without failing the add.
-    /// </summary>
-    /// <returns>A task representing the test operation.</returns>
-    [Fact]
-    public async Task AddContentToProfileAsync_WhenLaunchRegistryIsMissing_ReportsNotAppliedLiveAsync()
-    {
-        // Arrange
-        var fixture = new LiveFixture(running: true, includeLaunchRegistry: false);
-
-        // Act
-        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, LiveFixture.MapId);
-
-        // Assert
-        Assert.True(result.Success, result.FirstError);
-        Assert.False(result.WasAppliedLive);
-    }
-
     private sealed class LiveFixture
     {
         internal const string InstallationId = "1.104.steam.gameinstallation.zerohour";
         internal const string ClientId = "1.0.communityoutpost.gameclient.communitypatch";
         internal const string MapId = "1.0.0.map.desert";
 
-        internal LiveFixture(bool running, bool includeLaunchRegistry = true)
+        internal LiveFixture(bool appliedLive)
         {
             Profile = new GameProfile
             {
@@ -124,7 +104,7 @@ public sealed class ProfileContentServiceLiveTests
                 .ReturnsAsync((string _, UpdateProfileRequest request, CancellationToken _) =>
                 {
                     CapturedRequest = request;
-                    return ProfileOperationResult<GameProfile>.CreateSuccess(Profile);
+                    return ProfileOperationResult<GameProfile>.CreateSuccess(Profile, wasAppliedLive: appliedLive);
                 });
             manifestPool
                 .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
@@ -136,14 +116,6 @@ public sealed class ProfileContentServiceLiveTests
                 .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifests.Values));
 
-            Mock<ILaunchRegistry>? launchRegistry = null;
-            if (includeLaunchRegistry)
-            {
-                launchRegistry = new Mock<ILaunchRegistry>();
-                launchRegistry.Setup(l => l.GetAllActiveLaunchesAsync())
-                    .ReturnsAsync(running ? [CreateActiveLaunch(Profile.Id)] : []);
-            }
-
             Service = new ProfileContentService(
                 profileManager.Object,
                 manifestPool.Object,
@@ -154,9 +126,7 @@ public sealed class ProfileContentServiceLiveTests
                     installationService.Object),
                 contentOrchestrator.Object,
                 notifications.Object,
-                NullLogger<ProfileContentService>.Instance,
-                null,
-                launchRegistry?.Object);
+                NullLogger<ProfileContentService>.Instance);
         }
 
         internal GameProfile Profile { get; }
@@ -175,18 +145,5 @@ public sealed class ProfileContentServiceLiveTests
                 TargetGame = GameType.ZeroHour,
             };
         }
-
-        private static GameLaunchInfo CreateActiveLaunch(string profileId) => new()
-        {
-            LaunchId = "launch-1",
-            ProfileId = profileId,
-            WorkspaceId = "ws-1",
-            ProcessInfo = new GameProcessInfo
-            {
-                ProcessId = 1234,
-                ProcessName = "generals.exe",
-                StartTime = DateTime.UtcNow,
-            },
-        };
     }
 }

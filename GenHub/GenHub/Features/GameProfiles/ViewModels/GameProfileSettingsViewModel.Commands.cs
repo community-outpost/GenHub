@@ -1085,13 +1085,30 @@ public partial class GameProfileSettingsViewModel
     private void HandleProfileUpdateFailure(ProfileOperationResult<GameProfile> result)
     {
         // The profile manager owns live synchronization and rolls live user data back
-        // when a running update fails to persist, so this handler only reports the error.
+        // when a running update fails to persist, so this handler reports the error
+        // and surfaces any live rollback failure.
         var errors = string.Join(", ", result.Errors);
         StatusMessage = $"Failed to update profile: {errors}";
         _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
         var title = GetErrorLoadingProfileTitle();
         var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
         _notificationService?.ShowError(title, string.Format(CultureInfo.CurrentCulture, msgFormat, errors));
+
+        if (result.LiveRollbackAttempted && !result.LiveRollbackSucceeded)
+        {
+            _localNotificationService.ShowError(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Title", "Live Rollback Failed"),
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Notification.LiveRollbackFailed.Message",
+                    $"Profile save failed ({errors}), and live content rollback reported: {result.LiveRollbackError}",
+                    errors,
+                    result.LiveRollbackError ?? "Unknown error"));
+            StatusMessage = $"Failed to update profile: {errors}. Live rollback failed: {result.LiveRollbackError}";
+        }
+        else if (result.LiveRollbackAttempted && result.LiveRollbackSucceeded)
+        {
+            StatusMessage = $"Failed to update profile: {errors}. Live content was rolled back.";
+        }
     }
 
     private async Task<(List<ContentManifest> Manifests, List<string> MissingIds)> ResolveOriginalManifestsForRollbackAsync(CancellationToken cancellationToken)

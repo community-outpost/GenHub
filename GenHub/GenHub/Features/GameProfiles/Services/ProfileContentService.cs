@@ -4,7 +4,6 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
-using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.CommunityOutpost;
@@ -38,8 +37,7 @@ public sealed class ProfileContentService(
     IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
     ILogger<ProfileContentService> logger,
-    ILocalizationService? localizationService = null,
-    ILaunchRegistry? launchRegistry = null) : IProfileContentService
+    ILocalizationService? localizationService = null) : IProfileContentService
 {
     /// <summary>
     /// Content types that are exclusive (only one can be enabled at a time per profile).
@@ -864,7 +862,7 @@ public sealed class ProfileContentService(
 
         // The profile manager live-synchronizes content changes into an active game session
         // through its single live-sync pipeline; surface that so callers can confirm it.
-        var wasAppliedLive = await CheckProfileRunningAsync(profileId);
+        var wasAppliedLive = updateResult.WasAppliedLive;
 
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
@@ -897,17 +895,6 @@ public sealed class ProfileContentService(
         var addedResult = AddToProfileResult.CreateSuccess(primaryManifestId, contentName, sw.Elapsed);
         addedResult.WasAppliedLive = wasAppliedLive;
         return addedResult;
-    }
-
-    private async Task<bool> CheckProfileRunningAsync(string profileId)
-    {
-        if (launchRegistry == null)
-        {
-            return false;
-        }
-
-        var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-        return launches.Any(l => string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue);
     }
 
     private async Task<(string? SwappedContentId, string? SwappedContentName, ContentType SwappedContentType)> ResolveContentSwapsAsync(

@@ -86,6 +86,7 @@ public class GameProfileManagerLiveSyncTests
 
         // Assert
         Assert.True(result.Success);
+        Assert.True(result.WasAppliedLive);
         Assert.Equal("workspace-live-123", profile.ActiveWorkspaceId);
         _linkerMock.Verify(
             l => l.UpdateProfileUserDataAsync(
@@ -169,6 +170,8 @@ public class GameProfileManagerLiveSyncTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Disk write failure", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.LiveRollbackAttempted);
+        Assert.True(result.LiveRollbackSucceeded);
 
         // First call forwards the desired state (map removed), second call restores it.
         _linkerMock.Verify(
@@ -185,6 +188,127 @@ public class GameProfileManagerLiveSyncTests
                 It.IsAny<GameType>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that if profile save throws an exception after a successful live sync,
+    /// live rollback is executed with CancellationToken.None and failure is returned.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenSaveThrowsExceptionAfterLiveSync_ExecutesRollbackWithCancellationTokenNoneAndReturnsFailureAsync()
+    {
+        // Arrange
+        const string profileId = "profile-live-save-throw";
+        const string installId = "1.104.steam.gameinstallation.zerohour";
+        const string originalMapId = "1.0.0.map.desert";
+
+        CreateRunningProfile(profileId, [installId, originalMapId]);
+        SetupManifest(CreateManifest(installId, "Zero Hour", ContentType.GameInstallation));
+        SetupManifest(CreateManifest(originalMapId, "Tournament Desert", ContentType.Map));
+        SetupLinkerSuccess();
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Fatal disk error"));
+
+        var request = new UpdateProfileRequest
+        {
+            EnabledContentIds = [installId],
+        };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.True(result.LiveRollbackAttempted);
+        Assert.True(result.LiveRollbackSucceeded);
+
+        _linkerMock.Verify(
+            l => l.UpdateProfileUserDataAsync(
+                profileId,
+                It.Is<IEnumerable<ContentManifest>>(m => m.Count() == 2 && m.Any(x => x.Id.Value == originalMapId)),
+                GameType.ZeroHour,
+                CancellationToken.None),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that if profile save is canceled after a successful live sync,
+    /// live rollback is executed with CancellationToken.None and OperationCanceledException is rethrown.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenSaveIsCanceledAfterLiveSync_ExecutesRollbackWithCancellationTokenNoneAndRethrowsAsync()
+    {
+        // Arrange
+        const string profileId = "profile-live-save-cancel";
+        const string installId = "1.104.steam.gameinstallation.zerohour";
+        const string originalMapId = "1.0.0.map.desert";
+
+        CreateRunningProfile(profileId, [installId, originalMapId]);
+        SetupManifest(CreateManifest(installId, "Zero Hour", ContentType.GameInstallation));
+        SetupManifest(CreateManifest(originalMapId, "Tournament Desert", ContentType.Map));
+        SetupLinkerSuccess();
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var request = new UpdateProfileRequest
+        {
+            EnabledContentIds = [installId],
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request));
+
+        _linkerMock.Verify(
+            l => l.UpdateProfileUserDataAsync(
+                profileId,
+                It.Is<IEnumerable<ContentManifest>>(m => m.Count() == 2 && m.Any(x => x.Id.Value == originalMapId)),
+                GameType.ZeroHour,
+                CancellationToken.None),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when save fails and rollback fails, the result reflects rollback failure details.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenSaveFailsAndRollbackFails_ReturnsFailureWithRollbackErrorInfoAsync()
+    {
+        // Arrange
+        const string profileId = "profile-live-both-fail";
+        const string installId = "1.104.steam.gameinstallation.zerohour";
+        const string originalMapId = "1.0.0.map.desert";
+
+        CreateRunningProfile(profileId, [installId, originalMapId]);
+        SetupManifest(CreateManifest(installId, "Zero Hour", ContentType.GameInstallation));
+        SetupManifest(CreateManifest(originalMapId, "Tournament Desert", ContentType.Map));
+
+        _linkerMock.SetupSequence(l => l.UpdateProfileUserDataAsync(
+                profileId,
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Rollback file locked"));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Disk write failure"));
+
+        var request = new UpdateProfileRequest
+        {
+            EnabledContentIds = [installId],
+        };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.True(result.LiveRollbackAttempted);
+        Assert.False(result.LiveRollbackSucceeded);
+        Assert.Contains("Rollback file locked", result.LiveRollbackError);
     }
 
     /// <summary>
