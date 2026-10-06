@@ -5841,7 +5841,6 @@ public partial class ContentDetailViewModel(
                         EnabledContentIds = rollbackProfile.EnabledContentIds.ToList(),
                         GameClient = rollbackProfile.GameClient,
                         ActiveWorkspaceId = string.Empty,
-                        IsRollback = true,
                     };
                     var rollbackResult = await profileManager.UpdateProfileAsync(rollbackProfile.Id, rollbackRequest, CancellationToken.None);
                     if (rollbackResult.Failed)

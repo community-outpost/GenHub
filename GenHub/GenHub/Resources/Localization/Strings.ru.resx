@@ -16859,12 +16859,6 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
     <value>Живая синхронизация содержимого не удалась: {0}. Изменения профиля не сохранены.</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
-    <value>Предупреждение живого отката</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
-    <value>Не удалось сохранить профиль ({0}), и исходное содержимое не удалось полностью разрешить для отката: {1}. Живое содержимое оставлено как синхронизировано и может не соответствовать сохранённому профилю.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
     <value>Живой откат не удался</value>
   </data>

@@ -17011,12 +17011,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
     <value>Live content synchronization failed: {0}. Profile changes were not saved.</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
-    <value>Live Rollback Warning</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
-    <value>Profile save failed ({0}), and original content could not be fully resolved for rollback: {1}. Live content was left as synchronized and may not match the saved profile.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
     <value>Live Rollback Failed</value>
   </data>
