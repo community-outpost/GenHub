@@ -1103,11 +1103,22 @@ public partial class GameProfileSettingsViewModel
                     $"Profile save failed ({errors}), and live content rollback reported: {result.LiveRollbackError}",
                     errors,
                     result.LiveRollbackError ?? "Unknown error"));
-            StatusMessage = $"Failed to update profile: {errors}. Live rollback failed: {result.LiveRollbackError}";
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveRollbackFailed",
+                    "Failed to update profile: {0}. Live rollback failed: {1}"),
+                errors,
+                result.LiveRollbackError ?? "Unknown error");
         }
         else if (result.LiveRollbackAttempted && result.LiveRollbackSucceeded)
         {
-            StatusMessage = $"Failed to update profile: {errors}. Live content was rolled back.";
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveRollbackSucceeded",
+                    "Failed to update profile: {0}. Live content was rolled back."),
+                errors);
         }
     }
 

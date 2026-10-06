@@ -16958,6 +16958,12 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>فشل حفظ الملف الشخصي ({0})، وأبلغ التراجع عن المحتوى المباشر: {1}</value>
   </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
+    <value>فشل تحديث الملف الشخصي: {0}. فشل التراجع المباشر: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackSucceeded" xml:space="preserve">
+    <value>فشل تحديث الملف الشخصي: {0}. تمت استعادة المحتوى المباشر.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>تم تحديث '{0}'.</value>
   </data>
