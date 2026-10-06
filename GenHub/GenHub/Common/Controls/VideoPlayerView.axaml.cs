@@ -337,6 +337,7 @@ public partial class VideoPlayerView : UserControl
 
     /// <summary>
     /// Gets a value indicating whether the native video surface is visible.
+    /// Hiding the native VideoView while loading/error prevents native airspace from obscuring UI overlays.
     /// </summary>
     public bool IsVideoSurfaceVisible
     {
@@ -555,12 +556,6 @@ public partial class VideoPlayerView : UserControl
 
     private static IVlcRuntimeService? ResolveVlcRuntimeService()
     {
-        if (Application.Current?.TryGetResource(VlcRuntimeConstants.ResourceServiceKey, theme: null, out var resource) == true &&
-            resource is IVlcRuntimeService service)
-        {
-            return service;
-        }
-
         return App.Services?.GetService<IVlcRuntimeService>();
     }
 
