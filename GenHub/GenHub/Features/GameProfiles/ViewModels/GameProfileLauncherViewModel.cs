@@ -1031,27 +1031,10 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The sorted profile items.</returns>
     private static List<GameProfileItemViewModel> SortProfileItems(List<GameProfileItemViewModel> profileItems, ProfileSortMode sortMode)
     {
-        return sortMode switch
-        {
-            ProfileSortMode.LastPlayed => profileItems
-                .OrderByDescending(p => p.LastPlayedAt.HasValue)
-                .ThenByDescending(p => p.LastPlayedAt ?? DateTime.MinValue)
-                .ThenByDescending(p => p.CreatedAt)
-                .ToList(),
-            ProfileSortMode.DateCreated => profileItems
-                .OrderByDescending(p => p.CreatedAt)
-                .ToList(),
-            ProfileSortMode.Alphabetical => profileItems
-                .OrderBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToList(),
-            ProfileSortMode.AlphabeticalDesc => profileItems
-                .OrderByDescending(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToList(),
-            _ => profileItems
-                .OrderBy(p => p.DisplayOrder)
-                .ThenByDescending(p => p.CreatedAt)
-                .ToList(),
-        };
+        return ProfileSortHelper.SortByProfile(
+            profileItems,
+            item => new ProfileSortHelper.ProfileSortKeys(item.Name, item.LastPlayedAt ?? DateTime.MinValue, item.CreatedAt, item.DisplayOrder),
+            sortMode);
     }
 
     /// <summary>

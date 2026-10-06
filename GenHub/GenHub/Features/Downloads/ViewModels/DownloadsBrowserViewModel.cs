@@ -3810,6 +3810,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient,
                 workspaceManager: serviceProvider.GetService<IWorkspaceManager>(),
                 patchNotesService: serviceProvider.GetService(typeof(IGeneralsOnlinePatchNotesService)) as IGeneralsOnlinePatchNotesService,
+                userSettingsService: serviceProvider.GetService<IUserSettingsService>(),
                 onDescriptionEnriched: (version, desc) =>
                 {
                     if (GeneralsOnlinePatchNotesHelper.VersionsMatch(item.SearchResult.Version, version))
@@ -4579,7 +4580,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 profileContentService,
                 manifestPool,
                 notificationService,
-                localizationService ?? _localizationService);
+                localizationService ?? _localizationService,
+                serviceProvider.GetService<IUserSettingsService>());
 
             // Load profiles for the target game
             await profileSelectionVm.LoadProfilesAsync(

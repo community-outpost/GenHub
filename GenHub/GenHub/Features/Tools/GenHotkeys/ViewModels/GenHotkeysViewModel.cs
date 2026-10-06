@@ -52,7 +52,8 @@ public partial class GenHotkeysViewModel(
     IContentManifestPool? manifestPool = null,
     ILoggerFactory? loggerFactory = null,
     IDialogService? dialogService = null,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    ILocalizationService? localizationService = null,
+    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable
 {
     private readonly record struct HotkeyConflictTarget(
         HotkeyFaction Faction,
@@ -780,7 +781,8 @@ public partial class GenHotkeysViewModel(
                 profileContentService,
                 manifestPool,
                 notificationService,
-                localizationService);
+                localizationService,
+                userSettingsService);
 
             await profileSelectionVm.LoadProfilesAsync(
                 targetManifest.TargetGame,
