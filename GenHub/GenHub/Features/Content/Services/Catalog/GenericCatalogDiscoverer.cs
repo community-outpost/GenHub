@@ -379,10 +379,8 @@ public class GenericCatalogDiscoverer(
             return urls;
         }
 
-        if (definition.Catalogs != null)
+        if (definition.Catalogs != null && definition.Catalogs.Count > 0)
         {
-            // The selected catalog goes first so the feed the user follows wins
-            // over sibling catalogs when a publisher hosts several.
             var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
                 ? definition.Catalogs.FirstOrDefault(e =>
                     string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
@@ -399,18 +397,38 @@ public class GenericCatalogDiscoverer(
             {
                 AddDefinitionUrl(urls, selected.Url);
                 AddDefinitionMirrors(urls, selected.Mirrors);
-            }
-
-            foreach (var entry in definition.Catalogs)
-            {
-                if (ReferenceEquals(entry, selected))
+                if (selected == definition.Catalogs[0] || string.Equals(selected.Url, definition.CatalogUrl, StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    AddDefinitionMirrors(urls, definition.CatalogMirrors);
                 }
 
-                AddDefinitionUrl(urls, entry.Url);
-                AddDefinitionMirrors(urls, entry.Mirrors);
+                return urls;
             }
+
+            // If a specific catalog was requested by ID but not found in the definition,
+            // the catalog was removed from the publisher definition.
+            // Do not fall back to sibling catalogs.
+            if (!string.IsNullOrWhiteSpace(selectedCatalogId))
+            {
+                return urls;
+            }
+
+            // If selectedCatalogId was not specified:
+            // 1. If definition has only one catalog entry, the catalog was likely updated/renamed in the definition.
+            // 2. Or neither selectedCatalogId nor subscriptionCatalogUrl was specified.
+            if (definition.Catalogs.Count == 1 || string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
+            {
+                var defaultEntry = definition.Catalogs[0];
+                AddDefinitionUrl(urls, defaultEntry.Url);
+                AddDefinitionMirrors(urls, defaultEntry.Mirrors);
+                AddDefinitionMirrors(urls, definition.CatalogMirrors);
+                return urls;
+            }
+
+            // subscriptionCatalogUrl was specified but not found in a multi-catalog definition,
+            // and selectedCatalogId was not set.
+            // Do not fall back to unrelated catalogs.
+            return urls;
         }
 
         AddDefinitionUrl(urls, definition.CatalogUrl);
@@ -927,9 +945,10 @@ public class GenericCatalogDiscoverer(
         CancellationToken cancellationToken)
     {
         var urls = new List<string>();
+        PublisherDefinition? definition = null;
         if (_subscription != null && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
         {
-            var definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+            definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
             if (definition != null)
             {
                 RememberResolvedPublisherInfo(definition.Publisher);
@@ -945,7 +964,16 @@ public class GenericCatalogDiscoverer(
             }
         }
 
-        AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        var isSiblingUrl = definition?.Catalogs != null && definition.Catalogs.Any(other =>
+            !string.IsNullOrWhiteSpace(_subscription?.SelectedCatalogId) &&
+            !string.Equals(other.Id, _subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(other.Url, _subscription?.CatalogUrl, StringComparison.OrdinalIgnoreCase));
+
+        if (!isSiblingUrl)
+        {
+            AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        }
+
         return urls;
     }
 
@@ -1075,9 +1103,7 @@ public class GenericCatalogDiscoverer(
             if (parsed?.Success == true && parsed.Data != null)
             {
                 // Only persist the resolved URL when the preferred (first) candidate
-                // wins. A sibling winning after the selected catalog 404d is a
-                // fallback, not a redirect: persisting it would desync CatalogUrl
-                // from SelectedCatalogId and show the wrong catalog's items.
+                // wins, avoiding transient mirror fallbacks from clobbering the primary endpoint.
                 if (string.Equals(candidateUrl, candidateUrls[0], StringComparison.OrdinalIgnoreCase))
                 {
                     RememberResolvedCatalogUrl(candidateUrl);

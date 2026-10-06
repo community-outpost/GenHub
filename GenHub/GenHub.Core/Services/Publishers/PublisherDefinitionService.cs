@@ -230,8 +230,29 @@ public class PublisherDefinitionService(
             }
 
             // Check if catalog URL changed
-            if (!string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
-                !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
+                ? remoteDef.Catalogs?.FirstOrDefault(c => string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                : remoteDef.Catalogs?.FirstOrDefault(c => string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
+
+            if (targetCatalog != null)
+            {
+                if (!string.IsNullOrWhiteSpace(targetCatalog.Url) &&
+                    !string.Equals(subscription.CatalogUrl, targetCatalog.Url, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation(
+                        "Updating catalog URL for subscription {PublisherId} (catalog {CatalogId}) from {OldUrl} to {NewUrl}",
+                        subscription.PublisherId,
+                        targetCatalog.Id,
+                        subscription.CatalogUrl,
+                        targetCatalog.Url);
+
+                    subscription.CatalogUrl = targetCatalog.Url;
+                    hasUpdate = true;
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
+                     !string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
+                     !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogInformation(
                     "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",

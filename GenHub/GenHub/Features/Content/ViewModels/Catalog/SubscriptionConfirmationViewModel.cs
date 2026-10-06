@@ -392,19 +392,54 @@ public partial class SubscriptionConfirmationViewModel(
             candidateUrls.Add(targetCatalogUrl);
         }
 
+        var targetEntry = definition.Catalogs?.FirstOrDefault(cat =>
+            string.Equals(cat.Url, targetCatalogUrl, StringComparison.OrdinalIgnoreCase))
+            ?? definition.Catalogs?.FirstOrDefault();
+
+        if (targetEntry?.Mirrors != null)
+        {
+            foreach (var mirror in targetEntry.Mirrors)
+            {
+                if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateUrls.Add(mirror);
+                }
+            }
+        }
+
+        if (definition.CatalogMirrors != null)
+        {
+            foreach (var mirror in definition.CatalogMirrors)
+            {
+                if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateUrls.Add(mirror);
+                }
+            }
+        }
+
+        // In the initial subscription dialog, if the primary catalog/target entry fails,
+        // include other catalogs from the definition as fallbacks so the publisher preview can load.
         if (definition.Catalogs != null)
         {
-            var validCatalogUrls = definition.Catalogs
-                .Where(cat => !string.IsNullOrWhiteSpace(cat?.Url) && !candidateUrls.Contains(cat.Url, StringComparer.OrdinalIgnoreCase))
-                .Select(cat => cat.Url);
+            foreach (var catalog in definition.Catalogs)
+            {
+                if (!string.IsNullOrWhiteSpace(catalog.Url) && !candidateUrls.Contains(catalog.Url, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateUrls.Add(catalog.Url);
+                }
 
-            candidateUrls.AddRange(validCatalogUrls);
-
-            var mirrorUrls = definition.Catalogs
-                .SelectMany(cat => cat?.Mirrors ?? [])
-                .Where(url => !string.IsNullOrWhiteSpace(url) && !candidateUrls.Contains(url, StringComparer.OrdinalIgnoreCase));
-
-            candidateUrls.AddRange(mirrorUrls);
+                if (catalog.Mirrors != null)
+                {
+                    foreach (var mirror in catalog.Mirrors)
+                    {
+                        if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
+                        {
+                            candidateUrls.Add(mirror);
+                        }
+                    }
+                }
+            }
         }
 
         return candidateUrls;
@@ -434,13 +469,21 @@ public partial class SubscriptionConfirmationViewModel(
             }
 
             var existingSub = existingResult.Data;
+            var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
+            var resolvedSelectedCatalogId = _definitionCatalogs.FirstOrDefault(
+                c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase)).Id;
+            if (string.IsNullOrWhiteSpace(resolvedSelectedCatalogId) && _definitionCatalogs.Count > 0)
+            {
+                resolvedSelectedCatalogId = _definitionCatalogs[0].Id;
+            }
 
             var subscription = new PublisherSubscription
             {
                 PublisherId = publisherId,
                 PublisherName = publisherName,
-                CatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl,
+                CatalogUrl = effectiveCatalogUrl,
                 DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
+                SelectedCatalogId = resolvedSelectedCatalogId ?? existingSub?.SelectedCatalogId,
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
                 AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisherAvatar),

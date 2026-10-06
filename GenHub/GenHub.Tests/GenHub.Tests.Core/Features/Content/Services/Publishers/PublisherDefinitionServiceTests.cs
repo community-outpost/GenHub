@@ -160,6 +160,62 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that checking for updates when a selected catalog URL changed in a multi-catalog definition updates the subscription.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_SelectedCatalogUrlChanged_UpdatesSubscriptionCatalogUrlAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/main.json\"},{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/new-maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Equal("https://example.com/new-maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
+    /// Tests that changes to a sibling catalog URL in a multi-catalog definition do not overwrite the selected catalog URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_SiblingCatalogUrlChanged_DoesNotUpdateSubscriptionCatalogUrlAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/new-main.json\"},{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal("https://example.com/maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
     /// Tests that checking for updates when there's no definition URL returns false.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
