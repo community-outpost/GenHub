@@ -1867,6 +1867,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
                 }
+                catch (System.Text.Json.JsonException saveEx)
+                {
+                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
+                }
             }
 
             HasError = true;
