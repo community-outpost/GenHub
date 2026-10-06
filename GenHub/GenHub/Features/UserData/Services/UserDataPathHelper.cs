@@ -79,7 +79,7 @@ internal static class UserDataPathHelper
 
     /// <summary>
     /// Resolves the absolute target path on disk for a given user data file, ensuring it remains
-    /// strictly within the user data base directory.
+    /// strictly within the designated target directory.
     /// </summary>
     /// <param name="installTarget">The install target folder destination.</param>
     /// <param name="relativePath">The relative path of the file.</param>
@@ -103,18 +103,16 @@ internal static class UserDataPathHelper
             _ => string.Empty,
         };
 
-        var targetPath = string.IsNullOrEmpty(subDir)
-            ? Path.Combine(userDataBasePath, normalizedRelative)
-            : Path.Combine(userDataBasePath, subDir, normalizedRelative);
-
         var containmentRoot = string.IsNullOrEmpty(subDir)
             ? userDataBasePath
             : Path.Combine(userDataBasePath, subDir);
 
+        var targetPath = Path.Combine(containmentRoot, normalizedRelative);
+
         var fullPath = Path.GetFullPath(targetPath);
         if (!PathHelper.IsPathWithinDirectory(containmentRoot, fullPath))
         {
-            throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
+            throw new InvalidOperationException($"Relative path escapes the target directory: {relativePath}");
         }
 
         return fullPath;
@@ -242,6 +240,7 @@ internal static class UserDataPathHelper
         {
             ".ini" => MapManagerConstants.MapIniFileName,
             ".str" => MapManagerConstants.MapStrFileName,
+            ".wak" => MapManagerConstants.MapWakFileName,
             _ => null,
         };
     }

@@ -84,6 +84,30 @@ public class UserDataPathHelperTests
     }
 
     /// <summary>
+    /// Tests that generic companion files like map.ini, map.str, and map.wak fold into the single map directory.
+    /// </summary>
+    [Fact]
+    public void NormalizeUserDataRelativePath_MapsDirectory_ResolvesGenericCompanionsWithFallbackName()
+    {
+        var ini = UserDataPathHelper.NormalizeUserDataRelativePath(
+            ContentInstallTarget.UserMapsDirectory,
+            "map.ini",
+            singleMapBaseName: "CustomArena");
+        var str = UserDataPathHelper.NormalizeUserDataRelativePath(
+            ContentInstallTarget.UserMapsDirectory,
+            "map.str",
+            singleMapBaseName: "CustomArena");
+        var wak = UserDataPathHelper.NormalizeUserDataRelativePath(
+            ContentInstallTarget.UserMapsDirectory,
+            "map.wak",
+            singleMapBaseName: "CustomArena");
+
+        Assert.Equal("CustomArena/map.ini", ini);
+        Assert.Equal("CustomArena/map.str", str);
+        Assert.Equal("CustomArena/map.wak", wak);
+    }
+
+    /// <summary>
     /// Tests that leading directory prefixes are stripped for Replays and Screenshots folders.
     /// </summary>
     [Fact]
