@@ -396,6 +396,34 @@ public class VlcRuntimeService(
         }
     }
 
+    private static void CopyStagingFallback(string sourceDir, string targetDir)
+    {
+        try
+        {
+            CopyDirectory(sourceDir, targetDir);
+        }
+        catch (Exception copyEx)
+        {
+            CleanupDirectorySilently(targetDir);
+            throw new InvalidOperationException("Failed to copy staging directory into target directory.", copyEx);
+        }
+    }
+
+    private static string BackupExistingTarget(string targetDir)
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var backupDir = $"{targetDir}.old.{timestamp}.{Guid.NewGuid():N}";
+        try
+        {
+            Directory.Move(targetDir, backupDir);
+            return backupDir;
+        }
+        catch (IOException ex)
+        {
+            throw new IOException($"Directory.Move target '{targetDir}' to backup '{backupDir}' failed; aborting promotion to preserve existing files.", ex);
+        }
+    }
+
     private async Task<bool> DownloadPackageAsync(string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         var monotonicProgress = progress != null ? new MonotonicProgress(progress) : null;
@@ -460,22 +488,6 @@ public class VlcRuntimeService(
         }
     }
 
-    private string BackupExistingTarget(string targetDir)
-    {
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var backupDir = $"{targetDir}.old.{timestamp}.{Guid.NewGuid():N}";
-        try
-        {
-            Directory.Move(targetDir, backupDir);
-            return backupDir;
-        }
-        catch (IOException ex)
-        {
-            logger.LogWarning(ex, "Directory.Move target to backup failed; aborting promotion to preserve existing files.");
-            throw;
-        }
-    }
-
     private void MoveOrCopyDirectory(string sourceDir, string destinationDir)
     {
         try
@@ -486,19 +498,6 @@ public class VlcRuntimeService(
         {
             logger.LogWarning(ex, "Directory.Move staging to target failed, attempting copy fallback");
             CopyStagingFallback(sourceDir, destinationDir);
-        }
-    }
-
-    private void CopyStagingFallback(string sourceDir, string targetDir)
-    {
-        try
-        {
-            CopyDirectory(sourceDir, targetDir);
-        }
-        catch (Exception copyEx)
-        {
-            CleanupDirectorySilently(targetDir);
-            throw new InvalidOperationException("Failed to copy staging directory into target directory.", copyEx);
         }
     }
 

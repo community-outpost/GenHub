@@ -555,7 +555,7 @@ public partial class VideoPlayerView : UserControl
 
     private static IVlcRuntimeService? ResolveVlcRuntimeService()
     {
-        if (Application.Current?.TryGetResource("VlcRuntimeService", theme: null, out var resource) == true &&
+        if (Application.Current?.TryGetResource(VlcRuntimeConstants.ResourceServiceKey, theme: null, out var resource) == true &&
             resource is IVlcRuntimeService service)
         {
             return service;

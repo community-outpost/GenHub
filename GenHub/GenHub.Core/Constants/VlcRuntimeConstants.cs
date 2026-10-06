@@ -8,6 +8,11 @@ namespace GenHub.Core.Constants;
 public static class VlcRuntimeConstants
 {
     /// <summary>
+    /// Application resource key for the registered <see cref="GenHub.Core.Interfaces.Common.IVlcRuntimeService"/> instance.
+    /// </summary>
+    public const string ResourceServiceKey = "VlcRuntimeService";
+
+    /// <summary>
     /// Package version for VideoLAN.LibVLC.Windows NuGet package.
     /// </summary>
     public const string PackageVersion = "3.0.24";
