@@ -1843,11 +1843,18 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             if (IsSubscribedToCustomBuild)
             {
                 SubscribedCustomBuildVersion = previousCustomBuildVersion;
-                _userSettingsService.Update(settings =>
+                try
                 {
-                    settings.SubscribedCustomBuildVersion = previousCustomBuildVersion;
-                });
-                await _userSettingsService.SaveAsync(CancellationToken.None);
+                    _userSettingsService.Update(settings =>
+                    {
+                        settings.SubscribedCustomBuildVersion = previousCustomBuildVersion;
+                    });
+                    await _userSettingsService.SaveAsync(CancellationToken.None);
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
+                }
             }
 
             HasError = true;

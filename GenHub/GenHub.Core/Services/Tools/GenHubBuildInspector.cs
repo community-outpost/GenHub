@@ -36,7 +36,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     /// (e.g. "GenHub Map Builder").
     /// </summary>
     /// <param name="contentType">The content type.</param>
-    /// <param name="name">The content name (retained for backward compatibility, not used for build classification).</param>
+    /// <param name="name">The content name (retained for backward compatibility, not used for build classification). When omitting, use named arguments (e.g. <c>tags: tagsList</c>) or cast to <c>(IEnumerable&lt;string&gt;?)</c> to disambiguate from the two-parameter overload.</param>
     /// <param name="tags">The optional tags collection.</param>
     /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
     public static bool IsGenHubApplicationBuild(ContentType? contentType, string? name, IEnumerable<string>? tags = null)

@@ -235,7 +235,7 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies that validating stage reports take precedence over stage descriptions containing \"Process\" or \"Extract\",
+    /// Verifies that validating stage reports take precedence over stage descriptions containing "Process" or "Extract",
     /// routing into the validating/storing progress span (85-90%).
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
