@@ -50,6 +50,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
     private readonly Dictionary<long, GeneralsOnlineProfileMatch> _bestMatchByLobby = [];
     private readonly Dictionary<long, int> _latencyByLobby = [];
     private readonly Dictionary<long, ObservableCollection<GeneralsOnlineFriendChatMessage>> _dmThreads = [];
+    private readonly Dictionary<int, List<GeneralsOnlineRoomChatMessage>> _roomChatHistories = [];
     private readonly HashSet<long> _dmUnread = [];
     private readonly HashSet<(string Operation, long UserId)> _inFlightSocialActions = [];
     private readonly object _debounceLock = new();
@@ -2132,15 +2133,16 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             var applied = await wsListener.SelectNetworkRoomAsync((short)room.Id, cancellationToken);
             if (applied.Success)
             {
+                if (roomChanged && _appliedChatRoomId != int.MinValue && RoomChatMessages.Count > 0)
+                {
+                    _roomChatHistories[_appliedChatRoomId] = [.. RoomChatMessages];
+                }
+
                 _appliedChatRoomId = room.Id;
                 _chatRoomApplied = true;
                 if (roomChanged)
                 {
-                    RunOnUi(() =>
-                    {
-                        RoomChatMessages.Clear();
-                        OnPropertyChanged(nameof(HasRoomChat));
-                    });
+                    RunOnUi(() => LoadRoomChatThread(room.Id));
                 }
             }
         }
@@ -2603,9 +2605,22 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         }
     }
 
-    private void OnRoomChatReceived(object? sender, GeneralsOnlineRoomChatMessage message)
+    private void AddRoomChatMessage(int roomId, GeneralsOnlineRoomChatMessage message)
     {
-        RunOnUi(() =>
+        if (!_roomChatHistories.TryGetValue(roomId, out var history))
+        {
+            history = [];
+            _roomChatHistories[roomId] = history;
+        }
+
+        history.Add(message);
+        while (history.Count > GeneralsOnlineConstants.RoomChatMaxMessages)
+        {
+            history.RemoveAt(0);
+        }
+
+        var activeRoomId = ChatRoom?.Id ?? _appliedChatRoomId;
+        if (activeRoomId == roomId || (activeRoomId == int.MinValue && roomId == 0))
         {
             RoomChatMessages.Add(message);
             while (RoomChatMessages.Count > GeneralsOnlineConstants.RoomChatMaxMessages)
@@ -2614,6 +2629,29 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             }
 
             OnPropertyChanged(nameof(HasRoomChat));
+        }
+    }
+
+    private void LoadRoomChatThread(int roomId)
+    {
+        RoomChatMessages.Clear();
+        if (_roomChatHistories.TryGetValue(roomId, out var history))
+        {
+            foreach (var message in history)
+            {
+                RoomChatMessages.Add(message);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasRoomChat));
+    }
+
+    private void OnRoomChatReceived(object? sender, GeneralsOnlineRoomChatMessage message)
+    {
+        RunOnUi(() =>
+        {
+            var targetRoomId = _appliedChatRoomId != int.MinValue ? _appliedChatRoomId : (ChatRoom?.Id ?? 0);
+            AddRoomChatMessage(targetRoomId, message);
         });
     }
 
@@ -2818,18 +2856,13 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
             var text = string.IsNullOrWhiteSpace(notice.Reason)
                 ? notice.ActionType
                 : $"{notice.ActionType}: {notice.Reason}";
-            RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage
+            var targetRoomId = _appliedChatRoomId != int.MinValue ? _appliedChatRoomId : (ChatRoom?.Id ?? 0);
+            AddRoomChatMessage(targetRoomId, new GeneralsOnlineRoomChatMessage
             {
                 Message = text,
                 IsAdmin = true,
                 ReceivedAtUtc = DateTime.UtcNow,
             });
-            while (RoomChatMessages.Count > GeneralsOnlineConstants.RoomChatMaxMessages)
-            {
-                RoomChatMessages.RemoveAt(0);
-            }
-
-            OnPropertyChanged(nameof(HasRoomChat));
             _notificationService.ShowWarning(
                 GetString("Online.GeneralsOnline.Chat.ModerationTitle"),
                 text,
@@ -2930,6 +2963,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         ChatRoom = null;
         RoomOccupants.Clear();
         SelectedLobbyOccupants.Clear();
+        _roomChatHistories.Clear();
         RoomChatMessages.Clear();
         RoomChatInput = string.Empty;
         DmFriend = null;
@@ -3289,8 +3323,12 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
         var roomChanged = value?.Id != _appliedChatRoomId;
         if (roomChanged)
         {
-            RoomChatMessages.Clear();
-            OnPropertyChanged(nameof(HasRoomChat));
+            if (_appliedChatRoomId != int.MinValue && RoomChatMessages.Count > 0)
+            {
+                _roomChatHistories[_appliedChatRoomId] = [.. RoomChatMessages];
+            }
+
+            LoadRoomChatThread(value?.Id ?? 0);
         }
 
         if (value is null || _disposed)

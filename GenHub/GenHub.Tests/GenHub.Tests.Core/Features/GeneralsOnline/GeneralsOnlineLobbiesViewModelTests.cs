@@ -1346,6 +1346,44 @@ public class GeneralsOnlineLobbiesViewModelTests
     }
 
     /// <summary>
+    /// Tests that switching back to a previously visited room restores its chat messages.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ChatRoomChanged_SwitchingBackToPreviousRoom_RestoresRoomChatMessagesAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        var wsListenerMock = new Mock<IGeneralsOnlineWebSocketListener>();
+        wsListenerMock.SetupGet(w => w.IsConnected).Returns(true);
+        wsListenerMock
+            .Setup(w => w.SelectNetworkRoomAsync(It.IsAny<short>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        using var vm = CreateViewModel(fakes, wsListenerMock.Object);
+
+        var room1 = new GeneralsOnlineRoom { Id = 1, Name = "Room 1" };
+        vm.ChatRoom = room1;
+        await Task.Delay(50);
+
+        vm.RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage { Message = "Message in Room 1" });
+        Assert.Single(vm.RoomChatMessages);
+
+        // Act 1 - Switch to room 2
+        var room2 = new GeneralsOnlineRoom { Id = 2, Name = "Room 2" };
+        vm.ChatRoom = room2;
+        await Task.Delay(50);
+        Assert.Empty(vm.RoomChatMessages);
+
+        // Act 2 - Switch back to room 1
+        vm.ChatRoom = room1;
+        await Task.Delay(50);
+
+        // Assert - Messages in room 1 are restored
+        Assert.Single(vm.RoomChatMessages);
+        Assert.Equal("Message in Room 1", vm.RoomChatMessages[0].Message);
+    }
+
+    /// <summary>
     /// Tests that an in-flight ranking failure for a superseded lobby selection does not clear
     /// the ranked profiles of the newly selected lobby.
     /// </summary>

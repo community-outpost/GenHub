@@ -13,13 +13,169 @@
              x:DataType="go:GeneralsOnlineLobbiesViewModel"
              Background="Transparent">
 
-    <!-- Button, card, and badge classes resolve from the host OnlineView styles. -->
-
     <UserControl.Styles>
+        <!-- Card base styling -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
+        <!-- Modern toolbar buttons -->
+        <Style Selector="Button.toolbar-btn">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.toolbar-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+        <Style Selector="Button.toolbar-btn:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <!-- Community link pill style -->
+        <Style Selector="Button.community-pill">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.community-pill:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <!-- Primary Action Button -->
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.primary-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <!-- Badge -->
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="6,2" />
+        </Style>
+
+        <!-- Lobby List item & selection styles -->
+        <Style Selector="ListBox.lobby-list">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
         <Style Selector="ListBox.lobby-list ListBoxItem">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="2" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="3" />
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem Border.lobby-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem:pointerover Border.lobby-card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}" />
+        </Style>
+        <Style Selector="ListBox.lobby-list ListBoxItem:selected Border.lobby-card">
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+        </Style>
+
+        <!-- Chat List non-purple selection -->
+        <Style Selector="ListBox.chat-list ListBoxItem">
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.chat-list ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.chat-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+        </Style>
+        <Style Selector="ListBox.chat-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}" />
+        </Style>
+
+        <!-- Occupants compact list styling -->
+        <Style Selector="ListBox.occupants-list ListBoxItem">
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.occupants-list ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.occupants-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+        </Style>
+        <Style Selector="ListBox.occupants-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -33,7 +189,6 @@
         <conv:GeneralsOnlineLatencyBrushConverter x:Key="GeneralsOnlineLatencyBrushConverter" />
         <conv:NotSelfVisibilityConverter x:Key="NotSelfVisibilityConverter" />
     </UserControl.Resources>
-
 
     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <StackPanel Spacing="12" MaxWidth="1440" HorizontalAlignment="Stretch" Margin="24,24,24,64">
@@ -84,6 +239,87 @@
                 </Border>
             </Grid>
 
+            <!-- Community links toolbar positioned at the top with sleek pill buttons and icons -->
+            <Border Classes="card" Padding="12,8">
+                <Grid ColumnDefinitions="Auto,*">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <material:MaterialIcon Kind="Web" Width="16" Height="16"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               VerticalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.Title}"
+                                   FontWeight="SemiBold"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.WebsiteUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Website}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="Web" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.Website}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.DiscordUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Discord}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="ForumOutline" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.Discord}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.PatchNotesUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.PatchNotes}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="FileDocumentOutline" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.PatchNotes}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.CodeOfConductUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.CodeOfConduct}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="ShieldCheckOutline" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.CodeOfConduct}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.LaddersUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Ladders}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="TrophyOutline" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.Ladders}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,8,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.MatchesUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Matches}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="GamepadVariantOutline" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.Matches}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="community-pill" Margin="0,0,0,4"
+                                Command="{Binding OpenLinkCommand}"
+                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.ServiceStatusUrl}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.ServiceStatus}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <material:MaterialIcon Kind="ServerNetwork" Width="14" Height="14" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Links.ServiceStatus}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </Grid>
+            </Border>
+
             <!-- Message of the day banner. Inlines are rendered from MotdRuns in code-behind. -->
             <Border Classes="card"
                     Padding="12,8"
@@ -113,881 +349,559 @@
                 <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
                         <TextBlock Text="{Binding WaitingCount}"
-                                   FontSize="18" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   IsVisible="{Binding IsAuthenticated}" />
-                        <TextBlock Text="{Binding PublicLobbyCount}"
-                                   FontSize="18" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   IsVisible="{Binding !IsAuthenticated}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Lobbies}"
-                                   Foreground="{DynamicResource TextSecondary}"
-                                   FontSize="12" />
-                        <TextBlock Text="{Binding TotalLobbiesText}"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   FontSize="11"
-                                   IsVisible="{Binding IsAuthenticated}" />
+                                   Classes="metric-value"
+                                   Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Waiting}"
+                                   Classes="metric-label" />
                     </StackPanel>
                 </Border>
                 <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="{Binding PublicPlayerCount}"
-                                   FontSize="18" FontWeight="SemiBold"
+                        <TextBlock Text="{Binding PublicLobbyCount}"
+                                   Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Players}"
-                                   Foreground="{DynamicResource TextSecondary}"
-                                   FontSize="12" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.PublicLobbies}"
+                                   Classes="metric-label" />
                     </StackPanel>
                 </Border>
-                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8"
-                        IsVisible="{Binding IsAuthenticated}">
+                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding InProgressCount}"
+                                   Classes="metric-value"
+                                   Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.InProgress}"
+                                   Classes="metric-label" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
                         <TextBlock Text="{Binding MatchesToday}"
-                                   FontSize="18" FontWeight="SemiBold"
+                                   Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.MatchesToday}"
-                                   Foreground="{DynamicResource TextSecondary}"
-                                   FontSize="12" />
-                        <TextBlock FontSize="11"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   IsVisible="{Binding WinsToday, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
-                            <Run Text="{Binding WinsToday}" /><Run Text=" " /><Run Text="{localization:Localize Online.GeneralsOnline.Stats.WinsRecorded}" />
-                        </TextBlock>
+                                   Classes="metric-label" />
                     </StackPanel>
                 </Border>
-                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8"
-                        IsVisible="{Binding HasPlayerStats}">
+                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="{Binding PlayerCardText}"
-                                   FontSize="18" FontWeight="SemiBold"
+                        <TextBlock Text="{Binding WinsToday}"
+                                   Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.YourElo}"
-                                   Foreground="{DynamicResource TextSecondary}"
-                                   FontSize="12" />
-                        <TextBlock Text="{Binding PlayerDetailText}"
-                                   Foreground="{DynamicResource TextMuted}"
-                                   FontSize="11"
-                                   IsVisible="{Binding PlayerDetailText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.WinsToday}"
+                                   Classes="metric-label" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card" Padding="12,8" MinWidth="180" Margin="0,0,8,8"
+                        IsVisible="{Binding ServiceUptimeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding ServiceUptimeText}"
+                                   Classes="metric-value"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   ToolTip.Tip="{Binding ServiceStartTimeText}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.ServerUptime}"
+                                   Classes="metric-label" />
                     </StackPanel>
                 </Border>
             </WrapPanel>
-            <StackPanel Orientation="Horizontal" Spacing="4"
-                        IsVisible="{Binding ServiceUptimeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                <TextBlock FontSize="11" Foreground="{DynamicResource TextMuted}">
-                    <Run Text="{localization:Localize Online.GeneralsOnline.Stats.Uptime}" /><Run Text=" " /><Run Text="{Binding ServiceUptimeText}" />
-                </TextBlock>
-                <TextBlock FontSize="11"
-                           Foreground="{DynamicResource TextMuted}"
-                           IsVisible="{Binding ServiceStartTimeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <Run Text="•" /><Run Text=" " /><Run Text="{Binding ServiceStartTimeText}" />
-                </TextBlock>
-            </StackPanel>
 
-            <!-- Community links. -->
-            <Border Classes="card" Padding="12,8">
-                <StackPanel Spacing="6">
-                    <TextBlock Classes="section-title" Text="{localization:Localize Online.GeneralsOnline.Links.Title}" />
-                    <WrapPanel Orientation="Horizontal">
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.Website}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.WebsiteUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Website}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.Discord}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.DiscordUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Discord}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.PatchNotes}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.PatchNotesUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.PatchNotes}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.CodeOfConduct}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.CodeOfConductUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.CodeOfConduct}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.Ladders}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.LaddersUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Ladders}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,8,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.Matches}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.MatchesUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.Matches}" />
-                        <Button Classes="toolbar-btn" Margin="0,0,0,8"
-                                Content="{localization:Localize Online.GeneralsOnline.Links.ServiceStatus}"
-                                Command="{Binding OpenLinkCommand}"
-                                CommandParameter="{x:Static constants:GeneralsOnlineConstants.ServiceStatusUrl}"
-                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Links.ServiceStatus}" />
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Single toolbar row: search, filters, region, sort, refresh. -->
-            <WrapPanel Orientation="Horizontal">
-                <TextBox Classes="field"
-                         Text="{Binding SearchText, Mode=TwoWay}"
-                         Watermark="{localization:Localize Online.GeneralsOnline.Search.Placeholder}"
-                         Width="220"
-                         VerticalAlignment="Center"
-                         Margin="0,0,8,8" />
-                <Button Classes="toolbar-btn"
-                        Command="{Binding ClearSearchCommand}"
-                        Padding="8"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,8"
-                        ToolTip.Tip="{localization:Localize Online.Search.Clear}"
-                        AutomationProperties.Name="{localization:Localize Online.Search.Clear}">
-                    <material:MaterialIcon Kind="Close" Width="16" Height="16" VerticalAlignment="Center" />
-                </Button>
-                <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.CompatibleOnly}"
-                          IsChecked="{Binding CompatibleOnly, Mode=TwoWay}"
-                          IsVisible="{Binding IsAuthenticated}"
-                          VerticalAlignment="Center"
-                          Margin="0,0,12,8" />
-                <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.HideFull}"
-                          IsChecked="{Binding HideFull, Mode=TwoWay}"
-                          IsVisible="{Binding IsAuthenticated}"
-                          VerticalAlignment="Center"
-                          Margin="0,0,12,8" />
-                <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.HidePassworded}"
-                          IsChecked="{Binding HidePassworded, Mode=TwoWay}"
-                          IsVisible="{Binding IsAuthenticated}"
-                          VerticalAlignment="Center"
-                          Margin="0,0,12,8" />
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,8"
-                            IsVisible="{Binding IsAuthenticated}">
-                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Filter.Region}"
-                               Foreground="{DynamicResource TextSecondary}"
-                               FontSize="12"
-                               VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding AvailableRegions}"
-                              SelectedItem="{Binding SelectedRegion, Mode=TwoWay}"
-                              MinWidth="100"
-                              VerticalAlignment="Center"
-                              AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Filter.Region}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,8"
-                            IsVisible="{Binding IsAuthenticated}">
-                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Filter.Sort}"
-                               Foreground="{DynamicResource TextSecondary}"
-                               FontSize="12"
-                               VerticalAlignment="Center" />
-                    <!-- Runtime bindings: SelectedValueBinding evaluates against ComboBoxItem, not the view model. -->
-                    <ComboBox x:CompileBindings="False"
-                              SelectedValue="{Binding SelectedSort, Mode=TwoWay}"
-                              SelectedValueBinding="{Binding Tag}"
-                              MinWidth="120"
-                              VerticalAlignment="Center"
-                              AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Filter.Sort}">
-                        <ComboBoxItem Tag="Players" Content="{localization:Localize Online.GeneralsOnline.Sort.Players}" />
-                        <ComboBoxItem Tag="Name" Content="{localization:Localize Online.GeneralsOnline.Sort.Name}" />
-                        <ComboBoxItem Tag="Map" Content="{localization:Localize Online.GeneralsOnline.Sort.Map}" />
-                        <ComboBoxItem Tag="Latency" Content="{localization:Localize Online.GeneralsOnline.Sort.Latency}" />
-                        <ComboBoxItem Tag="Setup" Content="{localization:Localize Online.GeneralsOnline.Sort.Setup}" />
-                        <ComboBoxItem Tag="Newest" Content="{localization:Localize Online.GeneralsOnline.Sort.Newest}" />
-                    </ComboBox>
-                </StackPanel>
-                <Button Classes="toolbar-btn"
-                        Content="{localization:Localize Online.GeneralsOnline.Action.Refresh}"
-                        Command="{Binding RefreshCommand}"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,8"
-                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Refresh}" />
-                <ProgressBar IsIndeterminate="True" Width="80"
-                             IsVisible="{Binding IsLoading}"
-                             VerticalAlignment="Center"
-                             Margin="0,0,8,8" />
-                <ProgressBar IsIndeterminate="True" Width="40" Height="4"
-                             IsVisible="{Binding IsBackgroundRefreshing}"
-                             VerticalAlignment="Center"
-                             Margin="0,0,8,8" />
-                <TextBlock FontSize="12"
-                           Foreground="{DynamicResource TextMuted}"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,8"
-                           IsVisible="{Binding IsAuthenticated}">
-                    <Run Text="{Binding VisibleLobbies.Count}" /><Run Text=" / " /><Run Text="{Binding Lobbies.Count}" />
-                </TextBlock>
-            </WrapPanel>
-
-            <!-- Transient refresh warning: stale lobbies stay visible underneath. -->
+            <!-- Dedicated Signed-Out Callout Hero Card -->
             <Border Classes="card"
-                    Padding="12,8"
-                    IsVisible="{Binding HasLobbiesWarning}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <material:MaterialIcon Kind="Alert" Width="16" Height="16"
-                                           Foreground="{DynamicResource WarningBrush}"
-                                           VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding LobbiesWarningText}"
-                               Foreground="{DynamicResource TextSecondary}"
-                               FontSize="12"
-                               VerticalAlignment="Center"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
-
-            <!-- Empty state. -->
-            <Border Classes="card"
-                    Padding="24,20"
-                    IsVisible="{Binding !HasLobbies}">
-                <StackPanel Spacing="8" IsVisible="{Binding !IsLoading}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <material:MaterialIcon Kind="GamepadVariantOutline" Width="20" Height="20"
-                                              Foreground="{DynamicResource AccentBrush}"
-                                              VerticalAlignment="Center" />
-                        <TextBlock Classes="section-title" Text="{localization:Localize Online.GeneralsOnline.Empty.Title}" />
+                    Padding="36,32"
+                    Margin="0,8"
+                    IsVisible="{Binding !IsAuthenticated}">
+                <StackPanel Spacing="16" HorizontalAlignment="Center" MaxWidth="520">
+                    <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            CornerRadius="32"
+                            Width="64" Height="64"
+                            HorizontalAlignment="Center">
+                        <material:MaterialIcon Kind="AccountLockOutline" Width="32" Height="32"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Spacing="6" HorizontalAlignment="Center">
+                        <TextBlock Classes="section-title"
+                                   Text="{localization:Localize Online.GeneralsOnline.Auth.RequiredTitle}"
+                                   FontSize="18"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.SignedOutMessage}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="13"
+                                   TextAlignment="Center"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
-                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.Message}"
-                               Foreground="{DynamicResource TextSecondary}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding !HasLobbiesNotice}" />
-                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.SignedOutMessage}"
-                               Foreground="{DynamicResource TextMuted}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding !IsAuthenticated}" />
-                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.ForbiddenMessage}"
-                               Foreground="{DynamicResource TextSecondary}"
-                               TextWrapping="Wrap"
-                               IsVisible="{Binding HasLobbiesNotice}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,4,0,0">
+                        <Button Classes="primary-btn"
+                                Padding="20,10"
+                                FontSize="13"
+                                Command="{Binding SignInCommand}"
+                                IsVisible="{Binding CanShowSignInButton}"
+                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.SignIn}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <material:MaterialIcon Kind="Login" Width="16" Height="16" VerticalAlignment="Center" />
+                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Action.SignIn}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="toolbar-btn"
+                                Padding="16,10"
+                                FontSize="13"
+                                Content="{localization:Localize Common.Cancel}"
+                                Command="{Binding CancelSignInCommand}"
+                                IsVisible="{Binding IsSigningIn}"
+                                AutomationProperties.Name="{localization:Localize Common.Cancel}" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Main body: dense lobby list on the left, detail plus social tabs on the right. -->
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="8*" MinWidth="580" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="5*" MinWidth="340" />
-                </Grid.ColumnDefinitions>
-                <!-- Compact lobby rows: two text lines plus a slim launch button. -->
-                <ListBox Grid.Column="0"
-                         Classes="lobby-list"
-                         ItemsSource="{Binding VisibleLobbies}"
-                         SelectedItem="{Binding SelectedLobby, Mode=TwoWay}"
-                         Background="Transparent"
-                         MaxHeight="680"
-                         VerticalAlignment="Top"
-                         IsVisible="{Binding HasLobbies}"
-                         AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Title}">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="2" />
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:GeneralsOnlineLobby">
-                            <Border Classes="card" Margin="2,2" Padding="0">
-                                <Grid ColumnDefinitions="4,*,Auto">
-                                    <Border Grid.Column="0"
-                                            Background="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}"
-                                            CornerRadius="4,0,0,4"
-                                            ToolTip.Tip="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}" />
-                                    <Grid Grid.Column="1" Margin="10,6" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                                        <Grid Grid.Row="0" Grid.Column="0" ColumnDefinitions="Auto,Auto,*">
-                                            <material:MaterialIcon Grid.Column="0" Kind="Lock" Width="12" Height="12"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="0,0,4,0"
-                                                                   IsVisible="{Binding IsPassworded}" />
-                                            <Ellipse Grid.Column="1" Width="8" Height="8"
-                                                     VerticalAlignment="Center"
-                                                     Margin="0,0,6,0"
-                                                     Fill="{Binding Region, Converter={StaticResource GeneralsOnlineRegionBrushConverter}}"
-                                                     ToolTip.Tip="{Binding Region}" />
-                                            <TextBlock Grid.Column="2"
-                                                       Text="{Binding Name}"
-                                                       ToolTip.Tip="{Binding Name}"
-                                                       FontWeight="SemiBold"
-                                                       FontSize="13"
-                                                       Foreground="{DynamicResource TextPrimary}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </Grid>
-                                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
-                                            <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding !IsMapOfficial}">
-                                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Custom}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextSecondary}" />
-                                            </Border>
-                                            <Border Classes="badge" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
-                                                           FontSize="11"
-                                                           Foreground="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
-                                            </Border>
-                                            <Border Classes="badge" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding State, Converter={StaticResource GeneralsOnlineLobbyStateTextConverter}}"
-                                                           FontSize="11"
-                                                           Foreground="{Binding State, Converter={StaticResource GeneralsOnlineLobbyStateBrushConverter}}" />
-                                            </Border>
-                                        </StackPanel>
-                                        <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="Auto,*" Margin="0,2,0,0" VerticalAlignment="Center">
-                                            <material:MaterialIcon Grid.Column="0" Kind="MapOutline" Width="12" Height="12"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="0,0,4,0" />
-                                            <TextBlock Grid.Column="1"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis">
-                                                <Run Text="{Binding MapName}" /><Run Text=" • " /><Run Text="{Binding TeamsText}" /><Run Text=" • " /><Run Text="{Binding StartingCash}" /><Run Text=" • " /><Run Text="{Binding HostName}" />
-                                            </TextBlock>
-                                        </Grid>
-                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,2,0,0" VerticalAlignment="Center">
-                                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center">
-                                                <Run Text="{Binding PlayerCount}" /><Run Text="/" /><Run Text="{Binding MaxPlayers}" />
-                                            </TextBlock>
-                                            <TextBlock Text="{Binding LocalLatencyMs, StringFormat='{}{0} ms'}"
-                                                       FontSize="11"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{Binding LocalLatencyMs, Converter={StaticResource GeneralsOnlineLatencyBrushConverter}}"
-                                                       VerticalAlignment="Center"
-                                                       IsVisible="{Binding LocalLatencyMs, Converter={StaticResource NullToVisibilityConverter}}" />
-                                        </StackPanel>
-                                    </Grid>
-                                    <Button Grid.Column="2"
-                                            Classes="primary-btn"
-                                            Content="{localization:Localize Online.GeneralsOnline.Action.Launch}"
-                                            Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).LaunchCommand}"
-                                            CommandParameter="{Binding}"
-                                            Padding="10,4"
-                                            FontSize="12"
-                                            VerticalAlignment="Center"
-                                            Margin="0,0,8,0" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <!-- Right rail: selected lobby detail above Friends/Chat tabs. -->
-                <StackPanel Grid.Column="2" Spacing="12" VerticalAlignment="Top">
-                    <!-- Selected lobby detail with compatibility verdict and setup picker. -->
-                    <Border Classes="card"
-                            Padding="12,8"
-                            IsVisible="{Binding SelectedLobby, Converter={StaticResource NullToVisibilityConverter}}">
-                        <StackPanel Spacing="6">
-                            <TextBlock Classes="section-title" Text="{Binding SelectedLobby.Name}" TextWrapping="Wrap" />
-                            <WrapPanel Orientation="Horizontal">
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.HostLabel}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedLobby.HostName}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
-                                    <material:MaterialIcon Kind="MapOutline" Width="14" Height="14"
-                                                           Foreground="{DynamicResource TextSecondary}"
-                                                           VerticalAlignment="Center" />
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.MapLabel}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedLobby.MapName}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <Border Classes="badge" VerticalAlignment="Center">
-                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Official}"
-                                                   FontSize="11"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   IsVisible="{Binding SelectedLobby.IsMapOfficial}" />
-                                    </Border>
-                                    <Border Classes="badge" VerticalAlignment="Center">
-                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Custom}"
-                                                   FontSize="11"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   IsVisible="{Binding !SelectedLobby.IsMapOfficial}" />
-                                    </Border>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4"
-                                            IsVisible="{Binding SelectedLobbyLatency, Converter={StaticResource NullToVisibilityConverter}}">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.LatencyLabel}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedLobbyLatency, StringFormat='{}{0} ms'}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                            </WrapPanel>
-                            <WrapPanel Orientation="Horizontal">
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.CrcLabel}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedLobbyCrcText}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="12"
-                                               FontFamily="Consolas,Menlo,monospace"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4"
-                                            IsVisible="{Binding SelectedProfileCrcText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.ProfileCrcLabel}"
-                                               Foreground="{DynamicResource TextSecondary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding SelectedProfileCrcText}"
-                                               Foreground="{DynamicResource TextPrimary}"
-                                               FontSize="12"
-                                               FontFamily="Consolas,Menlo,monospace"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                            </WrapPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.SettingsLabel}"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <TextBlock FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center">
-                                    <Run Text="{Binding SelectedLobby.StartingCash}" /><Run Text=" • " /><Run Text="{Binding SelectedLobby.PlayerCount}" /><Run Text="/" /><Run Text="{Binding SelectedLobby.MaxPlayers}" /><Run Text=" • " /><Run Text="{Binding SelectedLobby.TeamsText}" />
-                                </TextBlock>
-                                <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding SelectedLobby.IsLimitSuperweapons}">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.NoSuperweapons}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource TextSecondary}" />
-                                </Border>
-                                <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding SelectedLobby.AllowObservers}">
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Observers}"
-                                               FontSize="11"
-                                               Foreground="{DynamicResource TextSecondary}" />
-                                </Border>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.ProfileLabel}"
-                                           Foreground="{DynamicResource TextSecondary}"
-                                           FontSize="12"
-                                           VerticalAlignment="Center" />
-                                <ComboBox ItemsSource="{Binding RankedProfilesForSelected}"
-                                          SelectedItem="{Binding SelectedLaunchProfile, Mode=TwoWay}"
-                                          MinWidth="200"
-                                          MaxWidth="320"
-                                          VerticalAlignment="Center"
-                                          AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.ProfileLabel}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate x:DataType="models:GeneralsOnlineProfileMatch">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <Ellipse Width="8" Height="8"
-                                                         VerticalAlignment="Center"
-                                                         Fill="{Binding Compatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
-                                                <TextBlock Text="{Binding ProfileName}"
-                                                           VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding Compatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource TextMuted}"
-                                                           VerticalAlignment="Center" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <Border Classes="badge" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding SelectedLobbyCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
-                                               FontSize="11"
-                                               Foreground="{Binding SelectedLobbyCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
-                                </Border>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="primary-btn"
-                                        Content="{localization:Localize Online.GeneralsOnline.Action.Launch}"
-                                        Command="{Binding LaunchCommand}"
-                                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Launch}" />
-                                <Button Classes="toolbar-btn"
-                                        Content="{localization:Localize Online.GeneralsOnline.Action.Recheck}"
-                                        Command="{Binding RecheckCompatibilityCommand}"
-                                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Recheck}" />
-                            </StackPanel>
-                            <!-- Lobby occupants. -->
-                            <TextBlock Classes="field-label" Text="{localization:Localize Online.GeneralsOnline.Lobby.MembersLabel}" />
-                            <ListBox ItemsSource="{Binding SelectedLobbyOccupants}"
-                                     Background="Transparent"
-                                     MaxHeight="120"
-                                     AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.MembersLabel}">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:GeneralsOnlineLobbyMember">
-                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="0,2">
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DisplayName}"
-                                                           FontSize="12"
-                                                           Foreground="{DynamicResource TextPrimary}"
-                                                           VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" />
-                                                <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding IsAi}">
-                                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Ai}"
-                                                               FontSize="11"
-                                                               Foreground="{DynamicResource TextMuted}" />
-                                                </Border>
-                                            </StackPanel>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Region}"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource TextMuted}"
-                                                       VerticalAlignment="Center"
-                                                       Margin="8,0"
-                                                       IsVisible="{Binding Region, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <material:MaterialIcon Kind="Check" Width="14" Height="14"
-                                                                       Foreground="{DynamicResource SuccessBrush}"
-                                                                       VerticalAlignment="Center"
-                                                                       ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.HasMap}"
-                                                                       IsVisible="{Binding HasMap}" />
-                                                <material:MaterialIcon Kind="Close" Width="14" Height="14"
-                                                                       Foreground="{DynamicResource WarningBrush}"
-                                                                       VerticalAlignment="Center"
-                                                                       ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.MissingMap}"
-                                                                       IsVisible="{Binding !HasMap}" />
-                                            </StackPanel>
-                                            <Border Grid.Column="3" Classes="badge" VerticalAlignment="Center" IsVisible="{Binding IsReady}">
-                                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Ready}"
-                                                           FontSize="11"
-                                                           Foreground="{DynamicResource SuccessBrush}" />
-                                            </Border>
-                                            <Button Grid.Column="4"
-                                                    Classes="toolbar-btn"
-                                                    Padding="6"
-                                                    VerticalAlignment="Center"
-                                                    Margin="8,0,0,0"
-                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
-                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
-                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).AddFriendCommand}"
-                                                    CommandParameter="{Binding UserId}">
-                                                <Button.IsVisible>
-                                                    <MultiBinding Converter="{StaticResource NotSelfVisibilityConverter}">
-                                                        <Binding Path="UserId" />
-                                                        <Binding Path="$parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).SelfUserId" />
-                                                    </MultiBinding>
-                                                </Button.IsVisible>
-                                                <material:MaterialIcon Kind="AccountPlus" Width="14" Height="14" VerticalAlignment="Center" />
-                                            </Button>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+            <!-- Authenticated Workspace: Search toolbar, warnings, empty states, and lobbies grid -->
+            <StackPanel Spacing="12" IsVisible="{Binding IsAuthenticated}">
+                <!-- Single toolbar row: search, filters, region, sort, refresh. -->
+                <WrapPanel Orientation="Horizontal">
+                    <TextBox Classes="field"
+                             Text="{Binding SearchText, Mode=TwoWay}"
+                             Watermark="{localization:Localize Online.GeneralsOnline.Search.Placeholder}"
+                             Width="220"
+                             VerticalAlignment="Center"
+                             Margin="0,0,8,8" />
+                    <Button Classes="toolbar-btn"
+                            Command="{Binding ClearSearchCommand}"
+                            Padding="8"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,8"
+                            ToolTip.Tip="{localization:Localize Online.Search.Clear}"
+                            AutomationProperties.Name="{localization:Localize Online.Search.Clear}">
+                        <material:MaterialIcon Kind="Close" Width="16" Height="16" VerticalAlignment="Center" />
+                    </Button>
+                    <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.CompatibleOnly}"
+                              IsChecked="{Binding CompatibleOnly, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,8" />
+                    <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.HideFull}"
+                              IsChecked="{Binding HideFull, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,8" />
+                    <CheckBox Content="{localization:Localize Online.GeneralsOnline.Filter.HidePassworded}"
+                              IsChecked="{Binding HidePassworded, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,8" />
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,8">
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Filter.Region}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding AvailableRegions}"
+                                  SelectedItem="{Binding SelectedRegion, Mode=TwoWay}"
+                                  MinWidth="100"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Filter.Region}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,0,12,8">
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Filter.Sort}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center" />
+                        <!-- Runtime bindings: SelectedValueBinding evaluates against ComboBoxItem, not the view model. -->
+                        <ComboBox x:CompileBindings="False"
+                                  SelectedValue="{Binding SelectedSort, Mode=TwoWay}"
+                                  SelectedValueBinding="{Binding Tag}"
+                                  MinWidth="120"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Filter.Sort}">
+                            <ComboBoxItem Tag="Players" Content="{localization:Localize Online.GeneralsOnline.Sort.Players}" />
+                            <ComboBoxItem Tag="Name" Content="{localization:Localize Online.GeneralsOnline.Sort.Name}" />
+                            <ComboBoxItem Tag="Map" Content="{localization:Localize Online.GeneralsOnline.Sort.Map}" />
+                            <ComboBoxItem Tag="Latency" Content="{localization:Localize Online.GeneralsOnline.Sort.Latency}" />
+                            <ComboBoxItem Tag="Setup" Content="{localization:Localize Online.GeneralsOnline.Sort.Setup}" />
+                            <ComboBoxItem Tag="Newest" Content="{localization:Localize Online.GeneralsOnline.Sort.Newest}" />
+                        </ComboBox>
+                    </StackPanel>
+                    <Button Classes="toolbar-btn"
+                            Command="{Binding RefreshCommand}"
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,8"
+                            ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Action.Refresh}"
+                            AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Refresh}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <material:MaterialIcon Kind="Refresh" Width="14" Height="14" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.Action.Refresh}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Border Classes="badge" VerticalAlignment="Center" Margin="0,0,8,8" IsVisible="{Binding IsLoading}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ProgressBar IsIndeterminate="True" Width="40" Height="3" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Common.Loading}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
+                    <Border Classes="badge" VerticalAlignment="Center" Margin="0,0,8,8" IsVisible="{Binding IsBackgroundRefreshing}">
+                        <ProgressBar IsIndeterminate="True" Width="30" Height="2" VerticalAlignment="Center" />
+                    </Border>
+                    <Border Classes="badge" VerticalAlignment="Center" Margin="0,0,8,8">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <material:MaterialIcon Kind="GamepadVariantOutline" Width="12" Height="12" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" />
+                            <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
+                                <Run Text="{Binding VisibleLobbies.Count}" /><Run Text=" / " /><Run Text="{Binding Lobbies.Count}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
 
-                    <!-- Friends and room chat share the rail through tabs so chat gets a tall viewport. -->
-                    <Border Classes="card"
-                            Padding="12,8"
-                            IsVisible="{Binding IsAuthenticated}">
-                        <TabControl x:Name="SocialTabControl" Classes="compact-tabs" Padding="0" MinHeight="400">
-                            <TabItem Header="{localization:Localize Online.GeneralsOnline.Friends.Title}"
-                                     AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}">
-                                <StackPanel Spacing="8" Margin="0,8,0,0">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Border Classes="badge"
-                                                VerticalAlignment="Center"
-                                                IsVisible="{Binding Friends.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
-                                            <TextBlock Text="{Binding Friends.Count}"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource TextSecondary}" />
-                                        </Border>
-                                        <Border Classes="badge"
-                                                VerticalAlignment="Center"
-                                                IsVisible="{Binding HasDmUnread}">
-                                            <TextBlock Text="{Binding DmUnreadCount}"
-                                                       FontSize="11"
-                                                       Foreground="{DynamicResource AccentBrush}" />
-                                        </Border>
-                                        <Button Classes="toolbar-btn"
-                                                Content="{localization:Localize Online.GeneralsOnline.Action.Refresh}"
-                                                Command="{Binding RefreshFriendsCommand}"
-                                                VerticalAlignment="Center"
-                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}" />
-                                    </StackPanel>
-                                    <ProgressBar IsIndeterminate="True" Width="80"
-                                                 IsVisible="{Binding IsFriendsLoading}"
-                                                 HorizontalAlignment="Left" />
-                                    <!-- Direct message thread. -->
-                                    <Border Classes="card" Padding="12,8" IsVisible="{Binding HasDm}">
-                                        <StackPanel Spacing="6">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <material:MaterialIcon Kind="MessageText" Width="16" Height="16"
-                                                                       Foreground="{DynamicResource AccentBrush}"
-                                                                       VerticalAlignment="Center" />
-                                                <TextBlock FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextPrimary}"
-                                                           VerticalAlignment="Center">
-                                                    <Run Text="{localization:Localize Online.GeneralsOnline.Dm.Title}" /><Run Text=" • " /><Run Text="{Binding DmFriend.DisplayName}" />
-                                                </TextBlock>
-                                                <Button Classes="toolbar-btn"
-                                                        Padding="6"
-                                                        VerticalAlignment="Center"
-                                                        Command="{Binding CloseDmCommand}"
-                                                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Dm.Close}">
-                                                    <material:MaterialIcon Kind="Close" Width="14" Height="14" VerticalAlignment="Center" />
-                                                </Button>
-                                            </StackPanel>
-                                            <ListBox ItemsSource="{Binding DmMessages}"
-                                                     Background="Transparent"
-                                                     MaxHeight="180"
-                                                     AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Dm.Title}">
-                                                <ListBox.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:GeneralsOnlineFriendChatMessage">
-                                                        <StackPanel Margin="0,2">
-                                                            <TextBlock FontSize="12"
-                                                                       Foreground="{DynamicResource TextPrimary}"
-                                                                       TextWrapping="Wrap"
-                                                                       IsVisible="{Binding !IsOwn}">
-                                                                <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
-                                                            </TextBlock>
-                                                            <TextBlock FontSize="12"
-                                                                       Foreground="{DynamicResource AccentBrush}"
-                                                                       TextWrapping="Wrap"
-                                                                       TextAlignment="Right"
-                                                                       IsVisible="{Binding IsOwn}">
-                                                                <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ListBox.ItemTemplate>
-                                            </ListBox>
-                                            <Grid ColumnDefinitions="*,Auto">
-                                                <TextBox Grid.Column="0"
-                                                         Classes="field"
-                                                         Text="{Binding DmInput, Mode=TwoWay}"
-                                                         Watermark="{localization:Localize Online.GeneralsOnline.Dm.Placeholder}"
-                                                         MaxLength="{x:Static constants:GeneralsOnlineConstants.RoomChatMaxLength}"
-                                                         VerticalAlignment="Center"
-                                                         Margin="0,0,8,0" />
-                                                <Button Grid.Column="1"
-                                                        Classes="primary-btn"
-                                                        Content="{localization:Localize Online.GeneralsOnline.Action.Send}"
-                                                        Command="{Binding SendDmCommand}"
-                                                        VerticalAlignment="Center"
-                                                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Send}" />
-                                            </Grid>
-                                        </StackPanel>
-                                    </Border>
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Friends.Empty}"
+                <!-- Transient refresh warning: stale lobbies stay visible underneath. -->
+                <Border Classes="card"
+                        Padding="12,8"
+                        IsVisible="{Binding HasLobbiesWarning}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <material:MaterialIcon Kind="Alert" Width="16" Height="16"
+                                               Foreground="{DynamicResource WarningBrush}"
+                                               VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding LobbiesWarningText}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Empty state. -->
+                <Border Classes="card"
+                        Padding="28,24"
+                        IsVisible="{Binding !HasLobbies}">
+                    <StackPanel Spacing="10" IsVisible="{Binding !IsLoading}" HorizontalAlignment="Center">
+                        <material:MaterialIcon Kind="GamepadVariantOutline" Width="36" Height="36"
                                                Foreground="{DynamicResource TextMuted}"
+                                               HorizontalAlignment="Center" />
+                        <TextBlock Classes="section-title"
+                                   Text="{localization:Localize Online.GeneralsOnline.Empty.Title}"
+                                   FontSize="16"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.Message}"
+                                   Foreground="{DynamicResource TextSecondary}"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding !HasLobbiesNotice}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Empty.ForbiddenMessage}"
+                                   Foreground="{DynamicResource WarningBrush}"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding HasLobbiesNotice}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Main body: dense lobby list on the left, detail plus social tabs on the right. -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="8*" MinWidth="580" />
+                        <ColumnDefinition Width="16" />
+                        <ColumnDefinition Width="5*" MinWidth="340" />
+                    </Grid.ColumnDefinitions>
+                    <!-- Compact lobby rows: two text lines plus a slim launch button. -->
+                    <ListBox Grid.Column="0"
+                             Classes="lobby-list"
+                             ItemsSource="{Binding VisibleLobbies}"
+                             SelectedItem="{Binding SelectedLobby, Mode=TwoWay}"
+                             Background="Transparent"
+                             MaxHeight="680"
+                             VerticalAlignment="Top"
+                             IsVisible="{Binding HasLobbies}"
+                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Title}">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:GeneralsOnlineLobby">
+                                <Border Classes="card lobby-card" Margin="2,2" Padding="0">
+                                    <Grid ColumnDefinitions="4,*,Auto">
+                                        <Border Grid.Column="0"
+                                                Background="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}"
+                                                CornerRadius="4,0,0,4"
+                                                ToolTip.Tip="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}" />
+                                        <Grid Grid.Column="1" Margin="10,6" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                                            <Grid Grid.Row="0" Grid.Column="0" ColumnDefinitions="Auto,Auto,*">
+                                                <material:MaterialIcon Grid.Column="0" Kind="Lock" Width="12" Height="12"
+                                                                       Foreground="{DynamicResource TextMuted}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="0,0,4,0"
+                                                                       IsVisible="{Binding IsPassworded}" />
+                                                <Ellipse Grid.Column="1" Width="8" Height="8"
+                                                         VerticalAlignment="Center"
+                                                         Margin="0,0,6,0"
+                                                         Fill="{Binding Region, Converter={StaticResource GeneralsOnlineRegionBrushConverter}}"
+                                                         ToolTip.Tip="{Binding Region}" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Name}"
+                                                           ToolTip.Tip="{Binding Name}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13"
+                                                           Foreground="{DynamicResource TextPrimary}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </Grid>
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding !IsMapOfficial}">
+                                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Custom}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextSecondary}" />
+                                                </Border>
+                                                <Border Classes="badge" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
+                                                               FontSize="11"
+                                                               Foreground="{Binding LocalCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
+                                                </Border>
+                                                <Border Classes="badge" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding State, Converter={StaticResource GeneralsOnlineLobbyStateTextConverter}}"
+                                                               FontSize="11"
+                                                               Foreground="{Binding State, Converter={StaticResource GeneralsOnlineLobbyStateBrushConverter}}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <Grid Grid.Row="1" Grid.Column="0" ColumnDefinitions="Auto,*" Margin="0,2,0,0" VerticalAlignment="Center">
+                                                <material:MaterialIcon Grid.Column="0" Kind="MapOutline" Width="12" Height="12"
+                                                                       Foreground="{DynamicResource TextMuted}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="0,0,4,0" />
+                                                <TextBlock Grid.Column="1"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextMuted}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding MapName}" /><Run Text=" • " /><Run Text="{Binding TeamsText}" /><Run Text=" • " /><Run Text="{Binding StartingCash}" /><Run Text=" • " /><Run Text="{Binding HostName}" />
+                                                </TextBlock>
+                                            </Grid>
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,2,0,0" VerticalAlignment="Center">
+                                                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center">
+                                                    <Run Text="{Binding PlayerCount}" /><Run Text="/" /><Run Text="{Binding MaxPlayers}" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding LocalLatencyMs, StringFormat='{}{0} ms'}"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{Binding LocalLatencyMs, Converter={StaticResource GeneralsOnlineLatencyBrushConverter}}"
+                                                           VerticalAlignment="Center"
+                                                           IsVisible="{Binding LocalLatencyMs, Converter={StaticResource NullToVisibilityConverter}}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Button Grid.Column="2"
+                                                Classes="primary-btn"
+                                                Content="{localization:Localize Online.GeneralsOnline.Action.Launch}"
+                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).LaunchCommand}"
+                                                CommandParameter="{Binding}"
+                                                Padding="10,4"
+                                                FontSize="12"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,8,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Right rail: selected lobby detail above Friends/Chat tabs. -->
+                    <StackPanel Grid.Column="2" Spacing="12" VerticalAlignment="Top">
+                        <!-- Selected lobby detail with compatibility verdict and setup picker. -->
+                        <Border Classes="card"
+                                Padding="12,8"
+                                IsVisible="{Binding SelectedLobby, Converter={StaticResource NullToVisibilityConverter}}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="section-title" Text="{Binding SelectedLobby.Name}" TextWrapping="Wrap" />
+                                <WrapPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.HostLabel}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SelectedLobby.HostName}"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
+                                        <material:MaterialIcon Kind="MapOutline" Width="14" Height="14"
+                                                               Foreground="{DynamicResource TextSecondary}"
+                                                               VerticalAlignment="Center" />
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.MapLabel}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SelectedLobby.MapName}"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <Border Classes="badge" VerticalAlignment="Center">
+                                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Official}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       IsVisible="{Binding SelectedLobby.IsMapOfficial}" />
+                                        </Border>
+                                        <Border Classes="badge" VerticalAlignment="Center">
+                                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Custom}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       IsVisible="{Binding !SelectedLobby.IsMapOfficial}" />
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4"
+                                                IsVisible="{Binding SelectedLobbyLatency, Converter={StaticResource NullToVisibilityConverter}}">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.LatencyLabel}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SelectedLobbyLatency, StringFormat='{}{0} ms'}"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </WrapPanel>
+                                <WrapPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,16,4">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.CrcLabel}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SelectedLobbyCrcText}"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="12"
+                                                   FontFamily="Consolas,Menlo,monospace"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,4"
+                                                IsVisible="{Binding SelectedProfileCrcText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.ProfileCrcLabel}"
+                                                   Foreground="{DynamicResource TextSecondary}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding SelectedProfileCrcText}"
+                                                   Foreground="{DynamicResource TextPrimary}"
+                                                   FontSize="12"
+                                                   FontFamily="Consolas,Menlo,monospace"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.SettingsLabel}"
+                                               Foreground="{DynamicResource TextSecondary}"
                                                FontSize="12"
-                                               TextWrapping="Wrap"
-                                               IsVisible="{Binding !HasFriends}" />
-                                    <ListBox ItemsSource="{Binding Friends}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center">
+                                        <Run Text="{Binding SelectedLobby.StartingCash}" /><Run Text=" • " /><Run Text="{Binding SelectedLobby.PlayerCount}" /><Run Text="/" /><Run Text="{Binding SelectedLobby.MaxPlayers}" /><Run Text=" • " /><Run Text="{Binding SelectedLobby.TeamsText}" />
+                                    </TextBlock>
+                                    <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding SelectedLobby.IsLimitSuperweapons}">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.NoSuperweapons}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondary}" />
+                                    </Border>
+                                    <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding SelectedLobby.AllowObservers}">
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Observers}"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource TextSecondary}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.ProfileLabel}"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               FontSize="12"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox ItemsSource="{Binding RankedProfilesForSelected}"
+                                              SelectedItem="{Binding SelectedLaunchProfile, Mode=TwoWay}"
+                                              MinWidth="200"
+                                              MaxWidth="320"
+                                              VerticalAlignment="Center"
+                                              AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.ProfileLabel}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="models:GeneralsOnlineProfileMatch">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Ellipse Width="8" Height="8"
+                                                             VerticalAlignment="Center"
+                                                             Fill="{Binding Compatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
+                                                    <TextBlock Text="{Binding ProfileName}"
+                                                               VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Compatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
+                                                               FontSize="11"
+                                                               Foreground="{DynamicResource TextMuted}"
+                                                               VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Border Classes="badge" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding SelectedLobbyCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityTextConverter}}"
+                                                   FontSize="11"
+                                                   Foreground="{Binding SelectedLobbyCompatibility, Converter={StaticResource GeneralsOnlineCompatibilityBrushConverter}}" />
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="primary-btn"
+                                            Content="{localization:Localize Online.GeneralsOnline.Action.Launch}"
+                                            Command="{Binding LaunchCommand}"
+                                            AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Launch}" />
+                                    <Button Classes="toolbar-btn"
+                                            Content="{localization:Localize Online.GeneralsOnline.Action.Recheck}"
+                                            Command="{Binding RecheckCompatibilityCommand}"
+                                            AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Recheck}" />
+                                </StackPanel>
+                                <!-- Lobby occupants with count and scroll styling. -->
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0" VerticalAlignment="Center">
+                                    <material:MaterialIcon Kind="AccountGroupOutline" Width="14" Height="14"
+                                                           Foreground="{DynamicResource TextSecondary}"
+                                                           VerticalAlignment="Center" />
+                                    <TextBlock Classes="field-label" VerticalAlignment="Center">
+                                        <Run Text="{localization:Localize Online.GeneralsOnline.Lobby.MembersLabel}" />
+                                        <Run Text=" (" /><Run Text="{Binding SelectedLobbyOccupants.Count}" /><Run Text="/" /><Run Text="{Binding SelectedLobby.MaxPlayers}" /><Run Text=")" />
+                                    </TextBlock>
+                                </StackPanel>
+                                <ScrollViewer MaxHeight="130"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ListBox Classes="occupants-list"
+                                             ItemsSource="{Binding SelectedLobbyOccupants}"
                                              Background="Transparent"
-                                             MaxHeight="220"
-                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}">
+                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.MembersLabel}">
                                         <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GeneralsOnlineFriend">
-                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                        <Ellipse Width="8" Height="8"
-                                                                 VerticalAlignment="Center"
-                                                                 Fill="{DynamicResource SuccessBrush}"
-                                                                 IsVisible="{Binding IsOnline}" />
-                                                        <Ellipse Width="8" Height="8"
-                                                                 VerticalAlignment="Center"
-                                                                 Fill="{DynamicResource TextMuted}"
-                                                                 IsVisible="{Binding !IsOnline}" />
-                                                    </StackPanel>
-                                                    <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center" Margin="8,0">
+                                            <DataTemplate x:DataType="models:GeneralsOnlineLobbyMember">
+                                                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="0,2">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding DisplayName}"
                                                                    FontSize="12"
                                                                    Foreground="{DynamicResource TextPrimary}"
                                                                    VerticalAlignment="Center"
                                                                    TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{Binding Presence}"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   IsVisible="{Binding Presence, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <Border Classes="badge" VerticalAlignment="Center" IsVisible="{Binding IsAi}">
+                                                            <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Ai}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource TextMuted}" />
+                                                        </Border>
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                        <Button Classes="toolbar-btn"
-                                                                Padding="6"
-                                                                ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Action.Message}"
-                                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Message}"
-                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).OpenDmCommand}"
-                                                                CommandParameter="{Binding}"
-                                                                IsVisible="{Binding IsOnline}">
-                                                            <material:MaterialIcon Kind="MessageText" Width="14" Height="14" VerticalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Classes="toolbar-btn"
-                                                                Padding="6"
-                                                                ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Remove}"
-                                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Remove}"
-                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).RemoveFriendCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <material:MaterialIcon Kind="AccountRemove" Width="14" Height="14" VerticalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Classes="toolbar-btn"
-                                                                Padding="6"
-                                                                ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Block}"
-                                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Block}"
-                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).BlockUserCommand}"
-                                                                CommandParameter="{Binding UserId}">
-                                                            <material:MaterialIcon Kind="BlockHelper" Width="14" Height="14" VerticalAlignment="Center" />
-                                                        </Button>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                    <TextBlock Classes="field-label"
-                                               Text="{localization:Localize Online.GeneralsOnline.Friends.PendingTitle}"
-                                               IsVisible="{Binding PendingRequests.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}" />
-                                    <ListBox ItemsSource="{Binding PendingRequests}"
-                                             Background="Transparent"
-                                             MaxHeight="120"
-                                             IsVisible="{Binding PendingRequests.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}"
-                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.PendingTitle}">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GeneralsOnlineFriend">
-                                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-                                                    <TextBlock Grid.Column="0"
-                                                               Text="{Binding DisplayName}"
-                                                               FontSize="12"
-                                                               Foreground="{DynamicResource TextSecondary}"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                        <Button Classes="toolbar-btn"
-                                                                Padding="6"
-                                                                ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Accept}"
-                                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Accept}"
-                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).AcceptFriendCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <material:MaterialIcon Kind="Check" Width="14" Height="14" VerticalAlignment="Center" />
-                                                        </Button>
-                                                        <Button Classes="toolbar-btn"
-                                                                Padding="6"
-                                                                ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Reject}"
-                                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Reject}"
-                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).RejectFriendCommand}"
-                                                                CommandParameter="{Binding}">
-                                                            <material:MaterialIcon Kind="Close" Width="14" Height="14" VerticalAlignment="Center" />
-                                                        </Button>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                    <TextBlock Classes="field-label"
-                                               Text="{localization:Localize Online.GeneralsOnline.Friends.BlockedSectionTitle}"
-                                               IsVisible="{Binding HasBlocked}" />
-                                    <ListBox ItemsSource="{Binding BlockedUsers}"
-                                             Background="Transparent"
-                                             MaxHeight="100"
-                                             IsVisible="{Binding HasBlocked}"
-                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.BlockedSectionTitle}">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GeneralsOnlineFriend">
-                                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-                                                    <TextBlock Grid.Column="0"
-                                                               Text="{Binding DisplayName}"
-                                                               FontSize="12"
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Region}"
+                                                               FontSize="11"
                                                                Foreground="{DynamicResource TextMuted}"
                                                                VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <Button Grid.Column="1"
-                                                            Classes="toolbar-btn"
-                                                            Content="{localization:Localize Online.GeneralsOnline.Friends.Unblock}"
-                                                            VerticalAlignment="Center"
-                                                            Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).UnblockUserCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                </Grid>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </StackPanel>
-                            </TabItem>
-                            <TabItem Header="{localization:Localize Online.GeneralsOnline.Chat.Title}"
-                                     AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.Title}">
-                                <StackPanel Spacing="8" Margin="0,8,0,0">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Chat.RoomLabel}"
-                                                   Foreground="{DynamicResource TextSecondary}"
-                                                   FontSize="12"
-                                                   VerticalAlignment="Center" />
-                                        <ComboBox ItemsSource="{Binding Rooms}"
-                                                  SelectedItem="{Binding ChatRoom, Mode=TwoWay}"
-                                                  MinWidth="160"
-                                                  VerticalAlignment="Center"
-                                                  AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.RoomLabel}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate x:DataType="models:GeneralsOnlineRoom">
-                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                    </StackPanel>
-                                    <TextBlock Text="{localization:Localize Online.GeneralsOnline.Chat.Empty}"
-                                               Foreground="{DynamicResource TextMuted}"
-                                               FontSize="12"
-                                               TextWrapping="Wrap"
-                                               IsVisible="{Binding !HasRoomChat}" />
-                                    <ListBox x:Name="RoomChatListBox"
-                                             ItemsSource="{Binding RoomChatMessages}"
-                                             Background="Transparent"
-                                             MaxHeight="260"
-                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.Title}">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GeneralsOnlineRoomChatMessage">
-                                                <TextBlock FontSize="12"
-                                                           Foreground="{DynamicResource TextPrimary}"
-                                                           TextWrapping="Wrap"
-                                                           Margin="0,2">
-                                                    <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
-                                                </TextBlock>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBox Grid.Column="0"
-                                                 Classes="field"
-                                                 Text="{Binding RoomChatInput, Mode=TwoWay}"
-                                                 Watermark="{localization:Localize Online.GeneralsOnline.Chat.Placeholder}"
-                                                 MaxLength="{x:Static constants:GeneralsOnlineConstants.RoomChatMaxLength}"
-                                                 VerticalAlignment="Center"
-                                                 Margin="0,0,8,0" />
-                                        <Button Grid.Column="1"
-                                                Classes="primary-btn"
-                                                Content="{localization:Localize Online.GeneralsOnline.Action.Send}"
-                                                Command="{Binding SendRoomChatCommand}"
-                                                VerticalAlignment="Center"
-                                                AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Send}" />
-                                    </Grid>
-                                    <TextBlock Classes="field-label"
-                                               IsVisible="{Binding RoomOccupants.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
-                                        <Run Text="{localization:Localize Online.GeneralsOnline.Chat.OccupantsLabel}" /><Run Text=" • " /><Run Text="{Binding RoomOccupants.Count}" />
-                                    </TextBlock>
-                                    <ListBox ItemsSource="{Binding RoomOccupants}"
-                                             Background="Transparent"
-                                             MaxHeight="120"
-                                             IsVisible="{Binding RoomOccupants.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}"
-                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.OccupantsLabel}">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="models:GeneralsOnlineRoomOccupant">
-                                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                        <material:MaterialIcon Kind="ShieldAccount" Width="14" Height="14"
+                                                               Margin="8,0"
+                                                               IsVisible="{Binding Region, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <material:MaterialIcon Kind="Check" Width="14" Height="14"
+                                                                               Foreground="{DynamicResource SuccessBrush}"
+                                                                               VerticalAlignment="Center"
+                                                                               ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.HasMap}"
+                                                                               IsVisible="{Binding HasMap}" />
+                                                        <material:MaterialIcon Kind="Close" Width="14" Height="14"
                                                                                Foreground="{DynamicResource WarningBrush}"
                                                                                VerticalAlignment="Center"
-                                                                               IsVisible="{Binding IsAdmin}" />
-                                                        <TextBlock Text="{Binding Name}"
-                                                                   FontSize="12"
-                                                                   Foreground="{DynamicResource TextPrimary}"
-                                                                   VerticalAlignment="Center"
-                                                                   TextTrimming="CharacterEllipsis" />
+                                                                               ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.MissingMap}"
+                                                                               IsVisible="{Binding !HasMap}" />
                                                     </StackPanel>
-                                                    <Button Grid.Column="1"
+                                                    <Border Grid.Column="3" Classes="badge" VerticalAlignment="Center" IsVisible="{Binding IsReady}">
+                                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Lobby.Ready}"
+                                                                   FontSize="11"
+                                                                   Foreground="{DynamicResource SuccessBrush}" />
+                                                    </Border>
+                                                    <Button Grid.Column="4"
                                                             Classes="toolbar-btn"
-                                                            Padding="6"
+                                                            Padding="6,3"
                                                             VerticalAlignment="Center"
+                                                            Margin="8,0,0,0"
                                                             ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
                                                             AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
                                                             Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).AddFriendCommand}"
@@ -1004,12 +918,372 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                </StackPanel>
-                            </TabItem>
-                        </TabControl>
-                    </Border>
-                </StackPanel>
-            </Grid>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Friends and room chat share the rail through tabs so chat gets a tall viewport. -->
+                        <Border Classes="card"
+                                Padding="12,8">
+                            <TabControl x:Name="SocialTabControl" Classes="compact-tabs" Padding="0" MinHeight="400">
+                                <TabItem Header="{localization:Localize Online.GeneralsOnline.Friends.Title}"
+                                         AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}">
+                                    <StackPanel Spacing="8" Margin="0,8,0,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Border Classes="badge"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding Friends.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
+                                                <TextBlock Text="{Binding Friends.Count}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource TextSecondary}" />
+                                            </Border>
+                                            <Border Classes="badge"
+                                                    VerticalAlignment="Center"
+                                                    IsVisible="{Binding HasDmUnread}">
+                                                <TextBlock Text="{Binding DmUnreadCount}"
+                                                           FontSize="11"
+                                                           Foreground="{DynamicResource AccentBrush}" />
+                                            </Border>
+                                            <Button Classes="toolbar-btn"
+                                                    Content="{localization:Localize Online.GeneralsOnline.Action.Refresh}"
+                                                    Command="{Binding RefreshFriendsCommand}"
+                                                    VerticalAlignment="Center"
+                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}" />
+                                        </StackPanel>
+                                        <ProgressBar IsIndeterminate="True" Width="80"
+                                                     IsVisible="{Binding IsFriendsLoading}"
+                                                     HorizontalAlignment="Left" />
+                                        <!-- Direct message thread. -->
+                                        <Border Classes="card" Padding="12,8" IsVisible="{Binding HasDm}">
+                                            <StackPanel Spacing="6">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <material:MaterialIcon Kind="MessageText" Width="16" Height="16"
+                                                                           Foreground="{DynamicResource AccentBrush}"
+                                                                           VerticalAlignment="Center" />
+                                                    <TextBlock FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextPrimary}"
+                                                               VerticalAlignment="Center">
+                                                        <Run Text="{localization:Localize Online.GeneralsOnline.Dm.Title}" /><Run Text=" • " /><Run Text="{Binding DmFriend.DisplayName}" />
+                                                    </TextBlock>
+                                                    <Button Classes="toolbar-btn"
+                                                            Padding="6"
+                                                            VerticalAlignment="Center"
+                                                            Command="{Binding CloseDmCommand}"
+                                                            AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Dm.Close}">
+                                                        <material:MaterialIcon Kind="Close" Width="14" Height="14" VerticalAlignment="Center" />
+                                                    </Button>
+                                                </StackPanel>
+                                                <ListBox ItemsSource="{Binding DmMessages}"
+                                                         Background="Transparent"
+                                                         MaxHeight="180"
+                                                         AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Dm.Title}">
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="models:GeneralsOnlineFriendChatMessage">
+                                                            <StackPanel Margin="0,2">
+                                                                <TextBlock FontSize="12"
+                                                                           Foreground="{DynamicResource TextPrimary}"
+                                                                           TextWrapping="Wrap"
+                                                                           IsVisible="{Binding !IsOwn}">
+                                                                    <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                                </TextBlock>
+                                                                <TextBlock FontSize="12"
+                                                                           Foreground="{DynamicResource AccentBrush}"
+                                                                           TextWrapping="Wrap"
+                                                                           TextAlignment="Right"
+                                                                           IsVisible="{Binding IsOwn}">
+                                                                    <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBox Grid.Column="0"
+                                                             Classes="field"
+                                                             Text="{Binding DmInput, Mode=TwoWay}"
+                                                             Watermark="{localization:Localize Online.GeneralsOnline.Dm.Placeholder}"
+                                                             MaxLength="{x:Static constants:GeneralsOnlineConstants.RoomChatMaxLength}"
+                                                             VerticalAlignment="Center"
+                                                             Margin="0,0,8,0" />
+                                                    <Button Grid.Column="1"
+                                                            Classes="primary-btn"
+                                                            Content="{localization:Localize Online.GeneralsOnline.Action.Send}"
+                                                            Command="{Binding SendDmCommand}"
+                                                            VerticalAlignment="Center"
+                                                            AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Send}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Friends.Empty}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding !HasFriends}" />
+                                        <ListBox ItemsSource="{Binding Friends}"
+                                                 Background="Transparent"
+                                                 MaxHeight="220"
+                                                 AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Title}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:GeneralsOnlineFriend">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <Ellipse Width="8" Height="8"
+                                                                     VerticalAlignment="Center"
+                                                                     Fill="{DynamicResource SuccessBrush}"
+                                                                     IsVisible="{Binding IsOnline}" />
+                                                            <Ellipse Width="8" Height="8"
+                                                                     VerticalAlignment="Center"
+                                                                     Fill="{DynamicResource TextMuted}"
+                                                                     IsVisible="{Binding !IsOnline}" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Spacing="0" VerticalAlignment="Center" Margin="8,0">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="12"
+                                                                       Foreground="{DynamicResource TextPrimary}"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding Presence}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource TextMuted}"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding Presence, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                            <Button Classes="toolbar-btn"
+                                                                    Padding="6"
+                                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Action.Message}"
+                                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Message}"
+                                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).OpenDmCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    IsVisible="{Binding IsOnline}">
+                                                                <material:MaterialIcon Kind="MessageText" Width="14" Height="14" VerticalAlignment="Center" />
+                                                            </Button>
+                                                            <Button Classes="toolbar-btn"
+                                                                    Padding="6"
+                                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Remove}"
+                                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Remove}"
+                                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).RemoveFriendCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <material:MaterialIcon Kind="AccountRemove" Width="14" Height="14" VerticalAlignment="Center" />
+                                                            </Button>
+                                                            <Button Classes="toolbar-btn"
+                                                                    Padding="6"
+                                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Block}"
+                                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Block}"
+                                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).BlockUserCommand}"
+                                                                    CommandParameter="{Binding UserId}">
+                                                                <material:MaterialIcon Kind="BlockHelper" Width="14" Height="14" VerticalAlignment="Center" />
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Classes="field-label"
+                                                   Text="{localization:Localize Online.GeneralsOnline.Friends.PendingTitle}"
+                                                   IsVisible="{Binding PendingRequests.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}" />
+                                        <ListBox ItemsSource="{Binding PendingRequests}"
+                                                 Background="Transparent"
+                                                 MaxHeight="120"
+                                                 IsVisible="{Binding PendingRequests.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}"
+                                                 AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.PendingTitle}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:GeneralsOnlineFriend">
+                                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding DisplayName}"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource TextSecondary}"
+                                                                   VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                            <Button Classes="toolbar-btn"
+                                                                    Padding="6"
+                                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Accept}"
+                                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Accept}"
+                                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).AcceptFriendCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <material:MaterialIcon Kind="Check" Width="14" Height="14" VerticalAlignment="Center" />
+                                                            </Button>
+                                                            <Button Classes="toolbar-btn"
+                                                                    Padding="6"
+                                                                    ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Friends.Reject}"
+                                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.Reject}"
+                                                                    Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).RejectFriendCommand}"
+                                                                    CommandParameter="{Binding}">
+                                                                <material:MaterialIcon Kind="Close" Width="14" Height="14" VerticalAlignment="Center" />
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock Classes="field-label"
+                                                   Text="{localization:Localize Online.GeneralsOnline.Friends.BlockedSectionTitle}"
+                                                   IsVisible="{Binding HasBlocked}" />
+                                        <ListBox ItemsSource="{Binding BlockedUsers}"
+                                                 Background="Transparent"
+                                                 MaxHeight="100"
+                                                 IsVisible="{Binding HasBlocked}"
+                                                 AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Friends.BlockedSectionTitle}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:GeneralsOnlineFriend">
+                                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding DisplayName}"
+                                                                   FontSize="12"
+                                                                   Foreground="{DynamicResource TextMuted}"
+                                                                   VerticalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <Button Grid.Column="1"
+                                                                Classes="toolbar-btn"
+                                                                Content="{localization:Localize Online.GeneralsOnline.Friends.Unblock}"
+                                                                VerticalAlignment="Center"
+                                                                Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).UnblockUserCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </StackPanel>
+                                </TabItem>
+                                <TabItem Header="{localization:Localize Online.GeneralsOnline.Chat.Title}"
+                                         AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.Title}">
+                                    <StackPanel Spacing="8" Margin="0,8,0,0">
+                                        <!-- Header row with room picker placed on the right corner -->
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <material:MaterialIcon Kind="ChatOutline" Width="16" Height="16"
+                                                                       Foreground="{DynamicResource AccentBrush}"
+                                                                       VerticalAlignment="Center" />
+                                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Chat.Title}"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="13"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <TextBlock Text="{localization:Localize Online.GeneralsOnline.Chat.RoomLabel}"
+                                                           Foreground="{DynamicResource TextSecondary}"
+                                                           FontSize="12"
+                                                           VerticalAlignment="Center" />
+                                                <ComboBox ItemsSource="{Binding Rooms}"
+                                                          SelectedItem="{Binding ChatRoom, Mode=TwoWay}"
+                                                          MinWidth="150"
+                                                          VerticalAlignment="Center"
+                                                          AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.RoomLabel}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="models:GeneralsOnlineRoom">
+                                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Chat.Empty}"
+                                                   Foreground="{DynamicResource TextMuted}"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"
+                                                   IsVisible="{Binding !HasRoomChat}" />
+                                        <ListBox x:Name="RoomChatListBox"
+                                                 Classes="chat-list"
+                                                 ItemsSource="{Binding RoomChatMessages}"
+                                                 Background="Transparent"
+                                                 MinHeight="180"
+                                                 MaxHeight="260"
+                                                 AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.Title}">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="models:GeneralsOnlineRoomChatMessage">
+                                                    <TextBlock FontSize="12"
+                                                               Foreground="{DynamicResource TextPrimary}"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,2">
+                                                        <Run Text="{Binding ReceivedAtLocal, StringFormat='{}{0:HH:mm}'}" Foreground="{DynamicResource TextMuted}" /><Run Text=" " /><Run Text="{Binding Message}" />
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBox Grid.Column="0"
+                                                     Classes="field"
+                                                     Text="{Binding RoomChatInput, Mode=TwoWay}"
+                                                     Watermark="{localization:Localize Online.GeneralsOnline.Chat.Placeholder}"
+                                                     MaxLength="{x:Static constants:GeneralsOnlineConstants.RoomChatMaxLength}"
+                                                     VerticalAlignment="Center"
+                                                     Margin="0,0,8,0" />
+                                            <Button Grid.Column="1"
+                                                    Classes="primary-btn"
+                                                    Content="{localization:Localize Online.GeneralsOnline.Action.Send}"
+                                                    Command="{Binding SendRoomChatCommand}"
+                                                    VerticalAlignment="Center"
+                                                    AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Send}" />
+                                        </Grid>
+                                        <!-- Collapsible occupants list below chat to keep chat tall and uncluttered -->
+                                        <Expander Classes="compact-expander"
+                                                  IsExpanded="False"
+                                                  Margin="0,4,0,0"
+                                                  IsVisible="{Binding RoomOccupants.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
+                                            <Expander.Header>
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <material:MaterialIcon Kind="AccountMultipleOutline" Width="14" Height="14"
+                                                                           Foreground="{DynamicResource TextSecondary}"
+                                                                           VerticalAlignment="Center" />
+                                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center">
+                                                        <Run Text="{localization:Localize Online.GeneralsOnline.Chat.OccupantsLabel}" /><Run Text=" • " /><Run Text="{Binding RoomOccupants.Count}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Expander.Header>
+                                            <ScrollViewer MaxHeight="120"
+                                                          HorizontalScrollBarVisibility="Disabled"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          Margin="0,4,0,0">
+                                                <ListBox Classes="occupants-list"
+                                                         ItemsSource="{Binding RoomOccupants}"
+                                                         Background="Transparent"
+                                                         AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Chat.OccupantsLabel}">
+                                                    <ListBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="models:GeneralsOnlineRoomOccupant">
+                                                            <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                    <material:MaterialIcon Kind="ShieldAccount" Width="14" Height="14"
+                                                                                           Foreground="{DynamicResource WarningBrush}"
+                                                                                           VerticalAlignment="Center"
+                                                                                           IsVisible="{Binding IsAdmin}" />
+                                                                    <TextBlock Text="{Binding Name}"
+                                                                               FontSize="12"
+                                                                               Foreground="{DynamicResource TextPrimary}"
+                                                                               VerticalAlignment="Center"
+                                                                               TextTrimming="CharacterEllipsis" />
+                                                                </StackPanel>
+                                                                <Button Grid.Column="1"
+                                                                        Classes="toolbar-btn"
+                                                                        Padding="6,2"
+                                                                        VerticalAlignment="Center"
+                                                                        ToolTip.Tip="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
+                                                                        AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Lobby.AddFriend}"
+                                                                        Command="{Binding $parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).AddFriendCommand}"
+                                                                        CommandParameter="{Binding UserId}">
+                                                                    <Button.IsVisible>
+                                                                        <MultiBinding Converter="{StaticResource NotSelfVisibilityConverter}">
+                                                                            <Binding Path="UserId" />
+                                                                            <Binding Path="$parent[UserControl].((go:GeneralsOnlineLobbiesViewModel)DataContext).SelfUserId" />
+                                                                        </MultiBinding>
+                                                                    </Button.IsVisible>
+                                                                    <material:MaterialIcon Kind="AccountPlus" Width="14" Height="14" VerticalAlignment="Center" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ListBox.ItemTemplate>
+                                                </ListBox>
+                                            </ScrollViewer>
+                                        </Expander>
+                                    </StackPanel>
+                                </TabItem>
+                            </TabControl>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
