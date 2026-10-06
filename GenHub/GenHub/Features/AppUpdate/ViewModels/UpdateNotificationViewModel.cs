@@ -1851,7 +1851,19 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     });
                     await _userSettingsService.SaveAsync(CancellationToken.None);
                 }
-                catch (Exception saveEx)
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (InvalidOperationException saveEx)
+                {
+                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
+                }
+                catch (System.IO.IOException saveEx)
+                {
+                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
+                }
+                catch (UnauthorizedAccessException saveEx)
                 {
                     _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
                 }
