@@ -350,45 +350,59 @@
                     <StackPanel Spacing="2">
                         <TextBlock Text="{Binding WaitingCount}"
                                    Classes="metric-value"
-                                   Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Waiting}"
-                                   Classes="metric-label" />
-                    </StackPanel>
-                </Border>
-                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
-                    <StackPanel Spacing="2">
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   IsVisible="{Binding IsAuthenticated}" />
                         <TextBlock Text="{Binding PublicLobbyCount}"
                                    Classes="metric-value"
-                                   Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.PublicLobbies}"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   IsVisible="{Binding !IsAuthenticated}" />
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Lobbies}"
                                    Classes="metric-label" />
+                        <TextBlock Text="{Binding TotalLobbiesText}"
+                                   Classes="metric-caption"
+                                   Foreground="{DynamicResource TextMuted}"
+                                   FontSize="11"
+                                   IsVisible="{Binding IsAuthenticated}" />
                     </StackPanel>
                 </Border>
                 <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="{Binding InProgressCount}"
+                        <TextBlock Text="{Binding PublicPlayerCount}"
                                    Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.InProgress}"
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Players}"
                                    Classes="metric-label" />
                     </StackPanel>
                 </Border>
-                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
+                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8"
+                        IsVisible="{Binding IsAuthenticated}">
                     <StackPanel Spacing="2">
                         <TextBlock Text="{Binding MatchesToday}"
                                    Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
                         <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.MatchesToday}"
                                    Classes="metric-label" />
+                        <TextBlock Classes="metric-caption"
+                                   Foreground="{DynamicResource TextMuted}"
+                                   FontSize="11"
+                                   IsVisible="{Binding WinsToday, Converter={x:Static conv:ComparisonConverters.IsPositive}}">
+                            <Run Text="{Binding WinsToday}" /><Run Text=" " /><Run Text="{localization:Localize Online.GeneralsOnline.Stats.WinsRecorded}" />
+                        </TextBlock>
                     </StackPanel>
                 </Border>
-                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8">
+                <Border Classes="card" Padding="12,8" MinWidth="140" Margin="0,0,8,8"
+                        IsVisible="{Binding HasPlayerStats}">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="{Binding WinsToday}"
+                        <TextBlock Text="{Binding PlayerCardText}"
                                    Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.WinsToday}"
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.YourElo}"
                                    Classes="metric-label" />
+                        <TextBlock Text="{Binding PlayerDetailText}"
+                                   Classes="metric-caption"
+                                   Foreground="{DynamicResource TextMuted}"
+                                   FontSize="11"
+                                   IsVisible="{Binding PlayerDetailText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                     </StackPanel>
                 </Border>
                 <Border Classes="card" Padding="12,8" MinWidth="180" Margin="0,0,8,8"
@@ -398,7 +412,7 @@
                                    Classes="metric-value"
                                    Foreground="{DynamicResource TextPrimary}"
                                    ToolTip.Tip="{Binding ServiceStartTimeText}" />
-                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.ServerUptime}"
+                        <TextBlock Text="{localization:Localize Online.GeneralsOnline.Stats.Uptime}"
                                    Classes="metric-label" />
                     </StackPanel>
                 </Border>
@@ -532,7 +546,7 @@
                     <Border Classes="badge" VerticalAlignment="Center" Margin="0,0,8,8" IsVisible="{Binding IsLoading}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <ProgressBar IsIndeterminate="True" Width="40" Height="3" VerticalAlignment="Center" />
-                            <TextBlock Text="{localization:Localize Common.Loading}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                            <TextBlock Text="{localization:Localize Common.LoadingEllipsis}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
                     <Border Classes="badge" VerticalAlignment="Center" Margin="0,0,8,8" IsVisible="{Binding IsBackgroundRefreshing}">
