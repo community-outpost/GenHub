@@ -5003,6 +5003,55 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Throws<ArgumentException>(() => serviceWithoutPathProvider.GetReplayDirectory(invalidGameType));
     }
 
+    /// <summary>
+    /// Verifies that LaunchReplayAsync calls LaunchProfileAsync with skipUserDataCleanup: true
+    /// to ensure non-conflicting custom maps from the previous profile are preserved when launching.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_PassesSkipUserDataCleanupTrueToLauncherFacadeAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Match_CleanLaunch.rep",
+            FullPath = "/replays/Match_CleanLaunch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchingProfileId = "test-profile-id",
+        };
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = "test-profile-id",
+            WorkspaceId = "ws-1",
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = "/ws/generalszh.exe",
+            },
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("test-profile-id", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.True(result.Success);
+        _mockLauncherFacade.Verify(
+            l => l.LaunchProfileAsync("test-profile-id", true, It.IsAny<CancellationToken>()),
+            Times.Once());
+    }
+
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
     {
         FileName = fileName,
