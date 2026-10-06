@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using System;
@@ -107,12 +108,7 @@ internal static class UserDataPathHelper
             : Path.Combine(userDataBasePath, subDir, normalizedRelative);
 
         var fullPath = Path.GetFullPath(targetPath);
-        var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(userDataBasePath));
-        var containmentPrefix = basePath == Path.GetPathRoot(basePath)
-            ? basePath
-            : basePath + Path.DirectorySeparatorChar;
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!fullPath.StartsWith(containmentPrefix, comparison))
+        if (!PathHelper.IsPathWithinDirectory(userDataBasePath, fullPath))
         {
             throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
         }

@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.UserData.Services;
@@ -129,23 +128,12 @@ public class UserDataPathHelperTests
     public void ResolveUserDataTargetPath_EscapesRoot_ThrowsInvalidOperationException()
     {
         var basePath = Path.Combine(Path.GetTempPath(), "GenHubUserDataTest_" + Guid.NewGuid());
-        Directory.CreateDirectory(basePath);
 
-        try
-        {
-            Assert.Throws<InvalidOperationException>(() =>
-                UserDataPathHelper.ResolveUserDataTargetPath(
-                    ContentInstallTarget.UserDataDirectory,
-                    "../../escaped.txt",
-                    basePath));
-        }
-        finally
-        {
-            if (Directory.Exists(basePath))
-            {
-                Directory.Delete(basePath, true);
-            }
-        }
+        Assert.Throws<InvalidOperationException>(() =>
+            UserDataPathHelper.ResolveUserDataTargetPath(
+                ContentInstallTarget.UserDataDirectory,
+                "../../escaped.txt",
+                basePath));
     }
 
     /// <summary>
@@ -160,7 +148,6 @@ public class UserDataPathHelperTests
             "MyMap/MyMap.map",
             root);
 
-        Assert.NotNull(resolved);
-        Assert.StartsWith(root, resolved, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        Assert.Equal(Path.Combine(root, "Maps", "MyMap", "MyMap.map"), resolved);
     }
 }
