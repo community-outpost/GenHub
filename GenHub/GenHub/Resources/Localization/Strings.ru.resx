@@ -13830,6 +13830,18 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
     <value>Открыть в браузере</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptTitle" xml:space="preserve">
+    <value>Требуется компонент видеоплеера</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
+    <value>Для воспроизведения видео в GenHub требуется разовая загрузка медиабиблиотеки (~140 МБ). Загрузить сейчас?</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
+    <value>Загрузить и включить</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadingProgress" xml:space="preserve">
+    <value>Загрузка компонентов видеоплеера... {0}%</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>Альтернативные варианты (напр., языки, разрешения)</value>
   </data>
@@ -17887,7 +17899,7 @@ Error: не удалось: {3}
     <value>Этот файл не входит в текущий проект. Разверните строку для предпросмотра содержимого.</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
-    <value>Определение: {0}</value>
+    <value>Каталог: {0}</value>
   </data>
   <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
     <value>Указано в {0} · элементов: {1}</value>

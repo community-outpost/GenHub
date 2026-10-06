@@ -13891,6 +13891,18 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
     <value>Open in browser</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptTitle" xml:space="preserve">
+    <value>Media Player Component Required</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
+    <value>To play videos inside GenHub, a one-time media library download is required (~140 MB). Would you like to download it now?</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
+    <value>Download &amp; Enable</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadingProgress" xml:space="preserve">
+    <value>Downloading media player components... {0}%</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>Alternative Variants (e.g. Languages, Resolutions)</value>
   </data>

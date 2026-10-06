@@ -270,8 +270,8 @@ jobs:
       - name: Enforce Installer Size Budget
         shell: pwsh
         run: |
-          # 145 MB budget: base GenHub (~80 MB) + LibVLC Windows x64 native video player runtime (~48 MB compressed) + headroom
-          $budgetMB = 145
+          # 100 MB budget: base GenHub Windows installer (~91 MB) without bundled LibVLC native payload (decoupled on demand) + headroom
+          $budgetMB = 100
           $setup = Get-ChildItem -Path velopack-release-windows/*-Setup.exe | Select-Object -First 1
           $sizeMB = $setup.Length / 1MB
           Write-Host ("Setup.exe: {0:N1} MB (budget {1} MB)" -f $sizeMB, $budgetMB)
