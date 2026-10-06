@@ -16761,6 +16761,12 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
     <value>«{0}» добавлено в профиль «{1}».</value>
   </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Title" xml:space="preserve">
+    <value>Добавлено в профиль (вживую)</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Message" xml:space="preserve">
+    <value>«{0}» добавлено в профиль «{1}» и применено к запущенной игре.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
     <value>Содержимое заблокировано</value>
   </data>

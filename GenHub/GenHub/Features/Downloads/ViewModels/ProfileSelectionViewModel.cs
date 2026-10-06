@@ -693,6 +693,15 @@ public sealed partial class ProfileSelectionViewModel(
                 localizationService.GetLocalizedString("Common.Notification.ContentUpdated.Title", "Content Updated"),
                 replacedText);
         }
+        else if (result.WasAppliedLive)
+        {
+            logger.LogInformation("Successfully added content to profile '{ProfileName}' and applied it to the running game", profile.Name);
+
+            // The profile manager live-synchronized the change; confirm it landed in-game.
+            notificationService.ShowSuccess(
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Title", "Added to Profile (Live)"),
+                localizationService.GetLocalizedString("Downloads.Notification.AddedToProfileLive.Message", $"'{selectedContentName}' has been added to profile '{profile.Name}' and applied to the running game.", selectedContentName, profile.Name));
+        }
         else
         {
             logger.LogInformation("Successfully added content to profile '{ProfileName}'", profile.Name);

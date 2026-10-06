@@ -16854,6 +16854,12 @@ https://example.com/screenshot2.png</value>
   <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
     <value>تمت إضافة '{0}' إلى الملف الشخصي '{1}'.</value>
   </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Title" xml:space="preserve">
+    <value>تمت الإضافة إلى الملف الشخصي (مباشر)</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Message" xml:space="preserve">
+    <value>تمت إضافة '{0}' إلى الملف الشخصي '{1}' وتطبيقها على اللعبة قيد التشغيل.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
     <value>المحتوى مقفل</value>
   </data>

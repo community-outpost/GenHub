@@ -21,6 +21,11 @@ public interface IGameProfileManager
 
     /// <summary>
     /// Updates an existing game profile with the specified changes.
+    /// When the profile has an active game session and its enabled content changed, the live
+    /// user-data directory is synchronized before persisting so the running game observes the
+    /// change; a synchronization failure aborts the update and leaves storage untouched. Rollback
+    /// restores (<see cref="UpdateProfileRequest.IsRollback"/>) persist without live sync so
+    /// callers can compensate live user data on their own schedule.
     /// </summary>
     /// <param name="profileId">The unique identifier of the profile to update.</param>
     /// <param name="request">The profile update request.</param>

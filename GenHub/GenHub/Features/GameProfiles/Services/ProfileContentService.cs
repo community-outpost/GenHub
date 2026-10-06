@@ -4,6 +4,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.CommunityOutpost;
@@ -37,7 +38,8 @@ public sealed class ProfileContentService(
     IContentOrchestrator contentOrchestrator,
     INotificationService notificationService,
     ILogger<ProfileContentService> logger,
-    ILocalizationService? localizationService = null) : IProfileContentService
+    ILocalizationService? localizationService = null,
+    ILaunchRegistry? launchRegistry = null) : IProfileContentService
 {
     /// <summary>
     /// Content types that are exclusive (only one can be enabled at a time per profile).
@@ -860,6 +862,10 @@ public sealed class ProfileContentService(
 
         await NotifyNewlyAddedDependenciesAsync(enabledContentIds, previousIds, contentName, primaryManifestId, cancellationToken);
 
+        // The profile manager live-synchronizes content changes into an active game session
+        // through its single live-sync pipeline; surface that so callers can confirm it.
+        var wasAppliedLive = await CheckProfileRunningAsync(profileId);
+
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
             notificationService.ShowInfo(
@@ -872,13 +878,15 @@ public sealed class ProfileContentService(
                 primaryManifestId,
                 profileId);
 
-            return AddToProfileResult.CreateSuccessWithSwap(
+            var swappedResult = AddToProfileResult.CreateSuccessWithSwap(
                 primaryManifestId,
                 contentName,
                 swapResult.SwappedContentId,
                 swapResult.SwappedContentName,
                 swapResult.SwappedContentType,
                 sw.Elapsed);
+            swappedResult.WasAppliedLive = wasAppliedLive;
+            return swappedResult;
         }
 
         logger.LogInformation(
@@ -886,7 +894,20 @@ public sealed class ProfileContentService(
             primaryManifestId,
             profileId);
 
-        return AddToProfileResult.CreateSuccess(primaryManifestId, contentName, sw.Elapsed);
+        var addedResult = AddToProfileResult.CreateSuccess(primaryManifestId, contentName, sw.Elapsed);
+        addedResult.WasAppliedLive = wasAppliedLive;
+        return addedResult;
+    }
+
+    private async Task<bool> CheckProfileRunningAsync(string profileId)
+    {
+        if (launchRegistry == null)
+        {
+            return false;
+        }
+
+        var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+        return launches.Any(l => string.Equals(l.ProfileId, profileId, StringComparison.OrdinalIgnoreCase) && !l.TerminatedAt.HasValue);
     }
 
     private async Task<(string? SwappedContentId, string? SwappedContentName, ContentType SwappedContentType)> ResolveContentSwapsAsync(
