@@ -137,6 +137,21 @@ public class UserDataPathHelperTests
     }
 
     /// <summary>
+    /// Tests that relative paths attempting directory traversal outside a targeted subdirectory throw an exception.
+    /// </summary>
+    [Fact]
+    public void ResolveUserDataTargetPath_EscapesSubdirectory_ThrowsInvalidOperationException()
+    {
+        var basePath = Path.Combine(Path.GetTempPath(), "GenHubUserDataTest_" + Guid.NewGuid());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            UserDataPathHelper.ResolveUserDataTargetPath(
+                ContentInstallTarget.UserMapsDirectory,
+                "../outside.map",
+                basePath));
+    }
+
+    /// <summary>
     /// Tests that resolving a path within a filesystem root directory succeeds and does not throw an exception.
     /// </summary>
     [Fact]

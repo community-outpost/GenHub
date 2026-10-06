@@ -107,8 +107,12 @@ internal static class UserDataPathHelper
             ? Path.Combine(userDataBasePath, normalizedRelative)
             : Path.Combine(userDataBasePath, subDir, normalizedRelative);
 
+        var containmentRoot = string.IsNullOrEmpty(subDir)
+            ? userDataBasePath
+            : Path.Combine(userDataBasePath, subDir);
+
         var fullPath = Path.GetFullPath(targetPath);
-        if (!PathHelper.IsPathWithinDirectory(userDataBasePath, fullPath))
+        if (!PathHelper.IsPathWithinDirectory(containmentRoot, fullPath))
         {
             throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
         }
