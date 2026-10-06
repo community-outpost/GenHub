@@ -30,9 +30,13 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
     /// <summary>
     /// Determines whether the specified content metadata represents a GenHub application build.
+    /// Build classification strictly requires <see cref="ContentType.GenHubBuild"/> or the
+    /// <see cref="GenHubBuildConstants.GenHubBuildTag"/> tag ("genhub-build"). Content names
+    /// are not used for classification to prevent false positives from community mods or tools
+    /// (e.g. "GenHub Map Builder").
     /// </summary>
     /// <param name="contentType">The content type.</param>
-    /// <param name="name">The content name.</param>
+    /// <param name="name">The content name (retained for backward compatibility, not used for build classification).</param>
     /// <param name="tags">The optional tags collection.</param>
     /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
     public static bool IsGenHubApplicationBuild(ContentType? contentType, string? name, IEnumerable<string>? tags = null)
@@ -49,6 +53,15 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
         return false;
     }
+
+    /// <summary>
+    /// Determines whether the specified content metadata represents a GenHub application build.
+    /// </summary>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="tags">The optional tags collection.</param>
+    /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
+    public static bool IsGenHubApplicationBuild(ContentType? contentType, IEnumerable<string>? tags = null) =>
+        IsGenHubApplicationBuild(contentType, name: null, tags);
 
     /// <inheritdoc />
     public bool IsGenHubBuildPath(string path)
