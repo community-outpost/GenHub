@@ -774,7 +774,7 @@ public partial class GameProfileSettingsViewModel
 
         if (result.Success && result.Data != null)
         {
-            var (postSyncSuccess, updatedRunningState) = await TryExecutePostSaveLiveSyncAsync(enabledContentIds, liveGameType, isProfileRunning, cancellationToken);
+            var (postSyncSuccess, updatedRunningState) = await TryExecutePostSaveLiveSyncAsync(enabledContentIds, liveGameType, isProfileRunning || result.WasAppliedLive, cancellationToken);
             if (!postSyncSuccess)
             {
                 return;
