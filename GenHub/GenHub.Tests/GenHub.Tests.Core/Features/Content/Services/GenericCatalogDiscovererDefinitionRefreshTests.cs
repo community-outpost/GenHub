@@ -7,6 +7,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Moq.Protected;
@@ -29,20 +30,24 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 /// Unit tests verifying that catalog discovery re-resolves stale subscription URLs
 /// from the publisher definition before fetching.
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
 {
+    private readonly bool _previousAllowUnresolvableDns;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="GenericCatalogDiscovererDefinitionRefreshTests"/> class.
     /// </summary>
     public GenericCatalogDiscovererDefinitionRefreshTests()
     {
+        _previousAllowUnresolvableDns = CatalogDocumentReader.AllowUnresolvableDnsForTesting;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = _previousAllowUnresolvableDns;
     }
 
     /// <summary>

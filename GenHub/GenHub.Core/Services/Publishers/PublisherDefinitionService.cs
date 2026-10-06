@@ -232,7 +232,9 @@ public class PublisherDefinitionService(
             // Check if catalog URL changed
             var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
                 ? remoteDef.Catalogs?.FirstOrDefault(c => string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
-                : remoteDef.Catalogs?.FirstOrDefault(c => string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
+                : remoteDef.Catalogs?.FirstOrDefault(c =>
+                    string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase)));
 
             if (targetCatalog != null)
             {
@@ -251,9 +253,12 @@ public class PublisherDefinitionService(
                 }
             }
             else if (string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
+                     (remoteDef.Catalogs == null || remoteDef.Catalogs.Count <= 1) &&
                      !string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
                      !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
             {
+                // Fall back to remoteDef.CatalogUrl only for single-catalog or legacy definitions to prevent
+                // multi-catalog legacy subscriptions from silently migrating to Catalogs[0].
                 logger.LogInformation(
                     "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
                     subscription.PublisherId,

@@ -418,30 +418,6 @@ public partial class SubscriptionConfirmationViewModel(
             }
         }
 
-        // In the initial subscription dialog, if the primary catalog/target entry fails,
-        // include other catalogs from the definition as fallbacks so the publisher preview can load.
-        if (definition.Catalogs != null)
-        {
-            foreach (var catalog in definition.Catalogs)
-            {
-                if (!string.IsNullOrWhiteSpace(catalog.Url) && !candidateUrls.Contains(catalog.Url, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(catalog.Url);
-                }
-
-                if (catalog.Mirrors != null)
-                {
-                    foreach (var mirror in catalog.Mirrors)
-                    {
-                        if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
-                        {
-                            candidateUrls.Add(mirror);
-                        }
-                    }
-                }
-            }
-        }
-
         return candidateUrls;
     }
 
@@ -470,11 +446,33 @@ public partial class SubscriptionConfirmationViewModel(
 
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
-            var resolvedSelectedCatalogId = _definitionCatalogs.FirstOrDefault(
-                c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase)).Id;
-            if (string.IsNullOrWhiteSpace(resolvedSelectedCatalogId) && _definitionCatalogs.Count > 0)
+
+            // Attempt to resolve the selected catalog ID matching the effective catalog URL or its mirrors.
+            string? resolvedSelectedCatalogId = null;
+            if (_definitionCatalogs.Count > 0)
             {
-                resolvedSelectedCatalogId = _definitionCatalogs[0].Id;
+                var matchingDefCat = _definitionCatalogs.FirstOrDefault(
+                    c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(matchingDefCat.Id))
+                {
+                    resolvedSelectedCatalogId = matchingDefCat.Id;
+                }
+                else if (_resolvedDefinition?.Catalogs != null)
+                {
+                    var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
+                        string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                        (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase)));
+                    if (matchingEntry != null)
+                    {
+                        resolvedSelectedCatalogId = matchingEntry.Id;
+                    }
+                }
+
+                // If only one catalog is defined, default to its ID; otherwise leave null if no entry claimed the URL.
+                if (string.IsNullOrWhiteSpace(resolvedSelectedCatalogId) && _definitionCatalogs.Count == 1)
+                {
+                    resolvedSelectedCatalogId = _definitionCatalogs[0].Id;
+                }
             }
 
             var subscription = new PublisherSubscription

@@ -397,11 +397,6 @@ public class GenericCatalogDiscoverer(
             {
                 AddDefinitionUrl(urls, selected.Url);
                 AddDefinitionMirrors(urls, selected.Mirrors);
-                if (selected == definition.Catalogs[0] || string.Equals(selected.Url, definition.CatalogUrl, StringComparison.OrdinalIgnoreCase))
-                {
-                    AddDefinitionMirrors(urls, definition.CatalogMirrors);
-                }
-
                 return urls;
             }
 
@@ -421,7 +416,6 @@ public class GenericCatalogDiscoverer(
                 var defaultEntry = definition.Catalogs[0];
                 AddDefinitionUrl(urls, defaultEntry.Url);
                 AddDefinitionMirrors(urls, defaultEntry.Mirrors);
-                AddDefinitionMirrors(urls, definition.CatalogMirrors);
                 return urls;
             }
 

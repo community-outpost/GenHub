@@ -4,6 +4,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -19,20 +20,24 @@ namespace GenHub.Tests.Core.Features.Content.ViewModels;
 /// <summary>
 /// Unit tests for <see cref="SubscriptionConfirmationViewModel"/>.
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 {
+    private readonly bool _previousAllowUnresolvableDns;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SubscriptionConfirmationViewModelTests"/> class.
     /// </summary>
     public SubscriptionConfirmationViewModelTests()
     {
+        _previousAllowUnresolvableDns = CatalogDocumentReader.AllowUnresolvableDnsForTesting;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = _previousAllowUnresolvableDns;
     }
 
     private readonly Mock<IPublisherSubscriptionStore> _subscriptionStore = new();
@@ -155,7 +160,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
         // Assert
         Assert.True(closeResult);
-        _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.Is<PublisherSubscription>(sub => sub.PublisherId == "new-pub"), It.IsAny<CancellationToken>()), Times.Once);
+        _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.Is<PublisherSubscription>(sub => sub.PublisherId == "new-pub" && sub.SelectedCatalogId == null), It.IsAny<CancellationToken>()), Times.Once);
         _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -565,7 +570,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
     /// <summary>
     /// Verifies that when a candidate catalog throws an InvalidDataException (e.g. oversized content),
-    /// TryResolveDefinitionFromPayloadAsync catches it and falls back to subsequent candidate catalogs.
+    /// TryResolveDefinitionFromPayloadAsync catches it and falls back to subsequent candidate catalog mirrors.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -583,12 +588,8 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
                     {
                         "id": "cat-oversized",
                         "name": "Oversized Catalog",
-                        "url": "https://example.com/oversized.json"
-                    },
-                    {
-                        "id": "cat-valid",
-                        "name": "Valid Catalog",
-                        "url": "https://example.com/valid.json"
+                        "url": "https://example.com/oversized.json",
+                        "mirrors": ["https://example.com/valid.json"]
                     }
                 ]
             }
@@ -643,6 +644,85 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         // Assert
         Assert.Null(vm.ErrorMessage);
         Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that when the primary catalog endpoint is unavailable, the dialog does not silently
+    /// fall back to a sibling catalog for the preview.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryCatalogFails_DoesNotFallBackToSiblingCatalogAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string primaryCatalogUrl = "https://example.com/primary-404.json";
+        const string siblingCatalogUrl = "https://example.com/sibling.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    {
+                        "id": "primary-cat",
+                        "name": "Primary Catalog",
+                        "url": "https://example.com/primary-404.json"
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://example.com/sibling.json"
+                    }
+                ]
+            }
+            """;
+
+        var siblingCatalog = CreateSampleCatalog("sibling-pub", "Sibling Catalog Content");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("sibling-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(siblingCatalog));
+
+        using var httpClient = new HttpClient(new CustomDelegateHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (uri == definitionUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(definitionJson),
+                };
+            }
+
+            if (uri == primaryCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+            }
+
+            if (uri == siblingCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("sibling-content"),
+                };
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: Dialog does not silently load sibling catalog as preview
+        Assert.False(vm.IsCatalogLoaded);
+        Assert.NotNull(vm.ErrorMessage);
     }
 
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
