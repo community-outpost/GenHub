@@ -568,6 +568,59 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
+    /// Tests that ValidateInstallerLaunchPaths allows paths containing ampersands, carets, or spaces on Windows.
+    /// </summary>
+    [Fact]
+    public void ValidateInstallerLaunchPaths_OnWindows_AllowsLegitimateSpecialCharacters()
+    {
+        const string stagedExe = @"C:\Users\Ann & Ben\AppData\Local\Temp\genhub-installer-1\setup.exe";
+        const string customPath = @"D:\Games & Tools\GenHub";
+
+        var exception = Record.Exception(() =>
+            VelopackUpdateManager.ValidateInstallerLaunchPaths(stagedExe, customPath, isWindows: true));
+
+        Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// Tests that ValidateInstallerLaunchPaths rejects paths containing quotes, percent signs, or newlines on Windows.
+    /// </summary>
+    /// <param name="stagedExe">The staged executable path.</param>
+    /// <param name="customPath">The custom install path.</param>
+    [Theory]
+    [InlineData(@"C:\Users\Admin""\setup.exe", null)]
+    [InlineData(@"C:\Users\%TEMP%\setup.exe", null)]
+    [InlineData("C:\\Users\\setup.exe\r\n", null)]
+    [InlineData(@"C:\Users\setup.exe", @"D:\Path""Break")]
+    [InlineData(@"C:\Users\setup.exe", @"D:\%APPDATA%\GenHub")]
+    [InlineData(@"C:\Users\setup.exe", "D:\\Path\nBreak")]
+    public void ValidateInstallerLaunchPaths_OnWindows_RejectsDangerousCharacters(string stagedExe, string? customPath)
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            VelopackUpdateManager.ValidateInstallerLaunchPaths(stagedExe, customPath, isWindows: true));
+    }
+
+    /// <summary>
+    /// Tests that ValidateInstallerLaunchPaths rejects newline injection on non-Windows platforms while permitting normal path characters.
+    /// </summary>
+    [Fact]
+    public void ValidateInstallerLaunchPaths_OnNonWindows_RejectsNewlinesOnly()
+    {
+        const string validExe = "/home/user/games & tools/setup.exe";
+        const string validCustomPath = "/opt/GenHub%20/";
+
+        var exception = Record.Exception(() =>
+            VelopackUpdateManager.ValidateInstallerLaunchPaths(validExe, validCustomPath, isWindows: false));
+        Assert.Null(exception);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            VelopackUpdateManager.ValidateInstallerLaunchPaths("/home/user/setup\n.exe", null, isWindows: false));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            VelopackUpdateManager.ValidateInstallerLaunchPaths(validExe, "/opt/GenHub\r\n", isWindows: false));
+    }
+
+    /// <summary>
     /// Tests that IsManifestMatchingArtifact returns false when only the version matches but artifact names and URLs differ.
     /// </summary>
     [Fact]

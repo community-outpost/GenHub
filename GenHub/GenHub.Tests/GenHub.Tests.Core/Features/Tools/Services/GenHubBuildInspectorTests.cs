@@ -158,4 +158,16 @@ public class GenHubBuildInspectorTests
         var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild, "Any Name", []);
         Assert.True(result);
     }
+
+    /// <summary>
+    /// Verifies that the two-parameter overload of IsGenHubApplicationBuild detects builds correctly without a name parameter.
+    /// </summary>
+    [Fact]
+    public void IsGenHubApplicationBuild_TwoParameterOverload_DetectsBuildsCorrectly()
+    {
+        Assert.True(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild));
+        Assert.True(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, ["genhub-build"]));
+        Assert.False(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, ["genhub"]));
+        Assert.False(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool));
+    }
 }

@@ -235,6 +235,80 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
+    /// Verifies that validating stage reports take precedence over stage descriptions containing \"Process\" or \"Extract\",
+    /// routing into the validating/storing progress span (85-90%).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_ValidatingStageTakesPrecedenceOverExtractingDescription_ScalesIntoStoringSpanAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.testprecedence",
+            Name = "Precedence Mod",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.testprecedence", Name = "Precedence Mod" };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns("TestProvider");
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns<ContentManifest, string, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, prog, _) =>
+            {
+                prog?.Report(new ContentAcquisitionProgress
+                {
+                    CurrentStage = ContentConstants.PipelineStageValidating,
+                    StageDescription = "Processing extracted files",
+                    ProgressPercentage = 50,
+                });
+                return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            });
+
+        _cacheMock.Setup(c => c.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var reportedProgress = new List<ContentAcquisitionProgress>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add(p));
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult, progress);
+
+        // Assert
+        Assert.True(result.Success);
+        var validatingReport = reportedProgress.FirstOrDefault(p => p.CurrentStage == ContentConstants.PipelineStageValidating);
+        Assert.NotNull(validatingReport);
+        Assert.Equal(ContentAcquisitionPhase.ValidatingFiles, validatingReport.Phase);
+        Assert.InRange(validatingReport.ProgressPercentage, ContentConstants.ProgressStepExtracting, ContentConstants.ProgressStepStoring);
+    }
+
+    /// <summary>
     /// Verifies that <see cref="ContentOrchestrator.AcquireContentAsync"/> fails when the
     /// manifest pool cannot store the prepared manifest, instead of reporting success.
     /// </summary>
