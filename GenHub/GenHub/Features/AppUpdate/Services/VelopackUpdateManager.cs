@@ -1150,6 +1150,49 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <summary>
+    /// Validates installer executable and target installation paths before launching the installer process.
+    /// </summary>
+    /// <param name="stagedExe">The staged installer executable path.</param>
+    /// <param name="customPath">The optional custom installation directory path.</param>
+    internal static void ValidateInstallerLaunchPaths(string stagedExe, string? customPath) =>
+        ValidateInstallerLaunchPaths(stagedExe, customPath, OperatingSystem.IsWindows());
+
+    /// <summary>
+    /// Validates installer executable and target installation paths for the specified target OS.
+    /// </summary>
+    /// <param name="stagedExe">The staged installer executable path.</param>
+    /// <param name="customPath">The optional custom installation directory path.</param>
+    /// <param name="isWindows">True if validating for Windows cmd execution semantics.</param>
+    internal static void ValidateInstallerLaunchPaths(string stagedExe, string? customPath, bool isWindows)
+    {
+        if (isWindows)
+        {
+            // Inside double-quoted cmd.exe arguments, double quotes break quoting and percent signs trigger variable expansion.
+            if (stagedExe.IndexOfAny(['"', '%', '\r', '\n']) >= 0)
+            {
+                throw new InvalidOperationException($"Installer path contains invalid characters: {stagedExe}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(customPath) && customPath.IndexOfAny(['"', '%', '\r', '\n']) >= 0)
+            {
+                throw new InvalidOperationException($"Custom install path contains invalid characters: {customPath}");
+            }
+        }
+        else
+        {
+            if (stagedExe.IndexOfAny(['\r', '\n']) >= 0)
+            {
+                throw new InvalidOperationException($"Installer path contains invalid characters: {stagedExe}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(customPath) && customPath.IndexOfAny(['\r', '\n']) >= 0)
+            {
+                throw new InvalidOperationException($"Custom install path contains invalid characters: {customPath}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Cleans stray mutable build artifacts (.Build, .Release, .modbuilder_cache, etc.)
     /// from the application directory prior to applying an update.
     /// This prevents Windows file-lock (ERROR_ACCESS_DENIED) errors during Velopack package replacement.
@@ -1587,49 +1630,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         throw new FileNotFoundException($"No valid installer, nupkg, or zip archive found in '{dirPath}'");
-    }
-
-    /// <summary>
-    /// Validates installer executable and target installation paths before launching the installer process.
-    /// </summary>
-    /// <param name="stagedExe">The staged installer executable path.</param>
-    /// <param name="customPath">The optional custom installation directory path.</param>
-    internal static void ValidateInstallerLaunchPaths(string stagedExe, string? customPath) =>
-        ValidateInstallerLaunchPaths(stagedExe, customPath, OperatingSystem.IsWindows());
-
-    /// <summary>
-    /// Validates installer executable and target installation paths for the specified target OS.
-    /// </summary>
-    /// <param name="stagedExe">The staged installer executable path.</param>
-    /// <param name="customPath">The optional custom installation directory path.</param>
-    /// <param name="isWindows">True if validating for Windows cmd execution semantics.</param>
-    internal static void ValidateInstallerLaunchPaths(string stagedExe, string? customPath, bool isWindows)
-    {
-        if (isWindows)
-        {
-            // Inside double-quoted cmd.exe arguments, double quotes break quoting and percent signs trigger variable expansion.
-            if (stagedExe.IndexOfAny(['"', '%', '\r', '\n']) >= 0)
-            {
-                throw new InvalidOperationException($"Installer path contains invalid characters: {stagedExe}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(customPath) && customPath.IndexOfAny(['"', '%', '\r', '\n']) >= 0)
-            {
-                throw new InvalidOperationException($"Custom install path contains invalid characters: {customPath}");
-            }
-        }
-        else
-        {
-            if (stagedExe.IndexOfAny(['\r', '\n']) >= 0)
-            {
-                throw new InvalidOperationException($"Installer path contains invalid characters: {stagedExe}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(customPath) && customPath.IndexOfAny(['\r', '\n']) >= 0)
-            {
-                throw new InvalidOperationException($"Custom install path contains invalid characters: {customPath}");
-            }
-        }
     }
 
     private void LaunchInstallerProcess(string exePath, IProgress<UpdateProgress>? progress)
