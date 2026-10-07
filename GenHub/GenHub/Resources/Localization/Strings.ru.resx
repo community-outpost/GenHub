@@ -18210,4 +18210,13 @@ Error: не удалось: {3}
   <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
     <value>МАО</value>
   </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>GenHotkeys</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>Выбранный файл изображения не существует: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить пользовательскую иконку из '{0}'. Убедитесь, что файл является корректным изображением.</value>
+  </data>
 </root>

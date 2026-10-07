@@ -18269,4 +18269,13 @@ Mapped image texture reference</value>
   <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
     <value>GLA</value>
   </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>GenHotkeys</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>The selected image file does not exist: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>Failed to load custom cameo from '{0}'. Ensure the file is a valid image.</value>
+  </data>
 </root>

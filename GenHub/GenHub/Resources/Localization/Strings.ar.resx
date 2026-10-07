@@ -18210,4 +18210,13 @@ Error: فشل: {3}
   <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
     <value>جيش التحرير العالمي</value>
   </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>جين هوتكيز</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>ملف الصورة المحدد غير موجود: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>فشل تحميل الصورة المخصصة من '{0}'. تأكد من أن الملف صورة صالحة.</value>
+  </data>
 </root>
