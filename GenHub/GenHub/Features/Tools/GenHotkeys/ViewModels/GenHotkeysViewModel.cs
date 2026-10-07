@@ -19,6 +19,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
 using GenHub.Features.Tools.GenHotkeys.Services;
@@ -109,6 +110,7 @@ public partial class GenHotkeysViewModel(
     private CancellationTokenSource? _addonCheckCts;
     private CancellationTokenSource? _saveDebounceCts;
     private bool _isUpdatingFactionSelection;
+    private HotkeyActionViewModel? _subscribedAction;
 
     [ObservableProperty]
     private GameType _selectedGame = GameType.ZeroHour;
@@ -507,17 +509,80 @@ public partial class GenHotkeysViewModel(
 
         if (files is { Count: > 0 })
         {
-            var filePath = files[0].Path.LocalPath;
-            if (File.Exists(filePath))
+            var filePath = files[0].TryGetLocalPath() ?? files[0].Path.LocalPath;
+            if (!string.IsNullOrWhiteSpace(filePath))
             {
-                targetAction.CustomImagePath = filePath;
-                targetProfile.CustomCameoMappings[targetAction.IconName] = filePath;
-                await LoadCustomBitmapAsync(filePath, bmp => targetAction.IconBitmap = bmp);
-                await SaveCurrentProfileAsync(CancellationToken.None);
-                var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
-                StatusMessage = successMsg;
+                await ApplyCustomCameoAsync(targetAction, filePath, targetProfile);
             }
         }
+    }
+
+    /// <summary>
+    /// Applies a custom cameo image file to the specified action, validating and propagating it to all matching action cards.
+    /// </summary>
+    /// <param name="targetAction">The action to apply the custom cameo to.</param>
+    /// <param name="filePath">The file path to the image file.</param>
+    /// <param name="targetProfile">The target profile, defaulting to <see cref="SelectedProfile"/> if null.</param>
+    /// <returns>A task representing whether the cameo was successfully applied.</returns>
+    public async Task<bool> ApplyCustomCameoAsync(HotkeyActionViewModel targetAction, string filePath, HotkeyProfile? targetProfile = null)
+    {
+        ArgumentNullException.ThrowIfNull(targetAction);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        targetProfile ??= SelectedProfile;
+        if (targetProfile == null)
+        {
+            return false;
+        }
+
+        if (!File.Exists(filePath))
+        {
+            var errorMsg = GetLocalizedString("Tools.GenHotkeys.Status.FileNotFound", "The selected image file does not exist: '{0}'", filePath);
+            StatusMessage = errorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), errorMsg);
+            return false;
+        }
+
+        var bitmap = await LoadCustomBitmapAsync(filePath);
+        if (bitmap == null)
+        {
+            var errorMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoLoadFailed", "Failed to load custom cameo from '{0}'. Ensure the file is a valid image.", Path.GetFileName(filePath));
+            StatusMessage = errorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), errorMsg);
+            return false;
+        }
+
+        var iconName = targetAction.IconName;
+        targetProfile.CustomCameoMappings[iconName] = filePath;
+        targetAction.CustomImagePath = filePath;
+        targetAction.IconBitmap = bitmap;
+
+        // Synchronize all action cards in layouts sharing this icon
+        foreach (var obj in FilteredGameObjects)
+        {
+            foreach (var layout in obj.Layouts)
+            {
+                foreach (var action in layout)
+                {
+                    if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        action.CustomImagePath = filePath;
+                        action.IconBitmap = bitmap;
+                    }
+                }
+            }
+
+            if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+            {
+                obj.IconBitmap = bitmap;
+            }
+        }
+
+        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
+        StatusMessage = successMsg;
+        notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), successMsg);
+        return true;
     }
 
     /// <summary>
@@ -527,17 +592,44 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task ResetCustomCameoAsync()
     {
-        if (SelectedAction == null || SelectedProfile == null)
+        var targetAction = SelectedAction;
+        var targetProfile = SelectedProfile;
+        if (targetAction == null || targetProfile == null)
         {
             return;
         }
 
-        SelectedAction.CustomImagePath = null;
-        SelectedProfile.CustomCameoMappings.Remove(SelectedAction.IconName);
-        await LoadBitmapAsync(SelectedAction.IconName, SelectedGame, bmp => SelectedAction.IconBitmap = bmp);
-        await SaveCurrentProfileAsync(CancellationToken.None);
-        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", SelectedAction.DisplayName);
+        var iconName = targetAction.IconName;
+        targetAction.CustomImagePath = null;
+        targetProfile.CustomCameoMappings.Remove(iconName);
+
+        await LoadBitmapAsync(iconName, SelectedGame, defaultBmp =>
+        {
+            foreach (var obj in FilteredGameObjects)
+            {
+                foreach (var layout in obj.Layouts)
+                {
+                    foreach (var action in layout)
+                    {
+                        if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            action.CustomImagePath = null;
+                            action.IconBitmap = defaultBmp;
+                        }
+                    }
+                }
+
+                if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                {
+                    obj.IconBitmap = defaultBmp;
+                }
+            }
+        });
+
+        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
+        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
     }
 
     /// <summary>
@@ -547,15 +639,17 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task ResetTitleAsync()
     {
-        if (SelectedAction == null || SelectedProfile == null)
+        var targetAction = SelectedAction;
+        var targetProfile = SelectedProfile;
+        if (targetAction == null || targetProfile == null)
         {
             return;
         }
 
-        SelectedAction.DisplayName = SelectedAction.DefaultDisplayName;
-        SelectedProfile.TitleMappings.Remove(SelectedAction.HotkeyString);
-        await SaveCurrentProfileAsync(CancellationToken.None);
-        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", SelectedAction.DisplayName);
+        targetAction.DisplayName = targetAction.DefaultDisplayName;
+        targetProfile.TitleMappings.Remove(targetAction.HotkeyString);
+        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
     }
 
@@ -566,20 +660,22 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task ResetTooltipAsync()
     {
-        if (SelectedAction == null || SelectedProfile == null)
+        var targetAction = SelectedAction;
+        var targetProfile = SelectedProfile;
+        if (targetAction == null || targetProfile == null)
         {
             return;
         }
 
-        SelectedAction.Tooltip = SelectedAction.DefaultTooltip;
-        var label = SelectedAction.TooltipString ?? SelectedAction.HotkeyString;
+        targetAction.Tooltip = targetAction.DefaultTooltip;
+        var label = targetAction.TooltipString ?? targetAction.HotkeyString;
         if (!string.IsNullOrEmpty(label))
         {
-            SelectedProfile.TooltipMappings.Remove(label);
+            targetProfile.TooltipMappings.Remove(label);
         }
 
-        await SaveCurrentProfileAsync(CancellationToken.None);
-        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", SelectedAction.DisplayName);
+        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
     }
 
@@ -1794,7 +1890,16 @@ public partial class GenHotkeysViewModel(
             IconName = obj.IconName,
         };
 
-        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, null, cancellationToken);
+        string? objCustomImage = null;
+        if (selectedProfile != null &&
+            !string.IsNullOrWhiteSpace(obj.IconName) &&
+            selectedProfile.CustomCameoMappings.TryGetValue(obj.IconName, out var customPath) &&
+            File.Exists(customPath))
+        {
+            objCustomImage = customPath;
+        }
+
+        loadBitmapForIcon(bmp => vm.IconBitmap = bmp, obj.IconName, objCustomImage, cancellationToken);
 
         foreach (var layout in obj.KeyboardLayouts)
         {
@@ -2157,8 +2262,6 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private HotkeyActionViewModel? _subscribedAction;
-
     partial void OnSelectedActionChanged(HotkeyActionViewModel? value)
     {
         if (_subscribedAction != null)
@@ -2369,33 +2472,61 @@ public partial class GenHotkeysViewModel(
         return null;
     }
 
-    private async Task LoadCustomBitmapAsync(string filePath, Action<Bitmap?> onLoaded)
+    private async Task<Bitmap?> LoadCustomBitmapAsync(string filePath)
     {
         try
         {
-            await Task.Run(() =>
+            return await Task.Run(() =>
             {
-                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(filePath);
-                using var ms = new MemoryStream();
-                image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
-                ms.Position = 0;
-                var bmp = new Bitmap(ms);
-                Dispatcher.UIThread.Post(() =>
+                try
                 {
-                    if (!_isDisposed)
+                    using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(filePath);
+                    using var ms = new MemoryStream();
+                    image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                    ms.Position = 0;
+                    return new Bitmap(ms);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "ImageSharp failed to load custom cameo from '{Path}'; attempting SageTextureCodec fallback", filePath);
+                    var codec = new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
+                    var ext = Path.GetExtension(filePath);
+                    var bytes = File.ReadAllBytes(filePath);
+
+                    var tgaResult = codec.Decode(bytes, string.IsNullOrWhiteSpace(ext) ? ".tga" : ext);
+                    if (tgaResult.Success && tgaResult.Data != null)
                     {
-                        onLoaded(bmp);
+                        using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+                            tgaResult.Data.PixelData,
+                            tgaResult.Data.Width,
+                            tgaResult.Data.Height);
+                        using var ms = new MemoryStream();
+                        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                        ms.Position = 0;
+                        return new Bitmap(ms);
                     }
-                    else
+
+                    var ddsResult = codec.Decode(bytes, ".dds");
+                    if (ddsResult.Success && ddsResult.Data != null)
                     {
-                        bmp.Dispose();
+                        using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+                            ddsResult.Data.PixelData,
+                            ddsResult.Data.Width,
+                            ddsResult.Data.Height);
+                        using var ms = new MemoryStream();
+                        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                        ms.Position = 0;
+                        return new Bitmap(ms);
                     }
-                });
+
+                    throw;
+                }
             });
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
+        catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to load custom cameo bitmap from {Path}", filePath);
+            logger.LogWarning(ex, "Failed to load custom cameo bitmap from '{Path}'", filePath);
+            return null;
         }
     }
 
@@ -2407,7 +2538,31 @@ public partial class GenHotkeysViewModel(
     {
         if (!string.IsNullOrWhiteSpace(customImagePath) && File.Exists(customImagePath))
         {
-            _ = LoadCustomBitmapAsync(customImagePath, setBitmap);
+            _ = Task.Run(
+                async () =>
+                {
+                    var bmp = await LoadCustomBitmapAsync(customImagePath);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_isDisposed)
+                        {
+                            bmp?.Dispose();
+                            return;
+                        }
+
+                        if (SelectedProfile != null &&
+                            SelectedProfile.CustomCameoMappings.TryGetValue(iconName, out var currentPath) &&
+                            string.Equals(currentPath, customImagePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            setBitmap(bmp);
+                        }
+                        else
+                        {
+                            bmp?.Dispose();
+                        }
+                    });
+                },
+                cancellationToken);
             return;
         }
 
@@ -2486,6 +2641,12 @@ public partial class GenHotkeysViewModel(
             {
                 if (!_isDisposed)
                 {
+                    if (SelectedProfile != null &&
+                        SelectedProfile.CustomCameoMappings.ContainsKey(iconName))
+                    {
+                        return;
+                    }
+
                     onLoaded(bmp);
                 }
             });

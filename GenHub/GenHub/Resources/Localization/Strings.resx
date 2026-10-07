@@ -18260,4 +18260,13 @@ Mapped image texture reference</value>
   <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
     <value>Tooltip reset to default for {0}</value>
   </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>USA</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>China</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>GLA</value>
+  </data>
 </root>

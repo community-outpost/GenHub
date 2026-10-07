@@ -2,6 +2,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Tests.Core.Collections;
 using GenHub.Tests.Core.Services.Security;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -22,8 +23,10 @@ namespace GenHub.Tests.Core.Common.Services;
 /// <summary>
 /// Unit tests for <see cref="VlcRuntimeService"/>.
 /// </summary>
+[Collection(VlcEnvironmentCollection.Name)]
 public sealed class VlcRuntimeServiceTests : IDisposable
 {
+    private static readonly object EnvironmentLock = new();
     private readonly string _testTargetDirectory;
 
     /// <summary>
@@ -57,16 +60,19 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     [Fact]
     public void ExpectedSha512_WithEnvironmentVariable_ReturnsOverriddenHash()
     {
-        const string customHash = "CUSTOM_SHA512_HASH";
-        var original = Environment.GetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar);
-        try
+        lock (EnvironmentLock)
         {
-            Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, customHash);
-            Assert.Equal(customHash, VlcRuntimeConstants.ExpectedSha512);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, original);
+            const string customHash = "CUSTOM_SHA512_HASH";
+            var original = Environment.GetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar);
+            try
+            {
+                Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, customHash);
+                Assert.Equal(customHash, VlcRuntimeConstants.ExpectedSha512);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, original);
+            }
         }
     }
 

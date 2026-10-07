@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -884,5 +885,157 @@ public class GenHotkeysViewModelTests
         Assert.Contains(HotkeyFaction.UsaGroup, vm.AvailableFactionGroups);
         Assert.Contains(HotkeyFaction.ChinaGroup, vm.AvailableFactionGroups);
         Assert.Contains(HotkeyFaction.GlaGroup, vm.AvailableFactionGroups);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync applies a custom image, synchronizes across matching actions and game objects,
+    /// updates the profile, and dispatches a success notification toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WithValidImage_PropagatesToMatchingActionsAndGameObjectsAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_cameo_vm_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(60, 48))
+            {
+                await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(testImg, tempImageFile);
+            }
+
+            using var vm = new GenHotkeysViewModel(
+                _mockTechTree.Object,
+                _mockProfileStorage.Object,
+                _mockPackageService.Object,
+                _mockLogger.Object,
+                notificationService: _mockNotificationService.Object);
+
+            var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+            vm.SelectedProfile = profile;
+
+            var action1 = new HotkeyActionViewModel
+            {
+                DisplayName = "Construction Dozer",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            };
+            var action2 = new HotkeyActionViewModel
+            {
+                DisplayName = "Secondary Dozer Action",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:DozerBuild",
+            };
+
+            var unitVm = new HotkeyGameObjectViewModel
+            {
+                Name = "AmericaCommandCenter",
+                DisplayName = "Command Center",
+                IconName = "USADozer",
+            };
+            unitVm.Layouts.Add(new ObservableCollection<HotkeyActionViewModel> { action1, action2 });
+
+            vm.FilteredGameObjects.Add(unitVm);
+
+            var result = await vm.ApplyCustomCameoAsync(action1, tempImageFile);
+
+            Assert.True(result);
+            Assert.Equal(tempImageFile, action1.CustomImagePath);
+            Assert.NotNull(action1.IconBitmap);
+            Assert.True(action1.HasCustomImage);
+            Assert.True(action1.CanResetCameo);
+
+            Assert.Equal(tempImageFile, action2.CustomImagePath);
+            Assert.NotNull(action2.IconBitmap);
+            Assert.True(action2.HasCustomImage);
+
+            Assert.NotNull(unitVm.IconBitmap);
+
+            Assert.Equal(tempImageFile, profile.CustomCameoMappings["USADozer"]);
+            Assert.Contains("Custom cameo applied", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+            _mockNotificationService.Verify(
+                n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(s => s.Contains("Custom cameo applied")), null, false),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync rejects non-existent files without updating profile and shows an error toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WithMissingFile_DoesNotUpdateProfileAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+
+        var result = await vm.ApplyCustomCameoAsync(action, "C:/nonexistent/fake_image.png");
+
+        Assert.False(result);
+        Assert.Null(action.CustomImagePath);
+        Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("does not exist")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetCustomCameoAsync removes the custom cameo from profile, clears CustomImagePath,
+    /// and shows an informational toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ResetCustomCameoAsync_RemovesCustomCameoAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        profile.CustomCameoMappings["USADozer"] = "C:/some/custom.png";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            CustomImagePath = "C:/some/custom.png",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetCustomCameoAsync();
+
+        Assert.Null(action.CustomImagePath);
+        Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+        Assert.Contains("Reset cameo", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset cameo")), null, false),
+            Times.Once);
     }
 }

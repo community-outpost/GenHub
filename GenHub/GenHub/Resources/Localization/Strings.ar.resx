@@ -18201,4 +18201,13 @@ Error: فشل: {3}
   <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
     <value>تمت إعادة تعيين التلميح الافتراضي لـ {0}</value>
   </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>الولايات المتحدة</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>الصين</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>جيش التحرير العالمي</value>
+  </data>
 </root>

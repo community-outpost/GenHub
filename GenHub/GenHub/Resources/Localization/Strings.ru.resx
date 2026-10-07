@@ -18201,4 +18201,13 @@ Error: не удалось: {3}
   <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
     <value>Подсказка для «{0}» сброшена к исходной</value>
   </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>США</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>Китай</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>МАО</value>
+  </data>
 </root>

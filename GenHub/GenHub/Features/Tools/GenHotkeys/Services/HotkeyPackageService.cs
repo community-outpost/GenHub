@@ -360,9 +360,9 @@ public class HotkeyPackageService(
             var baseName = icon[3..];
             var prefixes = icon[..3].ToUpperInvariant() switch
             {
-                "USA" => new[] { "SAC", "SA" },
-                "PRC" => new[] { "SN", "SNC" },
-                "GLA" => new[] { "SU", "SUC" },
+                "USA" => new[] { "SAC", "SA", "SS" },
+                "PRC" => new[] { "SN", "SNC", "SS" },
+                "GLA" => new[] { "SU", "SUC", "SS" },
                 _ => Array.Empty<string>(),
             };
 
@@ -433,6 +433,38 @@ public class HotkeyPackageService(
             }
         }
 
+        // Process any standalone or unlisted custom cameo mappings in the profile
+        foreach (var (iconName, customPath) in profile.CustomCameoMappings)
+        {
+            if (string.IsNullOrWhiteSpace(iconName) || processedIcons.Contains(iconName))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(customPath) && File.Exists(customPath))
+            {
+                processedIcons.Add(iconName);
+                char? hotkey = null;
+                if (profile.OverlayEnabled && profile.KeyMappings.TryGetValue(iconName, out var mappedKey))
+                {
+                    hotkey = mappedKey;
+                }
+
+                var success = await TryRenderCustomCameoTgaAsync(
+                    iconName,
+                    customPath,
+                    hotkey,
+                    profile,
+                    texturesDir,
+                    cancellationToken);
+
+                if (success)
+                {
+                    writtenIcons.Add(iconName);
+                }
+            }
+        }
+
         if (writtenIcons.Count > 0)
         {
             // Generate MappedImages INIs so SAGE engine binds cameos to our overlaid textures
@@ -448,6 +480,28 @@ public class HotkeyPackageService(
         HashSet<string> writtenIcons,
         CancellationToken cancellationToken)
     {
+        // 1. Process object's own icon if it has a custom cameo
+        if (!string.IsNullOrWhiteSpace(obj.IconName) &&
+            !processedIcons.Contains(obj.IconName) &&
+            profile.CustomCameoMappings.TryGetValue(obj.IconName, out var objCustomPath) &&
+            File.Exists(objCustomPath))
+        {
+            processedIcons.Add(obj.IconName);
+            var success = await TryRenderCustomCameoTgaAsync(
+                obj.IconName,
+                objCustomPath,
+                null,
+                profile,
+                texturesDir,
+                cancellationToken);
+
+            if (success)
+            {
+                writtenIcons.Add(obj.IconName);
+            }
+        }
+
+        // 2. Process actions in all keyboard layouts
         foreach (var layout in obj.KeyboardLayouts)
         {
             foreach (var action in layout)
@@ -539,6 +593,12 @@ public class HotkeyPackageService(
     {
         try
         {
+            if (!File.Exists(customImagePath))
+            {
+                logger.LogWarning("Custom cameo image does not exist at '{Path}' for icon '{Icon}'", customImagePath, iconName);
+                return false;
+            }
+
             var customBytes = await File.ReadAllBytesAsync(customImagePath, cancellationToken);
             byte[] tgaBytes;
             if (hotkey.HasValue)
@@ -558,13 +618,28 @@ public class HotkeyPackageService(
 
             var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
+
+            // Also write duplicate TGA for all known retail ButtonImage aliases in Art/Textures
+            // so any direct loose texture lookups or mods immediately resolve to the custom cameo!
+            if (HotkeyRetailCameoMappings.Mappings.TryGetValue(iconName, out var retailImages))
+            {
+                foreach (var retailImage in retailImages)
+                {
+                    var aliasPath = Path.Combine(texturesDir, $"{retailImage}.tga");
+                    if (!File.Exists(aliasPath))
+                    {
+                        await File.WriteAllBytesAsync(aliasPath, tgaBytes, cancellationToken);
+                    }
+                }
+            }
+
             return true;
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException or ArgumentException or SixLabors.ImageSharp.ImageFormatException)
+        catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to export custom cameo TGA for '{Icon}' from '{Path}'", iconName, customImagePath);
             return false;

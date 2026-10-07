@@ -438,7 +438,7 @@
                          Width="16" Height="16"
                          Stretch="Uniform"
                          VerticalAlignment="Center"/>
-                  <TextBlock Text="USA" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.FactionTabs.Usa}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
 
@@ -452,7 +452,7 @@
                          Width="16" Height="16"
                          Stretch="Uniform"
                          VerticalAlignment="Center"/>
-                  <TextBlock Text="China" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.FactionTabs.China}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
 
@@ -466,7 +466,7 @@
                          Width="16" Height="16"
                          Stretch="Uniform"
                          VerticalAlignment="Center"/>
-                  <TextBlock Text="GLA" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.GenHotkeys.FactionTabs.Gla}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </UniformGrid>
