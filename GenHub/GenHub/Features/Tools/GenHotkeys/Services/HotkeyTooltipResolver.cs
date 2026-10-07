@@ -68,9 +68,19 @@ public static class HotkeyTooltipResolver
         string defaultLabel;
         if (!string.IsNullOrWhiteSpace(hotkeyString))
         {
-            if (hotkeyString.StartsWith("CONTROLBAR:", StringComparison.OrdinalIgnoreCase))
+            var colonIndex = hotkeyString.IndexOf(':');
+            if (colonIndex >= 0)
             {
-                defaultLabel = $"CONTROLBAR:ToolTip{hotkeyString["CONTROLBAR:".Length..]}";
+                var prefix = hotkeyString[..colonIndex];
+                var suffix = hotkeyString[(colonIndex + 1)..];
+                if (suffix.StartsWith("ToolTip", StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultLabel = hotkeyString;
+                }
+                else
+                {
+                    defaultLabel = $"{prefix}:ToolTip{suffix}";
+                }
             }
             else
             {

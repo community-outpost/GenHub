@@ -409,4 +409,30 @@
     <BoxShadows x:Key="FlyoutBoxShadow">0 10 28 0 #99000000</BoxShadows>
     <BoxShadows x:Key="BannerPillRestBoxShadow">0 4 14 0 #80000000</BoxShadows>
     <BoxShadows x:Key="BannerPillHoverBoxShadow">0 6 20 0 #A0000000</BoxShadows>
+    <!-- ==================================================================== -->
+    <!-- 12. Tool-Specific Tokens: GenHotkeys Tooltip & Faction Tabs          -->
+    <!-- ==================================================================== -->
+    <Color x:Key="GeneralsTooltipBackgroundColor">#0B0B0B</Color>
+    <Color x:Key="GeneralsTooltipBorderColor">#333333</Color>
+    <Color x:Key="GeneralsTooltipHeaderBackgroundColor">#111111</Color>
+    <Color x:Key="GeneralsTooltipTitleColor">#FEFEFE</Color>
+    <Color x:Key="GeneralsTooltipHotkeyColor">#03C400</Color>
+    <Color x:Key="GeneralsTooltipDescriptionColor">#E0E0E0</Color>
+    <Color x:Key="GeneralsTooltipSeparatorColor">#222222</Color>
+
+    <SolidColorBrush x:Key="GeneralsTooltipBackgroundBrush" Color="{StaticResource GeneralsTooltipBackgroundColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipBorderBrush" Color="{StaticResource GeneralsTooltipBorderColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipHeaderBackgroundBrush" Color="{StaticResource GeneralsTooltipHeaderBackgroundColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipTitleBrush" Color="{StaticResource GeneralsTooltipTitleColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipHotkeyBrush" Color="{StaticResource GeneralsTooltipHotkeyColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipDescriptionBrush" Color="{StaticResource GeneralsTooltipDescriptionColor}" />
+    <SolidColorBrush x:Key="GeneralsTooltipSeparatorBrush" Color="{StaticResource GeneralsTooltipSeparatorColor}" />
+
+    <!-- GenHotkeys Faction Tab Tint Brushes -->
+    <SolidColorBrush x:Key="FactionTabUsaSelectedBackgroundBrush" Color="#221E88E5" />
+    <SolidColorBrush x:Key="FactionTabUsaPointerOverBackgroundBrush" Color="#331E88E5" />
+    <SolidColorBrush x:Key="FactionTabChinaSelectedBackgroundBrush" Color="#22E53935" />
+    <SolidColorBrush x:Key="FactionTabChinaPointerOverBackgroundBrush" Color="#33E53935" />
+    <SolidColorBrush x:Key="FactionTabGlaSelectedBackgroundBrush" Color="#2243A047" />
+    <SolidColorBrush x:Key="FactionTabGlaPointerOverBackgroundBrush" Color="#3343A047" />
 </ResourceDictionary>

@@ -477,9 +477,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Opens a file picker allowing the user to select a custom cameo image for the selected action button.
     /// </summary>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task BrowseCustomCameoAsync()
+    public async Task BrowseCustomCameoAsync(CancellationToken cancellationToken = default)
     {
         var targetAction = SelectedAction;
         var targetProfile = SelectedProfile;
@@ -512,7 +513,7 @@ public partial class GenHotkeysViewModel(
             var filePath = files[0].TryGetLocalPath() ?? files[0].Path.LocalPath;
             if (!string.IsNullOrWhiteSpace(filePath))
             {
-                await ApplyCustomCameoAsync(targetAction, filePath, targetProfile);
+                await ApplyCustomCameoAsync(targetAction, filePath, targetProfile, cancellationToken);
             }
         }
     }
@@ -523,8 +524,13 @@ public partial class GenHotkeysViewModel(
     /// <param name="targetAction">The action to apply the custom cameo to.</param>
     /// <param name="filePath">The file path to the image file.</param>
     /// <param name="targetProfile">The target profile, defaulting to <see cref="SelectedProfile"/> if null.</param>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A task representing whether the cameo was successfully applied.</returns>
-    public async Task<bool> ApplyCustomCameoAsync(HotkeyActionViewModel targetAction, string filePath, HotkeyProfile? targetProfile = null)
+    public async Task<bool> ApplyCustomCameoAsync(
+        HotkeyActionViewModel targetAction,
+        string filePath,
+        HotkeyProfile? targetProfile = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(targetAction);
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -578,7 +584,7 @@ public partial class GenHotkeysViewModel(
             }
         }
 
-        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
         StatusMessage = successMsg;
         notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), successMsg);
@@ -588,9 +594,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Resets the cameo image of the selected action back to the original game texture.
     /// </summary>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ResetCustomCameoAsync()
+    public async Task ResetCustomCameoAsync(CancellationToken cancellationToken = default)
     {
         var targetAction = SelectedAction;
         var targetProfile = SelectedProfile;
@@ -603,30 +610,34 @@ public partial class GenHotkeysViewModel(
         targetAction.CustomImagePath = null;
         targetProfile.CustomCameoMappings.Remove(iconName);
 
-        await LoadBitmapAsync(iconName, SelectedGame, defaultBmp =>
-        {
-            foreach (var obj in FilteredGameObjects)
+        await LoadBitmapAsync(
+            iconName,
+            SelectedGame,
+            defaultBmp =>
             {
-                foreach (var layout in obj.Layouts)
+                foreach (var obj in FilteredGameObjects)
                 {
-                    foreach (var action in layout)
+                    foreach (var layout in obj.Layouts)
                     {
-                        if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                        foreach (var action in layout)
                         {
-                            action.CustomImagePath = null;
-                            action.IconBitmap = defaultBmp;
+                            if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                action.CustomImagePath = null;
+                                action.IconBitmap = defaultBmp;
+                            }
                         }
                     }
-                }
 
-                if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
-                {
-                    obj.IconBitmap = defaultBmp;
+                    if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        obj.IconBitmap = defaultBmp;
+                    }
                 }
-            }
-        });
+            },
+            cancellationToken);
 
-        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -635,9 +646,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Resets the display title of the selected action back to its default value.
     /// </summary>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ResetTitleAsync()
+    public async Task ResetTitleAsync(CancellationToken cancellationToken = default)
     {
         var targetAction = SelectedAction;
         var targetProfile = SelectedProfile;
@@ -648,7 +660,7 @@ public partial class GenHotkeysViewModel(
 
         targetAction.DisplayName = targetAction.DefaultDisplayName;
         targetProfile.TitleMappings.Remove(targetAction.HotkeyString);
-        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -657,9 +669,10 @@ public partial class GenHotkeysViewModel(
     /// <summary>
     /// Resets the tooltip description of the selected action back to its default value.
     /// </summary>
+    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public async Task ResetTooltipAsync()
+    public async Task ResetTooltipAsync(CancellationToken cancellationToken = default)
     {
         var targetAction = SelectedAction;
         var targetProfile = SelectedProfile;
@@ -675,7 +688,7 @@ public partial class GenHotkeysViewModel(
             targetProfile.TooltipMappings.Remove(label);
         }
 
-        await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
+        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -2350,15 +2363,31 @@ public partial class GenHotkeysViewModel(
         }
 
         var token = _saveDebounceCts.Token;
-        _ = Task.Delay(400, token).ContinueWith(
-            async t =>
+        _ = DebounceSaveProfileAsync(token);
+    }
+
+    private async Task DebounceSaveProfileAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(GenHotkeysConstants.ProfileSaveDebounceMilliseconds, token).ConfigureAwait(false);
+            if (!token.IsCancellationRequested && !_isDisposed)
             {
-                if (!t.IsCanceled && !_isDisposed)
-                {
-                    await SaveCurrentProfileAsync(token);
-                }
-            },
-            TaskScheduler.Default);
+                await SaveCurrentProfileAsync(token).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when user types another keystroke or VM is disposed
+        }
+        catch (ObjectDisposedException ex)
+        {
+            logger.LogDebug(ex, "Profile save debounce CTS disposed");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException)
+        {
+            logger.LogError(ex, "Failed to debounced save hotkey profile");
+        }
     }
 
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)

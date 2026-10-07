@@ -27,14 +27,6 @@
       <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
             <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
 
-      <!-- In-Game Tooltip Replica Brushes (exact SAGE ControlBarPopupDescription styling) -->
-      <SolidColorBrush x:Key="GeneralsTooltipBackgroundBrush" Color="#0B0B0B" />
-      <SolidColorBrush x:Key="GeneralsTooltipBorderBrush" Color="#333333" />
-      <SolidColorBrush x:Key="GeneralsTooltipHeaderBackgroundBrush" Color="#111111" />
-      <SolidColorBrush x:Key="GeneralsTooltipTitleBrush" Color="#FEFEFE" />
-      <SolidColorBrush x:Key="GeneralsTooltipHotkeyBrush" Color="#03C400" />
-      <SolidColorBrush x:Key="GeneralsTooltipDescriptionBrush" Color="#E0E0E0" />
-      <SolidColorBrush x:Key="GeneralsTooltipSeparatorBrush" Color="#222222" />
     </ResourceDictionary>
   </UserControl.Resources>
 
@@ -146,43 +138,43 @@
 
     <!-- Selected USA Tab -->
     <Style Selector="Button.FactionTab.selected.usa">
-      <Setter Property="Background" Value="#221E88E5" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabUsaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.usa /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#221E88E5" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabUsaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.usa:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#331E88E5" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabUsaPointerOverBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
     </Style>
 
     <!-- Selected China Tab -->
     <Style Selector="Button.FactionTab.selected.china">
-      <Setter Property="Background" Value="#22E53935" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabChinaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.china /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#22E53935" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabChinaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.china:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#33E53935" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabChinaPointerOverBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
     </Style>
 
     <!-- Selected GLA Tab -->
     <Style Selector="Button.FactionTab.selected.gla">
-      <Setter Property="Background" Value="#2243A047" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabGlaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.gla /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#2243A047" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabGlaSelectedBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
     </Style>
     <Style Selector="Button.FactionTab.selected.gla:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="Background" Value="#3343A047" />
+      <Setter Property="Background" Value="{DynamicResource FactionTabGlaPointerOverBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
     </Style>
   </UserControl.Styles>

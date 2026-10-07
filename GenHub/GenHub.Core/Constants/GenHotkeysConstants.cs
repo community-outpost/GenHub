@@ -223,6 +223,9 @@ public static class GenHotkeysConstants
         public const string CreateAddonToolTip = "Export this hotkey layout as an Addon for C&C Generals / Zero Hour (English string table).";
     }
 
+    /// <summary>Debounce delay in milliseconds for saving hotkey profiles.</summary>
+    public const int ProfileSaveDebounceMilliseconds = 400;
+
     /// <summary>Tool unique identifier.</summary>
     public const string ToolId = "genhotkeys";
 

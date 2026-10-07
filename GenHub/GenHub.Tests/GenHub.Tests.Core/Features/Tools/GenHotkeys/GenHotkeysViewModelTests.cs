@@ -1038,4 +1038,81 @@ public class GenHotkeysViewModelTests
             n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset cameo")), null, false),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that ResetTitleAsync removes the custom title from profile, restores default display name,
+    /// and dispatches an info toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTitleAsync_RemovesTitleMappingAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Title Test Profile" };
+        profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"] = "Custom Dozer Name";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Custom Dozer Name",
+            DefaultDisplayName = "Construction Dozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetTitleAsync();
+
+        Assert.Equal("Construction Dozer", action.DisplayName);
+        Assert.False(profile.TitleMappings.ContainsKey("CONTROLBAR:ConstructAmericaVehicleDozer"));
+        Assert.Contains("Reset title", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset title")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTooltipAsync removes the custom tooltip from profile, restores default tooltip,
+    /// and dispatches an info toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTooltipAsync_RemovesTooltipMappingAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Tooltip Test Profile" };
+        profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"] = "Custom Dozer Tooltip";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            DefaultDisplayName = "Construction Dozer",
+            Tooltip = "Custom Dozer Tooltip",
+            DefaultTooltip = "Builds American base structures.",
+            TooltipString = "CONTROLBAR:ToolTipConstructAmericaVehicleDozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetTooltipAsync();
+
+        Assert.Equal("Builds American base structures.", action.Tooltip);
+        Assert.False(profile.TooltipMappings.ContainsKey("CONTROLBAR:ToolTipConstructAmericaVehicleDozer"));
+        Assert.Contains("Reset tooltip", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset tooltip")), null, false),
+            Times.Once);
+    }
 }

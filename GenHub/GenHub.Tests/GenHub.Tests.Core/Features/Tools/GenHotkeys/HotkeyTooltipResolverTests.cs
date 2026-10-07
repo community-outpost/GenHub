@@ -149,4 +149,28 @@ public class HotkeyTooltipResolverTests
         Assert.True(vm.CanShowTooltipEditor);
         Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
     }
+
+    /// <summary>
+    /// Verifies that non-CONTROLBAR prefixes like UPGRADE or OBJECT preserve their category prefix in default tooltip labels.
+    /// </summary>
+    /// <param name="hotkeyString">The command action hotkey label.</param>
+    /// <param name="expectedTooltipLabel">The expected resolved tooltip CSF label.</param>
+    [Theory]
+    [InlineData("UPGRADE:AmericaCompositeArmor", "UPGRADE:ToolTipAmericaCompositeArmor")]
+    [InlineData("OBJECT:AmericaVehicleCrusader", "OBJECT:ToolTipAmericaVehicleCrusader")]
+    [InlineData("UPGRADE:ToolTipAmericaCompositeArmor", "UPGRADE:ToolTipAmericaCompositeArmor")]
+    [InlineData("NoPrefixAction", "CONTROLBAR:ToolTipNoPrefixAction")]
+    public void ResolveTooltip_NonControlBarPrefix_GeneratesCorrectFallback(
+        string hotkeyString,
+        string expectedTooltipLabel)
+    {
+        var (resolvedLabel, resolvedText) = HotkeyTooltipResolver.ResolveTooltip(
+            hotkeyString,
+            iconName: "TestIcon",
+            explicitTooltipString: null,
+            refCsf: null);
+
+        Assert.Equal(expectedTooltipLabel, resolvedLabel);
+        Assert.Null(resolvedText);
+    }
 }
