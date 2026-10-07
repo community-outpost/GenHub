@@ -10,12 +10,14 @@ namespace GenHub.Core.Models.Providers;
 /// catalog URLs, and self-update information.
 /// This is the recommended subscription endpoint for users.
 /// </summary>
-public class PublisherDefinition
+public class PublisherDefinition : IJsonOnDeserialized
 {
     private List<CatalogEntry> _catalogs = [];
     private List<string> _previousDefinitionUrls = [];
     private List<PublisherReferral> _referrals = [];
     private List<string> _tags = [];
+    private string? _legacyCatalogUrl;
+    private List<string>? _legacyCatalogMirrors;
 
     /// <summary>
     /// Gets or sets the schema version for definition format compatibility.
@@ -41,7 +43,8 @@ public class PublisherDefinition
     }
 
     /// <summary>
-    /// Gets or sets previous definition URLs for migration/tracking.
+    /// Gets or sets historical URLs where this definition was previously hosted.
+    /// Helps clients update their subscription URL if the publisher moved.
     /// </summary>
     [JsonPropertyName("previousDefinitionUrls")]
     public List<string> PreviousDefinitionUrls
@@ -57,22 +60,11 @@ public class PublisherDefinition
     [JsonPropertyName("catalogUrl")]
     public string CatalogUrl
     {
-        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? (Catalogs[0].Url ?? string.Empty) : string.Empty;
+        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? (Catalogs[0].Url ?? string.Empty) : (_legacyCatalogUrl ?? string.Empty);
         set
         {
-            if (Catalogs.Count == 0 || Catalogs[0] == null)
-            {
-                if (Catalogs.Count == 0)
-                {
-                    Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
-                }
-                else
-                {
-                    Catalogs[0] = new CatalogEntry { Id = "default", Name = "Content" };
-                }
-            }
-
-            Catalogs[0].Url = value;
+            _legacyCatalogUrl = value;
+            GetOrCreatePrimaryCatalog().Url = value;
         }
     }
 
@@ -83,22 +75,11 @@ public class PublisherDefinition
     [JsonPropertyName("catalogMirrors")]
     public List<string> CatalogMirrors
     {
-        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? Catalogs[0].Mirrors : [];
+        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? Catalogs[0].Mirrors : (_legacyCatalogMirrors ?? []);
         set
         {
-            if (Catalogs.Count == 0 || Catalogs[0] == null)
-            {
-                if (Catalogs.Count == 0)
-                {
-                    Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
-                }
-                else
-                {
-                    Catalogs[0] = new CatalogEntry { Id = "default", Name = "Content" };
-                }
-            }
-
-            Catalogs[0].Mirrors = value;
+            _legacyCatalogMirrors = value;
+            GetOrCreatePrimaryCatalog().Mirrors = value;
         }
     }
 
@@ -133,5 +114,48 @@ public class PublisherDefinition
     {
         get => _tags ??= [];
         set => _tags = value ?? [];
+    }
+
+    /// <inheritdoc/>
+    public void OnDeserialized()
+    {
+        if (!string.IsNullOrWhiteSpace(_legacyCatalogUrl) &&
+            (Catalogs.Count == 0 || Catalogs[0] == null || string.IsNullOrWhiteSpace(Catalogs[0].Url)))
+        {
+            GetOrCreatePrimaryCatalog().Url = _legacyCatalogUrl;
+        }
+
+        if (_legacyCatalogMirrors != null && _legacyCatalogMirrors.Count > 0 &&
+            (Catalogs.Count == 0 || Catalogs[0] == null || Catalogs[0].Mirrors.Count == 0))
+        {
+            GetOrCreatePrimaryCatalog().Mirrors = _legacyCatalogMirrors;
+        }
+    }
+
+    private CatalogEntry GetOrCreatePrimaryCatalog()
+    {
+        if (Catalogs.Count == 0)
+        {
+            var entry = new CatalogEntry
+            {
+                Id = CatalogConstants.DefaultCatalogId,
+                Name = CatalogConstants.DefaultCatalogName,
+            };
+            Catalogs.Add(entry);
+            return entry;
+        }
+
+        if (Catalogs[0] == null)
+        {
+            var entry = new CatalogEntry
+            {
+                Id = CatalogConstants.DefaultCatalogId,
+                Name = CatalogConstants.DefaultCatalogName,
+            };
+            Catalogs[0] = entry;
+            return entry;
+        }
+
+        return Catalogs[0];
     }
 }
