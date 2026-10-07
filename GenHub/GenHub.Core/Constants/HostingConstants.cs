@@ -293,6 +293,17 @@ public static class HostingConstants
     public const string GoogleDriveDownloadUrlTemplate = "https://drive.google.com/uc?export=download&id={0}";
 
     /// <summary>
+    /// URL template for a pre-confirmed Google Drive download that skips the virus-scan warning interstitial.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
+    public const string GoogleDriveConfirmedDownloadUrlTemplate = "https://drive.usercontent.google.com/download?id={0}&export=download&confirm=t";
+
+    /// <summary>
+    /// Host serving Google Drive file content (the target of drive.google.com/uc redirects).
+    /// </summary>
+    public const string GoogleDriveUserContentHost = "drive.usercontent.google.com";
+
+    /// <summary>
     /// URL template for a Google Drive folder web link.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]

@@ -31,6 +31,7 @@ public sealed class DownloadConfiguration
         EnableParallelDownload = true;
         ParallelConcurrency = DownloadDefaults.DefaultParallelChunkConcurrency;
         ParallelDownloadThresholdBytes = DownloadDefaults.ParallelDownloadThresholdBytes;
+        ParallelDownloadMaxResponseLatency = TimeSpan.FromMilliseconds(DownloadDefaults.ParallelDownloadMaxResponseLatencyMs);
         ProgressReportingInterval = TimeSpan.FromMilliseconds(100);
         Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         VerifySslCertificate = true;
@@ -75,6 +76,12 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets the minimum file size threshold in bytes for parallel chunk downloading.</summary>
     public long ParallelDownloadThresholdBytes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum initial response latency for which parallel chunk downloading is still used.
+    /// Slower origins are streamed sequentially because each chunk request would pay the same latency.
+    /// </summary>
+    public TimeSpan ParallelDownloadMaxResponseLatency { get; set; }
 
     /// <summary>Gets or sets the progress reporting interval.</summary>
     public TimeSpan ProgressReportingInterval { get; set; }
