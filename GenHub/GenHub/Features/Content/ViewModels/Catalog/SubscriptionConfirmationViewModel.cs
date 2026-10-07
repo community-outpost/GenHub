@@ -421,6 +421,40 @@ public partial class SubscriptionConfirmationViewModel(
         return candidateUrls;
     }
 
+    private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
+    {
+        if (_definitionCatalogs.Count == 0)
+        {
+            return null;
+        }
+
+        var matchingDefCat = _definitionCatalogs.FirstOrDefault(
+            c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(matchingDefCat.Id))
+        {
+            return matchingDefCat.Id;
+        }
+
+        if (_resolvedDefinition?.Catalogs != null)
+        {
+            var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
+                string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase)));
+            if (matchingEntry != null)
+            {
+                return matchingEntry.Id;
+            }
+        }
+
+        // If only one catalog is defined, default to its ID; otherwise leave null if no entry claimed the URL.
+        if (_definitionCatalogs.Count == 1)
+        {
+            return _definitionCatalogs[0].Id;
+        }
+
+        return null;
+    }
+
     [RelayCommand]
     private async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
@@ -446,34 +480,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
-
-            // Attempt to resolve the selected catalog ID matching the effective catalog URL or its mirrors.
-            string? resolvedSelectedCatalogId = null;
-            if (_definitionCatalogs.Count > 0)
-            {
-                var matchingDefCat = _definitionCatalogs.FirstOrDefault(
-                    c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(matchingDefCat.Id))
-                {
-                    resolvedSelectedCatalogId = matchingDefCat.Id;
-                }
-                else if (_resolvedDefinition?.Catalogs != null)
-                {
-                    var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
-                        string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                        (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase)));
-                    if (matchingEntry != null)
-                    {
-                        resolvedSelectedCatalogId = matchingEntry.Id;
-                    }
-                }
-
-                // If only one catalog is defined, default to its ID; otherwise leave null if no entry claimed the URL.
-                if (string.IsNullOrWhiteSpace(resolvedSelectedCatalogId) && _definitionCatalogs.Count == 1)
-                {
-                    resolvedSelectedCatalogId = _definitionCatalogs[0].Id;
-                }
-            }
+            var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
 
             var subscription = new PublisherSubscription
             {
