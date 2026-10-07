@@ -423,34 +423,29 @@ public partial class SubscriptionConfirmationViewModel(
 
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
     {
-        if (_definitionCatalogs.Count == 0)
+        if (_resolvedDefinition?.Catalogs == null || _definitionCatalogs.Count == 0)
         {
             return null;
         }
 
-        var matchingDefCat = _definitionCatalogs.FirstOrDefault(
-            c => string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase));
-        if (!string.IsNullOrWhiteSpace(matchingDefCat.Id))
+        var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
+            c != null && (
+                string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase))));
+        if (matchingEntry != null && !string.IsNullOrWhiteSpace(matchingEntry.Id))
         {
-            return matchingDefCat.Id;
+            return matchingEntry.Id;
         }
 
-        if (_resolvedDefinition?.Catalogs != null)
-        {
-            var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
-                c != null && (
-                    string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase))));
-            if (matchingEntry != null && !string.IsNullOrWhiteSpace(matchingEntry.Id))
-            {
-                return matchingEntry.Id;
-            }
-        }
-
-        // If only one catalog is defined, default to its ID; otherwise leave null if no entry claimed the URL.
+        // If only one catalog is defined and has a real non-blank ID, return it;
+        // otherwise return null so downstream uses single-catalog fallback resolution.
         if (_definitionCatalogs.Count == 1)
         {
-            return _definitionCatalogs[0].Id;
+            var singleEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c => c != null);
+            if (singleEntry != null && !string.IsNullOrWhiteSpace(singleEntry.Id))
+            {
+                return singleEntry.Id;
+            }
         }
 
         return null;
@@ -817,10 +812,10 @@ public partial class SubscriptionConfirmationViewModel(
         var catalogs = definition.Catalogs ?? [];
         var firstEntry = catalogs.FirstOrDefault(e => e != null && string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))
             ?? catalogs.FirstOrDefault(e => e != null);
-        var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : "primary";
+        var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : "__primary";
         _definitionCatalogs.Add((
             firstEntryId,
-            ResolveCatalogDisplayName(firstEntry?.Name, firstEntryId),
+            ResolveCatalogDisplayName(firstEntry?.Name, !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.DefaultCatalogName),
             firstCatalogUrl,
             firstCatalog));
 
@@ -838,8 +833,12 @@ public partial class SubscriptionConfirmationViewModel(
             if (parsed != null)
             {
                 catalogIndex++;
-                var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"catalog-{catalogIndex}";
-                _definitionCatalogs.Add((entryCatalogId, ResolveCatalogDisplayName(entry.Name, entryCatalogId), entry.Url, parsed));
+                var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"__catalog_{catalogIndex}";
+                _definitionCatalogs.Add((
+                    entryCatalogId,
+                    ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"Catalog {catalogIndex}"),
+                    entry.Url,
+                    parsed));
             }
         }
     }

@@ -253,6 +253,7 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
     [Fact]
     public async Task DiscoverAsync_DefinitionWithNullCatalogEntry_DiscoversSelectedCatalogWithoutNreAsync()
     {
+        const string staleUrl = "https://example.com/catalog-stale.json";
         const string selectedUrl = "https://example.com/catalog-valid.json";
         const string definitionUrl = "https://example.com/publisher.json";
         var catalog = CreateCatalog();
@@ -268,7 +269,7 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
         {
             PublisherId = "test-pub",
             PublisherName = "Test Publisher",
-            CatalogUrl = selectedUrl,
+            CatalogUrl = staleUrl,
             DefinitionUrl = definitionUrl,
             SelectedCatalogId = "valid",
         };
@@ -281,6 +282,7 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
         Assert.True(result.Success, result.FirstError);
         Assert.Equal(selectedUrl, subscription.CatalogUrl);
         Assert.Contains(selectedUrl, requestedUrls);
+        Assert.DoesNotContain(staleUrl, requestedUrls);
     }
 
     private static GenericCatalogDiscoverer CreateDiscoverer(
