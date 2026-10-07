@@ -1083,6 +1083,98 @@ public class GameProfileSettingsViewModelHotswapTests
             Times.Exactly(2));
     }
 
+    /// <summary>
+    /// Verifies that when the profile manager reports that live synchronization was already applied live
+    /// (<see cref="ProfileOperationResult{T}.WasAppliedLive"/> is true) during a mid-save game start race,
+    /// the post-save race check skips running a duplicate live sync pass through the view model's linker.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveAsync_WhenManagerReportsWasAppliedLive_SkipsDuplicatePostSaveLiveSyncAsync()
+    {
+        // Arrange
+        const string profileId = "profile-postsave-applied-live";
+        const string installId = "1.108.steam.gameinstallation.zh";
+        const string mapId = "1.0.0.map.desert";
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Applied Live Profile",
+            EnabledContentIds = [installId, mapId],
+            GameClient = new GameClient
+            {
+                Id = "client-zh",
+                Name = "Zero Hour",
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        _gameProfileManagerMock.Setup(m => m.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        bool profileSaved = false;
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                profileSaved = true;
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile, wasAppliedLive: true);
+            });
+
+        // Initially not running; becomes running while save is in flight
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync(() => profileSaved ? [CreateActiveLaunch(profileId)] : []);
+
+        var enabledItems = new ObservableCollection<CoreContentDisplayItem>
+        {
+            new()
+            {
+                Id = installId,
+                ManifestId = installId,
+                DisplayName = "Command & Conquer: Zero Hour",
+                ContentType = ContentType.GameInstallation,
+                GameType = GameType.ZeroHour,
+            },
+            new()
+            {
+                Id = mapId,
+                ManifestId = mapId,
+                DisplayName = "Tournament Desert",
+                ContentType = ContentType.Map,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        _contentLoaderMock.Setup(c => c.LoadEnabledContentForProfileAsync(profile))
+            .ReturnsAsync(enabledItems);
+        _contentLoaderMock.Setup(c => c.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync([]);
+        _contentLoaderMock.Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([]);
+        _manifestPoolMock.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        await _viewModel.InitializeForProfileAsync(profileId);
+        _gameProfileManagerMock.Invocations.Clear();
+
+        // Act
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameProfileManagerMock.Verify(
+            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Crucial assertion: the view model's linker must NOT be invoked because manager already performed live sync
+        _profileContentLinkerMock.Verify(
+            p => p.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     private static GameLaunchInfo CreateActiveLaunch(string profileId, string launchId = "launch-1", string workspaceId = "ws-1") => new()
     {
         LaunchId = launchId,
