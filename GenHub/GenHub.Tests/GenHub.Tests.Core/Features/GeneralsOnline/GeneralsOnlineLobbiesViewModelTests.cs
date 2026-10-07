@@ -1368,19 +1368,71 @@ public class GeneralsOnlineLobbiesViewModelTests
         vm.RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage { Message = "Message in Room 1" });
         Assert.Single(vm.RoomChatMessages);
 
-        // Act 1 - Switch to room 2
+        // Act 1 - Switch to room 2 and populate room 2 chat
         var room2 = new GeneralsOnlineRoom { Id = 2, Name = "Room 2" };
         vm.ChatRoom = room2;
         await Task.Delay(50);
         Assert.Empty(vm.RoomChatMessages);
 
+        vm.RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage { Message = "Message in Room 2" });
+        Assert.Single(vm.RoomChatMessages);
+        await Task.Delay(50);
+
         // Act 2 - Switch back to room 1
         vm.ChatRoom = room1;
         await Task.Delay(50);
 
-        // Assert - Messages in room 1 are restored
+        // Assert - Messages in room 1 are restored and not overwritten by room 2
         Assert.Single(vm.RoomChatMessages);
         Assert.Equal("Message in Room 1", vm.RoomChatMessages[0].Message);
+
+        // Switch back to room 2 and verify room 2 is preserved
+        vm.ChatRoom = room2;
+        await Task.Delay(50);
+        Assert.Single(vm.RoomChatMessages);
+        Assert.Equal("Message in Room 2", vm.RoomChatMessages[0].Message);
+    }
+
+    /// <summary>
+    /// Tests that a delayed network room select from a superseded room switch does not overwrite
+    /// the currently selected room chat thread or state.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ChatRoomChanged_WhenSupersededApplyCompletes_DoesNotOverwriteSelectedRoomThreadAsync()
+    {
+        // Arrange
+        var fakes = CreateFakes(authenticated: true);
+        var tcsRoom1 = new TaskCompletionSource<OperationResult<bool>>();
+        var wsListenerMock = new Mock<IGeneralsOnlineWebSocketListener>();
+        wsListenerMock.SetupGet(w => w.IsConnected).Returns(true);
+        wsListenerMock
+            .Setup(w => w.SelectNetworkRoomAsync(1, It.IsAny<CancellationToken>()))
+            .Returns(tcsRoom1.Task);
+        wsListenerMock
+            .Setup(w => w.SelectNetworkRoomAsync(2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        using var vm = CreateViewModel(fakes, wsListenerMock.Object);
+
+        var room1 = new GeneralsOnlineRoom { Id = 1, Name = "Room 1" };
+        var room2 = new GeneralsOnlineRoom { Id = 2, Name = "Room 2" };
+
+        // Act 1 - Select room 1 (its network select hangs on tcsRoom1)
+        vm.ChatRoom = room1;
+        vm.RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage { Message = "Room 1 chat" });
+
+        // Act 2 - Switch to room 2 before room 1 completes
+        vm.ChatRoom = room2;
+        vm.RoomChatMessages.Add(new GeneralsOnlineRoomChatMessage { Message = "Room 2 chat" });
+
+        // Act 3 - Complete room 1 now
+        tcsRoom1.SetResult(OperationResult<bool>.CreateSuccess(true));
+        await Task.Delay(50);
+
+        // Assert - Current room is still room 2 with room 2 messages
+        Assert.Equal(room2, vm.ChatRoom);
+        Assert.Single(vm.RoomChatMessages);
+        Assert.Equal("Room 2 chat", vm.RoomChatMessages[0].Message);
     }
 
     /// <summary>

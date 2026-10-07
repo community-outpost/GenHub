@@ -78,7 +78,7 @@
         <!-- Primary Action Button -->
         <Style Selector="Button.primary-btn">
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
@@ -90,7 +90,7 @@
         </Style>
         <Style Selector="Button.primary-btn:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}" />
         </Style>
 
         <!-- Badge -->
@@ -100,6 +100,21 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="6,2" />
+        </Style>
+
+        <!-- Metric / Stats Card styles -->
+        <Style Selector="TextBlock.metric-value">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+        <Style Selector="TextBlock.metric-label">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        </Style>
+        <Style Selector="TextBlock.metric-caption">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
         </Style>
 
         <!-- Lobby List item & selection styles -->
@@ -1233,7 +1248,7 @@
                                                     AutomationProperties.Name="{localization:Localize Online.GeneralsOnline.Action.Send}" />
                                         </Grid>
                                         <!-- Collapsible occupants list below chat to keep chat tall and uncluttered -->
-                                        <Expander Classes="compact-expander"
+                                        <Expander Classes="compact"
                                                   IsExpanded="False"
                                                   Margin="0,4,0,0"
                                                   IsVisible="{Binding RoomOccupants.Count, Converter={x:Static conv:ComparisonConverters.IsPositive}}">

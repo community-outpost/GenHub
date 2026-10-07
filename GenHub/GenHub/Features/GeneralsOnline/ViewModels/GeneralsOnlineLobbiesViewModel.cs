@@ -2129,21 +2129,16 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
 
         try
         {
-            var roomChanged = room.Id != _appliedChatRoomId;
             var applied = await wsListener.SelectNetworkRoomAsync((short)room.Id, cancellationToken);
             if (applied.Success)
             {
-                if (roomChanged && _appliedChatRoomId != int.MinValue && RoomChatMessages.Count > 0)
+                if (_disposed || ChatRoom?.Id != room.Id)
                 {
-                    _roomChatHistories[_appliedChatRoomId] = [.. RoomChatMessages];
+                    return;
                 }
 
                 _appliedChatRoomId = room.Id;
                 _chatRoomApplied = true;
-                if (roomChanged)
-                {
-                    RunOnUi(() => LoadRoomChatThread(room.Id));
-                }
             }
         }
         catch (OperationCanceledException)
@@ -3328,6 +3323,7 @@ public sealed partial class GeneralsOnlineLobbiesViewModel : ViewModelBase,
                 _roomChatHistories[_appliedChatRoomId] = [.. RoomChatMessages];
             }
 
+            _appliedChatRoomId = value?.Id ?? int.MinValue;
             LoadRoomChatThread(value?.Id ?? 0);
         }
 
