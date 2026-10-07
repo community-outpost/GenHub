@@ -517,6 +517,34 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that CheckForDefinitionUpdateAsync does not throw NullReferenceException when a definition contains null catalog entries.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_DefinitionWithNullCatalogEntry_DoesNotThrowNreAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[null,{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/new-maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Equal("https://example.com/new-maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
     /// Sets up the HTTP response for testing.
     /// </summary>
     /// <param name="statusCode">The status code to return.</param>

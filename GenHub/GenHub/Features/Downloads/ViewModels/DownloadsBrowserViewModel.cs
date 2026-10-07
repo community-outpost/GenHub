@@ -1607,7 +1607,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             var catalogs = definitionResult.Success
-                ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
+                ? definitionResult.Data?.Catalogs.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Url)).ToList()
                 : null;
             if (cancellationToken.IsCancellationRequested
                 || _activeCatalogLoadId != loadId

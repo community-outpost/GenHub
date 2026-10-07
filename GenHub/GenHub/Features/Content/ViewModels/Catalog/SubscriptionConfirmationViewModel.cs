@@ -824,6 +824,7 @@ public partial class SubscriptionConfirmationViewModel(
             firstCatalogUrl,
             firstCatalog));
 
+        var catalogIndex = 0;
         foreach (var entry in catalogs)
         {
             if (entry == null ||
@@ -836,7 +837,8 @@ public partial class SubscriptionConfirmationViewModel(
             var parsed = await TryFetchDefinitionCatalogEntryAsync(entry, cancellationToken);
             if (parsed != null)
             {
-                var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : "primary";
+                catalogIndex++;
+                var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"catalog-{catalogIndex}";
                 _definitionCatalogs.Add((entryCatalogId, ResolveCatalogDisplayName(entry.Name, entryCatalogId), entry.Url, parsed));
             }
         }

@@ -383,14 +383,15 @@ public class GenericCatalogDiscoverer(
         {
             var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
                 ? definition.Catalogs.FirstOrDefault(e =>
-                    string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(e.Url, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                    e != null && (
+                        string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(e.Url, selectedCatalogId, StringComparison.OrdinalIgnoreCase)))
                 : null;
 
             if (selected == null && !string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
             {
                 selected = definition.Catalogs.FirstOrDefault(e =>
-                    string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase));
+                    e != null && string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase));
             }
 
             if (selected != null)
@@ -409,11 +410,12 @@ public class GenericCatalogDiscoverer(
             }
 
             // If selectedCatalogId was not specified:
-            // 1. If definition has only one catalog entry, the catalog was likely updated/renamed in the definition.
+            // 1. If definition has only one valid catalog entry, the catalog was likely updated/renamed in the definition.
             // 2. Or neither selectedCatalogId nor subscriptionCatalogUrl was specified.
-            if (definition.Catalogs.Count == 1 || string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
+            var validCatalogs = definition.Catalogs.Where(cat => cat != null).ToList();
+            if (validCatalogs.Count == 1 || (validCatalogs.Count > 0 && string.IsNullOrWhiteSpace(subscriptionCatalogUrl)))
             {
-                var defaultEntry = definition.Catalogs[0];
+                var defaultEntry = validCatalogs[0];
                 AddDefinitionUrl(urls, defaultEntry.Url);
                 AddDefinitionMirrors(urls, defaultEntry.Mirrors);
                 return urls;
@@ -959,6 +961,7 @@ public class GenericCatalogDiscoverer(
         }
 
         var isSiblingUrl = definition?.Catalogs != null && definition.Catalogs.Any(other =>
+            other != null &&
             !string.IsNullOrWhiteSpace(_subscription?.SelectedCatalogId) &&
             !string.Equals(other.Id, _subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(other.Url, _subscription?.CatalogUrl, StringComparison.OrdinalIgnoreCase));

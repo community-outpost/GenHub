@@ -129,7 +129,7 @@ public class PublisherDefinitionService(
             var catalogUrl = definition.CatalogUrl;
             if (string.IsNullOrWhiteSpace(catalogUrl) && definition.Catalogs.Count > 0)
             {
-                catalogUrl = definition.Catalogs[0].Url;
+                catalogUrl = definition.Catalogs.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url))?.Url;
             }
 
             if (string.IsNullOrWhiteSpace(catalogUrl))
@@ -231,10 +231,11 @@ public class PublisherDefinitionService(
 
             // Check if catalog URL changed
             var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
-                ? remoteDef.Catalogs?.FirstOrDefault(c => string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                ? remoteDef.Catalogs?.FirstOrDefault(c => c != null && string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
                 : remoteDef.Catalogs?.FirstOrDefault(c =>
-                    string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                    (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase)));
+                    c != null && (
+                        string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                        (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase))));
 
             if (targetCatalog != null)
             {
