@@ -651,6 +651,7 @@ public partial class GenHotkeysViewModel(
         await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
+        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
     }
 
     /// <summary>
@@ -677,6 +678,7 @@ public partial class GenHotkeysViewModel(
         await SaveProfileSerializedAsync(targetProfile, CancellationToken.None);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
+        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
     }
 
     /// <summary>
@@ -2486,7 +2488,7 @@ public partial class GenHotkeysViewModel(
                     ms.Position = 0;
                     return new Bitmap(ms);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is SixLabors.ImageSharp.ImageFormatException or InvalidDataException or NotSupportedException or ArgumentException)
                 {
                     logger.LogDebug(ex, "ImageSharp failed to load custom cameo from '{Path}'; attempting SageTextureCodec fallback", filePath);
                     var codec = new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
@@ -2523,7 +2525,7 @@ public partial class GenHotkeysViewModel(
                 }
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to load custom cameo bitmap from '{Path}'", filePath);
             return null;
@@ -2642,7 +2644,9 @@ public partial class GenHotkeysViewModel(
                 if (!_isDisposed)
                 {
                     if (SelectedProfile != null &&
-                        SelectedProfile.CustomCameoMappings.ContainsKey(iconName))
+                        SelectedProfile.CustomCameoMappings.TryGetValue(iconName, out var mappedCustom) &&
+                        !string.IsNullOrWhiteSpace(mappedCustom) &&
+                        File.Exists(mappedCustom))
                     {
                         return;
                     }

@@ -151,7 +151,7 @@ public class IconOverlayService(
         {
             return Image.Load<Rgba32>(sourceIconBytes);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is SixLabors.ImageSharp.ImageFormatException or InvalidDataException or NotSupportedException or ArgumentException)
         {
             logger.LogDebug(ex, "ImageSharp failed to load image bytes; attempting SAGE texture decoder fallback");
             var codec = sageTextureCodec ?? new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
