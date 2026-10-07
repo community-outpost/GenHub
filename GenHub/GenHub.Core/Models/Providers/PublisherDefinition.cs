@@ -57,12 +57,19 @@ public class PublisherDefinition
     [JsonPropertyName("catalogUrl")]
     public string CatalogUrl
     {
-        get => Catalogs.Count > 0 ? Catalogs[0].Url : string.Empty;
+        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? (Catalogs[0].Url ?? string.Empty) : string.Empty;
         set
         {
-            if (Catalogs.Count == 0)
+            if (Catalogs.Count == 0 || Catalogs[0] == null)
             {
-                Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
+                if (Catalogs.Count == 0)
+                {
+                    Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
+                }
+                else
+                {
+                    Catalogs[0] = new CatalogEntry { Id = "default", Name = "Content" };
+                }
             }
 
             Catalogs[0].Url = value;
@@ -76,12 +83,19 @@ public class PublisherDefinition
     [JsonPropertyName("catalogMirrors")]
     public List<string> CatalogMirrors
     {
-        get => Catalogs.Count > 0 ? Catalogs[0].Mirrors : [];
+        get => (Catalogs.Count > 0 && Catalogs[0] != null) ? Catalogs[0].Mirrors : [];
         set
         {
-            if (Catalogs.Count == 0)
+            if (Catalogs.Count == 0 || Catalogs[0] == null)
             {
-                Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
+                if (Catalogs.Count == 0)
+                {
+                    Catalogs.Add(new CatalogEntry { Id = "default", Name = "Content" });
+                }
+                else
+                {
+                    Catalogs[0] = new CatalogEntry { Id = "default", Name = "Content" };
+                }
             }
 
             Catalogs[0].Mirrors = value;

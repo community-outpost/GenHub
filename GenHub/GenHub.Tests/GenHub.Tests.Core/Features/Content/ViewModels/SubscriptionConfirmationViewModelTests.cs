@@ -725,6 +725,126 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.NotNull(vm.ErrorMessage);
     }
 
+    /// <summary>
+    /// Verifies that when a definition has a null catalog entry, initialization does not throw
+    /// NullReferenceException and successfully parses valid entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithNullCatalogEntry_DoesNotThrowNullReferenceExceptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string validCatalogUrl = "https://example.com/valid.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    null,
+                    {
+                        "id": "valid-cat",
+                        "name": "Valid Catalog",
+                        "url": "https://example.com/valid.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("my-pub", "My Publisher");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("valid-catalog-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [validCatalogUrl] = "valid-catalog-content",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Null(vm.ErrorMessage);
+        Assert.True(vm.IsCatalogLoaded);
+        Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that when a single-catalog definition entry has a blank ID, ConfirmAsync falls back
+    /// to the single catalog ID rather than persisting a blank string.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmAsync_SingleDefinitionCatalogWithBlankCatalogEntryId_FallsBackToCatalogOptionIdAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string catalogUrl = "https://example.com/catalog.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "single-pub", "name": "Single Publisher" },
+                "catalogs": [
+                    {
+                        "id": "",
+                        "name": "Single Catalog",
+                        "url": "https://example.com/catalog.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("single-pub", "Single Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [catalogUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Act
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("primary", savedSubscription.SelectedCatalogId);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog
