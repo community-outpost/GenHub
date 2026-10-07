@@ -167,7 +167,7 @@ public partial class AddDependencyDialogViewModel(
 
         var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
             ? definition.CatalogUrl
-            : definition.Catalogs.FirstOrDefault()?.Url;
+            : definition.Catalogs?.FirstOrDefault(c => c != null && !string.IsNullOrWhiteSpace(c.Url))?.Url;
 
         if (string.IsNullOrWhiteSpace(targetUrl))
         {

@@ -245,6 +245,44 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
         Assert.DoesNotContain(siblingUrl, requestedUrls);
     }
 
+    /// <summary>
+    /// When a publisher definition contains a null catalog entry, discovery skips it
+    /// without throwing NullReferenceException and resolves the valid catalog entry.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_DefinitionWithNullCatalogEntry_DiscoversSelectedCatalogWithoutNreAsync()
+    {
+        const string selectedUrl = "https://example.com/catalog-valid.json";
+        const string definitionUrl = "https://example.com/publisher.json";
+        var catalog = CreateCatalog();
+        var definitionJson = $"{{\"$schemaVersion\":1,\"publisher\":{{\"id\":\"test-pub\",\"name\":\"Test Publisher\"}},\"catalogs\":[null,{{\"id\":\"valid\",\"name\":\"valid\",\"url\":\"{selectedUrl}\"}}]}}";
+
+        var routes = new Dictionary<string, HttpResponseMessage>(StringComparer.OrdinalIgnoreCase)
+        {
+            [definitionUrl] = JsonResponse(definitionJson),
+            [selectedUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+        };
+
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = selectedUrl,
+            DefinitionUrl = definitionUrl,
+            SelectedCatalogId = "valid",
+        };
+        var requestedUrls = new List<string>();
+        var discoverer = CreateDiscoverer(catalog, routes, requestedUrls);
+        discoverer.Configure(subscription);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Equal(selectedUrl, subscription.CatalogUrl);
+        Assert.Contains(selectedUrl, requestedUrls);
+    }
+
     private static GenericCatalogDiscoverer CreateDiscoverer(
         PublisherCatalog catalog,
         Dictionary<string, HttpResponseMessage> routes,
