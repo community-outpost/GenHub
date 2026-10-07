@@ -643,7 +643,7 @@
                                                             <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
                                                             <Button Command="{Binding InstallBuildCommand}"
                                                                     IsVisible="{Binding ShowInstallBuildButton}"
-                                                                    Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
+                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
                                                                     Foreground="White" CornerRadius="6" Padding="14,7"
                                                                     Cursor="Hand"
                                                                     ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
@@ -1071,7 +1071,7 @@
                                                             <!-- Install Build Button (visible when GenHubBuild is downloaded) -->
                                                             <Button Command="{Binding InstallBuildCommand}"
                                                                     IsVisible="{Binding ShowInstallBuildButton}"
-                                                                    Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
+                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
                                                                     Foreground="White" CornerRadius="6" Padding="14,7"
                                                                     Cursor="Hand"
                                                                     ToolTip.Tip="{localization:Localize Downloads.Card.InstallBuildTooltip}">
