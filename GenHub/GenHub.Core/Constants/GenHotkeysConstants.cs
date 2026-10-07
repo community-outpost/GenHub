@@ -445,7 +445,7 @@ public static class GenHotkeysConstants
             ["CONTROLBAR:ConstructChinaTankGattling"] = "CONTROLBAR:ToolTipChinaBuildGattlingTank",
             ["CONTROLBAR:ConstructChinaVehicleTroopCrawler"] = "CONTROLBAR:ToolTipChinaBuildTroopCrawler",
             ["CONTROLBAR:ConstructChinaVehicleECM"] = "CONTROLBAR:ToolTipChinaBuildECMTank",
-            ["CONTROLBAR:ConstructChinaVehicleInferno"] = "CONTROLBAR:ToolTipChinaBuildInfernoCannon",
+            ["CONTROLBAR:ConstructChinaVehicleInfernoCannon"] = "CONTROLBAR:ToolTipChinaBuildInfernoCannon",
             ["CONTROLBAR:ConstructChinaVehicleNukeLauncher"] = "CONTROLBAR:ToolTipChinaBuildNukeLauncher",
             ["CONTROLBAR:ConstructChinaInfantryRedGuard"] = "CONTROLBAR:ToolTipChinaBuildRedGuard",
             ["CONTROLBAR:ConstructChinaInfantryTankHunter"] = "CONTROLBAR:ToolTipChinaBuildTankHunter",

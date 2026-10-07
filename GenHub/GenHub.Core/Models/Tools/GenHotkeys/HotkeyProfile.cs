@@ -60,10 +60,38 @@ public partial class HotkeyProfile : ObservableObject
     /// </summary>
     public void NormalizeComparers()
     {
-        KeyMappings = KeyMappings != null ? new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
-        ClearedKeys = ClearedKeys != null ? new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
-        TooltipMappings = TooltipMappings != null ? new Dictionary<string, string>(TooltipMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
-        TitleMappings = TitleMappings != null ? new Dictionary<string, string>(TitleMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
-        CustomCameoMappings = CustomCameoMappings != null ? new Dictionary<string, string>(CustomCameoMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        KeyMappings = ToCaseInsensitiveDictionary(KeyMappings);
+        ClearedKeys = ToCaseInsensitiveHashSet(ClearedKeys);
+        TooltipMappings = ToCaseInsensitiveDictionary(TooltipMappings);
+        TitleMappings = ToCaseInsensitiveDictionary(TitleMappings);
+        CustomCameoMappings = ToCaseInsensitiveDictionary(CustomCameoMappings);
+    }
+
+    private static Dictionary<string, TValue> ToCaseInsensitiveDictionary<TValue>(IDictionary<string, TValue>? source)
+    {
+        var result = new Dictionary<string, TValue>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var kvp in source)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<string> ToCaseInsensitiveHashSet(IEnumerable<string>? source)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var item in source)
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
     }
 }

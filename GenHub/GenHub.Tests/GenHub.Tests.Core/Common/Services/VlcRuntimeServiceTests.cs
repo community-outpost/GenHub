@@ -52,6 +52,25 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that ExpectedSha512 uses environment variable override when set.
+    /// </summary>
+    [Fact]
+    public void ExpectedSha512_WithEnvironmentVariable_ReturnsOverriddenHash()
+    {
+        const string customHash = "CUSTOM_SHA512_HASH";
+        var original = Environment.GetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar);
+        try
+        {
+            Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, customHash);
+            Assert.Equal(customHash, VlcRuntimeConstants.ExpectedSha512);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, original);
+        }
+    }
+
+    /// <summary>
     /// Verifies that IsAvailable returns false and status is NotInstalled when directory does not exist on Windows and no system VLC is configured.
     /// </summary>
     [Fact]
