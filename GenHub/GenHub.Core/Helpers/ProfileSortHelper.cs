@@ -16,7 +16,7 @@ public static class ProfileSortHelper
     /// Gets the display values a profile list is sorted by.
     /// </summary>
     /// <param name="Name">The profile name.</param>
-    /// <param name="LastPlayedAt">When the profile was last played, or the default value when never played.</param>
+    /// <param name="LastPlayedAt">When the profile was last played. The default value (which equals <see cref="DateTime.MinValue"/>) means never played, so callers projecting nullable timestamps must normalize null to default.</param>
     /// <param name="CreatedAt">When the profile was created.</param>
     /// <param name="DisplayOrder">The custom display order for free sort mode.</param>
     public sealed record ProfileSortKeys(string Name, DateTime LastPlayedAt, DateTime CreatedAt, int DisplayOrder);
@@ -64,8 +64,18 @@ public static class ProfileSortHelper
         };
     }
 
+    /// <summary>
+    /// Normalizes a persisted sort mode, falling back to last-played order for out-of-range values.
+    /// </summary>
+    /// <param name="sortMode">The persisted sort mode.</param>
+    /// <returns>The sort mode when defined; otherwise <see cref="ProfileSortMode.LastPlayed"/>.</returns>
+    public static ProfileSortMode NormalizeSortMode(ProfileSortMode sortMode)
+    {
+        return Enum.IsDefined(sortMode) ? sortMode : ProfileSortMode.LastPlayed;
+    }
+
     private static bool HasPlayed(DateTime lastPlayedAt)
     {
-        return lastPlayedAt != default && lastPlayedAt != DateTime.MinValue;
+        return lastPlayedAt != default;
     }
 }

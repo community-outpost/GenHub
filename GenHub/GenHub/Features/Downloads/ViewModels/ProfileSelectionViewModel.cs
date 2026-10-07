@@ -423,8 +423,7 @@ public sealed partial class ProfileSelectionViewModel(
 
     private ProfileSortMode ReadSortMode()
     {
-        var savedMode = userSettingsService?.Get().ProfileSortMode ?? ProfileSortMode.LastPlayed;
-        return Enum.IsDefined(savedMode) ? savedMode : ProfileSortMode.LastPlayed;
+        return ProfileSortHelper.NormalizeSortMode(userSettingsService?.Get().ProfileSortMode ?? ProfileSortMode.LastPlayed);
     }
 
     /// <summary>

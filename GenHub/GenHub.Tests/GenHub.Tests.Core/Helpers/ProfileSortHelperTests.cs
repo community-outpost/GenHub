@@ -86,6 +86,30 @@ public class ProfileSortHelperTests
     }
 
     /// <summary>
+    /// Verifies that defined sort modes pass normalization through unchanged.
+    /// </summary>
+    /// <param name="sortMode">The sort mode to normalize.</param>
+    [Theory]
+    [InlineData(ProfileSortMode.LastPlayed)]
+    [InlineData(ProfileSortMode.DateCreated)]
+    [InlineData(ProfileSortMode.Alphabetical)]
+    [InlineData(ProfileSortMode.AlphabeticalDesc)]
+    [InlineData(ProfileSortMode.Free)]
+    public void NormalizeSortMode_DefinedMode_ReturnsMode(ProfileSortMode sortMode)
+    {
+        Assert.Equal(sortMode, NormalizeSortMode(sortMode));
+    }
+
+    /// <summary>
+    /// Verifies that out-of-range sort modes fall back to last-played order.
+    /// </summary>
+    [Fact]
+    public void NormalizeSortMode_UndefinedMode_FallsBackToLastPlayed()
+    {
+        Assert.Equal(ProfileSortMode.LastPlayed, NormalizeSortMode((ProfileSortMode)99));
+    }
+
+    /// <summary>
     /// Verifies that unknown sort modes fall back to display order instead of throwing.
     /// </summary>
     [Fact]

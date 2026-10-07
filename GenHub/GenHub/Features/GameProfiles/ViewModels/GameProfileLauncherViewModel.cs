@@ -366,13 +366,13 @@ public partial class GameProfileLauncherViewModel(
                     _isLoadingSortMode = true;
                     var settings = userSettingsService.Get();
                     var savedSortMode = settings.ProfileSortMode;
-                    if (!Enum.IsDefined(savedSortMode))
+                    var normalizedSortMode = ProfileSortHelper.NormalizeSortMode(savedSortMode);
+                    if (normalizedSortMode != savedSortMode)
                     {
                         logger.LogWarning("Ignoring out-of-range saved profile sort mode {SortMode}", (int)savedSortMode);
-                        savedSortMode = ProfileSortMode.LastPlayed;
                     }
 
-                    SelectedSortMode = savedSortMode;
+                    SelectedSortMode = normalizedSortMode;
                     SelectedSortModeItem = AvailableSortModes.FirstOrDefault(o => o.Mode == SelectedSortMode);
                 }
                 catch (Exception ex)
