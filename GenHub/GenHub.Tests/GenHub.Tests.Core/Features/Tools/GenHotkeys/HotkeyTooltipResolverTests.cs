@@ -122,4 +122,31 @@ public class HotkeyTooltipResolverTests
         Assert.True(profile.CustomCameoMappings.ContainsKey("SACCOMDOZER"));
         Assert.Equal(@"C:\Cameos\CustomDozer.png", profile.CustomCameoMappings["SACCOMDOZER"]);
     }
+
+    /// <summary>
+    /// Verifies that CanShowTooltipEditor accurately reflects tooltip content or active editing state.
+    /// </summary>
+    [Fact]
+    public void CanShowTooltipEditor_ReflectsTooltipAndEditingState()
+    {
+        var vm = new HotkeyActionViewModel();
+        Assert.False(vm.CanShowTooltipEditor);
+
+        var propertyChangedList = new System.Collections.Generic.List<string>();
+        vm.PropertyChanged += (s, e) => propertyChangedList.Add(e.PropertyName!);
+
+        vm.IsEditingDescription = true;
+        Assert.True(vm.CanShowTooltipEditor);
+        Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
+
+        propertyChangedList.Clear();
+        vm.IsEditingDescription = false;
+        Assert.False(vm.CanShowTooltipEditor);
+        Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
+
+        propertyChangedList.Clear();
+        vm.Tooltip = "Orders unit to hold position.";
+        Assert.True(vm.CanShowTooltipEditor);
+        Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
+    }
 }

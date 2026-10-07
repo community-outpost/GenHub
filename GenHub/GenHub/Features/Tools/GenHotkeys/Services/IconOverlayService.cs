@@ -187,12 +187,14 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         OverlayCorner corner)
     {
         const int margin = 2;
+        var rightX = Math.Max(0, imageWidth - badgeWidth - margin);
+        var bottomY = Math.Max(0, imageHeight - badgeHeight - margin);
         return corner switch
         {
             OverlayCorner.TopLeft => (margin, margin),
-            OverlayCorner.TopRight => (imageWidth - badgeWidth - margin, margin),
-            OverlayCorner.BottomLeft => (margin, imageHeight - badgeHeight - margin),
-            OverlayCorner.BottomRight => (imageWidth - badgeWidth - margin, imageHeight - badgeHeight - margin),
+            OverlayCorner.TopRight => (rightX, margin),
+            OverlayCorner.BottomLeft => (margin, bottomY),
+            OverlayCorner.BottomRight => (rightX, bottomY),
             _ => (margin, margin),
         };
     }

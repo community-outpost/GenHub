@@ -76,6 +76,9 @@ public partial class HotkeyActionViewModel : ObservableObject
     /// <summary>Gets a value indicating whether a non-empty tooltip description is set.</summary>
     public bool HasTooltip => !string.IsNullOrWhiteSpace(Tooltip);
 
+    /// <summary>Gets a value indicating whether a tooltip description is present or currently being edited.</summary>
+    public bool CanShowTooltipEditor => HasTooltip || IsEditingDescription;
+
     /// <summary>Gets a value indicating whether the display name has been modified from default.</summary>
     public bool CanResetDisplayName => !string.Equals(DisplayName, DefaultDisplayName, StringComparison.Ordinal);
 
@@ -147,7 +150,13 @@ public partial class HotkeyActionViewModel : ObservableObject
     partial void OnTooltipChanged(string? value)
     {
         OnPropertyChanged(nameof(HasTooltip));
+        OnPropertyChanged(nameof(CanShowTooltipEditor));
         OnPropertyChanged(nameof(CanResetTooltip));
+    }
+
+    partial void OnIsEditingDescriptionChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanShowTooltipEditor));
     }
 
     partial void OnDefaultTooltipChanged(string? value)

@@ -107,6 +107,7 @@ public partial class GenHotkeysViewModel(
     private bool _isDisposed;
     private CancellationTokenSource? _reloadCts;
     private CancellationTokenSource? _addonCheckCts;
+    private CancellationTokenSource? _saveDebounceCts;
 
     [ObservableProperty]
     private GameType _selectedGame = GameType.ZeroHour;
@@ -446,7 +447,9 @@ public partial class GenHotkeysViewModel(
     [RelayCommand]
     public async Task BrowseCustomCameoAsync()
     {
-        if (SelectedAction == null || SelectedProfile == null)
+        var targetAction = SelectedAction;
+        var targetProfile = SelectedProfile;
+        if (targetAction == null || targetProfile == null)
         {
             return;
         }
@@ -475,11 +478,11 @@ public partial class GenHotkeysViewModel(
             var filePath = files[0].Path.LocalPath;
             if (File.Exists(filePath))
             {
-                SelectedAction.CustomImagePath = filePath;
-                SelectedProfile.CustomCameoMappings[SelectedAction.IconName] = filePath;
-                await LoadCustomBitmapAsync(filePath, bmp => SelectedAction.IconBitmap = bmp);
+                targetAction.CustomImagePath = filePath;
+                targetProfile.CustomCameoMappings[targetAction.IconName] = filePath;
+                await LoadCustomBitmapAsync(filePath, bmp => targetAction.IconBitmap = bmp);
                 await SaveCurrentProfileAsync(CancellationToken.None);
-                var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", SelectedAction.DisplayName);
+                var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
                 StatusMessage = successMsg;
             }
         }
@@ -1115,6 +1118,21 @@ public partial class GenHotkeysViewModel(
                 if (localizationService != null)
                 {
                     localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
+                }
+
+                var saveCts = Interlocked.Exchange(ref _saveDebounceCts, null);
+                if (saveCts != null)
+                {
+                    try
+                    {
+                        saveCts.Cancel();
+                    }
+                    catch (ObjectDisposedException ex)
+                    {
+                        logger.LogDebug(ex, "Save debounce CTS was disposed before cancellation");
+                    }
+
+                    saveCts.Dispose();
                 }
 
                 _saveSemaphore.Dispose();
@@ -2110,7 +2128,7 @@ public partial class GenHotkeysViewModel(
                 SelectedProfile.TitleMappings[action.HotkeyString] = action.DisplayName;
             }
 
-            _ = SaveCurrentProfileAsync(CancellationToken.None);
+            ScheduleDebouncedSaveProfile();
         }
         else if (e.PropertyName == nameof(HotkeyActionViewModel.Tooltip))
         {
@@ -2126,9 +2144,43 @@ public partial class GenHotkeysViewModel(
                     SelectedProfile.TooltipMappings[label] = action.Tooltip;
                 }
 
-                _ = SaveCurrentProfileAsync(CancellationToken.None);
+                ScheduleDebouncedSaveProfile();
             }
         }
+    }
+
+    private void ScheduleDebouncedSaveProfile()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        var oldCts = Interlocked.Exchange(ref _saveDebounceCts, new CancellationTokenSource());
+        if (oldCts != null)
+        {
+            try
+            {
+                oldCts.Cancel();
+            }
+            catch (ObjectDisposedException ex)
+            {
+                logger.LogDebug(ex, "Previous save debounce CTS was disposed before cancellation");
+            }
+
+            oldCts.Dispose();
+        }
+
+        var token = _saveDebounceCts.Token;
+        _ = Task.Delay(400, token).ContinueWith(
+            async t =>
+            {
+                if (!t.IsCanceled && !_isDisposed)
+                {
+                    await SaveCurrentProfileAsync(token);
+                }
+            },
+            TaskScheduler.Default);
     }
 
     private async Task SafeReloadAllAsync(CancellationToken cancellationToken)
@@ -2224,18 +2276,25 @@ public partial class GenHotkeysViewModel(
         {
             await Task.Run(() =>
             {
-                using var fs = File.OpenRead(filePath);
-                var bmp = new Bitmap(fs);
+                using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(filePath);
+                using var ms = new MemoryStream();
+                image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+                ms.Position = 0;
+                var bmp = new Bitmap(ms);
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (!_isDisposed)
                     {
                         onLoaded(bmp);
                     }
+                    else
+                    {
+                        bmp.Dispose();
+                    }
                 });
             });
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to load custom cameo bitmap from {Path}", filePath);
         }

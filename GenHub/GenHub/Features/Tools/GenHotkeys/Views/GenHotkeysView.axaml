@@ -24,7 +24,16 @@
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
       <hotkeyConverters:CornerToVerticalAlignmentConverter x:Key="CornerToVerticalAlignmentConverter" />
       <hotkeyConverters:FactionToImageConverter x:Key="FactionToImageConverter" />
-      <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
+            <hotkeyConverters:FactionToBrushConverter x:Key="FactionToBrushConverter" />
+
+      <!-- In-Game Tooltip Replica Brushes (exact SAGE ControlBarPopupDescription styling) -->
+      <SolidColorBrush x:Key="GeneralsTooltipBackgroundBrush" Color="#0B0B0B" />
+      <SolidColorBrush x:Key="GeneralsTooltipBorderBrush" Color="#333333" />
+      <SolidColorBrush x:Key="GeneralsTooltipHeaderBackgroundBrush" Color="#111111" />
+      <SolidColorBrush x:Key="GeneralsTooltipTitleBrush" Color="#FEFEFE" />
+      <SolidColorBrush x:Key="GeneralsTooltipHotkeyBrush" Color="#03C400" />
+      <SolidColorBrush x:Key="GeneralsTooltipDescriptionBrush" Color="#E0E0E0" />
+      <SolidColorBrush x:Key="GeneralsTooltipSeparatorBrush" Color="#222222" />
     </ResourceDictionary>
   </UserControl.Resources>
 
@@ -554,7 +563,7 @@
                 <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto">
                   <!-- Live Preview Cameo with superimposed hotkey -->
                   <Grid Grid.Column="0" Width="75" Height="60" Margin="0,0,10,0">
-                    <Border CornerRadius="4" ClipToBounds="True" Background="#111111" BorderBrush="#333333" BorderThickness="1">
+                    <Border CornerRadius="4" ClipToBounds="True" Background="{DynamicResource GeneralsTooltipHeaderBackgroundBrush}" BorderBrush="{DynamicResource GeneralsTooltipBorderBrush}" BorderThickness="1">
                       <Image Source="{Binding SelectedAction.IconBitmap}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <Border IsVisible="{Binding OverlayEnabled}"
@@ -616,34 +625,34 @@
                   </StackPanel>
                 </Grid>
 
-                <!-- SAGE In-Game Tooltip Box: Solid dark background (#0B0B0B), 1px border (#333333) -->
-                <Border Background="#0B0B0B" BorderBrush="#333333" BorderThickness="1" CornerRadius="4" Padding="10,8" MinHeight="50">
+                <!-- SAGE In-Game Tooltip Box: Solid dark background, 1px border -->
+                <Border Background="{DynamicResource GeneralsTooltipBackgroundBrush}" BorderBrush="{DynamicResource GeneralsTooltipBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="10,8" MinHeight="50">
                   <StackPanel Spacing="5">
-                    <!-- Title: SAGE HOTKEY_TEXT centered with in-game hilite green #03C400 -->
+                    <!-- Title: SAGE HOTKEY_TEXT centered with in-game hilite green -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                       <TextBlock Text="{Binding SelectedAction.TitleBeforeHotkey}"
-                                 Foreground="#FEFEFE"
+                                 Foreground="{DynamicResource GeneralsTooltipTitleBrush}"
                                  FontFamily="Arial, sans-serif"
                                  FontSize="12"
                                  FontWeight="Bold"/>
                       <TextBlock Text="{Binding SelectedAction.TitleHotkeyChar}"
-                                 Foreground="#03C400"
+                                 Foreground="{DynamicResource GeneralsTooltipHotkeyBrush}"
                                  FontFamily="Arial, sans-serif"
                                  FontSize="12"
                                  FontWeight="Bold"/>
                       <TextBlock Text="{Binding SelectedAction.TitleAfterHotkey}"
-                                 Foreground="#FEFEFE"
+                                 Foreground="{DynamicResource GeneralsTooltipTitleBrush}"
                                  FontFamily="Arial, sans-serif"
                                  FontSize="12"
                                  FontWeight="Bold"/>
                     </StackPanel>
 
                     <!-- Separator line -->
-                    <Border Height="1" Background="#222222" Margin="4,2"/>
+                    <Border Height="1" Background="{DynamicResource GeneralsTooltipSeparatorBrush}" Margin="4,2"/>
 
                     <!-- Description: Left-aligned in-game description text -->
                     <TextBlock Text="{Binding SelectedAction.Tooltip}"
-                               Foreground="#E0E0E0"
+                               Foreground="{DynamicResource GeneralsTooltipDescriptionBrush}"
                                FontFamily="Arial, sans-serif"
                                FontSize="11"
                                TextWrapping="Wrap"
@@ -655,7 +664,7 @@
                             HorizontalAlignment="Center"
                             Padding="10,4"
                             Margin="0,2,0,0"
-                            IsVisible="{Binding !SelectedAction.HasTooltip}">
+                            IsVisible="{Binding !SelectedAction.CanShowTooltipEditor}">
                       <StackPanel Orientation="Horizontal" Spacing="6">
                         <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" Foreground="{DynamicResource GeneralsAccentBrush}"/>
                         <TextBlock Text="{localization:Localize Tools.GenHotkeys.AddDescriptionPrompt}"
@@ -682,7 +691,7 @@
                 </Grid>
 
                 <!-- Tooltip Description Field (Shown if has tooltip or editing started) -->
-                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding SelectedAction.HasTooltip}">
+                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding SelectedAction.CanShowTooltipEditor}">
                   <TextBlock Grid.Column="0" Text="{localization:Localize Tools.GenHotkeys.TooltipFieldLabel}" FontSize="11" FontWeight="SemiBold" Width="68" VerticalAlignment="Top" Margin="0,6,0,0" Opacity="0.7"/>
                   <TextBox Grid.Column="1"
                            Text="{Binding SelectedAction.Tooltip, Mode=TwoWay}"

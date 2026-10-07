@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,16 +56,12 @@ public class HotkeyPackageService(
             cancellationToken.ThrowIfCancellationRequested();
 
             // Step 2: Render and stamp icon overlays (if enabled or if custom cameos exist)
-            var hasCustomCameos = profile.CustomCameoMappings.Count > 0;
+            var hasCustomCameos = profile.CustomCameoMappings.Any(kvp => !string.IsNullOrWhiteSpace(kvp.Value) && File.Exists(kvp.Value));
             if (profile.OverlayEnabled || hasCustomCameos)
             {
                 await GenerateOverlayTexturesAsync(profile, stagingDir, progress, cancellationToken);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-
-            // Step 2.5: Generate CommandButton.ini delta (if custom tooltips are set)
-            await GenerateCommandButtonIniAsync(profile, stagingDir, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             // Step 3: Pack staging folder into !Hotkeys_<ProfileName>_<Game>.big
@@ -256,7 +253,7 @@ public class HotkeyPackageService(
             }
         }
 
-        return action.Hotkey;
+        return action.Hotkey ?? action.DefaultHotkey;
     }
 
     private static async Task<string> PackBigArchiveAsync(
@@ -414,6 +411,7 @@ public class HotkeyPackageService(
 
         var factions = await techTreeService.LoadTechTreeAsync(profile.TargetGame, cancellationToken);
         var processedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var writtenIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var faction in factions)
         {
@@ -424,12 +422,16 @@ public class HotkeyPackageService(
                     profile,
                     texturesDir,
                     processedIcons,
+                    writtenIcons,
                     cancellationToken);
             }
         }
 
-        // Generate MappedImages INIs so SAGE engine binds cameos to our overlaid textures
-        await GenerateMappedImagesIniAsync(processedIcons, stagingDir, cancellationToken);
+        if (writtenIcons.Count > 0)
+        {
+            // Generate MappedImages INIs so SAGE engine binds cameos to our overlaid textures
+            await GenerateMappedImagesIniAsync(writtenIcons, stagingDir, cancellationToken);
+        }
     }
 
     private async Task ProcessGameObjectOverlaysAsync(
@@ -437,6 +439,7 @@ public class HotkeyPackageService(
         HotkeyProfile profile,
         string texturesDir,
         HashSet<string> processedIcons,
+        HashSet<string> writtenIcons,
         CancellationToken cancellationToken)
     {
         foreach (var layout in obj.KeyboardLayouts)
@@ -451,9 +454,10 @@ public class HotkeyPackageService(
                 var assignedHotkey = ResolveActionHotkey(action, profile);
                 var hasCustomCameo = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) && File.Exists(customPath);
 
+                var success = false;
                 if (hasCustomCameo)
                 {
-                    await TryRenderCustomCameoTgaAsync(
+                    success = await TryRenderCustomCameoTgaAsync(
                         action.IconName,
                         customPath!,
                         profile.OverlayEnabled ? assignedHotkey : null,
@@ -463,18 +467,23 @@ public class HotkeyPackageService(
                 }
                 else if (profile.OverlayEnabled && assignedHotkey.HasValue)
                 {
-                    await TryRenderOverlayTgaAsync(
+                    success = await TryRenderOverlayTgaAsync(
                         action.IconName,
                         assignedHotkey.Value,
                         profile,
                         texturesDir,
                         cancellationToken);
                 }
+
+                if (success)
+                {
+                    writtenIcons.Add(action.IconName);
+                }
             }
         }
     }
 
-    private async Task TryRenderOverlayTgaAsync(
+    private async Task<bool> TryRenderOverlayTgaAsync(
         string iconName,
         char hotkey,
         HotkeyProfile profile,
@@ -488,7 +497,7 @@ public class HotkeyPackageService(
 
         if (iconBytes == null || iconBytes.Length == 0)
         {
-            return;
+            return false;
         }
 
         try
@@ -501,6 +510,7 @@ public class HotkeyPackageService(
 
             var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
+            return true;
         }
         catch (OperationCanceledException)
         {
@@ -509,10 +519,11 @@ public class HotkeyPackageService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
+            return false;
         }
     }
 
-    private async Task TryRenderCustomCameoTgaAsync(
+    private async Task<bool> TryRenderCustomCameoTgaAsync(
         string iconName,
         string customImagePath,
         char? hotkey,
@@ -541,6 +552,7 @@ public class HotkeyPackageService(
 
             var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
+            return true;
         }
         catch (OperationCanceledException)
         {
@@ -549,61 +561,8 @@ public class HotkeyPackageService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to export custom cameo TGA for '{Icon}' from '{Path}'", iconName, customImagePath);
+            return false;
         }
-    }
-
-    private async Task GenerateCommandButtonIniAsync(
-        HotkeyProfile profile,
-        string stagingDir,
-        CancellationToken cancellationToken)
-    {
-        if (profile.TooltipMappings.Count == 0)
-        {
-            return;
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("; Custom CommandButton Tooltip DescriptLabels generated by GenHotkeys");
-        sb.AppendLine("; SAGE Game Engine merges these overrides on startup");
-        sb.AppendLine();
-
-        var writtenCount = 0;
-        foreach (var (label, _) in profile.TooltipMappings)
-        {
-            var buttonName = ResolveCommandButtonName(label);
-            if (!string.IsNullOrEmpty(buttonName))
-            {
-                sb.AppendLine($"CommandButton {buttonName}");
-                sb.AppendLine($"  DescriptLabel = {label}");
-                sb.AppendLine("End");
-                sb.AppendLine();
-                writtenCount++;
-            }
-        }
-
-        if (writtenCount > 0)
-        {
-            var iniDir = Path.Combine(stagingDir, "Data", "INI");
-            Directory.CreateDirectory(iniDir);
-            var iniPath = Path.Combine(iniDir, "CommandButton.ini");
-            await File.WriteAllTextAsync(iniPath, sb.ToString(), cancellationToken);
-        }
-    }
-
-    private string? ResolveCommandButtonName(string tooltipLabel)
-    {
-        return tooltipLabel switch
-        {
-            "CONTROLBAR:ToolTipStop" => "Command_Stop",
-            "CONTROLBAR:ToolTipGuard" => "Command_Guard",
-            "CONTROLBAR:ToolTipAttackMove" => "Command_AttackMove",
-            "CONTROLBAR:ToolTipDisarmMinesAtPosition" => "Command_DisarmMinesAtPosition",
-            "CONTROLBAR:ToolTipGuardFlyingUnitsOnly" => "Command_AirGuard",
-            "CONTROLBAR:ToolTipEvacuate" => "Command_Evacuate",
-            "CONTROLBAR:ToolTipSell" => "Command_Sell",
-            "CONTROLBAR:ToolTipRallyPoint" => "Command_SetRallyPoint",
-            _ => null,
-        };
     }
 
     private async Task<OperationResult<ContentManifest>> RegisterAddonManifestAsync(
