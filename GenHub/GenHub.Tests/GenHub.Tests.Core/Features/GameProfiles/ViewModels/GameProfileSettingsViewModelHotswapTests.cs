@@ -1115,11 +1115,7 @@ public class GameProfileSettingsViewModelHotswapTests
 
         bool profileSaved = false;
         _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
-            {
-                profileSaved = true;
-                return ProfileOperationResult<GameProfile>.CreateSuccess(profile, wasAppliedLive: true);
-            });
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
         // Initially not running; becomes running while save is in flight
         _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
@@ -1181,6 +1177,13 @@ public class GameProfileSettingsViewModelHotswapTests
 
         await _viewModel.InitializeForProfileAsync(profileId);
         _gameProfileManagerMock.Invocations.Clear();
+
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                profileSaved = true;
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile, wasAppliedLive: true);
+            });
 
         // Act
         await _viewModel.SaveCommand.ExecuteAsync(null);
