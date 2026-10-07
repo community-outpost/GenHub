@@ -17017,10 +17017,10 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>Profile save failed ({0}), and live content rollback reported: {1}</value>
   </data>
-    <data name="GameProfiles.Settings.Status.LiveSyncFailed" xml:space="preserve">
+  <data name="GameProfiles.Settings.Status.LiveSyncFailed" xml:space="preserve">
     <value>Live sync failed: {0}</value>
   </data>
-<data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
+  <data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
     <value>Failed to update profile: {0}. Live rollback failed: {1}</value>
   </data>
   <data name="GameProfiles.Settings.Status.LiveRollbackSucceeded" xml:space="preserve">
