@@ -1154,6 +1154,31 @@ public class GameProfileSettingsViewModelHotswapTests
         _manifestPoolMock.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
 
+        var mapManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(mapId),
+            Name = "Tournament Desert",
+            ContentType = ContentType.Map,
+        };
+        var installManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installId),
+            Name = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+        };
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(mapId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapManifest));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(installId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
+
+        _profileContentLinkerMock.Setup(p => p.UpdateProfileUserDataAsync(
+            profileId,
+            It.IsAny<IEnumerable<ContentManifest>>(),
+            It.IsAny<GameType>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         await _viewModel.InitializeForProfileAsync(profileId);
         _gameProfileManagerMock.Invocations.Clear();
 
@@ -1161,6 +1186,8 @@ public class GameProfileSettingsViewModelHotswapTests
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
+        // Successful profile update calls ExecuteCancel to request dialog close, setting StatusMessage to "Cancelled"
+        Assert.Equal("Cancelled", _viewModel.StatusMessage);
         _gameProfileManagerMock.Verify(
             m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Once);
