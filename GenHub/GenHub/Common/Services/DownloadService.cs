@@ -643,9 +643,13 @@ public class DownloadService(
         CancellationToken cancellationToken)
     {
         HttpResponseMessage response;
+
+        // Skip the Google Drive virus-scan interstitial: each Drive request for a large file can
+        // take ~30 seconds, so requesting the confirmed URL directly saves a full round trip.
+        var requestUri = CloudUrlHelper.ToConfirmedGoogleDriveDownloadUri(configuration.Url);
         if (!configuration.ValidateRedirectsManually)
         {
-            using var request = CreateRequest(configuration, configuration.Url, rangeStart);
+            using var request = CreateRequest(configuration, requestUri, rangeStart);
             response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
         else
@@ -653,7 +657,7 @@ public class DownloadService(
             var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
                 httpClient,
                 uri => CreateRequest(configuration, uri, rangeStart),
-                configuration.Url,
+                requestUri,
                 DownloadDefaults.MaxRedirects,
                 validator,
                 cancellationToken);
@@ -739,7 +743,9 @@ public class DownloadService(
         cts.CancelAfter(configuration.Timeout);
         var validator = urlValidator ?? new DownloadUrlValidator();
 
+        var connectStopwatch = Stopwatch.StartNew();
         var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
+        connectStopwatch.Stop();
 
         if (progress != null && connection.TotalBytes > 0)
         {
@@ -753,7 +759,8 @@ public class DownloadService(
                 TimeSpan.Zero);
         }
 
-        if (CanUseParallelDownload(configuration, connection))
+        if (CanUseParallelDownload(configuration, connection) &&
+            IsResponseLatencyAcceptableForParallel(configuration, connectStopwatch.Elapsed))
         {
             var parallelContext = new ParallelDownloadContext(
                 configuration,
@@ -984,6 +991,22 @@ public class DownloadService(
             return true;
         }
 
+        return false;
+    }
+
+    private bool IsResponseLatencyAcceptableForParallel(DownloadConfiguration configuration, TimeSpan responseLatency)
+    {
+        if (responseLatency <= configuration.ParallelDownloadMaxResponseLatency)
+        {
+            return true;
+        }
+
+        // Every chunk is a separate request that pays the same latency, so parallel mode would
+        // stall in waves and make progress jump. Stream the already-open response instead.
+        logger.LogInformation(
+            "Server for {Url} took {LatencyMs:N0} ms to respond; streaming sequentially instead of parallel chunks",
+            configuration.Url,
+            responseLatency.TotalMilliseconds);
         return false;
     }
 

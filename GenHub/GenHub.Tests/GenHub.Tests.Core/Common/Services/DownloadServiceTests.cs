@@ -1210,6 +1210,139 @@ public class DownloadServiceTests
     }
 
     /// <summary>
+    /// Verifies that a slow-responding origin is streamed sequentially from the already-open response
+    /// instead of issuing parallel chunk requests that would each pay the same latency.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_WhenInitialResponseIsSlow_StreamsSequentiallyWithoutChunkRequestsAsync()
+    {
+        const int totalBytes = 16 * 1024 * 1024;
+        var fullData = new byte[totalBytes];
+        Array.Fill(fullData, (byte)9);
+
+        var tempFile = Path.Combine(Path.GetTempPath(), $"slow_{Guid.NewGuid():N}.bin");
+        var chunkRequestsCount = 0;
+        var requestCount = 0;
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns(async (HttpRequestMessage request, CancellationToken token) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                if (request.Headers.Range != null)
+                {
+                    Interlocked.Increment(ref chunkRequestsCount);
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(50), token);
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(fullData),
+                };
+                response.Content.Headers.ContentLength = totalBytes;
+                response.Headers.AcceptRanges.Add("bytes");
+                response.Headers.ETag = new EntityTagHeaderValue("\"etag-slow\"");
+                return response;
+            });
+
+        var service = CreateService(handler.Object, out _);
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("http://test/slowfile.bin"),
+                DestinationPath = tempFile,
+                EnableParallelDownload = true,
+                ParallelConcurrency = 2,
+                ParallelDownloadMaxResponseLatency = TimeSpan.FromMilliseconds(1),
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            Assert.Equal(totalBytes, result.BytesDownloaded);
+            Assert.Equal(0, chunkRequestsCount);
+            Assert.Equal(1, requestCount);
+
+            var written = File.ReadAllBytes(tempFile);
+            Assert.Equal(totalBytes, written.Length);
+            Assert.Equal(9, written[^1]);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Google Drive downloads request the pre-confirmed URL directly so the slow
+    /// virus-scan warning interstitial round trip is skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFileAsync_GoogleDriveUrl_RequestsConfirmedDownloadUrlDirectlyAsync()
+    {
+        var content = new byte[] { 1, 2, 3 };
+        var requestedUris = new List<Uri>();
+
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
+            {
+                lock (requestedUris)
+                {
+                    requestedUris.Add(request.RequestUri!);
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(content),
+                };
+            });
+
+        var service = CreateService(handler.Object, out _);
+        var tempFile = Path.GetTempFileName();
+
+        try
+        {
+            var config = new DownloadConfiguration
+            {
+                Url = new Uri("https://drive.google.com/uc?export=download&id=file123"),
+                DestinationPath = tempFile,
+            };
+
+            var result = await service.DownloadFileAsync(config);
+
+            Assert.True(result.Success);
+            var requested = Assert.Single(requestedUris);
+            Assert.Equal(
+                "https://drive.usercontent.google.com/download?id=file123&export=download&confirm=t",
+                requested.AbsoluteUri);
+            Assert.Equal(content, File.ReadAllBytes(tempFile));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that GitHub Actions artifact zip endpoints bypass parallel chunk download and stream sequentially.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

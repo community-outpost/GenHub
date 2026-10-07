@@ -117,6 +117,84 @@ public static partial class CloudUrlHelper
         return !string.IsNullOrEmpty(confirmedUrl);
     }
 
+    /// <summary>
+    /// Rewrites a Google Drive file download URL into the pre-confirmed direct download form.
+    /// Google Drive answers unconfirmed requests for large files with a virus-scan warning page that can
+    /// take ~30 seconds to arrive, so confirming up front saves a full round trip. Non-Drive URLs,
+    /// URLs that already carry a confirmation token, and URLs without a file id are returned unchanged.
+    /// </summary>
+    /// <param name="uri">The download URI.</param>
+    /// <returns>The pre-confirmed Google Drive download URI, or <paramref name="uri"/> unchanged.</returns>
+    public static Uri ToConfirmedGoogleDriveDownloadUri(Uri uri)
+    {
+        ArgumentNullException.ThrowIfNull(uri);
+
+        if (!uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeHttps || HasQueryParam(uri.Query, "confirm"))
+        {
+            return uri;
+        }
+
+        var fileId = TryGetGoogleDriveDownloadFileId(uri);
+        if (string.IsNullOrEmpty(fileId))
+        {
+            return uri;
+        }
+
+        var confirmed = string.Format(
+            CultureInfo.InvariantCulture,
+            HostingConstants.GoogleDriveConfirmedDownloadUrlTemplate,
+            Uri.EscapeDataString(fileId));
+
+        // Older shared links require their resource key to be forwarded with the download.
+        var resourceKey = GetQueryParam(uri.Query, "resourcekey");
+        if (!string.IsNullOrEmpty(resourceKey))
+        {
+            confirmed += $"&resourcekey={Uri.EscapeDataString(resourceKey)}";
+        }
+
+        return new Uri(confirmed);
+    }
+
+    private static string? TryGetGoogleDriveDownloadFileId(Uri uri)
+    {
+        if (uri.Host.Equals(HostingConstants.GoogleDriveUserContentHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Equals("/download", StringComparison.OrdinalIgnoreCase) ||
+                   uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase)
+                ? GetQueryParam(uri.Query, "id")
+                : null;
+        }
+
+        if (!IsMatchingHost(uri.AbsoluteUri, "drive.google.com", "docs.google.com") ||
+            !uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return GetQueryParam(uri.Query, "id");
+    }
+
+    private static bool HasQueryParam(string query, string name) => GetQueryParam(query, name) != null;
+
+    private static string? GetQueryParam(string query, string name)
+    {
+        if (string.IsNullOrEmpty(query))
+        {
+            return null;
+        }
+
+        foreach (var segment in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = segment.Split('=', 2);
+            if (parts[0].Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return parts.Length == 2 ? Uri.UnescapeDataString(parts[1]) : string.Empty;
+            }
+        }
+
+        return null;
+    }
+
     private static Uri? ResolveGoogleDriveUri(string rawTarget, Uri? requestUri)
     {
         var rawUrl = rawTarget.Replace("&amp;", "&");

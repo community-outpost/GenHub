@@ -141,4 +141,52 @@ public class CloudUrlHelperTests
         Assert.False(success);
         Assert.Null(confirmedUrl);
     }
+
+    /// <summary>
+    /// Verifies that Google Drive download URLs are rewritten to the pre-confirmed direct download form.
+    /// </summary>
+    /// <param name="url">The input download URL.</param>
+    /// <param name="expected">The expected confirmed URL.</param>
+    [Theory]
+    [InlineData(
+        "https://drive.google.com/uc?export=download&id=abc_123",
+        "https://drive.usercontent.google.com/download?id=abc_123&export=download&confirm=t")]
+    [InlineData(
+        "https://docs.google.com/uc?id=abc-123&export=download",
+        "https://drive.usercontent.google.com/download?id=abc-123&export=download&confirm=t")]
+    [InlineData(
+        "https://drive.usercontent.google.com/download?id=abc&export=download",
+        "https://drive.usercontent.google.com/download?id=abc&export=download&confirm=t")]
+    [InlineData(
+        "https://drive.google.com/uc?export=download&id=abc&resourcekey=0-key",
+        "https://drive.usercontent.google.com/download?id=abc&export=download&confirm=t&resourcekey=0-key")]
+    public void ToConfirmedGoogleDriveDownloadUri_GoogleDriveDownload_ReturnsConfirmedUri(string url, string expected)
+    {
+        var result = CloudUrlHelper.ToConfirmedGoogleDriveDownloadUri(new Uri(url));
+
+        Assert.Equal(expected, result.AbsoluteUri);
+    }
+
+    /// <summary>
+    /// Verifies that non-Drive URLs, already-confirmed URLs, and URLs without a file id are left unchanged.
+    /// </summary>
+    /// <param name="url">The input URL.</param>
+    [Theory]
+    [InlineData("https://example.com/uc?export=download&id=abc")]
+    [InlineData("https://drive.usercontent.google.com/download?id=abc&export=download&confirm=t&uuid=x")]
+    [InlineData("https://drive.google.com/uc?export=download&confirm=tok&id=abc")]
+    [InlineData("https://drive.google.com/uc?export=download")]
+    [InlineData("https://drive.google.com/uc?export=download&id=")]
+    [InlineData("https://drive.google.com/file/d/abc/view")]
+    [InlineData("https://drive.google.com/drive/folders/abc")]
+    [InlineData("http://drive.google.com/uc?export=download&id=abc")]
+    [InlineData("https://evil-drive.google.com.example.com/uc?id=abc")]
+    public void ToConfirmedGoogleDriveDownloadUri_NotApplicable_ReturnsSameUri(string url)
+    {
+        var uri = new Uri(url);
+
+        var result = CloudUrlHelper.ToConfirmedGoogleDriveDownloadUri(uri);
+
+        Assert.Same(uri, result);
+    }
 }
