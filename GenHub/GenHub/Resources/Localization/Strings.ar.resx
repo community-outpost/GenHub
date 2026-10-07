@@ -18136,69 +18136,69 @@ Error: فشل: {3}
     <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
   </data>
   <data name="Tools.GenHotkeys.ChangeCameo" xml:space="preserve">
-    <value>Change Image...</value>
+    <value>تغيير الصورة...</value>
   </data>
   <data name="Tools.GenHotkeys.ChangeCameoTooltip" xml:space="preserve">
-    <value>Browse custom PNG, TGA, or BMP image for this cameo</value>
+    <value>استعراض صورة PNG أو TGA أو BMP مخصصة لهذه الأيقونة</value>
   </data>
   <data name="Tools.GenHotkeys.ResetCameo" xml:space="preserve">
-    <value>Reset</value>
+    <value>إعادة ضبط</value>
   </data>
   <data name="Tools.GenHotkeys.ResetCameoTooltip" xml:space="preserve">
-    <value>Reset to original game cameo texture</value>
+    <value>إعادة تعيين مظهر الأيقونة إلى الافتراضي للعبة</value>
   </data>
   <data name="Tools.GenHotkeys.TooltipPreviewTitle" xml:space="preserve">
-    <value>In-Game Tooltip Preview</value>
+    <value>معاينة التلميح داخل اللعبة</value>
   </data>
   <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
-    <value>+ Add description</value>
+    <value>+ إضافة وصف</value>
   </data>
   <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
-    <value>Assigned Hotkey</value>
+    <value>مفتاح الاختصار المعين</value>
   </data>
   <data name="Tools.GenHotkeys.SelectActionPrompt" xml:space="preserve">
-    <value>Select an action button to edit its hotkey, cameo image, title, and tooltip.</value>
+    <value>حدد زر إجراء لتعديل مفتاح الاختصار، وصورة الأيقونة، والعنوان، والتلميح الخاص به.</value>
   </data>
   <data name="Tools.GenHotkeys.CustomCameoActive" xml:space="preserve">
-    <value>Custom Cameo active</value>
+    <value>الأيقونة المخصصة نشطة</value>
   </data>
   <data name="Tools.GenHotkeys.DefaultGameCameo" xml:space="preserve">
-    <value>Default Game Cameo</value>
+    <value>أيقونة اللعبة الافتراضية</value>
   </data>
   <data name="Tools.GenHotkeys.ResetTitle" xml:space="preserve">
-    <value>Reset Title</value>
+    <value>إعادة تعيين العنوان</value>
   </data>
   <data name="Tools.GenHotkeys.ResetTooltip" xml:space="preserve">
-    <value>Reset Tooltip</value>
+    <value>إعادة تعيين التلميح</value>
   </data>
   <data name="Tools.GenHotkeys.TitleFieldLabel" xml:space="preserve">
-    <value>Title:</value>
+    <value>العنوان:</value>
   </data>
   <data name="Tools.GenHotkeys.TitleWatermark" xml:space="preserve">
-    <value>Action Title</value>
+    <value>عنوان الإجراء</value>
   </data>
   <data name="Tools.GenHotkeys.TooltipFieldLabel" xml:space="preserve">
-    <value>Tooltip:</value>
+    <value>التلميح:</value>
   </data>
   <data name="Tools.GenHotkeys.TooltipWatermark" xml:space="preserve">
-    <value>Action Tooltip Description</value>
+    <value>وصف تلميح الإجراء</value>
   </data>
   <data name="Tools.GenHotkeys.SelectCameoImage" xml:space="preserve">
-    <value>Select Cameo Image</value>
+    <value>اختر صورة الأيقونة</value>
   </data>
   <data name="Tools.GenHotkeys.ImageFiles" xml:space="preserve">
-    <value>Image Files</value>
+    <value>ملفات الصور</value>
   </data>
   <data name="Tools.GenHotkeys.Status.CustomCameoApplied" xml:space="preserve">
-    <value>Custom cameo set for {0}</value>
+    <value>تم تعيين أيقونة مخصصة لـ {0}</value>
   </data>
   <data name="Tools.GenHotkeys.Status.CustomCameoReset" xml:space="preserve">
-    <value>Custom cameo reset to default for {0}</value>
+    <value>تمت إعادة تعيين الأيقونة الافتراضية لـ {0}</value>
   </data>
   <data name="Tools.GenHotkeys.Status.TitleReset" xml:space="preserve">
-    <value>Title reset to default for {0}</value>
+    <value>تمت إعادة تعيين العنوان الافتراضي لـ {0}</value>
   </data>
   <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
-    <value>Tooltip reset to default for {0}</value>
+    <value>تمت إعادة تعيين التلميح الافتراضي لـ {0}</value>
   </data>
 </root>

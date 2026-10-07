@@ -151,10 +151,16 @@ public class HotkeyPackageService(
         // Apply customized tooltip descriptions
         foreach (var (label, description) in profile.TooltipMappings)
         {
-            if (!string.IsNullOrWhiteSpace(description))
+            if (string.IsNullOrWhiteSpace(description))
             {
-                baseCsf.SetString(label, description);
+                continue;
             }
+
+            var targetLabel = GenHotkeysConstants.RetailActionToTooltipMap.TryGetValue(label, out var mapped)
+                ? mapped
+                : label;
+
+            baseCsf.SetString(targetLabel, description);
         }
 
         // Synchronize all shortcut aliases with their primary labels in baseCsf
@@ -558,7 +564,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SixLabors.ImageSharp.ImageFormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or InvalidDataException or ArgumentException or SixLabors.ImageSharp.ImageFormatException)
         {
             logger.LogWarning(ex, "Failed to export custom cameo TGA for '{Icon}' from '{Path}'", iconName, customImagePath);
             return false;

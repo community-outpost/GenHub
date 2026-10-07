@@ -60,10 +60,10 @@ public partial class HotkeyProfile : ObservableObject
     /// </summary>
     public void NormalizeComparers()
     {
-        KeyMappings = new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase);
-        ClearedKeys = new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase);
-        TooltipMappings = new Dictionary<string, string>(TooltipMappings, StringComparer.OrdinalIgnoreCase);
-        TitleMappings = new Dictionary<string, string>(TitleMappings, StringComparer.OrdinalIgnoreCase);
-        CustomCameoMappings = new Dictionary<string, string>(CustomCameoMappings, StringComparer.OrdinalIgnoreCase);
+        KeyMappings = KeyMappings != null ? new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        ClearedKeys = ClearedKeys != null ? new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        TooltipMappings = TooltipMappings != null ? new Dictionary<string, string>(TooltipMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        TitleMappings = TitleMappings != null ? new Dictionary<string, string>(TitleMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+        CustomCameoMappings = CustomCameoMappings != null ? new Dictionary<string, string>(CustomCameoMappings, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
     }
 }

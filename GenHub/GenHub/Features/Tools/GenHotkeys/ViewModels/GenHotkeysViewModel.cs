@@ -2119,6 +2119,11 @@ public partial class GenHotkeysViewModel(
 
         if (e.PropertyName == nameof(HotkeyActionViewModel.DisplayName))
         {
+            if (string.IsNullOrEmpty(action.HotkeyString))
+            {
+                return;
+            }
+
             if (string.Equals(action.DisplayName, action.DefaultDisplayName, StringComparison.Ordinal))
             {
                 SelectedProfile.TitleMappings.Remove(action.HotkeyString);
@@ -2452,16 +2457,18 @@ public partial class GenHotkeysViewModel(
                         action.Tooltip = action.DefaultTooltip;
                     }
 
-                    if (SelectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
-                        File.Exists(customPath))
+                    var hasCustom = SelectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
+                        File.Exists(customPath);
+                    var targetCustomPath = hasCustom ? customPath : null;
+
+                    if (!string.Equals(action.CustomImagePath, targetCustomPath, StringComparison.OrdinalIgnoreCase))
                     {
-                        action.CustomImagePath = customPath;
-                        _ = LoadCustomBitmapAsync(customPath, bmp => action.IconBitmap = bmp);
-                    }
-                    else
-                    {
-                        action.CustomImagePath = null;
-                        _ = LoadBitmapAsync(action.IconName, SelectedGame, bmp => action.IconBitmap = bmp);
+                        action.CustomImagePath = targetCustomPath;
+                        LoadBitmapForIcon(
+                            bmp => action.IconBitmap = bmp,
+                            action.IconName,
+                            targetCustomPath,
+                            CancellationToken.None);
                     }
                 }
             }

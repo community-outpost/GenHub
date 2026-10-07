@@ -67,6 +67,7 @@ public static class VlcRuntimeConstants
     /// Gets the expected SHA-512 digest, honoring environment variable overrides.
     /// </summary>
     public static string ExpectedSha512 =>
+        Environment.GetEnvironmentVariable(VlcPackageUrlEnvVar) is { Length: > 0 } &&
         Environment.GetEnvironmentVariable(VlcPackageSha512EnvVar) is { Length: > 0 } customHash
             ? customHash
             : DefaultPackageSha512;

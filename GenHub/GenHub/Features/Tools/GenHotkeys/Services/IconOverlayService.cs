@@ -1,9 +1,11 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Tools.GenHotkeys;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -80,6 +82,10 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
                 logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
                 using var image = Image.Load<Rgba32>(sourceIconBytes);
+                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
+                {
+                    image.Mutate(x => x.Resize(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight));
+                }
 
                 var badgeChar = char.ToUpperInvariant(hotkey);
                 StampBadge(image, badgeChar, corner);
@@ -110,6 +116,11 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var image = Image.Load<Rgba32>(sourceIconBytes);
+                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
+                {
+                    image.Mutate(x => x.Resize(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight));
+                }
+
                 using var ms = new MemoryStream();
                 var tgaEncoder = new TgaEncoder
                 {

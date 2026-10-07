@@ -426,12 +426,13 @@ public class VlcRuntimeService(
 
     private async Task<bool> DownloadPackageAsync(string destinationPath, IProgress<double>? progress, CancellationToken cancellationToken)
     {
-        var monotonicProgress = progress != null ? new MonotonicProgress(progress) : null;
-        var downloaded = await TryDownloadAsync(VlcRuntimeConstants.PrimaryDownloadUrl, destinationPath, monotonicProgress, cancellationToken).ConfigureAwait(false);
+        var primaryProgress = progress != null ? new MonotonicProgress(progress) : null;
+        var downloaded = await TryDownloadAsync(VlcRuntimeConstants.PrimaryDownloadUrl, destinationPath, primaryProgress, cancellationToken).ConfigureAwait(false);
         if (!downloaded)
         {
             logger.LogWarning("Primary LibVLC download failed, attempting fallback URL...");
-            downloaded = await TryDownloadAsync(VlcRuntimeConstants.FallbackDownloadUrl, destinationPath, monotonicProgress, cancellationToken).ConfigureAwait(false);
+            var fallbackProgress = progress != null ? new MonotonicProgress(progress) : null;
+            downloaded = await TryDownloadAsync(VlcRuntimeConstants.FallbackDownloadUrl, destinationPath, fallbackProgress, cancellationToken).ConfigureAwait(false);
         }
 
         if (!downloaded)

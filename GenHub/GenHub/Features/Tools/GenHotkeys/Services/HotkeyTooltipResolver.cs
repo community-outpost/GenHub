@@ -65,11 +65,22 @@ public static class HotkeyTooltipResolver
         }
 
         // 4. Default synthetic label if not present in retail CSF
-        var defaultLabel = !string.IsNullOrWhiteSpace(hotkeyString)
-            ? (hotkeyString.StartsWith("CONTROLBAR:", StringComparison.OrdinalIgnoreCase)
-                ? $"CONTROLBAR:ToolTip{hotkeyString["CONTROLBAR:".Length..]}"
-                : $"CONTROLBAR:ToolTip{hotkeyString}")
-            : $"CONTROLBAR:ToolTip{iconName}";
+        string defaultLabel;
+        if (!string.IsNullOrWhiteSpace(hotkeyString))
+        {
+            if (hotkeyString.StartsWith("CONTROLBAR:", StringComparison.OrdinalIgnoreCase))
+            {
+                defaultLabel = $"CONTROLBAR:ToolTip{hotkeyString["CONTROLBAR:".Length..]}";
+            }
+            else
+            {
+                defaultLabel = $"CONTROLBAR:ToolTip{hotkeyString}";
+            }
+        }
+        else
+        {
+            defaultLabel = $"CONTROLBAR:ToolTip{iconName}";
+        }
 
         return (defaultLabel, null);
     }
