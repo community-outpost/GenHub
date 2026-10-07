@@ -1855,19 +1855,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     throw;
                 }
-                catch (InvalidOperationException saveEx)
-                {
-                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
-                }
-                catch (System.IO.IOException saveEx)
-                {
-                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
-                }
-                catch (UnauthorizedAccessException saveEx)
-                {
-                    _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
-                }
-                catch (System.Text.Json.JsonException saveEx)
+                catch (Exception saveEx) when (saveEx is InvalidOperationException
+                    or System.IO.IOException
+                    or UnauthorizedAccessException
+                    or System.Security.SecurityException
+                    or NotSupportedException
+                    or ArgumentException
+                    or System.Text.Json.JsonException)
                 {
                     _logger.LogWarning(saveEx, "Failed to persist rollback settings for subscribed custom build version");
                 }
