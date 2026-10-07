@@ -20,8 +20,9 @@ public class FactionToBrushConverter : IValueConverter
         {
             HotkeyFaction faction => faction.FactionGroup,
             string s => s,
-            _ => HotkeyFaction.UsaGroup,
+            _ => null,
         };
+        group ??= parameter as string ?? HotkeyFaction.UsaGroup;
 
         if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
@@ -44,7 +45,9 @@ public class FactionToBrushConverter : IValueConverter
 
     private static IBrush? TryGetThemeBrush(string resourceKey)
     {
-        if (Application.Current?.TryFindResource(resourceKey, out var resource) == true && resource is IBrush brush)
+        if (Application.Current != null &&
+            Application.Current.TryGetResource(resourceKey, Application.Current.ActualThemeVariant, out var res) &&
+            res is IBrush brush)
         {
             return brush;
         }

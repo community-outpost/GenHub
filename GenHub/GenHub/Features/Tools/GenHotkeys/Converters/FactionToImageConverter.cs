@@ -1,7 +1,8 @@
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using GenHub.Core.Models.Tools.GenHotkeys;
-using GenHub.Features.Tools.GenHotkeys.Services;
 using System;
 using System.Globalization;
 using System.IO;
@@ -9,7 +10,7 @@ using System.IO;
 namespace GenHub.Features.Tools.GenHotkeys.Converters;
 
 /// <summary>
-/// Converts a faction or faction group string to the corresponding authentic transparent faction logo <see cref="Bitmap"/>.
+/// Converts a faction or faction group string to its corresponding emblem <see cref="Bitmap"/>.
 /// </summary>
 public class FactionToImageConverter : IValueConverter
 {
@@ -24,8 +25,9 @@ public class FactionToImageConverter : IValueConverter
         {
             HotkeyFaction faction => faction.FactionGroup,
             string s => s,
-            _ => HotkeyFaction.UsaGroup,
+            _ => null,
         };
+        group ??= parameter as string ?? HotkeyFaction.UsaGroup;
 
         if (string.Equals(group, HotkeyFaction.ChinaGroup, StringComparison.OrdinalIgnoreCase))
         {
@@ -46,19 +48,20 @@ public class FactionToImageConverter : IValueConverter
         throw new NotSupportedException();
     }
 
-    private static Bitmap? LoadAssetBitmap(string filename)
+    private static Bitmap? LoadAssetBitmap(string fileName)
     {
         try
         {
-            using var stream = GenHotkeysAssetLoader.TryOpenFactionIconStream(filename);
-            if (stream != null)
+            var uri = new Uri($"avares://GenHub/Assets/Icons/Factions/{fileName}");
+            if (AssetLoader.Exists(uri))
             {
+                using var stream = AssetLoader.Open(uri);
                 return new Bitmap(stream);
             }
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or NotSupportedException)
         {
-            // Fall back to null if resource cannot be loaded
+            // Fall through
         }
 
         return null;

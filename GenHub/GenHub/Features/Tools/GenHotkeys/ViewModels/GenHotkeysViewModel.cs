@@ -108,12 +108,16 @@ public partial class GenHotkeysViewModel(
     private CancellationTokenSource? _reloadCts;
     private CancellationTokenSource? _addonCheckCts;
     private CancellationTokenSource? _saveDebounceCts;
+    private bool _isUpdatingFactionSelection;
 
     [ObservableProperty]
     private GameType _selectedGame = GameType.ZeroHour;
 
     [ObservableProperty]
     private HotkeyProfile? _selectedProfile;
+
+    [ObservableProperty]
+    private string _selectedFactionGroup = HotkeyFaction.UsaGroup;
 
     [ObservableProperty]
     private HotkeyFaction? _selectedFaction;
@@ -180,7 +184,15 @@ public partial class GenHotkeysViewModel(
     /// <summary>Gets the list of available profiles for the current game.</summary>
     public ObservableCollection<HotkeyProfile> Profiles { get; } = [];
 
-    /// <summary>Gets the list of factions for the current game.</summary>
+    /// <summary>Gets the list of available primary faction groups (USA, China, GLA).</summary>
+    public IReadOnlyList<string> AvailableFactionGroups { get; } =
+    [
+        HotkeyFaction.UsaGroup,
+        HotkeyFaction.ChinaGroup,
+        HotkeyFaction.GlaGroup,
+    ];
+
+    /// <summary>Gets the list of factions for the current faction group.</summary>
     public ObservableCollection<HotkeyFaction> Factions { get; } = [];
 
     /// <summary>Gets the filtered list of game objects based on category and faction.</summary>
@@ -283,6 +295,26 @@ public partial class GenHotkeysViewModel(
         {
             _isInitializing = false;
         }
+    }
+
+    /// <summary>
+    /// Selects the primary faction group (e.g. USA, China, GLA).
+    /// </summary>
+    /// <param name="group">The primary faction group name.</param>
+    [RelayCommand]
+    public void SelectFactionGroup(string? group)
+    {
+        if (string.IsNullOrWhiteSpace(group))
+        {
+            return;
+        }
+
+        if (string.Equals(SelectedFactionGroup, group, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        SelectedFactionGroup = group;
     }
 
     /// <summary>
@@ -2061,8 +2093,44 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    partial void OnSelectedFactionGroupChanged(string value)
+    {
+        if (_isUpdatingFactionSelection)
+        {
+            return;
+        }
+
+        _isUpdatingFactionSelection = true;
+        try
+        {
+            UpdateFactionsForGroup(value);
+        }
+        finally
+        {
+            _isUpdatingFactionSelection = false;
+        }
+    }
+
     partial void OnSelectedFactionChanged(HotkeyFaction? value)
     {
+        if (value != null && !_isUpdatingFactionSelection &&
+            !string.Equals(SelectedFactionGroup, value.FactionGroup, StringComparison.OrdinalIgnoreCase))
+        {
+            _isUpdatingFactionSelection = true;
+            try
+            {
+                SelectedFactionGroup = value.FactionGroup;
+                if (_allFactions.Count > 0)
+                {
+                    UpdateFactionsForGroup(value.FactionGroup, preserveSelectedFaction: true);
+                }
+            }
+            finally
+            {
+                _isUpdatingFactionSelection = false;
+            }
+        }
+
         FilterGameObjects(CancellationToken.None);
     }
 
@@ -2229,16 +2297,42 @@ public partial class GenHotkeysViewModel(
         _allFactions = (await techTreeService.LoadTechTreeAsync(SelectedGame, cancellationToken)).ToList();
         cancellationToken.ThrowIfCancellationRequested();
 
-        Factions.Clear();
-        foreach (var f in _allFactions)
-        {
-            Factions.Add(f);
-        }
-
-        SelectedFaction = Factions.FirstOrDefault();
+        UpdateFactionsForGroup(SelectedFactionGroup);
         FilterGameObjects(cancellationToken);
 
         await CheckExistingAddonAsync(cancellationToken);
+    }
+
+    private void UpdateFactionsForGroup(string group, bool preserveSelectedFaction = false)
+    {
+        if (_allFactions.Count == 0)
+        {
+            Factions.Clear();
+            return;
+        }
+
+        var matching = _allFactions
+            .Where(f => string.Equals(f.FactionGroup, group, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var targetList = matching.Count > 0 ? matching : _allFactions;
+
+        if (!Factions.SequenceEqual(targetList))
+        {
+            Factions.Clear();
+            foreach (var f in targetList)
+            {
+                Factions.Add(f);
+            }
+        }
+
+        if (preserveSelectedFaction && SelectedFaction != null &&
+            targetList.Any(f => string.Equals(f.ShortName, SelectedFaction.ShortName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        SelectedFaction = targetList.FirstOrDefault();
     }
 
     private void FilterGameObjects(CancellationToken cancellationToken = default)

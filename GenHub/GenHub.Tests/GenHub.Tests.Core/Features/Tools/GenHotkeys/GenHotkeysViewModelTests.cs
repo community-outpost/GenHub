@@ -779,4 +779,110 @@ public class GenHotkeysViewModelTests
             n => n.ShowInfo("Hotkey Reset", It.Is<string>(s => s.Contains("Reset 'Ranger' to default hotkey")), NotificationDurations.Short, false),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that SelectFactionGroup filters the Factions collection to only factions belonging to the selected group.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectFactionGroup_FiltersFactionsCollection_ToSelectedGroup()
+    {
+        var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
+        var factionAir = new HotkeyFaction { ShortName = "AIR", DisplayName = "AIR" };
+        var factionChina = new HotkeyFaction { ShortName = "CHINA", DisplayName = "China" };
+        var factionTank = new HotkeyFaction { ShortName = "TANK", DisplayName = "Tank" };
+        var factionGla = new HotkeyFaction { ShortName = "GLA", DisplayName = "GLA" };
+        var factionTox = new HotkeyFaction { ShortName = "TOX", DisplayName = "Tox" };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa, factionAir, factionChina, factionTank, factionGla, factionTox]);
+
+        var profile = new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        // Initial default group is USA
+        Assert.Equal(HotkeyFaction.UsaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionUsa, vm.Factions);
+        Assert.Contains(factionAir, vm.Factions);
+        Assert.Equal(factionUsa, vm.SelectedFaction);
+
+        // Switch to China
+        vm.SelectFactionGroup(HotkeyFaction.ChinaGroup);
+        Assert.Equal(HotkeyFaction.ChinaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionChina, vm.Factions);
+        Assert.Contains(factionTank, vm.Factions);
+        Assert.Equal(factionChina, vm.SelectedFaction);
+
+        // Switch to GLA
+        vm.SelectFactionGroup(HotkeyFaction.GlaGroup);
+        Assert.Equal(HotkeyFaction.GlaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionGla, vm.Factions);
+        Assert.Contains(factionTox, vm.Factions);
+        Assert.Equal(factionGla, vm.SelectedFaction);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedFaction directly updates SelectedFactionGroup to match.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectedFactionChanged_UpdatesSelectedFactionGroup()
+    {
+        var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
+        var factionChina = new HotkeyFaction { ShortName = "CHINA", DisplayName = "China" };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa, factionChina]);
+
+        var profile = new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        Assert.Equal(HotkeyFaction.UsaGroup, vm.SelectedFactionGroup);
+
+        // Directly set SelectedFaction to a China faction (e.g. via conflict navigation)
+        vm.SelectedFaction = factionChina;
+
+        Assert.Equal(HotkeyFaction.ChinaGroup, vm.SelectedFactionGroup);
+        Assert.Contains(factionChina, vm.Factions);
+        Assert.Equal(factionChina, vm.SelectedFaction);
+    }
+
+    /// <summary>
+    /// Verifies that AvailableFactionGroups contains USA, China, and GLA.
+    /// </summary>
+    [Fact]
+    public void AvailableFactionGroups_ContainsExpectedGroups()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        Assert.Equal(3, vm.AvailableFactionGroups.Count);
+        Assert.Contains(HotkeyFaction.UsaGroup, vm.AvailableFactionGroups);
+        Assert.Contains(HotkeyFaction.ChinaGroup, vm.AvailableFactionGroups);
+        Assert.Contains(HotkeyFaction.GlaGroup, vm.AvailableFactionGroups);
+    }
 }

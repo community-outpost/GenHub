@@ -19,6 +19,7 @@
         <ResourceInclude Source="/Features/Tools/Views/ToolIcons.axaml" />
       </ResourceDictionary.MergedDictionaries>
 
+      <converters:EqualityConverter x:Key="EqualityConverter" />
       <converters:NotNullConverter x:Key="NotNullConverter" />
       <converters:BoolToBorderConverter x:Key="BoolToBorderConverter" />
       <hotkeyConverters:CornerToHorizontalAlignmentConverter x:Key="CornerToHorizontalAlignmentConverter" />
@@ -118,6 +119,71 @@
     </Style>
     <Style Selector="Button.action-card.conflict:pointerover /template/ ContentPresenter#PART_ContentPresenter">
       <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+    </Style>
+
+    <!-- Main Faction Tab Buttons (USA / China / GLA) -->
+    <Style Selector="Button.FactionTab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1.5" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Padding" Value="4,6" />
+      <Setter Property="Margin" Value="1,0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.FactionTab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+    </Style>
+
+    <!-- Selected USA Tab -->
+    <Style Selector="Button.FactionTab.selected.usa">
+      <Setter Property="Background" Value="#221E88E5" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.usa /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#221E88E5" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.usa:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#331E88E5" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
+    </Style>
+
+    <!-- Selected China Tab -->
+    <Style Selector="Button.FactionTab.selected.china">
+      <Setter Property="Background" Value="#22E53935" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.china /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#22E53935" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.china:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#33E53935" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
+    </Style>
+
+    <!-- Selected GLA Tab -->
+    <Style Selector="Button.FactionTab.selected.gla">
+      <Setter Property="Background" Value="#2243A047" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.gla /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#2243A047" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+    </Style>
+    <Style Selector="Button.FactionTab.selected.gla:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#3343A047" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
     </Style>
   </UserControl.Styles>
 
@@ -349,12 +415,65 @@
     </Border>
 
     <!-- MAIN BODY: FACTIONS + ENTITIES + COMMAND CARDS + KEYBOARD ASSIGNMENT -->
-    <Grid Grid.Row="1" ColumnDefinitions="250,*,380" Margin="0,0,0,8">
+    <Grid Grid.Row="1" ColumnDefinitions="260,*,380" Margin="0,0,0,8">
       <!-- LEFT: Factions & GameObjects List with Faction Icons -->
       <Border Grid.Column="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="8" Margin="0,0,8,0">
-        <Grid RowDefinitions="Auto,*">
-          <!-- Faction Selector with Icons for USA, GLA, China -->
-          <ComboBox Grid.Row="0"
+        <Grid RowDefinitions="Auto,Auto,*">
+          <!-- Primary Faction Tabs (USA, China, GLA) -->
+          <Border Grid.Row="0"
+                  Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                  BorderBrush="{DynamicResource BorderSubtleBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="3"
+                  Margin="0,0,0,8">
+            <UniformGrid Columns="3">
+              <!-- USA Tab -->
+              <Button Command="{Binding SelectFactionGroupCommand}"
+                      CommandParameter="USA"
+                      Classes="FactionTab usa"
+                      Classes.selected="{Binding SelectedFactionGroup, Converter={StaticResource EqualityConverter}, ConverterParameter=USA}">
+                <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Image Source="{Binding Converter={StaticResource FactionToImageConverter}, ConverterParameter=USA}"
+                         Width="16" Height="16"
+                         Stretch="Uniform"
+                         VerticalAlignment="Center"/>
+                  <TextBlock Text="USA" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+
+              <!-- China Tab -->
+              <Button Command="{Binding SelectFactionGroupCommand}"
+                      CommandParameter="China"
+                      Classes="FactionTab china"
+                      Classes.selected="{Binding SelectedFactionGroup, Converter={StaticResource EqualityConverter}, ConverterParameter=China}">
+                <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Image Source="{Binding Converter={StaticResource FactionToImageConverter}, ConverterParameter=China}"
+                         Width="16" Height="16"
+                         Stretch="Uniform"
+                         VerticalAlignment="Center"/>
+                  <TextBlock Text="China" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+
+              <!-- GLA Tab -->
+              <Button Command="{Binding SelectFactionGroupCommand}"
+                      CommandParameter="GLA"
+                      Classes="FactionTab gla"
+                      Classes.selected="{Binding SelectedFactionGroup, Converter={StaticResource EqualityConverter}, ConverterParameter=GLA}">
+                <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Image Source="{Binding Converter={StaticResource FactionToImageConverter}, ConverterParameter=GLA}"
+                         Width="16" Height="16"
+                         Stretch="Uniform"
+                         VerticalAlignment="Center"/>
+                  <TextBlock Text="GLA" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </UniformGrid>
+          </Border>
+
+          <!-- Sub-faction / Army Selector with Icons (Filtered: max 4 options) -->
+          <ComboBox Grid.Row="1"
                     ItemsSource="{Binding Factions}"
                     SelectedItem="{Binding SelectedFaction}"
                     HorizontalAlignment="Stretch"
@@ -409,7 +528,7 @@
           </ComboBox>
 
           <!-- Structures & Units List: Clean transparent background with consistent hover/selection feel -->
-          <ListBox Grid.Row="1"
+          <ListBox Grid.Row="2"
                    ItemsSource="{Binding FilteredGameObjects}"
                    SelectedItem="{Binding SelectedGameObject}"
                    Background="Transparent"
