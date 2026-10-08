@@ -6603,15 +6603,43 @@ public partial class ContentDetailViewModel(
             }
         }
 
-        if (searchResult.GetData<CatalogContentItem>() is { } catalogContent)
+        var catalogContent = searchResult.GetData<CatalogContentItem>()
+            ?? TryDeserializeCatalogContent(baseResult)
+            ?? TryDeserializeCatalogContent(searchResult);
+        if (catalogContent != null)
         {
             var matchingRelease = catalogContent.Releases.FirstOrDefault(r => string.Equals(r.Version, file.Version, StringComparison.OrdinalIgnoreCase))
                 ?? catalogContent.AddonReleases?.FirstOrDefault(a => string.Equals(a.Version, file.Version, StringComparison.OrdinalIgnoreCase));
             if (matchingRelease != null)
             {
-                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = System.Text.Json.JsonSerializer.Serialize(matchingRelease);
+                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(matchingRelease);
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves the catalog content item backing a search result. Generic catalog discoverers
+    /// embed it as JSON resolver metadata rather than a typed payload, so both shapes are supported.
+    /// Without this fallback every release row resolves the card's release instead of its own version.
+    /// </summary>
+    /// <param name="result">The search result carrying catalog metadata.</param>
+    /// <returns>The deserialized catalog content item, or null when absent or invalid.</returns>
+    private static CatalogContentItem? TryDeserializeCatalogContent(ContentSearchResult result)
+    {
+        if (result.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var catalogItemJson) &&
+            !string.IsNullOrWhiteSpace(catalogItemJson))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
