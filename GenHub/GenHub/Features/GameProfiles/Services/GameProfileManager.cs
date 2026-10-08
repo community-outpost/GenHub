@@ -198,7 +198,15 @@ public class GameProfileManager(
         }
 
         var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
-        await profileLock.WaitAsync(cancellationToken);
+        try
+        {
+            await profileLock.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+
         try
         {
             var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
@@ -256,7 +264,7 @@ public class GameProfileManager(
         }
         catch (OperationCanceledException)
         {
-            throw;
+            throw new OperationCanceledException(cancellationToken);
         }
         catch (Exception ex)
         {
