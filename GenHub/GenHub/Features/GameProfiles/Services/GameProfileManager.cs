@@ -240,77 +240,12 @@ public class GameProfileManager(
             ApplyUpdateRequestToProfile(profile, request);
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
-            ProfileOperationResult<GameProfile> saveResult;
-            try
-            {
-                saveResult = await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
-            }
-            catch (OperationCanceledException) when (liveSync.Performed)
-            {
-                try
-                {
-                    await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, liveSync.TargetGame, CancellationToken.None);
-                }
-                catch (Exception rollbackEx)
-                {
-                    logger.LogError(rollbackEx, "Live user data rollback failed for profile {ProfileId} after save was canceled.", profileId);
-                }
-
-                throw;
-            }
-            catch (Exception saveEx) when (liveSync.Performed)
-            {
-                (bool Attempted, bool Succeeded, string? Error) rollbackOutcome = (false, false, null);
-                try
-                {
-                    rollbackOutcome = await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, liveSync.TargetGame, CancellationToken.None);
-                }
-                catch (Exception rollbackEx)
-                {
-                    logger.LogError(rollbackEx, "Live user data rollback failed for profile {ProfileId} after save threw an exception.", profileId);
-                    rollbackOutcome = (true, false, rollbackEx.Message);
-                }
-
-                logger.LogError(saveEx, "An unexpected error occurred while saving game profile {ProfileId} after live sync.", profileId);
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    "An unexpected error occurred while saving profile changes.",
-                    liveRollbackAttempted: rollbackOutcome.Attempted,
-                    liveRollbackSucceeded: rollbackOutcome.Succeeded,
-                    liveRollbackError: rollbackOutcome.Error);
-            }
-
-            if (saveResult.Failed && liveSync.Performed)
-            {
-                (bool Attempted, bool Succeeded, string? Error) rollbackOutcome = (false, false, null);
-                try
-                {
-                    rollbackOutcome = await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, liveSync.TargetGame, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Live user data rollback is incomplete for profile {ProfileId} after save failure.", profileId);
-                    rollbackOutcome = (true, false, ex.Message);
-                }
-
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    saveResult.FirstError ?? "Failed to save profile",
-                    saveResult.ErrorCode,
-                    saveResult.Elapsed,
-                    liveRollbackAttempted: rollbackOutcome.Attempted,
-                    liveRollbackSucceeded: rollbackOutcome.Succeeded,
-                    liveRollbackError: rollbackOutcome.Error);
-            }
-
-            if (saveResult.Success && liveSync.Performed)
-            {
-                return ProfileOperationResult<GameProfile>.CreateSuccess(
-                    saveResult.Data!,
-                    saveResult.ErrorCode,
-                    saveResult.Elapsed,
-                    wasAppliedLive: true);
-            }
-
-            return saveResult;
+            return await SaveProfileWithLiveSyncRecoveryAsync(
+                profileId,
+                profile,
+                previousEnabledContentIds,
+                liveSync,
+                cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -1140,6 +1075,93 @@ public class GameProfileManager(
         }
 
         return (manifests, missingIds);
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>> SaveProfileWithLiveSyncRecoveryAsync(
+        string profileId,
+        GameProfile profile,
+        List<string> previousEnabledContentIds,
+        (bool Performed, GameType TargetGame, ProfileOperationResult<GameProfile>? Error) liveSync,
+        CancellationToken cancellationToken)
+    {
+        ProfileOperationResult<GameProfile> saveResult;
+        try
+        {
+            saveResult = await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
+        }
+        catch (OperationCanceledException) when (liveSync.Performed)
+        {
+            try
+            {
+                await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, liveSync.TargetGame, CancellationToken.None);
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogError(rollbackEx, "Live user data rollback failed for profile {ProfileId} after save was canceled.", profileId);
+            }
+
+            throw;
+        }
+        catch (Exception saveEx) when (liveSync.Performed)
+        {
+            var rollbackOutcome = await SafeRollbackLiveUserDataAsync(
+                profileId,
+                previousEnabledContentIds,
+                liveSync.TargetGame,
+                "Live user data rollback failed for profile {ProfileId} after save threw an exception.");
+
+            logger.LogError(saveEx, "An unexpected error occurred while saving game profile {ProfileId} after live sync.", profileId);
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                "An unexpected error occurred while saving profile changes.",
+                liveRollbackAttempted: rollbackOutcome.Attempted,
+                liveRollbackSucceeded: rollbackOutcome.Succeeded,
+                liveRollbackError: rollbackOutcome.Error);
+        }
+
+        if (saveResult.Failed && liveSync.Performed)
+        {
+            var rollbackOutcome = await SafeRollbackLiveUserDataAsync(
+                profileId,
+                previousEnabledContentIds,
+                liveSync.TargetGame,
+                "Live user data rollback is incomplete for profile {ProfileId} after save failure.");
+
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                saveResult.FirstError ?? "Failed to save profile",
+                saveResult.ErrorCode,
+                saveResult.Elapsed,
+                liveRollbackAttempted: rollbackOutcome.Attempted,
+                liveRollbackSucceeded: rollbackOutcome.Succeeded,
+                liveRollbackError: rollbackOutcome.Error);
+        }
+
+        if (saveResult.Success && liveSync.Performed)
+        {
+            return ProfileOperationResult<GameProfile>.CreateSuccess(
+                saveResult.Data,
+                saveResult.ErrorCode,
+                saveResult.Elapsed,
+                wasAppliedLive: true);
+        }
+
+        return saveResult;
+    }
+
+    private async Task<(bool Attempted, bool Succeeded, string? Error)> SafeRollbackLiveUserDataAsync(
+        string profileId,
+        List<string> previousEnabledContentIds,
+        GameType targetGame,
+        string logMessageOnException)
+    {
+        try
+        {
+            return await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, targetGame, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, logMessageOnException, profileId);
+            return (true, false, ex.Message);
+        }
     }
 
     private async Task<ProfileOperationResult<GameProfile>> SaveAndNotifyProfileUpdatedAsync(GameProfile profile, CancellationToken cancellationToken)
