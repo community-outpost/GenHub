@@ -18219,4 +18219,7 @@ Error: не удалось: {3}
   <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
     <value>Не удалось загрузить пользовательскую иконку из '{0}'. Убедитесь, что файл является корректным изображением.</value>
   </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>Не удалось сохранить изменения профиля «{0}».</value>
+  </data>
 </root>

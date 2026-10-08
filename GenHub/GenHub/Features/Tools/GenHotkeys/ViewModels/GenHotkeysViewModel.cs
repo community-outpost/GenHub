@@ -559,7 +559,27 @@ public partial class GenHotkeysViewModel(
         }
 
         var iconName = targetAction.IconName;
+        var hadPreviousMapping = targetProfile.CustomCameoMappings.TryGetValue(iconName, out var previousPath);
         targetProfile.CustomCameoMappings[iconName] = filePath;
+
+        var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        if (savedProfile == null)
+        {
+            if (hadPreviousMapping)
+            {
+                targetProfile.CustomCameoMappings[iconName] = previousPath!;
+            }
+            else
+            {
+                targetProfile.CustomCameoMappings.Remove(iconName);
+            }
+
+            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
+            StatusMessage = saveErrorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            return false;
+        }
+
         targetAction.CustomImagePath = filePath;
         targetAction.IconBitmap = bitmap;
 
@@ -584,7 +604,6 @@ public partial class GenHotkeysViewModel(
             }
         }
 
-        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
         StatusMessage = successMsg;
         notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), successMsg);
@@ -607,9 +626,24 @@ public partial class GenHotkeysViewModel(
         }
 
         var iconName = targetAction.IconName;
-        targetAction.CustomImagePath = null;
+        var hadPreviousMapping = targetProfile.CustomCameoMappings.TryGetValue(iconName, out var previousPath);
         targetProfile.CustomCameoMappings.Remove(iconName);
 
+        var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        if (savedProfile == null)
+        {
+            if (hadPreviousMapping)
+            {
+                targetProfile.CustomCameoMappings[iconName] = previousPath!;
+            }
+
+            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
+            StatusMessage = saveErrorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            return;
+        }
+
+        targetAction.CustomImagePath = null;
         await LoadBitmapAsync(
             iconName,
             SelectedGame,
@@ -637,7 +671,6 @@ public partial class GenHotkeysViewModel(
             },
             cancellationToken);
 
-        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -658,9 +691,24 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        targetAction.DisplayName = targetAction.DefaultDisplayName;
+        var hadPreviousMapping = targetProfile.TitleMappings.TryGetValue(targetAction.HotkeyString, out var previousTitle);
         targetProfile.TitleMappings.Remove(targetAction.HotkeyString);
-        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+
+        var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        if (savedProfile == null)
+        {
+            if (hadPreviousMapping)
+            {
+                targetProfile.TitleMappings[targetAction.HotkeyString] = previousTitle!;
+            }
+
+            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
+            StatusMessage = saveErrorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            return;
+        }
+
+        targetAction.DisplayName = targetAction.DefaultDisplayName;
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -681,14 +729,30 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        targetAction.Tooltip = targetAction.DefaultTooltip;
         var label = targetAction.TooltipString ?? targetAction.HotkeyString;
+        var hadPreviousMapping = false;
+        string? previousTooltip = null;
         if (!string.IsNullOrEmpty(label))
         {
+            hadPreviousMapping = targetProfile.TooltipMappings.TryGetValue(label, out previousTooltip);
             targetProfile.TooltipMappings.Remove(label);
         }
 
-        await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
+        if (savedProfile == null)
+        {
+            if (hadPreviousMapping && !string.IsNullOrEmpty(label))
+            {
+                targetProfile.TooltipMappings[label] = previousTooltip!;
+            }
+
+            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
+            StatusMessage = saveErrorMsg;
+            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            return;
+        }
+
+        targetAction.Tooltip = targetAction.DefaultTooltip;
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
@@ -2887,6 +2951,11 @@ public partial class GenHotkeysViewModel(
         try
         {
             return await profileStorageService.SaveProfileAsync(profile, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save hotkey profile '{ProfileName}'", profile.Name);
+            return null;
         }
         finally
         {

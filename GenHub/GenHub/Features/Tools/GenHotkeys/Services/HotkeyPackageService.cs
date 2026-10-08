@@ -419,17 +419,46 @@ public class HotkeyPackageService(
         var processedIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var writtenIcons = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // 1. Process all action buttons across all layouts and factions first.
+        // Actions take priority over object icons so any shared icon receives its assigned hotkey badge when overlays are enabled.
         foreach (var faction in factions)
         {
             foreach (var obj in faction.GameObjects)
             {
-                await ProcessGameObjectOverlaysAsync(
+                await ProcessActionOverlaysAsync(
                     obj,
                     profile,
                     texturesDir,
                     processedIcons,
                     writtenIcons,
                     cancellationToken);
+            }
+        }
+
+        // 2. Process object's own icon if it has a custom cameo and was not already processed as an action button
+        foreach (var faction in factions)
+        {
+            foreach (var obj in faction.GameObjects)
+            {
+                if (!string.IsNullOrWhiteSpace(obj.IconName) &&
+                    !processedIcons.Contains(obj.IconName) &&
+                    profile.CustomCameoMappings.TryGetValue(obj.IconName, out var objCustomPath) &&
+                    File.Exists(objCustomPath))
+                {
+                    processedIcons.Add(obj.IconName);
+                    var success = await TryRenderCustomCameoTgaAsync(
+                        obj.IconName,
+                        objCustomPath,
+                        null,
+                        profile,
+                        texturesDir,
+                        cancellationToken);
+
+                    if (success)
+                    {
+                        writtenIcons.Add(obj.IconName);
+                    }
+                }
             }
         }
 
@@ -472,7 +501,7 @@ public class HotkeyPackageService(
         }
     }
 
-    private async Task ProcessGameObjectOverlaysAsync(
+    private async Task ProcessActionOverlaysAsync(
         HotkeyGameObject obj,
         HotkeyProfile profile,
         string texturesDir,
@@ -480,28 +509,6 @@ public class HotkeyPackageService(
         HashSet<string> writtenIcons,
         CancellationToken cancellationToken)
     {
-        // 1. Process object's own icon if it has a custom cameo
-        if (!string.IsNullOrWhiteSpace(obj.IconName) &&
-            !processedIcons.Contains(obj.IconName) &&
-            profile.CustomCameoMappings.TryGetValue(obj.IconName, out var objCustomPath) &&
-            File.Exists(objCustomPath))
-        {
-            processedIcons.Add(obj.IconName);
-            var success = await TryRenderCustomCameoTgaAsync(
-                obj.IconName,
-                objCustomPath,
-                null,
-                profile,
-                texturesDir,
-                cancellationToken);
-
-            if (success)
-            {
-                writtenIcons.Add(obj.IconName);
-            }
-        }
-
-        // 2. Process actions in all keyboard layouts
         foreach (var layout in obj.KeyboardLayouts)
         {
             foreach (var action in layout)

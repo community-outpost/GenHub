@@ -41,6 +41,9 @@ public class GenHotkeysViewModelTests
         _mockLogger = new Mock<ILogger<GenHotkeysViewModel>>();
         _mockDialogService = new Mock<IDialogService>();
         _mockNotificationService = new Mock<INotificationService>();
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HotkeyProfile p, CancellationToken _) => p);
     }
 
     /// <summary>
@@ -1113,6 +1116,187 @@ public class GenHotkeysViewModelTests
         Assert.Contains("Reset tooltip", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
         _mockNotificationService.Verify(
             n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset tooltip")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync reverts profile mappings, does not update ViewModel state,
+    /// and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WhenSaveFails_RevertsProfileAndShowsErrorToastAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_cameo_savefail_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(60, 48))
+            {
+                await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(testImg, tempImageFile);
+            }
+
+            using var vm = new GenHotkeysViewModel(
+                _mockTechTree.Object,
+                _mockProfileStorage.Object,
+                _mockPackageService.Object,
+                _mockLogger.Object,
+                notificationService: _mockNotificationService.Object);
+
+            var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+            vm.SelectedProfile = profile;
+
+            var action = new HotkeyActionViewModel
+            {
+                DisplayName = "Construction Dozer",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            };
+
+            _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Disk error"));
+
+            var result = await vm.ApplyCustomCameoAsync(action, tempImageFile);
+
+            Assert.False(result);
+            Assert.Null(action.CustomImagePath);
+            Assert.Null(action.IconBitmap);
+            Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+            Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+            _mockNotificationService.Verify(
+                n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ResetCustomCameoAsync restores previous cameo mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ResetCustomCameoAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        profile.CustomCameoMappings["USADozer"] = "C:/some/custom.png";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            CustomImagePath = "C:/some/custom.png",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetCustomCameoAsync();
+
+        Assert.Equal("C:/some/custom.png", action.CustomImagePath);
+        Assert.Equal("C:/some/custom.png", profile.CustomCameoMappings["USADozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTitleAsync retains existing title mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTitleAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Title Test Profile" };
+        profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"] = "Custom Dozer Name";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Custom Dozer Name",
+            DefaultDisplayName = "Construction Dozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetTitleAsync();
+
+        Assert.Equal("Custom Dozer Name", action.DisplayName);
+        Assert.Equal("Custom Dozer Name", profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTooltipAsync retains existing tooltip mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTooltipAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Tooltip Test Profile" };
+        profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"] = "Custom Dozer Tooltip";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            DefaultDisplayName = "Construction Dozer",
+            Tooltip = "Custom Dozer Tooltip",
+            DefaultTooltip = "Builds American base structures.",
+            TooltipString = "CONTROLBAR:ToolTipConstructAmericaVehicleDozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetTooltipAsync();
+
+        Assert.Equal("Custom Dozer Tooltip", action.Tooltip);
+        Assert.Equal("Custom Dozer Tooltip", profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
             Times.Once);
     }
 }

@@ -701,6 +701,7 @@ public class HotkeyPackageServiceTests
             var result = await _service.CreateHotkeysAddonAsync(profile);
 
             Assert.True(result.Success);
+            _mockOverlay.Verify(o => o.GenerateOverlayTgaAsync(It.IsAny<byte[]>(), 'D', It.IsAny<OverlayCorner>(), It.IsAny<CancellationToken>()), Times.Once);
             Assert.True(bigEntries.ContainsKey("Art/Textures/GLAWorker.tga"), "Should contain primary icon Art/Textures/GLAWorker.tga");
             Assert.True(bigEntries.ContainsKey("Art/Textures/SUWorker.tga"), "Should contain retail alias Art/Textures/SUWorker.tga");
 

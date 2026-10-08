@@ -18219,4 +18219,7 @@ Error: فشل: {3}
   <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
     <value>فشل تحميل الصورة المخصصة من '{0}'. تأكد من أن الملف صورة صالحة.</value>
   </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>فشل حفظ تغييرات الملف التعريفي لـ '{0}'.</value>
+  </data>
 </root>

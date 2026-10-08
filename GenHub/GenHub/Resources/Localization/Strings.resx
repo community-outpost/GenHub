@@ -18278,4 +18278,7 @@ Mapped image texture reference</value>
   <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
     <value>Failed to load custom cameo from '{0}'. Ensure the file is a valid image.</value>
   </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>Failed to save profile changes for '{0}'.</value>
+  </data>
 </root>
