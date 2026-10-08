@@ -2741,4 +2741,118 @@ public class ContentStateServiceTests
         item.ResolverMetadata[GitHubConstants.TagMetadataKey] = "weekly-2025-07-22";
         return item;
     }
+
+    /// <summary>
+    /// Verifies that generic catalog detail rows resolve install state per release version.
+    /// A stored newer build must not mark an older release row downloaded, nor bind it to the wrong manifest.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task GetStateAsync_CatalogDetailRows_ResolveEachReleaseVersionIndependentlyAsync()
+    {
+        const string OlderVersion = "1.0";
+        const string NewerVersion = "2.0";
+        const string OlderUrl = "https://cdn.example.invalid/mods/test-mod-1.0.zip";
+        const string NewerUrl = "https://cdn.example.invalid/mods/test-mod-2.0.zip";
+
+        var storedManifestId = CatalogManifestIdentity.CreateContentId(
+            PublisherTypeConstants.CommunityOutpost, ContentType.Mod, "test-mod", NewerVersion);
+        var storedManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(storedManifestId),
+            Name = "Test Mod",
+            Version = NewerVersion,
+            ContentType = ContentType.Mod,
+            OriginalProviderName = PublisherTypeConstants.CommunityOutpost,
+            OriginalContentId = $"{ContentConstants.FileContentIdPrefix}{NewerUrl}",
+            Files = [new ManifestFile { RelativePath = "test-mod-2.0.zip", DownloadUrl = NewerUrl }],
+        };
+
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<System.Collections.Generic.IEnumerable<ContentManifest>>.CreateSuccess([storedManifest]));
+        pool.Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var service = new ContentStateService(pool.Object, NullLogger<ContentStateService>.Instance);
+        var newerRow = CreateCatalogDetailRow(NewerVersion, NewerUrl);
+        var olderRow = CreateCatalogDetailRow(OlderVersion, OlderUrl);
+
+        Assert.Equal(ContentState.Downloaded, await service.GetStateAsync(newerRow));
+        Assert.Equal(storedManifestId, await service.GetLocalManifestIdAsync(newerRow));
+        Assert.Equal(ContentState.NotDownloaded, await service.GetStateAsync(olderRow));
+        Assert.Null(await service.GetLocalManifestIdAsync(olderRow));
+    }
+
+    /// <summary>
+    /// Verifies that generic catalog detail rows are treated as multi-release identities.
+    /// </summary>
+    [Fact]
+    public void IsMultiReleaseItem_CatalogFileRow_ReturnsTrue()
+    {
+        var row = CreateCatalogDetailRow("1.0", "https://cdn.example.invalid/mods/test-mod-1.0.zip");
+
+        Assert.True(ContentStateService.IsMultiReleaseItem(row));
+    }
+
+    /// <summary>
+    /// Verifies that generic catalog cards keep single-content update semantics.
+    /// </summary>
+    [Fact]
+    public void IsMultiReleaseItem_CatalogCard_ReturnsFalse()
+    {
+        var card = new ContentSearchResult
+        {
+            Id = CatalogManifestIdentity.CreateContentId(
+                PublisherTypeConstants.CommunityOutpost, ContentType.Mod, "test-mod", "2.0"),
+            Name = "Test Mod",
+            Version = "2.0",
+            ProviderName = "CommunityOutpost",
+            ContentType = ContentType.Mod,
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+            RequiresResolution = true,
+        };
+        card.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = "test-mod";
+
+        Assert.False(ContentStateService.IsMultiReleaseItem(card));
+    }
+
+    /// <summary>
+    /// Verifies that non-catalog file rows keep legacy single-content semantics.
+    /// </summary>
+    [Fact]
+    public void IsMultiReleaseItem_NonCatalogFileRow_ReturnsFalse()
+    {
+        var row = new ContentSearchResult
+        {
+            Id = $"{ContentConstants.FileContentIdPrefix}https://www.moddb.com/downloads/start/999",
+            Name = "Test Mod",
+            Version = "1.0",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+            SelectedDownloadUrl = "https://www.moddb.com/downloads/start/999",
+        };
+
+        Assert.False(ContentStateService.IsMultiReleaseItem(row));
+    }
+
+    private static ContentSearchResult CreateCatalogDetailRow(string version, string downloadUrl)
+    {
+        var row = new ContentSearchResult
+        {
+            Id = $"{ContentConstants.FileContentIdPrefix}{downloadUrl}",
+            Name = "Test Mod",
+            Version = version,
+            ProviderName = "CommunityOutpost",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.Unknown,
+            SelectedDownloadUrl = downloadUrl,
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+            RequiresResolution = true,
+        };
+        row.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = "test-mod";
+        row.ResolverMetadata[ContentConstants.ParentContentIdMetadataKey] =
+            CatalogManifestIdentity.CreateContentId(PublisherTypeConstants.CommunityOutpost, ContentType.Mod, "test-mod", "2.0");
+        return row;
+    }
 }
