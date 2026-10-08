@@ -553,7 +553,7 @@ public partial class GenHotkeysViewModel(
             return false;
         }
 
-        var bitmap = await LoadCustomBitmapAsync(filePath);
+        var bitmap = await LoadCustomBitmapAsync(filePath, cancellationToken);
         if (bitmap == null)
         {
             var errorMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoLoadFailed", "Failed to load custom cameo from '{0}'. Ensure the file is a valid image.", Path.GetFileName(filePath));
@@ -687,18 +687,22 @@ public partial class GenHotkeysViewModel(
         }
 
         var label = targetAction.TooltipString ?? targetAction.HotkeyString;
-        var hadPreviousMapping = false;
-        string? previousTooltip = null;
-        if (!string.IsNullOrEmpty(label))
+        if (string.IsNullOrEmpty(label))
         {
-            hadPreviousMapping = targetProfile.TooltipMappings.TryGetValue(label, out previousTooltip);
-            targetProfile.TooltipMappings.Remove(label);
+            targetAction.Tooltip = targetAction.DefaultTooltip;
+            var defaultResetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
+            StatusMessage = defaultResetMsg;
+            ShowNotificationInfo(defaultResetMsg);
+            return;
         }
+
+        var hadPreviousMapping = targetProfile.TooltipMappings.TryGetValue(label, out var previousTooltip);
+        targetProfile.TooltipMappings.Remove(label);
 
         var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         if (savedProfile == null)
         {
-            if (hadPreviousMapping && previousTooltip != null && !string.IsNullOrEmpty(label))
+            if (hadPreviousMapping && previousTooltip != null)
             {
                 targetProfile.TooltipMappings[label] = previousTooltip;
             }
@@ -2552,7 +2556,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        SelectedFaction = targetList.First();
+        SelectedFaction = targetList[0];
     }
 
     private void FilterGameObjects(CancellationToken cancellationToken = default)
@@ -2579,11 +2583,11 @@ public partial class GenHotkeysViewModel(
         ValidateConflicts();
     }
 
-    private async Task<Bitmap?> LoadCustomBitmapAsync(string filePath)
+    private async Task<Bitmap?> LoadCustomBitmapAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Task.Run(() => DecodeCustomBitmap(filePath));
+            return await Task.Run(() => DecodeCustomBitmap(filePath), cancellationToken);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
@@ -2603,7 +2607,7 @@ public partial class GenHotkeysViewModel(
             _ = Task.Run(
                 async () =>
                 {
-                    var bmp = await LoadCustomBitmapAsync(customImagePath);
+                    var bmp = await LoadCustomBitmapAsync(customImagePath, cancellationToken);
                     Dispatcher.UIThread.Post(() =>
                     {
                         if (_isDisposed)
@@ -2980,11 +2984,7 @@ public partial class GenHotkeysViewModel(
         action.Hotkey = ResolveProfileHotkey(action, profile);
         action.DisplayName = ResolveProfileDisplayName(action, profile);
         action.Tooltip = ResolveProfileTooltip(action, profile);
-        UpdateActionCustomCameo(action, profile);
-    }
 
-    private void UpdateActionCustomCameo(HotkeyActionViewModel action, HotkeyProfile profile)
-    {
         var hasCustom = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
             File.Exists(customPath);
         var targetCustomPath = hasCustom ? customPath : null;
