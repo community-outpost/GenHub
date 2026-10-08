@@ -38,7 +38,8 @@ public class DownloadService(
         bool IsResumed,
         long ExistingBytes,
         long TotalBytes,
-        long? ExpectedContentBytes = null);
+        long? ExpectedContentBytes = null,
+        TimeSpan ResponseLatency = default);
 
     private sealed record ParallelDownloadContext(
         DownloadConfiguration Configuration,
@@ -264,6 +265,29 @@ public class DownloadService(
         progress.Report(downloadProgress);
     }
 
+    /// <summary>
+    /// Reports the initial connecting progress event once a download connection is established.
+    /// </summary>
+    /// <param name="progress">The progress sink.</param>
+    /// <param name="configuration">The download configuration.</param>
+    /// <param name="existingBytes">Bytes already present from a resumed download.</param>
+    /// <param name="totalBytes">The total expected bytes.</param>
+    private static void ReportConnectingProgress(
+        IProgress<DownloadProgress> progress,
+        DownloadConfiguration configuration,
+        long existingBytes,
+        long totalBytes)
+    {
+        ReportDownloadProgress(
+            progress,
+            existingBytes,
+            0,
+            totalBytes,
+            Path.GetFileName(configuration.DestinationPath),
+            configuration.Url,
+            TimeSpan.Zero);
+    }
+
     private static async Task TryWriteETagSidecarAsync(DownloadConfiguration configuration, CancellationToken cancellationToken)
     {
         if (configuration.EnableResumption && TryGetETagHeader(configuration, out var etag))
@@ -310,8 +334,8 @@ public class DownloadService(
         }
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(mediaType, "application/xhtml+xml", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(mediaType, HostingConstants.HtmlContentType, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mediaType, HostingConstants.XhtmlContentType, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
                 $"Download server returned HTML ({mediaType}) instead of the expected binary content for '{Path.GetFileName(destinationPath)}'. " +
@@ -349,7 +373,14 @@ public class DownloadService(
             && configuration.ParallelConcurrency > 1
             && connection.TotalBytes >= configuration.ParallelDownloadThresholdBytes
             && SupportsByteRanges(connection.Response)
-            && HasStrongRepresentationValidator(configuration, connection);
+            && HasStrongRepresentationValidator(configuration, connection)
+            && !IsArtifactZipEndpoint(configuration, connection);
+    }
+
+    private static bool IsArtifactZipEndpoint(DownloadConfiguration configuration, DownloadConnection connection)
+    {
+        return configuration.Url?.AbsoluteUri.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase) == true
+            || connection.Response.RequestMessage?.RequestUri?.AbsoluteUri.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static (long TotalBytes, long? ExpectedContentBytes) ValidateAndCalculateRangeBytes(
@@ -636,9 +667,13 @@ public class DownloadService(
         CancellationToken cancellationToken)
     {
         HttpResponseMessage response;
+
+        // Skip the Google Drive virus-scan interstitial: each Drive request for a large file can
+        // take ~30 seconds, so requesting the confirmed URL directly saves a full round trip.
+        var requestUri = CloudUrlHelper.ToConfirmedGoogleDriveDownloadUri(configuration.Url);
         if (!configuration.ValidateRedirectsManually)
         {
-            using var request = CreateRequest(configuration, configuration.Url, rangeStart);
+            using var request = CreateRequest(configuration, requestUri, rangeStart);
             response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         }
         else
@@ -646,7 +681,7 @@ public class DownloadService(
             var validated = await SsrfSafeHttpHelper.SendWithValidatedRedirectsAsync(
                 httpClient,
                 uri => CreateRequest(configuration, uri, rangeStart),
-                configuration.Url,
+                requestUri,
                 DownloadDefaults.MaxRedirects,
                 validator,
                 cancellationToken);
@@ -734,7 +769,13 @@ public class DownloadService(
 
         var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
 
-        if (CanUseParallelDownload(configuration, connection))
+        if (progress != null && connection.TotalBytes > 0)
+        {
+            ReportConnectingProgress(progress, configuration, connection.ExistingBytes, connection.TotalBytes);
+        }
+
+        if (CanUseParallelDownload(configuration, connection) &&
+            IsResponseLatencyAcceptableForParallel(configuration, connection.ResponseLatency))
         {
             var parallelContext = new ParallelDownloadContext(
                 configuration,
@@ -775,6 +816,11 @@ public class DownloadService(
                 TryDeleteFile(configuration.DestinationPath);
                 TryDeleteFile(etagSidecarPath);
                 cts.CancelAfter(configuration.Timeout);
+
+                if (progress != null)
+                {
+                    ReportConnectingProgress(progress, configuration, 0, connection.TotalBytes);
+                }
 
                 connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
             }
@@ -817,7 +863,9 @@ public class DownloadService(
             TryDeleteFile($"{configuration.DestinationPath}.etag");
         }
 
+        var latencyStopwatch = Stopwatch.StartNew();
         var response = await SendRequestAsync(configuration, validator, 0, cts.Token);
+        latencyStopwatch.Stop();
         try
         {
             if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentRange != null)
@@ -831,7 +879,7 @@ public class DownloadService(
 
             ValidateResponseContentType(response, configuration.DestinationPath);
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            return new DownloadConnection(response, false, 0, totalBytes);
+            return new DownloadConnection(response, false, 0, totalBytes, null, latencyStopwatch.Elapsed);
         }
         catch
         {
@@ -843,7 +891,8 @@ public class DownloadService(
     private DownloadConnection? HandlePartialContentResponse(
         HttpResponseMessage response,
         DownloadConfiguration configuration,
-        long existingBytes)
+        long existingBytes,
+        TimeSpan responseLatency = default)
     {
         var contentRange = response.Content.Headers.ContentRange;
         if (contentRange?.From == existingBytes &&
@@ -851,7 +900,7 @@ public class DownloadService(
         {
             ValidateResponseContentType(response, configuration.DestinationPath);
             var (totalBytes, expectedContentBytes) = ValidateAndCalculateRangeBytes(contentRange, response, existingBytes);
-            return new DownloadConnection(response, true, existingBytes, totalBytes, expectedContentBytes);
+            return new DownloadConnection(response, true, existingBytes, totalBytes, expectedContentBytes, responseLatency);
         }
 
         logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange?.From, configuration.Url, existingBytes);
@@ -864,12 +913,14 @@ public class DownloadService(
         long existingBytes,
         CancellationTokenSource cts)
     {
+        var latencyStopwatch = Stopwatch.StartNew();
         var response = await SendRequestAsync(configuration, validator, existingBytes, cts.Token);
+        latencyStopwatch.Stop();
         try
         {
             if (response.StatusCode == HttpStatusCode.PartialContent)
             {
-                var partial = HandlePartialContentResponse(response, configuration, existingBytes);
+                var partial = HandlePartialContentResponse(response, configuration, existingBytes, latencyStopwatch.Elapsed);
                 if (partial != null)
                 {
                     return partial;
@@ -886,7 +937,7 @@ public class DownloadService(
                 TryDeleteFile($"{configuration.DestinationPath}.etag");
                 ValidateResponseContentType(response, configuration.DestinationPath);
                 var totalBytes = response.Content.Headers.ContentLength ?? 0;
-                return new DownloadConnection(response, false, 0, totalBytes);
+                return new DownloadConnection(response, false, 0, totalBytes, null, latencyStopwatch.Elapsed);
             }
             else
             {
@@ -956,6 +1007,22 @@ public class DownloadService(
         return false;
     }
 
+    private bool IsResponseLatencyAcceptableForParallel(DownloadConfiguration configuration, TimeSpan responseLatency)
+    {
+        if (responseLatency <= configuration.ParallelDownloadMaxResponseLatency)
+        {
+            return true;
+        }
+
+        // Every chunk is a separate request that pays the same latency, so parallel mode would
+        // stall in waves and make progress jump. Stream the already-open response instead.
+        logger.LogInformation(
+            "Initial response for {Url} took {LatencyMs:N0} ms; streaming sequentially instead of parallel chunks",
+            configuration.Url,
+            responseLatency.TotalMilliseconds);
+        return false;
+    }
+
     private bool TryReadSidecarEtag(string sidecarPath, [NotNullWhen(true)] out EntityTagHeaderValue? parsedEtag)
     {
         parsedEtag = null;
@@ -984,11 +1051,11 @@ public class DownloadService(
     {
         var mediaType = initialResponse.Content.Headers.ContentType?.MediaType;
         var uri = initialResponse.RequestMessage?.RequestUri?.ToString() ?? configuration.Url?.ToString() ?? string.Empty;
-        var isGoogle = uri.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-                       uri.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase) ||
-                       uri.Contains("drive.usercontent.google.com", StringComparison.OrdinalIgnoreCase);
+        var isGoogle = uri.Contains(HostingConstants.GoogleDriveHost, StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains(HostingConstants.GoogleDocsHost, StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains(HostingConstants.GoogleDriveUserContentHost, StringComparison.OrdinalIgnoreCase);
 
-        if (!isGoogle || !string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        if (!isGoogle || !string.Equals(mediaType, HostingConstants.HtmlContentType, StringComparison.OrdinalIgnoreCase))
         {
             return initialResponse;
         }
@@ -996,7 +1063,7 @@ public class DownloadService(
         var html = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
         initialResponse.Dispose();
 
-        var confirmUrl = TryExtractConfirmationUrl(html, initialResponse.RequestMessage?.RequestUri ?? configuration.Url);
+        var confirmUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, initialResponse.RequestMessage?.RequestUri ?? configuration.Url);
         if (confirmUrl != null)
         {
             logger.LogInformation("Following Google Drive download confirmation");
@@ -1027,44 +1094,6 @@ public class DownloadService(
         }
 
         throw new InvalidOperationException("Google Drive returned an HTML page instead of the expected file download.");
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private string? TryExtractConfirmationUrl(string html, Uri? requestUri)
-    {
-        var confirmMatch = Regex.Match(html, "href=\"(/uc\\?export=download[^\"]+confirm=[^\"]+)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        if (confirmMatch.Success)
-        {
-            var relativeUrl = confirmMatch.Groups[1].Value.Replace("&amp;", "&");
-            var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
-            return new Uri(baseUri, relativeUrl).ToString();
-        }
-
-        return TryExtractFormActionUrl(html);
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private string? TryExtractFormActionUrl(string html)
-    {
-        var actionMatch = Regex.Match(html, "action=\"(https://drive\\.usercontent\\.google\\.com/download[^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        if (!actionMatch.Success)
-        {
-            return null;
-        }
-
-        var action = actionMatch.Groups[1].Value.Replace("&amp;", "&");
-        var inputMatches = Regex.Matches(html, "<input[^>]+type=\"hidden\"[^>]+name=\"([^\"]+)\"[^>]+value=\"([^\"]*)\"", RegexOptions.IgnoreCase, RegexTimeout);
-        var queryParams = inputMatches
-            .Select(m => $"{Uri.EscapeDataString(m.Groups[1].Value)}={Uri.EscapeDataString(m.Groups[2].Value)}")
-            .ToList();
-
-        if (queryParams.Count > 0)
-        {
-            var separator = action.Contains('?') ? "&" : "?";
-            return $"{action}{separator}{string.Join("&", queryParams)}";
-        }
-
-        return action;
     }
 
     private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed) =>

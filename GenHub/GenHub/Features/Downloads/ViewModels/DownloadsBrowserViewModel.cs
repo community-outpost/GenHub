@@ -18,6 +18,7 @@ using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
@@ -28,6 +29,7 @@ using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.Services.ContentDiscoverers;
@@ -82,6 +84,7 @@ public sealed partial class DownloadsBrowserViewModel(
     ILocalizationService? localizationService = null) : ObservableObject, IDisposable
 {
     private const string DefaultPublisherName = "Content";
+    private const string InstallationFailedFallbackTitle = "Installation Failed";
 
     private long _subscriptionRefreshVersion;
 
@@ -671,9 +674,44 @@ public sealed partial class DownloadsBrowserViewModel(
     /// <returns>True if the item is a Generals Online item; otherwise, false.</returns>
     internal static bool IsGeneralsOnlineResult(ContentSearchResult item)
     {
-        return item.ProviderName?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
-               item.ResolverId?.Contains(GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true ||
-               item.Id?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+        if (item == null)
+        {
+            return false;
+        }
+
+        if (GeneralsOnlinePatchNotesHelper.IsGeneralsOnline(item) ||
+            string.Equals(item.ProviderName, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ProviderName, GeneralsOnlineConstants.PublisherDisplayName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ResolverId, GeneralsOnlineConstants.ResolverId, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.ResolverId, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return MatchesGeneralsOnlineId(item.Id);
+    }
+
+    /// <summary>
+    /// Determines whether the specified ID represents a Generals Online manifest or content ID.
+    /// </summary>
+    /// <param name="id">The content identifier to test.</param>
+    /// <returns>True if the ID matches Generals Online conventions; otherwise, false.</returns>
+    internal static bool MatchesGeneralsOnlineId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return false;
+        }
+
+        if (id.StartsWith(GeneralsOnlineConstants.ManifestIdPrefix, StringComparison.OrdinalIgnoreCase) ||
+            id.StartsWith(GeneralsOnlineConstants.ContentIdPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var segments = id.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(seg => string.Equals(seg, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(seg, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -3641,6 +3679,7 @@ public sealed partial class DownloadsBrowserViewModel(
             DownloadCommand = DownloadContentCommand,
             AddToProfileCommand = AddContentToProfileCommand,
             UpdateCommand = UpdateContentCommand,
+            InstallBuildCommand = InstallBuildContentCommand,
         };
 
         vm.Initialize();
@@ -3817,7 +3856,8 @@ public sealed partial class DownloadsBrowserViewModel(
                     {
                         item.UpdateDescription(desc);
                     }
-                });
+                },
+                installBuildAction: (manifestId, name, ct) => InstallBuildContentByIdAsync(manifestId ?? item.Id, name ?? item.Name, ct));
 
             if (item.HasBundleComponents)
             {
@@ -4529,6 +4569,155 @@ public sealed partial class DownloadsBrowserViewModel(
     }
 
     /// <summary>
+    /// Installs a downloaded GenHub application build and restarts the application.
+    /// </summary>
+    /// <param name="item">The content item representing the GenHub build.</param>
+    [RelayCommand]
+    private async Task InstallBuildContentAsync(ContentGridItemViewModel? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var resolvedManifestId = await ResolveLocalInstalledManifestIdAsync(item, _vmCts.Token) ?? item.Id;
+        await InstallBuildContentByIdAsync(resolvedManifestId, item.Name, _vmCts.Token);
+    }
+
+    private void CleanStaleBuildInstallDirectories()
+    {
+        try
+        {
+            var tempRoot = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp");
+            if (!Directory.Exists(tempRoot))
+            {
+                return;
+            }
+
+            var staleThreshold = DateTime.UtcNow - TimeSpan.FromHours(1);
+
+            foreach (var dir in Directory.GetDirectories(tempRoot, "genhub-build*"))
+            {
+                try
+                {
+                    var dirInfo = new DirectoryInfo(dir);
+                    if (dirInfo.LastWriteTimeUtc < staleThreshold && dirInfo.CreationTimeUtc < staleThreshold)
+                    {
+                        Directory.Delete(dir, recursive: true);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+                {
+                    logger.LogDebug(ex, "Failed to clean stale build directory '{Directory}'", dir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to clean stale build directories from Temp");
+        }
+    }
+
+    private async Task InstallBuildContentByIdAsync(string contentId, string contentName, CancellationToken cancellationToken)
+    {
+        var velopackManager = serviceProvider.GetService<IVelopackUpdateManager>();
+        if (velopackManager == null)
+        {
+            logger.LogWarning("IVelopackUpdateManager is not available to install build");
+            return;
+        }
+
+        var storageService = serviceProvider.GetService<IContentStorageService>();
+        if (storageService == null)
+        {
+            logger.LogWarning("IContentStorageService is not available to retrieve build files");
+            return;
+        }
+
+        var locService = serviceProvider.GetService<ILocalizationService>();
+        string? tempDir = null;
+
+        try
+        {
+            CleanStaleBuildInstallDirectories();
+
+            var prepTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Title", "Preparing Installation") ?? "Preparing Installation";
+            var prepMessage = locService != null
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, locService.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Message", "Preparing {0} for installation..."), contentName)
+                : $"Preparing {contentName} for installation...";
+
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                prepTitle,
+                prepMessage,
+                NotificationDurations.Medium));
+
+            tempDir = Path.Combine(AppDataPathHelper.GetDataRoot(), "Temp", $"genhub-build-install-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(tempDir);
+
+            var retrieveResult = await storageService.RetrieveContentAsync(
+                ManifestId.Create(contentId),
+                tempDir,
+                cancellationToken);
+
+            if (!retrieveResult.Success)
+            {
+                logger.LogError("Failed to retrieve build files for {ContentId}: {Error}", contentId, retrieveResult.FirstError);
+                var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
+                var failedMsg = retrieveResult.FirstError ?? "Failed to retrieve build files from storage.";
+                notificationService.Show(new NotificationMessage(
+                    NotificationType.Error,
+                    failedTitle,
+                    failedMsg,
+                    NotificationDurations.Long));
+                return;
+            }
+
+            var progress = new Progress<UpdateProgress>(p =>
+            {
+                if (!string.IsNullOrEmpty(p.Status))
+                {
+                    logger.LogInformation("Build install progress: {Percent}% - {Status}", p.PercentComplete, p.Status);
+                }
+            });
+
+            await velopackManager.InstallDownloadedBuildAsync(
+                tempDir,
+                contentName,
+                progress,
+                cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogInformation(ex, "Installation of GenHub build {ContentId} was cancelled", contentId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to install GenHub build {ContentId}", contentId);
+            var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Error,
+                failedTitle,
+                ex.Message,
+                NotificationDurations.Long));
+        }
+        finally
+        {
+            if (tempDir != null && Directory.Exists(tempDir))
+            {
+                try
+                {
+                    Directory.Delete(tempDir, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to clean up build install temp directory: {Dir}", tempDir);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Adds the content to a compatible profile. Shows a profile selection dialog.
     /// </summary>
     [RelayCommand]
@@ -4537,6 +4726,12 @@ public sealed partial class DownloadsBrowserViewModel(
         if (item == null)
         {
             logger.LogWarning("AddContentToProfileAsync called with null item");
+            return;
+        }
+
+        if (item.IsGenHubBuild)
+        {
+            await InstallBuildContentAsync(item);
             return;
         }
 

@@ -390,7 +390,7 @@ public sealed class ContentDownloadCoordinator(
                 scope = inFlight.NotificationScope;
             }
 
-            if (!throttle.ShouldForward(p.Phase, clampedPercentage))
+            if (!throttle.ShouldForward(p.Phase, clampedPercentage, p.CurrentStage))
             {
                 return;
             }

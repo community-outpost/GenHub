@@ -1,6 +1,6 @@
 using Avalonia.Data.Converters;
 using GenHub.Core.Models.AppUpdate;
-using GenHub.Features.AppUpdate.ViewModels;
+using GenHub.Core.Models.Providers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,15 +8,15 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converter to check if a PR or Branch is currently subscribed.
-/// Expects values: [Item, UpdateNotificationViewModel.SubscribedPr, UpdateNotificationViewModel.SubscribedBranch].
+/// Converter to check if a PR, Branch, or Custom Build is currently subscribed.
+/// Expects values: [Item, UpdateNotificationViewModel.SubscribedPr, UpdateNotificationViewModel.SubscribedBranch, (optional) UpdateNotificationViewModel.SubscribedCustomBuildContentId].
 /// </summary>
 public class IsSubscribedConverter : IMultiValueConverter
 {
     /// <inheritdoc/>
     public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (values == null || values.Count < 3)
+        if (values == null || values.Count == 0)
         {
             return false;
         }
@@ -27,20 +27,18 @@ public class IsSubscribedConverter : IMultiValueConverter
             return false;
         }
 
-        var subscribedPr = values[1] as PullRequestInfo;
-        var subscribedBranch = values[2] as string;
+        var subscribedPr = GetValue<PullRequestInfo>(values, 1);
+        var subscribedBranch = GetValue<string>(values, 2);
+        var subscribedCustomBuild = GetValue<string>(values, 3);
+        var subscribedPublisherId = GetValue<string>(values, 4);
 
-        if (item is PullRequestInfo pr)
+        return item switch
         {
-            return subscribedPr?.Number == pr.Number;
-        }
-
-        if (item is string branchName)
-        {
-            return string.Equals(subscribedBranch, branchName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
+            PullRequestInfo pr => subscribedPr?.Number == pr.Number,
+            string branchName => string.Equals(subscribedBranch, branchName, StringComparison.Ordinal),
+            CustomBuildSubscriptionItem customBuild => IsCustomBuildSubscribed(customBuild, subscribedCustomBuild, subscribedPublisherId),
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -53,6 +51,26 @@ public class IsSubscribedConverter : IMultiValueConverter
     /// <returns>An array of values that have been converted from the target value back to the source values.</returns>
     public object?[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture)
     {
-        return Array.Empty<object?>();
+        return [];
+    }
+
+    private static T? GetValue<T>(IList<object?> values, int index)
+        where T : class
+    {
+        return values.Count > index ? values[index] as T : null;
+    }
+
+    private static bool IsCustomBuildSubscribed(
+        CustomBuildSubscriptionItem customBuild,
+        string? subscribedCustomBuild,
+        string? subscribedPublisherId)
+    {
+        if (!string.Equals(subscribedCustomBuild, customBuild.ContentId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(subscribedPublisherId) ||
+               string.Equals(subscribedPublisherId, customBuild.PublisherId, StringComparison.OrdinalIgnoreCase);
     }
 }

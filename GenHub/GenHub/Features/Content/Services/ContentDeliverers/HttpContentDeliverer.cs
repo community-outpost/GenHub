@@ -9,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -146,39 +147,6 @@ public class HttpContentDeliverer(
         }
     }
 
-    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
-        IProgress<ContentAcquisitionProgress>? progress,
-        string relativePath,
-        int currentFileIndex,
-        int totalFiles)
-    {
-        if (progress == null)
-        {
-            return null;
-        }
-
-        return new Progress<DownloadProgress>(dp =>
-        {
-            double fileProgressRange = 100.0 / totalFiles;
-            double baseProgress = (currentFileIndex - 1) * fileProgressRange;
-            double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
-
-            progress.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = currentProgress,
-                CurrentOperation = totalFiles > 1
-                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                FilesProcessed = currentFileIndex - 1,
-                TotalFiles = totalFiles,
-                TotalBytes = dp.TotalBytes,
-                BytesProcessed = dp.BytesReceived,
-                CurrentFile = relativePath,
-            });
-        });
-    }
-
     private static void ExtractArchivesFallback(
         IEnumerable<ManifestFile> filesToDownload,
         string targetDirectory,
@@ -251,18 +219,26 @@ public class HttpContentDeliverer(
     {
         var totalFiles = filesToDownload.Count;
         var processedFiles = 0;
+        var allSizesKnown = filesToDownload.All(f => f.Size > 0);
+        var totalBytesAllFiles = allSizesKnown ? filesToDownload.Sum(f => f.Size) : 0L;
+        var previousFilesBytes = 0L;
 
         foreach (var file in filesToDownload)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var currentFileIndex = processedFiles + 1;
+            var progressContext = new FileProgressContext(
+                currentFileIndex,
+                totalFiles,
+                previousFilesBytes,
+                totalBytesAllFiles);
+
             var downloadResult = await DownloadSingleFileWithProgressAsync(
                 packageManifest,
                 file,
                 targetDirectory,
-                currentFileIndex,
-                totalFiles,
+                progressContext,
                 progress,
                 cancellationToken);
 
@@ -278,8 +254,15 @@ public class HttpContentDeliverer(
 
             cancellationToken.ThrowIfCancellationRequested();
             processedFiles++;
+            if (file.Size > 0)
+            {
+                previousFilesBytes += file.Size;
+            }
 
-            var currentPercentage = (double)processedFiles / totalFiles * 100;
+            var currentPercentage = totalBytesAllFiles > 0
+                ? Math.Clamp((double)previousFilesBytes / totalBytesAllFiles * 100.0, 0, 100)
+                : (double)processedFiles / totalFiles * 100;
+
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
@@ -288,18 +271,25 @@ public class HttpContentDeliverer(
                 CurrentFile = file.RelativePath,
                 FilesProcessed = processedFiles,
                 TotalFiles = totalFiles,
+                TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
+                BytesProcessed = previousFilesBytes,
             });
         }
 
         return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
     }
 
+    private sealed record FileProgressContext(
+        int CurrentFileIndex,
+        int TotalFiles,
+        long PreviousFilesBytes,
+        long TotalBytesAllFiles);
+
     private async Task<DownloadResult> DownloadSingleFileWithProgressAsync(
         ContentManifest packageManifest,
         ManifestFile file,
         string targetDirectory,
-        int currentFileIndex,
-        int totalFiles,
+        FileProgressContext progressContext,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -310,19 +300,21 @@ public class HttpContentDeliverer(
             Directory.CreateDirectory(directory);
         }
 
-        var downloadProgress = CreateFileDownloadProgress(progress, file.RelativePath, currentFileIndex, totalFiles);
+        var downloadProgress = DownloadProgressAdapter.CreateDownloadAdapter(
+            progress,
+            file.RelativePath,
+            progressContext.CurrentFileIndex,
+            progressContext.TotalFiles,
+            progressContext.PreviousFilesBytes,
+            progressContext.TotalBytesAllFiles);
 
-        progress?.Report(new ContentAcquisitionProgress
-        {
-            Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = (double)(currentFileIndex - 1) / totalFiles * 100,
-            CurrentOperation = totalFiles > 1
-                ? $"Downloading {file.RelativePath} ({currentFileIndex}/{totalFiles})..."
-                : $"Downloading {file.RelativePath}...",
-            CurrentFile = file.RelativePath,
-            FilesProcessed = currentFileIndex - 1,
-            TotalFiles = totalFiles,
-        });
+        DownloadProgressAdapter.ReportConnecting(
+            progress,
+            file.RelativePath,
+            progressContext.CurrentFileIndex,
+            progressContext.TotalFiles,
+            progressContext.PreviousFilesBytes,
+            progressContext.TotalBytesAllFiles);
 
         return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
     }

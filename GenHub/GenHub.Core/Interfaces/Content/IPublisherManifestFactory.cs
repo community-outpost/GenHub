@@ -1,5 +1,7 @@
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using System;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -54,6 +56,28 @@ public interface IPublisherManifestFactory
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates enriched manifests from extracted content with optional progress reporting.
+    /// </summary>
+    /// <param name="originalManifest">
+    /// The manifest from the resolver, containing download URLs but no file hashes.
+    /// </param>
+    /// <param name="extractedDirectory">
+    /// Directory where the deliverer extracted the package files.
+    /// </param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// An operation result containing one or more manifests with file hashes and sizes. Multi-variant content
+    /// (e.g., separate Generals and Zero Hour executables) may return multiple manifests.
+    /// </returns>
+    Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken = default) =>
+        CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, cancellationToken);
 
     /// <summary>
     /// Gets the subdirectory for a specific manifest's files.

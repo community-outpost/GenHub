@@ -89,6 +89,11 @@ public static class ApiConstants
     public const string GitHubApiArtifactDownloadFormat = "https://api.github.com/repos/{0}/{1}/actions/artifacts/{2}/zip";
 
     /// <summary>
+    /// Path segment for GitHub API actions artifacts endpoints.
+    /// </summary>
+    public const string GitHubApiArtifactsPathSegment = "/actions/artifacts/";
+
+    /// <summary>
     /// Format string for GitHub API CI Workflow Runs endpoint by branch (owner, repo, branch).
     /// Scoped to ci.yml so non-build workflows do not displace artifact-producing runs.
     /// </summary>

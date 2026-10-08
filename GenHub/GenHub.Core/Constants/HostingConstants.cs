@@ -37,6 +37,72 @@ public static class HostingConstants
     public const string GoogleDriveClientCredentialKey = "google_drive_client";
 
     /// <summary>
+    /// Google Drive primary web host.
+    /// </summary>
+    public const string GoogleDriveHost = "drive.google.com";
+
+    /// <summary>
+    /// Google Docs web host (also serves Drive download links).
+    /// </summary>
+    public const string GoogleDocsHost = "docs.google.com";
+
+    /// <summary>
+    /// Dropbox web host.
+    /// </summary>
+    public const string DropboxHost = "dropbox.com";
+
+    /// <summary>
+    /// Google Drive download query key carrying the file id.
+    /// </summary>
+    public const string GoogleDriveQueryId = "id";
+
+    /// <summary>
+    /// Google Drive download query key selecting the export mode.
+    /// </summary>
+    public const string GoogleDriveQueryExport = "export";
+
+    /// <summary>
+    /// Google Drive download query key carrying the virus-scan confirmation token.
+    /// </summary>
+    public const string GoogleDriveQueryConfirm = "confirm";
+
+    /// <summary>
+    /// Google Drive export mode value requesting a direct file download.
+    /// </summary>
+    public const string GoogleDriveExportDownload = "download";
+
+    /// <summary>
+    /// Google Drive universal download path.
+    /// </summary>
+    public const string GoogleDriveUcPath = "/uc";
+
+    /// <summary>
+    /// Google Drive direct download path.
+    /// </summary>
+    public const string GoogleDriveDownloadPath = "/download";
+
+    /// <summary>
+    /// Dropbox query parameter forcing a direct download instead of a preview page.
+    /// </summary>
+    public const string DropboxDirectDownloadParam = "dl=1";
+
+    /// <summary>
+    /// URL template for GitHub raw file content (owner, repo, branch, path).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
+    public const string GitHubRawUrlTemplate = "https://raw.githubusercontent.com/{0}/{1}/{2}/{3}";
+
+    /// <summary>
+    /// Google domain suffix for Drive and Google services.
+    /// </summary>
+    public const string GoogleDomainSuffix = ".google.com";
+
+    /// <summary>
+    /// Google user content domain suffix for Drive direct downloads.
+    /// </summary>
+    public const string GoogleUserContentDomainSuffix = ".googleusercontent.com";
+
+    /// <summary>
     /// Default provider definition file name.
     /// </summary>
     public const string DefaultDefinitionFileName = "publisher.json";
@@ -267,6 +333,16 @@ public static class HostingConstants
     public const string TextContentType = "text/plain";
 
     /// <summary>
+    /// MIME content type for HTML pages (e.g. Google Drive warning interstitials).
+    /// </summary>
+    public const string HtmlContentType = "text/html";
+
+    /// <summary>
+    /// MIME content type for XHTML pages.
+    /// </summary>
+    public const string XhtmlContentType = "application/xhtml+xml";
+
+    /// <summary>
     /// MIME content type for Markdown files.
     /// </summary>
     public const string MarkdownContentType = "text/markdown";
@@ -276,6 +352,17 @@ public static class HostingConstants
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
     public const string GoogleDriveDownloadUrlTemplate = "https://drive.google.com/uc?export=download&id={0}";
+
+    /// <summary>
+    /// URL template for a pre-confirmed Google Drive download that skips the virus-scan warning interstitial.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "URL template constant")]
+    public const string GoogleDriveConfirmedDownloadUrlTemplate = "https://drive.usercontent.google.com/download?id={0}&export=download&confirm=t";
+
+    /// <summary>
+    /// Host serving Google Drive file content (the target of drive.google.com/uc redirects).
+    /// </summary>
+    public const string GoogleDriveUserContentHost = "drive.usercontent.google.com";
 
     /// <summary>
     /// URL template for a Google Drive folder web link.

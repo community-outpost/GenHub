@@ -154,8 +154,9 @@ public abstract class BaseContentProvider : IContentProvider
 
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Extracting,
-                CurrentOperation = "Preparing content files...",
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = 0,
+                CurrentOperation = "Connecting to download server...",
             });
 
             // Delegate to implementation-specific preparation
@@ -435,6 +436,7 @@ public abstract class BaseContentProvider : IContentProvider
             var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 manifest,
                 workingDirectory,
+                progress,
                 cancellationToken).ConfigureAwait(false);
 
             if (!manifestResult.Success)

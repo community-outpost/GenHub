@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -689,6 +689,12 @@
   </data>
   <data name="GameProfiles.Notification.Error.Title" xml:space="preserve">
     <value>Ошибка</value>
+  </data>
+  <data name="GameProfiles.GenHubBuild.CreateNotAllowed" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя использовать для создания игровых профилей.</value>
+  </data>
+  <data name="GameProfiles.GenHubBuild.AddNotAllowed" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя добавлять в игровые профили.</value>
   </data>
   <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
     <value>Профиль '{0}' успешно запущен</value>
@@ -3829,14 +3835,14 @@
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Заставка</value>
   </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>Сборка GenHub</value>
+  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Исполняемый файл</value>
   </data>
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Инструмент для моддинга</value>
-  </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>Сборка GenHub</value>
   </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Неизвестный контент</value>
@@ -18134,5 +18140,35 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Пользовательские сборки и форки</value>
+  </data>
+<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Проверка обновлений для {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Сборка '{0}' не найдена в подписках издателей.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>Для этой сборки нет доступных релизов.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Доступно обновление: {0} для {1}</value></data><data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve"><value>Готово к установке: {0} ({1})</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} актуален (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
+    <value>Установить сборку</value>
+  </data>
+  <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
+    <value>Установить эту сборку GenHub и перезапустить приложение</value>
+  </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя добавлять в игровые профили.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>Подготовка к установке</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>Подготовка {0} к установке...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>Ошибка установки</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>Недопустимое действие</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>Сборки приложения GenHub нельзя добавлять в игровые профили. Используйте функцию установки сборки.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>Нет доступных версий для пользовательской сборки, на которую оформлена подписка</value>
   </data>
 </root>

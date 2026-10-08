@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -482,7 +483,15 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to add content to profile '{ProfileName}': {Error}",
                     profile.Name,
                     result.FirstError);
-                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
+                var errorMsg = result.FirstError;
+                if (result.ErrorCode == ProfileConstants.GenHubBuildNotAllowedErrorCode || errorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    errorMsg = localizationService.GetLocalizedString(
+                        "Downloads.Notification.GenHubBuildNotAllowedInProfiles",
+                        "GenHub application builds cannot be added to game profiles.");
+                }
+
+                ErrorMessage = errorMsg ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
                 notificationService.ShowError(
                     localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
                     ErrorMessage);
@@ -566,7 +575,15 @@ public sealed partial class ProfileSelectionViewModel(
                     "Failed to create profile: {Error}",
                     result.FirstError ?? "Unknown error");
 
-                ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
+                var createErrorMsg = result.FirstError;
+                if (result.ErrorCode == ProfileConstants.GenHubBuildNotAllowedErrorCode || createErrorMsg?.Contains("GenHub application builds", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    createErrorMsg = localizationService.GetLocalizedString(
+                        "Downloads.Notification.GenHubBuildNotAllowedInProfiles",
+                        "GenHub application builds cannot be added to game profiles.");
+                }
+
+                ErrorMessage = createErrorMsg ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
                 notificationService.ShowError(
                     localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed"),
                     ErrorMessage);
