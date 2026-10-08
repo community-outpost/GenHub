@@ -43,6 +43,23 @@ public interface IGameCrcCalculatorService
         CancellationToken ct = default);
 
     /// <summary>
+    /// Calculates the engine-exact 32-bit executable CRC (exeCRC) matching
+    /// GlobalData::generateExeCRC: executable bytes, then the engine version as one
+    /// little-endian uint (major shifted left 16 bits, OR minor), then the
+    /// multiplayer script files. Generals Online lobbies report this engine value.
+    /// </summary>
+    /// <param name="executablePath">Path to the running game executable.</param>
+    /// <param name="gameType">Target game (ZeroHour or Generals), selecting the compiled engine version.</param>
+    /// <param name="scriptsRoot">Optional root directory containing Data/Scripts. Defaults to the executable directory.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The engine exeCRC as an uppercase 8-character hex string (e.g. 0xF6A4221B), or failure.</returns>
+    Task<OperationResult<string>> CalculateEngineExeCrcAsync(
+        string executablePath,
+        GameType gameType,
+        string? scriptsRoot = null,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Calculates the 32-bit configuration INI CRC (iniCRC) for a game directory with optional sideloads and mods.
     /// </summary>
     /// <param name="gameRootPath">Root directory of the game installation.</param>

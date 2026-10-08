@@ -5,13 +5,20 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts null to Avalonia.Controls.Visibility.Collapsed, otherwise Visible.
+/// Converts null to hidden and non-null to visible for IsVisible bindings.
 /// </summary>
 public class NullToVisibilityConverter : IValueConverter
 {
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
+        // IsVisible is a bool in Avalonia: returning "Collapsed" or "Visible"
+        // strings leaves the binding unresolved and the control visible.
+        if (targetType == typeof(bool) || targetType == typeof(bool?))
+        {
+            return value is not null;
+        }
+
         return value == null ? "Collapsed" : "Visible";
     }
 

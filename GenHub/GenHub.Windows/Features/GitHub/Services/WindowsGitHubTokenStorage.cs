@@ -1,188 +1,24 @@
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
-using GenHub.Features.GitHub.Services;
-using GenHub.Features.Workspace;
-using System;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Security;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+using GenHub.Windows.Features.Common.Services;
 
 namespace GenHub.Windows.Features.GitHub.Services;
 
 /// <summary>
 /// Windows-specific GitHub token storage using DPAPI.
 /// </summary>
-public class WindowsGitHubTokenStorage : IGitHubTokenStorage
+public class WindowsGitHubTokenStorage : DpapiFileTokenStorageBase, IGitHubTokenStorage
 {
-    private readonly string _tokenFilePath;
-    private readonly string? _fallbackTokenFilePath;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="WindowsGitHubTokenStorage"/> class.
     /// </summary>
     /// <param name="configurationProvider">Optional configuration provider service.</param>
     public WindowsGitHubTokenStorage(IConfigurationProviderService? configurationProvider = null)
+        : base(configurationProvider)
     {
-        var appData = configurationProvider?.GetApplicationDataPath()
-            ?? AppDataPathHelper.GetDataRoot();
-        Directory.CreateDirectory(appData);
-        _tokenFilePath = GitHubTokenPathResolver.GetPrimaryTokenFilePath(appData);
-        _fallbackTokenFilePath = GitHubTokenPathResolver.GetFallbackTokenFilePath(appData);
-
-        try
-        {
-            var legacyRoot = AppDataPathHelper.GetLegacyRoamingRoot();
-            if (legacyRoot != null && !File.Exists(_tokenFilePath))
-            {
-                var legacyToken = Path.Combine(legacyRoot, AppConstants.TokenFileName);
-                if (File.Exists(legacyToken))
-                {
-                    File.Move(legacyToken, _tokenFilePath, overwrite: true);
-                }
-            }
-        }
-        catch (IOException)
-        {
-            // Non-fatal legacy migration
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Non-fatal legacy migration
-        }
-        catch (SecurityException)
-        {
-            // Non-fatal legacy migration
-        }
     }
 
-    /// <summary>
-    /// Saves the GitHub token securely using DPAPI.
-    /// </summary>
-    /// <param name="token">The secure string token to save.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task SaveTokenAsync(SecureString token)
-    {
-        if (token == null || token.Length == 0)
-        {
-            throw new ArgumentException("Token cannot be null or empty", nameof(token));
-        }
-
-        // Convert SecureString to plain text temporarily
-        var plainText = SecureStringToString(token);
-
-        try
-        {
-            // Encrypt using DPAPI
-            var plainBytes = Encoding.UTF8.GetBytes(plainText);
-            var encryptedBytes = ProtectedData.Protect(plainBytes, null, DataProtectionScope.CurrentUser);
-
-            // Save to file atomically so a crash mid-write never leaves a truncated
-            // token file behind that the next launch would mistake for corruption.
-            await FileOperationsService.WriteAllBytesAtomicAsync(_tokenFilePath, encryptedBytes).ConfigureAwait(false);
-
-            GitHubTokenPathResolver.DeleteFallbackCopyBestEffort(_fallbackTokenFilePath);
-        }
-        finally
-        {
-            // Clear sensitive data from memory
-            plainText = null;
-        }
-    }
-
-    /// <summary>
-    /// Deletes the stored GitHub token.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public Task DeleteTokenAsync()
-    {
-        FileOperationsService.DeleteFileIfExists(_tokenFilePath);
-        if (_fallbackTokenFilePath != null)
-        {
-            FileOperationsService.DeleteFileIfExists(_fallbackTokenFilePath);
-        }
-
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Checks if a GitHub token is stored.
-    /// </summary>
-    /// <returns>True if a token is stored, otherwise false.</returns>
-    public bool HasToken()
-    {
-        return GitHubTokenPathResolver.ResolveActiveTokenFilePath(_tokenFilePath, _fallbackTokenFilePath) != null;
-    }
-
-    /// <summary>
-    /// Loads the stored GitHub token.
-    /// </summary>
-    /// <returns>The secure string token if available, otherwise null.</returns>
-    public async Task<SecureString?> LoadTokenAsync()
-    {
-        // Try the primary copy first, then the fallback copy, so a corrupt primary
-        // does not hide a valid fallback until the next load.
-        foreach (var candidate in GitHubTokenPathResolver.GetExistingTokenFilePaths(_tokenFilePath, _fallbackTokenFilePath))
-        {
-            try
-            {
-                return await LoadTokenFromFileAsync(candidate);
-            }
-            catch (CryptographicException)
-            {
-                // The copy was encrypted for a different user or machine. Drop only
-                // that copy and try the next candidate, if any.
-                FileOperationsService.DeleteFileIfExists(candidate);
-            }
-        }
-
-        return null;
-    }
-
-    private static async Task<SecureString> LoadTokenFromFileAsync(string tokenFilePath)
-    {
-        // Read encrypted bytes
-        var encryptedBytes = await File.ReadAllBytesAsync(tokenFilePath);
-
-        // Decrypt using DPAPI
-        var plainBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
-        var plainText = Encoding.UTF8.GetString(plainBytes);
-
-        // Convert to SecureString
-        var secureString = StringToSecureString(plainText);
-
-        // Clear plain text
-        Array.Clear(plainBytes, 0, plainBytes.Length);
-
-        return secureString;
-    }
-
-    private static string SecureStringToString(SecureString secureString)
-    {
-        var ptr = Marshal.SecureStringToGlobalAllocUnicode(secureString);
-        try
-        {
-            return Marshal.PtrToStringUni(ptr) ?? string.Empty;
-        }
-        finally
-        {
-            Marshal.ZeroFreeGlobalAllocUnicode(ptr);
-        }
-    }
-
-    private static SecureString StringToSecureString(string input)
-    {
-        var secureString = new SecureString();
-        foreach (var c in input)
-        {
-            secureString.AppendChar(c);
-        }
-
-        secureString.MakeReadOnly();
-        return secureString;
-    }
+    /// <inheritdoc />
+    protected override string TokenFileName => AppConstants.TokenFileName;
 }

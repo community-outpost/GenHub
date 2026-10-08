@@ -5,7 +5,7 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a boolean to the inverse Avalonia.Controls.Visibility.
+/// Converts a boolean to the inverse visible state for IsVisible bindings.
 /// </summary>
 public class InvertedBoolToVisibilityConverter : IValueConverter
 {

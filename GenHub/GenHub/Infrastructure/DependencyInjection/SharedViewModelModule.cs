@@ -2,21 +2,26 @@ using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Online;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Tools.Checksum;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GeneralsOnline.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +48,16 @@ public static class SharedViewModelModule
         services.AddSingleton<DownloadsBrowserViewModel>();
         services.AddSingleton<ToolsViewModel>();
         services.AddSingleton<InfoViewModel>();
+        services.AddSingleton(sp => new GeneralsOnlineLobbiesDependencies(
+            sp.GetService<IGeneralsOnlineWebSocketListener>(),
+            sp.GetService<IOnlineLaunchService>(),
+            sp.GetService<IGameProfileManager>(),
+            sp.GetService<ILocalizationService>(),
+            sp));
+        services.AddSingleton<GeneralsOnlineLobbiesViewModel>();
+        services.AddSingleton<OnlineViewModel>(sp => new OnlineViewModel(
+            sp.GetRequiredService<GeneralsOnlineLobbiesViewModel>(),
+            sp.GetService<ILocalizationService>()));
         services.AddSingleton<NotificationManagerViewModel>();
         services.AddSingleton<SettingsViewModel>(sp => new SettingsViewModel(
             sp.GetRequiredService<IUserSettingsService>(),

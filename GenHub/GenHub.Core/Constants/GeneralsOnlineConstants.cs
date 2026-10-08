@@ -86,6 +86,21 @@ public static class GeneralsOnlineConstants
     /// <summary>Patch notes URL for Generals Online.</summary>
     public const string PatchNotesUrl = "https://www.playgenerals.online/patchnotes";
 
+    /// <summary>Community Discord invite URL for Generals Online.</summary>
+    public const string DiscordUrl = "https://discord.playgenerals.online";
+
+    /// <summary>Code of conduct URL for Generals Online.</summary>
+    public const string CodeOfConductUrl = "https://www.playgenerals.online/codeofconduct";
+
+    /// <summary>QuickMatch ladder URL hosted on GameReplays Strata.</summary>
+    public const string LaddersUrl = "https://strata.gamereplays.org/zh/league/quickmatch";
+
+    /// <summary>Recent matches URL hosted on GameReplays Strata.</summary>
+    public const string MatchesUrl = "https://strata.gamereplays.org/zh/matches";
+
+    /// <summary>Public service status page URL for Generals Online.</summary>
+    public const string ServiceStatusUrl = "https://status.playgenerals.online";
+
     /// <summary>Default releases endpoint URL for Generals Online portable downloads.</summary>
     public const string ReleasesUrl = "https://cdn.playgenerals.online/releases";
 
@@ -245,6 +260,238 @@ public static class GeneralsOnlineConstants
     /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
     public const string EacStepKey = PublisherType + ":eac:" + EacProductId;
 
+    // ===== Multiplayer REST API =====
+
+    /// <summary>Environment variable overriding the Generals Online REST API base URL.</summary>
+    public const string RestApiBaseUrlEnvVar = "GENHUB_GO_API_URL";
+
+    /// <summary>Default base URL for the Generals Online REST API.</summary>
+    public const string DefaultRestApiBaseUrl = "https://api.playgenerals.online";
+
+    /// <summary>Backend environment segment in REST routes.</summary>
+    public const string RestApiEnvironment = "prod";
+
+    /// <summary>Backend contract version segment in REST routes.</summary>
+    public const string RestApiContractVersion = "1";
+
+    /// <summary>Route prefix combining the environment and contract version.</summary>
+    public const string RestApiRoutePrefix = "/env/" + RestApiEnvironment + "/contract/" + RestApiContractVersion;
+
+    /// <summary>Endpoint issuing browser-login codes.</summary>
+    public const string LoginCodeEndpoint = RestApiRoutePrefix + "/LoginCode";
+
+    /// <summary>Endpoint polling browser-login completion.</summary>
+    public const string CheckLoginEndpoint = RestApiRoutePrefix + "/CheckLogin";
+
+    /// <summary>Endpoint exchanging a refresh token for a new session.</summary>
+    public const string LoginWithTokenEndpoint = RestApiRoutePrefix + "/LoginWithToken";
+
+    /// <summary>Endpoint listing active multiplayer lobbies.</summary>
+    public const string LobbiesEndpoint = RestApiRoutePrefix + "/Lobbies";
+
+    /// <summary>Endpoint listing network rooms. The first room shows all matches.</summary>
+    public const string RoomsEndpoint = RestApiRoutePrefix + "/Rooms";
+
+    /// <summary>Endpoint for a single lobby. Format with the lobby id.</summary>
+    public const string LobbyByIdFormat = RestApiRoutePrefix + "/Lobby/{0}";
+
+    /// <summary>Unauthenticated endpoint with total online players and lobbies.</summary>
+    public const string MonitoringBasicStatsEndpoint = RestApiRoutePrefix + "/Monitoring/BasicStats";
+
+    /// <summary>Unauthenticated endpoint with the service start time and uptime.</summary>
+    public const string MonitoringUptimeEndpoint = RestApiRoutePrefix + "/Monitoring/Uptime";
+
+    /// <summary>Endpoint with today's per-faction match and win totals.</summary>
+    public const string GlobalStatsEndpoint = RestApiRoutePrefix + "/GlobalStats";
+
+    /// <summary>Endpoint for one player's statistics. Format with the user id.</summary>
+    public const string PlayerStatsByIdFormat = RestApiRoutePrefix + "/PlayerStats/{0}";
+
+    /// <summary>Endpoint with the community message of the day.</summary>
+    public const string MotdEndpoint = RestApiRoutePrefix + "/MOTD";
+
+    /// <summary>Endpoint listing friends and pending requests.</summary>
+    public const string SocialFriendsEndpoint = RestApiRoutePrefix + "/Social/Friends";
+
+    /// <summary>Endpoint listing blocked users.</summary>
+    public const string SocialBlockedEndpoint = RestApiRoutePrefix + "/Social/Blocked";
+
+    /// <summary>Endpoint for friend requests. Format with the target user id.</summary>
+    public const string SocialFriendRequestFormat = RestApiRoutePrefix + "/Social/Friends/Requests/{0}";
+
+    /// <summary>Endpoint for removing a friend. Format with the target user id.</summary>
+    public const string SocialFriendFormat = RestApiRoutePrefix + "/Social/Friends/{0}";
+
+    /// <summary>Endpoint for blocking a user. Format with the target user id.</summary>
+    public const string SocialBlockedUserFormat = RestApiRoutePrefix + "/Social/Blocked/{0}";
+
+    /// <summary>Endpoint listing active users for launcher sessions.</summary>
+    public const string UsersActiveEndpoint = RestApiRoutePrefix + "/Users/Active";
+
+    /// <summary>Endpoint for bulk player stats lookups.</summary>
+    public const string PlayerStatsBatchEndpoint = RestApiRoutePrefix + "/PlayerStats/Batch";
+
+    /// <summary>Endpoint returning the signed-in user's id and display name.</summary>
+    public const string UsersMeEndpoint = RestApiRoutePrefix + "/Users/Me";
+
+    // ===== Message Of The Day =====
+
+    /// <summary>Prefix introducing an inline MOTD color code.</summary>
+    public const char MotdColorCodePrefix = '\\';
+
+    /// <summary>Hex digits in an MOTD color code (AARRGGBB).</summary>
+    public const int MotdColorCodeHexDigits = 8;
+
+    /// <summary>Hex digits of the RGB part surfaced from an MOTD color code.</summary>
+    public const int MotdColorRgbHexDigits = 6;
+
+    /// <summary>Total characters of an MOTD color code including the prefix.</summary>
+    public const int MotdColorCodeLength = MotdColorCodeHexDigits + 1;
+
+    /// <summary>Prefix for parsed MOTD colors surfaced as #RRGGBB.</summary>
+    public const string MotdColorHexPrefix = "#";
+
+    /// <summary>
+    /// Client identifier sent as client_id during login. Must match the backend
+    /// KnownClients enum name exactly (case-insensitive); the backend maps
+    /// genhub to a GameLauncher session.
+    /// </summary>
+    public const string ClientId = "genhub";
+
+    /// <summary>Base URL of the browser login page.</summary>
+    public const string LoginPageBaseUrl = "https://www.playgenerals.online/login/";
+
+    /// <summary>Login page URL format. Format with the game code.</summary>
+    public const string LoginPageUrlFormat = LoginPageBaseUrl + "?gamecode={0}";
+
+    /// <summary>HTTP timeout in seconds for Generals Online REST calls.</summary>
+    public const int HttpTimeoutSeconds = 15;
+
+    /// <summary>Delay in seconds between browser-login status polls.</summary>
+    public const int LoginPollIntervalSeconds = 2;
+
+    /// <summary>Browser-login polling timeout in minutes.</summary>
+    public const int LoginPollTimeoutMinutes = 3;
+
+    /// <summary>WebSocket message id selecting the network room for lobby filtering.</summary>
+    public const int WebSocketNetworkRoomChangeId = 3;
+
+    /// <summary>Room flag marking the room that shows matches from all rooms.</summary>
+    public const int RoomFlagsShowAllMatches = 1;
+
+    /// <summary>How long selecting the network room waits for an open socket, in milliseconds.</summary>
+    public const int WebSocketRoomSelectTimeoutMs = 10000;
+
+    /// <summary>Poll interval while waiting for an open socket before selecting the room, in milliseconds.</summary>
+    public const int WebSocketRoomSelectPollMs = 100;
+
+    /// <summary>Poll interval while waiting for an open socket, in milliseconds.</summary>
+    public const int WebSocketOpenPollIntervalMs = WebSocketRoomSelectPollMs;
+
+    /// <summary>WebSocket message id signalling the lobby list changed.</summary>
+    public const int WebSocketLobbyListUpdateId = 7;
+
+    /// <summary>WebSocket message id signalling the current lobby changed.</summary>
+    public const int WebSocketCurrentLobbyUpdateId = 6;
+
+    /// <summary>WebSocket message id for sending room chat.</summary>
+    public const int WebSocketRoomChatSendId = 1;
+
+    /// <summary>WebSocket message id for incoming room chat.</summary>
+    public const int WebSocketRoomChatReceiveId = 2;
+
+    /// <summary>WebSocket message id signalling the room member list changed.</summary>
+    public const int WebSocketRoomMembersUpdateId = 4;
+
+    /// <summary>WebSocket message id signalling a new friend request.</summary>
+    public const int WebSocketFriendRequestId = 29;
+
+    /// <summary>WebSocket message id signalling friend presence changed.</summary>
+    public const int WebSocketFriendPresenceId = 32;
+
+    /// <summary>WebSocket message id signalling the friends list is dirty.</summary>
+    public const int WebSocketFriendsDirtyId = 37;
+
+    /// <summary>WebSocket message id for sending friend chat.</summary>
+    public const int WebSocketFriendChatSendId = 30;
+
+    /// <summary>WebSocket message id for incoming friend chat.</summary>
+    public const int WebSocketFriendChatReceiveId = 31;
+
+    /// <summary>WebSocket message id for subscribing to realtime social updates.</summary>
+    public const int WebSocketSocialSubscribeId = 33;
+
+    /// <summary>WebSocket message id carrying the friends online/pending counts.</summary>
+    public const int WebSocketFriendsStatusId = 35;
+
+    /// <summary>WebSocket message id signalling a request was accepted.</summary>
+    public const int WebSocketFriendRequestAcceptedId = 36;
+
+    /// <summary>WebSocket message id carrying a moderation notice.</summary>
+    public const int WebSocketModerationNoticeId = 46;
+
+    /// <summary>Minimum interval between hint-driven background refreshes.</summary>
+    public const int HintRefreshMinIntervalMs = 5000;
+
+    /// <summary>Maximum direct messages kept per friend thread.</summary>
+    public const int FriendChatMaxMessages = 100;
+
+    /// <summary>Maximum room chat messages kept in the view model.</summary>
+    public const int RoomChatMaxMessages = 200;
+
+    /// <summary>Maximum room chat message length in characters.</summary>
+    public const int RoomChatMaxLength = 512;
+
+    /// <summary>Search debounce in milliseconds for the lobby filter.</summary>
+    public const int LobbySearchDebounceMs = 250;
+
+    /// <summary>Debounce in milliseconds before acting on a WebSocket lobby hint.</summary>
+    public const int WebSocketRefreshDebounceMs = 1000;
+
+    /// <summary>Maximum reassembled WebSocket message size in bytes before the connection is closed.</summary>
+    public const int WebSocketMaxMessageBytes = 1048576;
+
+    /// <summary>Error code prefix for Generals Online failures.</summary>
+    public const string ErrorCodePrefix = "generalsonline.";
+
+    /// <summary>Error code for an unreachable Generals Online backend.</summary>
+    public const string ErrorServiceUnavailable = "generalsonline.service-unavailable";
+
+    /// <summary>Error code for a failed or expired login code.</summary>
+    public const string ErrorLoginFailed = "generalsonline.login-failed";
+
+    /// <summary>Error code for a banned account.</summary>
+    public const string ErrorAccountBanned = "generalsonline.account-banned";
+
+    /// <summary>Error code when authentication is required.</summary>
+    public const string ErrorAuthRequired = "generalsonline.auth-required";
+
+    /// <summary>Error code when the lobby list cannot be read.</summary>
+    public const string ErrorLobbiesUnavailable = "generalsonline.lobbies-unavailable";
+
+    /// <summary>Error code when the backend denies lobby listing for this session type.</summary>
+    public const string ErrorLobbiesForbidden = "generalsonline.lobbies-forbidden";
+
+    /// <summary>Maximum error body characters kept in failure diagnostics.</summary>
+    public const int ErrorBodyPreviewLength = 512;
+
+    /// <summary>File name of the persisted Generals Online refresh token.</summary>
+    public const string TokenFileName = ".gotoken";
+
+    /// <summary>Salt for the machine-bound refresh token encryption key.</summary>
+    public const string TokenFileKeySalt = "GenHub.GeneralsOnline.Token.v1";
+
+    // ===== Content Tags =====
+
+    /// <summary>Content tags for search and categorization.</summary>
+    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
+
+    /// <summary>Default tags for MapPack manifests.</summary>
+    public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
+
+    /// <summary>Default tags for GameData patch manifests.</summary>
+    public static readonly string[] GameDataTags = ["patch", "generalsonline"];
+
     // ===== Known Domains =====
 
     /// <summary>Known domain host names for Generals Online services and websites.</summary>
@@ -257,15 +504,4 @@ public static class GeneralsOnlineConstants
         GeneralsOnlineDomain,
         GeneralsOnlineWwwDomain,
     ];
-
-    // ===== Content Tags =====
-
-    /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
-
-    /// <summary>Default tags for MapPack manifests.</summary>
-    public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
-
-    /// <summary>Default tags for GameData patch manifests.</summary>
-    public static readonly string[] GameDataTags = ["patch", "generalsonline"];
 }

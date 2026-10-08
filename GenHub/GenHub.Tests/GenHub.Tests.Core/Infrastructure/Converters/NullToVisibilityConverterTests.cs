@@ -42,6 +42,26 @@ public class NullToVisibilityConverterTests
     }
 
     /// <summary>
+    /// Tests that <see cref="NullToVisibilityConverter.Convert"/> returns false for a null value with a boolean target.
+    /// </summary>
+    [Fact]
+    public void Convert_WithNullValueAndBoolTarget_ReturnsFalse()
+    {
+        var result = _converter.Convert(null, typeof(bool), null, _culture);
+        Assert.False(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="NullToVisibilityConverter.Convert"/> returns true for a non-null value with a boolean target.
+    /// </summary>
+    [Fact]
+    public void Convert_WithNonNullValueAndBoolTarget_ReturnsTrue()
+    {
+        var result = _converter.Convert("test", typeof(bool), null, _culture);
+        Assert.True(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
     /// Tests that <see cref="NullToVisibilityConverter.ConvertBack"/> throws <see cref="NotImplementedException"/>.
     /// </summary>
     [Fact]
