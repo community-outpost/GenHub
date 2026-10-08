@@ -6624,7 +6624,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     /// <param name="result">The search result carrying catalog metadata.</param>
     /// <returns>The deserialized catalog content item, or null when absent or invalid.</returns>
-    private static CatalogContentItem? TryDeserializeCatalogContent(ContentSearchResult result)
+    private CatalogContentItem? TryDeserializeCatalogContent(ContentSearchResult result)
     {
         if (result.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var catalogItemJson) &&
             !string.IsNullOrWhiteSpace(catalogItemJson))
