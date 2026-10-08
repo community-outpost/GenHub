@@ -4273,6 +4273,9 @@
   <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
     <value>+ Новый издатель • каталогов: {0}</value>
   </data>
+  <data name="Downloads.Subscription.Catalog.FallbackNameFormat" xml:space="preserve">
+    <value>Каталог {0}</value>
+  </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>ДОБАВИТЬ КОНТЕНТ</value>
   </data>

@@ -437,17 +437,6 @@ public partial class SubscriptionConfirmationViewModel(
             return matchingEntry.Id;
         }
 
-        // If only one catalog is defined and has a real non-blank ID, return it;
-        // otherwise return null so downstream uses single-catalog fallback resolution.
-        if (_definitionCatalogs.Count == 1)
-        {
-            var singleEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c => c != null);
-            if (singleEntry != null && !string.IsNullOrWhiteSpace(singleEntry.Id))
-            {
-                return singleEntry.Id;
-            }
-        }
-
         return null;
     }
 
@@ -810,7 +799,9 @@ public partial class SubscriptionConfirmationViewModel(
     {
         _definitionCatalogs.Clear();
         var catalogs = definition.Catalogs ?? [];
-        var firstEntry = catalogs.FirstOrDefault(e => e != null && string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))
+        var firstEntry = catalogs.FirstOrDefault(e => e != null && (
+            string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            (e.Mirrors != null && e.Mirrors.Contains(firstCatalogUrl, StringComparer.OrdinalIgnoreCase))))
             ?? catalogs.FirstOrDefault(e => e != null);
         var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : "__primary";
         _definitionCatalogs.Add((
@@ -824,7 +815,9 @@ public partial class SubscriptionConfirmationViewModel(
         {
             if (entry == null ||
                 string.IsNullOrWhiteSpace(entry.Url) ||
-                string.Equals(entry.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase))
+                ReferenceEquals(entry, firstEntry) ||
+                string.Equals(entry.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                (firstEntry != null && string.Equals(entry.Url, firstEntry.Url, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -834,9 +827,13 @@ public partial class SubscriptionConfirmationViewModel(
             {
                 catalogIndex++;
                 var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"__catalog_{catalogIndex}";
+                var fallbackCatalogName = GetLocalizedString(
+                    "Downloads.Subscription.Catalog.FallbackNameFormat",
+                    "Catalog {0}",
+                    catalogIndex);
                 _definitionCatalogs.Add((
                     entryCatalogId,
-                    ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"Catalog {catalogIndex}"),
+                    ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : fallbackCatalogName),
                     entry.Url,
                     parsed));
             }

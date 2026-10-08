@@ -134,25 +134,23 @@ public class PublisherDefinition : IJsonOnDeserialized
 
     private CatalogEntry GetOrCreatePrimaryCatalog()
     {
-        if (Catalogs.Count == 0)
+        if (Catalogs.Count == 0 || Catalogs[0] == null)
         {
             var entry = new CatalogEntry
             {
                 Id = CatalogConstants.DefaultCatalogId,
                 Name = CatalogConstants.DefaultCatalogName,
             };
-            Catalogs.Add(entry);
-            return entry;
-        }
 
-        if (Catalogs[0] == null)
-        {
-            var entry = new CatalogEntry
+            if (Catalogs.Count == 0)
             {
-                Id = CatalogConstants.DefaultCatalogId,
-                Name = CatalogConstants.DefaultCatalogName,
-            };
-            Catalogs[0] = entry;
+                Catalogs.Add(entry);
+            }
+            else
+            {
+                Catalogs[0] = entry;
+            }
+
             return entry;
         }
 
