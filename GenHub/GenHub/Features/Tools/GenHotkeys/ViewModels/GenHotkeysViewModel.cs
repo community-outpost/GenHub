@@ -72,6 +72,10 @@ public partial class GenHotkeysViewModel(
     private const string LocalizationKeyCreateAddon = "Tools.GenHotkeys.CreateAddon";
     private const string LocalizationKeyCreateAddonTooltip = "Tools.GenHotkeys.CreateAddonTooltip";
     private const string LocalizationKeyDefaultApplyToAll = "Tools.GenHotkeys.DefaultApplyToAllText";
+    private const string TitleLocalizationKey = "Tools.GenHotkeys.Title";
+    private const string DefaultTitleText = "GenHotkeys";
+    private const string ProfileSaveFailedKey = "Tools.GenHotkeys.Status.ProfileSaveFailed";
+    private const string ProfileSaveFailedDefault = "Failed to save profile changes for '{0}'.";
 
     private static readonly HashSet<string> GeneralsPowersActions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -545,7 +549,7 @@ public partial class GenHotkeysViewModel(
         {
             var errorMsg = GetLocalizedString("Tools.GenHotkeys.Status.FileNotFound", "The selected image file does not exist: '{0}'", filePath);
             StatusMessage = errorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), errorMsg);
+            ShowNotificationError(errorMsg);
             return false;
         }
 
@@ -554,7 +558,7 @@ public partial class GenHotkeysViewModel(
         {
             var errorMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoLoadFailed", "Failed to load custom cameo from '{0}'. Ensure the file is a valid image.", Path.GetFileName(filePath));
             StatusMessage = errorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), errorMsg);
+            ShowNotificationError(errorMsg);
             return false;
         }
 
@@ -565,48 +569,26 @@ public partial class GenHotkeysViewModel(
         var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         if (savedProfile == null)
         {
-            if (hadPreviousMapping)
+            if (hadPreviousMapping && previousPath != null)
             {
-                targetProfile.CustomCameoMappings[iconName] = previousPath!;
+                targetProfile.CustomCameoMappings[iconName] = previousPath;
             }
             else
             {
                 targetProfile.CustomCameoMappings.Remove(iconName);
             }
 
-            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
-            StatusMessage = saveErrorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            ShowProfileSaveFailure(targetProfile.Name);
             return false;
         }
 
         targetAction.CustomImagePath = filePath;
         targetAction.IconBitmap = bitmap;
-
-        // Synchronize all action cards in layouts sharing this icon
-        foreach (var obj in FilteredGameObjects)
-        {
-            foreach (var layout in obj.Layouts)
-            {
-                foreach (var action in layout)
-                {
-                    if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        action.CustomImagePath = filePath;
-                        action.IconBitmap = bitmap;
-                    }
-                }
-            }
-
-            if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
-            {
-                obj.IconBitmap = bitmap;
-            }
-        }
+        SyncActionAndObjectBitmaps(iconName, filePath, bitmap);
 
         var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
         StatusMessage = successMsg;
-        notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), successMsg);
+        ShowNotificationSuccess(successMsg);
         return true;
     }
 
@@ -632,14 +614,12 @@ public partial class GenHotkeysViewModel(
         var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         if (savedProfile == null)
         {
-            if (hadPreviousMapping)
+            if (hadPreviousMapping && previousPath != null)
             {
-                targetProfile.CustomCameoMappings[iconName] = previousPath!;
+                targetProfile.CustomCameoMappings[iconName] = previousPath;
             }
 
-            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
-            StatusMessage = saveErrorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            ShowProfileSaveFailure(targetProfile.Name);
             return;
         }
 
@@ -647,33 +627,12 @@ public partial class GenHotkeysViewModel(
         await LoadBitmapAsync(
             iconName,
             SelectedGame,
-            defaultBmp =>
-            {
-                foreach (var obj in FilteredGameObjects)
-                {
-                    foreach (var layout in obj.Layouts)
-                    {
-                        foreach (var action in layout)
-                        {
-                            if (string.Equals(action.IconName, iconName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                action.CustomImagePath = null;
-                                action.IconBitmap = defaultBmp;
-                            }
-                        }
-                    }
-
-                    if (string.Equals(obj.IconName, iconName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        obj.IconBitmap = defaultBmp;
-                    }
-                }
-            },
+            defaultBmp => SyncActionAndObjectBitmaps(iconName, null, defaultBmp),
             cancellationToken);
 
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
-        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
+        ShowNotificationInfo(resetMsg);
     }
 
     /// <summary>
@@ -697,21 +656,19 @@ public partial class GenHotkeysViewModel(
         var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         if (savedProfile == null)
         {
-            if (hadPreviousMapping)
+            if (hadPreviousMapping && previousTitle != null)
             {
-                targetProfile.TitleMappings[targetAction.HotkeyString] = previousTitle!;
+                targetProfile.TitleMappings[targetAction.HotkeyString] = previousTitle;
             }
 
-            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
-            StatusMessage = saveErrorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            ShowProfileSaveFailure(targetProfile.Name);
             return;
         }
 
         targetAction.DisplayName = targetAction.DefaultDisplayName;
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
-        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
+        ShowNotificationInfo(resetMsg);
     }
 
     /// <summary>
@@ -741,21 +698,19 @@ public partial class GenHotkeysViewModel(
         var savedProfile = await SaveProfileSerializedAsync(targetProfile, cancellationToken);
         if (savedProfile == null)
         {
-            if (hadPreviousMapping && !string.IsNullOrEmpty(label))
+            if (hadPreviousMapping && previousTooltip != null && !string.IsNullOrEmpty(label))
             {
-                targetProfile.TooltipMappings[label] = previousTooltip!;
+                targetProfile.TooltipMappings[label] = previousTooltip;
             }
 
-            var saveErrorMsg = GetLocalizedString("Tools.GenHotkeys.Status.ProfileSaveFailed", "Failed to save profile changes for '{0}'.", targetProfile.Name);
-            StatusMessage = saveErrorMsg;
-            notificationService?.ShowError(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), saveErrorMsg);
+            ShowProfileSaveFailure(targetProfile.Name);
             return;
         }
 
         targetAction.Tooltip = targetAction.DefaultTooltip;
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
-        notificationService?.ShowInfo(GetLocalizedString("Tools.GenHotkeys.Title", "GenHotkeys"), resetMsg);
+        ShowNotificationInfo(resetMsg);
     }
 
     /// <summary>
@@ -1284,37 +1239,9 @@ public partial class GenHotkeysViewModel(
             {
                 _isDisposed = true;
 
-                var reloadCts = _reloadCts;
-                _reloadCts = null;
-                if (reloadCts != null)
-                {
-                    try
-                    {
-                        reloadCts.Cancel();
-                    }
-                    catch (ObjectDisposedException ex)
-                    {
-                        logger.LogDebug(ex, "Reload CTS was disposed before cancellation");
-                    }
-
-                    reloadCts.Dispose();
-                }
-
-                var addonCheckCts = _addonCheckCts;
-                _addonCheckCts = null;
-                if (addonCheckCts != null)
-                {
-                    try
-                    {
-                        addonCheckCts.Cancel();
-                    }
-                    catch (ObjectDisposedException ex)
-                    {
-                        logger.LogDebug(ex, "Addon check CTS was disposed before cancellation");
-                    }
-
-                    addonCheckCts.Dispose();
-                }
+                CancelAndDisposeCts(ref _reloadCts, "Reload CTS", logger);
+                CancelAndDisposeCts(ref _addonCheckCts, "Addon check CTS", logger);
+                CancelAndDisposeCts(ref _saveDebounceCts, "Save debounce CTS", logger);
 
                 if (_subscribedAction != null)
                 {
@@ -1325,21 +1252,6 @@ public partial class GenHotkeysViewModel(
                 if (localizationService != null)
                 {
                     localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
-                }
-
-                var saveCts = Interlocked.Exchange(ref _saveDebounceCts, null);
-                if (saveCts != null)
-                {
-                    try
-                    {
-                        saveCts.Cancel();
-                    }
-                    catch (ObjectDisposedException ex)
-                    {
-                        logger.LogDebug(ex, "Save debounce CTS was disposed before cancellation");
-                    }
-
-                    saveCts.Dispose();
                 }
 
                 _saveSemaphore.Dispose();
@@ -2015,6 +1927,116 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    private static void CancelAndDisposeCts(ref CancellationTokenSource? cts, string name, ILogger logger)
+    {
+        var tokenSource = Interlocked.Exchange(ref cts, null);
+        if (tokenSource == null)
+        {
+            return;
+        }
+
+        try
+        {
+            tokenSource.Cancel();
+        }
+        catch (ObjectDisposedException ex)
+        {
+            logger.LogDebug(ex, "{Name} was disposed before cancellation", name);
+        }
+
+        tokenSource.Dispose();
+    }
+
+    private static TopLevel? GetTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow is null ? null : TopLevel.GetTopLevel(desktop.MainWindow);
+        }
+
+        return null;
+    }
+
+    private static Bitmap ConvertImageToAvaloniaBitmap(SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32> image)
+    {
+        using var ms = new MemoryStream();
+        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
+        ms.Position = 0;
+        return new Bitmap(ms);
+    }
+
+    private static Bitmap? DecodeWithSageTextureCodec(string filePath)
+    {
+        var codec = new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
+        var ext = Path.GetExtension(filePath);
+        var bytes = File.ReadAllBytes(filePath);
+
+        var tgaResult = codec.Decode(bytes, string.IsNullOrWhiteSpace(ext) ? ".tga" : ext);
+        if (tgaResult.Success && tgaResult.Data != null)
+        {
+            using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+                tgaResult.Data.PixelData,
+                tgaResult.Data.Width,
+                tgaResult.Data.Height);
+            return ConvertImageToAvaloniaBitmap(image);
+        }
+
+        var ddsResult = codec.Decode(bytes, ".dds");
+        if (ddsResult.Success && ddsResult.Data != null)
+        {
+            using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+                ddsResult.Data.PixelData,
+                ddsResult.Data.Width,
+                ddsResult.Data.Height);
+            return ConvertImageToAvaloniaBitmap(image);
+        }
+
+        return null;
+    }
+
+    private static char? ResolveProfileHotkey(HotkeyActionViewModel action, HotkeyProfile profile)
+    {
+        if (string.IsNullOrEmpty(action.HotkeyString))
+        {
+            return action.DefaultHotkey;
+        }
+
+        if (profile.ClearedKeys.Contains(action.HotkeyString))
+        {
+            return null;
+        }
+
+        if (profile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
+        {
+            return mappedKey;
+        }
+
+        return action.DefaultHotkey;
+    }
+
+    private static string ResolveProfileDisplayName(HotkeyActionViewModel action, HotkeyProfile profile)
+    {
+        if (!string.IsNullOrEmpty(action.HotkeyString) &&
+            profile.TitleMappings.TryGetValue(action.HotkeyString, out var mappedTitle))
+        {
+            return mappedTitle;
+        }
+
+        return action.DefaultDisplayName;
+    }
+
+    private static string? ResolveProfileTooltip(HotkeyActionViewModel action, HotkeyProfile profile)
+    {
+        var tooltipLabel = action.TooltipString ?? action.HotkeyString;
+        if (!string.IsNullOrEmpty(tooltipLabel) &&
+            profile.TooltipMappings.TryGetValue(tooltipLabel, out var mappedTooltip))
+        {
+            return mappedTooltip;
+        }
+
+        return action.DefaultTooltip;
+    }
+
     private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
     {
         if (notificationService is null)
@@ -2530,7 +2552,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        SelectedFaction = targetList.FirstOrDefault();
+        SelectedFaction = targetList.First();
     }
 
     private void FilterGameObjects(CancellationToken cancellationToken = default)
@@ -2557,66 +2579,11 @@ public partial class GenHotkeysViewModel(
         ValidateConflicts();
     }
 
-    private TopLevel? GetTopLevel()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return desktop.MainWindow is null ? null : TopLevel.GetTopLevel(desktop.MainWindow);
-        }
-
-        return null;
-    }
-
     private async Task<Bitmap?> LoadCustomBitmapAsync(string filePath)
     {
         try
         {
-            return await Task.Run(() =>
-            {
-                try
-                {
-                    using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(filePath);
-                    using var ms = new MemoryStream();
-                    image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
-                    ms.Position = 0;
-                    return new Bitmap(ms);
-                }
-                catch (Exception ex) when (ex is SixLabors.ImageSharp.ImageFormatException or InvalidDataException or NotSupportedException or ArgumentException)
-                {
-                    logger.LogDebug(ex, "ImageSharp failed to load custom cameo from '{Path}'; attempting SageTextureCodec fallback", filePath);
-                    var codec = new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
-                    var ext = Path.GetExtension(filePath);
-                    var bytes = File.ReadAllBytes(filePath);
-
-                    var tgaResult = codec.Decode(bytes, string.IsNullOrWhiteSpace(ext) ? ".tga" : ext);
-                    if (tgaResult.Success && tgaResult.Data != null)
-                    {
-                        using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
-                            tgaResult.Data.PixelData,
-                            tgaResult.Data.Width,
-                            tgaResult.Data.Height);
-                        using var ms = new MemoryStream();
-                        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
-                        ms.Position = 0;
-                        return new Bitmap(ms);
-                    }
-
-                    var ddsResult = codec.Decode(bytes, ".dds");
-                    if (ddsResult.Success && ddsResult.Data != null)
-                    {
-                        using var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(
-                            ddsResult.Data.PixelData,
-                            ddsResult.Data.Width,
-                            ddsResult.Data.Height);
-                        using var ms = new MemoryStream();
-                        image.Save(ms, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
-                        ms.Position = 0;
-                        return new Bitmap(ms);
-                    }
-
-                    throw;
-                }
-            });
+            return await Task.Run(() => DecodeCustomBitmap(filePath));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
         {
@@ -2765,65 +2732,9 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        foreach (var obj in FilteredGameObjects)
+        foreach (var action in FilteredGameObjects.SelectMany(obj => obj.Layouts).SelectMany(l => l))
         {
-            foreach (var layout in obj.Layouts)
-            {
-                foreach (var action in layout)
-                {
-                    if (string.IsNullOrEmpty(action.HotkeyString))
-                    {
-                        action.Hotkey = action.DefaultHotkey;
-                    }
-                    else if (SelectedProfile.ClearedKeys.Contains(action.HotkeyString))
-                    {
-                        action.Hotkey = null;
-                    }
-                    else if (SelectedProfile.KeyMappings.TryGetValue(action.HotkeyString, out var mappedKey))
-                    {
-                        action.Hotkey = mappedKey;
-                    }
-                    else
-                    {
-                        action.Hotkey = action.DefaultHotkey;
-                    }
-
-                    if (!string.IsNullOrEmpty(action.HotkeyString) &&
-                        SelectedProfile.TitleMappings.TryGetValue(action.HotkeyString, out var mappedTitle))
-                    {
-                        action.DisplayName = mappedTitle;
-                    }
-                    else
-                    {
-                        action.DisplayName = action.DefaultDisplayName;
-                    }
-
-                    var tooltipLabel = action.TooltipString ?? action.HotkeyString;
-                    if (!string.IsNullOrEmpty(tooltipLabel) &&
-                        SelectedProfile.TooltipMappings.TryGetValue(tooltipLabel, out var mappedTooltip))
-                    {
-                        action.Tooltip = mappedTooltip;
-                    }
-                    else
-                    {
-                        action.Tooltip = action.DefaultTooltip;
-                    }
-
-                    var hasCustom = SelectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
-                        File.Exists(customPath);
-                    var targetCustomPath = hasCustom ? customPath : null;
-
-                    if (!string.Equals(action.CustomImagePath, targetCustomPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        action.CustomImagePath = targetCustomPath;
-                        LoadBitmapForIcon(
-                            bmp => action.IconBitmap = bmp,
-                            action.IconName,
-                            targetCustomPath,
-                            CancellationToken.None);
-                    }
-                }
-            }
+            ApplyProfileToAction(action, SelectedProfile);
         }
     }
 
@@ -3042,5 +2953,90 @@ public partial class GenHotkeysViewModel(
                 ? GetLocalizedString("Tools.GenHotkeys.ConflictsCountSingle", "1 conflict detected ({0} total actions affected)", TotalActionsAffectedCount)
                 : GetLocalizedString("Tools.GenHotkeys.ConflictsCountMultiple", "{0} conflicts detected across {1} actions", TotalConflictsCount, TotalActionsAffectedCount);
         }
+    }
+
+    private Bitmap? DecodeCustomBitmap(string filePath)
+    {
+        try
+        {
+            using var image = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(filePath);
+            return ConvertImageToAvaloniaBitmap(image);
+        }
+        catch (Exception ex) when (ex is SixLabors.ImageSharp.ImageFormatException or InvalidDataException or NotSupportedException or ArgumentException)
+        {
+            logger.LogDebug(ex, "ImageSharp failed to load custom cameo from '{Path}'; attempting SageTextureCodec fallback", filePath);
+            var fallback = DecodeWithSageTextureCodec(filePath);
+            if (fallback != null)
+            {
+                return fallback;
+            }
+
+            throw new InvalidDataException($"Failed to decode image from '{filePath}' using ImageSharp and SAGE texture codec.", ex);
+        }
+    }
+
+    private void ApplyProfileToAction(HotkeyActionViewModel action, HotkeyProfile profile)
+    {
+        action.Hotkey = ResolveProfileHotkey(action, profile);
+        action.DisplayName = ResolveProfileDisplayName(action, profile);
+        action.Tooltip = ResolveProfileTooltip(action, profile);
+        UpdateActionCustomCameo(action, profile);
+    }
+
+    private void UpdateActionCustomCameo(HotkeyActionViewModel action, HotkeyProfile profile)
+    {
+        var hasCustom = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
+            File.Exists(customPath);
+        var targetCustomPath = hasCustom ? customPath : null;
+
+        if (!string.Equals(action.CustomImagePath, targetCustomPath, StringComparison.OrdinalIgnoreCase))
+        {
+            action.CustomImagePath = targetCustomPath;
+            LoadBitmapForIcon(
+                bmp => action.IconBitmap = bmp,
+                action.IconName,
+                targetCustomPath,
+                CancellationToken.None);
+        }
+    }
+
+    private void SyncActionAndObjectBitmaps(string iconName, string? customPath, Bitmap? bitmap)
+    {
+        foreach (var action in FilteredGameObjects
+            .SelectMany(obj => obj.Layouts)
+            .SelectMany(layout => layout)
+            .Where(a => string.Equals(a.IconName, iconName, StringComparison.OrdinalIgnoreCase)))
+        {
+            action.CustomImagePath = customPath;
+            action.IconBitmap = bitmap;
+        }
+
+        foreach (var obj in FilteredGameObjects
+            .Where(o => string.Equals(o.IconName, iconName, StringComparison.OrdinalIgnoreCase)))
+        {
+            obj.IconBitmap = bitmap;
+        }
+    }
+
+    private void ShowNotificationError(string message)
+    {
+        notificationService?.ShowError(GetLocalizedString(TitleLocalizationKey, DefaultTitleText), message);
+    }
+
+    private void ShowNotificationSuccess(string message)
+    {
+        notificationService?.ShowSuccess(GetLocalizedString(TitleLocalizationKey, DefaultTitleText), message);
+    }
+
+    private void ShowNotificationInfo(string message)
+    {
+        notificationService?.ShowInfo(GetLocalizedString(TitleLocalizationKey, DefaultTitleText), message);
+    }
+
+    private void ShowProfileSaveFailure(string profileName)
+    {
+        var saveErrorMsg = GetLocalizedString(ProfileSaveFailedKey, ProfileSaveFailedDefault, profileName);
+        StatusMessage = saveErrorMsg;
+        ShowNotificationError(saveErrorMsg);
     }
 }

@@ -128,7 +128,18 @@ public class HotkeyPackageService(
             SetLabelAndAliases(baseCsf, label, key);
         }
 
-        // Apply customized display titles
+        ApplyCustomTitles(baseCsf, profile);
+        ApplyCustomTooltips(baseCsf, profile);
+        SynchronizeShortcutAliases(baseCsf, profile);
+
+        var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
+        Directory.CreateDirectory(englishDir);
+        var csfOutputPath = Path.Combine(englishDir, GenHotkeysConstants.GeneralsCsfFileName);
+        await Task.Run(() => baseCsf.Save(csfOutputPath), cancellationToken);
+    }
+
+    private static void ApplyCustomTitles(CsfFile baseCsf, HotkeyProfile profile)
+    {
         foreach (var (label, title) in profile.TitleMappings)
         {
             if (string.IsNullOrWhiteSpace(title))
@@ -147,8 +158,10 @@ public class HotkeyPackageService(
                 baseCsf.SetString(label, existingHk.HasValue ? CsfFile.SetHotkey(title, existingHk.Value) : title);
             }
         }
+    }
 
-        // Apply customized tooltip descriptions
+    private static void ApplyCustomTooltips(CsfFile baseCsf, HotkeyProfile profile)
+    {
         foreach (var (label, description) in profile.TooltipMappings)
         {
             if (string.IsNullOrWhiteSpace(description))
@@ -162,10 +175,10 @@ public class HotkeyPackageService(
 
             baseCsf.SetString(targetLabel, description);
         }
+    }
 
-        // Synchronize all shortcut aliases with their primary labels in baseCsf
-        // for any powers not explicitly modified by the user, ensuring default/preset
-        // hotkeys also apply to sidebar buttons (e.g. OBJECT:SpyDrone gets &Y from CONTROLBAR:SpyDrone).
+    private static void SynchronizeShortcutAliases(CsfFile baseCsf, HotkeyProfile profile)
+    {
         foreach (var (primaryLabel, aliases) in GenHotkeysConstants.ShortcutLabelAliases)
         {
             if (profile.ClearedKeys.Contains(primaryLabel) || profile.KeyMappings.ContainsKey(primaryLabel))
@@ -174,28 +187,27 @@ public class HotkeyPackageService(
             }
 
             var primaryText = baseCsf.GetString(primaryLabel);
-            if (!string.IsNullOrEmpty(primaryText))
+            if (string.IsNullOrEmpty(primaryText))
             {
-                var defaultHk = CsfFile.ExtractHotkey(primaryText);
-                if (defaultHk.HasValue)
+                continue;
+            }
+
+            var defaultHk = CsfFile.ExtractHotkey(primaryText);
+            if (!defaultHk.HasValue)
+            {
+                continue;
+            }
+
+            foreach (var alias in aliases)
+            {
+                var aliasText = baseCsf.GetString(alias);
+                if (!string.IsNullOrEmpty(aliasText))
                 {
-                    foreach (var alias in aliases)
-                    {
-                        var aliasText = baseCsf.GetString(alias);
-                        if (!string.IsNullOrEmpty(aliasText))
-                        {
-                            var updated = CsfFile.SetHotkey(aliasText, defaultHk.Value);
-                            baseCsf.SetString(alias, updated);
-                        }
-                    }
+                    var updated = CsfFile.SetHotkey(aliasText, defaultHk.Value);
+                    baseCsf.SetString(alias, updated);
                 }
             }
         }
-
-        var englishDir = Path.Combine(stagingDir, GenHotkeysConstants.DataEnglishDirectory);
-        Directory.CreateDirectory(englishDir);
-        var csfOutputPath = Path.Combine(englishDir, GenHotkeysConstants.GeneralsCsfFileName);
-        await Task.Run(() => baseCsf.Save(csfOutputPath), cancellationToken);
     }
 
     private static void StripLabelAndAliases(CsfFile csf, string label)
@@ -421,48 +433,84 @@ public class HotkeyPackageService(
 
         // 1. Process all action buttons across all layouts and factions first.
         // Actions take priority over object icons so any shared icon receives its assigned hotkey badge when overlays are enabled.
-        foreach (var faction in factions)
-        {
-            foreach (var obj in faction.GameObjects)
-            {
-                await ProcessActionOverlaysAsync(
-                    obj,
-                    profile,
-                    texturesDir,
-                    processedIcons,
-                    writtenIcons,
-                    cancellationToken);
-            }
-        }
+        await ProcessAllActionOverlaysAsync(factions, profile, texturesDir, processedIcons, writtenIcons, cancellationToken);
 
         // 2. Process object's own icon if it has a custom cameo and was not already processed as an action button
-        foreach (var faction in factions)
-        {
-            foreach (var obj in faction.GameObjects)
-            {
-                if (!string.IsNullOrWhiteSpace(obj.IconName) &&
-                    !processedIcons.Contains(obj.IconName) &&
-                    profile.CustomCameoMappings.TryGetValue(obj.IconName, out var objCustomPath) &&
-                    File.Exists(objCustomPath))
-                {
-                    processedIcons.Add(obj.IconName);
-                    var success = await TryRenderCustomCameoTgaAsync(
-                        obj.IconName,
-                        objCustomPath,
-                        null,
-                        profile,
-                        texturesDir,
-                        cancellationToken);
+        await ProcessGameObjectCustomCameosAsync(factions, profile, texturesDir, processedIcons, writtenIcons, cancellationToken);
 
-                    if (success)
-                    {
-                        writtenIcons.Add(obj.IconName);
-                    }
+        // 3. Process any standalone or unlisted custom cameo mappings in the profile
+        await ProcessStandaloneCustomCameosAsync(profile, texturesDir, processedIcons, writtenIcons, cancellationToken);
+
+        if (writtenIcons.Count > 0)
+        {
+            // Generate MappedImages INIs so SAGE engine binds cameos to our overlaid textures
+            await GenerateMappedImagesIniAsync(writtenIcons, stagingDir, cancellationToken);
+        }
+    }
+
+    private async Task ProcessAllActionOverlaysAsync(
+        IEnumerable<HotkeyFaction> factions,
+        HotkeyProfile profile,
+        string texturesDir,
+        HashSet<string> processedIcons,
+        HashSet<string> writtenIcons,
+        CancellationToken cancellationToken)
+    {
+        foreach (var obj in factions.SelectMany(f => f.GameObjects))
+        {
+            await ProcessActionOverlaysAsync(
+                obj,
+                profile,
+                texturesDir,
+                processedIcons,
+                writtenIcons,
+                cancellationToken);
+        }
+    }
+
+    private async Task ProcessGameObjectCustomCameosAsync(
+        IEnumerable<HotkeyFaction> factions,
+        HotkeyProfile profile,
+        string texturesDir,
+        HashSet<string> processedIcons,
+        HashSet<string> writtenIcons,
+        CancellationToken cancellationToken)
+    {
+        var objectIconNames = factions
+            .SelectMany(f => f.GameObjects)
+            .Select(obj => obj.IconName)
+            .Where(iconName => !string.IsNullOrWhiteSpace(iconName));
+
+        foreach (var iconName in objectIconNames)
+        {
+            if (!processedIcons.Contains(iconName) &&
+                profile.CustomCameoMappings.TryGetValue(iconName, out var objCustomPath) &&
+                File.Exists(objCustomPath))
+            {
+                processedIcons.Add(iconName);
+                var success = await TryRenderCustomCameoTgaAsync(
+                    iconName,
+                    objCustomPath,
+                    null,
+                    profile,
+                    texturesDir,
+                    cancellationToken);
+
+                if (success)
+                {
+                    writtenIcons.Add(iconName);
                 }
             }
         }
+    }
 
-        // Process any standalone or unlisted custom cameo mappings in the profile
+    private async Task ProcessStandaloneCustomCameosAsync(
+        HotkeyProfile profile,
+        string texturesDir,
+        HashSet<string> processedIcons,
+        HashSet<string> writtenIcons,
+        CancellationToken cancellationToken)
+    {
         foreach (var (iconName, customPath) in profile.CustomCameoMappings)
         {
             if (string.IsNullOrWhiteSpace(iconName) || processedIcons.Contains(iconName))
@@ -493,12 +541,6 @@ public class HotkeyPackageService(
                 }
             }
         }
-
-        if (writtenIcons.Count > 0)
-        {
-            // Generate MappedImages INIs so SAGE engine binds cameos to our overlaid textures
-            await GenerateMappedImagesIniAsync(writtenIcons, stagingDir, cancellationToken);
-        }
     }
 
     private async Task ProcessActionOverlaysAsync(
@@ -509,45 +551,52 @@ public class HotkeyPackageService(
         HashSet<string> writtenIcons,
         CancellationToken cancellationToken)
     {
-        foreach (var layout in obj.KeyboardLayouts)
+        foreach (var action in obj.KeyboardLayouts.SelectMany(l => l))
         {
-            foreach (var action in layout)
+            if (string.IsNullOrWhiteSpace(action.IconName) || !processedIcons.Add(action.IconName))
             {
-                if (string.IsNullOrWhiteSpace(action.IconName) || !processedIcons.Add(action.IconName))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var assignedHotkey = ResolveActionHotkey(action, profile);
-                var hasCustomCameo = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) && File.Exists(customPath);
-
-                var success = false;
-                if (hasCustomCameo)
-                {
-                    success = await TryRenderCustomCameoTgaAsync(
-                        action.IconName,
-                        customPath!,
-                        profile.OverlayEnabled ? assignedHotkey : null,
-                        profile,
-                        texturesDir,
-                        cancellationToken);
-                }
-                else if (profile.OverlayEnabled && assignedHotkey.HasValue)
-                {
-                    success = await TryRenderOverlayTgaAsync(
-                        action.IconName,
-                        assignedHotkey.Value,
-                        profile,
-                        texturesDir,
-                        cancellationToken);
-                }
-
-                if (success)
-                {
-                    writtenIcons.Add(action.IconName);
-                }
+            var success = await RenderActionOverlayIfNeededAsync(action, profile, texturesDir, cancellationToken);
+            if (success)
+            {
+                writtenIcons.Add(action.IconName);
             }
         }
+    }
+
+    private async Task<bool> RenderActionOverlayIfNeededAsync(
+        HotkeyAction action,
+        HotkeyProfile profile,
+        string texturesDir,
+        CancellationToken cancellationToken)
+    {
+        var assignedHotkey = ResolveActionHotkey(action, profile);
+        var hasCustomCameo = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) && File.Exists(customPath);
+
+        if (hasCustomCameo)
+        {
+            return await TryRenderCustomCameoTgaAsync(
+                action.IconName,
+                customPath!,
+                profile.OverlayEnabled ? assignedHotkey : null,
+                profile,
+                texturesDir,
+                cancellationToken);
+        }
+
+        if (profile.OverlayEnabled && assignedHotkey.HasValue)
+        {
+            return await TryRenderOverlayTgaAsync(
+                action.IconName,
+                assignedHotkey.Value,
+                profile,
+                texturesDir,
+                cancellationToken);
+        }
+
+        return false;
     }
 
     private async Task<bool> TryRenderOverlayTgaAsync(

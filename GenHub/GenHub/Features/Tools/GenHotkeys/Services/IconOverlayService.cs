@@ -174,7 +174,7 @@ public class IconOverlayService(
                     ddsResult.Data.Height);
             }
 
-            throw;
+            throw new InvalidDataException("Failed to decode image bytes using ImageSharp and SAGE texture codec fallback.", ex);
         }
     }
 
@@ -212,32 +212,31 @@ public class IconOverlayService(
             var rowBits = glyphRows[row];
             for (var col = 0; col < 5; col++)
             {
-                // Most significant bit of the 5-bit column is at bit position (4 - col)
                 var isPixelSet = ((rowBits >> (4 - col)) & 1) != 0;
-                if (!isPixelSet)
+                if (isPixelSet)
                 {
-                    continue;
+                    DrawScaledPixel(image, textStartX + (col * scale), textStartY + (row * scale), scale);
                 }
+            }
+        }
+    }
 
-                // Fill scale x scale block with crisp text color
-                for (var dy = 0; dy < scale; dy++)
+    private static void DrawScaledPixel(Image<Rgba32> image, int startX, int startY, int scale)
+    {
+        for (var dy = 0; dy < scale; dy++)
+        {
+            var py = startY + dy;
+            if (py < 0 || py >= image.Height)
+            {
+                continue;
+            }
+
+            for (var dx = 0; dx < scale; dx++)
+            {
+                var px = startX + dx;
+                if (px >= 0 && px < image.Width)
                 {
-                    var py = textStartY + (row * scale) + dy;
-                    if (py < 0 || py >= image.Height)
-                    {
-                        continue;
-                    }
-
-                    for (var dx = 0; dx < scale; dx++)
-                    {
-                        var px = textStartX + (col * scale) + dx;
-                        if (px < 0 || px >= image.Width)
-                        {
-                            continue;
-                        }
-
-                        image[px, py] = TextColor;
-                    }
+                    image[px, py] = TextColor;
                 }
             }
         }

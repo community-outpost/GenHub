@@ -87,46 +87,46 @@ public partial class HotkeyActionViewModel : ObservableObject
 
     /// <summary>Gets a value indicating whether a custom cameo image is active.</summary>
     public bool CanResetCameo => HasCustomImage;
-#pragma warning restore S2325
 
     /// <summary>
     /// Updates the title token breakdown matching the SAGE engine's HOTKEY_TEXT rendering behavior.
     /// </summary>
     public void UpdateInGameTitleBreakdown()
     {
-        if (string.IsNullOrEmpty(DisplayName))
+        var (before, hotkeyChar, after, hasInTitle) = FormatTitleBreakdown(DisplayName, Hotkey);
+        TitleBeforeHotkey = before;
+        TitleHotkeyChar = hotkeyChar;
+        TitleAfterHotkey = after;
+        HasHotkeyInTitle = hasInTitle;
+    }
+#pragma warning restore S2325
+
+    private static (string Before, string HotkeyChar, string After, bool HasInTitle) FormatTitleBreakdown(string? displayName, char? hotkey)
+    {
+        if (string.IsNullOrEmpty(displayName))
         {
-            TitleBeforeHotkey = string.Empty;
-            TitleHotkeyChar = Hotkey.HasValue ? Hotkey.Value.ToString() : string.Empty;
-            TitleAfterHotkey = string.Empty;
-            HasHotkeyInTitle = false;
-            return;
+            return (string.Empty, hotkey.HasValue ? hotkey.Value.ToString() : string.Empty, string.Empty, false);
         }
 
-        if (Hotkey.HasValue)
+        if (hotkey.HasValue)
         {
-            var keyChar = Hotkey.Value;
-            var idx = DisplayName.IndexOf(keyChar, StringComparison.OrdinalIgnoreCase);
+            var keyChar = hotkey.Value;
+            var idx = displayName.IndexOf(keyChar, StringComparison.OrdinalIgnoreCase);
             if (idx >= 0)
             {
-                TitleBeforeHotkey = DisplayName[..idx];
-                TitleHotkeyChar = DisplayName.Substring(idx, 1);
-                TitleAfterHotkey = DisplayName[(idx + 1)..];
-                HasHotkeyInTitle = true;
-                return;
+                return (displayName[..idx], displayName.Substring(idx, 1), displayName[(idx + 1)..], true);
             }
 
-            TitleBeforeHotkey = "[";
-            TitleHotkeyChar = keyChar.ToString().ToUpperInvariant();
-            TitleAfterHotkey = $"] {DisplayName}";
-            HasHotkeyInTitle = false;
-            return;
+            return ("[", keyChar.ToString().ToUpperInvariant(), $"] {displayName}", false);
         }
 
-        TitleBeforeHotkey = DisplayName;
-        TitleHotkeyChar = string.Empty;
-        TitleAfterHotkey = string.Empty;
-        HasHotkeyInTitle = false;
+        return (displayName, string.Empty, string.Empty, false);
+    }
+
+    private void OnTitleConfigurationChanged()
+    {
+        OnPropertyChanged(nameof(CanResetDisplayName));
+        UpdateInGameTitleBreakdown();
     }
 
     partial void OnHotkeyChanged(char? value)
@@ -135,17 +135,9 @@ public partial class HotkeyActionViewModel : ObservableObject
         UpdateInGameTitleBreakdown();
     }
 
-    partial void OnDisplayNameChanged(string value)
-    {
-        OnPropertyChanged(nameof(CanResetDisplayName));
-        UpdateInGameTitleBreakdown();
-    }
+    partial void OnDisplayNameChanged(string value) => OnTitleConfigurationChanged();
 
-    partial void OnDefaultDisplayNameChanged(string value)
-    {
-        OnPropertyChanged(nameof(CanResetDisplayName));
-        UpdateInGameTitleBreakdown();
-    }
+    partial void OnDefaultDisplayNameChanged(string value) => OnTitleConfigurationChanged();
 
     partial void OnTooltipChanged(string? value)
     {
