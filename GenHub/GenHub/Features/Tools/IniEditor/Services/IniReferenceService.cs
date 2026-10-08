@@ -40,6 +40,8 @@ public sealed class IniReferenceService(
     private IReadOnlyList<IniReferenceEntry> _entries = [];
     private List<IniReferenceEntry> _folderEntries = [];
     private List<IniReferenceEntry> _vanillaEntries = [];
+    private Dictionary<string, HashSet<string>> _folderTokens = new(PathHelper.PathComparer);
+    private Dictionary<string, HashSet<string>> _vanillaTokens = new(PathHelper.PathComparer);
     private string? _indexedFolderPath;
     private bool _vanillaIndexed;
     private IniDocument? _document;
@@ -70,11 +72,12 @@ public sealed class IniReferenceService(
             cancellationToken.ThrowIfCancellationRequested();
             await AddCachedVanillaEntriesAsync(forceRescan, entries, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (IOException ex)
         {
-            throw;
+            logger.LogWarning(ex, "Failed to rebuild the INI reference index");
+            return OperationResult<int>.CreateFailure($"Failed to rebuild the reference index: {ex.Message}", stopwatch.Elapsed);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Failed to rebuild the INI reference index");
             return OperationResult<int>.CreateFailure($"Failed to rebuild the reference index: {ex.Message}", stopwatch.Elapsed);
@@ -124,6 +127,27 @@ public sealed class IniReferenceService(
 
         var match = FindBlock(parsed.Data.Blocks, entry);
         return OperationResult<IniBlock?>.CreateSuccess(match == null ? null : CopyBlock(match), stopwatch.Elapsed);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<IReadOnlyList<IniReferenceEntry>>> FindReferencersAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var matches = new List<IniReferenceEntry>();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(matches, stopwatch.Elapsed);
+        }
+
+        var target = name.Trim();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectDocumentReferencers(target, seen, matches, cancellationToken);
+        if (matches.Count < IniConstants.Editor.MaxReferencers)
+        {
+            await CollectFileReferencersAsync(target, seen, matches, cancellationToken).ConfigureAwait(false);
+        }
+
+        return OperationResult<IReadOnlyList<IniReferenceEntry>>.CreateSuccess(matches, stopwatch.Elapsed);
     }
 
     /// <summary>
@@ -176,6 +200,75 @@ public sealed class IniReferenceService(
         return copy;
     }
 
+    /// <summary>
+    /// Scans content for field value tokens used as reverse-reference prefilter keys.
+    /// </summary>
+    /// <param name="content">The INI text.</param>
+    /// <returns>The distinct value tokens.</returns>
+    internal static HashSet<string> ScanValueTokens(string content)
+    {
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var lines = content.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
+        foreach (var raw in lines)
+        {
+            var line = StripComment(raw);
+            var separatorIndex = line.IndexOf(IniConstants.Syntax.KeyValueSeparator);
+            if (separatorIndex < 0)
+            {
+                continue;
+            }
+
+            foreach (var token in SplitValueTokens(line[(separatorIndex + 1)..]))
+            {
+                tokens.Add(token);
+            }
+        }
+
+        return tokens;
+    }
+
+    /// <summary>
+    /// Splits a field value into candidate reference tokens.
+    /// </summary>
+    /// <param name="value">The field value.</param>
+    /// <returns>The cleaned tokens.</returns>
+    internal static List<string> SplitValueTokens(string value)
+    {
+        var tokens = new List<string>();
+        foreach (var raw in value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var token = raw.Trim('"', '%', ',', ';');
+            if (token.Length > 0 && token.Any(char.IsLetter))
+            {
+                tokens.Add(token);
+            }
+        }
+
+        return tokens;
+    }
+
+    private static void CollectBlockReferencers(
+        IReadOnlyList<IniBlock> blocks,
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        IniReferenceSource source,
+        string label,
+        string? file)
+    {
+        int remaining = IniConstants.Editor.MaxReferencers - matches.Count;
+        if (remaining <= 0)
+        {
+            return;
+        }
+
+        var entries = blocks
+            .Where(block => BlockReferences(block, target) && seen.Add(ReferencerKey(block.BlockType, block.Name, file)))
+            .Take(remaining)
+            .Select(block => new IniReferenceEntry(block.BlockType, block.Name, source, label, file));
+        matches.AddRange(entries);
+    }
+
     private static void ProcessScanLine(
         string[] lines,
         int index,
@@ -205,10 +298,9 @@ public sealed class IniReferenceService(
             if (separatorIndex >= 0)
             {
                 var key = line[..separatorIndex].Trim();
-                var indent = IniDocumentService.GetIndent(raw);
-                if (IniDocumentService.OpensModuleBlock(key, indentStack.Peek(), indent, lines, index))
+                if (IniDocumentService.OpensModuleBlock(key))
                 {
-                    indentStack.Push(indent);
+                    indentStack.Push(IniDocumentService.GetIndent(raw));
                 }
             }
             else if (!IniDocumentService.IsValuelessKey(line) &&
@@ -237,6 +329,30 @@ public sealed class IniReferenceService(
         blocks.FirstOrDefault(block =>
             string.Equals(block.BlockType, entry.BlockType, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(block.Name, entry.Name, StringComparison.OrdinalIgnoreCase));
+
+    private static bool BlockReferences(IniBlock block, string name)
+    {
+        var queue = new Queue<IniBlock>();
+        queue.Enqueue(block);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Fields.Any(field => SplitValueTokens(field.Value).Any(token => string.Equals(token, name, StringComparison.OrdinalIgnoreCase))))
+            {
+                return true;
+            }
+
+            foreach (var child in current.Children)
+            {
+                queue.Enqueue(child);
+            }
+        }
+
+        return false;
+    }
+
+    private static string ReferencerKey(string blockType, string name, string? filePath) =>
+        $"{blockType}\n{name}\n{filePath}";
 
     private static string StripComment(string raw)
     {
@@ -271,11 +387,89 @@ public sealed class IniReferenceService(
         }
     }
 
+    private void CollectDocumentReferencers(
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        CancellationToken cancellationToken)
+    {
+        if (_document == null)
+        {
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        CollectBlockReferencers(_document.Blocks, target, seen, matches, IniReferenceSource.Document, "Document", _document.SourcePath);
+    }
+
+    private async Task CollectFileReferencersAsync(
+        string target,
+        HashSet<string> seen,
+        List<IniReferenceEntry> matches,
+        CancellationToken cancellationToken)
+    {
+        var parsed = 0;
+        foreach (var (file, source, tokens) in EnumerateTokenCandidates())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (parsed >= IniConstants.Editor.MaxReverseParseFiles || matches.Count >= IniConstants.Editor.MaxReferencers)
+            {
+                break;
+            }
+
+            if (!tokens.Contains(target))
+            {
+                continue;
+            }
+
+            parsed++;
+            var doc = await iniDocumentService.ParseFileAsync(file, cancellationToken).ConfigureAwait(false);
+            if (!doc.Success || doc.Data == null)
+            {
+                continue;
+            }
+
+            CollectBlockReferencers(doc.Data.Blocks, target, seen, matches, source, LabelFor(file), file);
+        }
+    }
+
+    private IEnumerable<(string File, IniReferenceSource Source, HashSet<string> Tokens)> EnumerateTokenCandidates()
+    {
+        foreach (var pair in _folderTokens)
+        {
+            yield return (pair.Key, IniReferenceSource.Folder, pair.Value);
+        }
+
+        foreach (var pair in _vanillaTokens)
+        {
+            yield return (pair.Key, IniReferenceSource.Vanilla, pair.Value);
+        }
+    }
+
+    private string LabelFor(string file)
+    {
+        var entry = _entries.FirstOrDefault(candidate => string.Equals(candidate.FilePath, file, PathHelper.PathComparison));
+        if (entry != null)
+        {
+            return entry.SourceLabel;
+        }
+
+        try
+        {
+            return new DirectoryInfo(Path.GetDirectoryName(file) ?? file).Name;
+        }
+        catch (ArgumentException)
+        {
+            return Path.GetFileName(file);
+        }
+    }
+
     private async Task AddCachedFolderEntriesAsync(string? folderPath, bool forceRescan, List<IniReferenceEntry> entries, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
         {
             _folderEntries = [];
+            _folderTokens = new(PathHelper.PathComparer);
             _indexedFolderPath = null;
             return;
         }
@@ -287,8 +481,10 @@ public sealed class IniReferenceService(
         }
 
         var scanned = new List<IniReferenceEntry>();
-        await Task.Run(() => AddFolderEntries(folderPath, scanned, cancellationToken), cancellationToken).ConfigureAwait(false);
+        var tokens = new Dictionary<string, HashSet<string>>(PathHelper.PathComparer);
+        await Task.Run(() => AddFolderEntries(folderPath, scanned, tokens, cancellationToken), cancellationToken).ConfigureAwait(false);
         _folderEntries = scanned;
+        _folderTokens = tokens;
         _indexedFolderPath = folderPath;
         entries.AddRange(scanned);
     }
@@ -302,26 +498,25 @@ public sealed class IniReferenceService(
         }
 
         var scanned = new List<IniReferenceEntry>();
-        await AddVanillaEntriesAsync(scanned, cancellationToken).ConfigureAwait(false);
+        var tokens = new Dictionary<string, HashSet<string>>(PathHelper.PathComparer);
+        await AddVanillaEntriesAsync(scanned, tokens, cancellationToken).ConfigureAwait(false);
         _vanillaEntries = scanned;
+        _vanillaTokens = tokens;
         _vanillaIndexed = true;
         entries.AddRange(scanned);
     }
 
-    private void AddFolderEntries(string folderPath, List<IniReferenceEntry> entries, CancellationToken cancellationToken)
+    private void AddFolderEntries(string folderPath, List<IniReferenceEntry> entries, Dictionary<string, HashSet<string>> tokens, CancellationToken cancellationToken)
     {
         var label = new DirectoryInfo(folderPath).Name;
         foreach (var file in Directory.EnumerateFiles(folderPath, ModBuilderConstants.FileNames.IniSearchPattern, ScanEnumerationOptions))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var (blockType, name) in ScanFileHeaders(file))
-            {
-                entries.Add(new IniReferenceEntry(blockType, name, IniReferenceSource.Folder, label, file));
-            }
+            ScanFileInto(file, entries, tokens, IniReferenceSource.Folder, label);
         }
     }
 
-    private async Task AddVanillaEntriesAsync(List<IniReferenceEntry> entries, CancellationToken cancellationToken)
+    private async Task AddVanillaEntriesAsync(List<IniReferenceEntry> entries, Dictionary<string, HashSet<string>> tokens, CancellationToken cancellationToken)
     {
         var installations = await installationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
         if (!installations.Success || installations.Data == null)
@@ -332,11 +527,11 @@ public sealed class IniReferenceService(
         foreach (var installation in installations.Data)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await AddVanillaInstallationEntriesAsync(installation, entries, cancellationToken).ConfigureAwait(false);
+            await AddVanillaInstallationEntriesAsync(installation, entries, tokens, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task AddVanillaInstallationEntriesAsync(GameInstallation installation, List<IniReferenceEntry> entries, CancellationToken cancellationToken)
+    private async Task AddVanillaInstallationEntriesAsync(GameInstallation installation, List<IniReferenceEntry> entries, Dictionary<string, HashSet<string>> tokens, CancellationToken cancellationToken)
     {
         var probes = new (string? Directory, string Archive, string Label)[]
         {
@@ -367,10 +562,7 @@ public sealed class IniReferenceService(
             foreach (var file in Directory.EnumerateFiles(extracted, ModBuilderConstants.FileNames.IniSearchPattern, ScanEnumerationOptions))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                foreach (var (blockType, name) in ScanFileHeaders(file))
-                {
-                    entries.Add(new IniReferenceEntry(blockType, name, IniReferenceSource.Vanilla, label, file));
-                }
+                ScanFileInto(file, entries, tokens, IniReferenceSource.Vanilla, label);
             }
         }
     }
@@ -401,17 +593,34 @@ public sealed class IniReferenceService(
         return cacheDirectory;
     }
 
-    private List<(string BlockType, string Name)> ScanFileHeaders(string file)
+    private void ScanFileInto(string file, List<IniReferenceEntry> entries, Dictionary<string, HashSet<string>> tokens, IniReferenceSource source, string label)
     {
+        string content = string.Empty;
         try
         {
-            var content = File.ReadAllText(file);
-            return ScanBlockHeaders(content);
+            content = File.ReadAllText(file);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException ex)
         {
             logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
-            return [];
+            return;
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
+            return;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogWarning(ex, "Skipping unreadable INI file {File} during reference indexing", file);
+            return;
+        }
+
+        foreach (var (blockType, name) in ScanBlockHeaders(content))
+        {
+            entries.Add(new IniReferenceEntry(blockType, name, source, label, file));
+        }
+
+        tokens[file] = ScanValueTokens(content);
     }
 }

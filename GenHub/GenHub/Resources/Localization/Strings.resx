@@ -15586,18 +15586,6 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.Toolbar.MenuTooltip" xml:space="preserve">
     <value>File and edit actions</value>
   </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgrade" xml:space="preserve">
-    <value>Add Upgrade</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddUpgradeTooltip" xml:space="preserve">
-    <value>Add an upgrade hookup to the selected Object block</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamage" xml:space="preserve">
-    <value>Add Damage</value>
-  </data>
-  <data name="Tools.IniEditor.Toolbar.AddDamageTooltip" xml:space="preserve">
-    <value>Add a damage profile to the selected Weapon block</value>
-  </data>
   <data name="Tools.IniEditor.Tabs.Blocks" xml:space="preserve">
     <value>Blocks</value>
   </data>
@@ -15673,11 +15661,17 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.FileSettings.Title" xml:space="preserve">
     <value>File settings</value>
   </data>
+  <data name="Tools.IniEditor.Properties.ClearFieldTooltip" xml:space="preserve">
+    <value>Clear the value; once empty, removes the field</value>
+  </data>
   <data name="Tools.IniEditor.Properties.DeleteFieldTooltip" xml:space="preserve">
     <value>Delete this field</value>
   </data>
   <data name="Tools.IniEditor.Properties.GoToDefinitionTooltip" xml:space="preserve">
     <value>Go to referenced definition</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.LocateFieldTooltip" xml:space="preserve">
+    <value>Highlight this field in the raw preview</value>
   </data>
   <data name="Tools.IniEditor.Properties.NewKeyWatermark" xml:space="preserve">
     <value>New field key...</value>
@@ -15685,8 +15679,14 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Tools.IniEditor.Properties.NewValueWatermark" xml:space="preserve">
     <value>New field value...</value>
   </data>
+  <data name="Tools.IniEditor.Properties.AddFlagTooltip" xml:space="preserve">
+    <value>Add the typed flag, even when it is not in the suggestion list.</value>
+  </data>
   <data name="Tools.IniEditor.Properties.AddField" xml:space="preserve">
     <value>Add Field</value>
+  </data>
+  <data name="Tools.IniEditor.Properties.NoFieldsHint" xml:space="preserve">
+    <value>No fields to show. Select a block or module to edit its fields, or add a field below.</value>
   </data>
   <data name="Tools.IniEditor.Empty.Title" xml:space="preserve">
     <value>No document open</value>
@@ -15772,6 +15772,9 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   </data>
   <data name="Tools.IniEditor.Format.NoFileMessage" xml:space="preserve">
     <value>Save the document to a file before formatting.</value>
+  </data>
+  <data name="Tools.IniEditor.Format.RefusedDiscardedContent" xml:space="preserve">
+    <value>Refusing to format: parsing discarded source lines. Resolve the parse errors first.</value>
   </data>
   <data name="Tools.IniEditor.History.AddBlock" xml:space="preserve">
     <value>Add block</value>
@@ -17813,6 +17816,372 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.IniEditor.Reference.NotFoundTitle" xml:space="preserve">
     <value>Definition Not Found</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.HealthLabel" xml:space="preserve">
+    <value>HEALTH</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CostLabel" xml:space="preserve">
+    <value>COST</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.BuildTimeLabel" xml:space="preserve">
+    <value>BUILD TIME</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.KindOfLabel" xml:space="preserve">
+    <value>KINDOF</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.ModulesLabel" xml:space="preserve">
+    <value>MODULES</value>
+  </data>
+  <data name="Tools.IniEditor.History.AttachTexture" xml:space="preserve">
+    <value>Attach Texture</value>
+  </data>
+  <data name="Tools.IniEditor.History.ApplyRawPreview" xml:space="preserve">
+    <value>Raw INI Edit</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessTitle" xml:space="preserve">
+    <value>Texture Attached</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.AttachTextureSuccessMessage" xml:space="preserve">
+    <value>Attached {0} to {1}.</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableTitle" xml:space="preserve">
+    <value>Clipboard Unavailable</value>
+  </data>
+  <data name="Tools.IniEditor.Toast.ClipboardUnavailableMessage" xml:space="preserve">
+    <value>The system clipboard is not available.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.ExperienceRequired" xml:space="preserve">
+    <value>Experience points per veterancy level.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.IsTrainable" xml:space="preserve">
+    <value>Whether the unit gains veterancy.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceFear" xml:space="preserve">
+    <value>Fear voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.VoiceGuard" xml:space="preserve">
+    <value>Guard voice.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.SoundStealthOn" xml:space="preserve">
+    <value>Stealth activation sound.</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.PanTooltip" xml:space="preserve">
+    <value>Pan the canvas</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredTitle" xml:space="preserve">
+    <value>Opened with issues</value>
+  </data>
+  <data name="Tools.IniEditor.Open.RecoveredMessage" xml:space="preserve">
+    <value>{0} issue(s) recovered. First issue: {1}</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.Title" xml:space="preserve">
+    <value>Issues</value>
+  </data>
+  <data name="Tools.IniEditor.Validation.UnknownReference" xml:space="preserve">
+    <value>Unknown {1} reference '{0}'.</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Command" xml:space="preserve">
+    <value>Command</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Border" xml:space="preserve">
+    <value>Border</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Target" xml:space="preserve">
+    <value>Target</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Damage" xml:space="preserve">
+    <value>Damage</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Range" xml:space="preserve">
+    <value>Range</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Delay" xml:space="preserve">
+    <value>Delay</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Cost" xml:space="preserve">
+    <value>Cost</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Health" xml:space="preserve">
+    <value>Health</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.BuildTime" xml:space="preserve">
+    <value>Build Time</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Vision" xml:space="preserve">
+    <value>Vision</value>
+  </data>
+  <data name="Tools.IniEditor.Vitals.Shroud" xml:space="preserve">
+    <value>Shroud</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardHpLabel" xml:space="preserve">
+    <value>HP</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.OverviewCount" xml:space="preserve">
+    <value>Showing {0} of {1} blocks</value>
+  </data>
+  <data name="Tools.IniEditor.Canvas.CardCmdLabel" xml:space="preserve">
+    <value>Cmd</value>
+  </data>
+  <data name="Tools.IniEditor.Textures.StatusFormat" xml:space="preserve">
+    <value>{0} / {1} textures</value>
+  </data>
+  <data name="Tools.IniEditor.Save.DiscardedContentMessage" xml:space="preserve">
+    <value>Cannot save: parsing discarded source lines. Resolve the parse errors first.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedTitle" xml:space="preserve">
+    <value>Raw edit not applied</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditRejectedMessage" xml:space="preserve">
+    <value>The edited text has syntax errors. Fix them before applying.</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.GroupByType" xml:space="preserve">
+    <value>Group by type</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.CountFlat" xml:space="preserve">
+    <value>{0} of {1} blocks</value>
+  </data>
+  <data name="Tools.IniEditor.Tree.CountGrouped" xml:space="preserve">
+    <value>{0} of {1} blocks in {2} groups</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.PairTargetWatermark" xml:space="preserve">
+    <value>Target object...</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.PairPercentWatermark" xml:space="preserve">
+    <value>-80</value>
+  </data>
+  <data name="Tools.IniEditor.Fields.OpenSuggestionsTooltip" xml:space="preserve">
+    <value>Open the searchable suggestion list</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.Title" xml:space="preserve">
+    <value>Model and assets</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.ModelDetail" xml:space="preserve">
+    <value>Draw model</value>
+  </data>
+  <data name="Tools.IniEditor.Assets.TextureDetail" xml:space="preserve">
+    <value>Texture ({0})</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.AudioEvent" xml:space="preserve">
+    <value>AudioEvent: named sound definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.DialogEvent" xml:space="preserve">
+    <value>DialogEvent: named dialog line definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Blocks.ParticleSystem" xml:space="preserve">
+    <value>ParticleSystem: particle effect definition.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Sounds" xml:space="preserve">
+    <value>Sample names played by this event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Control" xml:space="preserve">
+    <value>Playback control flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Attack" xml:space="preserve">
+    <value>Attack sample.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Decay" xml:space="preserve">
+    <value>Decay sample.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Limit" xml:space="preserve">
+    <value>Max simultaneous instances.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Priority" xml:space="preserve">
+    <value>Playback priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Volume" xml:space="preserve">
+    <value>Base volume.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.VolumeShift" xml:space="preserve">
+    <value>Random volume shift.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.PitchShift" xml:space="preserve">
+    <value>Random pitch shift range.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.AudioEvent.Type" xml:space="preserve">
+    <value>Sound scope flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Sounds" xml:space="preserve">
+    <value>Sample names played by this event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Control" xml:space="preserve">
+    <value>Playback control flags.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Priority" xml:space="preserve">
+    <value>Playback priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.DialogEvent.Volume" xml:space="preserve">
+    <value>Base volume.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Priority" xml:space="preserve">
+    <value>Render priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.IsOneShot" xml:space="preserve">
+    <value>Whether the system plays once.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Shader" xml:space="preserve">
+    <value>Render shader.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Type" xml:space="preserve">
+    <value>Particle system type.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.ParticleName" xml:space="preserve">
+    <value>Particle texture asset.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.ParticleSystem.Gravity" xml:space="preserve">
+    <value>Gravity applied to particles.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.UnitSpecificSound" xml:space="preserve">
+    <value>Unit specific sound event.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.AcademyClassify" xml:space="preserve">
+    <value>Academy classification tag.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Upgrade.ProductionTimeChange" xml:space="preserve">
+    <value>Target object plus production time percent change.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryMinorRadius" xml:space="preserve">
+    <value>Minor collision radius.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryHeight" xml:space="preserve">
+    <value>Collision height.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.GeometryIsSmall" xml:space="preserve">
+    <value>Whether the object uses small geometry.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.RadarPriority" xml:space="preserve">
+    <value>Radar map priority.</value>
+  </data>
+  <data name="Tools.IniEditor.Schema.Fields.Object.SelectPortrait" xml:space="preserve">
+    <value>Selection portrait texture.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditMultiBlockMessage" xml:space="preserve">
+    <value>The edited text contains multiple blocks. Edit one block at a time.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview.RawEditFileScopeMessage" xml:space="preserve">
+    <value>The edited text contains file-level entries outside the block. Edit one block at a time.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Title" xml:space="preserve">
+    <value>3D Preview</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Empty" xml:space="preserve">
+    <value>No 3D model for this block. Its modules and related objects are shown below.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Loading" xml:space="preserve">
+    <value>Loading {0}…</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NoInstallation" xml:space="preserve">
+    <value>No game installation found for {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NotFound" xml:space="preserve">
+    <value>Model {0} not found in game files.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseError" xml:space="preserve">
+    <value>Could not parse {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseErrorTitle" xml:space="preserve">
+    <value>3D preview failed</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ParseErrorMessage" xml:space="preserve">
+    <value>Could not parse model {0}.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Ready" xml:space="preserve">
+    <value>{0} meshes • {1} textures • {2} bones</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyMissing" xml:space="preserve">
+    <value>{0} meshes • {1} textures ({2} missing) • {3} bones</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ClipUnsupported" xml:space="preserve">
+    <value>Animation '{0}' uses compressed channels and cannot be previewed.</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyComposite" xml:space="preserve">
+    <value>{0} models • {1} meshes • {2} textures</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReadyCompositeMissing" xml:space="preserve">
+    <value>{0} models • {1} meshes • {2} textures ({3} missing)</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Skeleton" xml:space="preserve">
+    <value>Skeleton</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Wireframe" xml:space="preserve">
+    <value>Wireframe</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Track" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViewOptions" xml:space="preserve">
+    <value>3D view options</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.TrackTooltip" xml:space="preserve">
+    <value>Follow the model while the animation plays</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.FrameLabel" xml:space="preserve">
+    <value>Frame</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ClipLabel" xml:space="preserve">
+    <value>Animation</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.Subobjects" xml:space="preserve">
+    <value>Sub-objects</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ShowAllMeshes" xml:space="preserve">
+    <value>Show all</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MeshBoneLabel" xml:space="preserve">
+    <value>Bone</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MeshTextureLabel" xml:space="preserve">
+    <value>Texture</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.SubobjectDetails" xml:space="preserve">
+    <value>tris</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ReferencedBy" xml:space="preserve">
+    <value>Draw states using this mesh</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedObjects" xml:space="preserve">
+    <value>Related objects</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.RelatedCommands" xml:space="preserve">
+    <value>Related commands</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.BackTooltip" xml:space="preserve">
+    <value>Go back to the previously viewed block</value>
+  </data>
+  <data name="Tools.IniEditor.Navigation.ForwardTooltip" xml:space="preserve">
+    <value>Go forward to the next viewed block</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.DoubleClickHint" xml:space="preserve">
+    <value>Drag to orbit • Wheel to zoom • Right-drag or Shift+drag to pan • WASD to move • Double-click to reset</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.NoClips" xml:space="preserve">
+    <value>No animations</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ViaSource" xml:space="preserve">
+    <value>via {0}</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.ResolutionPath" xml:space="preserve">
+    <value>Preview path</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.UsedBy" xml:space="preserve">
+    <value>Used by</value>
+  </data>
+  <data name="Tools.IniEditor.Preview3D.MissingTextures" xml:space="preserve">
+    <value>Missing textures:</value>
   </data>
   <data name="TextureEditor.Button.OpenFolder" xml:space="preserve">
     <value>Open folder</value>

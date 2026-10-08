@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
 using GenHub.Common.Controls;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System.Collections.Generic;
@@ -74,14 +75,64 @@ public sealed class MappedImagePickerControlTests
         MappedImageDefinition? requested = null;
         picker.EditRequested += (_, definition) => requested = definition;
 
-        var list = picker.FindControl<ListBox>("ImagesList");
-        Assert.NotNull(list);
+        var window = new Window { Width = 400, Height = 400, Content = picker };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
 
-        // The handler only reads the selection, never the gesture args, so the
-        // pointer payload is intentionally null.
-        list.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+            var list = picker.FindControl<ListBox>("ImagesList");
+            Assert.NotNull(list);
+            var row = Assert.IsType<ListBoxItem>(list.ContainerFromIndex(0));
 
-        Assert.Same(images[0], requested);
+            // Raising on the realized row bubbles to the list with the row as
+            // the source, mirroring a real gesture.
+            row.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+
+            Assert.Same(images[0], requested);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that double-tapping empty list space does not activate the stale selection.
+    /// </summary>
+    [AvaloniaFact]
+    public void DoubleTapped_EmptySpace_DoesNotRaiseEditRequested()
+    {
+        RegisterPickerResources();
+        var picker = new MappedImagePickerControl();
+        var images = new List<MappedImageDefinition>
+        {
+            new("Alpha", "a.tga", 64, 64, 0, 0, 64, 64),
+        };
+        picker.ItemsSource = images;
+        picker.SelectedImage = images[0];
+        MappedImageDefinition? requested = null;
+        picker.EditRequested += (_, definition) => requested = definition;
+
+        var window = new Window { Width = 400, Height = 400, Content = picker };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var list = picker.FindControl<ListBox>("ImagesList");
+            Assert.NotNull(list);
+
+            // Raising on the list itself carries no row source, mirroring a
+            // gesture on the empty space below the last row.
+            list.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+
+            Assert.Null(requested);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     private static void RegisterPickerResources()

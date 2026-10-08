@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using GenHub.Core.Models.Tools.TextureEditor;
 using System;
 using System.Collections.Generic;
@@ -57,7 +58,26 @@ public partial class MappedImagePickerControl : UserControl
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => RefreshFilter();
         ImagesList.SelectionChanged += OnListSelectionChanged;
-        ImagesList.DoubleTapped += (_, _) => RaiseEditRequested();
+        ImagesList.DoubleTapped += (_, e) =>
+        {
+            // Double-taps on empty list space must not activate the stale selection.
+            if (e.Source is not Visual source || (source is not ListBoxItem && source.FindAncestorOfType<ListBoxItem>() == null))
+            {
+                return;
+            }
+
+            if (SelectedImage is not null)
+            {
+                if (ImageActivated is not null)
+                {
+                    ImageActivated.Invoke(this, SelectedImage);
+                }
+                else
+                {
+                    RaiseEditRequested();
+                }
+            }
+        };
         EditButton.Click += (_, _) => RaiseEditRequested();
     }
 
@@ -99,13 +119,18 @@ public partial class MappedImagePickerControl : UserControl
     /// </summary>
     public event EventHandler<MappedImageDefinition>? EditRequested;
 
+    /// <summary>
+    /// Raised when the user double-taps or activates a mapped image definition.
+    /// </summary>
+    public event EventHandler<MappedImageDefinition>? ImageActivated;
+
     /// <inheritdoc />
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
         if (change.Property == ItemsSourceProperty)
         {
-            TrackItemsSource(change.GetOldValue<IEnumerable<MappedImageDefinition>?>(), change.GetNewValue<IEnumerable<MappedImageDefinition>?>());
+            TrackItemsSource(change.GetNewValue<IEnumerable<MappedImageDefinition>?>());
             RefreshFilter();
         }
         else if (change.Property == ThumbnailProviderProperty)
@@ -175,7 +200,7 @@ public partial class MappedImagePickerControl : UserControl
         }
     }
 
-    private void TrackItemsSource(IEnumerable<MappedImageDefinition>? oldSource, IEnumerable<MappedImageDefinition>? newSource)
+    private void TrackItemsSource(IEnumerable<MappedImageDefinition>? newSource)
     {
         if (_trackedSource is not null)
         {
@@ -183,38 +208,36 @@ public partial class MappedImagePickerControl : UserControl
             _trackedSource = null;
         }
 
-        if (oldSource is INotifyCollectionChanged oldObservable && !ReferenceEquals(oldSource, newSource))
+        if (newSource is INotifyCollectionChanged notify)
         {
-            oldObservable.CollectionChanged -= OnItemsSourceCollectionChanged;
-        }
-
-        if (newSource is INotifyCollectionChanged newObservable)
-        {
-            _trackedSource = newObservable;
-            newObservable.CollectionChanged += OnItemsSourceCollectionChanged;
+            _trackedSource = notify;
+            _trackedSource.CollectionChanged += OnItemsSourceCollectionChanged;
         }
     }
 
-    private void OnItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshFilter();
+    private void OnItemsSourceCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RefreshFilter();
+    }
 
     private void RefreshFilter()
     {
-        string search = SearchBox.Text?.Trim() ?? string.Empty;
-        var provider = ThumbnailProvider;
-        var items = ItemsSource ?? [];
-        var matches = items
-            .Where(image => MatchesSearch(image, search))
-            .OrderBy(image => image.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(image => new MappedImagePickerItem(image, provider?.Invoke(image)))
-            .ToList();
-
+        _syncingSelection = true;
         try
         {
-            _syncingSelection = true;
             _filteredItems.Clear();
-            foreach (var item in matches)
+            if (ItemsSource is not null)
             {
-                _filteredItems.Add(item);
+                var search = (SearchBox.Text ?? string.Empty).Trim();
+                var matching = ItemsSource
+                    .Where(image => MatchesSearch(image, search))
+                    .OrderBy(image => image.Name, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var image in matching)
+                {
+                    var thumbnail = ThumbnailProvider?.Invoke(image);
+                    _filteredItems.Add(new MappedImagePickerItem(image, thumbnail));
+                }
             }
         }
         finally
