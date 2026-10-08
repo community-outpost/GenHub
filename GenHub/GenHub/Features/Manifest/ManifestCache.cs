@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Manifest;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Manifest;
 

@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Validation;
@@ -13,6 +8,13 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services;
 
@@ -61,10 +63,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
 
@@ -79,15 +78,19 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         issues.AddRange(integrityResult.Issues);
         progress?.Report(new ValidationProgress(2, 3, "Content Integrity Complete"));
 
-        // Step 3: Extraneous files
-        progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
-        var extraneousResult = await DetectExtraneousFilesAsync(contentPath, manifest, cancellationToken);
-        issues.AddRange(extraneousResult.Issues);
+        // Step 3: Extraneous files. Without a host variant there is no expected file set,
+        // and the integrity step has already reported the unsupported host.
+        if (ManifestVariantResolver.SupportsRuntime(manifest))
+        {
+            progress?.Report(new ValidationProgress(2, 3, "Detecting Extraneous Files"));
+            var extraneousResult = await DetectExtraneousFilesAsync(contentPath, manifest, cancellationToken);
+            issues.AddRange(extraneousResult.Issues);
+        }
 
         progress?.Report(new ValidationProgress(3, 3, "Validation Complete"));
 
         _logger.LogDebug("Full content validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
-        return new ValidationResult(manifest.Id, issues);
+        return new ValidationResult(manifest.Id, issues, totalFilesValidated: integrityResult.TotalFilesValidated);
     }
 
     /// <inheritdoc/>
@@ -104,39 +107,62 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            throw new ArgumentNullException(nameof(manifest));
+            return CreateUnsupportedHostResult(manifest);
         }
 
         var issues = new List<ValidationIssue>();
-        var totalFiles = manifest.Files.Count;
+        var files = ManifestVariantResolver.ResolveFiles(manifest);
+        var totalFiles = files.Count;
 
         // Performance: Use parallel processing for large file sets
         var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-        var tasks = manifest.Files.Select(async file =>
+        var tasks = files.Select(async file =>
         {
             await semaphore.WaitAsync(cancellationToken);
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var fileIssues = new List<ValidationIssue>();
+                if (string.IsNullOrWhiteSpace(file.RelativePath))
+                {
+                    fileIssues.Add(new ValidationIssue(ManifestErrorMessages.ManifestFileMissingRelativePath, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                    return fileIssues;
+                }
+
+                var fullContentRoot = Path.GetFullPath(contentPath);
+                var resolvedFilePath = Path.GetFullPath(Path.Combine(fullContentRoot, file.RelativePath));
+                var relativePath = Path.GetRelativePath(fullContentRoot, resolvedFilePath);
+                if (relativePath == ".." || relativePath.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) || Path.IsPathRooted(relativePath))
+                {
+                    fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.InvalidFilePathOutsideContentDirectory, file.RelativePath), ValidationSeverity.Error));
+                    return fileIssues;
+                }
 
                 // Check file existence based on source type
-                bool fileExists;
-                if (file.SourceType == ContentSourceType.ContentAddressable)
+                bool isMaterializedLocally = File.Exists(resolvedFilePath);
+                bool fileExists = false;
+
+                if (isMaterializedLocally)
                 {
-                    // For CAS files, check if the hash exists in CAS
+                    fileExists = true;
+                }
+                else if (file.SourceType == ContentSourceType.ContentAddressable)
+                {
                     if (string.IsNullOrWhiteSpace(file.Hash))
                     {
-                        fileIssues.Add(new ValidationIssue($"ContentAddressable file missing hash: {file.RelativePath}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ContentAddressableMissingHash, file.RelativePath), ValidationSeverity.Error));
                         return fileIssues;
                     }
 
                     var casExistsResult = await _casService.ExistsAsync(file.Hash, cancellationToken);
                     if (!casExistsResult.Success)
                     {
-                        fileIssues.Add(new ValidationIssue($"Failed to check CAS existence for file: {file.RelativePath} - {casExistsResult.FirstError}", ValidationSeverity.Error));
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.CasCheckFailedForHash, file.Hash, casExistsResult.FirstError), ValidationSeverity.Error));
                         return fileIssues;
                     }
 
@@ -144,25 +170,22 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                 }
                 else
                 {
-                    // For other source types, check filesystem existence
-                    var filePath = Path.Combine(contentPath, file.RelativePath);
-                    fileExists = File.Exists(filePath);
+                    fileExists = false;
                 }
 
                 if (!fileExists)
                 {
-                    fileIssues.Add(new ValidationIssue($"File not found: {file.RelativePath}", ValidationSeverity.Error));
+                    fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileNotFound, file.RelativePath), ValidationSeverity.Error));
                     return fileIssues;
                 }
 
-                // For filesystem files, also verify hash if present
-                if (file.SourceType != ContentSourceType.ContentAddressable && !string.IsNullOrWhiteSpace(file.Hash))
+                // If file is materialized on disk, verify hash if hash is declared
+                if (isMaterializedLocally && !string.IsNullOrWhiteSpace(file.Hash))
                 {
-                    var filePath = Path.Combine(contentPath, file.RelativePath);
-                    var isHashValid = await _fileOperations.VerifyFileHashAsync(filePath, file.Hash, cancellationToken);
+                    var isHashValid = await _fileOperations.VerifyFileHashAsync(resolvedFilePath, file.Hash, cancellationToken);
                     if (!isHashValid)
                     {
-                        fileIssues.Add(new ValidationIssue($"Hash mismatch for file: {file.RelativePath}", ValidationSeverity.Warning)); // xezon:' File validation is probably fine by just names, and just warn if hash is mismatching.' - on discord 22:20 01/08/2025
+                        fileIssues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.HashMismatchForFile, file.RelativePath), ValidationSeverity.Warning));
                     }
                 }
 
@@ -181,7 +204,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         }
 
         _logger.LogDebug("Content integrity validation for {ManifestId} completed with {IssueCount} issues.", manifest.Id, issues.Count);
-        return new ValidationResult(manifest.Id, issues);
+        return new ValidationResult(manifest.Id, issues, totalFilesValidated: totalFiles);
     }
 
     /// <inheritdoc/>
@@ -192,16 +215,18 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             throw new ArgumentException("Content path cannot be null or empty.", nameof(contentPath));
         }
 
-        if (manifest == null)
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
-            throw new ArgumentNullException(nameof(manifest));
+            return CreateUnsupportedHostResult(manifest);
         }
 
         var issues = new List<ValidationIssue>();
 
         if (!Directory.Exists(contentPath))
         {
-            issues.Add(new ValidationIssue($"Content directory does not exist: {contentPath}", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ContentDirectoryDoesNotExist, contentPath), ValidationSeverity.Error));
             return new ValidationResult(manifest.Id, issues);
         }
 
@@ -209,7 +234,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         {
             // Build a hashset of expected file paths for O(1) lookup performance
             var expectedFiles = new HashSet<string>(
-                manifest.Files.Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
+                ManifestVariantResolver.ResolveFiles(manifest).Where(f => !string.IsNullOrWhiteSpace(f.RelativePath)).Select(f => Path.GetFullPath(Path.Combine(contentPath, f.RelativePath))),
                 StringComparer.OrdinalIgnoreCase);
 
             // Add expected directories if specified in manifest
@@ -253,8 +278,15 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
             foreach (var extraneousFile in extraneousFiles)
             {
                 issues.Add(new ValidationIssue(
-                    $"Extraneous file detected (not in manifest): {extraneousFile}",
-                    ValidationSeverity.Warning));
+                    string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.ExtraneousFileDetected, extraneousFile),
+                    ValidationSeverity.Warning)
+                {
+                    // Typed and pathed so consumers can recognise these structurally;
+                    // the untyped form defaulted to MissingFile, the opposite of what
+                    // an extra file is.
+                    IssueType = ValidationIssueType.UnexpectedFile,
+                    Path = extraneousFile,
+                });
             }
 
             _logger.LogDebug("Extraneous file detection for {ManifestId} found {ExtraneousCount} files.", manifest.Id, extraneousFiles.Count);
@@ -278,62 +310,86 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
         return new ValidationResult(manifest.Id, issues);
     }
 
+    private static ValidationResult CreateUnsupportedHostResult(ContentManifest manifest) =>
+        new(
+            manifest.Id,
+            [
+                new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.NoHostVariantForValidation, ManifestVariantResolver.CurrentRuntimeIdentifier), ValidationSeverity.Error)
+                {
+                    IssueType = ValidationIssueType.ValidationUnavailable,
+                },
+            ]);
+
     private static List<ValidationIssue> ValidateManifestStructure(ContentManifest manifest)
     {
-        if (manifest == null)
-        {
-            throw new ArgumentNullException(nameof(manifest));
-        }
+        ArgumentNullException.ThrowIfNull(manifest);
 
         var issues = new List<ValidationIssue>();
 
         if (string.IsNullOrWhiteSpace(manifest.Id))
         {
-            issues.Add(new ValidationIssue("Manifest Id is missing.", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestIdMissing, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         // Enforce deterministic ID scheme using centralized validator
         if (!string.IsNullOrWhiteSpace(manifest.Id) && !ManifestIdValidator.IsValid(manifest.Id, out var idReason))
         {
-            issues.Add(new ValidationIssue(idReason, ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(idReason, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Name))
         {
-            issues.Add(new ValidationIssue("Manifest Name is missing.", ValidationSeverity.Error));
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestNameMissing, ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
         if (string.IsNullOrWhiteSpace(manifest.Version))
         {
-            issues.Add(new ValidationIssue("Manifest Version is missing.", ValidationSeverity.Warning));
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestVersionMissing, ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
         }
 
-        if (manifest.Files == null)
+        AddFileStructureIssues(ManifestVariantResolver.GetDeclaredFileLists(manifest)[0], string.Empty, issues);
+        if (manifest.Variants.Count > 0)
         {
-            issues.Add(new ValidationIssue("Manifest Files collection is null.", ValidationSeverity.Error));
-        }
-        else if (manifest.Files.Count == 0)
-        {
-            issues.Add(new ValidationIssue("Manifest contains no files.", ValidationSeverity.Warning));
-        }
-        else
-        {
-            var fileIndex = 0;
-            foreach (var file in manifest.Files)
+            for (var variantIndex = 0; variantIndex < manifest.Variants.Count; variantIndex++)
             {
-                if (file == null)
+                var variant = manifest.Variants[variantIndex];
+                if (variant == null)
                 {
-                    issues.Add(new ValidationIssue($"File at index {fileIndex} is null.", ValidationSeverity.Error));
-                }
-                else if (string.IsNullOrWhiteSpace(file.RelativePath))
-                {
-                    issues.Add(new ValidationIssue($"File at index {fileIndex} is missing its RelativePath.", ValidationSeverity.Error));
+                    issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.VariantIsNull, variantIndex), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+                    continue;
                 }
 
-                fileIndex++;
+                AddFileStructureIssues(variant.Files, string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.VariantLocationSuffix, variantIndex), issues);
             }
         }
 
+        if (!ManifestVariantResolver.EnumerateAllFiles(manifest).Any())
+        {
+            issues.Add(new ValidationIssue(ManifestErrorMessages.ManifestContainsNoFiles, ValidationSeverity.Warning) { IssueType = ValidationIssueType.InvalidManifest });
+        }
+
         return issues;
+    }
+
+    private static void AddFileStructureIssues(IReadOnlyList<ManifestFile>? files, string location, List<ValidationIssue> issues)
+    {
+        if (files is null)
+        {
+            issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileCollectionIsNull, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            return;
+        }
+
+        for (var fileIndex = 0; fileIndex < files.Count; fileIndex++)
+        {
+            var file = files[fileIndex];
+            if (file == null)
+            {
+                issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileEntryIsNull, fileIndex, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            }
+            else if (string.IsNullOrWhiteSpace(file.RelativePath))
+            {
+                issues.Add(new ValidationIssue(string.Format(CultureInfo.InvariantCulture, ManifestErrorMessages.FileEntryMissingRelativePath, fileIndex, location), ValidationSeverity.Error) { IssueType = ValidationIssueType.InvalidManifest });
+            }
+        }
     }
 }

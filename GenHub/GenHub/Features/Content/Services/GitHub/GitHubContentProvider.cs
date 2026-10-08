@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
@@ -10,24 +5,31 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
+using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace GenHub.Features.Content.Services.ContentProviders;
+namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// GitHub content provider that orchestrates discovery→resolution→delivery pipeline
 /// for GitHub-hosted content (releases, repositories).
 /// </summary>
 public class GitHubContentProvider(
-   IEnumerable<IContentDiscoverer> discoverers,
-   IEnumerable<IContentResolver> resolvers,
-   IEnumerable<IContentDeliverer> deliverers,
-   ILogger<GitHubContentProvider> logger,
-   IContentValidator contentValidator)
-   : BaseContentProvider(contentValidator, logger)
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    ILogger<GitHubContentProvider> logger,
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     /// <inheritdoc />
-    public override string SourceName => "GitHub";
+    public override string SourceName => GitHubTopicsConstants.DiscovererSourceName;
 
     /// <inheritdoc />
     public override string Description => "GitHub releases and repository content";
@@ -42,40 +44,21 @@ public class GitHubContentProvider(
 
     /// <inheritdoc />
     protected override IContentDiscoverer Discoverer =>
-        discoverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub discoverer found. Ensure a discoverer with 'GitHub' in its SourceName is registered.");
+        ResolveDiscoverer(discoverers, ContentSourceNames.GitHubDiscoverer);
 
     /// <inheritdoc />
     protected override IContentResolver Resolver =>
-        resolvers.FirstOrDefault(r =>
-            r.ResolverId?.Equals(ContentSourceNames.GitHubResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub resolver found. Ensure a resolver with 'GitHub' in its ResolverId is registered.");
+        ResolveResolver(resolvers, ContentSourceNames.GitHubResolverId);
 
     /// <inheritdoc />
     protected override IContentDeliverer Deliverer =>
-        deliverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub deliverer found. Ensure a deliverer with 'GitHub Content Deliverer' in its SourceName is registered.");
+        ResolveDeliverer(deliverers, ContentSourceNames.GitHubDeliverer);
 
     /// <inheritdoc />
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId, CancellationToken cancellationToken = default)
     {
-        var query = new ContentSearchQuery { SearchTerm = contentId, Take = ContentConstants.SingleResultQueryLimit };
-        var searchResult = await SearchAsync(query, cancellationToken);
-
-        if (!searchResult.Success || !searchResult.Data!.Any())
-        {
-            return OperationResult<ContentManifest>.CreateFailure($"Content not found: {contentId}");
-        }
-
-        var result = searchResult.Data!.First();
-        var manifest = result.GetData<ContentManifest>();
-
-        return manifest != null
-            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
-            : OperationResult<ContentManifest>.CreateFailure("Manifest not available in search result");
+        return await SearchManifestByIdAsync(contentId, requireExactIdMatch: false, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -90,19 +73,19 @@ public class GitHubContentProvider(
             Logger.LogDebug("Preparing GitHub content for {ManifestId}", manifest.Id);
 
             // Use the deliverer to handle content acquisition
-            if (!Deliverer.CanDeliver(manifest))
+            var deliveryResult = await DeliverContentOnlyAsync(
+                Deliverer,
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken);
+            if (!deliveryResult.Success || deliveryResult.Data == null)
             {
-                return OperationResult<ContentManifest>.CreateFailure($"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {deliveryResult.FirstError}");
+                return deliveryResult;
             }
 
             // Ensure we have valid data before validation
-            var resultManifest = deliveryResult.Data ?? manifest;
+            var resultManifest = deliveryResult.Data;
 
             // Validate the delivered content (full validation)
             // Forward the provider progress reporter to the validator for user-visible progress

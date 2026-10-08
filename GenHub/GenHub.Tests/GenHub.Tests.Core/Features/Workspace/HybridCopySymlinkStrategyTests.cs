@@ -29,6 +29,19 @@ public class HybridCopySymlinkStrategyTests : IDisposable
         _tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     }
 
+    /// <summary>Malformed sizes cannot make the estimate negative or overflow.</summary>
+    [Fact]
+    public void EstimateDiskUsage_ClampsInvalidSizes()
+    {
+        var config = new WorkspaceConfiguration
+        {
+            Manifests = [new() { Files = [new() { RelativePath = "a.ini", Size = -5 }] }],
+        };
+        Assert.Equal(0, _strategy.EstimateDiskUsage(config));
+        config.Manifests[0].Files = [new() { RelativePath = "a.exe", Size = long.MaxValue }, new() { RelativePath = "b.exe", Size = 10 }];
+        Assert.Equal(long.MaxValue, _strategy.EstimateDiskUsage(config));
+    }
+
     /// <summary>
     /// Test that the strategy can handle HybridCopySymlink configuration.
     /// </summary>
@@ -65,6 +78,8 @@ public class HybridCopySymlinkStrategyTests : IDisposable
                     Files = new List<ManifestFile>
                     {
                         new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true },
+                        new() { RelativePath = "generals.exe", Size = 1000000, IsExecutable = true }, // Duplicate is not materialized twice.
+                        new() { RelativePath = "external.ini", Size = 9000000, InstallTarget = ContentInstallTarget.UserDataDirectory },
                         new() { RelativePath = "config.ini", Size = 1000 }, // Will be copied (small + .ini)
                         new() { RelativePath = "textures/large.tga", Size = 5000000 }, // Will be symlinked
                         new() { RelativePath = "sounds/music.wav", Size = 10000000 }, // Will be symlinked
@@ -83,6 +98,49 @@ public class HybridCopySymlinkStrategyTests : IDisposable
         const long LinkOverheadBytes = 1024L;
         var expectedUsage = 1001000 + (2 * LinkOverheadBytes); // 1003048
         Assert.Equal(expectedUsage, estimate);
+    }
+
+    /// <summary>
+    /// Test that when preparation encounters an unhandled exception, it marks workspace as not prepared with validation issues instead of throwing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareAsync_WhenExceptionOccurs_ReturnsUnpreparedWorkspaceWithValidationIssueAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_tempDir);
+        var sourceFile = Path.Combine(_tempDir, "test.exe");
+        await File.WriteAllTextAsync(sourceFile, "dummy");
+
+        _mockFileOperations
+            .Setup(f => f.CopyFileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Simulated disk error"));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = "test-workspace-error",
+            WorkspaceRootPath = Path.Combine(_tempDir, "workspace"),
+            Strategy = WorkspaceStrategy.HybridCopySymlink,
+            Manifests =
+            [
+                new()
+                {
+                    Files =
+                    [
+                        new() { RelativePath = "test.exe", SourcePath = sourceFile, IsExecutable = true },
+                    ],
+                },
+            ],
+            BaseInstallationPath = _tempDir,
+        };
+
+        // Act
+        var result = await _strategy.PrepareAsync(config);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.False(result.IsPrepared);
+        Assert.NotEmpty(result.ValidationIssues);
     }
 
     /// <summary>

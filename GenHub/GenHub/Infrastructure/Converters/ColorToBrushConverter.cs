@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -21,7 +21,7 @@ public class ColorToBrushConverter : IValueConverter
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value == null)
-            return new SolidColorBrush(Colors.Transparent);
+            return BrushCache.Transparent;
 
         try
         {
@@ -29,15 +29,15 @@ public class ColorToBrushConverter : IValueConverter
             if (value is string colorString)
             {
                 if (string.IsNullOrWhiteSpace(colorString))
-                    return new SolidColorBrush(Colors.Transparent);
+                    return BrushCache.Transparent;
 
                 if (Color.TryParse(colorString, out var parsedColor))
-                    return new SolidColorBrush(parsedColor);
+                    return BrushCache.Get(parsedColor);
             }
 
             // Handle Color objects
             if (value is Color color)
-                return new SolidColorBrush(color);
+                return BrushCache.Get(color);
 
             // Handle numeric values (for opacity, etc.)
             if (value is double opacity && parameter is string paramColor)
@@ -49,16 +49,16 @@ public class ColorToBrushConverter : IValueConverter
                         baseColor.R,
                         baseColor.G,
                         baseColor.B);
-                    return new SolidColorBrush(adjustedColor);
+                    return BrushCache.Get(adjustedColor);
                 }
             }
 
             // Fallback for unknown types
-            return new SolidColorBrush(Colors.Transparent);
+            return BrushCache.Transparent;
         }
         catch
         {
-            return new SolidColorBrush(Colors.Transparent);
+            return BrushCache.Transparent;
         }
     }
 

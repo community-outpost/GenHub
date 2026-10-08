@@ -1,0 +1,10 @@
+{
+  "bigFileName": "340_ControlBarProLemonEditionZH.big",
+  "trailerHex": "0000000000000000",
+  "headerSizeOverride": null,
+  "sha256": "e2c98cf602b89f0963dd8afbce82b7bebd124dd3c2420578724b86d26217a150",
+  "entryOrder": [
+    "ControlBarPro.txt",
+    "GenTool\\fullviewport.dat"
+  ]
+}

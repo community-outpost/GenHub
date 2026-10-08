@@ -1,4 +1,5 @@
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -39,7 +40,7 @@ public class WorkspaceIntegrationTests : IDisposable
         _tempWorkspaceRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         var services = new ServiceCollection();
-        services.AddLogging(builder => builder.AddConsole());
+        services.AddLogging();
 
         // Add mock download service for FileOperationsService
         var mockDownloadService = new Mock<IDownloadService>();
@@ -62,6 +63,7 @@ public class WorkspaceIntegrationTests : IDisposable
 
         services.AddSingleton<ICasStorage, CasStorage>();
         services.AddSingleton<CasReferenceTracker>();
+        services.AddSingleton<ICasReferenceTracker>(sp => sp.GetRequiredService<CasReferenceTracker>());
         services.AddSingleton<ICasService, CasService>();
 
         // Register FileOperationsService for workspace strategies
@@ -87,7 +89,7 @@ public class WorkspaceIntegrationTests : IDisposable
 
         _serviceProvider = services.BuildServiceProvider();
         _workspaceValidator = _serviceProvider.GetRequiredService<IWorkspaceValidator>();
-        SetupTestGameInstallation().Wait();
+        SetupTestGameInstallationAsync().Wait();
     }
 
     /// <summary>
@@ -99,7 +101,7 @@ public class WorkspaceIntegrationTests : IDisposable
     [InlineData(WorkspaceStrategy.FullCopy)]
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
-    public async Task EndToEndWorkspaceCreation_AllStrategies(WorkspaceStrategy strategy)
+    public async Task EndToEndWorkspaceCreation_AllStrategiesAsync(WorkspaceStrategy strategy)
     {
         var manager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
         var config = CreateTestConfiguration(strategy);
@@ -143,7 +145,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_CreatesDirectory()
+    public async Task PrepareWorkspaceAsync_CreatesDirectoryAsync()
     {
         var mockDownloadService = new Mock<IDownloadService>();
         var mockCasService = new Mock<ICasService>();
@@ -177,7 +179,7 @@ public class WorkspaceIntegrationTests : IDisposable
             .ReturnsAsync(new ValidationResult("test", []));
 
         // Create WorkspaceReconciler
-        var workspaceReconciler = new WorkspaceReconciler(mockReconcilerLogger);
+        var workspaceReconciler = new WorkspaceReconciler(mockReconcilerLogger, fileOps);
 
         var manager = new WorkspaceManager([strategy], mockConfigProvider.Object, mockLogger, casReferenceTracker, mockWorkspaceValidator.Object, workspaceReconciler);
 
@@ -221,6 +223,11 @@ public class WorkspaceIntegrationTests : IDisposable
         {
             // Ignore cleanup errors
         }
+
+        if (_serviceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
     }
 
     /// <summary>
@@ -229,19 +236,18 @@ public class WorkspaceIntegrationTests : IDisposable
     /// <param name="workspace">The workspace info.</param>
     /// <param name="strategy">The workspace strategy.</param>
     /// <returns>A completed <see cref="Task"/>.</returns>
-    private static Task VerifyWorkspaceStrategy(WorkspaceInfo workspace, WorkspaceStrategy strategy)
+    private static Task VerifyWorkspaceStrategyAsync(WorkspaceInfo workspace, WorkspaceStrategy strategy)
     {
         var testFile = Directory.GetFiles(workspace.WorkspacePath, "*.exe").First();
         var fileInfo = new FileInfo(testFile);
 
-        switch (strategy)
+        if (strategy == WorkspaceStrategy.FullCopy)
         {
-            case WorkspaceStrategy.FullCopy:
-                Assert.Null(fileInfo.LinkTarget);
-                break;
-            case WorkspaceStrategy.SymlinkOnly:
-                Assert.NotNull(fileInfo.LinkTarget);
-                break;
+            Assert.Null(fileInfo.LinkTarget);
+        }
+        else if (strategy == WorkspaceStrategy.SymlinkOnly)
+        {
+            Assert.NotNull(fileInfo.LinkTarget);
         }
 
         return Task.CompletedTask;
@@ -302,7 +308,7 @@ public class WorkspaceIntegrationTests : IDisposable
     /// Sets up the test game installation files and directories.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous setup.</returns>
-    private async Task SetupTestGameInstallation()
+    private async Task SetupTestGameInstallationAsync()
     {
         Directory.CreateDirectory(_tempGameInstall);
         var testFiles = new[]

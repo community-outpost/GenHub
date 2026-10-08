@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="380"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.GitHubImportDialog"
+        x:DataType="vm:GitHubImportViewModel"
+        Title="{localization:Localize Tools.ModBuilder.GitHubImport.Title}"
+        Icon="/Assets/Icons/generalshub-icon.png"
+        Width="540" Height="400"
+        MinWidth="480" MinHeight="360"
+        MaxWidth="700" MaxHeight="520"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        Background="{DynamicResource WindowBackground}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+    <!-- Header -->
+    <Grid Grid.Row="0" Margin="0,0,0,12"
+          Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Header}"
+                   FontSize="17" FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Subtitle}"
+                   FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                   TextWrapping="Wrap"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- Inputs -->
+    <StackPanel Grid.Row="1" Spacing="12">
+      <StackPanel Spacing="6">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.LabelRepository}"
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBox Text="{Binding RepositoryText, Mode=TwoWay}"
+                 Watermark="{localization:Localize Tools.ModBuilder.GitHubImport.WatermarkRepository}"/>
+      </StackPanel>
+      <StackPanel Spacing="6">
+        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.LabelBranch}"
+                   FontWeight="SemiBold" FontSize="12"
+                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBox Text="{Binding BranchText, Mode=TwoWay}"
+                 Watermark="{localization:Localize Tools.ModBuilder.GitHubImport.WatermarkBranch}"/>
+      </StackPanel>
+      <TextBlock Text="{Binding ErrorText}"
+                 IsVisible="{Binding HasError}"
+                 FontSize="12" Foreground="{DynamicResource ErrorBrush}"
+                 TextWrapping="Wrap"/>
+    </StackPanel>
+
+    <!-- Footer Controls -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,12,0,0">
+      <Border Grid.Column="0"/>
+
+      <Button Grid.Column="1" Content="{localization:Localize Common.Button.Cancel}" Click="OnCancelClick"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
+
+      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.GitHubImport.ButtonImport}" Click="OnImportClick"
+              Background="{DynamicResource AccentBrush}" Foreground="White"
+              FontWeight="SemiBold"
+              Padding="16,8" CornerRadius="8" Cursor="Hand"/>
+    </Grid>
+  </Grid>
+</Window>

@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\Directory.Publish.props" />
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- Debug ships the host Playwright driver (empty restores host detection).
+             Release keeps the Directory.Build.props default (none): on-demand download. -->
+        <PlaywrightPlatform Condition="'$(Configuration)' != 'Release'"></PlaywrightPlatform>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="GenHub.Tests.MacOS" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" />
+        <PackageReference Include="Avalonia.Diagnostics">
+            <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+            <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+        <PackageReference Include="StyleCop.Analyzers" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\GenHub\GenHub.csproj" />
+        <ProjectReference Include="..\GenHub.Core\GenHub.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Build-order-only: guarantees the proxy binary exists before BuildProxyLauncher packs it. -->
+        <ProjectReference Include="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj">
+            <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+            <Private>false</Private>
+            <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+        </ProjectReference>
+    </ItemGroup>
+
+    <Import Project="..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.Bundle.targets" />
+</Project>

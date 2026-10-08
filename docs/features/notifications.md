@@ -48,6 +48,21 @@ The notification system is built on a reactive architecture using `System.Reacti
 │            NotificationItemViewModel                     │
 │  (Individual toast with auto-dismiss timer)             │
 └─────────────────────────────────────────────────────────┘
+
+                     │ IObservable<NotificationMessage>
+                     │ (NotificationHistory)
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│            NotificationFeedViewModel                    │
+│  (Manages persistent notification history)              │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     │ ObservableCollection
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│            NotificationFeedItemViewModel                 │
+│  (Individual feed item with actions)                   │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Models
@@ -55,21 +70,29 @@ The notification system is built on a reactive architecture using `System.Reacti
 - **`NotificationType`**: Enum (Info, Success, Warning, Error)
 - **`NotificationSeverity`**: Priority levels for future filtering
 - **`NotificationMessage`**: Data model containing title, message, type, and options
+- **`NotificationAction`**: Represents an action button with text, callback, and style
+- **`NotificationActionStyle`**: Enum for action button styles (Primary, Secondary, Danger, Success)
 
 ### Services
 
 - **`INotificationService`**: Interface for showing notifications
-- **`NotificationService`**: Implementation using `Subject<NotificationMessage>`
+- **`NotificationService`**: Implementation using `Subject<NotificationMessage>` with history tracking
+- **`GitHubRateLimitTracker`**: Tracks GitHub API rate limits and provides warnings
 
 ### ViewModels
 
 - **`NotificationManagerViewModel`**: Manages active notification collection
 - **`NotificationItemViewModel`**: Represents individual toast with dismiss logic
+- **`NotificationFeedViewModel`**: Manages persistent notification history
+- **`NotificationFeedItemViewModel`**: Represents individual feed item with time formatting
+- **`NotificationActionViewModel`**: Represents action button with styled brushes
 
 ### Views
 
 - **`NotificationContainerView`**: Overlay container in top-right corner
 - **`NotificationToastView`**: Individual toast UI with animations
+- **`NotificationFeedView`**: Bell icon button with dropdown/flyout panel
+- **`NotificationFeedItemView`**: Individual feed item UI with action buttons
 
 ---
 
@@ -143,6 +166,8 @@ _notificationService.ShowWarning(
 
 ### Advanced Usage with Actions
 
+#### Single Action (Legacy)
+
 ```csharp
 var notification = new NotificationMessage(
     NotificationType.Info,
@@ -151,6 +176,56 @@ var notification = new NotificationMessage(
     autoDismissMs: null,
     actionText: "Install Now",
     action: () => InstallUpdate());
+
+_notificationService.Show(notification);
+```
+
+#### Multiple Actions (New)
+
+```csharp
+var notification = new NotificationMessage(
+    NotificationType.Info,
+    "Profile Update Available",
+    "A new version of your profile is available.",
+    autoDismissMs: null,
+    actions: new List<NotificationAction>
+    {
+        new NotificationAction(
+            "Update Now",
+            () => UpdateProfile(),
+            NotificationActionStyle.Primary,
+            dismissOnExecute: true),
+        new NotificationAction(
+            "Later",
+            () => { /* Do nothing */ },
+            NotificationActionStyle.Secondary,
+            dismissOnExecute: true)
+    });
+
+_notificationService.Show(notification);
+```
+
+#### Confirm/Deny Pattern
+
+```csharp
+var notification = new NotificationMessage(
+    NotificationType.Warning,
+    "Delete Profile",
+    "Are you sure you want to delete this profile?",
+    autoDismissMs: null,
+    actions: new List<NotificationAction>
+    {
+        new NotificationAction(
+            "Confirm",
+            () => DeleteProfile(),
+            NotificationActionStyle.Danger,
+            dismissOnExecute: true),
+        new NotificationAction(
+            "Cancel",
+            () => { /* Do nothing */ },
+            NotificationActionStyle.Secondary,
+            dismissOnExecute: true)
+    });
 
 _notificationService.Show(notification);
 ```
@@ -166,6 +241,8 @@ The notification system is registered in `NotificationModule.cs`:
 ```csharp
 services.AddSingleton<INotificationService, NotificationService>();
 services.AddSingleton<NotificationManagerViewModel>();
+services.AddSingleton<NotificationFeedViewModel>();
+services.AddSingleton<GitHubRateLimitTracker>();
 ```
 
 This is automatically included in `AppServices.ConfigureApplicationServices()`.
@@ -181,17 +258,46 @@ This is automatically included in `AppServices.ConfigureApplicationServices()`.
 </Grid>
 ```
 
-The `NotificationManager` property is injected into `MainViewModel`:
+### MainView Integration
+
+`NotificationFeedView` is added to `MainView.axaml` in the header:
+
+```xml
+<Grid ColumnDefinitions="Auto,*,Auto" Margin="20,6,20,6" Height="75">
+    <!-- Tab navigation - Left side -->
+    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="0,0,0,6">
+        <!-- Tab buttons... -->
+    </StackPanel>
+    
+    <!-- branding and notification feed - Right side -->
+    <Grid Grid.Column="2" ColumnDefinitions="Auto,Auto,Auto" VerticalAlignment="Center">
+        <!-- Notification feed bell icon -->
+        <notifications:NotificationFeedView Grid.Column="0" DataContext="{Binding NotificationFeed}" Margin="0,0,8,0" />
+        
+        <!-- Logo and title section -->
+        <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
+            <Image Source="avares://GenHub/Assets/Logos/generalshub-logo.png" Width="90" Height="90" />
+            <TextBlock Text="C&C Generals Launcher" FontSize="9" Foreground="#A0A0A0" />
+        </StackPanel>
+    </Grid>
+</Grid>
+```
+
+The `NotificationManager` and `NotificationFeed` properties are injected into `MainViewModel`:
 
 ```csharp
 public MainViewModel(
     // ... other parameters
     NotificationManagerViewModel notificationManager,
+    NotificationFeedViewModel notificationFeedViewModel,
     // ... other parameters)
 {
     NotificationManager = notificationManager;
+    _notificationFeedViewModel = notificationFeedViewModel;
     // ...
 }
+
+public NotificationFeedViewModel NotificationFeed => _notificationFeedViewModel;
 ```
 
 ---
@@ -204,6 +310,7 @@ public MainViewModel(
 public interface INotificationService
 {
     IObservable<NotificationMessage> Notifications { get; }
+    IObservable<NotificationMessage> NotificationHistory { get; }
     
     void ShowInfo(string title, string message, int? autoDismissMs = null);
     void ShowSuccess(string title, string message, int? autoDismissMs = null);
@@ -213,6 +320,8 @@ public interface INotificationService
     
     void Dismiss(Guid notificationId);
     void DismissAll();
+    void MarkAsRead(Guid notificationId);
+    void ClearHistory();
 }
 ```
 
@@ -226,11 +335,75 @@ public record NotificationMessage(
     int? AutoDismissMilliseconds = 5000,
     string? ActionText = null,
     Action? Action = null,
+    IReadOnlyList<NotificationAction>? Actions = null,
+    bool IsPersistent = false,
     NotificationSeverity Severity = NotificationSeverity.Normal)
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public bool IsActionable => !string.IsNullOrEmpty(ActionText) && Action != null;
+    public bool HasMultipleActions => Actions != null && Actions.Count > 0;
+}
+```
+
+### NotificationAction
+
+```csharp
+public record NotificationAction(
+    string Text,
+    Action Callback,
+    NotificationActionStyle Style = NotificationActionStyle.Primary,
+    bool DismissOnExecute = true)
+{
+    // Properties are automatically generated from constructor parameters
+}
+```
+
+### NotificationActionStyle
+
+```csharp
+public enum NotificationActionStyle
+{
+    Primary,    // Blue background, white text
+    Secondary,  // Gray background, white text
+    Danger,     // Red background, white text
+    Success      // Green background, white text
+}
+```
+
+### NotificationFeedViewModel
+
+```csharp
+public partial class NotificationFeedViewModel : ObservableObject, IDisposable
+{
+    public ObservableCollection<NotificationFeedItemViewModel> NotificationHistory { get; }
+    public int UnreadCount { get; }
+    public bool HasNotifications { get; }
+    public bool IsFeedOpen { get; set; }
+    
+    public ICommand ToggleFeedCommand { get; }
+    public ICommand ClearAllCommand { get; }
+    public ICommand DismissNotificationCommand { get; }
+    public ICommand MarkAsReadCommand { get; }
+}
+```
+
+### GitHubRateLimitTracker
+
+```csharp
+public class GitHubRateLimitTracker
+{
+    public int RemainingRequests { get; }
+    public int TotalRequests { get; }
+    public DateTime ResetTime { get; }
+    public TimeSpan TimeUntilReset { get; }
+    public bool IsNearLimit { get; }
+    public bool IsAtLimit { get; }
+    public double RemainingPercentage { get; }
+    
+    public void UpdateFromHeaders(IDictionary<string, IEnumerable<string>> headers);
+    public void UpdateFromException(GitHubOperationException exception);
+    public string GetStatusMessage();
 }
 ```
 
@@ -313,16 +486,67 @@ Animations are defined in `NotificationToastView.axaml`:
 
 ---
 
+## GitHub Rate Limit Notifications
+
+The `GitHubRateLimitTracker` automatically monitors GitHub API usage and provides warnings when approaching rate limits. When the remaining requests drop below 10% of the total limit, a warning notification is displayed.
+
+### Rate Limit Warning Example
+
+```csharp
+// Automatically triggered by GitHubRateLimitTracker
+_notificationService.ShowWarning(
+    "GitHub API Rate Limit Warning",
+    $"You have used {tracker.RemainingPercentage:P0} of your GitHub API quota. " +
+    $"Resets in {tracker.FormatTimeSpan(tracker.TimeUntilReset)}.");
+```
+
+### Rate Limit Reached Example
+
+```csharp
+// Automatically triggered when limit is reached
+_notificationService.ShowError(
+    "GitHub API Rate Limit Reached",
+    $"You have reached your GitHub API rate limit. " +
+    $"Resets in {tracker.FormatTimeSpan(tracker.TimeUntilReset)}.");
+```
+
+---
+
+## Notification Feed Features
+
+The notification feed provides a persistent history of all notifications, accessible via the bell icon in the title bar.
+
+### Feed Features
+
+- **Persistent History**: Stores up to 100 notifications in memory
+- **Read/Unread Tracking**: Visual indication of unread notifications
+- **Actionable Notifications**: Perform actions directly from the feed
+- **Clear All**: Remove all notifications from history
+- **Individual Dismiss**: Remove specific notifications from history
+- **Time Formatting**: Relative time display (e.g., "2 minutes ago", "1 hour ago")
+
+### Feed Usage
+
+The notification feed is automatically populated when notifications are shown. Users can:
+
+1. Click the bell icon in the title bar to open the feed
+2. View all past notifications with timestamps
+3. Perform actions directly from actionable notifications
+4. Mark notifications as read by viewing them
+5. Clear all notifications using the "Clear All" button
+
+---
+
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-- **Notification History**: View past notifications
 - **Notification Queue**: Limit visible notifications and queue overflow
 - **Sound Effects**: Audio feedback for different notification types
 - **Notification Groups**: Group related notifications
 - **Persistent Notifications**: Save important notifications across sessions
 - **Custom Templates**: Allow custom notification layouts
+- **Notification Filtering**: Filter notifications by type or severity
 
 ---
 
@@ -354,6 +578,83 @@ When launching a profile with symlink strategies without admin rights:
 
 - `UseInstallationAdjacentStorage`: When enabled, CAS pool and workspace paths are resolved dynamically from the preferred game installation
 - `PreferredStorageInstallationId`: Persists the user's selected installation for storage
+
+---
+
+## Download Notification Lifecycle
+
+Every user-visible download follows one standard three-phase lifecycle, owned by
+`DownloadNotificationScope` (`GenHub.Core/Helpers`). When terminal-toast handling is enabled
+(the default), the scope guarantees the pinned toast is always dismissed and exactly one
+terminal toast is shown. When `ShowTerminalToast: false` is configured, the caller owns
+terminal toast display while the scope guarantees pinned toast dismissal.
+
+### Phase 1: Pinned start toast
+
+The scope constructor shows a pinned info toast immediately, before any network I/O:
+
+```csharp
+using var scope = new DownloadNotificationScope(notificationService, contentName);
+```
+
+### Phase 2: Throttled progress updates
+
+Reports are clamped to 0-100% and forwarded to the pinned toast at most every
+`ManifestConstants.NotificationUpdateThrottleMs` (500ms), plus a final update at 100%.
+Pass a chained sink to mirror the same reports into view bindings:
+
+```csharp
+using var scope = new DownloadNotificationScope(
+    notificationService, contentName, chained: gridProgress, localization: localizationService);
+var result = await contentOrchestrator.AcquireContentAsync(searchResult, scope, cancellationToken);
+```
+
+The scope accepts `ContentAcquisitionProgress`, `DownloadProgress`, `UpdateProgress`
+(app updates), and fractional `double` progress (replay/map URL imports).
+
+### Phase 3: Guaranteed cleanup and single terminal toast
+
+```csharp
+try
+{
+    var result = await contentOrchestrator.AcquireContentAsync(searchResult, scope, cancellationToken);
+    if (result.Success)
+    {
+        scope.CompleteSuccess();
+    }
+    else
+    {
+        scope.CompleteFailure(result.FirstError);
+    }
+}
+catch (OperationCanceledException)
+{
+    scope.CompleteCanceled();
+    throw;
+}
+```
+
+Disposal always dismisses the pinned toast, so it can never be orphaned by an early return.
+
+### Ownership rules (no duplicate toasts)
+
+- `IContentDownloadCoordinator` owns the full lifecycle for every download routed through
+  it. Callers update inline progress only and never show terminal toasts for the same
+  download.
+- Bundle flows pass `suppressNotifications: true` for member downloads and wrap the
+  whole bundle in one aggregated scope, so a bundle toasts once instead of per member.
+- Background sub-steps of a larger notified operation (profile dependency auto-acquire)
+  use `SilentProgress<T>.Instance` explicitly instead of passing null progress.
+- Callers that own localized terminal messaging (replay/map imports) use
+  `ShowTerminalToast: false` so the scope manages the pinned toast only, leaving terminal
+  toast delivery to the caller.
+
+### Progress clamping
+
+`ContentAcquisitionProgress.ProgressPercentage`/`StageProgress`,
+`DownloadProgress.Percentage`, and `UpdateProgress.PercentComplete` are clamped to
+0-100 at the model level, so over-reporting deliverers cannot break progress bars on
+any publisher.
 
 ---
 

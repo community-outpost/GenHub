@@ -1,7 +1,9 @@
 using GenHub.Common.ViewModels;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -33,6 +35,8 @@ public class SharedViewModelModuleTests
         var configProvider = CreateMockConfigProvider();
         services.AddSingleton<IConfigurationProviderService>(configProvider);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
         services.AddSingleton<IUserSettingsService>(CreateMockUserSettingsService());
         services.AddSingleton<IAppConfiguration>(CreateMockAppConfiguration());
 
@@ -104,9 +108,14 @@ public class SharedViewModelModuleTests
         var tokenStorageMock = new Mock<GenHub.Core.Interfaces.GitHub.IGitHubTokenStorage>();
         services.AddSingleton<GenHub.Core.Interfaces.GitHub.IGitHubTokenStorage>(tokenStorageMock.Object);
 
+        // Mock IDialogService to avoid dependency issues
+        var dialogServiceMock = new Mock<IDialogService>();
+        services.AddSingleton<IDialogService>(dialogServiceMock.Object);
+
         // Register required modules in correct order
         services.AddLoggingModule();
         services.AddValidationServices();
+        services.AddLocalizationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();
         services.AddCasServices();
@@ -120,6 +129,7 @@ public class SharedViewModelModuleTests
         services.AddUserDataServices();
         services.AddLaunchingServices();
         services.AddToolsServices();
+        services.AddStorageMigrationServices();
         services.AddSharedViewModelModule();
 
         // Register IManifestIdService
@@ -134,7 +144,7 @@ public class SharedViewModelModuleTests
         // Act & Assert: Try to resolve each ViewModel that doesn't require complex constructor parameters
         Assert.NotNull(serviceProvider.GetService<MainViewModel>());
         Assert.NotNull(serviceProvider.GetService<GameProfileLauncherViewModel>());
-        Assert.NotNull(serviceProvider.GetService<DownloadsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<DownloadsBrowserViewModel>());
         Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
     }
@@ -148,10 +158,11 @@ public class SharedViewModelModuleTests
         mock.Setup(x => x.GetWindowHeight()).Returns(800.0);
         mock.Setup(x => x.GetIsWindowMaximized()).Returns(false);
         mock.Setup(x => x.GetLastSelectedTab()).Returns(NavigationTab.Home);
+        mock.Setup(x => x.GetRootAppDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubTest"));
         mock.Setup(x => x.GetApplicationDataPath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubTest", "Content"));
         mock.Setup(x => x.GetWorkspacePath()).Returns(Path.Combine(Path.GetTempPath(), "GenHubTest", "Workspace"));
-        mock.Setup(x => x.GetContentDirectories()).Returns(new List<string> { Path.GetTempPath() });
-        mock.Setup(x => x.GetGitHubDiscoveryRepositories()).Returns(new List<string> { "test/repo" });
+        mock.Setup(x => x.GetContentDirectories()).Returns([Path.GetTempPath()]);
+        mock.Setup(x => x.GetGitHubDiscoveryRepositories()).Returns(["test/repo"]);
         mock.Setup(x => x.GetCasConfiguration()).Returns(new GenHub.Core.Models.Storage.CasConfiguration());
         mock.Setup(x => x.GetDownloadUserAgent()).Returns("TestAgent/1.0");
         mock.Setup(x => x.GetDownloadTimeoutSeconds()).Returns(120);

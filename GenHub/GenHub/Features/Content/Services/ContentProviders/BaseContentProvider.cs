@@ -1,28 +1,47 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Models.Validation;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
-using GenHub.Core.Models.Validation;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Content.Services.ContentProviders;
 
 /// <summary>
 /// Base class for content providers with common pipeline orchestration logic.
 /// </summary>
-public abstract class BaseContentProvider(
-    IContentValidator contentValidator,
-    ILogger logger
-) : IContentProvider
+public abstract class BaseContentProvider : IContentProvider
 {
-    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+    private readonly IContentValidator _contentValidator;
+    private readonly IInstallationInstructionsService _installationInstructionsService;
+    private readonly ILogger _logger;
+    private ProviderDefinition? _cachedProviderDefinition;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseContentProvider"/> class.
+    /// </summary>
+    /// <param name="contentValidator">The content validator.</param>
+    /// <param name="installationInstructionsService">The installation instructions service.</param>
+    /// <param name="logger">The logger.</param>
+    protected BaseContentProvider(
+        IContentValidator contentValidator,
+        IInstallationInstructionsService installationInstructionsService,
+        ILogger logger)
+    {
+        _contentValidator = contentValidator;
+        _installationInstructionsService = installationInstructionsService;
+        _logger = logger;
+    }
 
     /// <inheritdoc />
     public abstract string SourceName { get; }
@@ -38,31 +57,6 @@ public abstract class BaseContentProvider(
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;
 
-    /// <summary>
-    /// Gets the logger for this provider.
-    /// </summary>
-    protected ILogger Logger => _logger;
-
-    /// <summary>
-    /// Gets the content validator for manifest validation.
-    /// </summary>
-    protected IContentValidator ContentValidator => _contentValidator;
-
-    /// <summary>
-    /// Gets the discoverer for this provider.
-    /// </summary>
-    protected abstract IContentDiscoverer Discoverer { get; }
-
-    /// <summary>
-    /// Gets the resolver for this provider.
-    /// </summary>
-    protected abstract IContentResolver Resolver { get; }
-
-    /// <summary>
-    /// Gets the deliverer for this provider.
-    /// </summary>
-    protected abstract IContentDeliverer Deliverer { get; }
-
     /// <inheritdoc />
     public virtual async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
         ContentSearchQuery query,
@@ -70,8 +64,11 @@ public abstract class BaseContentProvider(
     {
         Logger.LogDebug("Starting {ProviderName} search for: {SearchTerm}", SourceName, query.SearchTerm);
 
-        // Step 1: Discovery
-        var discoveryResult = await Discoverer.DiscoverAsync(query, cancellationToken);
+        // Get provider definition for data-driven configuration (if available)
+        var providerDefinition = GetProviderDefinition();
+
+        // Step 1: Discovery - use provider-aware overload if definition is available
+        var discoveryResult = await Discoverer.DiscoverAsync(providerDefinition, query, cancellationToken);
         if (!discoveryResult.Success || discoveryResult.Data == null)
         {
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
@@ -81,11 +78,11 @@ public abstract class BaseContentProvider(
         var resolvedResults = new List<ContentSearchResult>();
 
         // Step 2: Resolution & Validation
-        foreach (var discovered in discoveryResult.Data)
+        foreach (var discovered in discoveryResult.Data.Items)
         {
             if (discovered.RequiresResolution)
             {
-                var resolutionResult = await Resolver.ResolveAsync(discovered, cancellationToken);
+                var resolutionResult = await Resolver.ResolveAsync(providerDefinition, discovered, cancellationToken);
                 if (resolutionResult.Success && resolutionResult.Data != null)
                 {
                     var validationResult = await ContentValidator.ValidateManifestAsync(
@@ -109,7 +106,7 @@ public abstract class BaseContentProvider(
                     Logger.LogWarning(
                         "Resolution failed for {ContentName}: {Error}",
                         discovered.Name,
-                        resolutionResult.FirstError ?? "Unknown error");
+                        resolutionResult.FirstError);
                 }
             }
             else
@@ -121,12 +118,7 @@ public abstract class BaseContentProvider(
         return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(resolvedResults);
     }
 
-    /// <summary>
-    /// Gets the manifest for the specified content ID.
-    /// </summary>
-    /// <param name="contentId">The content identifier.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result containing the game manifest.</returns>
+    /// <inheritdoc/>
     public abstract Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
@@ -153,7 +145,7 @@ public abstract class BaseContentProvider(
             if (!validationResult.IsValid)
             {
                 var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
-                if (errors.Any())
+                if (errors.Count > 0)
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
                         errors.Select(e => $"Manifest validation failed: {e.Message}"));
@@ -169,46 +161,106 @@ public abstract class BaseContentProvider(
             // Delegate to implementation-specific preparation
             var result = await PrepareContentInternalAsync(manifest, workingDirectory, progress, cancellationToken);
 
-            if (result.Success)
+            if (!result.Success)
             {
-                // Final validation of prepared content
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    CurrentOperation = "Validating prepared content...",
-                });
+                return result;
+            }
 
-                // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
-                IProgress<ValidationProgress>? validationProgress = null;
-                if (progress != null)
-                {
-                    validationProgress = new Progress<ValidationProgress>(vp =>
-                    {
-                        // Map validation progress to content acquisition progress for UI display
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.ValidatingFiles,
-                            ProgressPercentage = vp.PercentComplete,
-                            CurrentOperation = vp.CurrentFile ?? "Validating files",
-                            FilesProcessed = vp.Processed,
-                            TotalFiles = vp.Total,
-                        });
-                    });
-                }
+            if (result.Data == null)
+            {
+                Logger.LogError("Content preparation returned success without manifest data for {ManifestId}", manifest.Id);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation returned no manifest data for {manifest.Id}.");
+            }
 
-                var fullResult = await ContentValidator.ValidateAllAsync(
+            try
+            {
+                // Execute post-installation steps if declared on the delivered manifest
+                var stepExecutionResult = await _installationInstructionsService.ExecutePostInstallStepsAsync(
+                    result.Data,
                     workingDirectory,
-                    result.Data!,
-                    validationProgress,
+                    providerSource: SourceName,
+                    progress: progress,
                     cancellationToken: cancellationToken);
 
-                if (!fullResult.IsValid)
+                if (!stepExecutionResult.Success)
                 {
-                    Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+                    Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                    await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                    return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Post-installation execution was canceled for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error executing post-installation steps for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Post-installation execution failed: {ex.Message}");
+            }
+
+            // Final validation of prepared content
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.ValidatingFiles,
+                CurrentOperation = "Validating prepared content...",
+            });
+
+            // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
+            IProgress<ValidationProgress>? validationProgress = null;
+            if (progress != null)
+            {
+                validationProgress = new Progress<ValidationProgress>(vp =>
+                {
+                    // Map validation progress to content acquisition progress for UI display
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.ValidatingFiles,
+                        ProgressPercentage = Math.Clamp(vp.PercentComplete, 0, 100),
+                        CurrentOperation = vp.CurrentFile ?? "Validating files",
+                        FilesProcessed = vp.Processed,
+                        TotalFiles = vp.Total,
+                    });
+                });
+            }
+
+            var fullResult = await ContentValidator.ValidateAllAsync(
+                workingDirectory,
+                result.Data,
+                validationProgress,
+                cancellationToken: cancellationToken);
+
+            if (!fullResult.IsValid)
+            {
+                Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+            }
+
+            try
+            {
+                await OnContentPreparationCompletedAsync(manifest, result.Data, workingDirectory, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Content preparation completion hook was canceled for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Content preparation completion hook failed for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation completion hook failed: {ex.Message}");
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Content preparation was canceled for manifest {ManifestId}", manifest.Id);
+            throw;
         }
         catch (Exception ex)
         {
@@ -216,6 +268,119 @@ public abstract class BaseContentProvider(
             return OperationResult<ContentManifest>.CreateFailure($"Content preparation failed: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Resolves the discoverer with the given source name from the registered components.
+    /// </summary>
+    /// <param name="discoverers">The registered discoverers.</param>
+    /// <param name="sourceName">The expected source name.</param>
+    /// <returns>The matching discoverer.</returns>
+    protected static IContentDiscoverer ResolveDiscoverer(IEnumerable<IContentDiscoverer> discoverers, string sourceName)
+    {
+        ArgumentNullException.ThrowIfNull(discoverers);
+
+        return discoverers.FirstOrDefault(d => string.Equals(d.SourceName, sourceName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content discoverer found for '{sourceName}'");
+    }
+
+    /// <summary>
+    /// Resolves the resolver with the given resolver ID from the registered components.
+    /// </summary>
+    /// <param name="resolvers">The registered resolvers.</param>
+    /// <param name="resolverId">The expected resolver ID.</param>
+    /// <returns>The matching resolver.</returns>
+    protected static IContentResolver ResolveResolver(IEnumerable<IContentResolver> resolvers, string resolverId)
+    {
+        ArgumentNullException.ThrowIfNull(resolvers);
+
+        return resolvers.FirstOrDefault(r => string.Equals(r.ResolverId, resolverId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content resolver found for '{resolverId}'");
+    }
+
+    /// <summary>
+    /// Resolves the deliverer with the given source name from the registered components.
+    /// </summary>
+    /// <param name="deliverers">The registered deliverers.</param>
+    /// <param name="sourceName">The expected source name.</param>
+    /// <returns>The matching deliverer.</returns>
+    protected static IContentDeliverer ResolveDeliverer(IEnumerable<IContentDeliverer> deliverers, string sourceName)
+    {
+        ArgumentNullException.ThrowIfNull(deliverers);
+
+        return deliverers.FirstOrDefault(d => string.Equals(d.SourceName, sourceName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"No content deliverer found for '{sourceName}'");
+    }
+
+    /// <summary>
+    /// Rolls back prepared content and registered manifests when post-preparation steps fail.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel rollback operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Executes cleanup or finalization when content preparation and validation succeed.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel finalization operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task OnContentPreparationCompletedAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets the logger for this provider.
+    /// </summary>
+    protected ILogger Logger => _logger;
+
+    /// <summary>
+    /// Gets the content validator for manifest validation.
+    /// </summary>
+    protected IContentValidator ContentValidator => _contentValidator;
+
+    /// <summary>
+    /// Gets the installation instructions service for post-install execution.
+    /// </summary>
+    protected IInstallationInstructionsService? InstallationInstructionsService => _installationInstructionsService;
+
+    /// <summary>
+    /// Gets the discoverer for this provider.
+    /// </summary>
+    protected abstract IContentDiscoverer Discoverer { get; }
+
+    /// <summary>
+    /// Gets the resolver for this provider.
+    /// </summary>
+    protected abstract IContentResolver Resolver { get; }
+
+    /// <summary>
+    /// Gets the deliverer for this provider.
+    /// </summary>
+    protected abstract IContentDeliverer Deliverer { get; }
+
+    /// <summary>
+    /// Gets the provider definition for data-driven configuration.
+    /// Override this method to provide a ProviderDefinition loaded from JSON configuration.
+    /// </summary>
+    /// <returns>The provider definition, or null if the provider uses hardcoded configuration.</returns>
+    protected virtual ProviderDefinition? GetProviderDefinition() => null;
 
     /// <summary>
     /// Implementation-specific content preparation logic.
@@ -230,6 +395,258 @@ public abstract class BaseContentProvider(
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Delivers content using the specified deliverer and enriches the manifest via the publisher manifest factory.
+    /// </summary>
+    /// <param name="deliverer">The content deliverer.</param>
+    /// <param name="manifestFactory">The publisher manifest factory.</param>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the prepared content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> DeliverAndEnrichContentAsync(
+        IContentDeliverer deliverer,
+        IPublisherManifestFactory manifestFactory,
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(deliverer);
+        ArgumentNullException.ThrowIfNull(manifestFactory);
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        try
+        {
+            var deliveryResult = await DeliverContentOnlyAsync(
+                deliverer,
+                manifest,
+                workingDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!deliveryResult.Success || deliveryResult.Data == null)
+            {
+                return deliveryResult;
+            }
+
+            var manifestResult = await manifestFactory.CreateManifestsFromExtractedContentAsync(
+                manifest,
+                workingDirectory,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!manifestResult.Success)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Content preparation failed: {manifestResult.FirstError}");
+            }
+
+            var extractedManifests = manifestResult.Data;
+            var resultManifest = extractedManifests is { Count: > 0 } ? extractedManifests[0] : (deliveryResult.Data ?? manifest);
+
+            Logger.LogInformation(
+                "Successfully prepared {SourceName} content {ManifestId} with {FileCount} files",
+                SourceName,
+                resultManifest.Id,
+                ManifestVariantResolver.ResolveFiles(resultManifest).Count);
+
+            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to prepare {SourceName} content {ManifestId}", SourceName, manifest.Id);
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content preparation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Delivers content using the specified deliverer without manifest factory enrichment.
+    /// Used by resolver-based providers whose manifests are already complete at resolve
+    /// time; search-based providers use <see cref="DeliverAndEnrichContentAsync"/> instead
+    /// so extracted payloads are re-scanned into manifests.
+    /// </summary>
+    /// <param name="deliverer">The content deliverer.</param>
+    /// <param name="manifest">The content manifest.</param>
+    /// <param name="workingDirectory">The working directory.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the delivered content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> DeliverContentOnlyAsync(
+        IContentDeliverer deliverer,
+        ContentManifest manifest,
+        string workingDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(deliverer);
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        if (!deliverer.CanDeliver(manifest))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Cannot deliver content for manifest {manifest.Id}");
+        }
+
+        var deliveryResult = await deliverer.DeliverContentAsync(
+            manifest,
+            workingDirectory,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!deliveryResult.Success)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content delivery failed: {deliveryResult.FirstError}");
+        }
+
+        var resultManifest = deliveryResult.Data ?? manifest;
+        Logger.LogInformation(
+            "Successfully prepared {SourceName} content {ManifestId}",
+            SourceName,
+            resultManifest.Id);
+
+        return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
+    }
+
+    /// <summary>
+    /// Searches for content by ID and extracts the embedded manifest from the search result.
+    /// </summary>
+    /// <param name="contentId">The content identifier to search for.</param>
+    /// <param name="requireExactIdMatch">Whether the search result ID must exactly match the requested ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the validated content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> SearchManifestByIdAsync(
+        string contentId,
+        bool requireExactIdMatch,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(contentId))
+        {
+            return OperationResult<ContentManifest>.CreateFailure("Content ID cannot be null or empty");
+        }
+
+        var take = requireExactIdMatch ? ContentConstants.ExactIdSearchQueryLimit : ContentConstants.SingleResultQueryLimit;
+        var query = new ContentSearchQuery { SearchTerm = contentId, Take = take };
+        var searchResult = await SearchAsync(query, cancellationToken).ConfigureAwait(false);
+
+        if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}': {searchResult.FirstError ?? "No matching results"}");
+        }
+
+        var result = requireExactIdMatch
+            ? searchResult.Data.FirstOrDefault(r => string.Equals(r.Id, contentId, StringComparison.OrdinalIgnoreCase))
+            : searchResult.Data.FirstOrDefault();
+
+        if (result == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content not found for ID '{contentId}'.");
+        }
+
+        var manifest = result.GetData<ContentManifest>();
+
+        return manifest != null
+            ? OperationResult<ContentManifest>.CreateSuccess(manifest)
+            : OperationResult<ContentManifest>.CreateFailure($"Invalid manifest data for content ID '{contentId}'");
+    }
+
+    /// <summary>
+    /// Creates a synthetic search result used to resolve a manifest by content ID.
+    /// </summary>
+    /// <param name="contentId">The content identifier.</param>
+    /// <param name="name">The display name for the resolution request.</param>
+    /// <param name="version">The version for the resolution request.</param>
+    /// <param name="resolverId">The resolver identifier.</param>
+    /// <returns>A search result flagged for resolution.</returns>
+    protected ContentSearchResult CreateResolutionRequest(
+        string contentId,
+        string name,
+        string version,
+        string resolverId)
+    {
+        return new ContentSearchResult
+        {
+            Id = contentId,
+            Name = name,
+            Version = version,
+            ProviderName = SourceName,
+            RequiresResolution = true,
+            ResolverId = resolverId,
+        };
+    }
+
+    /// <summary>
+    /// Resolves a manifest from a search result and validates it.
+    /// </summary>
+    /// <param name="item">The search result to resolve.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the validated content manifest.</returns>
+    protected async Task<OperationResult<ContentManifest>> ResolveAndValidateAsync(
+        ContentSearchResult item,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        var manifestResult = await Resolver.ResolveAsync(item, cancellationToken).ConfigureAwait(false);
+        if (!manifestResult.Success || manifestResult.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to resolve manifest: {manifestResult.FirstError}");
+        }
+
+        var validationResult = await ContentValidator.ValidateManifestAsync(
+            manifestResult.Data,
+            cancellationToken).ConfigureAwait(false);
+
+        if (!validationResult.IsValid)
+        {
+            var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
+            return OperationResult<ContentManifest>.CreateFailure(errors);
+        }
+
+        return manifestResult;
+    }
+
+    /// <summary>
+    /// Gets the cached provider definition, loading it from JSON configuration on first use.
+    /// </summary>
+    /// <param name="loader">The provider definition loader.</param>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <returns>The provider definition, or null if the provider uses hardcoded configuration.</returns>
+    protected ProviderDefinition? GetCachedProviderDefinition(IProviderDefinitionLoader loader, string publisherId)
+    {
+        ArgumentNullException.ThrowIfNull(loader);
+
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        _cachedProviderDefinition = loader.GetProvider(publisherId);
+        if (_cachedProviderDefinition == null)
+        {
+            Logger.LogWarning(
+                "No provider definition found for {ProviderId}, using hardcoded constants",
+                publisherId);
+        }
+        else
+        {
+            Logger.LogInformation(
+                "Using provider definition for {ProviderId} from JSON configuration",
+                publisherId);
+        }
+
+        return _cachedProviderDefinition;
+    }
 
     /// <summary>
     /// Creates a resolved <see cref="ContentSearchResult"/> from a discovered item and manifest.
@@ -251,9 +668,13 @@ public abstract class BaseContentProvider(
             AuthorName = manifest.Publisher?.Name ?? discovered.AuthorName,
             IconUrl = manifest.Metadata?.IconUrl ?? discovered.IconUrl,
             LastUpdated = manifest.Metadata?.ReleaseDate ?? discovered.LastUpdated,
-            DownloadSize = manifest.Files?.Sum(f => f.Size) ?? discovered.DownloadSize,
+            DownloadSize = ManifestVariantResolver.ResolveFiles(manifest).Sum(f => f.Size),
             RequiresResolution = false,
+            VariantGroupId = discovered.VariantGroupId,
+            VariantFamilyName = discovered.VariantFamilyName,
+            Variants = discovered.Variants,
             SourceUrl = discovered.SourceUrl,
+            SkipAutomaticWebParsing = discovered.SkipAutomaticWebParsing,
         };
 
         // Copy screenshots and tags
@@ -291,5 +712,20 @@ public abstract class BaseContentProvider(
 
         resolved.SetData(manifest);
         return resolved;
+    }
+
+    private async Task SafeRollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory)
+    {
+        try
+        {
+            await RollbackPreparedContentAsync(originalManifest, preparedManifest, workingDirectory, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Rollback failed during error recovery for manifest {ManifestId}", originalManifest.Id);
+        }
     }
 }

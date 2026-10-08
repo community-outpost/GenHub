@@ -1,0 +1,711 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.GenHotkeys;
+using GenHub.Features.Tools.GenHotkeys.Services;
+using GenHub.Features.Tools.GenHotkeys.ViewModels;
+using Microsoft.Extensions.Logging;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace GenHub.Tests.Core.Features.Tools.GenHotkeys;
+
+/// <summary>
+/// Unit tests for hotkey conflict detection and mutual exclusion rules.
+/// </summary>
+public class GenHotkeysConflictTests
+{
+    private readonly ITestOutputHelper _output;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenHotkeysConflictTests"/> class.
+    /// </summary>
+    /// <param name="output">The test output helper.</param>
+    public GenHotkeysConflictTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
+    /// <summary>
+    /// Verifies that neither the Leikeze nor the Legionnaire preset produces any layout conflicts across any faction or game object.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PresetValidation_LeikezeAndLegionnaire_ProduceZeroConflictsAsync()
+    {
+        var service = new TechTreeService(Mock.Of<ILogger<TechTreeService>>());
+        var allFailures = new List<string>();
+
+        foreach (var game in new[] { GameType.ZeroHour, GameType.Generals })
+        {
+            var factions = await service.LoadTechTreeAsync(game);
+            var presets = new[]
+            {
+                ("Leikeze", GenHotkeysConstants.PresetsLeikezeEn),
+                ("Legionnaire", GenHotkeysConstants.PresetsLegionnaireEn),
+            };
+
+            foreach (var (presetName, presetPath) in presets)
+            {
+                using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
+                Assert.NotNull(stream);
+                var csf = CsfFile.Load(stream);
+
+                var profile = new HotkeyProfile { BasePreset = presetName };
+                foreach (var kvp in csf.Strings)
+                {
+                    var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                    if (hotkey.HasValue)
+                    {
+                        profile.KeyMappings[kvp.Key] = hotkey.Value;
+                    }
+                }
+
+                var conflictList = new List<string>();
+
+                foreach (var faction in factions)
+                {
+                    foreach (var obj in faction.GameObjects)
+                    {
+                        var objName = obj.Name ?? obj.DisplayName;
+                        var factionCode = faction.ShortName ?? faction.DisplayName;
+
+                        foreach (var layout in obj.KeyboardLayouts)
+                        {
+                            var vms = layout.Select(a =>
+                            {
+                                char? key = null;
+                                if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
+                                {
+                                    key = mappedKey;
+                                }
+                                else
+                                {
+                                    key = a.DefaultHotkey;
+                                }
+
+                                return new HotkeyActionViewModel
+                                {
+                                    DisplayName = a.DisplayName ?? string.Empty,
+                                    IconName = a.IconName ?? string.Empty,
+                                    HotkeyString = a.HotkeyString ?? string.Empty,
+                                    Hotkey = key,
+                                };
+                            }).ToList();
+
+                            var obs = new ObservableCollection<HotkeyActionViewModel>(vms);
+                            var conflicts = GenHotkeysViewModel.ValidateLayoutConflicts(obs, objName, factionCode);
+                            if (conflicts > 0)
+                            {
+                                var conflictingActions = obs.Where(x => x.IsConflict).ToList();
+                                foreach (var group in conflictingActions.GroupBy(x => x.Hotkey))
+                                {
+                                    conflictList.Add(
+                                        $"[{game}][{presetName}][{faction.ShortName}][{objName}] Key '{group.Key}': " +
+                                        string.Join(" vs ", group.Select(x => $"{x.DisplayName} ({x.HotkeyString})")));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                _output.WriteLine($"=== Conflicts for {game} {presetName} (Total {conflictList.Count}) ===");
+                foreach (var c in conflictList)
+                {
+                    _output.WriteLine(c);
+                }
+
+                if (conflictList.Count > 0)
+                {
+                    allFailures.Add($"[{game} {presetName}: {conflictList.Count} conflicts]\n" + string.Join("\n", conflictList));
+                }
+            }
+        }
+
+        if (allFailures.Count > 0)
+        {
+            Assert.Fail("Conflicts detected across presets:\n\n" + string.Join("\n\n", allFailures));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the Vanilla preset produces zero layout conflicts across all factions and game objects in both Zero Hour and Generals.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PresetValidation_Vanilla_ProducesZeroConflictsAsync()
+    {
+        var service = new TechTreeService(Mock.Of<ILogger<TechTreeService>>());
+        var allFailures = new List<string>();
+
+        foreach (var game in new[] { GameType.ZeroHour, GameType.Generals })
+        {
+            var factions = await service.LoadTechTreeAsync(game);
+            var presetPath = GenHotkeysConstants.GetVanillaPresetCsfPath(game);
+
+            using var stream = GenHotkeysAssetLoader.TryOpenAssetStream(presetPath);
+            Assert.NotNull(stream);
+            var csf = CsfFile.Load(stream);
+
+            var profile = new HotkeyProfile { BasePreset = GenHotkeysConstants.PresetVanilla };
+            foreach (var kvp in csf.Strings)
+            {
+                var hotkey = CsfFile.ExtractHotkey(kvp.Value);
+                if (hotkey.HasValue)
+                {
+                    profile.KeyMappings[kvp.Key] = hotkey.Value;
+                }
+            }
+
+            var conflictList = new List<string>();
+
+            foreach (var faction in factions)
+            {
+                foreach (var obj in faction.GameObjects)
+                {
+                    var objName = obj.Name ?? obj.DisplayName;
+                    var factionCode = faction.ShortName ?? faction.DisplayName;
+
+                    foreach (var layout in obj.KeyboardLayouts)
+                    {
+                        var vms = layout.Select(a =>
+                        {
+                            char? key = null;
+                            if (profile.KeyMappings.TryGetValue(a.HotkeyString ?? string.Empty, out var mappedKey))
+                            {
+                                key = mappedKey;
+                            }
+                            else
+                            {
+                                key = a.DefaultHotkey;
+                            }
+
+                            return new HotkeyActionViewModel
+                            {
+                                DisplayName = a.DisplayName ?? string.Empty,
+                                IconName = a.IconName ?? string.Empty,
+                                HotkeyString = a.HotkeyString ?? string.Empty,
+                                Hotkey = key,
+                            };
+                        }).ToList();
+
+                        var obs = new ObservableCollection<HotkeyActionViewModel>(vms);
+                        var conflicts = GenHotkeysViewModel.ValidateLayoutConflicts(obs, objName, factionCode);
+                        if (conflicts > 0)
+                        {
+                            var conflictingActions = obs.Where(x => x.IsConflict).ToList();
+                            foreach (var group in conflictingActions.GroupBy(x => x.Hotkey))
+                            {
+                                conflictList.Add(
+                                    $"[{game}][Vanilla][{faction.ShortName}][{objName}] Key '{group.Key}': " +
+                                    string.Join(" vs ", group.Select(x => $"{x.DisplayName} ({x.HotkeyString})")));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (conflictList.Count > 0)
+            {
+                allFailures.Add($"[{game} Vanilla: {conflictList.Count} conflicts]\n" + string.Join("\n", conflictList));
+            }
+        }
+
+        if (allFailures.Count > 0)
+        {
+            Assert.Fail("Conflicts detected in Vanilla preset:\n\n" + string.Join("\n\n", allFailures));
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Daisy Cutter (Fuel Air Bomb) and MOAB sharing the same hotkey are treated as mutually exclusive upgrades, not conflicts.
+    /// </summary>
+    [Fact]
+    public void DaisyCutter_And_Moab_SharingHotkey_AreNotConflicts()
+    {
+        var daisyCutter = new HotkeyActionViewModel
+        {
+            DisplayName = "Fuel Air Bomb",
+            IconName = "USADaisyCutter",
+            HotkeyString = "CONTROLBAR:DaisyCutter",
+            Hotkey = 'B',
+        };
+
+        var moab = new HotkeyActionViewModel
+        {
+            DisplayName = "Mother of All Bombs",
+            IconName = "USAMOAB",
+            HotkeyString = "CONTROLBAR:MOAB",
+            Hotkey = 'B',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { daisyCutter, moab };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(daisyCutter.IsConflict);
+        Assert.Null(daisyCutter.ConflictReason);
+        Assert.False(moab.IsConflict);
+        Assert.Null(moab.ConflictReason);
+    }
+
+    /// <summary>
+    /// Verifies that China Land Mines and Neutron Mines sharing the same hotkey are treated as mutually exclusive upgrades, not conflicts.
+    /// </summary>
+    [Fact]
+    public void ChinaMines_And_NeutronMines_SharingHotkey_AreNotConflicts()
+    {
+        var landMines = new HotkeyActionViewModel
+        {
+            DisplayName = "Land Mines",
+            IconName = "PRCLandMine",
+            HotkeyString = "CONTROLBAR:UpgradeChinaMines",
+            Hotkey = 'M',
+        };
+
+        var neutronMines = new HotkeyActionViewModel
+        {
+            DisplayName = "Neutron Mines",
+            IconName = "PRCNeutronMines",
+            HotkeyString = "CONTROLBAR:UpgradeEMPMines",
+            Hotkey = 'M',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { landMines, neutronMines };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(landMines.IsConflict);
+        Assert.Null(landMines.ConflictReason);
+        Assert.False(neutronMines.IsConflict);
+        Assert.Null(neutronMines.ConflictReason);
+    }
+
+    /// <summary>
+    /// Verifies that Satellite Hack 1 and Satellite Hack 2 sharing the same hotkey are treated as mutually exclusive upgrades, not conflicts.
+    /// </summary>
+    [Fact]
+    public void SatelliteHack1_And_SatelliteHack2_SharingHotkey_AreNotConflicts()
+    {
+        var hack1 = new HotkeyActionViewModel
+        {
+            DisplayName = "Satellite Hack I",
+            IconName = "PRCSatelliteHack1",
+            HotkeyString = "CONTROLBAR:UpgradeChinaSatelliteHackOne",
+            Hotkey = 'H',
+        };
+
+        var hack2 = new HotkeyActionViewModel
+        {
+            DisplayName = "Satellite Hack II",
+            IconName = "PRCSatelliteHack2",
+            HotkeyString = "CONTROLBAR:UpgradeChinaSatelliteHackTwo",
+            Hotkey = 'H',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { hack1, hack2 };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(hack1.IsConflict);
+        Assert.Null(hack1.ConflictReason);
+        Assert.False(hack2.IsConflict);
+        Assert.Null(hack2.ConflictReason);
+    }
+
+    /// <summary>
+    /// Verifies that when a third action shares the hotkey with mutually exclusive upgrades, a conflict is detected.
+    /// </summary>
+    [Fact]
+    public void DaisyCutter_Moab_And_ThirdAction_TriggersConflict()
+    {
+        var daisyCutter = new HotkeyActionViewModel
+        {
+            DisplayName = "Fuel Air Bomb",
+            IconName = "USADaisyCutter",
+            HotkeyString = "CONTROLBAR:DaisyCutter",
+            Hotkey = 'B',
+        };
+
+        var moab = new HotkeyActionViewModel
+        {
+            DisplayName = "Mother of All Bombs",
+            IconName = "USAMOAB",
+            HotkeyString = "CONTROLBAR:MOAB",
+            Hotkey = 'B',
+        };
+
+        var dozer = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
+            Hotkey = 'B',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { daisyCutter, moab, dozer };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(3, conflictCount);
+        Assert.True(daisyCutter.IsConflict);
+        Assert.True(moab.IsConflict);
+        Assert.True(dozer.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that two regular actions sharing the same hotkey produce a conflict.
+    /// </summary>
+    [Fact]
+    public void RegularActions_SharingHotkey_TriggersConflict()
+    {
+        var ranger = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            IconName = "USARanger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'R',
+        };
+
+        var pathfinder = new HotkeyActionViewModel
+        {
+            DisplayName = "Pathfinder",
+            IconName = "USAPathfinder",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryPathfinder",
+            Hotkey = 'R',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { ranger, pathfinder };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(ranger.IsConflict);
+        Assert.True(pathfinder.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that China Radar and Steal Cash Hack sharing hotkey 'D' are not treated as conflicts
+    /// because Radar vanishes upon research in early-game and Cash Hack is a Rank 3 General Power.
+    /// </summary>
+    [Fact]
+    public void ChinaRadar_And_CashHack_SharingHotkey_AreNotConflicts()
+    {
+        var radar = new HotkeyActionViewModel
+        {
+            DisplayName = "Radar",
+            IconName = "PRCRadarUpgrade",
+            HotkeyString = "CONTROLBAR:UpgradeChinaRadar",
+            Hotkey = 'D',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:StealCashHack",
+            Hotkey = 'D',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { radar, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(radar.IsConflict);
+        Assert.False(cashHack.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Granger Airfield Carpet Bomb and Composite Armor sharing hotkey 'T' are treated as mutually exclusive
+    /// because Granger does not have Carpet Bomb in standard play, so this is a permitted engine overlap.
+    /// </summary>
+    [Fact]
+    public void GrangerCarpetBomb_And_CompositeArmor_SharingHotkey_AreNotConflicts()
+    {
+        var carpetBomb = new HotkeyActionViewModel
+        {
+            DisplayName = "Carpet Bomb",
+            IconName = "SACarpetBomb",
+            HotkeyString = GenHotkeysConstants.CsfLabels.CarpetBomb,
+            Hotkey = 'T',
+        };
+
+        var compositeArmor = new HotkeyActionViewModel
+        {
+            DisplayName = "Composite Armor",
+            IconName = "SACompositeArmor",
+            HotkeyString = GenHotkeysConstants.CsfLabels.UpgradeAmericaCompositeArmor,
+            Hotkey = 'T',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { carpetBomb, compositeArmor };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(carpetBomb.IsConflict);
+        Assert.False(compositeArmor.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Timed Demo Charge and Detonate Charges sharing hotkey 'D' are not treated as conflicts
+    /// because Detonate is inactive until remote charges are placed.
+    /// </summary>
+    [Fact]
+    public void TimedDemo_And_DetonateCharges_SharingHotkey_AreNotConflicts()
+    {
+        var timed = new HotkeyActionViewModel
+        {
+            DisplayName = "Timed Demo Charge",
+            IconName = "USATimedDemoCharge",
+            HotkeyString = "CONTROLBAR:TimedDemoCharge",
+            Hotkey = 'D',
+        };
+
+        var detonate = new HotkeyActionViewModel
+        {
+            DisplayName = "Detonate Charges",
+            IconName = "USADetonateCharges",
+            HotkeyString = "CONTROLBAR:DetonateCharges",
+            Hotkey = 'D',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { timed, detonate };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(timed.IsConflict);
+        Assert.False(detonate.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Black Lotus Capture Building and Cash Hack sharing 'C' are detected as real conflicts
+    /// (the 2003 retail EA bug where Cash Hack is shadowed on the keyboard).
+    /// </summary>
+    [Fact]
+    public void BlackLotus_Capture_And_CashHack_AreRealConflicts()
+    {
+        var capture = new HotkeyActionViewModel
+        {
+            DisplayName = "Capture Building",
+            IconName = "PRCBlackLotusCaptureBuilding",
+            HotkeyString = "CONTROLBAR:CaptureBuilding",
+            Hotkey = 'C',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:CashHack",
+            Hotkey = 'C',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { capture, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout);
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(capture.IsConflict);
+        Assert.True(cashHack.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Black Lotus Capture Building and Cash Hack sharing 'C' on Black Lotus are permitted engine overlaps.
+    /// </summary>
+    [Fact]
+    public void BlackLotus_Capture_And_CashHack_OnBlackLotus_ArePermittedEngineOverlap()
+    {
+        var capture = new HotkeyActionViewModel
+        {
+            DisplayName = "Capture Building",
+            IconName = "PRCBlackLotusCaptureBuilding",
+            HotkeyString = "CONTROLBAR:CaptureBuilding",
+            Hotkey = 'C',
+        };
+
+        var cashHack = new HotkeyActionViewModel
+        {
+            DisplayName = "Cash Hack",
+            IconName = "PRCBlackLotusCashHack",
+            HotkeyString = "CONTROLBAR:CashHack",
+            Hotkey = 'C',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { capture, cashHack };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "PRCBlackLotus", "CHINA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(capture.IsConflict);
+        Assert.False(cashHack.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that GLA Bomb Truck Bio Bomb upgrade and Guard sharing 'G' on Bomb Truck are permitted engine overlaps.
+    /// </summary>
+    [Fact]
+    public void BombTruck_BioBomb_And_Guard_OnBombTruck_ArePermittedEngineOverlap()
+    {
+        var bioBomb = new HotkeyActionViewModel
+        {
+            DisplayName = "Bio Bomb",
+            IconName = "GLABioBomb",
+            HotkeyString = "CONTROLBAR:UpgradeGLABombTruckBioBomb",
+            Hotkey = 'G',
+        };
+
+        var guard = new HotkeyActionViewModel
+        {
+            DisplayName = "Guard",
+            IconName = "Guard",
+            HotkeyString = "CONTROLBAR:Guard",
+            Hotkey = 'G',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { bioBomb, guard };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "GLABombTruck", "GLA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(bioBomb.IsConflict);
+        Assert.False(guard.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that USA Command Center Dozer and Daisy Cutter sharing 'F' are permitted due to SpecialPower tray separation.
+    /// </summary>
+    [Fact]
+    public void CommandCenter_Dozer_And_GeneralsPower_ArePermittedTrayOverlap()
+    {
+        var dozer = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
+            Hotkey = 'F',
+        };
+
+        var daisyCutter = new HotkeyActionViewModel
+        {
+            DisplayName = "Daisy Cutter",
+            IconName = "USADaisyCutter",
+            HotkeyString = "CONTROLBAR:DaisyCutter",
+            Hotkey = 'F',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { dozer, daisyCutter };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USACommandCenter", "USA");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(dozer.IsConflict);
+        Assert.False(daisyCutter.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that genuine collisions between production units/upgrades on the same building are detected as real conflicts.
+    /// </summary>
+    [Fact]
+    public void RealConflict_Ranger_And_Flashbang_OnBarracks_DetectedAsConflict()
+    {
+        var ranger = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            IconName = "USARanger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'F',
+        };
+
+        var flashbang = new HotkeyActionViewModel
+        {
+            DisplayName = "Flashbang Grenades",
+            IconName = "USAFlashbangs",
+            HotkeyString = "CONTROLBAR:UpgradeAmericaFlashBangGrenades",
+            Hotkey = 'F',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { ranger, flashbang };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USABarracks", "USA");
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(ranger.IsConflict);
+        Assert.True(flashbang.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Sell sharing a hotkey with a production unit on a building is detected as a conflict.
+    /// </summary>
+    [Fact]
+    public void Sell_And_ProductionUnit_SharingHotkey_DetectedAsConflict()
+    {
+        var sell = new HotkeyActionViewModel
+        {
+            DisplayName = "Sell",
+            IconName = "Sell",
+            HotkeyString = GenHotkeysConstants.CsfLabels.Sell,
+            Hotkey = 'S',
+        };
+
+        var ranger = new HotkeyActionViewModel
+        {
+            DisplayName = "Ranger",
+            IconName = "USARanger",
+            HotkeyString = "CONTROLBAR:ConstructAmericaInfantryRanger",
+            Hotkey = 'S',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { sell, ranger };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USABarracks", "USA");
+
+        Assert.Equal(2, conflictCount);
+        Assert.True(sell.IsConflict);
+        Assert.True(ranger.IsConflict);
+    }
+
+    /// <summary>
+    /// Verifies that Laser General Crusader (Laser Tank) and Tomahawk sharing hotkey 'T' in War Factory are treated as permitted overlap.
+    /// </summary>
+    [Fact]
+    public void LaserWarFactory_LaserTankAndTomahawk_AreTreatedAsPermittedOverlap()
+    {
+        var laserTank = new HotkeyActionViewModel
+        {
+            DisplayName = "Laser Tank",
+            IconName = "LSRLaserTank",
+            HotkeyString = GenHotkeysConstants.CsfLabels.LazrConstructAmericaTankCrusader,
+            Hotkey = 'T',
+        };
+
+        var tomahawk = new HotkeyActionViewModel
+        {
+            DisplayName = "Tomahawk Launcher",
+            IconName = "USATomahawkLauncher",
+            HotkeyString = GenHotkeysConstants.CsfLabels.ConstructAmericaVehicleTomahawk,
+            Hotkey = 'T',
+        };
+
+        var layout = new ObservableCollection<HotkeyActionViewModel> { laserTank, tomahawk };
+
+        var conflictCount = GenHotkeysViewModel.ValidateLayoutConflicts(layout, "USAWarFactory", "LSR");
+
+        Assert.Equal(0, conflictCount);
+        Assert.False(laserTank.IsConflict);
+        Assert.Null(laserTank.ConflictReason);
+        Assert.False(tomahawk.IsConflict);
+        Assert.Null(tomahawk.ConflictReason);
+    }
+}

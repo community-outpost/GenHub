@@ -27,6 +27,7 @@ public interface ICasStorage
     /// <param name="hash">The content hash.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The path where the content was stored, or null if storage failed.</returns>
+    /// <exception cref="OperationCanceledException">The store operation was cancelled.</exception>
     Task<string?> StoreObjectAsync(Stream content, string hash, CancellationToken cancellationToken = default);
 
     /// <summary>

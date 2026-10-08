@@ -21,6 +21,11 @@ public readonly struct ContentStorageProgress
     public string? CurrentFileName { get; init; }
 
     /// <summary>
+    /// Gets the current phase of the storage operation. Defaults to <see cref="ContentStoragePhase.Storing"/>.
+    /// </summary>
+    public ContentStoragePhase Phase { get; init; }
+
+    /// <summary>
     /// Gets the percentage complete (0-100).
     /// </summary>
     public readonly double Percentage => TotalCount > 0 ? (double)ProcessedCount / TotalCount * 100 : 0;

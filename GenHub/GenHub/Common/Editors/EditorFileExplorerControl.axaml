@@ -1,0 +1,196 @@
+<UserControl x:Name="Root"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:editors="clr-namespace:GenHub.Common.Editors"
+             x:Class="GenHub.Common.Editors.EditorFileExplorerControl"
+             x:DataType="editors:FileExplorerViewModel">
+  <Grid RowDefinitions="Auto,Auto,*">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,4">
+      <Button Grid.Column="0"
+              Command="{Binding BrowseCommand}"
+              IsVisible="{Binding CanBrowse}"
+              Padding="8,4"
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1" CornerRadius="6"
+              Content="{localization:Localize Common.Editors.Files.Browse}"
+              FontSize="11" FontWeight="SemiBold"/>
+      <Button Grid.Column="1"
+              Command="{Binding RefreshTreeCommand}"
+              Padding="8,4" Margin="6,0,0,0"
+              Background="Transparent"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              Content="{localization:Localize Common.Editors.Files.Refresh}"
+              FontSize="11"/>
+      <Button Grid.Column="3"
+              Command="{Binding ExpandAllCommand}"
+              Padding="5,4" Margin="4,0,0,0"
+              Background="Transparent"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              AutomationProperties.Name="{localization:Localize Common.Editors.Files.ExpandAll}"
+              ToolTip.Tip="{localization:Localize Common.Editors.Files.ExpandAll}">
+        <material:MaterialIcon Kind="ArrowExpandAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+      </Button>
+      <Button Grid.Column="4"
+              Command="{Binding CollapseAllCommand}"
+              Padding="5,4" Margin="4,0,0,0"
+              Background="Transparent"
+              BorderBrush="{DynamicResource BorderBrush}"
+              BorderThickness="1"
+              CornerRadius="6"
+              AutomationProperties.Name="{localization:Localize Common.Editors.Files.CollapseAll}"
+              ToolTip.Tip="{localization:Localize Common.Editors.Files.CollapseAll}">
+        <material:MaterialIcon Kind="ArrowCollapseAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+      </Button>
+    </Grid>
+    <Border Grid.Row="1"
+            IsVisible="{Binding DirectoryName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+            Background="{DynamicResource SurfaceHoverBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1" CornerRadius="6"
+            Padding="6,3" Margin="0,0,0,4"
+            ToolTip.Tip="{Binding Directory}">
+      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+        <material:MaterialIcon Grid.Column="0" Kind="Folder" Width="13" Height="13"
+                               Foreground="{DynamicResource AccentBrush}"
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+        <TextBlock Grid.Column="1"
+                   Text="{Binding DirectoryName}"
+                   FontSize="11" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimary}"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis"/>
+      </Grid>
+    </Border>
+    <Border Grid.Row="2"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1" CornerRadius="8"
+            Background="{DynamicResource SurfaceElevatedBrush}">
+      <TreeView ItemsSource="{Binding Nodes}"
+                BorderThickness="0" Background="Transparent"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="editors:EditorFileTreeNodeViewModel">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+          </Style>
+          <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:pressed:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:disabled:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+          </Style>
+          <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot > ContentPresenter#PART_HeaderPresenter">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+          </Style>
+          <!-- Chevrons removed for a tight, flush explorer layout. Folder nodes expand/collapse on direct click. -->
+          <Style Selector="TreeViewItem /template/ Panel#PART_ExpandCollapseChevronContainer">
+            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="Width" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+          </Style>
+          <Style Selector="TreeViewItem:empty /template/ Panel#PART_ExpandCollapseChevronContainer">
+            <Setter Property="IsVisible" Value="False"/>
+            <Setter Property="Width" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+          </Style>
+          <Style Selector="TreeViewItem Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+          </Style>
+          <Style Selector="TreeViewItem Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+          </Style>
+          <Style Selector="TreeViewItem Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+          </Style>
+        </TreeView.Styles>
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="editors:EditorFileTreeNodeViewModel">
+            <Panel>
+              <Button IsVisible="{Binding IsDirectory}" x:CompileBindings="False"
+                      Command="{Binding ElementName=Root, Path=DataContext.ToggleDirectoryCommand}"
+                      CommandParameter="{Binding}"
+                      Background="Transparent" BorderThickness="0"
+                      Padding="0" Margin="0"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Border Padding="1,2" CornerRadius="4" Background="Transparent">
+                  <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                    <material:MaterialIcon Grid.Column="0" Kind="FolderOutline" Width="13" Height="13"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           Margin="0,0,3,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Name}"
+                               FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding FullPath}"/>
+                  </Grid>
+                </Border>
+              </Button>
+              <Button IsVisible="{Binding IsFile}" x:CompileBindings="False"
+                      Command="{Binding ElementName=Root, Path=DataContext.OpenFileCommand}"
+                      CommandParameter="{Binding}"
+                      Background="Transparent" BorderThickness="0"
+                      Padding="0" Margin="0"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Border Padding="1,2" CornerRadius="4" Background="Transparent">
+                  <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                    <material:MaterialIcon Grid.Column="0" Kind="FileCodeOutline" Width="13" Height="13"
+                                           Foreground="{DynamicResource TextMuted}"
+                                           Margin="0,0,3,0" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Name}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TextPrimary}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding FullPath}"/>
+                    <Border Grid.Column="2"
+                            IsVisible="{Binding IsCurrent}"
+                            Background="{DynamicResource AccentTintBackgroundBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                            CornerRadius="4" Padding="3,1" Margin="4,0,0,0">
+                      <TextBlock Text="{localization:Localize Common.Editors.Files.OpenBadge}"
+                                 FontSize="9" FontWeight="SemiBold"
+                                 Foreground="{DynamicResource AccentBrush}"/>
+                    </Border>
+                  </Grid>
+                </Border>
+              </Button>
+            </Panel>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </Border>
+  </Grid>
+</UserControl>

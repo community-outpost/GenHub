@@ -1,4 +1,5 @@
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Features.GitHub.Services;
 using GenHub.Features.Notifications.Services;
 using GenHub.Features.Notifications.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,8 @@ public static class NotificationModule
     {
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<NotificationManagerViewModel>();
+        services.AddSingleton<NotificationFeedViewModel>();
+        services.AddSingleton<GitHubRateLimitTracker>();
 
         return services;
     }

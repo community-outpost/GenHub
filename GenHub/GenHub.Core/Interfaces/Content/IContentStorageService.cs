@@ -61,18 +61,19 @@ public interface IContentStorageService
     /// Removes stored content for a specific manifest.
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>
+    /// <param name="skipUntrack">Whether to skip untracking CAS references.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating success or failure.</returns>
-    Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, CancellationToken cancellationToken = default);
+    Task<OperationResult<bool>> RemoveContentAsync(ManifestId manifestId, bool skipUntrack = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets storage statistics and usage information.
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>
-    /// A <see cref="StorageStats"/> object describing usage under the content storage root.
-    /// Fields include manifest count (logical manifests), total file count (all files under the storage root),
-    /// total size in bytes, deduplication savings and available free disk space.
+    /// An <see cref="OperationResult{T}"/> containing a <see cref="StorageStats"/> object describing usage
+    /// under the content storage root. Fields include manifest count (logical manifests), total file count
+    /// (all files under the storage root), total size in bytes, deduplication savings and available free disk space.
     /// </returns>
-    Task<StorageStats> GetStorageStatsAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult<StorageStats>> GetStorageStatsAsync(CancellationToken cancellationToken = default);
 }

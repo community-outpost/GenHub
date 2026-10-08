@@ -1,7 +1,8 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -16,7 +17,7 @@ public class ProfileColorToOpacityConverter : IValueConverter
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        string colorString = value as string ?? "#2A2A2A";
+        string colorString = value as string ?? UiConstants.ProfileDefaultColor;
         double opacity = 1.0;
         if (parameter is string paramStr && double.TryParse(paramStr, out var parsedOpacity))
         {
@@ -34,11 +35,11 @@ public class ProfileColorToOpacityConverter : IValueConverter
                 color.R,
                 color.G,
                 color.B);
-            return new SolidColorBrush(adjustedColor);
+            return BrushCache.Get(adjustedColor);
         }
 
         // If parsing fails, return a default brush
-        return new SolidColorBrush(Color.FromArgb((byte)(opacity * 255), 42, 42, 42));
+        return BrushCache.Get(Color.FromArgb((byte)(opacity * 255), 42, 42, 42));
     }
 
     /// <summary>

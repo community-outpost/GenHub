@@ -1,0 +1,44 @@
+{
+  "BundleManifests": [
+    {
+      "Name": "Lemon Control Bar (720p)",
+      "Description": "Lemon Edition control bar for 720p (1280x720) displays",
+      "Packs": [
+        "LemonControlBar_Base",
+        "LemonControlBar_Art1080",
+        "LemonControlBar_Data1080",
+        "LemonControlBar_720p"
+      ]
+    },
+    {
+      "Name": "Lemon Control Bar (1080p)",
+      "Description": "Lemon Edition control bar for 1080p (1920x1080) displays",
+      "Packs": [
+        "LemonControlBar_Base",
+        "LemonControlBar_Art1080",
+        "LemonControlBar_Data1080",
+        "LemonControlBar_1080p"
+      ]
+    },
+    {
+      "Name": "Lemon Control Bar (1440p)",
+      "Description": "Lemon Edition control bar for 1440p (2560x1440) displays",
+      "Packs": [
+        "LemonControlBar_Base",
+        "LemonControlBar_Art2160",
+        "LemonControlBar_Data2160",
+        "LemonControlBar_1440p"
+      ]
+    },
+    {
+      "Name": "Lemon Control Bar (4K)",
+      "Description": "Lemon Edition control bar for 4K (3840x2160) displays",
+      "Packs": [
+        "LemonControlBar_Base",
+        "LemonControlBar_Art2160",
+        "LemonControlBar_Data2160",
+        "LemonControlBar_4K"
+      ]
+    }
+  ]
+}

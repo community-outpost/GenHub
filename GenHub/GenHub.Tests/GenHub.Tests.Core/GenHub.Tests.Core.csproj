@@ -10,6 +10,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit" />
     <PackageReference Include="StyleCop.Analyzers" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
@@ -23,12 +24,23 @@
   <ItemGroup>
     <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
     <ProjectReference Include="..\..\GenHub\GenHub.csproj" />
+    <ProjectReference Include="..\..\GenHub.Tools\GenHub.Tools.csproj" />
+    <ProjectReference Include="..\..\GenHub.ProxyLauncher\GenHub.ProxyLauncher.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Octokit" />
   </ItemGroup>
 
-  
+  <!-- Isolates the application data root before any test runs. -->
+  <ItemGroup>
+    <Compile Include="..\Shared\TestDataRootInitializer.cs" Link="Shared\TestDataRootInitializer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Features\Tools\Fixtures\*.rep">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

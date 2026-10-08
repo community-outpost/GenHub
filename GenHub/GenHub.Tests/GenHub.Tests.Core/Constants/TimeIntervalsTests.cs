@@ -33,4 +33,22 @@ public class TimeIntervalsTests
     {
         Assert.Equal(3000, TimeIntervals.NotificationHideDelay.TotalMilliseconds);
     }
+
+    /// <summary>
+    /// Tests that ErrorNotificationHideDelay is 6000 milliseconds.
+    /// </summary>
+    [Fact]
+    public void ErrorNotificationHideDelay_ShouldBe6000Milliseconds()
+    {
+        Assert.Equal(6000, TimeIntervals.ErrorNotificationHideDelay.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Tests that SingleInstanceForwardRetryDelayMs is 250 milliseconds.
+    /// </summary>
+    [Fact]
+    public void SingleInstanceForwardRetryDelayMs_ShouldBe250Milliseconds()
+    {
+        Assert.Equal(250, TimeIntervals.SingleInstanceForwardRetryDelayMs);
+    }
 }

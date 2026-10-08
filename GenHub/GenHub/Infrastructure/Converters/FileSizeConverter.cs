@@ -1,5 +1,5 @@
-using System;
 using Avalonia.Data.Converters;
+using System;
 using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
@@ -25,10 +25,9 @@ public class FileSizeConverter : IValueConverter
     }
 
     /// <inheritdoc />
-    /// <exception cref="NotImplementedException">Always thrown as this converter only supports one-way conversion.</exception>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new System.NotImplementedException();
     }
 
     private static string FormatFileSize(long bytes, CultureInfo culture)
