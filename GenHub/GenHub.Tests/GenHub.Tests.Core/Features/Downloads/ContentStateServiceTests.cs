@@ -2695,53 +2695,6 @@ public class ContentStateServiceTests
         Assert.Equal(installedManifest.Id.Value, localManifestId);
     }
 
-    private static ContentSearchResult CreateGitHubAssetCard(
-        string owner,
-        string repo,
-        string tag,
-        string assetVariant,
-        string assetName,
-        string idSegment)
-    {
-        var item = new ContentSearchResult
-        {
-            Id = $"1.100.{owner}.gameclient.{idSegment}",
-            Name = $"{repo} ({assetVariant})",
-            Version = tag,
-            AuthorName = owner,
-            ContentType = ContentType.GameClient,
-            TargetGame = GameType.ZeroHour,
-            ProviderName = "GitHub",
-            RequiresResolution = true,
-            ResolverId = GitHubConstants.GitHubReleaseResolverId,
-            SourceUrl = $"https://github.com/{owner}/{repo}",
-            LastUpdated = new DateTime(2026, 9, 16, 0, 34, 48, DateTimeKind.Utc),
-            VariantGroupId = $"github.{owner}.{repo}.{tag}",
-            VariantFamilyName = repo,
-        };
-        item.Tags.Add("genhub");
-        item.Tags.Add(assetVariant.ToLowerInvariant());
-        item.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner;
-        item.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo;
-        item.ResolverMetadata[GitHubConstants.TagMetadataKey] = tag;
-        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
-        return item;
-    }
-
-    private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
-    {
-        var item = new ContentSearchResult
-        {
-            Id = $"github.thesuperhackers.generalsgamecode.weekly-2025-07-22.{gameType}",
-            ProviderName = ContentSourceNames.GitHubDiscoverer,
-            ContentType = ContentType.GameClient,
-            TargetGame = gameType,
-        };
-        item.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = PublisherTypeConstants.TheSuperHackers;
-        item.ResolverMetadata[GitHubConstants.TagMetadataKey] = "weekly-2025-07-22";
-        return item;
-    }
-
     /// <summary>
     /// Verifies that generic catalog detail rows resolve install state per release version.
     /// A stored newer build must not mark an older release row downloaded, nor bind it to the wrong manifest.
@@ -2834,6 +2787,53 @@ public class ContentStateServiceTests
         };
 
         Assert.False(ContentStateService.IsMultiReleaseItem(row));
+    }
+
+    private static ContentSearchResult CreateGitHubAssetCard(
+        string owner,
+        string repo,
+        string tag,
+        string assetVariant,
+        string assetName,
+        string idSegment)
+    {
+        var item = new ContentSearchResult
+        {
+            Id = $"1.100.{owner}.gameclient.{idSegment}",
+            Name = $"{repo} ({assetVariant})",
+            Version = tag,
+            AuthorName = owner,
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            ProviderName = "GitHub",
+            RequiresResolution = true,
+            ResolverId = GitHubConstants.GitHubReleaseResolverId,
+            SourceUrl = $"https://github.com/{owner}/{repo}",
+            LastUpdated = new DateTime(2026, 9, 16, 0, 34, 48, DateTimeKind.Utc),
+            VariantGroupId = $"github.{owner}.{repo}.{tag}",
+            VariantFamilyName = repo,
+        };
+        item.Tags.Add("genhub");
+        item.Tags.Add(assetVariant.ToLowerInvariant());
+        item.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = owner;
+        item.ResolverMetadata[GitHubConstants.RepoMetadataKey] = repo;
+        item.ResolverMetadata[GitHubConstants.TagMetadataKey] = tag;
+        item.ResolverMetadata[GitHubConstants.AssetNameMetadataKey] = assetName;
+        return item;
+    }
+
+    private static ContentSearchResult CreateSuperHackersCard(GameType gameType)
+    {
+        var item = new ContentSearchResult
+        {
+            Id = $"github.thesuperhackers.generalsgamecode.weekly-2025-07-22.{gameType}",
+            ProviderName = ContentSourceNames.GitHubDiscoverer,
+            ContentType = ContentType.GameClient,
+            TargetGame = gameType,
+        };
+        item.ResolverMetadata[GitHubConstants.OwnerMetadataKey] = PublisherTypeConstants.TheSuperHackers;
+        item.ResolverMetadata[GitHubConstants.TagMetadataKey] = "weekly-2025-07-22";
+        return item;
     }
 
     private static ContentSearchResult CreateCatalogDetailRow(string version, string downloadUrl)
