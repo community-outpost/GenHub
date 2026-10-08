@@ -915,6 +915,161 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("content", savedSubscription.SelectedCatalogId);
     }
 
+    /// <summary>
+    /// Verifies that when the candidate catalog URL that loaded is a mirror of a definition entry,
+    /// that entry is matched as the first catalog, its ID is preserved, and it is not duplicated in options.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_FirstCatalogUrlIsMirror_ResolvesMirrorEntryAndDoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mirrorUrl = "https://93.184.216.34/mirror-main.json";
+        const string canonicalUrl = "https://93.184.216.34/primary-main.json";
+        const string secondUrl = "https://93.184.216.34/extra.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json",
+                        "mirrors": ["https://93.184.216.34/mirror-main.json"]
+                    },
+                    {
+                        "id": "extra-cat",
+                        "name": "Extra Catalog",
+                        "url": "https://93.184.216.34/extra.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var httpClient = new HttpClient(new CustomDelegateHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (uri == definitionUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(definitionJson) };
+            }
+
+            if (uri == canonicalUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+            }
+
+            if (uri == mirrorUrl || uri == secondUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") };
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Assert: exactly 2 catalog options total (no duplicates)
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        Assert.Contains(vm.DefinitionCatalogOptions, opt => opt.Key == "main-cat");
+        Assert.Contains(vm.DefinitionCatalogOptions, opt => opt.Key == "extra-cat");
+
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("main-cat", savedSubscription.SelectedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that when an entry in the catalog list has a blank Name and blank Id,
+    /// it uses the localized fallback name format ("Catalog {0}").
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_CatalogWithBlankNameAndId_UsesLocalizedFallbackNameAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/main.json";
+        const string secondUrl = "https://93.184.216.34/second.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/main.json"
+                    },
+                    {
+                        "id": "",
+                        "name": "",
+                        "url": "https://93.184.216.34/second.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [secondUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        var secondOption = vm.DefinitionCatalogOptions[1];
+        Assert.Equal("Catalog 1", secondOption.Label);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog
