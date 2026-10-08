@@ -12,57 +12,13 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static partial class CloudUrlHelper
 {
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(RegexConstants.DefaultTimeoutMs);
-
-    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|[^?]*\?(?:[^#]*&)?id=)([^/?&]+)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex GoogleDriveRegexCompiled();
-
-    [GeneratedRegex(@"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex GitHubBlobRegexCompiled();
-
-    [GeneratedRegex(@"(?<=[?&])dl=0(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex DropboxDlRegexCompiled();
-
-    [GeneratedRegex(@"(?<=[?&])dl=1(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex DropboxDl1RegexCompiled();
-
-    [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
-
-    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex GoogleDriveFormActionRegexCompiled();
-
-    [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
-    private static partial Regex GoogleDriveFormInputRegexCompiled();
-
-    private static Regex GoogleDriveRegex => GoogleDriveRegexCompiled();
-
-    private static Regex GitHubBlobRegex => GitHubBlobRegexCompiled();
-
-    private static Regex DropboxDlRegex => DropboxDlRegexCompiled();
-
-    private static Regex DropboxDl1Regex => DropboxDl1RegexCompiled();
-
-    private static Regex GoogleDriveConfirmHrefRegex => GoogleDriveConfirmHrefRegexCompiled();
-
-    private static Regex GoogleDriveFormActionRegex => GoogleDriveFormActionRegexCompiled();
-
-    private static Regex GoogleDriveFormInputRegex => GoogleDriveFormInputRegexCompiled();
-
-    /// <summary>
-    /// Normalizes a given URL so that it points directly to the raw content stream rather than an interactive HTML viewer page.
-    /// </summary>
-    /// <param name="url">The URL to normalize.</param>
-    /// <returns>The normalized direct download URL, or the original URL if no normalization applies.</returns>
-    public static string NormalizeDirectDownloadUrl(string? url) => NormalizeCloudUrl(url);
-
     /// <summary>
     /// Normalizes a download URL from known cloud storage hosts (Google Drive, Dropbox, GitHub) into a direct download URL.
     /// If the URL is not from a known cloud provider or is already normalized, it is returned unchanged.
     /// </summary>
     /// <param name="url">The URL to normalize.</param>
     /// <returns>A normalized direct download URL, or the original URL if not recognized.</returns>
-    public static string NormalizeCloudUrl(string? url)
+    public static string NormalizeDirectDownloadUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -132,7 +88,7 @@ public static partial class CloudUrlHelper
 
         if (!uri.IsAbsoluteUri ||
             uri.Scheme != Uri.UriSchemeHttps ||
-            HasQueryParam(uri.Query, "confirm") ||
+            HasQueryParam(uri.Query, HostingConstants.GoogleDriveQueryConfirm) ||
             !HasExportDownloadParam(uri.Query))
         {
             return uri;
@@ -157,9 +113,9 @@ public static partial class CloudUrlHelper
             {
                 var parts = segment.Split('=', 2);
                 var key = parts[0];
-                if (!key.Equals("id", StringComparison.OrdinalIgnoreCase) &&
-                    !key.Equals("export", StringComparison.OrdinalIgnoreCase) &&
-                    !key.Equals("confirm", StringComparison.OrdinalIgnoreCase))
+                if (!key.Equals(HostingConstants.GoogleDriveQueryId, StringComparison.OrdinalIgnoreCase) &&
+                    !key.Equals(HostingConstants.GoogleDriveQueryExport, StringComparison.OrdinalIgnoreCase) &&
+                    !key.Equals(HostingConstants.GoogleDriveQueryConfirm, StringComparison.OrdinalIgnoreCase))
                 {
                     confirmedBuilder.Append('&').Append(segment);
                 }
@@ -169,23 +125,44 @@ public static partial class CloudUrlHelper
         return new Uri(confirmedBuilder.ToString());
     }
 
+    [GeneratedRegex(@"^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|[^?]*\?(?:[^#]*&)?id=)([^/?&]+)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex GoogleDriveRegexCompiled();
+
+    [GeneratedRegex(@"^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex GitHubBlobRegexCompiled();
+
+    [GeneratedRegex(@"(?<=[?&])dl=0(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex DropboxDlRegexCompiled();
+
+    [GeneratedRegex(@"(?<=[?&])dl=1(?=[&#]|$)", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex DropboxDl1RegexCompiled();
+
+    [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
+
+    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex GoogleDriveFormActionRegexCompiled();
+
+    [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
+    private static partial Regex GoogleDriveFormInputRegexCompiled();
+
     private static string? TryGetGoogleDriveDownloadFileId(Uri uri)
     {
         if (uri.Host.Equals(HostingConstants.GoogleDriveUserContentHost, StringComparison.OrdinalIgnoreCase))
         {
-            return uri.AbsolutePath.Equals("/download", StringComparison.OrdinalIgnoreCase) ||
-                   uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase)
-                ? GetQueryParam(uri.Query, "id")
+            return uri.AbsolutePath.Equals(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase) ||
+                   uri.AbsolutePath.Equals(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase)
+                ? GetQueryParam(uri.Query, HostingConstants.GoogleDriveQueryId)
                 : null;
         }
 
-        if (!IsMatchingHost(uri.AbsoluteUri, "drive.google.com", "docs.google.com") ||
-            !uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase))
+        if (!IsMatchingHost(uri.AbsoluteUri, HostingConstants.GoogleDriveHost, HostingConstants.GoogleDocsHost) ||
+            !uri.AbsolutePath.Equals(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        return GetQueryParam(uri.Query, "id");
+        return GetQueryParam(uri.Query, HostingConstants.GoogleDriveQueryId);
     }
 
     private static bool HasQueryParam(string query, string name) => GetQueryParam(query, name) != null;
@@ -211,14 +188,14 @@ public static partial class CloudUrlHelper
 
     private static Uri? ResolveGoogleDriveUri(string rawTarget, Uri? requestUri)
     {
-        var rawUrl = rawTarget.Replace("&amp;", "&");
+        var rawUrl = System.Net.WebUtility.HtmlDecode(rawTarget);
         if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absUri) &&
             (absUri.Scheme == Uri.UriSchemeHttp || absUri.Scheme == Uri.UriSchemeHttps))
         {
             return absUri;
         }
 
-        var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + "://drive.google.com");
+        var baseUri = requestUri ?? new Uri(Uri.UriSchemeHttps + Uri.SchemeDelimiter + HostingConstants.GoogleDriveHost);
         if (Uri.TryCreate(baseUri, rawUrl, out var combinedUri) &&
             (combinedUri.Scheme == Uri.UriSchemeHttp || combinedUri.Scheme == Uri.UriSchemeHttps))
         {
@@ -230,7 +207,7 @@ public static partial class CloudUrlHelper
 
     private static string? TryExtractFromConfirmHref(string html, Uri? requestUri)
     {
-        var confirmMatch = GoogleDriveConfirmHrefRegex.Match(html);
+        var confirmMatch = GoogleDriveConfirmHrefRegexCompiled().Match(html);
         if (!confirmMatch.Success)
         {
             return null;
@@ -239,7 +216,7 @@ public static partial class CloudUrlHelper
         var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
         return resolvedUri is not null &&
                IsAllowedGoogleDriveHost(resolvedUri) &&
-               (resolvedUri.AbsolutePath.EndsWith("/uc", StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith("/download", StringComparison.OrdinalIgnoreCase)) &&
+               (resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase)) &&
                HasExportDownloadParam(resolvedUri.Query)
             ? resolvedUri.ToString()
             : null;
@@ -247,12 +224,12 @@ public static partial class CloudUrlHelper
 
     private static bool HasExportDownloadParam(string? query)
     {
-        return string.Equals(GetQueryParam(query, "export"), "download", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(GetQueryParam(query, HostingConstants.GoogleDriveQueryExport), HostingConstants.GoogleDriveExportDownload, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryExtractFromFormAction(string html, Uri? requestUri)
     {
-        var actionMatch = GoogleDriveFormActionRegex.Match(html);
+        var actionMatch = GoogleDriveFormActionRegexCompiled().Match(html);
         if (!actionMatch.Success)
         {
             return null;
@@ -266,7 +243,7 @@ public static partial class CloudUrlHelper
 
         var action = resolvedUri.ToString();
         var formInnerHtml = actionMatch.Groups[2].Value;
-        var inputMatches = GoogleDriveFormInputRegex.Matches(formInnerHtml);
+        var inputMatches = GoogleDriveFormInputRegexCompiled().Matches(formInnerHtml);
         var queryParams = inputMatches
             .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")
             .ToList();
@@ -282,9 +259,9 @@ public static partial class CloudUrlHelper
 
     private static bool TryNormalizeGoogleDriveUrl(string url, out string normalizedUrl)
     {
-        if (IsMatchingHost(url, "drive.google.com", "docs.google.com"))
+        if (IsMatchingHost(url, HostingConstants.GoogleDriveHost, HostingConstants.GoogleDocsHost))
         {
-            var match = GoogleDriveRegex.Match(url);
+            var match = GoogleDriveRegexCompiled().Match(url);
             if (match.Success)
             {
                 var fileId = match.Groups[1].Value;
@@ -299,18 +276,18 @@ public static partial class CloudUrlHelper
 
     private static bool TryNormalizeDropboxUrl(string url, out string normalizedUrl)
     {
-        if (IsMatchingHost(url, "dropbox.com"))
+        if (IsMatchingHost(url, HostingConstants.DropboxHost))
         {
-            if (DropboxDlRegex.IsMatch(url))
+            if (DropboxDlRegexCompiled().IsMatch(url))
             {
-                normalizedUrl = DropboxDlRegex.Replace(url, "dl=1");
+                normalizedUrl = DropboxDlRegexCompiled().Replace(url, HostingConstants.DropboxDirectDownloadParam);
                 return true;
             }
 
-            if (!DropboxDl1Regex.IsMatch(url))
+            if (!DropboxDl1RegexCompiled().IsMatch(url))
             {
                 var separator = url.Contains('?') ? "&" : "?";
-                var appendText = $"{separator}dl=1";
+                var appendText = $"{separator}{HostingConstants.DropboxDirectDownloadParam}";
                 var fragmentIndex = url.IndexOf('#');
                 normalizedUrl = fragmentIndex == -1 ? url + appendText : url.Insert(fragmentIndex, appendText);
                 return true;
@@ -323,14 +300,14 @@ public static partial class CloudUrlHelper
 
     private static bool TryNormalizeGitHubBlobUrl(string url, out string normalizedUrl)
     {
-        var ghMatch = GitHubBlobRegex.Match(url);
+        var ghMatch = GitHubBlobRegexCompiled().Match(url);
         if (ghMatch.Success)
         {
             var owner = ghMatch.Groups[1].Value;
             var repo = ghMatch.Groups[2].Value;
             var branch = ghMatch.Groups[3].Value;
             var path = ghMatch.Groups[4].Value;
-            normalizedUrl = $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}";
+            normalizedUrl = string.Format(CultureInfo.InvariantCulture, HostingConstants.GitHubRawUrlTemplate, owner, repo, branch, path);
             return true;
         }
 

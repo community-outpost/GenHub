@@ -575,7 +575,7 @@ public class FastHttpClientFileDownloader(
         CancellationToken cancelToken)
     {
         var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (!string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(mediaType, HostingConstants.HtmlContentType, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

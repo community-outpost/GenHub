@@ -9,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -144,56 +145,6 @@ public class HttpContentDeliverer(
             logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
-    }
-
-    private static IProgress<DownloadProgress>? CreateFileDownloadProgress(
-        IProgress<ContentAcquisitionProgress>? progress,
-        string relativePath,
-        int currentFileIndex,
-        int totalFiles,
-        long previousFilesBytes,
-        long totalBytesAllFiles)
-    {
-        if (progress == null)
-        {
-            return null;
-        }
-
-        return new Progress<DownloadProgress>(dp =>
-        {
-            double currentProgress = 0.0;
-            long aggregateBytesProcessed = 0L;
-            long aggregateTotalBytes = 0L;
-
-            if (totalBytesAllFiles > 0)
-            {
-                aggregateBytesProcessed = previousFilesBytes + dp.BytesReceived;
-                aggregateTotalBytes = totalBytesAllFiles;
-                currentProgress = Math.Clamp((double)aggregateBytesProcessed / totalBytesAllFiles * 100.0, 0, 100);
-            }
-            else
-            {
-                double fileProgressRange = 100.0 / totalFiles;
-                double baseProgress = (currentFileIndex - 1) * fileProgressRange;
-                currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
-                aggregateBytesProcessed = dp.BytesReceived;
-                aggregateTotalBytes = dp.TotalBytes;
-            }
-
-            progress.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = currentProgress,
-                CurrentOperation = totalFiles > 1
-                    ? $"{relativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                    : $"{relativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                FilesProcessed = currentFileIndex - 1,
-                TotalFiles = totalFiles,
-                TotalBytes = aggregateTotalBytes,
-                BytesProcessed = aggregateBytesProcessed,
-                CurrentFile = relativePath,
-            });
-        });
     }
 
     private static void ExtractArchivesFallback(
@@ -349,7 +300,7 @@ public class HttpContentDeliverer(
             Directory.CreateDirectory(directory);
         }
 
-        var downloadProgress = CreateFileDownloadProgress(
+        var downloadProgress = DownloadProgressAdapter.CreateDownloadAdapter(
             progress,
             file.RelativePath,
             progressContext.CurrentFileIndex,
@@ -357,23 +308,13 @@ public class HttpContentDeliverer(
             progressContext.PreviousFilesBytes,
             progressContext.TotalBytesAllFiles);
 
-        var startingProgress = progressContext.TotalBytesAllFiles > 0
-            ? Math.Clamp((double)progressContext.PreviousFilesBytes / progressContext.TotalBytesAllFiles * 100.0, 0, 100)
-            : (double)(progressContext.CurrentFileIndex - 1) / progressContext.TotalFiles * 100;
-
-        progress?.Report(new ContentAcquisitionProgress
-        {
-            Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = startingProgress,
-            CurrentOperation = progressContext.TotalFiles > 1
-                ? $"Connecting to download {file.RelativePath} ({progressContext.CurrentFileIndex}/{progressContext.TotalFiles})..."
-                : $"Connecting to download {file.RelativePath}...",
-            CurrentFile = file.RelativePath,
-            FilesProcessed = progressContext.CurrentFileIndex - 1,
-            TotalFiles = progressContext.TotalFiles,
-            TotalBytes = progressContext.TotalBytesAllFiles > 0 ? progressContext.TotalBytesAllFiles : 0,
-            BytesProcessed = progressContext.PreviousFilesBytes,
-        });
+        DownloadProgressAdapter.ReportConnecting(
+            progress,
+            file.RelativePath,
+            progressContext.CurrentFileIndex,
+            progressContext.TotalFiles,
+            progressContext.PreviousFilesBytes,
+            progressContext.TotalBytesAllFiles);
 
         return await DownloadFileAsync(packageManifest, file, localPath, downloadProgress, cancellationToken);
     }

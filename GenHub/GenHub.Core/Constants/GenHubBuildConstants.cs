@@ -164,4 +164,117 @@ public static class GenHubBuildConstants
     /// Tag applied to test builds.
     /// </summary>
     public const string TagTest = "test";
+
+    /// <summary>
+    /// Sentinel version when no version could be determined during inspection.
+    /// </summary>
+    public const string UnknownVersion = "Unknown";
+
+    /// <summary>
+    /// Full company name identifying Electronic Arts game binaries (never a GenHub fork).
+    /// </summary>
+    public const string EaCompanyFullName = "Electronic Arts";
+
+    /// <summary>
+    /// Short company name identifying Electronic Arts game binaries (never a GenHub fork).
+    /// </summary>
+    public const string EaCompanyShortName = "EA";
+
+    /// <summary>
+    /// Fallback company name for detected forks without an identified author.
+    /// </summary>
+    public const string FallbackForkCompanyName = "Community";
+
+    /// <summary>
+    /// Fallback company name for detected custom builds without an identified author.
+    /// </summary>
+    public const string FallbackCustomCompanyName = "Custom";
+
+    /// <summary>
+    /// Default file description for filename-only build detections.
+    /// </summary>
+    public const string DefaultFileDescription = "GenHub Application Build";
+
+    /// <summary>
+    /// Explicit channel alias mapping to the development channel.
+    /// </summary>
+    public const string ChannelDevAlias = "Development";
+
+    /// <summary>
+    /// Explicit channel alias mapping to the test channel.
+    /// </summary>
+    public const string ChannelTestAlias = "Beta";
+
+    /// <summary>
+    /// Assembly metadata key carrying the build channel.
+    /// </summary>
+    public const string MetadataKeyBuildChannel = "BuildChannel";
+
+    /// <summary>
+    /// Assembly metadata key carrying the pull request number.
+    /// </summary>
+    public const string MetadataKeyPullRequestNumber = "PullRequestNumber";
+
+    /// <summary>
+    /// Assembly metadata key carrying the git commit hash.
+    /// </summary>
+    public const string MetadataKeyGitHash = "GitHash";
+
+    /// <summary>
+    /// Assembly metadata key carrying the commit hash (alternate spelling).
+    /// </summary>
+    public const string MetadataKeyCommitHash = "CommitHash";
+
+    /// <summary>
+    /// Tag prefix for fork slug tags (e.g. "fork:user").
+    /// </summary>
+    public const string TagPrefixFork = "fork:";
+
+    /// <summary>
+    /// Tag prefix for pull request tags (e.g. "pr:123").
+    /// </summary>
+    public const string TagPrefixPr = "pr:";
+
+    /// <summary>
+    /// Channel tag for development builds.
+    /// </summary>
+    public const string TagChannelDev = "channel:dev";
+
+    /// <summary>
+    /// Channel tag for test builds.
+    /// </summary>
+    public const string TagChannelTest = "channel:test";
+
+    /// <summary>
+    /// Executable file extension inspected for build metadata.
+    /// </summary>
+    public const string ExecutableExtension = ".exe";
+
+    /// <summary>
+    /// Managed library extension inspected for build metadata.
+    /// </summary>
+    public const string LibraryExtension = ".dll";
+
+    /// <summary>
+    /// Archive extension inspected for embedded builds.
+    /// </summary>
+    public const string ArchiveExtension = ".zip";
+
+    /// <summary>
+    /// Package extension inspected for embedded builds.
+    /// </summary>
+    public const string PackageExtension = ".nupkg";
+
+    /// <summary>
+    /// Nuspec manifest extension identifying package metadata entries.
+    /// </summary>
+    public const string NuspecExtension = ".nuspec";
+
+    /// <summary>
+    /// Checks whether a build channel represents a prerelease (PR, dev, or test) build.
+    /// </summary>
+    /// <param name="channel">The build channel name.</param>
+    /// <returns><c>true</c> for prerelease channels; otherwise, <c>false</c>.</returns>
+    public static bool IsPrereleaseChannel(string? channel) =>
+        channel is ChannelPr or ChannelDev or ChannelTest;
 }

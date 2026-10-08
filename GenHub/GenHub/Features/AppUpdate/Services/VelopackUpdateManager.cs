@@ -2940,7 +2940,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             foreach (var manifest in manifestsResult.Data)
             {
-                if (!GenHubBuildInspector.IsGenHubApplicationBuild(manifest.ContentType, manifest.Name, manifest.Metadata?.Tags))
+                if (!GenHubBuildInspector.IsGenHubApplicationBuild(manifest.ContentType, manifest.Metadata?.Tags))
                 {
                     continue;
                 }

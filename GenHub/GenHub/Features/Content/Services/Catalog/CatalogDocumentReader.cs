@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
@@ -11,6 +12,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -82,8 +84,8 @@ public static class CatalogDocumentReader
     /// <param name="catalogLocation">The URL or local file path to the catalog.</param>
     /// <param name="logger">Optional logger for diagnostic messages.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The parsed publisher catalog, or null if loading or parsing failed.</returns>
-    public static async Task<PublisherCatalog?> FetchAndParseCatalogAsync(
+    /// <returns>A result containing the parsed publisher catalog, or failure details.</returns>
+    public static async Task<OperationResult<PublisherCatalog>> FetchAndParseCatalogAsync(
         HttpClient httpClient,
         IPublisherCatalogParser parser,
         string catalogLocation,
@@ -95,23 +97,32 @@ public static class CatalogDocumentReader
 
         if (string.IsNullOrWhiteSpace(catalogLocation))
         {
-            return null;
+            return OperationResult<PublisherCatalog>.CreateFailure("A catalog location is required.");
         }
 
         try
         {
             var json = await ReadAsync(httpClient, catalogLocation, CatalogConstants.MaxCatalogSizeBytes, cancellationToken).ConfigureAwait(false);
-            var result = await parser.ParseCatalogAsync(json, cancellationToken).ConfigureAwait(false);
-            return result.Success ? result.Data : null;
+            return await parser.ParseCatalogAsync(json, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or
+            FileNotFoundException or
+            InvalidDataException or
+            InvalidOperationException or
+            HttpRequestException or
+            SocketException or
+            TimeoutException or
+            TaskCanceledException or
+            IOException or
+            UnauthorizedAccessException or
+            JsonException)
         {
             logger?.LogDebug(ex, "Failed to fetch or parse catalog from '{CatalogLocation}'", catalogLocation);
-            return null;
+            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch or parse catalog from '{catalogLocation}': {ex.Message}");
         }
     }
 

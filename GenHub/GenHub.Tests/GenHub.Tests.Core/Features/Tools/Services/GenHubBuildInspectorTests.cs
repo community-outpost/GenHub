@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Services.Tools;
 using System;
@@ -44,8 +45,8 @@ public class GenHubBuildInspectorTests
 
         Assert.True(info.IsGenHubBuild);
         Assert.Equal("1.5.2", info.Version);
-        Assert.Equal("Release", info.SuggestedCategory);
-        Assert.Equal("Release", info.BuildChannel);
+        Assert.Equal(GenHubBuildConstants.CategoryRelease, info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.ChannelRelease, info.BuildChannel);
         Assert.Null(info.PullRequestNumber);
         Assert.False(info.IsCustomBuild);
     }
@@ -60,8 +61,8 @@ public class GenHubBuildInspectorTests
 
         Assert.True(info.IsGenHubBuild);
         Assert.Equal("1.0.0-dev.45", info.Version);
-        Assert.Equal("Test", info.SuggestedCategory);
-        Assert.Equal("PR", info.BuildChannel);
+        Assert.Equal(GenHubBuildConstants.CategoryTest, info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.ChannelPr, info.BuildChannel);
         Assert.Equal(123, info.PullRequestNumber);
     }
 
@@ -74,8 +75,8 @@ public class GenHubBuildInspectorTests
         var info = _inspector.Inspect("C:\\CI\\genhub-dev-build-456.zip");
 
         Assert.True(info.IsGenHubBuild);
-        Assert.Equal("Dev", info.SuggestedCategory);
-        Assert.Equal("Dev", info.BuildChannel);
+        Assert.Equal(GenHubBuildConstants.CategoryDev, info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.ChannelDev, info.BuildChannel);
     }
 
     /// <summary>
@@ -88,7 +89,7 @@ public class GenHubBuildInspectorTests
 
         Assert.True(info.IsGenHubBuild);
         Assert.Equal("1.0.0", info.Version);
-        Assert.Equal("CustomFork", info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.CategoryCustomFork, info.SuggestedCategory);
         Assert.True(info.IsCustomBuild || info.IsFork);
     }
 
@@ -101,8 +102,8 @@ public class GenHubBuildInspectorTests
         var info = _inspector.Inspect("C:\\Games\\generals.exe");
 
         Assert.False(info.IsGenHubBuild);
-        Assert.Equal("Unknown", info.Version);
-        Assert.Equal("Release", info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.UnknownVersion, info.Version);
+        Assert.Equal(GenHubBuildConstants.CategoryRelease, info.SuggestedCategory);
     }
 
     /// <summary>
@@ -116,7 +117,7 @@ public class GenHubBuildInspectorTests
 
         Assert.True(info.IsGenHubBuild);
         Assert.Equal("9.9.9", info.Version);
-        Assert.Equal("Release", info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.CategoryRelease, info.SuggestedCategory);
     }
 
     /// <summary>
@@ -125,7 +126,7 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_BareGenHubTag_ReturnsFalse()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, "Shockwave Mod", ["genhub"]);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, ["genhub"]);
         Assert.False(result);
     }
 
@@ -135,17 +136,17 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_GenHubBuildTag_ReturnsTrue()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, "Shockwave Mod", ["genhub-build"]);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, [GenHubBuildConstants.GenHubBuildTag]);
         Assert.True(result);
     }
 
     /// <summary>
-    /// Verifies that builder tools with GenHub in name are not treated as GenHub application builds.
+    /// Verifies that builder tools without the build tag are not treated as GenHub application builds.
     /// </summary>
     [Fact]
-    public void IsGenHubApplicationBuild_GenHubMapBuilder_ReturnsFalse()
+    public void IsGenHubApplicationBuild_ToolTypeWithoutTag_ReturnsFalse()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool, "GenHub Map Builder", []);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool, []);
         Assert.False(result);
     }
 
@@ -155,19 +156,7 @@ public class GenHubBuildInspectorTests
     [Fact]
     public void IsGenHubApplicationBuild_ContentTypeGenHubBuild_ReturnsTrue()
     {
-        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild, "Any Name", []);
+        var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild, []);
         Assert.True(result);
-    }
-
-    /// <summary>
-    /// Verifies that the two-parameter overload of IsGenHubApplicationBuild detects builds correctly without a name parameter.
-    /// </summary>
-    [Fact]
-    public void IsGenHubApplicationBuild_TwoParameterOverload_DetectsBuildsCorrectly()
-    {
-        Assert.True(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild));
-        Assert.True(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, ["genhub-build"]));
-        Assert.False(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.Mod, ["genhub"]));
-        Assert.False(GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.ModdingTool));
     }
 }

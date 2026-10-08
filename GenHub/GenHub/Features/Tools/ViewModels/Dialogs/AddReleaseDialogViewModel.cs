@@ -479,6 +479,7 @@ public partial class AddReleaseDialogViewModel(
         ArgumentNullException.ThrowIfNull(paths);
 
         var addedCount = 0;
+        var buildMetadataApplied = false;
         foreach (var rawPath in paths)
         {
             if (string.IsNullOrWhiteSpace(rawPath))
@@ -506,7 +507,11 @@ public partial class AddReleaseDialogViewModel(
             Artifacts.Add(artifact);
             addedCount++;
 
-            await ApplyGenHubBuildMetadataAsync(path, cancellationToken).ConfigureAwait(true);
+            // Release metadata comes from the first detected build so multi-file drops resolve deterministically.
+            if (!buildMetadataApplied)
+            {
+                buildMetadataApplied = await ApplyGenHubBuildMetadataAsync(path, cancellationToken);
+            }
         }
 
         // Files dropped together are parts of one payload; bundle them so the
@@ -555,7 +560,7 @@ public partial class AddReleaseDialogViewModel(
     {
         if (existingReleases == null || existingReleases.Count == 0)
         {
-            return "1.0.0";
+            return PublisherStudioConstants.DefaultInitialVersion;
         }
 
         var versions = existingReleases
@@ -568,7 +573,7 @@ public partial class AddReleaseDialogViewModel(
 
         if (versions == null)
         {
-            return "1.0.0";
+            return PublisherStudioConstants.DefaultInitialVersion;
         }
 
         var (major, minor, patch) = versions.Value;
@@ -783,20 +788,21 @@ public partial class AddReleaseDialogViewModel(
         }
     }
 
-    private async Task ApplyGenHubBuildMetadataAsync(string path, CancellationToken cancellationToken)
+    private async Task<bool> ApplyGenHubBuildMetadataAsync(string path, CancellationToken cancellationToken)
     {
         if (contentItem?.ContentType != ContentType.GenHubBuild && !_buildInspector.IsGenHubBuildPath(path))
         {
-            return;
+            return false;
         }
 
-        var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken).ConfigureAwait(true);
+        var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken);
         if (!buildInfo.IsGenHubBuild)
         {
-            return;
+            return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(buildInfo.Version))
+        if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
+            !buildInfo.Version.Equals(GenHubBuildConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
         {
             Version = buildInfo.Version;
         }
@@ -806,7 +812,7 @@ public partial class AddReleaseDialogViewModel(
             Category = buildInfo.SuggestedCategory;
         }
 
-        if (buildInfo.BuildChannel is GenHubBuildConstants.ChannelPr or GenHubBuildConstants.ChannelDev or GenHubBuildConstants.ChannelTest)
+        if (GenHubBuildConstants.IsPrereleaseChannel(buildInfo.BuildChannel))
         {
             IsPrerelease = true;
         }
@@ -815,6 +821,8 @@ public partial class AddReleaseDialogViewModel(
         {
             Changelog = buildInfo.SuggestedDescription;
         }
+
+        return true;
     }
 
     private async Task<ReleaseArtifact> BuildFileArtifactAsync(string path, CancellationToken cancellationToken)

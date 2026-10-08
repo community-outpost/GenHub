@@ -13,6 +13,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
@@ -643,7 +644,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         foreach (var sub in candidateSubs)
         {
-            var catalog = await FetchCatalogForSubscriptionAsync(sub, token).ConfigureAwait(false);
+            var catalogResult = await FetchCatalogForSubscriptionAsync(sub, token).ConfigureAwait(false);
+            var catalog = catalogResult.Data;
             var item = catalog?.Content.FirstOrDefault(c =>
                 string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
                 c.ContentType == ContentType.GenHubBuild);
@@ -804,7 +806,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             foreach (var sub in subsResult.Data)
             {
-                var catalog = await FetchCatalogForSubscriptionAsync(sub, _cancellationTokenSource.Token);
+                var catalogResult = await FetchCatalogForSubscriptionAsync(sub, _cancellationTokenSource.Token);
+                var catalog = catalogResult.Data;
                 if (catalog?.Content == null)
                 {
                     continue;
@@ -827,8 +830,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                         LatestVersion = latestRel?.Version ?? GenHubBuildConstants.DefaultVersion,
                         ReleaseDate = latestRel?.ReleaseDate,
                         Category = latestRel?.Category ?? GenHubBuildConstants.CategoryCustomFork,
-                        IsSubscribed = string.Equals(SubscribedCustomBuildContentId, item.Id, StringComparison.OrdinalIgnoreCase) &&
-                                       string.Equals(SubscribedCustomBuildPublisherId, sub.PublisherId, StringComparison.OrdinalIgnoreCase),
                     });
                 }
             }
@@ -845,11 +846,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task<PublisherCatalog?> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    private async Task<OperationResult<PublisherCatalog>> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(subscription.CatalogUrl) || _publisherCatalogParser == null)
         {
-            return null;
+            return OperationResult<PublisherCatalog>.CreateFailure("Subscription has no catalog URL.");
         }
 
         using var client = _httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient(new HttpClientHandler
@@ -896,12 +897,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
-
-        foreach (var build in AvailableCustomBuilds)
-        {
-            build.IsSubscribed = string.Equals(build.ContentId, item.ContentId, StringComparison.OrdinalIgnoreCase) &&
-                                 string.Equals(build.PublisherId, item.PublisherId, StringComparison.OrdinalIgnoreCase);
-        }
 
         OnPropertyChanged(nameof(IsSubscribedToAny));
         OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
@@ -2093,10 +2088,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         SubscribedCustomBuildContentId = null;
         SubscribedCustomBuildName = null;
         SubscribedCustomBuildVersion = null;
-        foreach (var build in AvailableCustomBuilds)
-        {
-            build.IsSubscribed = false;
-        }
 
         OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
 
@@ -2152,10 +2143,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         SubscribedCustomBuildContentId = null;
         SubscribedCustomBuildName = null;
         SubscribedCustomBuildVersion = null;
-        foreach (var build in AvailableCustomBuilds)
-        {
-            build.IsSubscribed = false;
-        }
 
         OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
 
@@ -2233,11 +2220,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedCustomBuildVersion = null;
         });
         _ = _userSettingsService.SaveAsync(CancellationToken.None);
-
-        foreach (var build in AvailableCustomBuilds)
-        {
-            build.IsSubscribed = false;
-        }
 
         OnPropertyChanged(nameof(IsSubscribedToCustomBuild));
         OnPropertyChanged(nameof(IsSubscribedToAny));

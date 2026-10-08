@@ -62,9 +62,4 @@ public class CustomBuildSubscriptionItem
     /// Gets or sets the download URL or primary artifact URL if available.
     /// </summary>
     public string? DownloadUrl { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether the user is currently subscribed to this build.
-    /// </summary>
-    public bool IsSubscribed { get; set; }
 }

@@ -136,7 +136,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
            async callback =>
            {
-               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService);
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService, buildInspector: _buildInspector);
                await StageInitialArtifactsAsync(vm, initialPaths);
                return vm;
            });
@@ -159,7 +159,8 @@ public class PublisherStudioDialogService(
                 localizationService,
                 isAddon: true,
                 notificationService: notificationService,
-                onReleaseDeleted: onDelete));
+                onReleaseDeleted: onDelete,
+                buildInspector: _buildInspector));
     }
 
     /// <inheritdoc/>

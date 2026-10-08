@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security;
+using System.Text;
 
 namespace GenHub.Features.AppUpdate.Services;
 
@@ -13,6 +15,12 @@ public static class VelopackBundleExtractor
     // Velopack Windows Setup bundles append the .nupkg to Setup.exe with a 48-byte header:
     // 8 bytes package offset (little-endian), 8 bytes package length (little-endian),
     // followed by this 32-byte SHA-256 signature for "squirrel bundle".
+    private const int BundleHeaderPrefixBytes = 16;
+
+    private const int MinimumBundleFileBytes = 64;
+
+    private const int CopyBufferBytes = 81920;
+
     private static readonly byte[] SquirrelBundleSignature =
     [
         0x94, 0xf0, 0xb1, 0x7b, 0x68, 0x93, 0xe0, 0x29,
@@ -39,23 +47,23 @@ public static class VelopackBundleExtractor
         try
         {
             using var fileStream = new FileStream(exePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            if (fileStream.Length < 64)
+            if (fileStream.Length < MinimumBundleFileBytes)
             {
                 return false;
             }
 
             var position = FindSignature(fileStream, SquirrelBundleSignature);
-            if (position < 16)
+            if (position < BundleHeaderPrefixBytes)
             {
                 return false;
             }
 
-            fileStream.Seek(position - 16, SeekOrigin.Begin);
-            using var reader = new BinaryReader(fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
+            fileStream.Seek(position - BundleHeaderPrefixBytes, SeekOrigin.Begin);
+            using var reader = new BinaryReader(fileStream, Encoding.UTF8, leaveOpen: true);
             var offset = reader.ReadInt64();
             var length = reader.ReadInt64();
 
-            if (offset <= 0 || length <= 0 || offset + length > fileStream.Length)
+            if (offset <= 0 || length <= 0 || offset > fileStream.Length || length > fileStream.Length - offset)
             {
                 return false;
             }
@@ -74,14 +82,39 @@ public static class VelopackBundleExtractor
                 Directory.CreateDirectory(destDir);
             }
 
-            using var outStream = new FileStream(destinationNupkgPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            CopyExactBytes(fileStream, outStream, length);
+            var extracted = false;
+            try
+            {
+                using var outStream = new FileStream(destinationNupkgPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                CopyExactBytes(fileStream, outStream, length);
+                extracted = true;
+            }
+            finally
+            {
+                if (!extracted)
+                {
+                    TryDeleteFile(destinationNupkgPath);
+                }
+            }
+
             extractedBytes = length;
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or EndOfStreamException)
         {
             return false;
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Best effort cleanup of partial extraction output
         }
     }
 
@@ -133,7 +166,7 @@ public static class VelopackBundleExtractor
 
     private static void CopyExactBytes(Stream source, Stream destination, long count)
     {
-        var buffer = new byte[81920];
+        var buffer = new byte[CopyBufferBytes];
         var remaining = count;
         while (remaining > 0)
         {

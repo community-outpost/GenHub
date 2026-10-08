@@ -433,7 +433,7 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// Gets a value indicating whether this item represents a GenHub build.
     /// </summary>
     public bool IsGenHubBuild =>
-        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType, Name);
+        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown for this row.

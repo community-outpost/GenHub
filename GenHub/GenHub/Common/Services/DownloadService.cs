@@ -265,6 +265,29 @@ public class DownloadService(
         progress.Report(downloadProgress);
     }
 
+    /// <summary>
+    /// Reports the initial connecting progress event once a download connection is established.
+    /// </summary>
+    /// <param name="progress">The progress sink.</param>
+    /// <param name="configuration">The download configuration.</param>
+    /// <param name="existingBytes">Bytes already present from a resumed download.</param>
+    /// <param name="totalBytes">The total expected bytes.</param>
+    private static void ReportConnectingProgress(
+        IProgress<DownloadProgress> progress,
+        DownloadConfiguration configuration,
+        long existingBytes,
+        long totalBytes)
+    {
+        ReportDownloadProgress(
+            progress,
+            existingBytes,
+            0,
+            totalBytes,
+            Path.GetFileName(configuration.DestinationPath),
+            configuration.Url,
+            TimeSpan.Zero);
+    }
+
     private static async Task TryWriteETagSidecarAsync(DownloadConfiguration configuration, CancellationToken cancellationToken)
     {
         if (configuration.EnableResumption && TryGetETagHeader(configuration, out var etag))
@@ -311,8 +334,8 @@ public class DownloadService(
         }
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
-        if (string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(mediaType, "application/xhtml+xml", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(mediaType, HostingConstants.HtmlContentType, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mediaType, HostingConstants.XhtmlContentType, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
                 $"Download server returned HTML ({mediaType}) instead of the expected binary content for '{Path.GetFileName(destinationPath)}'. " +
@@ -748,14 +771,7 @@ public class DownloadService(
 
         if (progress != null && connection.TotalBytes > 0)
         {
-            ReportDownloadProgress(
-                progress,
-                connection.ExistingBytes,
-                0,
-                connection.TotalBytes,
-                Path.GetFileName(configuration.DestinationPath),
-                configuration.Url,
-                TimeSpan.Zero);
+            ReportConnectingProgress(progress, configuration, connection.ExistingBytes, connection.TotalBytes);
         }
 
         if (CanUseParallelDownload(configuration, connection) &&
@@ -803,14 +819,7 @@ public class DownloadService(
 
                 if (progress != null)
                 {
-                    ReportDownloadProgress(
-                        progress,
-                        0,
-                        0,
-                        connection.TotalBytes,
-                        Path.GetFileName(configuration.DestinationPath),
-                        configuration.Url,
-                        TimeSpan.Zero);
+                    ReportConnectingProgress(progress, configuration, 0, connection.TotalBytes);
                 }
 
                 connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
@@ -1042,11 +1051,11 @@ public class DownloadService(
     {
         var mediaType = initialResponse.Content.Headers.ContentType?.MediaType;
         var uri = initialResponse.RequestMessage?.RequestUri?.ToString() ?? configuration.Url?.ToString() ?? string.Empty;
-        var isGoogle = uri.Contains("drive.google.com", StringComparison.OrdinalIgnoreCase) ||
-                       uri.Contains("docs.google.com", StringComparison.OrdinalIgnoreCase) ||
-                       uri.Contains("drive.usercontent.google.com", StringComparison.OrdinalIgnoreCase);
+        var isGoogle = uri.Contains(HostingConstants.GoogleDriveHost, StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains(HostingConstants.GoogleDocsHost, StringComparison.OrdinalIgnoreCase) ||
+                       uri.Contains(HostingConstants.GoogleDriveUserContentHost, StringComparison.OrdinalIgnoreCase);
 
-        if (!isGoogle || !string.Equals(mediaType, "text/html", StringComparison.OrdinalIgnoreCase))
+        if (!isGoogle || !string.Equals(mediaType, HostingConstants.HtmlContentType, StringComparison.OrdinalIgnoreCase))
         {
             return initialResponse;
         }
@@ -1054,7 +1063,7 @@ public class DownloadService(
         var html = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
         initialResponse.Dispose();
 
-        var confirmUrl = TryExtractConfirmationUrl(html, initialResponse.RequestMessage?.RequestUri ?? configuration.Url);
+        var confirmUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, initialResponse.RequestMessage?.RequestUri ?? configuration.Url);
         if (confirmUrl != null)
         {
             logger.LogInformation("Following Google Drive download confirmation");
@@ -1086,10 +1095,6 @@ public class DownloadService(
 
         throw new InvalidOperationException("Google Drive returned an HTML page instead of the expected file download.");
     }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private string? TryExtractConfirmationUrl(string html, Uri? requestUri) =>
-        CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri);
 
     private void TrackDownloadCompleted(DownloadConfiguration configuration, long downloadedBytes, TimeSpan elapsed) =>
         DownloadTelemetryHelper.TrackDownloadCompleted(telemetryService, configuration, downloadedBytes, elapsed);
