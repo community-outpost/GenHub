@@ -245,12 +245,15 @@ public class GameProfileManagerLiveSyncTests
         const string installId = "1.104.steam.gameinstallation.zerohour";
         const string originalMapId = "1.0.0.map.desert";
 
+        using var cts = new CancellationTokenSource();
+
         CreateRunningProfile(profileId, [installId, originalMapId]);
         SetupManifest(CreateManifest(installId, "Zero Hour", ContentType.GameInstallation));
         SetupManifest(CreateManifest(originalMapId, "Tournament Desert", ContentType.Map));
         SetupLinkerSuccess();
         _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new OperationCanceledException());
+            .Callback(() => cts.Cancel())
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
 
         var request = new UpdateProfileRequest
         {
@@ -258,7 +261,7 @@ public class GameProfileManagerLiveSyncTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request, cts.Token));
 
         _linkerMock.Verify(
             l => l.UpdateProfileUserDataAsync(

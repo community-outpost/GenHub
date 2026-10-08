@@ -198,14 +198,7 @@ public class GameProfileManager(
         }
 
         var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
-        try
-        {
-            await profileLock.WaitAsync(cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
+        await profileLock.WaitAsync(cancellationToken);
 
         try
         {
@@ -262,9 +255,9 @@ public class GameProfileManager(
                 liveSync,
                 cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            throw new OperationCanceledException(cancellationToken);
+            throw;
         }
         catch (Exception ex)
         {
