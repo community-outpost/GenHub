@@ -14,7 +14,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -289,41 +288,18 @@ public sealed class ImageCacheService : IImageCacheService
         TimeSpan? connectTimeout = null,
         TimeSpan? pooledConnectionLifetime = null)
     {
+        var resolvedConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(ImageCacheConstants.DefaultConnectTimeoutSeconds);
         return new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
             UseCookies = false,
-            PooledConnectionLifetime = pooledConnectionLifetime ?? TimeSpan.FromMinutes(5),
-            ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(10),
-            ConnectCallback = async (context, cancellationToken) =>
-            {
-                if (Uri.CheckHostName(context.DnsEndPoint.Host) == UriHostNameType.Unknown)
-                {
-                    throw new HttpRequestException($"Invalid host name: '{context.DnsEndPoint.Host}'.");
-                }
-
-                var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken).ConfigureAwait(false);
-                if (addresses.Length == 0 || !addresses.All(NetworkSecurityHelper.IsSafeIpAddress))
-                {
-                    throw new HttpRequestException($"Host '{context.DnsEndPoint.Host}' resolved to an unsafe or invalid IP address.");
-                }
-
-                var sortedAddresses = addresses
-                    .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
-                    .ToArray();
-
-                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                try
-                {
-                    await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, cancellationToken).ConfigureAwait(false);
-                    return new NetworkStream(socket, ownsSocket: true);
-                }
-                catch
-                {
-                    socket.Dispose();
-                    throw;
-                }
-            },
+            PooledConnectionLifetime = pooledConnectionLifetime ?? TimeSpan.FromMinutes(ImageCacheConstants.DefaultPooledConnectionLifetimeMinutes),
+            ConnectTimeout = resolvedConnectTimeout,
+            ConnectCallback = (context, cancellationToken) => NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(
+                context,
+                (int)resolvedConnectTimeout.TotalSeconds,
+                cancellationToken,
+                static message => new HttpRequestException(message)),
         };
     }
 

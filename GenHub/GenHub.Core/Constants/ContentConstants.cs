@@ -124,6 +124,16 @@ public static class ContentConstants
     public const int PipelineStageValidating = 4;
 
     /// <summary>
+    /// Stage description keyword identifying extraction work when no explicit stage is set.
+    /// </summary>
+    public const string StageKeywordExtracting = "Extract";
+
+    /// <summary>
+    /// Stage description keyword identifying payload processing work when no explicit stage is set.
+    /// </summary>
+    public const string StageKeywordProcessing = "Process";
+
+    /// <summary>
     /// Default minimum percentage for progress normalization (0.0).
     /// </summary>
     public const double ProgressMinPercentage = 0.0;

@@ -18,9 +18,9 @@ public class CloudUrlHelperTests
     [InlineData("https://www.dropbox.com/s/12345/setup.exe?dl=0", "https://www.dropbox.com/s/12345/setup.exe?dl=1")]
     [InlineData("https://www.dropbox.com/s/12345/setup.exe", "https://www.dropbox.com/s/12345/setup.exe?dl=1")]
     [InlineData("https://www.dropbox.com/s/12345/setup.exe?foo=bar", "https://www.dropbox.com/s/12345/setup.exe?foo=bar&dl=1")]
-    public void NormalizeCloudUrl_DropboxUrl_NormalizesWithDl1(string input, string expected)
+    public void NormalizeDirectDownloadUrl_DropboxUrl_NormalizesWithDl1(string input, string expected)
     {
-        var result = CloudUrlHelper.NormalizeCloudUrl(input);
+        var result = CloudUrlHelper.NormalizeDirectDownloadUrl(input);
         Assert.Equal(expected, result);
     }
 
@@ -33,9 +33,9 @@ public class CloudUrlHelperTests
     [InlineData("https://drive.google.com/uc?id=1234567890abcdef", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
     [InlineData("https://drive.google.com/open?id=1234567890abcdef", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
     [InlineData("https://drive.google.com/file/d/1234567890abcdef/view", "https://drive.google.com/uc?export=download&id=1234567890abcdef")]
-    public void NormalizeCloudUrl_GoogleDriveUrl_NormalizesToDirectDownload(string input, string expected)
+    public void NormalizeDirectDownloadUrl_GoogleDriveUrl_NormalizesToDirectDownload(string input, string expected)
     {
-        var result = CloudUrlHelper.NormalizeCloudUrl(input);
+        var result = CloudUrlHelper.NormalizeDirectDownloadUrl(input);
         Assert.Equal(expected, result);
     }
 

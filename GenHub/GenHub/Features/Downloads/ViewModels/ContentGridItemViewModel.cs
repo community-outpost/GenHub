@@ -492,7 +492,7 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether this content is a GenHub application build.
     /// </summary>
     public bool IsGenHubBuild =>
-        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType, Name, Tags);
+        GenHubBuildInspector.IsGenHubApplicationBuild(ContentType, Tags);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.

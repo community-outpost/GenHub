@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System.Collections.Generic;
 
 namespace GenHub.Core.Models.Manifest;
@@ -55,7 +56,7 @@ public sealed record GenHubBuildInfo
     /// <summary>
     /// Gets the build channel: "Release", "PR", "Dev", "Test", or "CustomFork".
     /// </summary>
-    public string BuildChannel { get; init; } = "Release";
+    public string BuildChannel { get; init; } = GenHubBuildConstants.ChannelRelease;
 
     /// <summary>
     /// Gets a value indicating whether this build is a custom or modified build (not official Community Outpost release).
@@ -73,7 +74,7 @@ public sealed record GenHubBuildInfo
     public string? ForkName { get; init; }
 
     /// <summary>
-    /// Gets the suggested content ID for Publisher Studio (e.g. "genhub-release", "genhub-pr-123", "genhub-fork-user").
+    /// Gets the suggested content ID for Publisher Studio (e.g. "genhub", "genhub-pr-123", "genhub-fork-user").
     /// </summary>
     public string SuggestedContentId { get; init; } = string.Empty;
 
@@ -85,7 +86,7 @@ public sealed record GenHubBuildInfo
     /// <summary>
     /// Gets the suggested category for releases (e.g. "Release", "Test", "Dev", "CustomFork").
     /// </summary>
-    public string SuggestedCategory { get; init; } = "Release";
+    public string SuggestedCategory { get; init; } = GenHubBuildConstants.CategoryRelease;
 
     /// <summary>
     /// Gets the suggested description summarizing the build.

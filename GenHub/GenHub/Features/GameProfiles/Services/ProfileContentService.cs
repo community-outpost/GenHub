@@ -302,17 +302,14 @@ public sealed class ProfileContentService(
                 return ProfileOperationResult<GameProfile>.CreateFailure(error);
             }
 
-            foreach (var reqId in requestedIds)
+            var genHubBuildId = await FindGenHubBuildIdAsync(requestedIds, manifestId, manifestResult, cancellationToken);
+            if (genHubBuildId != null)
             {
-                var checkResult = string.Equals(reqId, manifestId, StringComparison.Ordinal)
-                    ? manifestResult
-                    : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
-
-                if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
-                {
-                    logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", reqId);
-                    return ProfileOperationResult<GameProfile>.CreateFailure("GenHub application builds cannot be used to create game profiles.", ProfileConstants.GenHubBuildNotAllowedErrorCode);
-                }
+                var error = localizationService.GetLocalizedString(
+                    "GameProfiles.GenHubBuild.CreateNotAllowed",
+                    "GenHub application builds cannot be used to create game profiles.");
+                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", genHubBuildId);
+                return ProfileOperationResult<GameProfile>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
             }
 
             var manifest = manifestResult.Data;
@@ -719,6 +716,34 @@ public sealed class ProfileContentService(
         return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
+    /// <summary>
+    /// Finds the first requested manifest that is a GenHub application build, which game profiles cannot consume.
+    /// </summary>
+    /// <param name="requestedIds">The requested manifest IDs.</param>
+    /// <param name="primaryManifestId">The already-fetched primary manifest ID.</param>
+    /// <param name="primaryManifestResult">The already-fetched primary manifest result.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The offending manifest ID, or <c>null</c> when no GenHub build is requested.</returns>
+    private async Task<string?> FindGenHubBuildIdAsync(
+        IReadOnlyList<string> requestedIds,
+        string primaryManifestId,
+        OperationResult<ContentManifest?> primaryManifestResult,
+        CancellationToken cancellationToken)
+    {
+        foreach (var reqId in requestedIds)
+        {
+            var checkResult = string.Equals(reqId, primaryManifestId, StringComparison.Ordinal)
+                ? primaryManifestResult
+                : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
+            if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
+            {
+                return reqId;
+            }
+        }
+
+        return null;
+    }
+
     private async Task<ProfileOperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
         string profileId,
         string primaryManifestId,
@@ -744,18 +769,14 @@ public sealed class ProfileContentService(
             return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
         }
 
-        foreach (var reqId in requestedIds)
+        var genHubBuildId = await FindGenHubBuildIdAsync(requestedIds, primaryManifestId, manifestResult, cancellationToken);
+        if (genHubBuildId != null)
         {
-            var checkResult = string.Equals(reqId, primaryManifestId, StringComparison.Ordinal)
-                ? manifestResult
-                : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
-
-            if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
-            {
-                var error = "GenHub application builds cannot be added to game profiles.";
-                logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", reqId, profileId);
-                return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
-            }
+            var error = localizationService.GetLocalizedString(
+                "GameProfiles.GenHubBuild.AddNotAllowed",
+                "GenHub application builds cannot be added to game profiles.");
+            logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", genHubBuildId, profileId);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
         }
 
         var manifest = manifestResult.Data;

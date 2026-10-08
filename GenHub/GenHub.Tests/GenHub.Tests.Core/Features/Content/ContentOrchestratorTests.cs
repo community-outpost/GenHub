@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -149,11 +150,6 @@ public class ContentOrchestratorTests
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    private sealed class SynchronousProgress<T>(Action<T> onReport) : IProgress<T>
-    {
-        public void Report(T value) => onReport(value);
-    }
-
     /// <summary>
     /// Verifies that provider preparation progress (0-100) is scaled into the 40-70% range.
     /// </summary>
@@ -219,12 +215,7 @@ public class ContentOrchestratorTests
         // Assert
         Assert.True(result.Success);
 
-        var spinTimeout = DateTime.UtcNow.AddSeconds(3);
-        while (reportedProgress.Count < 3 && DateTime.UtcNow < spinTimeout)
-        {
-            await Task.Delay(10);
-        }
-
+        // Progress is reported synchronously, so all reports are recorded once acquisition completes.
         Assert.Contains(40, reportedProgress);
         Assert.Contains(55, reportedProgress);
         Assert.Contains(70, reportedProgress);
@@ -899,5 +890,89 @@ public class ContentOrchestratorTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("GenTool", result.Data.Name);
+    }
+
+    /// <summary>
+    /// Verifies that downloading progress scales into the 40-70% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_DownloadingScalesIntoDownloadSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 50,
+            CurrentOperation = "Downloading",
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Downloading, scaled.Phase);
+        Assert.Equal(55, scaled.ProgressPercentage);
+        Assert.Equal("Downloading", scaled.CurrentOperation);
+    }
+
+    /// <summary>
+    /// Verifies that extracting progress scales into the 70-85% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_ExtractingScalesIntoExtractingSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Extracting,
+            ProgressPercentage = 50,
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Extracting, scaled.Phase);
+        Assert.InRange(scaled.ProgressPercentage, 70.0, 85.0);
+    }
+
+    /// <summary>
+    /// Verifies that a processing stage description routes downloading progress into the extracting span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_ProcessingDescriptionRoutesIntoExtractingSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 50,
+            StageDescription = "Processing payload",
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Extracting, scaled.Phase);
+        Assert.InRange(scaled.ProgressPercentage, 70.0, 85.0);
+    }
+
+    /// <summary>
+    /// Verifies that storing progress keeps its phase and scales into the 85-90% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_StoringKeepsPhaseAndScalesIntoStoringSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.StoringInCas,
+            ProgressPercentage = 100,
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.StoringInCas, scaled.Phase);
+        Assert.Equal(90, scaled.ProgressPercentage);
+    }
+
+    /// <summary>
+    /// Verifies that a missing operation description falls back to the provider preparation message.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_MissingOperationFallsBackToPreparingMessage()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 0,
+            CurrentOperation = null!,
+        });
+
+        Assert.Equal(ContentConstants.PreparingContentViaProviderOperation, scaled.CurrentOperation);
+        Assert.Equal(40, scaled.ProgressPercentage);
     }
 }

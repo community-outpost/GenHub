@@ -13,6 +13,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.AppUpdate.Views;
@@ -884,7 +885,8 @@ public class BackgroundUpdateCoordinator(
 
         foreach (var sub in candidateSubs)
         {
-            var catalog = await FetchCatalogForSubscriptionAsync(sub, cancellationToken).ConfigureAwait(false);
+            var catalogResult = await FetchCatalogForSubscriptionAsync(sub, cancellationToken).ConfigureAwait(false);
+            var catalog = catalogResult.Data;
             var item = catalog?.Content.FirstOrDefault(c =>
                 string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
                 c.ContentType == ContentType.GenHubBuild);
@@ -975,11 +977,11 @@ public class BackgroundUpdateCoordinator(
         }
     }
 
-    private async Task<PublisherCatalog?> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    private async Task<OperationResult<PublisherCatalog>> FetchCatalogForSubscriptionAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(subscription.CatalogUrl) || publisherCatalogParser == null)
         {
-            return null;
+            return OperationResult<PublisherCatalog>.CreateFailure("Subscription has no catalog URL.");
         }
 
         using var client = httpClientFactory?.CreateClient(CatalogConstants.CatalogHttpClientName) ?? new HttpClient(new HttpClientHandler

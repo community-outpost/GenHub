@@ -278,15 +278,19 @@ public static class NetworkSecurityHelper
             .ToArray();
 
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        var connected = false;
         try
         {
             await socket.ConnectAsync(sortedAddresses, context.DnsEndPoint.Port, connectCts.Token).ConfigureAwait(false);
+            connected = true;
             return new NetworkStream(socket, ownsSocket: true);
         }
-        catch
+        finally
         {
-            socket.Dispose();
-            throw;
+            if (!connected)
+            {
+                socket.Dispose();
+            }
         }
     }
 

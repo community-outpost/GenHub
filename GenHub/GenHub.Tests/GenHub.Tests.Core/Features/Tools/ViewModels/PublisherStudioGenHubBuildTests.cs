@@ -39,7 +39,7 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
             {
                 Directory.Delete(_tempDir, true);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }

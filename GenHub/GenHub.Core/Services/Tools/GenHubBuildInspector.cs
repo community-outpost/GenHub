@@ -16,6 +16,7 @@ using System.Security;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace GenHub.Core.Services.Tools;
@@ -36,32 +37,17 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     /// (e.g. "GenHub Map Builder").
     /// </summary>
     /// <param name="contentType">The content type.</param>
-    /// <param name="name">The content name (retained for backward compatibility, not used for build classification). When omitting, use named arguments (e.g. <c>tags: tagsList</c>) or cast to <c>(IEnumerable&lt;string&gt;?)</c> to disambiguate from the two-parameter overload.</param>
     /// <param name="tags">The optional tags collection.</param>
     /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
-    public static bool IsGenHubApplicationBuild(ContentType? contentType, string? name, IEnumerable<string>? tags = null)
+    public static bool IsGenHubApplicationBuild(ContentType? contentType, IEnumerable<string>? tags = null)
     {
         if (contentType == ContentType.GenHubBuild)
         {
             return true;
         }
 
-        if (tags?.Any(t => string.Equals(t, GenHubBuildConstants.GenHubBuildTag, StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
+        return tags?.Any(t => string.Equals(t, GenHubBuildConstants.GenHubBuildTag, StringComparison.OrdinalIgnoreCase)) == true;
     }
-
-    /// <summary>
-    /// Determines whether the specified content metadata represents a GenHub application build.
-    /// </summary>
-    /// <param name="contentType">The content type.</param>
-    /// <param name="tags">The optional tags collection.</param>
-    /// <returns><c>true</c> if the metadata represents a GenHub application build; otherwise, <c>false</c>.</returns>
-    public static bool IsGenHubApplicationBuild(ContentType? contentType, IEnumerable<string>? tags = null) =>
-        IsGenHubApplicationBuild(contentType, name: null, tags);
 
     /// <inheritdoc />
     public bool IsGenHubBuildPath(string path)
@@ -71,7 +57,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return false;
         }
 
-        var normalizedPath = path.Replace('\\', '/');
+        var normalizedPath = NormalizePathSeparators(path);
         var fileName = Path.GetFileName(normalizedPath);
         if (string.IsNullOrWhiteSpace(fileName))
         {
@@ -167,7 +153,22 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     private static partial Regex ProductForkNamePattern();
 
     private static GenHubBuildInfo CreateNonBuildInfo() =>
-        new() { IsGenHubBuild = false, Version = "Unknown", SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+        new() { IsGenHubBuild = false, Version = GenHubBuildConstants.UnknownVersion, SuggestedCategory = GenHubBuildConstants.CategoryRelease };
+
+    /// <summary>
+    /// Normalizes path separators to forward slashes so Windows-style paths resolve file names correctly on all platforms.
+    /// </summary>
+    /// <param name="path">The path to normalize.</param>
+    /// <returns>The path with forward-slash separators.</returns>
+    private static string NormalizePathSeparators(string path) => path.Replace('\\', '/');
+
+    /// <summary>
+    /// Converts a fork display name into a URL-safe slug for content IDs and tags.
+    /// </summary>
+    /// <param name="forkName">The fork display name.</param>
+    /// <returns>The slugified fork name.</returns>
+    private static string ToForkSlug(string forkName) =>
+        ForkSlugPattern().Replace(forkName.ToLowerInvariant(), "-").Trim('-');
 
     private static bool IsGenHubText(string? text)
     {
@@ -187,7 +188,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         }
 
         var ext = Path.GetExtension(normalizedPath);
-        if (!ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) && !ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
+        if (!ext.Equals(GenHubBuildConstants.ExecutableExtension, StringComparison.OrdinalIgnoreCase) && !ext.Equals(GenHubBuildConstants.LibraryExtension, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -199,7 +200,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                    IsGenHubText(versionInfo.FileDescription) ||
                    IsGenHubText(versionInfo.OriginalFilename);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
             return false;
         }
@@ -253,7 +254,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return strVal;
             }
         }
-        catch
+        catch (Exception ex) when (ex is BadImageFormatException or InvalidOperationException)
         {
             // Ignore decoding failures
         }
@@ -273,7 +274,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return (k, v);
             }
         }
-        catch
+        catch (Exception ex) when (ex is BadImageFormatException or InvalidOperationException)
         {
             // Ignore decoding failures
         }
@@ -303,7 +304,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                     metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value?.Trim());
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or XmlException)
         {
             // Ignore nuspec parsing errors
         }
@@ -338,20 +339,20 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         return (version, prNumber);
     }
 
-    private static (bool IsCustom, bool IsFork, string? ForkName) ParseForkFromFileName(string baseName)
+    private static (bool IsCustom, bool IsFork) ParseForkFromFileName(string baseName)
     {
         if (baseName.Contains("fork", StringComparison.OrdinalIgnoreCase) ||
             baseName.Contains("community", StringComparison.OrdinalIgnoreCase))
         {
-            return (true, true, null);
+            return (true, true);
         }
 
         if (baseName.Contains("custom", StringComparison.OrdinalIgnoreCase))
         {
-            return (true, false, null);
+            return (true, false);
         }
 
-        return (false, false, null);
+        return (false, false);
     }
 
     private static string DetermineChannelFromFileName(string baseName, int? prNumber, bool isCustom, bool isFork)
@@ -423,8 +424,8 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         forkName = null;
         if (string.IsNullOrWhiteSpace(companyName) ||
             companyName.Equals(GenHubBuildConstants.OfficialCompany, StringComparison.OrdinalIgnoreCase) ||
-            companyName.Contains("Electronic Arts", StringComparison.OrdinalIgnoreCase) ||
-            companyName.Equals("EA", StringComparison.OrdinalIgnoreCase))
+            companyName.Contains(GenHubBuildConstants.EaCompanyFullName, StringComparison.OrdinalIgnoreCase) ||
+            companyName.Equals(GenHubBuildConstants.EaCompanyShortName, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -456,9 +457,9 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         if (match.Success)
         {
             var candidate = match.Groups[1].Value.Trim();
-            if (!candidate.Equals("Test", StringComparison.OrdinalIgnoreCase) &&
-                !candidate.Equals("Dev", StringComparison.OrdinalIgnoreCase) &&
-                !candidate.Equals("PR", StringComparison.OrdinalIgnoreCase))
+            if (!candidate.Equals(GenHubBuildConstants.ChannelTest, StringComparison.OrdinalIgnoreCase) &&
+                !candidate.Equals(GenHubBuildConstants.ChannelDev, StringComparison.OrdinalIgnoreCase) &&
+                !candidate.Equals(GenHubBuildConstants.ChannelPr, StringComparison.OrdinalIgnoreCase))
             {
                 forkName = candidate;
                 return true;
@@ -486,13 +487,13 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         }
 
         if (explicitChannel.Equals(GenHubBuildConstants.ChannelDev, StringComparison.OrdinalIgnoreCase) ||
-            explicitChannel.Equals("Development", StringComparison.OrdinalIgnoreCase))
+            explicitChannel.Equals(GenHubBuildConstants.ChannelDevAlias, StringComparison.OrdinalIgnoreCase))
         {
             return GenHubBuildConstants.ChannelDev;
         }
 
         if (explicitChannel.Equals(GenHubBuildConstants.ChannelTest, StringComparison.OrdinalIgnoreCase) ||
-            explicitChannel.Equals("Beta", StringComparison.OrdinalIgnoreCase))
+            explicitChannel.Equals(GenHubBuildConstants.ChannelTestAlias, StringComparison.OrdinalIgnoreCase))
         {
             return GenHubBuildConstants.ChannelTest;
         }
@@ -597,7 +598,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     {
         if (isFork && !string.IsNullOrWhiteSpace(forkName))
         {
-            var cleanSlug = ForkSlugPattern().Replace(forkName.ToLowerInvariant(), "-").Trim('-');
+            var cleanSlug = ToForkSlug(forkName);
             return ($"genhub-fork-{cleanSlug}", $"GenHub ({forkName})", $"Custom community fork of GenHub by {forkName}.");
         }
 
@@ -638,24 +639,23 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             tags.Add(GenHubBuildConstants.TagCustom);
             if (!string.IsNullOrWhiteSpace(forkName))
             {
-                var cleanSlug = ForkSlugPattern().Replace(forkName.ToLowerInvariant(), "-").Trim('-');
-                tags.Add($"fork:{cleanSlug}");
+                tags.Add($"{GenHubBuildConstants.TagPrefixFork}{ToForkSlug(forkName)}");
             }
         }
         else if (channel == GenHubBuildConstants.ChannelPr && pullRequestNumber.HasValue)
         {
             tags.Add(GenHubBuildConstants.TagPr);
-            tags.Add($"pr:{pullRequestNumber.Value}");
+            tags.Add($"{GenHubBuildConstants.TagPrefixPr}{pullRequestNumber.Value}");
         }
         else if (channel == GenHubBuildConstants.ChannelDev)
         {
             tags.Add(GenHubBuildConstants.TagDev);
-            tags.Add("channel:dev");
+            tags.Add(GenHubBuildConstants.TagChannelDev);
         }
         else if (channel == GenHubBuildConstants.ChannelTest)
         {
             tags.Add(GenHubBuildConstants.TagTest);
-            tags.Add("channel:test");
+            tags.Add(GenHubBuildConstants.TagChannelTest);
         }
 
         return tags;
@@ -691,15 +691,15 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 break;
             case "AssemblyMetadataAttribute":
                 var (key, metaValue) = ReadKeyValueCustomAttribute(attribute);
-                if (string.Equals(key, "BuildChannel", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(key, GenHubBuildConstants.MetadataKeyBuildChannel, StringComparison.OrdinalIgnoreCase))
                 {
                     acc.BuildChannel = metaValue;
                 }
-                else if (string.Equals(key, "PullRequestNumber", StringComparison.OrdinalIgnoreCase) && int.TryParse(metaValue, out var pr))
+                else if (string.Equals(key, GenHubBuildConstants.MetadataKeyPullRequestNumber, StringComparison.OrdinalIgnoreCase) && int.TryParse(metaValue, out var pr))
                 {
                     acc.PullRequestNumber = pr;
                 }
-                else if ((string.Equals(key, "GitHash", StringComparison.OrdinalIgnoreCase) || string.Equals(key, "CommitHash", StringComparison.OrdinalIgnoreCase)) && metaValue != null)
+                else if ((string.Equals(key, GenHubBuildConstants.MetadataKeyGitHash, StringComparison.OrdinalIgnoreCase) || string.Equals(key, GenHubBuildConstants.MetadataKeyCommitHash, StringComparison.OrdinalIgnoreCase)) && metaValue != null)
                 {
                     acc.GitShortHash = metaValue.Length > 7 ? metaValue[..7] : metaValue;
                 }
@@ -729,10 +729,10 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
     private GenHubBuildInfo InspectExistingFile(string path)
     {
-        var normalized = path.Replace('\\', '/');
+        var normalized = NormalizePathSeparators(path);
         var ext = Path.GetExtension(normalized);
 
-        if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase) || ext.Equals(".nupkg", StringComparison.OrdinalIgnoreCase))
+        if (ext.Equals(GenHubBuildConstants.ArchiveExtension, StringComparison.OrdinalIgnoreCase) || ext.Equals(GenHubBuildConstants.PackageExtension, StringComparison.OrdinalIgnoreCase))
         {
             var archiveResult = InspectArchive(path);
             if (archiveResult.IsGenHubBuild)
@@ -741,7 +741,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
         }
 
-        if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase) || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase))
+        if (ext.Equals(GenHubBuildConstants.ExecutableExtension, StringComparison.OrdinalIgnoreCase) || ext.Equals(GenHubBuildConstants.LibraryExtension, StringComparison.OrdinalIgnoreCase))
         {
             var binResult = InspectBinaryFile(path);
             if (binResult.IsGenHubBuild)
@@ -784,7 +784,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         // Look in root and immediate subdirectories only, avoiding full subtree recursion
         try
         {
-            var topFiles = Directory.EnumerateFiles(dirPath, "*.exe", SearchOption.TopDirectoryOnly).Take(10);
+            var topFiles = Directory.EnumerateFiles(dirPath, $"*{GenHubBuildConstants.ExecutableExtension}", SearchOption.TopDirectoryOnly).Take(10);
             var topMatch = TryFindBuildInFiles(dirPath, topFiles);
             if (topMatch != null)
             {
@@ -793,7 +793,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
             foreach (var subDir in Directory.EnumerateDirectories(dirPath).Take(5))
             {
-                var subFiles = Directory.EnumerateFiles(subDir, "*.exe", SearchOption.TopDirectoryOnly).Take(5);
+                var subFiles = Directory.EnumerateFiles(subDir, $"*{GenHubBuildConstants.ExecutableExtension}", SearchOption.TopDirectoryOnly).Take(5);
                 var subMatch = TryFindBuildInFiles(dirPath, subFiles);
                 if (subMatch != null)
                 {
@@ -817,7 +817,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             if (info.IsGenHubBuild)
             {
                 var relative = Path.GetRelativePath(dirPath, file);
-                return info with { EntryPoint = relative.Replace('\\', '/') };
+                return info with { EntryPoint = NormalizePathSeparators(relative) };
             }
         }
 
@@ -831,7 +831,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             using var archive = ZipFile.OpenRead(archivePath);
 
             // 1. Check for .nuspec (e.g. in Velopack nupkg)
-            var nuspecEntry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase));
+            var nuspecEntry = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(GenHubBuildConstants.NuspecExtension, StringComparison.OrdinalIgnoreCase));
             var (nuspecId, nuspecVersion, nuspecAuthors, nuspecTitle, nuspecDescription) = ReadNuspecMetadata(nuspecEntry);
 
             // 2. Look for primary GenHub executable inside archive
@@ -908,7 +908,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         var companyName = peMetadata.CompanyName ?? nuspecAuthors;
         var fileDesc = peMetadata.FileDescription ?? nuspecDescription;
 
-        var normalizedArchivePath = archivePath.Replace('\\', '/');
+        var normalizedArchivePath = NormalizePathSeparators(archivePath);
         var fileName = Path.GetFileName(normalizedArchivePath);
         var isGenHub = IsGenHubText(productName) ||
                        IsGenHubText(fileDesc) ||
@@ -947,7 +947,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
     private GenHubBuildInfo InspectBinaryFile(string filePath)
     {
-        var normalizedFilePath = filePath.Replace('\\', '/');
+        var normalizedFilePath = NormalizePathSeparators(filePath);
         var fileName = Path.GetFileName(normalizedFilePath);
         FileVersionInfo? versionInfo = null;
 
@@ -955,7 +955,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         {
             versionInfo = FileVersionInfo.GetVersionInfo(filePath);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
         {
             // Handled below via PE reader
         }
@@ -1019,12 +1019,12 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
     private GenHubBuildInfo InspectFromFileNameOnly(string path)
     {
-        var normalized = path.Replace('\\', '/');
+        var normalized = NormalizePathSeparators(path);
         var fileName = Path.GetFileName(normalized);
         var baseName = Path.GetFileNameWithoutExtension(fileName);
 
         var (version, prNumber) = ParseVersionAndPrFromFileName(baseName);
-        var (isCustom, isFork, forkName) = ParseForkFromFileName(baseName);
+        var (isCustom, isFork) = ParseForkFromFileName(baseName);
         var channel = DetermineChannelFromFileName(baseName, prNumber, isCustom, isFork);
 
         var resolvedProductName = GenHubBuildConstants.OfficialProductName;
@@ -1032,13 +1032,13 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
 
         if (isFork)
         {
-            resolvedProductName = string.IsNullOrWhiteSpace(forkName) ? GenHubBuildConstants.CustomBuildName : $"GenHub ({forkName})";
-            resolvedCompanyName = forkName ?? "Community";
+            resolvedProductName = GenHubBuildConstants.CustomBuildName;
+            resolvedCompanyName = GenHubBuildConstants.FallbackForkCompanyName;
         }
         else if (isCustom)
         {
             resolvedProductName = GenHubBuildConstants.CustomBuildName;
-            resolvedCompanyName = "Custom";
+            resolvedCompanyName = GenHubBuildConstants.FallbackCustomCompanyName;
         }
 
         var ctx = new BuildMetadataContext(
@@ -1048,7 +1048,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             FileVersion: version,
             ProductName: resolvedProductName,
             CompanyName: resolvedCompanyName,
-            FileDescription: "GenHub Application Build",
+            FileDescription: GenHubBuildConstants.DefaultFileDescription,
             GitShortHash: null,
             PullRequestNumber: prNumber,
             BuildChannel: channel,

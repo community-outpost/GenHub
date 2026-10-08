@@ -441,16 +441,9 @@ public class ContentOrchestrator : IContentOrchestrator
             }
 
             var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            int current;
-            int effectivePct;
-            do
-            {
-                current = maxReportedPercentage;
-                effectivePct = Math.Max(current, targetPct);
-            }
-            while (effectivePct > current && Interlocked.CompareExchange(ref maxReportedPercentage, effectivePct, current) != current);
+            maxReportedPercentage = Math.Max(maxReportedPercentage, targetPct);
 
-            cap.ProgressPercentage = effectivePct;
+            cap.ProgressPercentage = maxReportedPercentage;
             progress.Report(cap);
         }
 
@@ -511,88 +504,11 @@ public class ContentOrchestrator : IContentOrchestrator
                     CurrentOperation = ContentConstants.PreparingContentViaProviderOperation,
                 });
 
-                // Scale provider preparation progress into overall acquisition range:
-                // - Downloading phase: 40% to 70%
-                // - Extracting / Processing phase: 70% to 85%
-                // - Other (validating): 85% to 90%
                 IProgress<ContentAcquisitionProgress>? prepareProgress = null;
                 if (progress != null)
                 {
-                    prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
-                    {
-                        var isValidatingOrStoring = p.Phase is ContentAcquisitionPhase.ValidatingFiles or ContentAcquisitionPhase.StoringInCas ||
-                                                   p.CurrentStage == ContentConstants.PipelineStageValidating;
-
-                        var isExtracting = !isValidatingOrStoring &&
-                                           (p.Phase == ContentAcquisitionPhase.Extracting ||
-                                            p.CurrentStage == ContentConstants.PipelineStageExtracting ||
-                                            (!string.IsNullOrEmpty(p.StageDescription) &&
-                                             (p.StageDescription.Contains("Extract", StringComparison.OrdinalIgnoreCase) ||
-                                              p.StageDescription.Contains("Process", StringComparison.OrdinalIgnoreCase))));
-
-                        ContentAcquisitionPhase effectivePhase;
-                        if (isExtracting)
-                        {
-                            effectivePhase = ContentAcquisitionPhase.Extracting;
-                        }
-                        else if (isValidatingOrStoring)
-                        {
-                            effectivePhase = p.Phase == ContentAcquisitionPhase.StoringInCas
-                                ? ContentAcquisitionPhase.StoringInCas
-                                : ContentAcquisitionPhase.ValidatingFiles;
-                        }
-                        else
-                        {
-                            effectivePhase = p.Phase;
-                        }
-
-                        var rawPct = p.ProgressPercentage > 0 ? p.ProgressPercentage : p.StageProgress;
-                        var normalized = Math.Clamp(rawPct, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
-
-                        int scaledPct;
-                        if (isExtracting)
-                        {
-                            var extractSpan = (double)(ContentConstants.ProgressStepExtracting - ContentConstants.ProgressStepValidatingFiles);
-                            scaledPct = Math.Clamp(
-                                ContentConstants.ProgressStepValidatingFiles + (int)Math.Round(normalized * extractSpan),
-                                ContentConstants.ProgressStepValidatingFiles,
-                                ContentConstants.ProgressStepExtracting);
-                        }
-                        else if (isValidatingOrStoring)
-                        {
-                            var storeSpan = (double)(ContentConstants.ProgressStepStoring - ContentConstants.ProgressStepExtracting);
-                            scaledPct = Math.Clamp(
-                                ContentConstants.ProgressStepExtracting + (int)Math.Round(normalized * storeSpan),
-                                ContentConstants.ProgressStepExtracting,
-                                ContentConstants.ProgressStepStoring);
-                        }
-                        else
-                        {
-                            var downloadSpan = (double)(ContentConstants.ProgressStepValidatingFiles - ContentConstants.ProgressStepDownloading);
-                            scaledPct = Math.Clamp(
-                                ContentConstants.ProgressStepDownloading + (int)Math.Round(normalized * downloadSpan),
-                                ContentConstants.ProgressStepDownloading,
-                                ContentConstants.ProgressStepValidatingFiles);
-                        }
-
-                        ReportMonotonicProgress(new ContentAcquisitionProgress
-                        {
-                            Phase = effectivePhase,
-                            ProgressPercentage = scaledPct,
-                            CurrentOperation = p.CurrentOperation ?? ContentConstants.PreparingContentViaProviderOperation,
-                            CurrentStage = p.CurrentStage,
-                            TotalStages = p.TotalStages,
-                            StageProgress = p.StageProgress,
-                            StageDescription = p.StageDescription,
-                            CurrentFile = p.CurrentFile,
-                            BytesProcessed = p.BytesProcessed,
-                            TotalBytes = p.TotalBytes,
-                            FilesProcessed = p.FilesProcessed,
-                            TotalFiles = p.TotalFiles,
-                            IsBottleneck = p.IsBottleneck,
-                            BottleneckReason = p.BottleneckReason,
-                        });
-                    });
+                    prepareProgress = new SynchronousProgress<ContentAcquisitionProgress>(reported =>
+                        ReportMonotonicProgress(ScalePrepareProgress(reported)));
                 }
 
                 var prepareResult = await provider.PrepareContentAsync(manifest, stagingDir, prepareProgress, cancellationToken);
@@ -801,6 +717,74 @@ public class ContentOrchestrator : IContentOrchestrator
             _logger.LogError(ex, "Failed to remove content {ManifestId} from pool", manifestId);
             return OperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Scales provider preparation progress into the overall acquisition range.
+    /// Downloading maps to 40-70%, extracting/processing to 70-85%, validating/storing to 85-90%.
+    /// </summary>
+    /// <param name="reported">The provider-reported progress update.</param>
+    /// <returns>An equivalent update scaled to the overall acquisition range.</returns>
+    internal static ContentAcquisitionProgress ScalePrepareProgress(ContentAcquisitionProgress reported)
+    {
+        var isValidatingOrStoring = reported.Phase is ContentAcquisitionPhase.ValidatingFiles or ContentAcquisitionPhase.StoringInCas ||
+            reported.CurrentStage == ContentConstants.PipelineStageValidating;
+
+        var isExtracting = !isValidatingOrStoring &&
+            (reported.Phase == ContentAcquisitionPhase.Extracting ||
+                reported.CurrentStage == ContentConstants.PipelineStageExtracting ||
+                (!string.IsNullOrEmpty(reported.StageDescription) &&
+                    (reported.StageDescription.Contains(ContentConstants.StageKeywordExtracting, StringComparison.OrdinalIgnoreCase) ||
+                        reported.StageDescription.Contains(ContentConstants.StageKeywordProcessing, StringComparison.OrdinalIgnoreCase))));
+
+        ContentAcquisitionPhase effectivePhase;
+        int rangeStart;
+        int rangeEnd;
+        if (isExtracting)
+        {
+            effectivePhase = ContentAcquisitionPhase.Extracting;
+            rangeStart = ContentConstants.ProgressStepValidatingFiles;
+            rangeEnd = ContentConstants.ProgressStepExtracting;
+        }
+        else if (isValidatingOrStoring)
+        {
+            effectivePhase = reported.Phase == ContentAcquisitionPhase.StoringInCas
+                ? ContentAcquisitionPhase.StoringInCas
+                : ContentAcquisitionPhase.ValidatingFiles;
+            rangeStart = ContentConstants.ProgressStepExtracting;
+            rangeEnd = ContentConstants.ProgressStepStoring;
+        }
+        else
+        {
+            effectivePhase = reported.Phase;
+            rangeStart = ContentConstants.ProgressStepDownloading;
+            rangeEnd = ContentConstants.ProgressStepValidatingFiles;
+        }
+
+        var rawPct = reported.ProgressPercentage > 0 ? reported.ProgressPercentage : reported.StageProgress;
+        var normalized = Math.Clamp(rawPct, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
+        var scaledPct = Math.Clamp(
+            rangeStart + (int)Math.Round(normalized * (rangeEnd - rangeStart)),
+            rangeStart,
+            rangeEnd);
+
+        return new ContentAcquisitionProgress
+        {
+            Phase = effectivePhase,
+            ProgressPercentage = scaledPct,
+            CurrentOperation = reported.CurrentOperation ?? ContentConstants.PreparingContentViaProviderOperation,
+            CurrentStage = reported.CurrentStage,
+            TotalStages = reported.TotalStages,
+            StageProgress = reported.StageProgress,
+            StageDescription = reported.StageDescription,
+            CurrentFile = reported.CurrentFile,
+            BytesProcessed = reported.BytesProcessed,
+            TotalBytes = reported.TotalBytes,
+            FilesProcessed = reported.FilesProcessed,
+            TotalFiles = reported.TotalFiles,
+            IsBottleneck = reported.IsBottleneck,
+            BottleneckReason = reported.BottleneckReason,
+        };
     }
 
     private static IEnumerable<ContentSearchResult> ApplySorting(

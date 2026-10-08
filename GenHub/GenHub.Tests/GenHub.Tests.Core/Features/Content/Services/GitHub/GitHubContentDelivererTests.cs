@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -703,10 +704,5 @@ public class GitHubContentDelivererTests
                 cancellation.Cancel();
             }
         }
-    }
-
-    private sealed class SynchronousProgress<T>(Action<T> action) : IProgress<T>
-    {
-        public void Report(T value) => action(value);
     }
 }

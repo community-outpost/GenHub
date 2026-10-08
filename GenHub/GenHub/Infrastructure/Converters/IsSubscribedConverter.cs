@@ -3,7 +3,6 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Providers;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
@@ -55,15 +54,13 @@ public class IsSubscribedConverter : IMultiValueConverter
         return [];
     }
 
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private T? GetValue<T>(IList<object?> values, int index)
+    private static T? GetValue<T>(IList<object?> values, int index)
         where T : class
     {
         return values.Count > index ? values[index] as T : null;
     }
 
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
-    private bool IsCustomBuildSubscribed(
+    private static bool IsCustomBuildSubscribed(
         CustomBuildSubscriptionItem customBuild,
         string? subscribedCustomBuild,
         string? subscribedPublisherId)

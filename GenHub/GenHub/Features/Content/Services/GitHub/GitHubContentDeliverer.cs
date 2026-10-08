@@ -9,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
@@ -111,64 +112,21 @@ public class GitHubContentDeliverer(
                 int fileIndex = currentFileIndex;
                 string fileRelativePath = file.RelativePath;
 
-                // Create progress adapter for download progress (0-100% scale)
-                IProgress<DownloadProgress>? downloadProgress = null;
-                if (progress != null)
-                {
-                    downloadProgress = new SynchronousProgress<DownloadProgress>(dp =>
-                    {
-                        double currentProgress = 0.0;
-                        long aggregateBytesProcessed = 0L;
-                        long aggregateTotalBytes = 0L;
+                var downloadProgress = DownloadProgressAdapter.CreateDownloadAdapter(
+                    progress,
+                    fileRelativePath,
+                    fileIndex,
+                    totalFiles,
+                    fileBaseBytes,
+                    totalBytesAllFiles);
 
-                        if (totalBytesAllFiles > 0)
-                        {
-                            aggregateBytesProcessed = fileBaseBytes + dp.BytesReceived;
-                            aggregateTotalBytes = totalBytesAllFiles;
-                            currentProgress = Math.Clamp((double)aggregateBytesProcessed / totalBytesAllFiles * 100.0, 0, 100);
-                        }
-                        else
-                        {
-                            double fileProgressRange = 100.0 / totalFiles;
-                            double baseProgress = (fileIndex - 1) * fileProgressRange;
-                            currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
-                            aggregateBytesProcessed = dp.BytesReceived;
-                            aggregateTotalBytes = dp.TotalBytes;
-                        }
-
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Downloading,
-                            ProgressPercentage = currentProgress,
-                            CurrentOperation = totalFiles > 1
-                                ? $"{fileRelativePath} ({fileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})"
-                                : $"{fileRelativePath} - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                            FilesProcessed = fileIndex - 1,
-                            TotalFiles = totalFiles,
-                            TotalBytes = aggregateTotalBytes,
-                            BytesProcessed = aggregateBytesProcessed,
-                            CurrentFile = fileRelativePath,
-                        });
-                    });
-                }
-
-                var startingProgress = totalBytesAllFiles > 0
-                    ? Math.Clamp((double)fileBaseBytes / totalBytesAllFiles * 100.0, 0, 100)
-                    : (double)(fileIndex - 1) / totalFiles * 100;
-
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = startingProgress,
-                    CurrentOperation = totalFiles > 1
-                        ? $"Connecting to download {fileRelativePath} ({fileIndex}/{totalFiles})..."
-                        : $"Connecting to download {fileRelativePath}...",
-                    CurrentFile = fileRelativePath,
-                    FilesProcessed = fileIndex - 1,
-                    TotalFiles = totalFiles,
-                    TotalBytes = totalBytesAllFiles > 0 ? totalBytesAllFiles : 0,
-                    BytesProcessed = fileBaseBytes,
-                });
+                DownloadProgressAdapter.ReportConnecting(
+                    progress,
+                    fileRelativePath,
+                    fileIndex,
+                    totalFiles,
+                    fileBaseBytes,
+                    totalBytesAllFiles);
 
                 var downloadConfig = new DownloadConfiguration
                 {
@@ -187,7 +145,13 @@ public class GitHubContentDeliverer(
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
-                var downloadedFileSize = file.Size > 0 ? file.Size : (new FileInfo(localPath).Exists ? new FileInfo(localPath).Length : 0L);
+                var downloadedFileSize = file.Size;
+                if (downloadedFileSize <= 0)
+                {
+                    var downloadedFileInfo = new FileInfo(localPath);
+                    downloadedFileSize = downloadedFileInfo.Exists ? downloadedFileInfo.Length : 0L;
+                }
+
                 previousFilesBytes += downloadedFileSize;
                 downloadedFiles.Add(localPath);
                 logger.LogInformation("Downloaded {FileName} to {Path}", file.RelativePath, localPath);

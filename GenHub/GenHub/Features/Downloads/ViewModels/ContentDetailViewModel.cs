@@ -875,7 +875,7 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether the current content is a GenHub build.
     /// </summary>
     public bool IsGenHubBuild =>
-        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, SelectedDownloadableItem?.Name ?? Name, Tags);
+        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, Tags);
 
     /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
