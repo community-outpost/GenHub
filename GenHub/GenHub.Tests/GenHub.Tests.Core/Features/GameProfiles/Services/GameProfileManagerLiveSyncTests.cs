@@ -509,6 +509,120 @@ public class GameProfileManagerLiveSyncTests
             Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that updating enabled content on a running Tool profile skips the game live-sync
+    /// pipeline and saves successfully without requiring a game client.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_WhenRunningToolProfileAndContentUpdated_SkipsLiveSyncAndSavesAsync()
+    {
+        // Arrange
+        const string profileId = "profile-live-tool";
+        const string toolId = "1.0.0.tool.worldbuilder";
+        const string addonId = "1.0.0.addon.extra";
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Running Tool Profile",
+            ToolContentId = toolId,
+            ActiveWorkspaceId = "workspace-tool-123",
+            EnabledContentIds = [toolId],
+            GameClient = null,
+            GameInstallationId = null,
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([CreateActiveLaunch(profileId)]);
+
+        var request = new UpdateProfileRequest
+        {
+            EnabledContentIds = [toolId, addonId],
+        };
+
+        // Act
+        var result = await _profileManager.UpdateProfileAsync(profileId, request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.WasAppliedLive);
+        _linkerMock.Verify(
+            l => l.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        _profileRepositoryMock.Verify(
+            r => r.SaveProfileAsync(It.Is<GameProfile>(p => p.Id == profileId), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that concurrent update calls for the same profile are serialized
+    /// so the sync-and-save pipeline does not execute concurrently.
+    /// </summary>
+    /// <returns>A task representing the test operation.</returns>
+    [Fact]
+    public async Task UpdateProfileAsync_ConcurrentUpdatesForSameProfile_AreSerializedAsync()
+    {
+        // Arrange
+        const string profileId = "profile-concurrent-updates";
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Profile",
+            EnabledContentIds = [],
+        };
+
+        int activeExecutions = 0;
+        int maxConcurrentExecutions = 0;
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                var current = Interlocked.Increment(ref activeExecutions);
+                int initialMax;
+                do
+                {
+                    initialMax = maxConcurrentExecutions;
+                    if (current <= initialMax) break;
+                }
+                while (Interlocked.CompareExchange(ref maxConcurrentExecutions, current, initialMax) != initialMax);
+
+                await Task.Delay(50);
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile);
+            });
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await Task.Delay(50);
+                Interlocked.Decrement(ref activeExecutions);
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile);
+            });
+
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([]);
+
+        var request1 = new UpdateProfileRequest { Name = "First" };
+        var request2 = new UpdateProfileRequest { Name = "Second" };
+
+        // Act
+        var task1 = _profileManager.UpdateProfileAsync(profileId, request1);
+        var task2 = _profileManager.UpdateProfileAsync(profileId, request2);
+        var results = await Task.WhenAll(task1, task2);
+
+        // Assert
+        Assert.All(results, r => Assert.True(r.Success));
+        Assert.Equal(1, maxConcurrentExecutions);
+    }
+
     private static ContentManifest CreateManifest(string id, string name, ContentType contentType)
     {
         return new ContentManifest

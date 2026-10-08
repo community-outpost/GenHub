@@ -187,13 +187,20 @@ public class GameProfileManager(
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> UpdateProfileAsync(string profileId, UpdateProfileRequest request, CancellationToken cancellationToken = default)
     {
+        if (request == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
+        }
+
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
+        }
+
+        var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        await profileLock.WaitAsync(cancellationToken);
         try
         {
-            if (request == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
-            }
-
             var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
             if (loadResult.Failed)
             {
@@ -255,6 +262,10 @@ public class GameProfileManager(
         {
             logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
+        }
+        finally
+        {
+            profileLock.Release();
         }
     }
 
@@ -967,7 +978,7 @@ public class GameProfileManager(
         bool isRunning,
         CancellationToken cancellationToken)
     {
-        if (!isRunning || request.IsRollback || request.EnabledContentIds == null)
+        if (!isRunning || request.IsRollback || request.EnabledContentIds == null || profile.IsToolProfile)
         {
             return (false, GameType.Unknown, null);
         }
@@ -1207,6 +1218,11 @@ public class GameProfileManager(
         if (clientError != null)
         {
             return clientError;
+        }
+
+        if (profile.IsToolProfile)
+        {
+            return null;
         }
 
         return await ValidateRunningProfileContentChangesAsync(previousEnabledContentIds, request.EnabledContentIds, cancellationToken);
