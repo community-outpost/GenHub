@@ -421,6 +421,26 @@ public partial class SubscriptionConfirmationViewModel(
         return candidateUrls;
     }
 
+    private static bool MirrorsContainUrl(IEnumerable<string>? mirrors, string? url)
+    {
+        if (mirrors == null || string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        return mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool SharesMirror(IEnumerable<string>? mirrorsA, IEnumerable<string>? mirrorsB)
+    {
+        if (mirrorsA == null || mirrorsB == null)
+        {
+            return false;
+        }
+
+        return mirrorsA.Any(mA => !string.IsNullOrWhiteSpace(mA) && MirrorsContainUrl(mirrorsB, mA));
+    }
+
     private static bool IsDuplicateOrSharedEndpoint(CatalogEntry entry, CatalogEntry? primaryEntry, string primaryCatalogUrl)
     {
         if (ReferenceEquals(entry, primaryEntry))
@@ -434,23 +454,13 @@ public partial class SubscriptionConfirmationViewModel(
             return true;
         }
 
-        if (entry.Mirrors != null && (
-            entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, primaryCatalogUrl, StringComparison.OrdinalIgnoreCase)) ||
-            (primaryEntry != null && !string.IsNullOrWhiteSpace(primaryEntry.Url) &&
-             entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, primaryEntry.Url, StringComparison.OrdinalIgnoreCase)))))
+        if (MirrorsContainUrl(entry.Mirrors, primaryCatalogUrl) ||
+            (primaryEntry != null && (MirrorsContainUrl(entry.Mirrors, primaryEntry.Url) || MirrorsContainUrl(primaryEntry.Mirrors, entry.Url))))
         {
             return true;
         }
 
-        if (primaryEntry?.Mirrors != null && (
-            primaryEntry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, entry.Url, StringComparison.OrdinalIgnoreCase)) ||
-            (entry.Mirrors != null && entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) &&
-                primaryEntry.Mirrors.Any(pm => !string.IsNullOrWhiteSpace(pm) && string.Equals(pm, m, StringComparison.OrdinalIgnoreCase))))))
-        {
-            return true;
-        }
-
-        return false;
+        return primaryEntry != null && SharesMirror(entry.Mirrors, primaryEntry.Mirrors);
     }
 
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
@@ -463,7 +473,7 @@ public partial class SubscriptionConfirmationViewModel(
         var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
             c != null && (
                 string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                (c.Mirrors != null && c.Mirrors.Contains(effectiveCatalogUrl, StringComparer.OrdinalIgnoreCase))));
+                MirrorsContainUrl(c.Mirrors, effectiveCatalogUrl)));
         if (matchingEntry != null && !string.IsNullOrWhiteSpace(matchingEntry.Id))
         {
             return matchingEntry.Id;
@@ -833,7 +843,7 @@ public partial class SubscriptionConfirmationViewModel(
         var catalogs = definition.Catalogs ?? [];
         var firstEntry = catalogs.FirstOrDefault(e => e != null && (
             string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-            (e.Mirrors != null && e.Mirrors.Contains(firstCatalogUrl, StringComparer.OrdinalIgnoreCase))))
+            MirrorsContainUrl(e.Mirrors, firstCatalogUrl)))
             ?? catalogs.FirstOrDefault(e => e != null);
         var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : "__primary";
         _definitionCatalogs.Add((
