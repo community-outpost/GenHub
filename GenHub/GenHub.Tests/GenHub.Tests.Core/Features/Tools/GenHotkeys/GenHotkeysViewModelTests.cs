@@ -1,3 +1,4 @@
+using Avalonia.Headless.XUnit;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
@@ -40,6 +41,9 @@ public class GenHotkeysViewModelTests
         _mockLogger = new Mock<ILogger<GenHotkeysViewModel>>();
         _mockDialogService = new Mock<IDialogService>();
         _mockNotificationService = new Mock<INotificationService>();
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HotkeyProfile p, CancellationToken _) => p);
     }
 
     /// <summary>
@@ -777,6 +781,522 @@ public class GenHotkeysViewModelTests
         Assert.Equal('R', action.Hotkey);
         _mockNotificationService.Verify(
             n => n.ShowInfo("Hotkey Reset", It.Is<string>(s => s.Contains("Reset 'Ranger' to default hotkey")), NotificationDurations.Short, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that SelectFactionGroup filters the Factions collection to only factions belonging to the selected group.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectFactionGroup_FiltersFactionsCollection_ToSelectedGroup()
+    {
+        var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
+        var factionAir = new HotkeyFaction { ShortName = "AIR", DisplayName = "AIR" };
+        var factionChina = new HotkeyFaction { ShortName = "CHINA", DisplayName = "China" };
+        var factionTank = new HotkeyFaction { ShortName = "TANK", DisplayName = "Tank" };
+        var factionGla = new HotkeyFaction { ShortName = "GLA", DisplayName = "GLA" };
+        var factionTox = new HotkeyFaction { ShortName = "TOX", DisplayName = "Tox" };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa, factionAir, factionChina, factionTank, factionGla, factionTox]);
+
+        var profile = new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        // Initial default group is USA
+        Assert.Equal(HotkeyFaction.UsaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionUsa, vm.Factions);
+        Assert.Contains(factionAir, vm.Factions);
+        Assert.Equal(factionUsa, vm.SelectedFaction);
+
+        // Switch to China
+        vm.SelectFactionGroup(HotkeyFaction.ChinaGroup);
+        Assert.Equal(HotkeyFaction.ChinaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionChina, vm.Factions);
+        Assert.Contains(factionTank, vm.Factions);
+        Assert.Equal(factionChina, vm.SelectedFaction);
+
+        // Switch to GLA
+        vm.SelectFactionGroup(HotkeyFaction.GlaGroup);
+        Assert.Equal(HotkeyFaction.GlaGroup, vm.SelectedFactionGroup);
+        Assert.Equal(2, vm.Factions.Count);
+        Assert.Contains(factionGla, vm.Factions);
+        Assert.Contains(factionTox, vm.Factions);
+        Assert.Equal(factionGla, vm.SelectedFaction);
+    }
+
+    /// <summary>
+    /// Verifies that changing SelectedFaction directly updates SelectedFactionGroup to match.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectedFactionChanged_UpdatesSelectedFactionGroup()
+    {
+        var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
+        var factionChina = new HotkeyFaction { ShortName = "CHINA", DisplayName = "China" };
+
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([factionUsa, factionChina]);
+
+        var profile = new HotkeyProfile { Name = "Test Profile", TargetGame = GameType.ZeroHour };
+        _mockProfileStorage.Setup(p => p.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([profile]);
+
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        await vm.InitializeAsync(CancellationToken.None);
+
+        Assert.Equal(HotkeyFaction.UsaGroup, vm.SelectedFactionGroup);
+
+        // Directly set SelectedFaction to a China faction (e.g. via conflict navigation)
+        vm.SelectedFaction = factionChina;
+
+        Assert.Equal(HotkeyFaction.ChinaGroup, vm.SelectedFactionGroup);
+        Assert.Contains(factionChina, vm.Factions);
+        Assert.Equal(factionChina, vm.SelectedFaction);
+    }
+
+    /// <summary>
+    /// Verifies that AvailableFactionGroups contains USA, China, and GLA.
+    /// </summary>
+    [Fact]
+    public void AvailableFactionGroups_ContainsExpectedGroups()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        Assert.Equal(3, vm.AvailableFactionGroups.Count);
+        Assert.Contains(HotkeyFaction.UsaGroup, vm.AvailableFactionGroups);
+        Assert.Contains(HotkeyFaction.ChinaGroup, vm.AvailableFactionGroups);
+        Assert.Contains(HotkeyFaction.GlaGroup, vm.AvailableFactionGroups);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync applies a custom image, synchronizes across matching actions and game objects,
+    /// updates the profile, and dispatches a success notification toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WithValidImage_PropagatesToMatchingActionsAndGameObjectsAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_cameo_vm_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(60, 48))
+            {
+                await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(testImg, tempImageFile);
+            }
+
+            using var vm = new GenHotkeysViewModel(
+                _mockTechTree.Object,
+                _mockProfileStorage.Object,
+                _mockPackageService.Object,
+                _mockLogger.Object,
+                notificationService: _mockNotificationService.Object);
+
+            var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+            vm.SelectedProfile = profile;
+
+            var action1 = new HotkeyActionViewModel
+            {
+                DisplayName = "Construction Dozer",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            };
+            var action2 = new HotkeyActionViewModel
+            {
+                DisplayName = "Secondary Dozer Action",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:DozerBuild",
+            };
+
+            var unitVm = new HotkeyGameObjectViewModel
+            {
+                Name = "AmericaCommandCenter",
+                DisplayName = "Command Center",
+                IconName = "USADozer",
+            };
+            unitVm.Layouts.Add(new ObservableCollection<HotkeyActionViewModel> { action1, action2 });
+
+            vm.FilteredGameObjects.Add(unitVm);
+
+            var result = await vm.ApplyCustomCameoAsync(action1, tempImageFile);
+
+            Assert.True(result);
+            Assert.Equal(tempImageFile, action1.CustomImagePath);
+            Assert.NotNull(action1.IconBitmap);
+            Assert.True(action1.HasCustomImage);
+            Assert.True(action1.CanResetCameo);
+
+            Assert.Equal(tempImageFile, action2.CustomImagePath);
+            Assert.NotNull(action2.IconBitmap);
+            Assert.True(action2.HasCustomImage);
+
+            Assert.NotNull(unitVm.IconBitmap);
+
+            Assert.Equal(tempImageFile, profile.CustomCameoMappings["USADozer"]);
+            Assert.Contains("Custom cameo applied", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+            _mockNotificationService.Verify(
+                n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(s => s.Contains("Custom cameo applied")), null, false),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync rejects non-existent files without updating profile and shows an error toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WithMissingFile_DoesNotUpdateProfileAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+
+        var result = await vm.ApplyCustomCameoAsync(action, "C:/nonexistent/fake_image.png");
+
+        Assert.False(result);
+        Assert.Null(action.CustomImagePath);
+        Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("does not exist")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetCustomCameoAsync removes the custom cameo from profile, clears CustomImagePath,
+    /// and shows an informational toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ResetCustomCameoAsync_RemovesCustomCameoAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        profile.CustomCameoMappings["USADozer"] = "C:/some/custom.png";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            CustomImagePath = "C:/some/custom.png",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetCustomCameoAsync();
+
+        Assert.Null(action.CustomImagePath);
+        Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+        Assert.Contains("Reset cameo", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset cameo")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTitleAsync removes the custom title from profile, restores default display name,
+    /// and dispatches an info toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTitleAsync_RemovesTitleMappingAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Title Test Profile" };
+        profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"] = "Custom Dozer Name";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Custom Dozer Name",
+            DefaultDisplayName = "Construction Dozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetTitleAsync();
+
+        Assert.Equal("Construction Dozer", action.DisplayName);
+        Assert.False(profile.TitleMappings.ContainsKey("CONTROLBAR:ConstructAmericaVehicleDozer"));
+        Assert.Contains("Reset title", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset title")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTooltipAsync removes the custom tooltip from profile, restores default tooltip,
+    /// and dispatches an info toast.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTooltipAsync_RemovesTooltipMappingAndRestoresDefaultAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Tooltip Test Profile" };
+        profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"] = "Custom Dozer Tooltip";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            DefaultDisplayName = "Construction Dozer",
+            Tooltip = "Custom Dozer Tooltip",
+            DefaultTooltip = "Builds American base structures.",
+            TooltipString = "CONTROLBAR:ToolTipConstructAmericaVehicleDozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        await vm.ResetTooltipAsync();
+
+        Assert.Equal("Builds American base structures.", action.Tooltip);
+        Assert.False(profile.TooltipMappings.ContainsKey("CONTROLBAR:ToolTipConstructAmericaVehicleDozer"));
+        Assert.Contains("Reset tooltip", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _mockNotificationService.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset tooltip")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ApplyCustomCameoAsync reverts profile mappings, does not update ViewModel state,
+    /// and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ApplyCustomCameoAsync_WhenSaveFails_RevertsProfileAndShowsErrorToastAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_cameo_savefail_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(60, 48))
+            {
+                await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(testImg, tempImageFile);
+            }
+
+            using var vm = new GenHotkeysViewModel(
+                _mockTechTree.Object,
+                _mockProfileStorage.Object,
+                _mockPackageService.Object,
+                _mockLogger.Object,
+                notificationService: _mockNotificationService.Object);
+
+            var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+            vm.SelectedProfile = profile;
+
+            var action = new HotkeyActionViewModel
+            {
+                DisplayName = "Construction Dozer",
+                IconName = "USADozer",
+                HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            };
+
+            _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Disk error"));
+
+            var result = await vm.ApplyCustomCameoAsync(action, tempImageFile);
+
+            Assert.False(result);
+            Assert.Null(action.CustomImagePath);
+            Assert.Null(action.IconBitmap);
+            Assert.False(profile.CustomCameoMappings.ContainsKey("USADozer"));
+            Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+            _mockNotificationService.Verify(
+                n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+                Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ResetCustomCameoAsync restores previous cameo mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task ResetCustomCameoAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Cameo Test Profile" };
+        profile.CustomCameoMappings["USADozer"] = "C:/some/custom.png";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            IconName = "USADozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+            CustomImagePath = "C:/some/custom.png",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetCustomCameoAsync();
+
+        Assert.Equal("C:/some/custom.png", action.CustomImagePath);
+        Assert.Equal("C:/some/custom.png", profile.CustomCameoMappings["USADozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTitleAsync retains existing title mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTitleAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Title Test Profile" };
+        profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"] = "Custom Dozer Name";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Custom Dozer Name",
+            DefaultDisplayName = "Construction Dozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetTitleAsync();
+
+        Assert.Equal("Custom Dozer Name", action.DisplayName);
+        Assert.Equal("Custom Dozer Name", profile.TitleMappings["CONTROLBAR:ConstructAmericaVehicleDozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ResetTooltipAsync retains existing tooltip mapping and displays an error toast when profile saving fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTooltipAsync_WhenSaveFails_RestoresProfileMappingAndShowsErrorToastAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            notificationService: _mockNotificationService.Object);
+
+        var profile = new HotkeyProfile { Name = "Tooltip Test Profile" };
+        profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"] = "Custom Dozer Tooltip";
+        vm.SelectedProfile = profile;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Construction Dozer",
+            DefaultDisplayName = "Construction Dozer",
+            Tooltip = "Custom Dozer Tooltip",
+            DefaultTooltip = "Builds American base structures.",
+            TooltipString = "CONTROLBAR:ToolTipConstructAmericaVehicleDozer",
+            HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+        };
+        vm.SelectedAction = action;
+
+        _mockProfileStorage.Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk error"));
+
+        await vm.ResetTooltipAsync();
+
+        Assert.Equal("Custom Dozer Tooltip", action.Tooltip);
+        Assert.Equal("Custom Dozer Tooltip", profile.TooltipMappings["CONTROLBAR:ToolTipConstructAmericaVehicleDozer"]);
+        Assert.Contains("Failed to save profile", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+
+        _mockNotificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(s => s.Contains("Failed to save profile")), null, false),
             Times.Once);
     }
 }

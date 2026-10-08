@@ -40,6 +40,15 @@ public partial class HotkeyProfile : ObservableObject
     /// <summary>Gets or sets the set of hotkey labels explicitly cleared by the user.</summary>
     public HashSet<string> ClearedKeys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gets or sets custom tooltip descriptions keyed by tooltip or hotkey CSF label.</summary>
+    public Dictionary<string, string> TooltipMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom button display titles keyed by hotkey CSF label.</summary>
+    public Dictionary<string, string> TitleMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom cameo image paths keyed by button IconName.</summary>
+    public Dictionary<string, string> CustomCameoMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Gets or sets the creation timestamp.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -51,7 +60,38 @@ public partial class HotkeyProfile : ObservableObject
     /// </summary>
     public void NormalizeComparers()
     {
-        KeyMappings = new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase);
-        ClearedKeys = new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase);
+        KeyMappings = ToCaseInsensitiveDictionary(KeyMappings);
+        ClearedKeys = ToCaseInsensitiveHashSet(ClearedKeys);
+        TooltipMappings = ToCaseInsensitiveDictionary(TooltipMappings);
+        TitleMappings = ToCaseInsensitiveDictionary(TitleMappings);
+        CustomCameoMappings = ToCaseInsensitiveDictionary(CustomCameoMappings);
+    }
+
+    private static Dictionary<string, TValue> ToCaseInsensitiveDictionary<TValue>(IDictionary<string, TValue>? source)
+    {
+        var result = new Dictionary<string, TValue>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var kvp in source)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<string> ToCaseInsensitiveHashSet(IEnumerable<string>? source)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var item in source)
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
     }
 }

@@ -5281,6 +5281,30 @@
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>Обновить существующий аддон '{0}' с текущими настройками горячих клавиш.</value>
   </data>
+  <data name="Tools.GenHotkeys.ChangeCameo" xml:space="preserve">
+    <value>Изменить изображение...</value>
+  </data>
+  <data name="Tools.GenHotkeys.ChangeCameoTooltip" xml:space="preserve">
+    <value>Выбрать собственное изображение PNG, TGA или BMP для этой иконки</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameo" xml:space="preserve">
+    <value>Сбросить</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameoTooltip" xml:space="preserve">
+    <value>Вернуть исходную текстуру иконки из игры</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipPreviewTitle" xml:space="preserve">
+    <value>Предпросмотр внутриигровой подсказки</value>
+  </data>
+  <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
+    <value>+ Добавить описание</value>
+  </data>
+  <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
+    <value>Назначенная клавиша</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectActionPrompt" xml:space="preserve">
+    <value>Выберите кнопку действия, чтобы настроить её горячую клавишу, иконку, название и подсказку.</value>
+  </data>
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>Выбор игрового клиента</value>
   </data>
@@ -18134,5 +18158,68 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
+  </data>
+  <data name="Tools.GenHotkeys.CustomCameoActive" xml:space="preserve">
+    <value>Пользовательская иконка активна</value>
+  </data>
+  <data name="Tools.GenHotkeys.DefaultGameCameo" xml:space="preserve">
+    <value>Стандартная игровая иконка</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTitle" xml:space="preserve">
+    <value>Сбросить название</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTooltip" xml:space="preserve">
+    <value>Сбросить подсказку</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleFieldLabel" xml:space="preserve">
+    <value>Название:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleWatermark" xml:space="preserve">
+    <value>Название действия</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipFieldLabel" xml:space="preserve">
+    <value>Подсказка:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipWatermark" xml:space="preserve">
+    <value>Описание подсказки действия</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectCameoImage" xml:space="preserve">
+    <value>Выберите изображение для иконки</value>
+  </data>
+  <data name="Tools.GenHotkeys.ImageFiles" xml:space="preserve">
+    <value>Файлы изображений</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoApplied" xml:space="preserve">
+    <value>Пользовательская иконка установлена для «{0}»</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoReset" xml:space="preserve">
+    <value>Иконка для «{0}» сброшена к исходной</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TitleReset" xml:space="preserve">
+    <value>Название для «{0}» сброшено к исходному</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
+    <value>Подсказка для «{0}» сброшена к исходной</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>США</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>Китай</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>МАО</value>
+  </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>GenHotkeys</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>Выбранный файл изображения не существует: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>Не удалось загрузить пользовательскую иконку из '{0}'. Убедитесь, что файл является корректным изображением.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>Не удалось сохранить изменения профиля «{0}».</value>
   </data>
 </root>

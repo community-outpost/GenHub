@@ -5281,6 +5281,30 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Tools.GenHotkeys.UpdateAddonTooltip" xml:space="preserve">
     <value>Update the existing Addon '{0}' with current hotkey settings.</value>
   </data>
+  <data name="Tools.GenHotkeys.ChangeCameo" xml:space="preserve">
+    <value>Change Image...</value>
+  </data>
+  <data name="Tools.GenHotkeys.ChangeCameoTooltip" xml:space="preserve">
+    <value>Browse custom PNG, TGA, or BMP image for this cameo</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameo" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameoTooltip" xml:space="preserve">
+    <value>Reset to original game cameo texture</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipPreviewTitle" xml:space="preserve">
+    <value>In-Game Tooltip Preview</value>
+  </data>
+  <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
+    <value>+ Add description</value>
+  </data>
+  <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
+    <value>Assigned Hotkey</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectActionPrompt" xml:space="preserve">
+    <value>Select an action button to edit its hotkey, cameo image, title, and tooltip.</value>
+  </data>
   <data name="Tools.ReplayManager.ClientSelection.Title" xml:space="preserve">
     <value>Select Game Client</value>
   </data>
@@ -18193,5 +18217,68 @@ Mapped image texture reference</value>
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
+  </data>
+  <data name="Tools.GenHotkeys.CustomCameoActive" xml:space="preserve">
+    <value>Custom Cameo active</value>
+  </data>
+  <data name="Tools.GenHotkeys.DefaultGameCameo" xml:space="preserve">
+    <value>Default Game Cameo</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTitle" xml:space="preserve">
+    <value>Reset Title</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTooltip" xml:space="preserve">
+    <value>Reset Tooltip</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleFieldLabel" xml:space="preserve">
+    <value>Title:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleWatermark" xml:space="preserve">
+    <value>Action Title</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipFieldLabel" xml:space="preserve">
+    <value>Tooltip:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipWatermark" xml:space="preserve">
+    <value>Action Tooltip Description</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectCameoImage" xml:space="preserve">
+    <value>Select Cameo Image</value>
+  </data>
+  <data name="Tools.GenHotkeys.ImageFiles" xml:space="preserve">
+    <value>Image Files</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoApplied" xml:space="preserve">
+    <value>Custom cameo set for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoReset" xml:space="preserve">
+    <value>Custom cameo reset to default for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TitleReset" xml:space="preserve">
+    <value>Title reset to default for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
+    <value>Tooltip reset to default for {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>USA</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>China</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>GLA</value>
+  </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>GenHotkeys</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>The selected image file does not exist: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>Failed to load custom cameo from '{0}'. Ensure the file is a valid image.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>Failed to save profile changes for '{0}'.</value>
   </data>
 </root>

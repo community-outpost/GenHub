@@ -152,6 +152,25 @@ public class HotkeyProfileStorageServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that NormalizeComparers handles case-colliding keys without throwing ArgumentException.
+    /// </summary>
+    [Fact]
+    public void NormalizeComparers_WithCaseCollisions_DoesNotThrow()
+    {
+        var profile = new HotkeyProfile();
+        var dictWithCollision = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CONTROLBAR:ToolTipStop"] = "Stop Desc 1",
+            ["controlbar:tooltipstop"] = "Stop Desc 2",
+        };
+        profile.TooltipMappings = dictWithCollision;
+
+        var ex = Record.Exception(() => profile.NormalizeComparers());
+        Assert.Null(ex);
+        Assert.True(profile.TooltipMappings.ContainsKey("CONTROLBAR:ToolTipStop"));
+    }
+
+    /// <summary>
     /// Cleans up managed resources.
     /// </summary>
     /// <param name="disposing">Whether disposing.</param>

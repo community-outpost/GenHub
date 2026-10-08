@@ -22,4 +22,14 @@ public interface IIconOverlayService
         char hotkey,
         OverlayCorner corner,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Converts the source image bytes directly into a 32-bit TGA format without a badge overlay.
+    /// </summary>
+    /// <param name="sourceIconBytes">Raw image bytes (PNG, JPEG, BMP, etc.).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>TGA binary file bytes.</returns>
+    Task<byte[]> ConvertToTgaAsync(
+        byte[] sourceIconBytes,
+        CancellationToken cancellationToken = default);
 }

@@ -38,40 +38,6 @@ public static class VlcRuntimeConstants
     public const string VlcPackageSha512EnvVar = "GENHUB_VLC_PACKAGE_SHA512";
 
     /// <summary>
-    /// Gets the default primary download URL for VideoLAN.LibVLC.Windows NuGet package from the NuGet v3 flat container feed.
-    /// </summary>
-    public static string DefaultPrimaryDownloadUrl => ApiConstants.GetNuGetPackageDownloadUrl(PackageId, PackageVersion);
-
-    /// <summary>
-    /// Gets the default fallback download URL for VideoLAN.LibVLC.Windows NuGet package.
-    /// </summary>
-    public static string DefaultFallbackDownloadUrl => $"https://www.nuget.org/api/v2/package/{PackageId}/{PackageVersion}";
-
-    /// <summary>
-    /// Gets the active primary download URL, honoring environment variable overrides.
-    /// </summary>
-    public static string PrimaryDownloadUrl =>
-        Environment.GetEnvironmentVariable(VlcPackageUrlEnvVar) is { Length: > 0 } customUrl
-            ? customUrl
-            : DefaultPrimaryDownloadUrl;
-
-    /// <summary>
-    /// Gets the active fallback download URL, honoring environment variable overrides.
-    /// </summary>
-    public static string FallbackDownloadUrl =>
-        Environment.GetEnvironmentVariable(VlcFallbackPackageUrlEnvVar) is { Length: > 0 } customUrl
-            ? customUrl
-            : DefaultFallbackDownloadUrl;
-
-    /// <summary>
-    /// Gets the expected SHA-512 digest, honoring environment variable overrides.
-    /// </summary>
-    public static string ExpectedSha512 =>
-        Environment.GetEnvironmentVariable(VlcPackageSha512EnvVar) is { Length: > 0 } customHash
-            ? customHash
-            : DefaultPackageSha512;
-
-    /// <summary>
     /// Subdirectory name under application data for runtimes.
     /// </summary>
     public const string RuntimesDirectoryName = "runtimes";
@@ -110,4 +76,38 @@ public static class VlcRuntimeConstants
     /// Package entry prefix for x86 C/C++ header files.
     /// </summary>
     public const string X86IncludePrefix = "build/x86/include/";
+
+    /// <summary>
+    /// Gets the default primary download URL for VideoLAN.LibVLC.Windows NuGet package from the NuGet v3 flat container feed.
+    /// </summary>
+    public static string DefaultPrimaryDownloadUrl => ApiConstants.GetNuGetPackageDownloadUrl(PackageId, PackageVersion);
+
+    /// <summary>
+    /// Gets the default fallback download URL for VideoLAN.LibVLC.Windows NuGet package.
+    /// </summary>
+    public static string DefaultFallbackDownloadUrl => $"https://www.nuget.org/api/v2/package/{PackageId}/{PackageVersion}";
+
+    /// <summary>
+    /// Gets the active primary download URL, honoring environment variable overrides.
+    /// </summary>
+    public static string PrimaryDownloadUrl =>
+        Environment.GetEnvironmentVariable(VlcPackageUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl
+            : DefaultPrimaryDownloadUrl;
+
+    /// <summary>
+    /// Gets the active fallback download URL, honoring environment variable overrides.
+    /// </summary>
+    public static string FallbackDownloadUrl =>
+        Environment.GetEnvironmentVariable(VlcFallbackPackageUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl
+            : DefaultFallbackDownloadUrl;
+
+    /// <summary>
+    /// Gets the expected SHA-512 digest, honoring environment variable overrides.
+    /// </summary>
+    public static string ExpectedSha512 =>
+        Environment.GetEnvironmentVariable(VlcPackageSha512EnvVar) is { Length: > 0 } customHash
+            ? customHash
+            : DefaultPackageSha512;
 }

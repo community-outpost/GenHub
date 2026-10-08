@@ -1,9 +1,14 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
+using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Services.Tools.TextureEditor;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Tga;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,7 +20,9 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 /// <summary>
 /// Service for stamping hotkey badges onto unit/structure icons and encoding them as in-game TGAs.
 /// </summary>
-public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverlayService
+public class IconOverlayService(
+    ILogger<IconOverlayService> logger,
+    ISageTextureCodec? sageTextureCodec = null) : IIconOverlayService
 {
     private static readonly Rgba32 BadgeBackground = new(14, 18, 24, 245);
     private static readonly Rgba32 BadgeBorder = new(245, 175, 35, 255); // Generals Gold
@@ -79,7 +86,11 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
-                using var image = Image.Load<Rgba32>(sourceIconBytes);
+                using var image = LoadImageSafe(sourceIconBytes, sageTextureCodec, logger);
+                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
+                {
+                    image.Mutate(x => x.Resize(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight));
+                }
 
                 var badgeChar = char.ToUpperInvariant(hotkey);
                 StampBadge(image, badgeChar, corner);
@@ -95,6 +106,76 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
                 return ms.ToArray();
             },
             cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<byte[]> ConvertToTgaAsync(
+        byte[] sourceIconBytes,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(sourceIconBytes);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.Run(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                logger.LogDebug("Converting custom cameo directly to 60x48 TGA without hotkey stamp");
+
+                using var image = LoadImageSafe(sourceIconBytes, sageTextureCodec, logger);
+                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
+                {
+                    image.Mutate(x => x.Resize(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight));
+                }
+
+                using var ms = new MemoryStream();
+                var tgaEncoder = new TgaEncoder
+                {
+                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
+                    Compression = TgaCompression.None,
+                };
+
+                image.Save(ms, tgaEncoder);
+                return ms.ToArray();
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads image bytes using ImageSharp with defensive fallback to SageTextureCodec
+    /// for SAGE TGA / DDS formats or non-standard image structures.
+    /// </summary>
+    private static Image<Rgba32> LoadImageSafe(byte[] sourceIconBytes, ISageTextureCodec? sageTextureCodec, ILogger logger)
+    {
+        try
+        {
+            return Image.Load<Rgba32>(sourceIconBytes);
+        }
+        catch (Exception ex) when (ex is SixLabors.ImageSharp.ImageFormatException or InvalidDataException or NotSupportedException or ArgumentException)
+        {
+            logger.LogDebug(ex, "ImageSharp failed to load image bytes; attempting SAGE texture decoder fallback");
+            var codec = sageTextureCodec ?? new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
+
+            var tgaResult = codec.Decode(sourceIconBytes, ".tga");
+            if (tgaResult.Success && tgaResult.Data != null)
+            {
+                return Image.LoadPixelData<Rgba32>(
+                    tgaResult.Data.PixelData,
+                    tgaResult.Data.Width,
+                    tgaResult.Data.Height);
+            }
+
+            var ddsResult = codec.Decode(sourceIconBytes, ".dds");
+            if (ddsResult.Success && ddsResult.Data != null)
+            {
+                return Image.LoadPixelData<Rgba32>(
+                    ddsResult.Data.PixelData,
+                    ddsResult.Data.Width,
+                    ddsResult.Data.Height);
+            }
+
+            throw new InvalidDataException("Failed to decode image bytes using ImageSharp and SAGE texture codec fallback.", ex);
+        }
     }
 
     private static void StampBadge(Image<Rgba32> image, char character, OverlayCorner corner)
@@ -126,12 +207,12 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
             return;
         }
 
-        for (var row = 0; row < 7; row++)
+        for (var row = 0; row < glyphRows.Length; row++)
         {
             var rowBits = glyphRows[row];
             for (var col = 0; col < 5; col++)
             {
-                var isPixelSet = ((rowBits >> (4 - col)) & 1) == 1;
+                var isPixelSet = ((rowBits >> (4 - col)) & 1) != 0;
                 if (isPixelSet)
                 {
                     DrawScaledPixel(image, textStartX + (col * scale), textStartY + (row * scale), scale);
@@ -140,15 +221,90 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         }
     }
 
-    private static void DrawScaledPixel(Image<Rgba32> image, int px, int py, int scale)
+    private static void DrawScaledPixel(Image<Rgba32> image, int startX, int startY, int scale)
     {
         for (var dy = 0; dy < scale; dy++)
         {
+            var py = startY + dy;
+            if (py < 0 || py >= image.Height)
+            {
+                continue;
+            }
+
             for (var dx = 0; dx < scale; dx++)
             {
-                SetPixelSafe(image, px + dx, py + dy, TextColor);
+                var px = startX + dx;
+                if (px >= 0 && px < image.Width)
+                {
+                    image[px, py] = TextColor;
+                }
             }
         }
+    }
+
+    private static void DrawBadgeBox(
+        Image<Rgba32> image,
+        int startX,
+        int startY,
+        int width,
+        int height,
+        Rgba32 fillColor,
+        Rgba32 borderColor)
+    {
+        for (var y = 0; y < height; y++)
+        {
+            var py = startY + y;
+            if (py < 0 || py >= image.Height)
+            {
+                continue;
+            }
+
+            var isBorderY = y == 0 || y == height - 1;
+
+            for (var x = 0; x < width; x++)
+            {
+                var px = startX + x;
+                if (px < 0 || px >= image.Width)
+                {
+                    continue;
+                }
+
+                var isBorder = isBorderY || x == 0 || x == width - 1;
+                var color = isBorder ? borderColor : fillColor;
+
+                // Blend with existing pixel using alpha blending
+                image[px, py] = BlendPixel(image[px, py], color);
+            }
+        }
+    }
+
+    private static Rgba32 BlendPixel(Rgba32 destination, Rgba32 source)
+    {
+        if (source.A == 255)
+        {
+            return source;
+        }
+
+        if (source.A == 0)
+        {
+            return destination;
+        }
+
+        var srcA = source.A / 255f;
+        var dstA = destination.A / 255f;
+        var outA = srcA + (dstA * (1f - srcA));
+
+        if (outA <= 0f)
+        {
+            return new Rgba32(0, 0, 0, 0);
+        }
+
+        var r = (byte)Math.Clamp(((source.R * srcA) + (destination.R * dstA * (1f - srcA))) / outA, 0, 255);
+        var g = (byte)Math.Clamp(((source.G * srcA) + (destination.G * dstA * (1f - srcA))) / outA, 0, 255);
+        var b = (byte)Math.Clamp(((source.B * srcA) + (destination.B * dstA * (1f - srcA))) / outA, 0, 255);
+        var a = (byte)Math.Clamp(outA * 255f, 0, 255);
+
+        return new Rgba32(r, g, b, a);
     }
 
     private static (int X, int Y) CalculateBadgePosition(
@@ -159,40 +315,14 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         OverlayCorner corner)
     {
         const int margin = 2;
+
         return corner switch
         {
-            OverlayCorner.TopRight => (Math.Max(0, imageWidth - badgeWidth - margin), margin),
-            OverlayCorner.BottomLeft => (margin, Math.Max(0, imageHeight - badgeHeight - margin)),
-            OverlayCorner.BottomRight => (Math.Max(0, imageWidth - badgeWidth - margin), Math.Max(0, imageHeight - badgeHeight - margin)),
-            _ => (margin, margin), // TopLeft
+            OverlayCorner.TopLeft => (margin, margin),
+            OverlayCorner.TopRight => (imageWidth - badgeWidth - margin, margin),
+            OverlayCorner.BottomLeft => (margin, imageHeight - badgeHeight - margin),
+            OverlayCorner.BottomRight => (imageWidth - badgeWidth - margin, imageHeight - badgeHeight - margin),
+            _ => (margin, margin),
         };
-    }
-
-    private static void DrawBadgeBox(
-        Image<Rgba32> image,
-        int startX,
-        int startY,
-        int width,
-        int height,
-        Rgba32 fill,
-        Rgba32 border)
-    {
-        for (var y = 0; y < height; y++)
-        {
-            for (var x = 0; x < width; x++)
-            {
-                var isBorder = x == 0 || x == width - 1 || y == 0 || y == height - 1;
-                var color = isBorder ? border : fill;
-                SetPixelSafe(image, startX + x, startY + y, color);
-            }
-        }
-    }
-
-    private static void SetPixelSafe(Image<Rgba32> image, int x, int y, Rgba32 color)
-    {
-        if (x >= 0 && x < image.Width && y >= 0 && y < image.Height)
-        {
-            image[x, y] = color;
-        }
     }
 }

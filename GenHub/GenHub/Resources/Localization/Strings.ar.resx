@@ -18135,4 +18135,91 @@ Error: فشل: {3}
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
   </data>
+  <data name="Tools.GenHotkeys.ChangeCameo" xml:space="preserve">
+    <value>تغيير الصورة...</value>
+  </data>
+  <data name="Tools.GenHotkeys.ChangeCameoTooltip" xml:space="preserve">
+    <value>استعراض صورة PNG أو TGA أو BMP مخصصة لهذه الأيقونة</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameo" xml:space="preserve">
+    <value>إعادة ضبط</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetCameoTooltip" xml:space="preserve">
+    <value>إعادة تعيين مظهر الأيقونة إلى الافتراضي للعبة</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipPreviewTitle" xml:space="preserve">
+    <value>معاينة التلميح داخل اللعبة</value>
+  </data>
+  <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
+    <value>+ إضافة وصف</value>
+  </data>
+  <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
+    <value>مفتاح الاختصار المعين</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectActionPrompt" xml:space="preserve">
+    <value>حدد زر إجراء لتعديل مفتاح الاختصار، وصورة الأيقونة، والعنوان، والتلميح الخاص به.</value>
+  </data>
+  <data name="Tools.GenHotkeys.CustomCameoActive" xml:space="preserve">
+    <value>الأيقونة المخصصة نشطة</value>
+  </data>
+  <data name="Tools.GenHotkeys.DefaultGameCameo" xml:space="preserve">
+    <value>أيقونة اللعبة الافتراضية</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTitle" xml:space="preserve">
+    <value>إعادة تعيين العنوان</value>
+  </data>
+  <data name="Tools.GenHotkeys.ResetTooltip" xml:space="preserve">
+    <value>إعادة تعيين التلميح</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleFieldLabel" xml:space="preserve">
+    <value>العنوان:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TitleWatermark" xml:space="preserve">
+    <value>عنوان الإجراء</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipFieldLabel" xml:space="preserve">
+    <value>التلميح:</value>
+  </data>
+  <data name="Tools.GenHotkeys.TooltipWatermark" xml:space="preserve">
+    <value>وصف تلميح الإجراء</value>
+  </data>
+  <data name="Tools.GenHotkeys.SelectCameoImage" xml:space="preserve">
+    <value>اختر صورة الأيقونة</value>
+  </data>
+  <data name="Tools.GenHotkeys.ImageFiles" xml:space="preserve">
+    <value>ملفات الصور</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoApplied" xml:space="preserve">
+    <value>تم تعيين أيقونة مخصصة لـ {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoReset" xml:space="preserve">
+    <value>تمت إعادة تعيين الأيقونة الافتراضية لـ {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TitleReset" xml:space="preserve">
+    <value>تمت إعادة تعيين العنوان الافتراضي لـ {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.TooltipReset" xml:space="preserve">
+    <value>تمت إعادة تعيين التلميح الافتراضي لـ {0}</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Usa" xml:space="preserve">
+    <value>الولايات المتحدة</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.China" xml:space="preserve">
+    <value>الصين</value>
+  </data>
+  <data name="Tools.GenHotkeys.FactionTabs.Gla" xml:space="preserve">
+    <value>جيش التحرير العالمي</value>
+  </data>
+  <data name="Tools.GenHotkeys.Title" xml:space="preserve">
+    <value>جين هوتكيز</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.FileNotFound" xml:space="preserve">
+    <value>ملف الصورة المحدد غير موجود: '{0}'</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.CustomCameoLoadFailed" xml:space="preserve">
+    <value>فشل تحميل الصورة المخصصة من '{0}'. تأكد من أن الملف صورة صالحة.</value>
+  </data>
+  <data name="Tools.GenHotkeys.Status.ProfileSaveFailed" xml:space="preserve">
+    <value>فشل حفظ تغييرات الملف التعريفي لـ '{0}'.</value>
+  </data>
 </root>

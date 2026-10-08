@@ -1102,7 +1102,7 @@ public partial class VideoPlayerView : UserControl
 
     private void OnPositionSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
-        if (isUpdatingSliderFromTimer)
+        if (isUpdatingSliderFromTimer || isScrubbing)
         {
             return;
         }

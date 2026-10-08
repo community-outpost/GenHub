@@ -1,4 +1,6 @@
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Core.Models.Tools.TextureEditor;
+using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.GenHotkeys.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.ImageSharp;
@@ -77,5 +79,88 @@ public class IconOverlayServiceTests
         Assert.NotNull(tgaBytes);
         Assert.True(tgaBytes.Length > 18);
         Assert.Equal(32, tgaBytes[16]); // 32-bit depth
+    }
+
+    /// <summary>
+    /// Verifies that ConvertToTgaAsync converts source images to 60x48 true-color 32-bit TGAs without badge stamping.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConvertToTgaAsync_WithoutBadge_OutputsClean60x48TgaAsync()
+    {
+        var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
+
+        using var testImage = new Image<Rgba32>(60, 48);
+        using var ms = new MemoryStream();
+        await testImage.SaveAsPngAsync(ms);
+        var inputBytes = ms.ToArray();
+
+        var tgaBytes = await service.ConvertToTgaAsync(inputBytes);
+
+        Assert.NotNull(tgaBytes);
+        Assert.True(tgaBytes.Length > 18);
+        Assert.Equal(2, tgaBytes[2]); // uncompressed true-color
+        var width = tgaBytes[12] | (tgaBytes[13] << 8);
+        var height = tgaBytes[14] | (tgaBytes[15] << 8);
+        Assert.Equal(60, width);
+        Assert.Equal(48, height);
+        Assert.Equal(32, tgaBytes[16]); // 32 bpp
+    }
+
+    /// <summary>
+    /// Verifies that GenerateOverlayTgaAsync safely decodes native TGA image bytes via SageTextureCodec fallback.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GenerateOverlayTgaAsync_WithTgaInput_DecodesViaSageTextureCodecAndOutputsValidOverlayAsync()
+    {
+        var codec = new SageTextureCodec(NullLogger<SageTextureCodec>.Instance);
+        var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance, codec);
+
+        var rawPixels = new byte[60 * 48 * 4];
+        for (int i = 0; i < rawPixels.Length; i += 4)
+        {
+            rawPixels[i] = 120;
+            rawPixels[i + 1] = 150;
+            rawPixels[i + 2] = 200;
+            rawPixels[i + 3] = 255;
+        }
+
+        var encodeResult = codec.EncodeTga(new DecodedTexture(60, 48, rawPixels));
+        Assert.True(encodeResult.Success);
+        var tgaInputBytes = encodeResult.Data!;
+
+        var overlayTgaBytes = await service.GenerateOverlayTgaAsync(tgaInputBytes, 'W', OverlayCorner.BottomRight);
+
+        Assert.NotNull(overlayTgaBytes);
+        Assert.True(overlayTgaBytes.Length > 18);
+        var width = overlayTgaBytes[12] | (overlayTgaBytes[13] << 8);
+        var height = overlayTgaBytes[14] | (overlayTgaBytes[15] << 8);
+        Assert.Equal(60, width);
+        Assert.Equal(48, height);
+        Assert.Equal(32, overlayTgaBytes[16]);
+    }
+
+    /// <summary>
+    /// Verifies that GenerateOverlayTgaAsync resizes non-60x48 input images to standard 60x48 dimensions.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GenerateOverlayTgaAsync_WithNonStandardDimensions_ResizesTo60x48Async()
+    {
+        var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
+
+        using var testImage = new Image<Rgba32>(128, 128);
+        using var ms = new MemoryStream();
+        await testImage.SaveAsPngAsync(ms);
+        var inputBytes = ms.ToArray();
+
+        var tgaBytes = await service.GenerateOverlayTgaAsync(inputBytes, 'Q', OverlayCorner.TopRight);
+
+        Assert.NotNull(tgaBytes);
+        var width = tgaBytes[12] | (tgaBytes[13] << 8);
+        var height = tgaBytes[14] | (tgaBytes[15] << 8);
+        Assert.Equal(60, width);
+        Assert.Equal(48, height);
     }
 }
