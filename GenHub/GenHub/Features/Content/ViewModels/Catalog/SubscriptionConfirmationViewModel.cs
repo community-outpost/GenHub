@@ -421,6 +421,36 @@ public partial class SubscriptionConfirmationViewModel(
         return candidateUrls;
     }
 
+    private static bool IsDuplicateOrSharedEndpoint(CatalogEntry entry, CatalogEntry? primaryEntry, string primaryCatalogUrl)
+    {
+        if (ReferenceEquals(entry, primaryEntry))
+        {
+            return true;
+        }
+
+        if (string.Equals(entry.Url, primaryCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            (primaryEntry != null && string.Equals(entry.Url, primaryEntry.Url, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (entry.Mirrors != null && (
+            entry.Mirrors.Contains(primaryCatalogUrl, StringComparer.OrdinalIgnoreCase) ||
+            (primaryEntry != null && !string.IsNullOrWhiteSpace(primaryEntry.Url) && entry.Mirrors.Contains(primaryEntry.Url, StringComparer.OrdinalIgnoreCase))))
+        {
+            return true;
+        }
+
+        if (primaryEntry?.Mirrors != null && (
+            primaryEntry.Mirrors.Contains(entry.Url, StringComparer.OrdinalIgnoreCase) ||
+            (entry.Mirrors != null && entry.Mirrors.Any(m => primaryEntry.Mirrors.Contains(m, StringComparer.OrdinalIgnoreCase)))))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
     {
         if (_resolvedDefinition?.Catalogs == null || _definitionCatalogs.Count == 0)
@@ -815,9 +845,8 @@ public partial class SubscriptionConfirmationViewModel(
         {
             if (entry == null ||
                 string.IsNullOrWhiteSpace(entry.Url) ||
-                ReferenceEquals(entry, firstEntry) ||
-                string.Equals(entry.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                (firstEntry != null && string.Equals(entry.Url, firstEntry.Url, StringComparison.OrdinalIgnoreCase)))
+                IsDuplicateOrSharedEndpoint(entry, firstEntry, firstCatalogUrl) ||
+                _definitionCatalogs.Any(existing => string.Equals(existing.Url, entry.Url, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
