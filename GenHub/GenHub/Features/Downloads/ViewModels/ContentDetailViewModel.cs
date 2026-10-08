@@ -80,6 +80,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="workspaceManager">Optional workspace manager for cleaning stale workspaces on bundle updates.</param>
 /// <param name="patchNotesService">Optional service for fetching Generals Online patch notes on demand.</param>
 /// <param name="onDescriptionEnriched">Optional callback invoked when the content description is updated with patch notes (version, changelog).</param>
+/// <param name="userSettingsService">Optional user settings service for reading the saved profile sort mode.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -108,7 +109,8 @@ public partial class ContentDetailViewModel(
     IGitHubApiClient? gitHubApiClient = null,
     IWorkspaceManager? workspaceManager = null,
     IGeneralsOnlinePatchNotesService? patchNotesService = null,
-    Action<string, string>? onDescriptionEnriched = null) : ObservableObject, IDisposable
+    Action<string, string>? onDescriptionEnriched = null,
+    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -7803,7 +7805,8 @@ public partial class ContentDetailViewModel(
                 profileContentService,
                 manifestPool,
                 notificationService,
-                localizationService);
+                localizationService,
+                userSettingsService);
 
             // Load profiles into the view model
             await profileSelectionViewModel.LoadProfilesAsync(

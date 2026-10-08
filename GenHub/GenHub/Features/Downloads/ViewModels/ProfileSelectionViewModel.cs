@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -34,6 +35,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="manifestPool">The content manifest pool.</param>
 /// <param name="notificationService">The notification service.</param>
 /// <param name="localizationService">The optional localization service for user-facing notifications.</param>
+/// <param name="userSettingsService">The optional user settings service for reading the saved profile sort mode.</param>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public sealed partial class ProfileSelectionViewModel(
     ILogger<ProfileSelectionViewModel> logger,
@@ -41,7 +43,8 @@ public sealed partial class ProfileSelectionViewModel(
     IProfileContentService profileContentService,
     IContentManifestPool manifestPool,
     INotificationService notificationService,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
+    ILocalizationService? localizationService = null,
+    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -386,7 +389,11 @@ public sealed partial class ProfileSelectionViewModel(
         GameType targetGame,
         ISet<string>? compatibleProfileIds)
     {
-        foreach (var profile in profiles)
+        var sortedProfiles = ProfileSortHelper.SortByProfile(
+            profiles,
+            profile => new ProfileSortHelper.ProfileSortKeys(profile.Name, profile.LastPlayedAt, profile.CreatedAt, profile.DisplayOrder),
+            ReadSortMode());
+        foreach (var profile in sortedProfiles)
         {
             var option = new ProfileOptionViewModel(profile, contentNames);
             var (isMatch, warningMessage) = EvaluateCompatibility(profile, targetGame, compatibleProfileIds);
@@ -412,6 +419,11 @@ public sealed partial class ProfileSelectionViewModel(
         OnPropertyChanged(nameof(HasOnlyIncompatibleProfiles));
         OnPropertyChanged(nameof(HasOtherProfiles));
         OnPropertyChanged(nameof(ProfileSummary));
+    }
+
+    private ProfileSortMode ReadSortMode()
+    {
+        return ProfileSortHelper.NormalizeSortMode(userSettingsService?.Get().ProfileSortMode ?? ProfileSortMode.LastPlayed);
     }
 
     /// <summary>

@@ -1,6 +1,8 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
@@ -446,5 +448,106 @@ public sealed class ProfileSelectionViewModelTests
 
         Assert.Equal("Add ShockWave Mod to this profile", vm.AddToProfileTooltip);
         Assert.Equal("Create a new profile with ShockWave Mod", vm.CreateProfileTooltip);
+    }
+
+    /// <summary>
+    /// Verifies that loading profiles lists them in the saved launcher sort order instead of repository order.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadProfilesAsync_HonorsSavedSortMode_WhenListingProfilesAsync()
+    {
+        // Arrange
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var settingsMock = new Mock<IUserSettingsService>();
+
+        var bravo = new GameProfile
+        {
+            Id = "profile-bravo",
+            Name = "Bravo",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+        var alpha = new GameProfile
+        {
+            Id = "profile-alpha",
+            Name = "Alpha",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([bravo, alpha]));
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        settingsMock
+            .Setup(x => x.Get())
+            .Returns(new UserSettings { ProfileSortMode = ProfileSortMode.Alphabetical });
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManagerMock.Object,
+            new Mock<IProfileContentService>().Object,
+            manifestPoolMock.Object,
+            new Mock<INotificationService>().Object,
+            null,
+            settingsMock.Object);
+
+        // Act
+        await vm.LoadProfilesAsync(GameType.ZeroHour, "1.0.test.manifest", "Test Content");
+
+        // Assert
+        Assert.Equal(2, vm.CompatibleProfiles.Count);
+        Assert.Equal("profile-alpha", vm.CompatibleProfiles[0].Profile.Id);
+        Assert.Equal("profile-bravo", vm.CompatibleProfiles[1].Profile.Id);
+    }
+
+    /// <summary>
+    /// Verifies that a missing settings service falls back to last-played order.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadProfilesAsync_WithoutSettingsService_FallsBackToLastPlayedOrderAsync()
+    {
+        // Arrange
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+
+        var unplayed = new GameProfile
+        {
+            Id = "profile-unplayed",
+            Name = "Unplayed",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+        var played = new GameProfile
+        {
+            Id = "profile-played",
+            Name = "Played",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            LastPlayedAt = new DateTime(2024, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+        };
+
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([unplayed, played]));
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManagerMock.Object,
+            new Mock<IProfileContentService>().Object,
+            manifestPoolMock.Object,
+            new Mock<INotificationService>().Object);
+
+        // Act
+        await vm.LoadProfilesAsync(GameType.ZeroHour, "1.0.test.manifest", "Test Content");
+
+        // Assert
+        Assert.Equal(2, vm.CompatibleProfiles.Count);
+        Assert.Equal("profile-played", vm.CompatibleProfiles[0].Profile.Id);
+        Assert.Equal("profile-unplayed", vm.CompatibleProfiles[1].Profile.Id);
     }
 }

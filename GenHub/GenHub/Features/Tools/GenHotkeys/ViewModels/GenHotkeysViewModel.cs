@@ -40,6 +40,18 @@ namespace GenHub.Features.Tools.GenHotkeys.ViewModels;
 /// <summary>
 /// Main ViewModel for the GenHotkeys visual hotkey editor tool.
 /// </summary>
+/// <param name="techTreeService">The tech-tree data service for hotkey actions.</param>
+/// <param name="profileStorageService">The hotkey profile storage service.</param>
+/// <param name="packageService">The hotkey package import and export service.</param>
+/// <param name="logger">The logger.</param>
+/// <param name="notificationService">The optional notification service.</param>
+/// <param name="profileManager">The optional game profile manager for profile dialogs.</param>
+/// <param name="profileContentService">The optional profile content service for add-to-profile operations.</param>
+/// <param name="manifestPool">The optional content manifest pool.</param>
+/// <param name="loggerFactory">The optional logger factory for child view models.</param>
+/// <param name="dialogService">The optional dialog service.</param>
+/// <param name="localizationService">The optional localization service.</param>
+/// <param name="userSettingsService">The optional user settings service for reading the saved profile sort mode.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ViewModel dependency injection for tool operations, UI notifications, and profile dialogs")]
 public partial class GenHotkeysViewModel(
     ITechTreeService techTreeService,
@@ -52,7 +64,8 @@ public partial class GenHotkeysViewModel(
     IContentManifestPool? manifestPool = null,
     ILoggerFactory? loggerFactory = null,
     IDialogService? dialogService = null,
-    ILocalizationService? localizationService = null) : ObservableObject, IDisposable
+    ILocalizationService? localizationService = null,
+    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable
 {
     private readonly record struct HotkeyConflictTarget(
         HotkeyFaction Faction,
@@ -780,7 +793,8 @@ public partial class GenHotkeysViewModel(
                 profileContentService,
                 manifestPool,
                 notificationService,
-                localizationService);
+                localizationService,
+                userSettingsService);
 
             await profileSelectionVm.LoadProfilesAsync(
                 targetManifest.TargetGame,
