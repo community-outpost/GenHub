@@ -198,6 +198,64 @@ public sealed class ProfileSelectionViewModelTests
     }
 
     /// <summary>
+    /// Verifies that when content is applied live (even if swapped), the live notification is shown.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectProfileCommand_ContentSwappedAndAppliedLive_ShowsLiveNotificationAndClosesAsync()
+    {
+        // Arrange
+        var profileManagerMock = new Mock<IGameProfileManager>();
+        var profileContentMock = new Mock<IProfileContentService>();
+        var manifestPoolMock = new Mock<IContentManifestPool>();
+        var notificationMock = new Mock<INotificationService>();
+
+        var zhProfile = new GameProfile
+        {
+            Id = "zh-profile-1",
+            Name = "Zero Hour Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+
+        profileManagerMock
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([zhProfile]));
+
+        manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var swapResult = AddToProfileResult.CreateSuccessWithSwap("1.0.test.manifest", "New Content", "1.0.old.manifest", "Old Content", GenHub.Core.Models.Enums.ContentType.Addon);
+        swapResult.WasAppliedLive = true;
+
+        profileContentMock
+            .Setup(x => x.AddContentToProfileAsync("zh-profile-1", "1.0.test.manifest", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(swapResult);
+
+        var vm = new ProfileSelectionViewModel(
+            NullLogger<ProfileSelectionViewModel>.Instance,
+            profileManagerMock.Object,
+            profileContentMock.Object,
+            manifestPoolMock.Object,
+            notificationMock.Object);
+
+        var closeRequested = false;
+        vm.RequestClose += (_, _) => closeRequested = true;
+
+        await vm.LoadProfilesAsync(GameType.ZeroHour, "1.0.test.manifest", "New Content");
+
+        // Act
+        await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+
+        // Assert
+        Assert.True(vm.WasSuccessful, $"ErrorMessage: {vm.ErrorMessage}");
+        Assert.True(closeRequested);
+        notificationMock.Verify(
+            x => x.ShowSuccess("Added to Profile (Live)", "'New Content' has been added to profile 'Zero Hour Profile' and applied to the running game.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that selecting a profile with bundle manifests calls the list overload and closes the dialog.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

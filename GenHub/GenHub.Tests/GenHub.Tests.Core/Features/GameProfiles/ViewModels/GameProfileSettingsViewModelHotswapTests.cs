@@ -230,11 +230,12 @@ public class GameProfileSettingsViewModelHotswapTests
     }
 
     /// <summary>
-    /// Verifies that SaveAsync in Hotswap Mode invokes UpdateProfileUserDataAsync on the profile content linker.
+    /// Verifies that SaveAsync in Hotswap Mode delegates live synchronization to the profile
+    /// manager's single live-sync pipeline instead of invoking the linker itself.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WhenInHotswapMode_CallsUpdateProfileUserDataAsync()
+    public async Task SaveAsync_WhenInHotswapMode_DelegatesLiveSyncToProfileManagerAsync()
     {
         // Arrange
         const string profileId = "profile-live-2";
@@ -322,25 +323,28 @@ public class GameProfileSettingsViewModelHotswapTests
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
-        _profileContentLinkerMock.Verify(
-            p => p.UpdateProfileUserDataAsync(
+        _gameProfileManagerMock.Verify(
+            m => m.UpdateProfileAsync(
                 profileId,
-                It.Is<IEnumerable<ContentManifest>>(m => m.Count() == 2 && m.Any(x => x.Id.Value == mapId) && m.Any(x => x.Id.Value == installId)),
-                GameType.ZeroHour,
+                It.Is<UpdateProfileRequest>(r => r.EnabledContentIds != null && r.EnabledContentIds.Contains(mapId) && r.EnabledContentIds.Contains(installId)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
-
-        _gameProfileManagerMock.Verify(
-            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
-            Times.AtLeastOnce());
+        _profileContentLinkerMock.Verify(
+            p => p.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>
-    /// Verifies that SaveAsync reports a failure status message when live content sync fails.
+    /// Verifies that SaveAsync surfaces the profile manager's live-sync failure instead of
+    /// synchronizing live content itself.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WhenLiveSyncFails_SetsStatusMessageWarningAsync()
+    public async Task SaveAsync_WhenManagerReportsLiveSyncFailure_SurfacesFailureStatusAsync()
     {
         // Arrange
         const string profileId = "profile-live-3";
@@ -363,7 +367,7 @@ public class GameProfileSettingsViewModelHotswapTests
         _gameProfileManagerMock.Setup(m => m.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
         _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("Live content synchronization failed: Live file locked by process. Profile changes were not saved."));
 
         _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
             .ReturnsAsync([CreateActiveLaunch(profileId)]);
@@ -415,13 +419,6 @@ public class GameProfileSettingsViewModelHotswapTests
         _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(installId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
 
-        _profileContentLinkerMock.Setup(p => p.UpdateProfileUserDataAsync(
-            profileId,
-            It.IsAny<IEnumerable<ContentManifest>>(),
-            It.IsAny<GameType>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateFailure("Live file locked by process"));
-
         await _viewModel.InitializeForProfileAsync(profileId);
         _gameProfileManagerMock.Invocations.Clear();
 
@@ -429,18 +426,27 @@ public class GameProfileSettingsViewModelHotswapTests
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
-        Assert.Contains("live sync failed", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Failed to update profile", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Live content synchronization failed", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
         _gameProfileManagerMock.Verify(
-            m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _profileContentLinkerMock.Verify(
+            p => p.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
     /// <summary>
-    /// Verifies that SaveAsync aborts live sync without calling UpdateProfileUserDataAsync if any enabled manifest cannot be resolved.
+    /// Verifies that SaveAsync surfaces the profile manager's manifest resolution failure and
+    /// delegates resolution to the manager instead of resolving manifests itself.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WhenManifestResolutionFails_AbortsLiveSyncAndDoesNotInvokeLinkerAsync()
+    public async Task SaveAsync_WhenManagerReportsManifestResolutionFailure_SurfacesFailureStatusAsync()
     {
         // Arrange
         const string profileId = "profile-live-4";
@@ -497,7 +503,8 @@ public class GameProfileSettingsViewModelHotswapTests
         _manifestPoolMock.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
 
-        // Setup install manifest resolution success, but map manifest resolution failure
+        // Setup install manifest resolution success, but map manifest resolution failure.
+        // The view model delegates resolution to the manager, which reports the failure.
         var installManifest = new ContentManifest
         {
             Id = ManifestId.Create(installId),
@@ -509,6 +516,8 @@ public class GameProfileSettingsViewModelHotswapTests
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
         _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(mapId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateFailure("Manifest not found in pool"));
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure($"Cannot live-sync content for profile 'Live Profile' while it is running: failed to resolve manifests for {mapId}. Profile changes were not saved."));
 
         await _viewModel.InitializeForProfileAsync(profileId);
         _gameProfileManagerMock.Invocations.Clear();
@@ -517,7 +526,11 @@ public class GameProfileSettingsViewModelHotswapTests
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
         // Assert
+        Assert.Contains("Failed to update profile", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("failed to resolve manifests", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _gameProfileManagerMock.Verify(
+            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once);
         _profileContentLinkerMock.Verify(
             p => p.UpdateProfileUserDataAsync(
                 It.IsAny<string>(),
@@ -525,17 +538,15 @@ public class GameProfileSettingsViewModelHotswapTests
                 It.IsAny<GameType>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
-        _gameProfileManagerMock.Verify(
-            m => m.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     /// <summary>
-    /// Verifies that SaveAsync rolls back live content sync to original manifests if profile persistence fails.
+    /// Verifies that SaveAsync leaves live-sync rollback to the profile manager when profile
+    /// persistence fails after a content change.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WhenProfileUpdateFailsAfterLiveSync_RollsBackLiveSyncToOriginalManifestsAsync()
+    public async Task SaveAsync_WhenProfileUpdateFails_DoesNotRollBackLiveSyncItselfAsync()
     {
         // Arrange
         const string profileId = "profile-live-5";
@@ -629,32 +640,28 @@ public class GameProfileSettingsViewModelHotswapTests
 
         // Assert
         Assert.Contains("Failed to update profile", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
-
-        // First call: forward live update with new enabled content (map removed)
-        _profileContentLinkerMock.Verify(
-            p => p.UpdateProfileUserDataAsync(
-                profileId,
-                It.Is<IEnumerable<ContentManifest>>(m => m.Count() == 1 && m.Any(x => x.Id.Value == installId)),
-                It.IsAny<GameType>(),
-                It.IsAny<CancellationToken>()),
+        Assert.Contains("Database lock failure", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _gameProfileManagerMock.Verify(
+            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
-        // Second call: rollback live update with original enabled content (map restored)
+        // The manager owns forward sync and rollback; the view model must not touch the linker.
         _profileContentLinkerMock.Verify(
             p => p.UpdateProfileUserDataAsync(
-                profileId,
-                It.Is<IEnumerable<ContentManifest>>(m => m.Count() == 2 && m.Any(x => x.Id.Value == originalMapId)),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
                 It.IsAny<GameType>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 
     /// <summary>
-    /// Verifies that SaveAsync notifies user with an error when rollback live synchronization fails.
+    /// Verifies that SaveAsync surfaces the manager's error without a live-rollback suffix,
+    /// since live-sync rollback is owned by the profile manager.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveAsync_WhenLiveSyncRollbackFails_ShowsErrorNotificationAsync()
+    public async Task SaveAsync_WhenProfileUpdateFails_SurfacesManagerErrorWithoutLiveRollbackSuffixAsync()
     {
         // Arrange
         const string profileId = "profile-live-6";
@@ -729,20 +736,6 @@ public class GameProfileSettingsViewModelHotswapTests
         _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(installId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
 
-        int callCount = 0;
-        _profileContentLinkerMock.Setup(p => p.UpdateProfileUserDataAsync(
-            profileId,
-            It.IsAny<IEnumerable<ContentManifest>>(),
-            It.IsAny<GameType>(),
-            It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
-            {
-                callCount++;
-                return callCount == 1
-                    ? OperationResult<bool>.CreateSuccess(true)
-                    : OperationResult<bool>.CreateFailure("Rollback disk IO error");
-            });
-
         await _viewModel.InitializeForProfileAsync(profileId);
         _gameProfileManagerMock.Invocations.Clear();
 
@@ -751,7 +744,15 @@ public class GameProfileSettingsViewModelHotswapTests
 
         // Assert
         Assert.Contains("Failed to update profile", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Live rollback failed: Rollback disk IO error", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Database lock failure", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Live rollback failed", _viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        _profileContentLinkerMock.Verify(
+            p => p.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>
@@ -1080,6 +1081,128 @@ public class GameProfileSettingsViewModelHotswapTests
         _gameProfileManagerMock.Verify(
             m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// Verifies that when the profile manager reports that live synchronization was already applied live
+    /// (<see cref="ProfileOperationResult{T}.WasAppliedLive"/> is true) during a mid-save game start race,
+    /// the post-save race check skips running a duplicate live sync pass through the view model's linker.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveAsync_WhenManagerReportsWasAppliedLive_SkipsDuplicatePostSaveLiveSyncAsync()
+    {
+        // Arrange
+        const string profileId = "profile-postsave-applied-live";
+        const string installId = "1.108.steam.gameinstallation.zh";
+        const string mapId = "1.0.0.map.desert";
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Applied Live Profile",
+            EnabledContentIds = [installId, mapId],
+            GameClient = new GameClient
+            {
+                Id = "client-zh",
+                Name = "Zero Hour",
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        _gameProfileManagerMock.Setup(m => m.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        bool profileSaved = false;
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Initially not running; becomes running while save is in flight
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync())
+            .ReturnsAsync(() => profileSaved ? [CreateActiveLaunch(profileId)] : []);
+
+        var enabledItems = new ObservableCollection<CoreContentDisplayItem>
+        {
+            new()
+            {
+                Id = installId,
+                ManifestId = installId,
+                DisplayName = "Command & Conquer: Zero Hour",
+                ContentType = ContentType.GameInstallation,
+                GameType = GameType.ZeroHour,
+            },
+            new()
+            {
+                Id = mapId,
+                ManifestId = mapId,
+                DisplayName = "Tournament Desert",
+                ContentType = ContentType.Map,
+                GameType = GameType.ZeroHour,
+            },
+        };
+
+        _contentLoaderMock.Setup(c => c.LoadEnabledContentForProfileAsync(profile))
+            .ReturnsAsync(enabledItems);
+        _contentLoaderMock.Setup(c => c.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync([]);
+        _contentLoaderMock.Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([]);
+        _manifestPoolMock.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var mapManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(mapId),
+            Name = "Tournament Desert",
+            ContentType = ContentType.Map,
+        };
+        var installManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installId),
+            Name = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+        };
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(mapId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(mapManifest));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(ManifestId.Create(installId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
+
+        _profileContentLinkerMock.Setup(p => p.UpdateProfileUserDataAsync(
+            profileId,
+            It.IsAny<IEnumerable<ContentManifest>>(),
+            It.IsAny<GameType>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await _viewModel.InitializeForProfileAsync(profileId);
+        _gameProfileManagerMock.Invocations.Clear();
+
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                profileSaved = true;
+                return ProfileOperationResult<GameProfile>.CreateSuccess(profile, wasAppliedLive: true);
+            });
+
+        // Act
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        // Assert
+        // Successful profile update calls ExecuteCancel to request dialog close, setting StatusMessage to "Cancelled"
+        Assert.Equal("Cancelled", _viewModel.StatusMessage);
+        _gameProfileManagerMock.Verify(
+            m => m.UpdateProfileAsync(profileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Crucial assertion: the view model's linker must NOT be invoked because manager already performed live sync
+        _profileContentLinkerMock.Verify(
+            p => p.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private static GameLaunchInfo CreateActiveLaunch(string profileId, string launchId = "launch-1", string workspaceId = "ws-1") => new()

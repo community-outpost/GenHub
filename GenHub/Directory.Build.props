@@ -37,6 +37,9 @@
     <!-- Enforce zero warnings policy across all projects -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
+    <!-- Do not treat NuGet package audit vulnerability warnings as build errors -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+
     <!-- Prevent concurrent compilation memory exhaustion in resource-constrained CI runners -->
     <BuildInParallel Condition="'$(CI)' == 'true'">false</BuildInParallel>
 

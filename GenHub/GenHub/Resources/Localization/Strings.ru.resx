@@ -16773,6 +16773,12 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
     <value>«{0}» добавлено в профиль «{1}».</value>
   </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Title" xml:space="preserve">
+    <value>Применено к запущенной игре</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Message" xml:space="preserve">
+    <value>«{0}» добавлено в профиль «{1}» и применено к запущенной игре.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
     <value>Содержимое заблокировано</value>
   </data>
@@ -16865,17 +16871,20 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
     <value>Живая синхронизация содержимого не удалась: {0}. Изменения профиля не сохранены.</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
-    <value>Предупреждение живого отката</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
-    <value>Не удалось сохранить профиль ({0}), и исходное содержимое не удалось полностью разрешить для отката: {1}. Живое содержимое оставлено как синхронизировано и может не соответствовать сохранённому профилю.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
     <value>Живой откат не удался</value>
   </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>Не удалось сохранить профиль ({0}), а откат живого содержимого сообщил: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveSyncFailed" xml:space="preserve">
+    <value>Живая синхронизация не удалась: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
+    <value>Не удалось обновить профиль: {0}. Живой откат не удался: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackSucceeded" xml:space="preserve">
+    <value>Не удалось обновить профиль: {0}. Живое содержимое было откачено.</value>
   </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>«{0}» обновлено.</value>
