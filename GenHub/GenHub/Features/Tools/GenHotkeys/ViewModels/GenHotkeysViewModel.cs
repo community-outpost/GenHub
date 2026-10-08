@@ -2738,7 +2738,23 @@ public partial class GenHotkeysViewModel(
 
         foreach (var action in FilteredGameObjects.SelectMany(obj => obj.Layouts).SelectMany(l => l))
         {
-            ApplyProfileToAction(action, SelectedProfile);
+            action.Hotkey = ResolveProfileHotkey(action, SelectedProfile);
+            action.DisplayName = ResolveProfileDisplayName(action, SelectedProfile);
+            action.Tooltip = ResolveProfileTooltip(action, SelectedProfile);
+
+            var hasCustom = SelectedProfile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
+                File.Exists(customPath);
+            var targetCustomPath = hasCustom ? customPath : null;
+
+            if (!string.Equals(action.CustomImagePath, targetCustomPath, StringComparison.OrdinalIgnoreCase))
+            {
+                action.CustomImagePath = targetCustomPath;
+                LoadBitmapForIcon(
+                    bmp => action.IconBitmap = bmp,
+                    action.IconName,
+                    targetCustomPath,
+                    CancellationToken.None);
+            }
         }
     }
 
@@ -2976,27 +2992,6 @@ public partial class GenHotkeysViewModel(
             }
 
             throw new InvalidDataException($"Failed to decode image from '{filePath}' using ImageSharp and SAGE texture codec.", ex);
-        }
-    }
-
-    private void ApplyProfileToAction(HotkeyActionViewModel action, HotkeyProfile profile)
-    {
-        action.Hotkey = ResolveProfileHotkey(action, profile);
-        action.DisplayName = ResolveProfileDisplayName(action, profile);
-        action.Tooltip = ResolveProfileTooltip(action, profile);
-
-        var hasCustom = profile.CustomCameoMappings.TryGetValue(action.IconName, out var customPath) &&
-            File.Exists(customPath);
-        var targetCustomPath = hasCustom ? customPath : null;
-
-        if (!string.Equals(action.CustomImagePath, targetCustomPath, StringComparison.OrdinalIgnoreCase))
-        {
-            action.CustomImagePath = targetCustomPath;
-            LoadBitmapForIcon(
-                bmp => action.IconBitmap = bmp,
-                action.IconName,
-                targetCustomPath,
-                CancellationToken.None);
         }
     }
 
