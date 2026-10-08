@@ -160,6 +160,9 @@ public class CloudUrlHelperTests
     [InlineData(
         "https://drive.google.com/uc?export=download&id=abc&resourcekey=0-key",
         "https://drive.usercontent.google.com/download?id=abc&export=download&confirm=t&resourcekey=0-key")]
+    [InlineData(
+        "https://drive.google.com/uc?export=download&id=abc&resourcekey=0-key&uuid=xyz&authuser=0",
+        "https://drive.usercontent.google.com/download?id=abc&export=download&confirm=t&resourcekey=0-key&uuid=xyz&authuser=0")]
     public void ToConfirmedGoogleDriveDownloadUri_GoogleDriveDownload_ReturnsConfirmedUri(string url, string expected)
     {
         var result = CloudUrlHelper.ToConfirmedGoogleDriveDownloadUri(new Uri(url));
@@ -177,6 +180,8 @@ public class CloudUrlHelperTests
     [InlineData("https://drive.google.com/uc?export=download&confirm=tok&id=abc")]
     [InlineData("https://drive.google.com/uc?export=download")]
     [InlineData("https://drive.google.com/uc?export=download&id=")]
+    [InlineData("https://drive.google.com/uc?id=abc")]
+    [InlineData("https://docs.google.com/uc?id=abc")]
     [InlineData("https://drive.google.com/file/d/abc/view")]
     [InlineData("https://drive.google.com/drive/folders/abc")]
     [InlineData("http://drive.google.com/uc?export=download&id=abc")]
