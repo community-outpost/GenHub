@@ -18194,4 +18194,1123 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
   </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Name" xml:space="preserve">
+    <value>WorldBuilder</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Description" xml:space="preserve">
+    <value>Create, open, validate, and generate Command &amp; Conquer: Generals and Zero Hour maps. Round-trips .map files with .wak waves and .tga previews.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Coordinates" xml:space="preserve">
+    <value>Coordinates</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Title" xml:space="preserve">
+    <value>Game content unavailable</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Message" xml:space="preserve">
+    <value>No game installation was found, so terrain renders without textures. Add an installation to enable full content.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Links" xml:space="preserve">
+    <value>Waypoint Links</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Add" xml:space="preserve">
+    <value>Add Area Trigger</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Delete" xml:space="preserve">
+    <value>Delete Trigger</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Comment" xml:space="preserve">
+    <value>Comment</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.OneShot" xml:space="preserve">
+    <value>One-shot</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Subroutine" xml:space="preserve">
+    <value>Subroutine</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Easy" xml:space="preserve">
+    <value>Easy</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Normal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Hard" xml:space="preserve">
+    <value>Hard</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReferenceDiagnostics" xml:space="preserve">
+    <value>Reference Diagnostics</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingObject" xml:space="preserve">
+    <value>{0}: Missing object '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingTeam" xml:space="preserve">
+    <value>{0}: Missing team '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypoint" xml:space="preserve">
+    <value>{0}: Missing waypoint id {1}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
+    <value>Waypoint link references missing waypoint id: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>Player</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
+    <value>Roads &amp; Bridges</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Environment" xml:space="preserve">
+    <value>Environment &amp; Lighting</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Teams" xml:space="preserve">
+    <value>Sides &amp; Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerRoads" xml:space="preserve">
+    <value>Roads</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBridges" xml:space="preserve">
+    <value>Bridges</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Road" xml:space="preserve">
+    <value>Road Tool</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Bridge" xml:space="preserve">
+    <value>Bridge Tool</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ramp" xml:space="preserve">
+    <value>Ramp Tool</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Border" xml:space="preserve">
+    <value>Boundary Tool</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaterArea" xml:space="preserve">
+    <value>Water Area Tool</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.Title" xml:space="preserve">
+    <value>Roads &amp; Bridges</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.RoadType" xml:space="preserve">
+    <value>Road Type</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.AngledCorner" xml:space="preserve">
+    <value>Angled Corner</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.TightCorner" xml:space="preserve">
+    <value>Tight Corner</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.SegmentsTitle" xml:space="preserve">
+    <value>Road Segments</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgesTitle" xml:space="preserve">
+    <value>Bridges</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgeTemplate" xml:space="preserve">
+    <value>Bridge Template</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteSegment" xml:space="preserve">
+    <value>Delete Segment</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteBridge" xml:space="preserve">
+    <value>Delete Bridge</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Title" xml:space="preserve">
+    <value>Environment &amp; Lighting</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeOfDay" xml:space="preserve">
+    <value>Time of Day</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Weather" xml:space="preserve">
+    <value>Weather</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.WaterElevation" xml:space="preserve">
+    <value>Water Elevation</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Apply" xml:space="preserve">
+    <value>Apply Environment</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Title" xml:space="preserve">
+    <value>Sides &amp; Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SidesTitle" xml:space="preserve">
+    <value>Player Sides</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddSide" xml:space="preserve">
+    <value>Add Side</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteSide" xml:space="preserve">
+    <value>Delete Side</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SkirmishTeamsTitle" xml:space="preserve">
+    <value>Skirmish Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddTeam" xml:space="preserve">
+    <value>Add Team</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteTeam" xml:space="preserve">
+    <value>Delete Team</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamName" xml:space="preserve">
+    <value>Team Name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamOwner" xml:space="preserve">
+    <value>Owner</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideDisplayName" xml:space="preserve">
+    <value>Display Name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideIsHuman" xml:space="preserve">
+    <value>Human Player</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideFaction" xml:space="preserve">
+    <value>Faction</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeMorning" xml:space="preserve">
+    <value>Morning (1)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeAfternoon" xml:space="preserve">
+    <value>Afternoon (2)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeDusk" xml:space="preserve">
+    <value>Dusk (3)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeNight" xml:space="preserve">
+    <value>Night (4)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideNameWatermark" xml:space="preserve">
+    <value>Side name...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamNameWatermark" xml:space="preserve">
+    <value>Team name...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.File" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.View" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Window" xml:space="preserve">
+    <value>Window</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Help" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Toggle3D" xml:space="preserve">
+    <value>Toggle 3D View</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Wireframe" xml:space="preserve">
+    <value>Wireframe</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ObjectProperties" xml:space="preserve">
+    <value>Object Properties</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ScriptEditor" xml:space="preserve">
+    <value>Script Editor</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Teams" xml:space="preserve">
+    <value>Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Environment" xml:space="preserve">
+    <value>Environment</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Minimap" xml:space="preserve">
+    <value>Minimap</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Layers" xml:space="preserve">
+    <value>Layers</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Title" xml:space="preserve">
+    <value>Object Properties</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Logical" xml:space="preserve">
+    <value>Logical</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Visual" xml:space="preserve">
+    <value>Visual</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Sound" xml:space="preserve">
+    <value>Sound</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Health" xml:space="preserve">
+    <value>Health %</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Aggressiveness" xml:space="preserve">
+    <value>Aggressiveness</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Veterancy" xml:space="preserve">
+    <value>Veterancy</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Enabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Indestructible" xml:space="preserve">
+    <value>Indestructible</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Selectable" xml:space="preserve">
+    <value>Selectable</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Duplicate" xml:space="preserve">
+    <value>Duplicate</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Angle" xml:space="preserve">
+    <value>Angle</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.HitPoints" xml:space="preserve">
+    <value>Max Hit Points</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Unsellable" xml:space="preserve">
+    <value>Unsellable</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Targetable" xml:space="preserve">
+    <value>Targetable</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.RecruitableAI" xml:space="preserve">
+    <value>AI Recruitable</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Powered" xml:space="preserve">
+    <value>Powered</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Distance" xml:space="preserve">
+    <value>Distance</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.StoppingDistance" xml:space="preserve">
+    <value>Stopping Distance</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VisionDistance" xml:space="preserve">
+    <value>Vision Distance</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ShroudClearingDistance" xml:space="preserve">
+    <value>Shroud Clearing</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Weather" xml:space="preserve">
+    <value>Weather</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Scale" xml:space="preserve">
+    <value>Scale</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ScaleEnabled" xml:space="preserve">
+    <value>Scale Override</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ReflectsInMirror" xml:space="preserve">
+    <value>Reflects in Mirror</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundCustomize" xml:space="preserve">
+    <value>Customize Sound</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundEnabled" xml:space="preserve">
+    <value>Sound Enabled</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLooping" xml:space="preserve">
+    <value>Looping</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLoopCount" xml:space="preserve">
+    <value>Loop Count</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundPriority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundVolume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinVolume" xml:space="preserve">
+    <value>Min Volume</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinRange" xml:space="preserve">
+    <value>Min Range</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMaxRange" xml:space="preserve">
+    <value>Max Range</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Upgrades" xml:space="preserve">
+    <value>Pre-built Upgrades</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunPitch" xml:space="preserve">
+    <value>Sun Pitch</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunYaw" xml:space="preserve">
+    <value>Sun Yaw</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterActive" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterInactive" xml:space="preserve">
+    <value>Inactive</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterWarnings" xml:space="preserve">
+    <value>Warnings</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Paste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="Tools.WorldBuilder.Common.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Roads" xml:space="preserve">
+    <value>Roads &amp; Bridges</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MapInfo" xml:space="preserve">
+    <value>Map Info &amp; Validation</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessPassive" xml:space="preserve">
+    <value>Passive</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessAggressive" xml:space="preserve">
+    <value>Aggressive</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyRegular" xml:space="preserve">
+    <value>Regular</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyVeteran" xml:space="preserve">
+    <value>Veteran</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyElite" xml:space="preserve">
+    <value>Elite</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyHeroic" xml:space="preserve">
+    <value>Heroic</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>Map actions menu</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Generate" xml:space="preserve">
+    <value>Generate</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.GenerateTooltip" xml:space="preserve">
+    <value>Generate a new map from seed and dimensions</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenTooltip" xml:space="preserve">
+    <value>Open a map file</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveTooltip" xml:space="preserve">
+    <value>Save the open map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveAs" xml:space="preserve">
+    <value>Save As</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Validate" xml:space="preserve">
+    <value>Validate</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ValidateTooltip" xml:space="preserve">
+    <value>Validate the open map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.TidyIni" xml:space="preserve">
+    <value>Tidy map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportTeams" xml:space="preserve">
+    <value>Import Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ExportTeams" xml:space="preserve">
+    <value>Export Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.NewProject" xml:space="preserve">
+    <value>New Project</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenProject" xml:space="preserve">
+    <value>Open Project</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportGameData" xml:space="preserve">
+    <value>Import Game Data</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.LaunchNative" xml:space="preserve">
+    <value>Launch Native Builder</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Open map</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Save map</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.FilterName" xml:space="preserve">
+    <value>Map files</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureTitle" xml:space="preserve">
+    <value>Open failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureMessage" xml:space="preserve">
+    <value>Could not open the map: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureTitle" xml:space="preserve">
+    <value>Save failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureMessage" xml:space="preserve">
+    <value>Could not save the map: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessTitle" xml:space="preserve">
+    <value>Map saved</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessMessage" xml:space="preserve">
+    <value>Saved {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Title" xml:space="preserve">
+    <value>Generate New Map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Seed" xml:space="preserve">
+    <value>Seed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Width" xml:space="preserve">
+    <value>Width</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Height" xml:space="preserve">
+    <value>Height</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Players" xml:space="preserve">
+    <value>Players</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Run" xml:space="preserve">
+    <value>Generate Map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureTitle" xml:space="preserve">
+    <value>Generation failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureMessage" xml:space="preserve">
+    <value>Could not generate the map: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessTitle" xml:space="preserve">
+    <value>Map generated</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessMessage" xml:space="preserve">
+    <value>Generated a {0}x{1} map for {2} players.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidTitle" xml:space="preserve">
+    <value>Map is valid</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidMessage" xml:space="preserve">
+    <value>No validation issues were found.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesTitle" xml:space="preserve">
+    <value>Validation issues</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesMessage" xml:space="preserve">
+    <value>{0} errors, {1} warnings.</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Title" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Message" xml:space="preserve">
+    <value>The open map has unsaved changes. Discard them?</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentTitle" xml:space="preserve">
+    <value>No map open</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentMessage" xml:space="preserve">
+    <value>Open a map before tidying its map.ini file.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingTitle" xml:space="preserve">
+    <value>No map.ini found</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingMessage" xml:space="preserve">
+    <value>There is no {0} beside the open map.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanTitle" xml:space="preserve">
+    <value>map.ini is clean</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanMessage" xml:space="preserve">
+    <value>No changes needed ({0} warnings).</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureTitle" xml:space="preserve">
+    <value>Tidy failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureMessage" xml:space="preserve">
+    <value>Could not write the map.ini file: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessTitle" xml:space="preserve">
+    <value>map.ini tidied</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessMessage" xml:space="preserve">
+    <value>Rewrote map.ini ({0} warnings).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportTitle" xml:space="preserve">
+    <value>Import teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportTitle" xml:space="preserve">
+    <value>Export teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.FilterName" xml:space="preserve">
+    <value>Team exchange files</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureTitle" xml:space="preserve">
+    <value>Import failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureMessage" xml:space="preserve">
+    <value>Could not import teams: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessTitle" xml:space="preserve">
+    <value>Teams imported</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessMessage" xml:space="preserve">
+    <value>Imported {0} teams.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureTitle" xml:space="preserve">
+    <value>Export failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureMessage" xml:space="preserve">
+    <value>Could not export teams: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledTitle" xml:space="preserve">
+    <value>Export cancelled</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledMessage" xml:space="preserve">
+    <value>The map was closed or switched; teams were not exported.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessTitle" xml:space="preserve">
+    <value>Teams exported</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessMessage" xml:space="preserve">
+    <value>Exported {0} teams.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Title" xml:space="preserve">
+    <value>Project</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportGameData" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NewTitle" xml:space="preserve">
+    <value>Choose a folder for the new project</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenTitle" xml:space="preserve">
+    <value>Choose a project folder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportTitle" xml:space="preserve">
+    <value>Choose a game-data folder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureTitle" xml:space="preserve">
+    <value>Project failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureMessage" xml:space="preserve">
+    <value>The project operation failed: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedTitle" xml:space="preserve">
+    <value>Project created</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedMessage" xml:space="preserve">
+    <value>Created project {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedTitle" xml:space="preserve">
+    <value>Project opened</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedMessage" xml:space="preserve">
+    <value>Opened project {0} with {1} maps.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectTitle" xml:space="preserve">
+    <value>No project open</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectMessage" xml:space="preserve">
+    <value>Create or open a project before importing game data.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedTitle" xml:space="preserve">
+    <value>Game data imported</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedMessage" xml:space="preserve">
+    <value>Imported {0} map files.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Title" xml:space="preserve">
+    <value>Native WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Hint" xml:space="preserve">
+    <value>Launch the original Windows WorldBuilder through Wine using an installed game folder.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Launch" xml:space="preserve">
+    <value>Launch</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.GameFolderTitle" xml:space="preserve">
+    <value>Choose the installed game folder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundTitle" xml:space="preserve">
+    <value>Builder not found</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundMessage" xml:space="preserve">
+    <value>No native WorldBuilder was found: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureTitle" xml:space="preserve">
+    <value>Launch failed</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureMessage" xml:space="preserve">
+    <value>Could not launch the native builder: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessTitle" xml:space="preserve">
+    <value>Builder launched</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessMessage" xml:space="preserve">
+    <value>The native WorldBuilder is starting.</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Title" xml:space="preserve">
+    <value>No map open</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Message" xml:space="preserve">
+    <value>Open a .map file or generate a new battlefield to inspect its summary, preview, and validation.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameLabel" xml:space="preserve">
+    <value>Map name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameWatermark" xml:space="preserve">
+    <value>Enter the map display name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Title" xml:space="preserve">
+    <value>Map Summary</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Dimensions" xml:space="preserve">
+    <value>Dimensions</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Sides" xml:space="preserve">
+    <value>Sides</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Objects" xml:space="preserve">
+    <value>Objects</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Teams" xml:space="preserve">
+    <value>Teams</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Triggers" xml:space="preserve">
+    <value>Triggers</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Scripts" xml:space="preserve">
+    <value>Script lists</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waypoints" xml:space="preserve">
+    <value>Waypoint links</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waves" xml:space="preserve">
+    <value>Wave tracks</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.WorldCash" xml:space="preserve">
+    <value>World cash</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.MapName" xml:space="preserve">
+    <value>Internal name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validation.Title" xml:space="preserve">
+    <value>Validation</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Canvas" xml:space="preserve">
+    <value>Canvas &amp; Viewport</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Objects" xml:space="preserve">
+    <value>Objects &amp; Waypoints</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Scripts" xml:space="preserve">
+    <value>Scripts &amp; Triggers</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Summary" xml:space="preserve">
+    <value>Summary &amp; Validation</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushRadius" xml:space="preserve">
+    <value>Brush radius</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushIntensity" xml:space="preserve">
+    <value>Intensity</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushHeight" xml:space="preserve">
+    <value>Plateau height</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomIn" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomOut" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomFit" xml:space="preserve">
+    <value>Fit to window</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Redo" xml:space="preserve">
+    <value>Redo</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Layers" xml:space="preserve">
+    <value>Layers</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTerrain" xml:space="preserve">
+    <value>Terrain</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWater" xml:space="preserve">
+    <value>Water</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerCliffs" xml:space="preserve">
+    <value>Cliffs</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBlend" xml:space="preserve">
+    <value>Blends</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerGrid" xml:space="preserve">
+    <value>Grid</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerObjects" xml:space="preserve">
+    <value>Objects</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWaypoints" xml:space="preserve">
+    <value>Waypoints</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTriggers" xml:space="preserve">
+    <value>Triggers</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBoundary" xml:space="preserve">
+    <value>Boundary</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Pointer" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundUp" xml:space="preserve">
+    <value>Raise</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundDown" xml:space="preserve">
+    <value>Lower</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Smooth" xml:space="preserve">
+    <value>Smooth</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Plateau" xml:space="preserve">
+    <value>Plateau</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.TilePaint" xml:space="preserve">
+    <value>Paint Tile</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Eyedropper" xml:space="preserve">
+    <value>Eyedropper</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Waypoint" xml:space="preserve">
+    <value>Add Waypoint</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaypointLink" xml:space="preserve">
+    <value>Link Waypoints</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectPlace" xml:space="preserve">
+    <value>Place Object</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectErase" xml:space="preserve">
+    <value>Erase Object</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Trigger" xml:space="preserve">
+    <value>Draw Trigger</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ruler" xml:space="preserve">
+    <value>Ruler</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Title" xml:space="preserve">
+    <value>Map Objects</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Add" xml:space="preserve">
+    <value>Add Object</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Delete" xml:space="preserve">
+    <value>Delete Object</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Template" xml:space="preserve">
+    <value>Template</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.FilterWatermark" xml:space="preserve">
+    <value>Filter objects...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Title" xml:space="preserve">
+    <value>Waypoints &amp; Player Starts</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddWaypoint" xml:space="preserve">
+    <value>New Waypoint</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddPlayerStart" xml:space="preserve">
+    <value>Add Player Start</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Delete" xml:space="preserve">
+    <value>Delete Waypoint</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Link" xml:space="preserve">
+    <value>Link Selected</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Unlink" xml:space="preserve">
+    <value>Unlink Selected</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Title" xml:space="preserve">
+    <value>Script Groups &amp; Triggers</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.SearchWatermark" xml:space="preserve">
+    <value>Filter scripts...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddGroup" xml:space="preserve">
+    <value>New Group</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddScript" xml:space="preserve">
+    <value>New Script</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Duplicate" xml:space="preserve">
+    <value>Duplicate Script</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Delete" xml:space="preserve">
+    <value>Delete Script</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Conditions" xml:space="preserve">
+    <value>Conditions (IF)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Actions" xml:space="preserve">
+    <value>Actions (THEN / ELSE)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddCondition" xml:space="preserve">
+    <value>Add Condition</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteCondition" xml:space="preserve">
+    <value>Delete Condition</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddAction" xml:space="preserve">
+    <value>Add Action</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteAction" xml:space="preserve">
+    <value>Delete Action</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferences" xml:space="preserve">
+    <value>Check References</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoBrokenReferences" xml:space="preserve">
+    <value>All script references are valid.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferencesFound" xml:space="preserve">
+    <value>Found {0} broken reference(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.RenameWatermark" xml:space="preserve">
+    <value>New script name</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAll" xml:space="preserve">
+    <value>Clear All</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllTitle" xml:space="preserve">
+    <value>Clear All Scripts</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllMessage" xml:space="preserve">
+    <value>Delete {0} script(s) and {1} folder(s) across all sides? This can be undone.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllEmpty" xml:space="preserve">
+    <value>No scripts to clear.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllDone" xml:space="preserve">
+    <value>Cleared {0} script(s) and {1} folder(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceAll" xml:space="preserve">
+    <value>Replace All</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedCount" xml:space="preserve">
+    <value>Replaced {0} parameter value(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoMatches" xml:space="preserve">
+    <value>No matching parameter values found.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FindWatermark" xml:space="preserve">
+    <value>Find value</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceWatermark" xml:space="preserve">
+    <value>Replace with</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MatchCase" xml:space="preserve">
+    <value>Match case</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.CurrentScriptOnly" xml:space="preserve">
+    <value>Current script only</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoDocument" xml:space="preserve">
+    <value>No map is open.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportScripts" xml:space="preserve">
+    <value>Export Scripts</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportDone" xml:space="preserve">
+    <value>Exported {0} script(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportFailed" xml:space="preserve">
+    <value>Could not export scripts: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportScripts" xml:space="preserve">
+    <value>Import Scripts</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportDone" xml:space="preserve">
+    <value>Imported {0} script(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportFailed" xml:space="preserve">
+    <value>Could not import scripts: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportEmpty" xml:space="preserve">
+    <value>The script file contains no script data.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FileFilterName" xml:space="preserve">
+    <value>WorldBuilder Scripts</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwner" xml:space="preserve">
+    <value>Fix Team Owner</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerDone" xml:space="preserve">
+    <value>Reassigned {0} team(s) to '{1}'.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerNone" xml:space="preserve">
+    <value>No teams with missing owners.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerInvalid" xml:space="preserve">
+    <value>Select a valid player first.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissing" xml:space="preserve">
+    <value>Replace Missing</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedMissing" xml:space="preserve">
+    <value>Replaced '{0}' with '{1}' in {2}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingDone" xml:space="preserve">
+    <value>Replaced {0} missing reference(s).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingNone" xml:space="preserve">
+    <value>No missing references to replace.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GenerateHighRes" xml:space="preserve">
+    <value>Generate High-Res Minimap</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedTitle" xml:space="preserve">
+    <value>Minimap Generated</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedMessage" xml:space="preserve">
+    <value>High-resolution minimap updated.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditMap" xml:space="preserve">
+    <value>Edit in WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditMap" xml:space="preserve">
+    <value>Open the selected .map file in WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionTitle" xml:space="preserve">
+    <value>No map files selected</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionMessage" xml:space="preserve">
+    <value>Select a .map file in the project tree first.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.EditIni" xml:space="preserve">
+    <value>Edit map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.Plugin.LoadError" xml:space="preserve">
+    <value>Error loading WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileNew" xml:space="preserve">
+    <value>New Map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileOpen" xml:space="preserve">
+    <value>Open Map...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSave" xml:space="preserve">
+    <value>Save Map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSaveAs" xml:space="preserve">
+    <value>Save Map As...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileClose" xml:space="preserve">
+    <value>Close Map</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeft" xml:space="preserve">
+    <value>Rotate Camera Left</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRight" xml:space="preserve">
+    <value>Rotate Camera Right</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUp" xml:space="preserve">
+    <value>Tilt Camera Up</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDown" xml:space="preserve">
+    <value>Tilt Camera Down</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.Reset" xml:space="preserve">
+    <value>Reset Camera</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeftTooltip" xml:space="preserve">
+    <value>Rotate Camera Left (Q)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRightTooltip" xml:space="preserve">
+    <value>Rotate Camera Right (E)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUpTooltip" xml:space="preserve">
+    <value>Tilt Camera Up (R / PgUp)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDownTooltip" xml:space="preserve">
+    <value>Tilt Camera Down (F / PgDn)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ResetTooltip" xml:space="preserve">
+    <value>Reset Camera (Home)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.PitchTooltip" xml:space="preserve">
+    <value>Camera Pitch</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.YawTooltip" xml:space="preserve">
+    <value>Camera Yaw</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ToggleLabelsTooltip" xml:space="preserve">
+    <value>Toggle All Object Labels</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.Title" xml:space="preserve">
+    <value>WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.DistanceMessage" xml:space="preserve">
+    <value>Distance: {0:F1} units</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Title" xml:space="preserve">
+    <value>3D view unavailable</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Message" xml:space="preserve">
+    <value>No usable OpenGL context was found, so the map is shown as a degraded 2D preview. 3D editing still works through the same tools.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.PlayerSideItem" xml:space="preserve">
+    <value>Player Side</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamItem" xml:space="preserve">
+    <value>Team</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ScriptPrefix" xml:space="preserve">
+    <value>Script:</value>
+  </data>
 </root>

@@ -1,6 +1,7 @@
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Tools.WorldBuilder;
 
 #pragma warning disable CS0618 // Type or member is obsolete
 
@@ -146,6 +147,12 @@ public class UserSettings
     /// Gets or sets the CSV catalog configuration.
     /// </summary>
     public CsvCatalogConfiguration? CsvCatalogConfiguration { get; set; }
+
+    /// <summary>
+    /// Gets or sets the WorldBuilder tool preferences (panel geometry,
+    /// tutorial hints, undo depth, picker search toggles).
+    /// </summary>
+    public WorldBuilderSettings WorldBuilder { get; set; } = new();
 
     /// <summary>Marks a property as explicitly set by the user.</summary>
     /// <param name="propertyName">The name of the property to mark as explicitly set.</param>
@@ -294,6 +301,7 @@ public class UserSettings
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
             ExecutedInstallationSteps = ExecutedInstallationSteps != null ? [.. ExecutedInstallationSteps] : [],
             CsvCatalogConfiguration = CsvCatalogConfiguration?.Clone() ?? new CsvCatalogConfiguration(),
+            WorldBuilder = WorldBuilder.Clone(),
             SkippedUpdateVersions = SkippedUpdateVersions != null ? new Dictionary<string, string>(SkippedUpdateVersions) : [],
             PreferredUpdateStrategy = PreferredUpdateStrategy,
             PublisherSubscriptions = PublisherSubscriptions != null

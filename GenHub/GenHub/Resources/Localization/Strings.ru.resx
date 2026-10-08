@@ -18135,4 +18135,1123 @@ Error: не удалось: {3}
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
   </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Name" xml:space="preserve">
+    <value>WorldBuilder</value>
+  </data>
+  <data name="Tools.Plugin.genhub.tools.worldbuilder.Description" xml:space="preserve">
+    <value>Создание, открытие, проверка и генерация карт Command &amp; Conquer: Generals и Zero Hour с поддержкой файлов .wak и предпросмотра .tga.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Coordinates" xml:space="preserve">
+    <value>Координаты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Title" xml:space="preserve">
+    <value>Игровой контент недоступен</value>
+  </data>
+  <data name="Tools.WorldBuilder.Content.NoInstallation.Message" xml:space="preserve">
+    <value>Установка игры не найдена, поэтому местность отображается без текстур. Добавьте установку, чтобы включить полный контент.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Links" xml:space="preserve">
+    <value>Связи путевых точек</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Add" xml:space="preserve">
+    <value>Добавить триггер зоны</value>
+  </data>
+  <data name="Tools.WorldBuilder.Triggers.Delete" xml:space="preserve">
+    <value>Удалить триггер</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Comment" xml:space="preserve">
+    <value>Комментарий</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Active" xml:space="preserve">
+    <value>Активен</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.OneShot" xml:space="preserve">
+    <value>Однократный</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Subroutine" xml:space="preserve">
+    <value>Подпрограмма</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Easy" xml:space="preserve">
+    <value>Легко</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Normal" xml:space="preserve">
+    <value>Нормально</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Hard" xml:space="preserve">
+    <value>Сложно</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReferenceDiagnostics" xml:space="preserve">
+    <value>Диагностика ссылок</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingObject" xml:space="preserve">
+    <value>{0}: отсутствует объект '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingTeam" xml:space="preserve">
+    <value>{0}: отсутствует команда '{1}'</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypoint" xml:space="preserve">
+    <value>{0}: отсутствует id точки пути {1}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MissingWaypointLink" xml:space="preserve">
+    <value>Связь путевой точки ссылается на отсутствующий id точки: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DefaultSideName" xml:space="preserve">
+    <value>Игрок</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Roads" xml:space="preserve">
+    <value>Дороги и мосты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Environment" xml:space="preserve">
+    <value>Окружение и освещение</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Teams" xml:space="preserve">
+    <value>Стороны и команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerRoads" xml:space="preserve">
+    <value>Дороги</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBridges" xml:space="preserve">
+    <value>Мосты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Road" xml:space="preserve">
+    <value>Инструмент дорог</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Bridge" xml:space="preserve">
+    <value>Инструмент мостов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ramp" xml:space="preserve">
+    <value>Инструмент пандусов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Border" xml:space="preserve">
+    <value>Инструмент границ</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaterArea" xml:space="preserve">
+    <value>Инструмент водной зоны</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.Title" xml:space="preserve">
+    <value>Дороги и мосты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.RoadType" xml:space="preserve">
+    <value>Тип дороги</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.AngledCorner" xml:space="preserve">
+    <value>Угловой поворот</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.TightCorner" xml:space="preserve">
+    <value>Крутой поворот</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.SegmentsTitle" xml:space="preserve">
+    <value>Сегменты дорог</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgesTitle" xml:space="preserve">
+    <value>Мосты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.BridgeTemplate" xml:space="preserve">
+    <value>Шаблон моста</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteSegment" xml:space="preserve">
+    <value>Удалить сегмент</value>
+  </data>
+  <data name="Tools.WorldBuilder.Roads.DeleteBridge" xml:space="preserve">
+    <value>Удалить мост</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Title" xml:space="preserve">
+    <value>Окружение и освещение</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeOfDay" xml:space="preserve">
+    <value>Время суток</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Weather" xml:space="preserve">
+    <value>Погода</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.WaterElevation" xml:space="preserve">
+    <value>Уровень воды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.Apply" xml:space="preserve">
+    <value>Применить окружение</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Title" xml:space="preserve">
+    <value>Стороны и команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SidesTitle" xml:space="preserve">
+    <value>Стороны игроков</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddSide" xml:space="preserve">
+    <value>Добавить сторону</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteSide" xml:space="preserve">
+    <value>Удалить сторону</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SkirmishTeamsTitle" xml:space="preserve">
+    <value>Команды боя</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.AddTeam" xml:space="preserve">
+    <value>Добавить команду</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.DeleteTeam" xml:space="preserve">
+    <value>Удалить команду</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamName" xml:space="preserve">
+    <value>Имя команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamOwner" xml:space="preserve">
+    <value>Владелец</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideDisplayName" xml:space="preserve">
+    <value>Отображаемое имя</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideIsHuman" xml:space="preserve">
+    <value>Игрок-человек</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideFaction" xml:space="preserve">
+    <value>Фракция</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeMorning" xml:space="preserve">
+    <value>Утро (1)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeAfternoon" xml:space="preserve">
+    <value>День (2)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeDusk" xml:space="preserve">
+    <value>Сумерки (3)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.TimeNight" xml:space="preserve">
+    <value>Ночь (4)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.SideNameWatermark" xml:space="preserve">
+    <value>Имя стороны...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamNameWatermark" xml:space="preserve">
+    <value>Имя команды...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.File" xml:space="preserve">
+    <value>Файл</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Edit" xml:space="preserve">
+    <value>Правка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.View" xml:space="preserve">
+    <value>Вид</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Tools" xml:space="preserve">
+    <value>Инструменты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Window" xml:space="preserve">
+    <value>Окно</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.Help" xml:space="preserve">
+    <value>Справка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Toggle3D" xml:space="preserve">
+    <value>3D-вид</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Wireframe" xml:space="preserve">
+    <value>Каркас</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ObjectProperties" xml:space="preserve">
+    <value>Свойства объекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ScriptEditor" xml:space="preserve">
+    <value>Редактор скриптов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Teams" xml:space="preserve">
+    <value>Команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Environment" xml:space="preserve">
+    <value>Окружение</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Minimap" xml:space="preserve">
+    <value>Миникарта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Layers" xml:space="preserve">
+    <value>Слои</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Title" xml:space="preserve">
+    <value>Свойства объекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.General" xml:space="preserve">
+    <value>Общие</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Logical" xml:space="preserve">
+    <value>Логика</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Visual" xml:space="preserve">
+    <value>Внешний вид</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Sound" xml:space="preserve">
+    <value>Звук</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Health" xml:space="preserve">
+    <value>Здоровье %</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Aggressiveness" xml:space="preserve">
+    <value>Агрессивность</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Veterancy" xml:space="preserve">
+    <value>Опыт</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Enabled" xml:space="preserve">
+    <value>Включено</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Indestructible" xml:space="preserve">
+    <value>Неуязвимый</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Selectable" xml:space="preserve">
+    <value>Выделяемый</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Apply" xml:space="preserve">
+    <value>Применить</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Duplicate" xml:space="preserve">
+    <value>Дублировать</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Position" xml:space="preserve">
+    <value>Позиция</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Angle" xml:space="preserve">
+    <value>Угол</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.HitPoints" xml:space="preserve">
+    <value>Макс. прочности</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Unsellable" xml:space="preserve">
+    <value>Непродаваемый</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Targetable" xml:space="preserve">
+    <value>Может быть целью</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.RecruitableAI" xml:space="preserve">
+    <value>Доступен ИИ</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Powered" xml:space="preserve">
+    <value>Запитан</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Distance" xml:space="preserve">
+    <value>Дистанция</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.StoppingDistance" xml:space="preserve">
+    <value>Дистанция остановки</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VisionDistance" xml:space="preserve">
+    <value>Дальность обзора</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ShroudClearingDistance" xml:space="preserve">
+    <value>Разведка тумана</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Weather" xml:space="preserve">
+    <value>Погода</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Time" xml:space="preserve">
+    <value>Время</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Scale" xml:space="preserve">
+    <value>Масштаб</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ScaleEnabled" xml:space="preserve">
+    <value>Свой масштаб</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.ReflectsInMirror" xml:space="preserve">
+    <value>Отражается в зеркале</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundCustomize" xml:space="preserve">
+    <value>Настроить звук</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundEnabled" xml:space="preserve">
+    <value>Звук включён</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLooping" xml:space="preserve">
+    <value>Зациклить</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundLoopCount" xml:space="preserve">
+    <value>Число повторов</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundPriority" xml:space="preserve">
+    <value>Приоритет</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundVolume" xml:space="preserve">
+    <value>Громкость</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinVolume" xml:space="preserve">
+    <value>Мин. громкость</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMinRange" xml:space="preserve">
+    <value>Мин. радиус</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.SoundMaxRange" xml:space="preserve">
+    <value>Макс. радиус</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.Upgrades" xml:space="preserve">
+    <value>Встроенные улучшения</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunPitch" xml:space="preserve">
+    <value>Наклон солнца</value>
+  </data>
+  <data name="Tools.WorldBuilder.Environment.SunYaw" xml:space="preserve">
+    <value>Азимут солнца</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterActive" xml:space="preserve">
+    <value>Активные</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterInactive" xml:space="preserve">
+    <value>Неактивные</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterWarnings" xml:space="preserve">
+    <value>Предупреждения</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Copy" xml:space="preserve">
+    <value>Копировать</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Paste" xml:space="preserve">
+    <value>Вставить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Common.Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Roads" xml:space="preserve">
+    <value>Дороги и мосты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MapInfo" xml:space="preserve">
+    <value>Сведения о карте</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FilterAll" xml:space="preserve">
+    <value>Все</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessPassive" xml:space="preserve">
+    <value>Пассивный</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessNormal" xml:space="preserve">
+    <value>Обычный</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.AggressivenessAggressive" xml:space="preserve">
+    <value>Агрессивный</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyRegular" xml:space="preserve">
+    <value>Обычный</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyVeteran" xml:space="preserve">
+    <value>Ветеран</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyElite" xml:space="preserve">
+    <value>Элита</value>
+  </data>
+  <data name="Tools.WorldBuilder.ObjectProps.VeterancyHeroic" xml:space="preserve">
+    <value>Героический</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.MenuTooltip" xml:space="preserve">
+    <value>Меню действий с картой</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Generate" xml:space="preserve">
+    <value>Создать</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.GenerateTooltip" xml:space="preserve">
+    <value>Создать новую карту по зерну и размерам</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Open" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenTooltip" xml:space="preserve">
+    <value>Открыть файл карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveTooltip" xml:space="preserve">
+    <value>Сохранить открытую карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.SaveAs" xml:space="preserve">
+    <value>Сохранить как</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Close" xml:space="preserve">
+    <value>Закрыть</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.Validate" xml:space="preserve">
+    <value>Проверить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ValidateTooltip" xml:space="preserve">
+    <value>Проверить открытую карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.TidyIni" xml:space="preserve">
+    <value>Привести map.ini в порядок</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportTeams" xml:space="preserve">
+    <value>Импорт команд</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ExportTeams" xml:space="preserve">
+    <value>Экспорт команд</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.NewProject" xml:space="preserve">
+    <value>Новый проект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.OpenProject" xml:space="preserve">
+    <value>Открыть проект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.ImportGameData" xml:space="preserve">
+    <value>Импорт игровых данных</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.LaunchNative" xml:space="preserve">
+    <value>Запустить оригинальный редактор</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.OpenTitle" xml:space="preserve">
+    <value>Открыть карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.SaveTitle" xml:space="preserve">
+    <value>Сохранить карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.FileDialog.FilterName" xml:space="preserve">
+    <value>Файлы карт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureTitle" xml:space="preserve">
+    <value>Ошибка открытия</value>
+  </data>
+  <data name="Tools.WorldBuilder.Open.FailureMessage" xml:space="preserve">
+    <value>Не удалось открыть карту: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureTitle" xml:space="preserve">
+    <value>Ошибка сохранения</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.FailureMessage" xml:space="preserve">
+    <value>Не удалось сохранить карту: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessTitle" xml:space="preserve">
+    <value>Карта сохранена</value>
+  </data>
+  <data name="Tools.WorldBuilder.Save.SuccessMessage" xml:space="preserve">
+    <value>Сохранено: {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Title" xml:space="preserve">
+    <value>Создание новой карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Seed" xml:space="preserve">
+    <value>Зерно</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Width" xml:space="preserve">
+    <value>Ширина</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Height" xml:space="preserve">
+    <value>Высота</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Players" xml:space="preserve">
+    <value>Игроки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.Run" xml:space="preserve">
+    <value>Создать карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureTitle" xml:space="preserve">
+    <value>Ошибка создания</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.FailureMessage" xml:space="preserve">
+    <value>Не удалось создать карту: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessTitle" xml:space="preserve">
+    <value>Карта создана</value>
+  </data>
+  <data name="Tools.WorldBuilder.Generate.SuccessMessage" xml:space="preserve">
+    <value>Создана карта {0}x{1} для {2} игроков.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidTitle" xml:space="preserve">
+    <value>Карта корректна</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.ValidMessage" xml:space="preserve">
+    <value>Ошибок проверки не найдено.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesTitle" xml:space="preserve">
+    <value>Проблемы проверки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validate.IssuesMessage" xml:space="preserve">
+    <value>Ошибок: {0}, предупреждений: {1}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Title" xml:space="preserve">
+    <value>Несохранённые изменения</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Message" xml:space="preserve">
+    <value>Открытая карта содержит несохранённые изменения. Отменить их?</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Discard" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Tools.WorldBuilder.UnsavedChanges.Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentTitle" xml:space="preserve">
+    <value>Нет открытой карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.NoDocumentMessage" xml:space="preserve">
+    <value>Откройте карту, прежде чем приводить в порядок её map.ini.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingTitle" xml:space="preserve">
+    <value>Файл map.ini не найден</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.MissingMessage" xml:space="preserve">
+    <value>Файл {0} отсутствует рядом с открытой картой.</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanTitle" xml:space="preserve">
+    <value>Файл map.ini в порядке</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.CleanMessage" xml:space="preserve">
+    <value>Изменения не требуются (предупреждений: {0}).</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureTitle" xml:space="preserve">
+    <value>Ошибка упорядочивания</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.FailureMessage" xml:space="preserve">
+    <value>Не удалось записать map.ini: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessTitle" xml:space="preserve">
+    <value>Файл map.ini упорядочен</value>
+  </data>
+  <data name="Tools.WorldBuilder.MapIni.SuccessMessage" xml:space="preserve">
+    <value>Файл map.ini перезаписан (предупреждений: {0}).</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportTitle" xml:space="preserve">
+    <value>Импорт команд</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportTitle" xml:space="preserve">
+    <value>Экспорт команд</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.FilterName" xml:space="preserve">
+    <value>Файлы обмена командами</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureTitle" xml:space="preserve">
+    <value>Ошибка импорта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportFailureMessage" xml:space="preserve">
+    <value>Не удалось импортировать команды: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessTitle" xml:space="preserve">
+    <value>Команды импортированы</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ImportSuccessMessage" xml:space="preserve">
+    <value>Импортировано команд: {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureTitle" xml:space="preserve">
+    <value>Ошибка экспорта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportFailureMessage" xml:space="preserve">
+    <value>Не удалось экспортировать команды: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledTitle" xml:space="preserve">
+    <value>Экспорт отменён</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportCancelledMessage" xml:space="preserve">
+    <value>Карта была закрыта или заменена; команды не экспортированы.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessTitle" xml:space="preserve">
+    <value>Команды экспортированы</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.ExportSuccessMessage" xml:space="preserve">
+    <value>Экспортировано команд: {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Title" xml:space="preserve">
+    <value>Проект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.New" xml:space="preserve">
+    <value>Новый</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.Open" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportGameData" xml:space="preserve">
+    <value>Импорт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NewTitle" xml:space="preserve">
+    <value>Выберите папку для нового проекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenTitle" xml:space="preserve">
+    <value>Выберите папку проекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportTitle" xml:space="preserve">
+    <value>Выберите папку с игровыми данными</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureTitle" xml:space="preserve">
+    <value>Ошибка проекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.FailureMessage" xml:space="preserve">
+    <value>Операция с проектом не удалась: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedTitle" xml:space="preserve">
+    <value>Проект создан</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.CreatedMessage" xml:space="preserve">
+    <value>Создан проект {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedTitle" xml:space="preserve">
+    <value>Проект открыт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.OpenedMessage" xml:space="preserve">
+    <value>Открыт проект {0}, карт: {1}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectTitle" xml:space="preserve">
+    <value>Нет открытого проекта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.NoProjectMessage" xml:space="preserve">
+    <value>Создайте или откройте проект перед импортом игровых данных.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedTitle" xml:space="preserve">
+    <value>Игровые данные импортированы</value>
+  </data>
+  <data name="Tools.WorldBuilder.Project.ImportedMessage" xml:space="preserve">
+    <value>Импортировано файлов карт: {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Title" xml:space="preserve">
+    <value>Оригинальный редактор</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Hint" xml:space="preserve">
+    <value>Запуск оригинального WorldBuilder для Windows через Wine из папки установленной игры.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.Launch" xml:space="preserve">
+    <value>Запустить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.GameFolderTitle" xml:space="preserve">
+    <value>Выберите папку установленной игры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundTitle" xml:space="preserve">
+    <value>Редактор не найден</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.NotFoundMessage" xml:space="preserve">
+    <value>Оригинальный WorldBuilder не найден: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureTitle" xml:space="preserve">
+    <value>Ошибка запуска</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.FailureMessage" xml:space="preserve">
+    <value>Не удалось запустить редактор: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessTitle" xml:space="preserve">
+    <value>Редактор запущен</value>
+  </data>
+  <data name="Tools.WorldBuilder.Native.SuccessMessage" xml:space="preserve">
+    <value>Оригинальный редактор запускается.</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Title" xml:space="preserve">
+    <value>Нет открытой карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.EmptyState.Message" xml:space="preserve">
+    <value>Откройте файл .map или создайте новое поле боя, чтобы увидеть сводку, предпросмотр и проверку.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameLabel" xml:space="preserve">
+    <value>Название карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Document.NameWatermark" xml:space="preserve">
+    <value>Введите отображаемое название карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Title" xml:space="preserve">
+    <value>Сводка карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Dimensions" xml:space="preserve">
+    <value>Размеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Sides" xml:space="preserve">
+    <value>Стороны</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Objects" xml:space="preserve">
+    <value>Объекты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Teams" xml:space="preserve">
+    <value>Команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Triggers" xml:space="preserve">
+    <value>Триггеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Scripts" xml:space="preserve">
+    <value>Списки скриптов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waypoints" xml:space="preserve">
+    <value>Связи путевых точек</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.Waves" xml:space="preserve">
+    <value>Волновые дорожки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.WorldCash" xml:space="preserve">
+    <value>Мировые средства</value>
+  </data>
+  <data name="Tools.WorldBuilder.Summary.MapName" xml:space="preserve">
+    <value>Внутреннее имя</value>
+  </data>
+  <data name="Tools.WorldBuilder.Validation.Title" xml:space="preserve">
+    <value>Проверка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Canvas" xml:space="preserve">
+    <value>Холст и область просмотра</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Objects" xml:space="preserve">
+    <value>Объекты и путевые точки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Scripts" xml:space="preserve">
+    <value>Скрипты и триггеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tabs.Summary" xml:space="preserve">
+    <value>Сводка и проверка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushRadius" xml:space="preserve">
+    <value>Радиус кисти</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushIntensity" xml:space="preserve">
+    <value>Интенсивность</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.BrushHeight" xml:space="preserve">
+    <value>Высота плато</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomIn" xml:space="preserve">
+    <value>Приблизить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomOut" xml:space="preserve">
+    <value>Отдалить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.ZoomFit" xml:space="preserve">
+    <value>По размеру окна</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Undo" xml:space="preserve">
+    <value>Отменить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Redo" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.Layers" xml:space="preserve">
+    <value>Слои</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTerrain" xml:space="preserve">
+    <value>Рельеф</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWater" xml:space="preserve">
+    <value>Вода</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerCliffs" xml:space="preserve">
+    <value>Скалы</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBlend" xml:space="preserve">
+    <value>Смешивания</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerGrid" xml:space="preserve">
+    <value>Сетка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerObjects" xml:space="preserve">
+    <value>Объекты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerWaypoints" xml:space="preserve">
+    <value>Путевые точки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerTriggers" xml:space="preserve">
+    <value>Триггеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Canvas.LayerBoundary" xml:space="preserve">
+    <value>Граница</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Pointer" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundUp" xml:space="preserve">
+    <value>Поднять</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.MoundDown" xml:space="preserve">
+    <value>Опустить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Smooth" xml:space="preserve">
+    <value>Сгладить</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Plateau" xml:space="preserve">
+    <value>Плато</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.TilePaint" xml:space="preserve">
+    <value>Рисовать плитку</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Eyedropper" xml:space="preserve">
+    <value>Пипетка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Waypoint" xml:space="preserve">
+    <value>Добавить точку</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.WaypointLink" xml:space="preserve">
+    <value>Соединить точки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectPlace" xml:space="preserve">
+    <value>Разместить объект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.ObjectErase" xml:space="preserve">
+    <value>Удалить объект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Trigger" xml:space="preserve">
+    <value>Нарисовать триггер</value>
+  </data>
+  <data name="Tools.WorldBuilder.Tools.Ruler" xml:space="preserve">
+    <value>Линейка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Title" xml:space="preserve">
+    <value>Объекты карты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Add" xml:space="preserve">
+    <value>Добавить объект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Delete" xml:space="preserve">
+    <value>Удалить объект</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Template" xml:space="preserve">
+    <value>Шаблон</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.Name" xml:space="preserve">
+    <value>Имя</value>
+  </data>
+  <data name="Tools.WorldBuilder.Objects.FilterWatermark" xml:space="preserve">
+    <value>Фильтр объектов...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Title" xml:space="preserve">
+    <value>Путевые точки и старты игроков</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddWaypoint" xml:space="preserve">
+    <value>Новая точка</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.AddPlayerStart" xml:space="preserve">
+    <value>Добавить старт игрока</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Delete" xml:space="preserve">
+    <value>Удалить точку</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Link" xml:space="preserve">
+    <value>Связать выбранные</value>
+  </data>
+  <data name="Tools.WorldBuilder.Waypoints.Unlink" xml:space="preserve">
+    <value>Отвязать выбранные</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Title" xml:space="preserve">
+    <value>Группы скриптов и триггеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.SearchWatermark" xml:space="preserve">
+    <value>Фильтр скриптов...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddGroup" xml:space="preserve">
+    <value>Новая группа</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddScript" xml:space="preserve">
+    <value>Новый скрипт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Duplicate" xml:space="preserve">
+    <value>Дублировать скрипт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Delete" xml:space="preserve">
+    <value>Удалить скрипт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Conditions" xml:space="preserve">
+    <value>Условия (ЕСЛИ)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Actions" xml:space="preserve">
+    <value>Действия (ТО / ИНАЧЕ)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddCondition" xml:space="preserve">
+    <value>Добавить условие</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteCondition" xml:space="preserve">
+    <value>Удалить условие</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.AddAction" xml:space="preserve">
+    <value>Добавить действие</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.DeleteAction" xml:space="preserve">
+    <value>Удалить действие</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferences" xml:space="preserve">
+    <value>Проверить ссылки</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoBrokenReferences" xml:space="preserve">
+    <value>Все ссылки в скриптах действительны.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.BrokenReferencesFound" xml:space="preserve">
+    <value>Найдено {0} недействительных ссылок.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.Rename" xml:space="preserve">
+    <value>Переименовать</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.RenameWatermark" xml:space="preserve">
+    <value>Новое имя скрипта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAll" xml:space="preserve">
+    <value>Очистить всё</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllTitle" xml:space="preserve">
+    <value>Очистить все скрипты</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllMessage" xml:space="preserve">
+    <value>Удалить {0} скриптов и {1} папок у всех сторон? Это можно отменить.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllEmpty" xml:space="preserve">
+    <value>Нет скриптов для очистки.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ClearAllDone" xml:space="preserve">
+    <value>Очищено {0} скриптов и {1} папок.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceAll" xml:space="preserve">
+    <value>Заменить всё</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedCount" xml:space="preserve">
+    <value>Заменено {0} значений параметров.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoMatches" xml:space="preserve">
+    <value>Совпадающих значений параметров не найдено.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FindWatermark" xml:space="preserve">
+    <value>Найти значение</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceWatermark" xml:space="preserve">
+    <value>Заменить на</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.MatchCase" xml:space="preserve">
+    <value>Учитывать регистр</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.CurrentScriptOnly" xml:space="preserve">
+    <value>Только текущий скрипт</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.NoDocument" xml:space="preserve">
+    <value>Карта не открыта.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportScripts" xml:space="preserve">
+    <value>Экспорт скриптов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportDone" xml:space="preserve">
+    <value>Экспортировано {0} скриптов.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ExportFailed" xml:space="preserve">
+    <value>Не удалось экспортировать скрипты: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportScripts" xml:space="preserve">
+    <value>Импорт скриптов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportDone" xml:space="preserve">
+    <value>Импортировано {0} скриптов.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportFailed" xml:space="preserve">
+    <value>Не удалось импортировать скрипты: {0}</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ImportEmpty" xml:space="preserve">
+    <value>Файл скриптов не содержит данных.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FileFilterName" xml:space="preserve">
+    <value>Скрипты WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwner" xml:space="preserve">
+    <value>Исправить владельца команды</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerDone" xml:space="preserve">
+    <value>Переназначено команд: {0} владельцу '{1}'.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerNone" xml:space="preserve">
+    <value>Нет команд с отсутствующими владельцами.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.FixTeamOwnerInvalid" xml:space="preserve">
+    <value>Сначала выберите допустимого игрока.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissing" xml:space="preserve">
+    <value>Заменить отсутствующие</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplacedMissing" xml:space="preserve">
+    <value>'{0}' заменено на '{1}' в {2}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingDone" xml:space="preserve">
+    <value>Заменено отсутствующих ссылок: {0}.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ReplaceMissingNone" xml:space="preserve">
+    <value>Нет отсутствующих ссылок для замены.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GenerateHighRes" xml:space="preserve">
+    <value>Сгенерировать миникарту высокой четкости</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedTitle" xml:space="preserve">
+    <value>Миникарта создана</value>
+  </data>
+  <data name="Tools.WorldBuilder.Minimap.GeneratedMessage" xml:space="preserve">
+    <value>Миникарта высокой четкости обновлена.</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.ButtonEditMap" xml:space="preserve">
+    <value>Открыть в WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.FileManager.TooltipEditMap" xml:space="preserve">
+    <value>Открыть выбранный файл .map в WorldBuilder</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionTitle" xml:space="preserve">
+    <value>Файлы карт не выбраны</value>
+  </data>
+  <data name="Tools.ModBuilder.Map.NoSelectionMessage" xml:space="preserve">
+    <value>Сначала выберите файл .map в дереве проекта.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Toolbar.EditIni" xml:space="preserve">
+    <value>Открыть map.ini</value>
+  </data>
+  <data name="Tools.WorldBuilder.Plugin.LoadError" xml:space="preserve">
+    <value>Ошибка загрузки WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileNew" xml:space="preserve">
+    <value>Новая карта</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileOpen" xml:space="preserve">
+    <value>Открыть карту...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSave" xml:space="preserve">
+    <value>Сохранить карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileSaveAs" xml:space="preserve">
+    <value>Сохранить карту как...</value>
+  </data>
+  <data name="Tools.WorldBuilder.Menu.FileClose" xml:space="preserve">
+    <value>Закрыть карту</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeft" xml:space="preserve">
+    <value>Поворот камеры влево</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRight" xml:space="preserve">
+    <value>Поворот камеры вправо</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUp" xml:space="preserve">
+    <value>Наклон камеры вверх</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDown" xml:space="preserve">
+    <value>Наклон камеры вниз</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.Reset" xml:space="preserve">
+    <value>Сброс камеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateLeftTooltip" xml:space="preserve">
+    <value>Поворот камеры влево (Q)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.RotateRightTooltip" xml:space="preserve">
+    <value>Поворот камеры вправо (E)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltUpTooltip" xml:space="preserve">
+    <value>Наклон камеры вверх (R / PgUp)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.TiltDownTooltip" xml:space="preserve">
+    <value>Наклон камеры вниз (F / PgDn)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ResetTooltip" xml:space="preserve">
+    <value>Сброс камеры (Home)</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.PitchTooltip" xml:space="preserve">
+    <value>Угол наклона камеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.YawTooltip" xml:space="preserve">
+    <value>Угол поворота камеры</value>
+  </data>
+  <data name="Tools.WorldBuilder.Camera.ToggleLabelsTooltip" xml:space="preserve">
+    <value>Переключить подписи объектов</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.Title" xml:space="preserve">
+    <value>WorldBuilder</value>
+  </data>
+  <data name="Tools.WorldBuilder.Ruler.DistanceMessage" xml:space="preserve">
+    <value>Расстояние: {0:F1} ед.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Title" xml:space="preserve">
+    <value>Трёхмерный вид недоступен</value>
+  </data>
+  <data name="Tools.WorldBuilder.Renderer.Fallback.Message" xml:space="preserve">
+    <value>Не найден пригодный контекст OpenGL, поэтому карта показана в виде упрощённого 2D-предпросмотра. Трёхмерное редактирование доступно через те же инструменты.</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.PlayerSideItem" xml:space="preserve">
+    <value>Сторона игрока</value>
+  </data>
+  <data name="Tools.WorldBuilder.Teams.TeamItem" xml:space="preserve">
+    <value>Команда</value>
+  </data>
+  <data name="Tools.WorldBuilder.Scripts.ScriptPrefix" xml:space="preserve">
+    <value>Скрипт:</value>
+  </data>
 </root>
