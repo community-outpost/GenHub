@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Helpers;
@@ -129,7 +130,10 @@ public static partial class CloudUrlHelper
     {
         ArgumentNullException.ThrowIfNull(uri);
 
-        if (!uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeHttps || HasQueryParam(uri.Query, "confirm"))
+        if (!uri.IsAbsoluteUri ||
+            uri.Scheme != Uri.UriSchemeHttps ||
+            HasQueryParam(uri.Query, "confirm") ||
+            !HasExportDownloadParam(uri.Query))
         {
             return uri;
         }
@@ -140,19 +144,29 @@ public static partial class CloudUrlHelper
             return uri;
         }
 
-        var confirmed = string.Format(
+        var confirmedBuilder = new StringBuilder(string.Format(
             CultureInfo.InvariantCulture,
             HostingConstants.GoogleDriveConfirmedDownloadUrlTemplate,
-            Uri.EscapeDataString(fileId));
+            Uri.EscapeDataString(fileId)));
 
-        // Older shared links require their resource key to be forwarded with the download.
-        var resourceKey = GetQueryParam(uri.Query, "resourcekey");
-        if (!string.IsNullOrEmpty(resourceKey))
+        // Forward any additional parameters (e.g. resourcekey, uuid, authuser) verbatim.
+        var query = uri.Query.TrimStart('?');
+        if (!string.IsNullOrEmpty(query))
         {
-            confirmed += $"&resourcekey={Uri.EscapeDataString(resourceKey)}";
+            foreach (var segment in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = segment.Split('=', 2);
+                var key = parts[0];
+                if (!key.Equals("id", StringComparison.OrdinalIgnoreCase) &&
+                    !key.Equals("export", StringComparison.OrdinalIgnoreCase) &&
+                    !key.Equals("confirm", StringComparison.OrdinalIgnoreCase))
+                {
+                    confirmedBuilder.Append('&').Append(segment);
+                }
+            }
         }
 
-        return new Uri(confirmed);
+        return new Uri(confirmedBuilder.ToString());
     }
 
     private static string? TryGetGoogleDriveDownloadFileId(Uri uri)
@@ -176,7 +190,7 @@ public static partial class CloudUrlHelper
 
     private static bool HasQueryParam(string query, string name) => GetQueryParam(query, name) != null;
 
-    private static string? GetQueryParam(string query, string name)
+    private static string? GetQueryParam(string? query, string name)
     {
         if (string.IsNullOrEmpty(query))
         {
@@ -231,26 +245,9 @@ public static partial class CloudUrlHelper
             : null;
     }
 
-    private static bool HasExportDownloadParam(string query)
+    private static bool HasExportDownloadParam(string? query)
     {
-        if (string.IsNullOrEmpty(query))
-        {
-            return false;
-        }
-
-        var trimmed = query.TrimStart('?');
-        foreach (var segment in trimmed.Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var parts = segment.Split('=', 2);
-            if (parts.Length == 2 &&
-                parts[0].Equals("export", StringComparison.OrdinalIgnoreCase) &&
-                parts[1].Equals("download", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return string.Equals(GetQueryParam(query, "export"), "download", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? TryExtractFromFormAction(string html, Uri? requestUri)

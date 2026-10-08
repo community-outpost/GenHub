@@ -38,7 +38,8 @@ public class DownloadService(
         bool IsResumed,
         long ExistingBytes,
         long TotalBytes,
-        long? ExpectedContentBytes = null);
+        long? ExpectedContentBytes = null,
+        TimeSpan ResponseLatency = default);
 
     private sealed record ParallelDownloadContext(
         DownloadConfiguration Configuration,
@@ -743,9 +744,7 @@ public class DownloadService(
         cts.CancelAfter(configuration.Timeout);
         var validator = urlValidator ?? new DownloadUrlValidator();
 
-        var connectStopwatch = Stopwatch.StartNew();
         var connection = await EstablishDownloadConnectionAsync(configuration, validator, existingBytes, cts);
-        connectStopwatch.Stop();
 
         if (progress != null && connection.TotalBytes > 0)
         {
@@ -760,7 +759,7 @@ public class DownloadService(
         }
 
         if (CanUseParallelDownload(configuration, connection) &&
-            IsResponseLatencyAcceptableForParallel(configuration, connectStopwatch.Elapsed))
+            IsResponseLatencyAcceptableForParallel(configuration, connection.ResponseLatency))
         {
             var parallelContext = new ParallelDownloadContext(
                 configuration,
@@ -855,7 +854,9 @@ public class DownloadService(
             TryDeleteFile($"{configuration.DestinationPath}.etag");
         }
 
+        var latencyStopwatch = Stopwatch.StartNew();
         var response = await SendRequestAsync(configuration, validator, 0, cts.Token);
+        latencyStopwatch.Stop();
         try
         {
             if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentRange != null)
@@ -869,7 +870,7 @@ public class DownloadService(
 
             ValidateResponseContentType(response, configuration.DestinationPath);
             var totalBytes = response.Content.Headers.ContentLength ?? 0;
-            return new DownloadConnection(response, false, 0, totalBytes);
+            return new DownloadConnection(response, false, 0, totalBytes, null, latencyStopwatch.Elapsed);
         }
         catch
         {
@@ -881,7 +882,8 @@ public class DownloadService(
     private DownloadConnection? HandlePartialContentResponse(
         HttpResponseMessage response,
         DownloadConfiguration configuration,
-        long existingBytes)
+        long existingBytes,
+        TimeSpan responseLatency = default)
     {
         var contentRange = response.Content.Headers.ContentRange;
         if (contentRange?.From == existingBytes &&
@@ -889,7 +891,7 @@ public class DownloadService(
         {
             ValidateResponseContentType(response, configuration.DestinationPath);
             var (totalBytes, expectedContentBytes) = ValidateAndCalculateRangeBytes(contentRange, response, existingBytes);
-            return new DownloadConnection(response, true, existingBytes, totalBytes, expectedContentBytes);
+            return new DownloadConnection(response, true, existingBytes, totalBytes, expectedContentBytes, responseLatency);
         }
 
         logger.LogWarning("Range {Range} mismatch on {Url}; expected {Expected}. Restarting download.", contentRange?.From, configuration.Url, existingBytes);
@@ -902,12 +904,14 @@ public class DownloadService(
         long existingBytes,
         CancellationTokenSource cts)
     {
+        var latencyStopwatch = Stopwatch.StartNew();
         var response = await SendRequestAsync(configuration, validator, existingBytes, cts.Token);
+        latencyStopwatch.Stop();
         try
         {
             if (response.StatusCode == HttpStatusCode.PartialContent)
             {
-                var partial = HandlePartialContentResponse(response, configuration, existingBytes);
+                var partial = HandlePartialContentResponse(response, configuration, existingBytes, latencyStopwatch.Elapsed);
                 if (partial != null)
                 {
                     return partial;
@@ -924,7 +928,7 @@ public class DownloadService(
                 TryDeleteFile($"{configuration.DestinationPath}.etag");
                 ValidateResponseContentType(response, configuration.DestinationPath);
                 var totalBytes = response.Content.Headers.ContentLength ?? 0;
-                return new DownloadConnection(response, false, 0, totalBytes);
+                return new DownloadConnection(response, false, 0, totalBytes, null, latencyStopwatch.Elapsed);
             }
             else
             {
@@ -1004,7 +1008,7 @@ public class DownloadService(
         // Every chunk is a separate request that pays the same latency, so parallel mode would
         // stall in waves and make progress jump. Stream the already-open response instead.
         logger.LogInformation(
-            "Server for {Url} took {LatencyMs:N0} ms to respond; streaming sequentially instead of parallel chunks",
+            "Initial response for {Url} took {LatencyMs:N0} ms; streaming sequentially instead of parallel chunks",
             configuration.Url,
             responseLatency.TotalMilliseconds);
         return false;
