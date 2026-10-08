@@ -435,15 +435,17 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         if (entry.Mirrors != null && (
-            entry.Mirrors.Contains(primaryCatalogUrl, StringComparer.OrdinalIgnoreCase) ||
-            (primaryEntry != null && !string.IsNullOrWhiteSpace(primaryEntry.Url) && entry.Mirrors.Contains(primaryEntry.Url, StringComparer.OrdinalIgnoreCase))))
+            entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, primaryCatalogUrl, StringComparison.OrdinalIgnoreCase)) ||
+            (primaryEntry != null && !string.IsNullOrWhiteSpace(primaryEntry.Url) &&
+             entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, primaryEntry.Url, StringComparison.OrdinalIgnoreCase)))))
         {
             return true;
         }
 
         if (primaryEntry?.Mirrors != null && (
-            primaryEntry.Mirrors.Contains(entry.Url, StringComparer.OrdinalIgnoreCase) ||
-            (entry.Mirrors != null && entry.Mirrors.Any(m => primaryEntry.Mirrors.Contains(m, StringComparer.OrdinalIgnoreCase)))))
+            primaryEntry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, entry.Url, StringComparison.OrdinalIgnoreCase)) ||
+            (entry.Mirrors != null && entry.Mirrors.Any(m => !string.IsNullOrWhiteSpace(m) &&
+                primaryEntry.Mirrors.Any(pm => !string.IsNullOrWhiteSpace(pm) && string.Equals(pm, m, StringComparison.OrdinalIgnoreCase))))))
         {
             return true;
         }
