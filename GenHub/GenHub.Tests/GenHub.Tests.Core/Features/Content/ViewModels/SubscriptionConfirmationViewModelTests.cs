@@ -4,6 +4,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -19,20 +20,24 @@ namespace GenHub.Tests.Core.Features.Content.ViewModels;
 /// <summary>
 /// Unit tests for <see cref="SubscriptionConfirmationViewModel"/>.
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 {
+    private readonly bool _previousAllowUnresolvableDns;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SubscriptionConfirmationViewModelTests"/> class.
     /// </summary>
     public SubscriptionConfirmationViewModelTests()
     {
+        _previousAllowUnresolvableDns = CatalogDocumentReader.AllowUnresolvableDnsForTesting;
         CatalogDocumentReader.AllowUnresolvableDnsForTesting = true;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        CatalogDocumentReader.AllowUnresolvableDnsForTesting = false;
+        CatalogDocumentReader.AllowUnresolvableDnsForTesting = _previousAllowUnresolvableDns;
     }
 
     private readonly Mock<IPublisherSubscriptionStore> _subscriptionStore = new();
@@ -155,7 +160,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
         // Assert
         Assert.True(closeResult);
-        _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.Is<PublisherSubscription>(sub => sub.PublisherId == "new-pub"), It.IsAny<CancellationToken>()), Times.Once);
+        _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.Is<PublisherSubscription>(sub => sub.PublisherId == "new-pub" && sub.SelectedCatalogId == null), It.IsAny<CancellationToken>()), Times.Once);
         _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -410,6 +415,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("multi-pub", savedSubscription.PublisherId);
         Assert.Equal(mapsUrl, savedSubscription.CatalogUrl);
         Assert.Equal(definitionUrl, savedSubscription.DefinitionUrl);
+        Assert.Equal("maps", savedSubscription.SelectedCatalogId);
         _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -564,7 +570,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
     /// <summary>
     /// Verifies that when a candidate catalog throws an InvalidDataException (e.g. oversized content),
-    /// TryResolveDefinitionFromPayloadAsync catches it and falls back to subsequent candidate catalogs.
+    /// TryResolveDefinitionFromPayloadAsync catches it and falls back to subsequent candidate catalog mirrors.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -582,12 +588,8 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
                     {
                         "id": "cat-oversized",
                         "name": "Oversized Catalog",
-                        "url": "https://example.com/oversized.json"
-                    },
-                    {
-                        "id": "cat-valid",
-                        "name": "Valid Catalog",
-                        "url": "https://example.com/valid.json"
+                        "url": "https://example.com/oversized.json",
+                        "mirrors": ["https://example.com/valid.json"]
                     }
                 ]
             }
@@ -642,6 +644,760 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         // Assert
         Assert.Null(vm.ErrorMessage);
         Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that when the primary catalog endpoint is unavailable, the dialog does not silently
+    /// fall back to a sibling catalog for the preview.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryCatalogFails_DoesNotFallBackToSiblingCatalogAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string primaryCatalogUrl = "https://example.com/primary-404.json";
+        const string siblingCatalogUrl = "https://example.com/sibling.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    {
+                        "id": "primary-cat",
+                        "name": "Primary Catalog",
+                        "url": "https://example.com/primary-404.json"
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://example.com/sibling.json"
+                    }
+                ]
+            }
+            """;
+
+        var siblingCatalog = CreateSampleCatalog("sibling-pub", "Sibling Catalog Content");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("sibling-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(siblingCatalog));
+
+        using var httpClient = new HttpClient(new CustomDelegateHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (uri == definitionUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent(definitionJson),
+                };
+            }
+
+            if (uri == primaryCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+            }
+
+            if (uri == siblingCatalogUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("sibling-content"),
+                };
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: Dialog does not silently load sibling catalog as preview
+        Assert.False(vm.IsCatalogLoaded);
+        Assert.NotNull(vm.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that when a definition has a null catalog entry, initialization does not throw
+    /// NullReferenceException and successfully parses valid entries.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_DefinitionWithNullCatalogEntry_DoesNotThrowNullReferenceExceptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string validCatalogUrl = "https://example.com/valid.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "my-pub", "name": "My Publisher" },
+                "catalogs": [
+                    null,
+                    {
+                        "id": "valid-cat",
+                        "name": "Valid Catalog",
+                        "url": "https://example.com/valid.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("my-pub", "My Publisher");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("valid-catalog-content", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [validCatalogUrl] = "valid-catalog-content",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Null(vm.ErrorMessage);
+        Assert.True(vm.IsCatalogLoaded);
+        Assert.Equal("My Publisher", vm.PublisherName);
+    }
+
+    /// <summary>
+    /// Verifies that when a single-catalog definition entry has a blank ID, ConfirmAsync leaves
+    /// SelectedCatalogId null so downstream discovery can rely on single-catalog resolution.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmAsync_SingleDefinitionCatalogWithBlankCatalogEntryId_LeavesSelectedCatalogIdNullAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string catalogUrl = "https://example.com/catalog.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "single-pub", "name": "Single Publisher" },
+                "catalogs": [
+                    {
+                        "id": "",
+                        "name": "Single Catalog",
+                        "url": "https://example.com/catalog.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("single-pub", "Single Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [catalogUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Act
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("single-pub", savedSubscription.PublisherId);
+        Assert.Equal(catalogUrl, savedSubscription.CatalogUrl);
+        Assert.Null(savedSubscription.SelectedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that when a single-catalog definition entry has a real non-blank ID, ConfirmAsync
+    /// persists that ID on the saved subscription.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmAsync_SingleDefinitionCatalogWithRealCatalogEntryId_PersistsSelectedCatalogIdAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://example.com/definition.json";
+        const string catalogUrl = "https://example.com/catalog.json";
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "single-pub", "name": "Single Publisher" },
+                "catalogs": [
+                    {
+                        "id": "content",
+                        "name": "Single Catalog",
+                        "url": "https://example.com/catalog.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("single-pub", "Single Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("single-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [catalogUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Act
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("single-pub", savedSubscription.PublisherId);
+        Assert.Equal(catalogUrl, savedSubscription.CatalogUrl);
+        Assert.Equal("content", savedSubscription.SelectedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that when the candidate catalog URL that loaded is a mirror of a definition entry,
+    /// that entry is matched as the first catalog, its ID is preserved, and it is not duplicated in options.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_FirstCatalogUrlIsMirror_ResolvesMirrorEntryAndDoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mirrorUrl = "https://93.184.216.34/mirror-main.json";
+        const string canonicalUrl = "https://93.184.216.34/primary-main.json";
+        const string secondUrl = "https://93.184.216.34/extra.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json",
+                        "mirrors": ["https://93.184.216.34/mirror-main.json"]
+                    },
+                    {
+                        "id": "extra-cat",
+                        "name": "Extra Catalog",
+                        "url": "https://93.184.216.34/extra.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+
+        PublisherSubscription? savedSubscription = null;
+        _subscriptionStore
+            .Setup(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        using var httpClient = new HttpClient(new CustomDelegateHttpMessageHandler(req =>
+        {
+            var uri = req.RequestUri?.AbsoluteUri ?? string.Empty;
+            if (uri == definitionUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(definitionJson) };
+            }
+
+            if (uri == canonicalUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+            }
+
+            if (uri == mirrorUrl || uri == secondUrl)
+            {
+                return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") };
+            }
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Assert: exactly 2 catalog options total (no duplicates)
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        Assert.Contains(vm.DefinitionCatalogOptions, opt => opt.Key == "main-cat");
+        Assert.Contains(vm.DefinitionCatalogOptions, opt => opt.Key == "extra-cat");
+
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.NotNull(savedSubscription);
+        Assert.Equal("main-cat", savedSubscription.SelectedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that when an entry in the catalog list has a blank Name and blank Id,
+    /// it uses the localized fallback name format ("Catalog {0}").
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_CatalogWithBlankNameAndId_UsesLocalizedFallbackNameAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/main.json";
+        const string secondUrl = "https://93.184.216.34/second.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/main.json"
+                    },
+                    {
+                        "id": "",
+                        "name": "",
+                        "url": "https://93.184.216.34/second.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [secondUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        var secondOption = vm.DefinitionCatalogOptions[1];
+        Assert.Equal("Catalog 1", secondOption.Label);
+    }
+
+    /// <summary>
+    /// Verifies that when a sibling entry has a mirror matching the loaded catalog URL,
+    /// it is excluded from DefinitionCatalogOptions so the loaded endpoint is not duplicated.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_SiblingEntryMirrorsContainLoadedUrl_DoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/primary-main.json";
+        const string siblingCanonicalUrl = "https://93.184.216.34/sibling-canonical.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json"
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://93.184.216.34/sibling-canonical.json",
+                        "mirrors": ["https://93.184.216.34/primary-main.json"]
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [siblingCanonicalUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: Sibling whose mirrors contain the loaded primary URL should be excluded
+        Assert.Single(vm.DefinitionCatalogOptions);
+        Assert.Equal("main-cat", vm.DefinitionCatalogOptions[0].Key);
+    }
+
+    /// <summary>
+    /// Verifies that when the primary entry has mirrors containing the sibling canonical URL,
+    /// the sibling is excluded from DefinitionCatalogOptions.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryEntryMirrorsContainSiblingCanonicalUrl_DoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/primary-main.json";
+        const string siblingCanonicalUrl = "https://93.184.216.34/sibling-canonical.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json",
+                        "mirrors": ["https://93.184.216.34/sibling-canonical.json"]
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://93.184.216.34/sibling-canonical.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [siblingCanonicalUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Single(vm.DefinitionCatalogOptions);
+        Assert.Equal("main-cat", vm.DefinitionCatalogOptions[0].Key);
+    }
+
+    /// <summary>
+    /// Verifies that when primary and sibling entries share a common mirror URL,
+    /// the sibling is excluded from DefinitionCatalogOptions.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryAndSiblingShareMirrorUrl_DoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/primary-main.json";
+        const string siblingCanonicalUrl = "https://93.184.216.34/sibling-canonical.json";
+        const string sharedMirror = "https://93.184.216.34/shared-mirror.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json",
+                        "mirrors": ["https://93.184.216.34/shared-mirror.json"]
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://93.184.216.34/sibling-canonical.json",
+                        "mirrors": ["https://93.184.216.34/shared-mirror.json"]
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [siblingCanonicalUrl] = "{}",
+            [sharedMirror] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert
+        Assert.Single(vm.DefinitionCatalogOptions);
+        Assert.Equal("main-cat", vm.DefinitionCatalogOptions[0].Key);
+    }
+
+    /// <summary>
+    /// Verifies that when two sibling entries share the same canonical URL,
+    /// the second sibling is excluded from DefinitionCatalogOptions via the existing URL dedup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_TwoSiblingsShareCanonicalUrl_DoesNotDuplicateCatalogOptionAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/primary-main.json";
+        const string sibling1Url = "https://93.184.216.34/sibling-1.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json"
+                    },
+                    {
+                        "id": "sibling-1",
+                        "name": "Sibling 1",
+                        "url": "https://93.184.216.34/sibling-1.json"
+                    },
+                    {
+                        "id": "sibling-2",
+                        "name": "Sibling 2",
+                        "url": "https://93.184.216.34/sibling-1.json"
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [sibling1Url] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: Sibling 2 should be skipped because sibling 1 already added that URL
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        Assert.Equal("main-cat", vm.DefinitionCatalogOptions[0].Key);
+        Assert.Equal("sibling-1", vm.DefinitionCatalogOptions[1].Key);
+    }
+
+    /// <summary>
+    /// Verifies that empty/blank strings in mirror lists do not cause false positives
+    /// in duplicate endpoint detection.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_BothEntriesHaveBlankMirrors_DoesNotExcludeSiblingAsync()
+    {
+        // Arrange
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string mainUrl = "https://93.184.216.34/primary-main.json";
+        const string siblingUrl = "https://93.184.216.34/sibling.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "main-cat",
+                        "name": "Main Catalog",
+                        "url": "https://93.184.216.34/primary-main.json",
+                        "mirrors": ["", "  "]
+                    },
+                    {
+                        "id": "sibling-cat",
+                        "name": "Sibling Catalog",
+                        "url": "https://93.184.216.34/sibling.json",
+                        "mirrors": ["", "   "]
+                    }
+                ]
+            }
+            """;
+
+        var catalog = CreateSampleCatalog("test-pub", "Test Publisher");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [mainUrl] = "{}",
+            [siblingUrl] = "{}",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: Blank mirrors must not be treated as matching; both distinct catalogs should be present
+        Assert.Equal(2, vm.DefinitionCatalogOptions.Count);
+        Assert.Equal("main-cat", vm.DefinitionCatalogOptions[0].Key);
+        Assert.Equal("sibling-cat", vm.DefinitionCatalogOptions[1].Key);
     }
 
     private static PublisherCatalog CreateSampleCatalog(string id, string name)

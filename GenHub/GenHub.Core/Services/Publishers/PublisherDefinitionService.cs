@@ -129,7 +129,7 @@ public class PublisherDefinitionService(
             var catalogUrl = definition.CatalogUrl;
             if (string.IsNullOrWhiteSpace(catalogUrl) && definition.Catalogs.Count > 0)
             {
-                catalogUrl = definition.Catalogs[0].Url;
+                catalogUrl = definition.Catalogs.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url))?.Url;
             }
 
             if (string.IsNullOrWhiteSpace(catalogUrl))
@@ -230,9 +230,36 @@ public class PublisherDefinitionService(
             }
 
             // Check if catalog URL changed
-            if (!string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
-                !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
+                ? remoteDef.Catalogs?.FirstOrDefault(c => c != null && string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                : remoteDef.Catalogs?.FirstOrDefault(c =>
+                    c != null && (
+                        string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                        (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase))));
+
+            if (targetCatalog != null)
             {
+                if (!string.IsNullOrWhiteSpace(targetCatalog.Url) &&
+                    !string.Equals(subscription.CatalogUrl, targetCatalog.Url, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation(
+                        "Updating catalog URL for subscription {PublisherId} (catalog {CatalogId}) from {OldUrl} to {NewUrl}",
+                        subscription.PublisherId,
+                        targetCatalog.Id,
+                        subscription.CatalogUrl,
+                        targetCatalog.Url);
+
+                    subscription.CatalogUrl = targetCatalog.Url;
+                    hasUpdate = true;
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
+                     (remoteDef.Catalogs == null || remoteDef.Catalogs.Count <= 1) &&
+                     !string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
+                     !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                // Fall back to remoteDef.CatalogUrl only for single-catalog or legacy definitions to prevent
+                // multi-catalog legacy subscriptions from silently migrating to Catalogs[0].
                 logger.LogInformation(
                     "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
                     subscription.PublisherId,

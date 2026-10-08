@@ -70,6 +70,11 @@ public static class CatalogConstants
     public const string DefaultCatalogId = "default";
 
     /// <summary>
+    /// Default display name for the synthesized primary catalog entry.
+    /// </summary>
+    public const string DefaultCatalogName = "Content";
+
+    /// <summary>
     /// Resolver / pipeline ID for the generic catalog pipeline (any GenHub-schema catalog).
     /// </summary>
     public const string GenericCatalogResolverId = "generic-catalog";
