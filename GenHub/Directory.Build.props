@@ -39,7 +39,6 @@
 
     <!-- Prevent upstream package vulnerability audit advisories from breaking builds as warnings-as-errors -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
-    <NoWarn>$(NoWarn);NU1901;NU1902;NU1903;NU1904</NoWarn>
 
     <!-- Prevent concurrent compilation memory exhaustion in resource-constrained CI runners -->
     <BuildInParallel Condition="'$(CI)' == 'true'">false</BuildInParallel>
