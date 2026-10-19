@@ -60,7 +60,7 @@ public class GameLauncher(
     IPublisherLaunchHandlerRegistry publisherLaunchHandlerRegistry,
     ILocalizationService? localizationService = null) : IGameLauncher
 {
-    /// <summary>Serializes profile launch registration and destructive deletion for all callers.</summary>
+    /// <summary>Serializes profile launch registration, profile updates, and destructive deletion for all callers.</summary>
     internal static readonly ConcurrentDictionary<string, SemaphoreSlim> ProfileLaunchLocks = new(StringComparer.OrdinalIgnoreCase);
     private const string EaLogoBik = "EA_LOGO.BIK";
     private const string EaLogo640Bik = "EA_LOGO640.BIK";

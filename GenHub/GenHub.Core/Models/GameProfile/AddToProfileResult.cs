@@ -39,6 +39,13 @@ public class AddToProfileResult : ResultBase
     public string? AddedContentName { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the profile had an active game session when the
+    /// content was added, in which case the profile manager live-synchronized the change into
+    /// the running game.
+    /// </summary>
+    public bool WasAppliedLive { get; set; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AddToProfileResult"/> class for a successful operation.
     /// </summary>
     /// <param name="addedContentId">The added content ID.</param>

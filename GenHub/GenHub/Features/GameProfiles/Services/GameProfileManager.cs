@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -186,13 +187,21 @@ public class GameProfileManager(
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameProfile>> UpdateProfileAsync(string profileId, UpdateProfileRequest request, CancellationToken cancellationToken = default)
     {
+        if (request == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
+        }
+
+        if (string.IsNullOrWhiteSpace(profileId))
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure("Profile ID cannot be empty");
+        }
+
+        var profileLock = GameLauncher.ProfileLaunchLocks.GetOrAdd(profileId, _ => new SemaphoreSlim(1, 1));
+        await profileLock.WaitAsync(cancellationToken);
+
         try
         {
-            if (request == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure("Request cannot be null");
-            }
-
             var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
             if (loadResult.Failed)
             {
@@ -229,13 +238,24 @@ public class GameProfileManager(
                 }
             }
 
+            var liveSync = await TrySyncLiveUserDataForRunningProfileAsync(profileId, profile, request, previousEnabledContentIds, isRunning, cancellationToken);
+            if (liveSync.Error != null)
+            {
+                return liveSync.Error;
+            }
+
             CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId, isRunning);
             ApplyUpdateRequestToProfile(profile, request);
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
-            return await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
+            return await SaveProfileWithLiveSyncRecoveryAsync(
+                profileId,
+                profile,
+                previousEnabledContentIds,
+                liveSync,
+                cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -243,6 +263,10 @@ public class GameProfileManager(
         {
             logger.LogError(ex, "An unexpected error occurred while updating game profile {ProfileId}.", profileId);
             return ProfileOperationResult<GameProfile>.CreateFailure("An unexpected error occurred.");
+        }
+        finally
+        {
+            profileLock.Release();
         }
     }
 
@@ -931,6 +955,227 @@ public class GameProfileManager(
         return await ValidateRunningProfileUpdateRequestAsync(profile, request, previousEnabledContentIds, runningWorkspaceId, cancellationToken);
     }
 
+    /// <summary>
+    /// Synchronizes live user data when a running profile's enabled content changed.
+    /// This is the single live-sync pipeline: every writer that mutates a running profile's
+    /// content (profile settings saves, add-to-profile flows, reconciliation) funnels through
+    /// <see cref="UpdateProfileAsync"/>, so performing the sync here keeps the running game
+    /// consistent no matter which feature initiated the change.
+    /// Rollback restores (<see cref="UpdateProfileRequest.IsRollback"/>) persist without live
+    /// sync so callers can compensate live user data on their own schedule.
+    /// </summary>
+    /// <param name="profileId">The profile being updated.</param>
+    /// <param name="profile">The loaded profile before changes are applied.</param>
+    /// <param name="request">The update request.</param>
+    /// <param name="previousEnabledContentIds">The previously enabled content IDs.</param>
+    /// <param name="isRunning">Whether the profile has an active game session.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The sync outcome: whether live data was synchronized, the game type it was synchronized for, and a failure result when the update must be aborted.</returns>
+    private async Task<(bool Performed, GameType TargetGame, ProfileOperationResult<GameProfile>? Error)> TrySyncLiveUserDataForRunningProfileAsync(
+        string profileId,
+        GameProfile profile,
+        UpdateProfileRequest request,
+        List<string> previousEnabledContentIds,
+        bool isRunning,
+        CancellationToken cancellationToken)
+    {
+        if (!isRunning || request.IsRollback || request.EnabledContentIds == null || profile.IsToolProfile)
+        {
+            return (false, GameType.Unknown, null);
+        }
+
+        var desiredContentIds = request.EnabledContentIds.ToList();
+        if (previousEnabledContentIds.SequenceEqual(desiredContentIds, StringComparer.OrdinalIgnoreCase))
+        {
+            return (false, GameType.Unknown, null);
+        }
+
+        var targetGame = profile.GameClient?.GameType;
+        if (targetGame is null or GameType.Unknown)
+        {
+            return (false, GameType.Unknown, ProfileOperationResult<GameProfile>.CreateFailure(
+                $"Cannot live-sync content for profile '{profile.Name}' while it is running: the profile has no game client. Stop the game and try again."));
+        }
+
+        var (manifests, missingIds) = await ResolveLiveSyncManifestsAsync(desiredContentIds, cancellationToken);
+        if (missingIds.Count > 0)
+        {
+            return (false, GameType.Unknown, ProfileOperationResult<GameProfile>.CreateFailure(
+                $"Cannot live-sync content for profile '{profile.Name}' while it is running: failed to resolve manifests for {string.Join(", ", missingIds)}. Profile changes were not saved."));
+        }
+
+        var liveSyncResult = await profileContentLinker.UpdateProfileUserDataAsync(profileId, manifests, targetGame.Value, cancellationToken);
+        if (liveSyncResult.Failed)
+        {
+            logger.LogWarning("Live content synchronization failed for running profile {ProfileId}: {Error}", profileId, liveSyncResult.FirstError);
+            return (false, GameType.Unknown, ProfileOperationResult<GameProfile>.CreateFailure(
+                $"Live content synchronization failed: {liveSyncResult.FirstError}. Profile changes were not saved."));
+        }
+
+        logger.LogInformation("Live-synchronized {Count} content manifests for running profile {ProfileId}", manifests.Count, profileId);
+        return (true, targetGame.Value, null);
+    }
+
+    /// <summary>
+    /// Restores live user data to the previously enabled manifests after a running profile
+    /// update synchronized successfully but failed to persist.
+    /// </summary>
+    /// <param name="profileId">The profile that failed to persist.</param>
+    /// <param name="previousEnabledContentIds">The previously enabled content IDs to restore.</param>
+    /// <param name="targetGame">The game type the live data was synchronized for.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A tuple indicating whether rollback was attempted, whether it succeeded, and any error message.</returns>
+    private async Task<(bool Attempted, bool Succeeded, string? Error)> RollbackLiveUserDataAfterSaveFailureAsync(
+        string profileId,
+        List<string> previousEnabledContentIds,
+        GameType targetGame,
+        CancellationToken cancellationToken)
+    {
+        var (manifests, missingIds) = await ResolveLiveSyncManifestsAsync(previousEnabledContentIds, cancellationToken);
+        if (missingIds.Count > 0)
+        {
+            var missingText = string.Join(", ", missingIds);
+            logger.LogWarning(
+                "Skipping live user data rollback for profile {ProfileId} after save failure: failed to resolve manifests for {Ids}",
+                profileId,
+                missingText);
+            return (true, false, $"Unresolved original manifests: {missingText}");
+        }
+
+        var rollbackResult = await profileContentLinker.UpdateProfileUserDataAsync(profileId, manifests, targetGame, cancellationToken);
+        if (rollbackResult.Failed)
+        {
+            logger.LogError("Failed to roll back live user data for profile {ProfileId} after save failure: {Error}", profileId, rollbackResult.FirstError);
+            return (true, false, rollbackResult.FirstError);
+        }
+
+        logger.LogInformation("Rolled back live user data for profile {ProfileId} after save failure", profileId);
+        return (true, true, null);
+    }
+
+    /// <summary>
+    /// Resolves content manifests for live synchronization, collecting IDs that cannot be resolved.
+    /// </summary>
+    /// <param name="contentIds">The content IDs to resolve.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The resolved manifests and the IDs that could not be resolved.</returns>
+    private async Task<(List<ContentManifest> Manifests, List<string> MissingIds)> ResolveLiveSyncManifestsAsync(
+        IReadOnlyList<string> contentIds,
+        CancellationToken cancellationToken)
+    {
+        var manifests = new List<ContentManifest>();
+        var missingIds = new List<string>();
+
+        foreach (var id in contentIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!ManifestId.TryCreate(id, out var manifestId))
+            {
+                missingIds.Add(id);
+                continue;
+            }
+
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                manifests.Add(manifestResult.Data);
+            }
+            else
+            {
+                missingIds.Add(id);
+            }
+        }
+
+        return (manifests, missingIds);
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>> SaveProfileWithLiveSyncRecoveryAsync(
+        string profileId,
+        GameProfile profile,
+        List<string> previousEnabledContentIds,
+        (bool Performed, GameType TargetGame, ProfileOperationResult<GameProfile>? Error) liveSync,
+        CancellationToken cancellationToken)
+    {
+        ProfileOperationResult<GameProfile> saveResult;
+        try
+        {
+            saveResult = await SaveAndNotifyProfileUpdatedAsync(profile, cancellationToken);
+        }
+        catch (OperationCanceledException) when (liveSync.Performed)
+        {
+            try
+            {
+                await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, liveSync.TargetGame, CancellationToken.None);
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogError(rollbackEx, "Live user data rollback failed for profile {ProfileId} after save was canceled.", profileId);
+            }
+
+            throw;
+        }
+        catch (Exception saveEx) when (liveSync.Performed)
+        {
+            var rollbackOutcome = await SafeRollbackLiveUserDataAsync(
+                profileId,
+                previousEnabledContentIds,
+                liveSync.TargetGame,
+                "Live user data rollback failed for profile {ProfileId} after save threw an exception.");
+
+            logger.LogError(saveEx, "An unexpected error occurred while saving game profile {ProfileId} after live sync.", profileId);
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                "An unexpected error occurred while saving profile changes.",
+                liveRollbackAttempted: rollbackOutcome.Attempted,
+                liveRollbackSucceeded: rollbackOutcome.Succeeded,
+                liveRollbackError: rollbackOutcome.Error);
+        }
+
+        if (saveResult.Failed && liveSync.Performed)
+        {
+            var rollbackOutcome = await SafeRollbackLiveUserDataAsync(
+                profileId,
+                previousEnabledContentIds,
+                liveSync.TargetGame,
+                "Live user data rollback is incomplete for profile {ProfileId} after save failure.");
+
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                saveResult.FirstError ?? "Failed to save profile",
+                saveResult.ErrorCode,
+                saveResult.Elapsed,
+                liveRollbackAttempted: rollbackOutcome.Attempted,
+                liveRollbackSucceeded: rollbackOutcome.Succeeded,
+                liveRollbackError: rollbackOutcome.Error);
+        }
+
+        if (saveResult.Success && liveSync.Performed)
+        {
+            return ProfileOperationResult<GameProfile>.CreateSuccess(
+                saveResult.Data,
+                saveResult.ErrorCode,
+                saveResult.Elapsed,
+                wasAppliedLive: true);
+        }
+
+        return saveResult;
+    }
+
+    private async Task<(bool Attempted, bool Succeeded, string? Error)> SafeRollbackLiveUserDataAsync(
+        string profileId,
+        List<string> previousEnabledContentIds,
+        GameType targetGame,
+        string logMessageOnException)
+    {
+        try
+        {
+            return await RollbackLiveUserDataAfterSaveFailureAsync(profileId, previousEnabledContentIds, targetGame, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, logMessageOnException, profileId);
+            return (true, false, ex.Message);
+        }
+    }
+
     private async Task<ProfileOperationResult<GameProfile>> SaveAndNotifyProfileUpdatedAsync(GameProfile profile, CancellationToken cancellationToken)
     {
         var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
@@ -974,6 +1219,11 @@ public class GameProfileManager(
         if (clientError != null)
         {
             return clientError;
+        }
+
+        if (profile.IsToolProfile)
+        {
+            return null;
         }
 
         return await ValidateRunningProfileContentChangesAsync(previousEnabledContentIds, request.EnabledContentIds, cancellationToken);

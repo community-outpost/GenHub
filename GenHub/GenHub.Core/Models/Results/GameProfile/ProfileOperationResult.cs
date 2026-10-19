@@ -26,14 +26,42 @@ public class ProfileOperationResult<T> : OperationResult<T>
     public string? ErrorCode { get; }
 
     /// <summary>
+    /// Gets a value indicating whether changes were synchronized into an active game session.
+    /// </summary>
+    public bool WasAppliedLive { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether a live content rollback was attempted after a save failure.
+    /// </summary>
+    public bool LiveRollbackAttempted { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether live content rollback after a save failure succeeded.
+    /// </summary>
+    public bool LiveRollbackSucceeded { get; init; }
+
+    /// <summary>
+    /// Gets details on any failure during live content rollback after a save failure.
+    /// </summary>
+    public string? LiveRollbackError { get; init; }
+
+    /// <summary>
     /// Creates a successful profile operation result.
     /// </summary>
     /// <param name="data">The data returned by the operation.</param>
     /// <param name="errorCode">The error code, if any.</param>
     /// <param name="elapsed">The elapsed time.</param>
+    /// <param name="wasAppliedLive">Whether changes were synchronized into an active game session.</param>
     /// <returns>A successful <see cref="ProfileOperationResult{T}"/>.</returns>
-    public static ProfileOperationResult<T> CreateSuccess(T data, string? errorCode = null, TimeSpan elapsed = default)
-        => new(true, data, null, errorCode, elapsed);
+    public static ProfileOperationResult<T> CreateSuccess(
+        T data,
+        string? errorCode = null,
+        TimeSpan elapsed = default,
+        bool wasAppliedLive = false)
+        => new(true, data, null, errorCode, elapsed)
+        {
+            WasAppliedLive = wasAppliedLive,
+        };
 
     /// <summary>
     /// Creates a failed profile operation result.
@@ -41,7 +69,21 @@ public class ProfileOperationResult<T> : OperationResult<T>
     /// <param name="error">The error message.</param>
     /// <param name="errorCode">The error code, if any.</param>
     /// <param name="elapsed">The elapsed time.</param>
+    /// <param name="liveRollbackAttempted">Whether live content rollback was attempted.</param>
+    /// <param name="liveRollbackSucceeded">Whether live content rollback succeeded.</param>
+    /// <param name="liveRollbackError">Details on rollback failure, if any.</param>
     /// <returns>A failed <see cref="ProfileOperationResult{T}"/>.</returns>
-    public static ProfileOperationResult<T> CreateFailure(string error, string? errorCode = null, TimeSpan elapsed = default)
-        => new(false, default, error, errorCode, elapsed);
+    public static ProfileOperationResult<T> CreateFailure(
+        string error,
+        string? errorCode = null,
+        TimeSpan elapsed = default,
+        bool liveRollbackAttempted = false,
+        bool liveRollbackSucceeded = false,
+        string? liveRollbackError = null)
+        => new(false, default, error, errorCode, elapsed)
+        {
+            LiveRollbackAttempted = liveRollbackAttempted,
+            LiveRollbackSucceeded = liveRollbackSucceeded,
+            LiveRollbackError = liveRollbackError,
+        };
 }

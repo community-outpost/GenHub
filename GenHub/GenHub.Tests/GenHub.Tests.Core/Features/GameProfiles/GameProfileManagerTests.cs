@@ -864,7 +864,7 @@ public class GameProfileManagerTests
             .ThrowsAsync(new OperationCanceledException(cts.Token));
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request, cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _profileManager.UpdateProfileAsync(profileId, request, cts.Token));
     }
 
     /// <summary>

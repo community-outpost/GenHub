@@ -763,11 +763,10 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        // Live synchronization for running profiles is owned by the profile manager's
+        // single live-sync pipeline inside UpdateProfileAsync; this view model only handles
+        // the post-save race where a game session starts while the save is in flight.
         var liveGameType = SelectedGameInstallation?.GameType ?? GameTypeFilter;
-        if (!await TryExecutePreSaveLiveSyncAsync(enabledContentIds, liveGameType, isProfileRunning, cancellationToken))
-        {
-            return;
-        }
 
         var gameSettings = GameSettingsViewModel.GetProfileSettings();
         var updateRequest = BuildUpdateRequest(enabledContentIds, gameSettings);
@@ -775,7 +774,7 @@ public partial class GameProfileSettingsViewModel
 
         if (result.Success && result.Data != null)
         {
-            var (postSyncSuccess, updatedRunningState) = await TryExecutePostSaveLiveSyncAsync(enabledContentIds, liveGameType, isProfileRunning, cancellationToken);
+            var (postSyncSuccess, updatedRunningState) = await TryExecutePostSaveLiveSyncAsync(enabledContentIds, liveGameType, isProfileRunning || result.WasAppliedLive, cancellationToken);
             if (!postSyncSuccess)
             {
                 return;
@@ -785,7 +784,7 @@ public partial class GameProfileSettingsViewModel
         }
         else
         {
-            await HandleProfileUpdateFailureAsync(isProfileRunning, liveGameType, result, cancellationToken);
+            HandleProfileUpdateFailure(result);
         }
     }
 
@@ -795,20 +794,6 @@ public partial class GameProfileSettingsViewModel
         _localNotificationService.ShowWarning(
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.HotswapModeEnabled.Title", "Hotswap Mode Enabled"),
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.HotswapModeEnabled.Message", "The game was started while editing this profile. Non-hotswappable settings have been locked. Please review your changes and save again."));
-    }
-
-    private async Task<bool> TryExecutePreSaveLiveSyncAsync(
-        List<string> enabledContentIds,
-        GameType liveGameType,
-        bool isProfileRunning,
-        CancellationToken cancellationToken)
-    {
-        if (!isProfileRunning || _profileContentLinker == null || _manifestPool == null)
-        {
-            return true;
-        }
-
-        return await PerformLiveSyncAsync(enabledContentIds, liveGameType, cancellationToken);
     }
 
     private async Task<(bool Success, bool IsRunning)> TryExecutePostSaveLiveSyncAsync(
@@ -1086,7 +1071,12 @@ public partial class GameProfileSettingsViewModel
 
         if (!liveUpdateResult.Success)
         {
-            StatusMessage = $"Live sync failed: {liveUpdateResult.FirstError}";
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveSyncFailed",
+                    "Live sync failed: {0}"),
+                liveUpdateResult.FirstError);
             _localNotificationService.ShowWarning(
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Title", "Live Update Failed"),
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateFailed.Message", $"Live content synchronization failed: {liveUpdateResult.FirstError}. Profile changes were not saved.", liveUpdateResult.FirstError));
@@ -1097,36 +1087,44 @@ public partial class GameProfileSettingsViewModel
         return true;
     }
 
-    private async Task HandleProfileUpdateFailureAsync(
-        bool isProfileRunning,
-        GameType liveGameType,
-        ProfileOperationResult<GameProfile> result,
-        CancellationToken cancellationToken = default)
+    private void HandleProfileUpdateFailure(ProfileOperationResult<GameProfile> result)
     {
-        if (!isProfileRunning || _profileContentLinker == null || _manifestPool == null || string.IsNullOrEmpty(CurrentProfileId))
-        {
-            var errors = string.Join(", ", result.Errors);
-            StatusMessage = $"Failed to update profile: {errors}";
-            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
-            var title = GetErrorLoadingProfileTitle();
-            var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
-            _notificationService?.ShowError(title, string.Format(CultureInfo.CurrentCulture, msgFormat, errors));
-            return;
-        }
+        // The profile manager owns live synchronization and rolls live user data back
+        // when a running update fails to persist, so this handler reports the error
+        // and surfaces any live rollback failure.
+        var errors = string.Join(", ", result.Errors);
+        var title = GetErrorLoadingProfileTitle();
+        var msgFormat = _localizationService?.GetString("GameProfiles.Notification.ProfileUpdateFailedMessage") ?? "Failed to update profile: {0}";
+        StatusMessage = string.Format(CultureInfo.CurrentCulture, msgFormat, errors);
+        _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, errors);
+        _notificationService?.ShowError(title, StatusMessage);
 
-        var (originalManifests, missingOriginalIds) = await ResolveOriginalManifestsForRollbackAsync(cancellationToken);
-        if (missingOriginalIds.Count > 0)
+        if (result.LiveRollbackAttempted && !result.LiveRollbackSucceeded)
         {
-            _logger?.LogError("Live sync rollback for profile {ProfileId} had missing original manifests: {Ids}", CurrentProfileId, string.Join(", ", missingOriginalIds));
             _localNotificationService.ShowError(
-                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackWarning.Title", "Live Rollback Warning"),
-                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackWarning.Message", $"Profile save failed ({string.Join(", ", result.Errors)}), and original content could not be fully resolved for rollback: {string.Join(", ", missingOriginalIds)}. Live content was left as synchronized and may not match the saved profile.", string.Join(", ", result.Errors), string.Join(", ", missingOriginalIds)));
-            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback skipped: unresolved original manifests.";
-            _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
-            return;
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Title", "Live Rollback Failed"),
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Notification.LiveRollbackFailed.Message",
+                    $"Profile save failed ({errors}), and live content rollback reported: {result.LiveRollbackError}",
+                    errors,
+                    result.LiveRollbackError ?? "Unknown error"));
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveRollbackFailed",
+                    "Failed to update profile: {0}. Live rollback failed: {1}"),
+                errors,
+                result.LiveRollbackError ?? "Unknown error");
         }
-
-        await ExecuteLiveSyncRollbackAsync(originalManifests, liveGameType, result, cancellationToken);
+        else if (result.LiveRollbackAttempted && result.LiveRollbackSucceeded)
+        {
+            StatusMessage = string.Format(
+                CultureInfo.CurrentCulture,
+                _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Status.LiveRollbackSucceeded",
+                    "Failed to update profile: {0}. Live content was rolled back."),
+                errors);
+        }
     }
 
     private async Task<(List<ContentManifest> Manifests, List<string> MissingIds)> ResolveOriginalManifestsForRollbackAsync(CancellationToken cancellationToken)
@@ -1159,38 +1157,6 @@ public partial class GameProfileSettingsViewModel
         }
 
         return (originalManifests, missingOriginalIds);
-    }
-
-    private async Task ExecuteLiveSyncRollbackAsync(
-        List<ContentManifest> originalManifests,
-        GameType liveGameType,
-        ProfileOperationResult<GameProfile> result,
-        CancellationToken cancellationToken)
-    {
-        if (_profileContentLinker == null || string.IsNullOrEmpty(CurrentProfileId))
-        {
-            return;
-        }
-
-        var rollbackResult = await _profileContentLinker.UpdateProfileUserDataAsync(
-            CurrentProfileId,
-            originalManifests,
-            liveGameType,
-            cancellationToken);
-
-        if (!rollbackResult.Success)
-        {
-            _logger?.LogError("Failed to roll back live user data sync for profile {ProfileId}: {Error}", CurrentProfileId, rollbackResult.FirstError);
-            _localNotificationService.ShowError(
-                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Title", "Live Rollback Failed"),
-                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveRollbackFailed.Message", $"Profile save failed ({string.Join(", ", result.Errors)}), and live content rollback reported: {rollbackResult.FirstError}", string.Join(", ", result.Errors), rollbackResult.FirstError));
-            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live rollback failed: {rollbackResult.FirstError}";
-        }
-        else
-        {
-            _logger?.LogInformation("Successfully rolled back live user data sync for profile {ProfileId}", CurrentProfileId);
-            StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}. Live content was rolled back.";
-        }
     }
 
     [RelayCommand]

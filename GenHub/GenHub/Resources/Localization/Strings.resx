@@ -16925,6 +16925,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
     <value>'{0}' has been added to profile '{1}'.</value>
   </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Title" xml:space="preserve">
+    <value>Added to Profile (Live)</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Message" xml:space="preserve">
+    <value>'{0}' has been added to profile '{1}' and applied to the running game.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
     <value>Content Locked</value>
   </data>
@@ -17017,17 +17023,20 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
     <value>Live content synchronization failed: {0}. Profile changes were not saved.</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
-    <value>Live Rollback Warning</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
-    <value>Profile save failed ({0}), and original content could not be fully resolved for rollback: {1}. Live content was left as synchronized and may not match the saved profile.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
     <value>Live Rollback Failed</value>
   </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>Profile save failed ({0}), and live content rollback reported: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveSyncFailed" xml:space="preserve">
+    <value>Live sync failed: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
+    <value>Failed to update profile: {0}. Live rollback failed: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackSucceeded" xml:space="preserve">
+    <value>Failed to update profile: {0}. Live content was rolled back.</value>
   </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>'{0}' has been updated.</value>
