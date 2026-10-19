@@ -6845,7 +6845,24 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private void OpenFullScreenMedia(object? item)
     {
-        var decision = ContentDetailMediaDisplay.Resolve(item);
+        OpenFullScreenMediaInternal(item, inVideoContext: false);
+    }
+
+    /// <summary>
+    /// Opens a preview-video item in the in-app player or system browser.
+    /// Preview videos are bare URL strings, so the video context lets
+    /// extensionless hosted files stream instead of showing as images.
+    /// </summary>
+    /// <param name="item">The video item or URL to open.</param>
+    [RelayCommand]
+    private void OpenFullScreenVideo(object? item)
+    {
+        OpenFullScreenMediaInternal(item, inVideoContext: true);
+    }
+
+    private void OpenFullScreenMediaInternal(object? item, bool inVideoContext)
+    {
+        var decision = ContentDetailMediaDisplay.Resolve(item, inVideoContext);
         switch (decision.Action)
         {
             case MediaDisplayAction.PlayVideo:

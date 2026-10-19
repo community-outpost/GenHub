@@ -852,7 +852,7 @@
                                                                         </ItemsControl.ItemsPanel>
                                                                         <ItemsControl.ItemTemplate>
                                                                             <DataTemplate>
-                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenVideoCommand}"
                                                                                         CommandParameter="{Binding}"
                                                                                         Background="{DynamicResource CardBackground}"
                                                                                         BorderThickness="1"

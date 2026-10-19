@@ -48,7 +48,8 @@ public sealed class ContentDetailVideoPlaybackTests
 
     /// <summary>
     /// Verifies that extensionless hosted file URLs from GenHub media hosting resolve
-    /// to in-app playback, where the player sniffs the content type.
+    /// to in-app playback in a video context, where the player sniffs the content type.
+    /// Without video context the same URL is an image (see screenshot test below).
     /// </summary>
     /// <param name="url">The hosted file URL under test.</param>
     [Theory]
@@ -58,9 +59,62 @@ public sealed class ContentDetailVideoPlaybackTests
     {
         Assert.True(MediaFileHelper.IsExtensionlessHostedFileUrl(url));
 
-        var decision = ContentDetailMediaDisplay.Resolve(url);
+        var decision = ContentDetailMediaDisplay.Resolve(url, inVideoContext: true);
 
         Assert.Equal(MediaDisplayAction.PlayVideo, decision.Action);
+        Assert.Equal(url, decision.Url);
+    }
+
+    /// <summary>
+    /// Verifies that a known image file never goes to the video player, even in a video context.
+    /// </summary>
+    [Fact]
+    public void ResolveMediaDisplay_ImageFileInVideoContext_ReturnsShowImage()
+    {
+        var decision = ContentDetailMediaDisplay.Resolve("https://cdn.example.com/shot.jpg", inVideoContext: true);
+
+        Assert.Equal(MediaDisplayAction.ShowImage, decision.Action);
+    }
+
+    /// <summary>
+    /// Verifies that a known video file never goes to the image viewer, even in an image context.
+    /// </summary>
+    [Fact]
+    public void ResolveMediaDisplay_VideoFileInImageContext_ReturnsPlayVideo()
+    {
+        var decision = ContentDetailMediaDisplay.Resolve("https://cdn.example.com/trailer.mp4", inVideoContext: false);
+
+        Assert.Equal(MediaDisplayAction.PlayVideo, decision.Action);
+    }
+
+    /// <summary>
+    /// Verifies that a video record whose URL is actually an image file shows as an image.
+    /// </summary>
+    [Fact]
+    public void ResolveMediaDisplay_VideoRecordWithImageUrl_ReturnsShowImage()
+    {
+        var video = new Video("Shot", null, "https://cdn.example.com/shot.png", null);
+
+        var decision = ContentDetailMediaDisplay.Resolve(video);
+
+        Assert.Equal(MediaDisplayAction.ShowImage, decision.Action);
+    }
+
+    /// <summary>
+    /// Verifies that extensionless hosted URLs clicked from an image context
+    /// (summary screenshots and preview images are bare strings) resolve to the
+    /// image viewer, not the video player. Extensionless hosted files carry no
+    /// file type, so they must not be assumed to be videos without video context.
+    /// </summary>
+    /// <param name="url">The hosted image URL under test.</param>
+    [Theory]
+    [InlineData("https://drive.google.com/uc?export=download&id=abc123")]
+    [InlineData("https://utfs.io/f/abc123")]
+    public void ResolveMediaDisplay_ExtensionlessHostedScreenshotUrl_ReturnsShowImage(string url)
+    {
+        var decision = ContentDetailMediaDisplay.Resolve(url);
+
+        Assert.Equal(MediaDisplayAction.ShowImage, decision.Action);
         Assert.Equal(url, decision.Url);
     }
 
@@ -209,6 +263,40 @@ public sealed class ContentDetailVideoPlaybackTests
         Assert.True(viewModel.IsFullScreenMediaOpen);
         Assert.Equal(url, viewModel.FullScreenMediaUrl);
         Assert.False(viewModel.IsVideoPlayerOpen);
+    }
+
+    /// <summary>
+    /// Verifies that clicking an extensionless hosted screenshot in the summary
+    /// gallery opens the image viewer, not the video player.
+    /// </summary>
+    [Fact]
+    public void OpenFullScreenMedia_ExtensionlessHostedScreenshot_OpensImageViewer()
+    {
+        var viewModel = CreateViewModel();
+        const string url = "https://utfs.io/f/abc123";
+
+        viewModel.OpenFullScreenMediaCommand.Execute(url);
+
+        Assert.True(viewModel.IsFullScreenMediaOpen);
+        Assert.Equal(url, viewModel.FullScreenMediaUrl);
+        Assert.False(viewModel.IsVideoPlayerOpen);
+        Assert.Null(viewModel.VideoPlayerUrl);
+    }
+
+    /// <summary>
+    /// Verifies that clicking an extensionless hosted preview video opens the player.
+    /// </summary>
+    [Fact]
+    public void OpenFullScreenVideo_ExtensionlessHostedUrl_OpensInAppPlayer()
+    {
+        var viewModel = CreateViewModel();
+        const string url = "https://utfs.io/f/abc123";
+
+        viewModel.OpenFullScreenVideoCommand.Execute(url);
+
+        Assert.True(viewModel.IsVideoPlayerOpen);
+        Assert.Equal(url, viewModel.VideoPlayerUrl);
+        Assert.False(viewModel.IsFullScreenMediaOpen);
     }
 
     /// <summary>
