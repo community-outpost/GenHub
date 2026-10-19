@@ -65,6 +65,16 @@ public static class CatalogConstants
     public const string CurrentCatalogEntryId = "current";
 
     /// <summary>
+    /// Synthetic catalog entry ID used for the primary/first catalog entry when no catalog ID is declared.
+    /// </summary>
+    public const string PrimarySyntheticCatalogId = "__primary";
+
+    /// <summary>
+    /// Prefix used for synthetic catalog entry IDs when multiple blank-Id catalogs are present.
+    /// </summary>
+    public const string SyntheticCatalogIdPrefix = "__catalog_";
+
+    /// <summary>
     /// Default catalog identifier used when no specific catalog ID is selected.
     /// </summary>
     public const string DefaultCatalogId = "default";

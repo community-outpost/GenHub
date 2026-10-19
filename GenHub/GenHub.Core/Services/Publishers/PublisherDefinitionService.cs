@@ -199,92 +199,10 @@ public class PublisherDefinitionService(
             var remoteDef = defResult.Data;
             var hasUpdate = false;
 
-            // Check if publisher name changed
-            if (remoteDef.Publisher != null &&
-                !string.IsNullOrWhiteSpace(remoteDef.Publisher.Name) &&
-                !string.Equals(subscription.PublisherName, remoteDef.Publisher.Name, StringComparison.Ordinal))
-            {
-                logger.LogInformation(
-                    "Updating publisher name for subscription {PublisherId} from {OldName} to {NewName}",
-                    subscription.PublisherId,
-                    subscription.PublisherName,
-                    remoteDef.Publisher.Name);
-
-                subscription.PublisherName = remoteDef.Publisher.Name;
-                hasUpdate = true;
-            }
-
-            // Check if publisher avatar changed
-            if (remoteDef.Publisher != null &&
-                !string.IsNullOrWhiteSpace(remoteDef.Publisher.AvatarUrl) &&
-                !string.Equals(subscription.AvatarUrl, remoteDef.Publisher.AvatarUrl, StringComparison.Ordinal))
-            {
-                logger.LogInformation(
-                    "Updating publisher avatar for subscription {PublisherId} from {OldAvatar} to {NewAvatar}",
-                    subscription.PublisherId,
-                    subscription.AvatarUrl,
-                    remoteDef.Publisher.AvatarUrl);
-
-                subscription.AvatarUrl = remoteDef.Publisher.AvatarUrl;
-                hasUpdate = true;
-            }
-
-            // Check if catalog URL changed
-            var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
-                ? remoteDef.Catalogs?.FirstOrDefault(c => c != null && string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
-                : remoteDef.Catalogs?.FirstOrDefault(c =>
-                    c != null && (
-                        string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-                        (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase))));
-
-            if (targetCatalog != null)
-            {
-                if (!string.IsNullOrWhiteSpace(targetCatalog.Url) &&
-                    !string.Equals(subscription.CatalogUrl, targetCatalog.Url, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogInformation(
-                        "Updating catalog URL for subscription {PublisherId} (catalog {CatalogId}) from {OldUrl} to {NewUrl}",
-                        subscription.PublisherId,
-                        targetCatalog.Id,
-                        subscription.CatalogUrl,
-                        targetCatalog.Url);
-
-                    subscription.CatalogUrl = targetCatalog.Url;
-                    hasUpdate = true;
-                }
-            }
-            else if (string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
-                     (remoteDef.Catalogs == null || remoteDef.Catalogs.Count <= 1) &&
-                     !string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
-                     !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                // Fall back to remoteDef.CatalogUrl only for single-catalog or legacy definitions to prevent
-                // multi-catalog legacy subscriptions from silently migrating to Catalogs[0].
-                logger.LogInformation(
-                    "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
-                    subscription.PublisherId,
-                    subscription.CatalogUrl,
-                    remoteDef.CatalogUrl);
-
-                subscription.CatalogUrl = remoteDef.CatalogUrl;
-                hasUpdate = true;
-            }
-
-            // Check if definition URL migrated
-            if (remoteDef.PreviousDefinitionUrls != null &&
-                remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(remoteDef.DefinitionUrl) &&
-                !string.Equals(subscription.DefinitionUrl, remoteDef.DefinitionUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogInformation(
-                    "Publisher {PublisherId} definition URL migrated from {OldUrl} to {NewUrl}",
-                    subscription.PublisherId,
-                    subscription.DefinitionUrl,
-                    remoteDef.DefinitionUrl);
-
-                subscription.DefinitionUrl = remoteDef.DefinitionUrl;
-                hasUpdate = true;
-            }
+            hasUpdate |= TryUpdatePublisherName(subscription, remoteDef.Publisher);
+            hasUpdate |= TryUpdatePublisherAvatar(subscription, remoteDef.Publisher);
+            hasUpdate |= TryUpdateCatalogUrl(subscription, remoteDef);
+            hasUpdate |= TryUpdateDefinitionUrl(subscription, remoteDef);
 
             return OperationResult<bool>.CreateSuccess(hasUpdate);
         }
@@ -474,5 +392,109 @@ public class PublisherDefinitionService(
             logger.LogWarning(ex, "Error trying {Context} mirror {Url}", logContext, rawUrl);
             return null;
         }
+    }
+
+    private bool TryUpdatePublisherName(PublisherSubscription subscription, PublisherProfile? publisher)
+    {
+        if (publisher == null ||
+            string.IsNullOrWhiteSpace(publisher.Name) ||
+            string.Equals(subscription.PublisherName, publisher.Name, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        logger.LogInformation(
+            "Updating publisher name for subscription {PublisherId} from {OldName} to {NewName}",
+            subscription.PublisherId,
+            subscription.PublisherName,
+            publisher.Name);
+
+        subscription.PublisherName = publisher.Name;
+        return true;
+    }
+
+    private bool TryUpdatePublisherAvatar(PublisherSubscription subscription, PublisherProfile? publisher)
+    {
+        if (publisher == null ||
+            string.IsNullOrWhiteSpace(publisher.AvatarUrl) ||
+            string.Equals(subscription.AvatarUrl, publisher.AvatarUrl, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        logger.LogInformation(
+            "Updating publisher avatar for subscription {PublisherId} from {OldAvatar} to {NewAvatar}",
+            subscription.PublisherId,
+            subscription.AvatarUrl,
+            publisher.AvatarUrl);
+
+        subscription.AvatarUrl = publisher.AvatarUrl;
+        return true;
+    }
+
+    private bool TryUpdateCatalogUrl(PublisherSubscription subscription, PublisherDefinition remoteDef)
+    {
+        var targetCatalog = !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId)
+            ? remoteDef.Catalogs?.FirstOrDefault(c => c != null && string.Equals(c.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase))
+            : remoteDef.Catalogs?.FirstOrDefault(c =>
+                c != null && (
+                    string.Equals(c.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Mirrors != null && c.Mirrors.Contains(subscription.CatalogUrl, StringComparer.OrdinalIgnoreCase))));
+
+        if (targetCatalog != null)
+        {
+            if (!string.IsNullOrWhiteSpace(targetCatalog.Url) &&
+                !string.Equals(subscription.CatalogUrl, targetCatalog.Url, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation(
+                    "Updating catalog URL for subscription {PublisherId} (catalog {CatalogId}) from {OldUrl} to {NewUrl}",
+                    subscription.PublisherId,
+                    targetCatalog.Id,
+                    subscription.CatalogUrl,
+                    targetCatalog.Url);
+
+                subscription.CatalogUrl = targetCatalog.Url;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
+            (remoteDef.Catalogs == null || remoteDef.Catalogs.Count <= 1) &&
+            !string.IsNullOrWhiteSpace(remoteDef.CatalogUrl) &&
+            !string.Equals(subscription.CatalogUrl, remoteDef.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation(
+                "Updating catalog URL for subscription {PublisherId} from {OldUrl} to {NewUrl}",
+                subscription.PublisherId,
+                subscription.CatalogUrl,
+                remoteDef.CatalogUrl);
+
+            subscription.CatalogUrl = remoteDef.CatalogUrl;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryUpdateDefinitionUrl(PublisherSubscription subscription, PublisherDefinition remoteDef)
+    {
+        if (remoteDef.PreviousDefinitionUrls != null &&
+            remoteDef.PreviousDefinitionUrls.Contains(subscription.DefinitionUrl, StringComparer.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(remoteDef.DefinitionUrl) &&
+            !string.Equals(subscription.DefinitionUrl, remoteDef.DefinitionUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogInformation(
+                "Publisher {PublisherId} definition URL migrated from {OldUrl} to {NewUrl}",
+                subscription.PublisherId,
+                subscription.DefinitionUrl,
+                remoteDef.DefinitionUrl);
+
+            subscription.DefinitionUrl = remoteDef.DefinitionUrl;
+            return true;
+        }
+
+        return false;
     }
 }

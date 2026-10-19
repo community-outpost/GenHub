@@ -383,6 +383,22 @@ public partial class SubscriptionConfirmationViewModel(
             : definition.Catalogs?.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url))?.Url;
     }
 
+    private static void AddUniqueMirrors(List<string> candidateUrls, IEnumerable<string>? mirrors)
+    {
+        if (mirrors == null)
+        {
+            return;
+        }
+
+        foreach (var mirror in mirrors.Where(m => !string.IsNullOrWhiteSpace(m)))
+        {
+            if (!candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
+            {
+                candidateUrls.Add(mirror);
+            }
+        }
+    }
+
     private static List<string> CollectCandidateCatalogUrls(PublisherDefinition definition)
     {
         var candidateUrls = new List<string>();
@@ -396,27 +412,8 @@ public partial class SubscriptionConfirmationViewModel(
             cat != null && string.Equals(cat.Url, targetCatalogUrl, StringComparison.OrdinalIgnoreCase))
             ?? definition.Catalogs?.FirstOrDefault(cat => cat != null);
 
-        if (targetEntry?.Mirrors != null)
-        {
-            foreach (var mirror in targetEntry.Mirrors)
-            {
-                if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(mirror);
-                }
-            }
-        }
-
-        if (definition.CatalogMirrors != null)
-        {
-            foreach (var mirror in definition.CatalogMirrors)
-            {
-                if (!string.IsNullOrWhiteSpace(mirror) && !candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(mirror);
-                }
-            }
-        }
+        AddUniqueMirrors(candidateUrls, targetEntry?.Mirrors);
+        AddUniqueMirrors(candidateUrls, definition.CatalogMirrors);
 
         return candidateUrls;
     }
@@ -461,6 +458,14 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         return primaryEntry != null && SharesMirror(entry.Mirrors, primaryEntry.Mirrors);
+    }
+
+    private static CatalogEntry? ResolveFirstCatalogEntry(List<CatalogEntry> catalogs, string firstCatalogUrl)
+    {
+        return catalogs.FirstOrDefault(e => e != null && (
+            string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            MirrorsContainUrl(e.Mirrors, firstCatalogUrl)))
+            ?? catalogs.FirstOrDefault(e => e != null);
     }
 
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
@@ -508,6 +513,8 @@ public partial class SubscriptionConfirmationViewModel(
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
             var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
+            var isSameCatalogUrl = existingSub != null && string.Equals(effectiveCatalogUrl, existingSub.CatalogUrl, StringComparison.OrdinalIgnoreCase);
+            var selectedCatalogId = resolvedSelectedCatalogId ?? (isSameCatalogUrl ? existingSub?.SelectedCatalogId : null);
 
             var subscription = new PublisherSubscription
             {
@@ -515,7 +522,7 @@ public partial class SubscriptionConfirmationViewModel(
                 PublisherName = publisherName,
                 CatalogUrl = effectiveCatalogUrl,
                 DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
-                SelectedCatalogId = resolvedSelectedCatalogId ?? existingSub?.SelectedCatalogId,
+                SelectedCatalogId = selectedCatalogId,
                 Added = existingSub?.Added ?? DateTime.UtcNow,
                 TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
                 AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisherAvatar),
@@ -833,6 +840,40 @@ public partial class SubscriptionConfirmationViewModel(
         logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
     }
 
+    private void AddPrimaryDefinitionCatalog(CatalogEntry? firstEntry, string firstCatalogUrl, PublisherCatalog firstCatalog)
+    {
+        var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.PrimarySyntheticCatalogId;
+        var fallbackName = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.DefaultCatalogName;
+        _definitionCatalogs.Add((
+            firstEntryId,
+            ResolveCatalogDisplayName(firstEntry?.Name, fallbackName),
+            firstCatalogUrl,
+            firstCatalog));
+    }
+
+    private bool ShouldSkipCatalogEntry(CatalogEntry? entry, CatalogEntry? firstEntry, string firstCatalogUrl)
+    {
+        return entry == null ||
+            string.IsNullOrWhiteSpace(entry.Url) ||
+            IsDuplicateOrSharedEndpoint(entry, firstEntry, firstCatalogUrl) ||
+            _definitionCatalogs.Any(existing => string.Equals(existing.Url, entry.Url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AddDefinitionCatalogEntry(CatalogEntry entry, PublisherCatalog parsed, ref int catalogIndex)
+    {
+        catalogIndex++;
+        var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"{CatalogConstants.SyntheticCatalogIdPrefix}{catalogIndex}";
+        var fallbackCatalogName = GetLocalizedString(
+            "Downloads.Subscription.Catalog.FallbackNameFormat",
+            "Catalog {0}",
+            catalogIndex);
+        _definitionCatalogs.Add((
+            entryCatalogId,
+            ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : fallbackCatalogName),
+            entry.Url,
+            parsed));
+    }
+
     private async Task BuildDefinitionCatalogListAsync(
         PublisherDefinition definition,
         PublisherCatalog firstCatalog,
@@ -841,24 +882,13 @@ public partial class SubscriptionConfirmationViewModel(
     {
         _definitionCatalogs.Clear();
         var catalogs = definition.Catalogs ?? [];
-        var firstEntry = catalogs.FirstOrDefault(e => e != null && (
-            string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-            MirrorsContainUrl(e.Mirrors, firstCatalogUrl)))
-            ?? catalogs.FirstOrDefault(e => e != null);
-        var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : "__primary";
-        _definitionCatalogs.Add((
-            firstEntryId,
-            ResolveCatalogDisplayName(firstEntry?.Name, !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.DefaultCatalogName),
-            firstCatalogUrl,
-            firstCatalog));
+        var firstEntry = ResolveFirstCatalogEntry(catalogs, firstCatalogUrl);
+        AddPrimaryDefinitionCatalog(firstEntry, firstCatalogUrl, firstCatalog);
 
         var catalogIndex = 0;
         foreach (var entry in catalogs)
         {
-            if (entry == null ||
-                string.IsNullOrWhiteSpace(entry.Url) ||
-                IsDuplicateOrSharedEndpoint(entry, firstEntry, firstCatalogUrl) ||
-                _definitionCatalogs.Any(existing => string.Equals(existing.Url, entry.Url, StringComparison.OrdinalIgnoreCase)))
+            if (ShouldSkipCatalogEntry(entry, firstEntry, firstCatalogUrl))
             {
                 continue;
             }
@@ -866,17 +896,7 @@ public partial class SubscriptionConfirmationViewModel(
             var parsed = await TryFetchDefinitionCatalogEntryAsync(entry, cancellationToken);
             if (parsed != null)
             {
-                catalogIndex++;
-                var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"__catalog_{catalogIndex}";
-                var fallbackCatalogName = GetLocalizedString(
-                    "Downloads.Subscription.Catalog.FallbackNameFormat",
-                    "Catalog {0}",
-                    catalogIndex);
-                _definitionCatalogs.Add((
-                    entryCatalogId,
-                    ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : fallbackCatalogName),
-                    entry.Url,
-                    parsed));
+                AddDefinitionCatalogEntry(entry, parsed, ref catalogIndex);
             }
         }
     }

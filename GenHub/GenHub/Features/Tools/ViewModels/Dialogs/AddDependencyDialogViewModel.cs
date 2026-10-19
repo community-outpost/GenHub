@@ -158,17 +158,7 @@ public partial class AddDependencyDialogViewModel(
             return null;
         }
 
-        if (definition == null ||
-            definition.Publisher == null ||
-            (definition.Catalogs.Count == 0 && string.IsNullOrWhiteSpace(definition.CatalogUrl)))
-        {
-            return null;
-        }
-
-        var targetUrl = !string.IsNullOrWhiteSpace(definition.CatalogUrl)
-            ? definition.CatalogUrl
-            : definition.Catalogs?.FirstOrDefault(c => c != null && !string.IsNullOrWhiteSpace(c.Url))?.Url;
-
+        var targetUrl = ResolveDefinitionTargetUrl(definition);
         if (string.IsNullOrWhiteSpace(targetUrl))
         {
             return null;
@@ -180,39 +170,48 @@ public partial class AddDependencyDialogViewModel(
             return null;
         }
 
-        PublisherCatalog? parsedCatalog;
-        try
-        {
-            var catalogJson = await CatalogDocumentReader.ReadAsync(client, targetUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
-            parsedCatalog = JsonSerializer.Deserialize<PublisherCatalog>(catalogJson, PublisherJsonOptions.Definition);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-        catch (InvalidDataException)
-        {
-            return null;
-        }
-        catch (HttpRequestException)
-        {
-            return null;
-        }
-
-        if (parsedCatalog == null || parsedCatalog.Content is not { Count: > 0 })
+        var parsedCatalog = await TryFetchAndDeserializeCatalogAsync(client, targetUrl, cancellationToken);
+        if (parsedCatalog?.Content is not { Count: > 0 } || definition?.Publisher == null)
         {
             return null;
         }
 
         return (definition.Publisher.Id, parsedCatalog.Content);
+    }
+
+    private static string? ResolveDefinitionTargetUrl(PublisherDefinition? definition)
+    {
+        if (definition?.Publisher == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.CatalogUrl))
+        {
+            return definition.CatalogUrl;
+        }
+
+        return definition.Catalogs?.FirstOrDefault(c => c != null && !string.IsNullOrWhiteSpace(c.Url))?.Url;
+    }
+
+    private static async Task<PublisherCatalog?> TryFetchAndDeserializeCatalogAsync(
+        HttpClient client,
+        string targetUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var catalogJson = await CatalogDocumentReader.ReadAsync(client, targetUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            return JsonSerializer.Deserialize<PublisherCatalog>(catalogJson, PublisherJsonOptions.Definition);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidDataException or HttpRequestException)
+        {
+            return null;
+        }
     }
 
     private static (string PublisherId, List<CatalogContentItem> Content)? TryParseCatalogJson(string json)

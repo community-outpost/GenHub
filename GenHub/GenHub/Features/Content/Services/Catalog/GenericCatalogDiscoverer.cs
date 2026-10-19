@@ -960,15 +960,18 @@ public class GenericCatalogDiscoverer(
             }
         }
 
-        var isSiblingUrl = definition?.Catalogs != null && definition.Catalogs.Any(other =>
-            other != null &&
-            !string.IsNullOrWhiteSpace(_subscription?.SelectedCatalogId) &&
-            !string.Equals(other.Id, _subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(other.Url, _subscription?.CatalogUrl, StringComparison.OrdinalIgnoreCase));
+        var subscription = _subscription;
+        var isSiblingUrl = subscription != null &&
+            !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
+            definition?.Catalogs != null &&
+            definition.Catalogs.Any(other =>
+                other != null &&
+                !string.Equals(other.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(other.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
 
         if (!isSiblingUrl)
         {
-            AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+            AddDefinitionUrl(urls, subscription?.CatalogUrl);
         }
 
         return urls;
