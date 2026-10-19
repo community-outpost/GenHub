@@ -1512,6 +1512,159 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("sibling-cat", vm.DefinitionCatalogOptions[1].Key);
     }
 
+    /// <summary>
+    /// Verifies that when a catalog entry has a blank ID, its generated synthetic ID
+    /// avoids collisions with any declared or existing catalog IDs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_BlankIdCatalog_AvoidsCollisionWithLaterDeclaredIdAsync()
+    {
+        // Arrange: 3 catalogs:
+        // 1: Primary with explicit id "primary-cat"
+        // 2: Blank id (would normally get __catalog_1)
+        // 3: Explicitly declared id "__catalog_1"
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string cat1Url = "https://93.184.216.34/cat1.json";
+        const string cat2Url = "https://93.184.216.34/cat2.json";
+        const string cat3Url = "https://93.184.216.34/cat3.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "primary-cat",
+                        "name": "Primary Catalog",
+                        "url": "https://93.184.216.34/cat1.json"
+                    },
+                    {
+                        "id": "",
+                        "name": "Second Catalog",
+                        "url": "https://93.184.216.34/cat2.json"
+                    },
+                    {
+                        "id": "__catalog_1",
+                        "name": "Third Catalog",
+                        "url": "https://93.184.216.34/cat3.json"
+                    }
+                ]
+            }
+            """;
+
+        var cat1 = CreateSampleCatalog("test-pub", "Cat 1");
+        cat1.Content = [new CatalogContentItem { Id = "cat1-item", Name = "Cat 1 Item" }];
+        var cat2 = CreateSampleCatalog("test-pub", "Cat 2");
+        cat2.Content = [new CatalogContentItem { Id = "cat2-item", Name = "Cat 2 Item" }];
+        var cat3 = CreateSampleCatalog("test-pub", "Cat 3");
+        cat3.Content = [new CatalogContentItem { Id = "cat3-item", Name = "Cat 3 Item" }];
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("body-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(cat1));
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("body-2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(cat2));
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("body-3", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(cat3));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [cat1Url] = "body-1",
+            [cat2Url] = "body-2",
+            [cat3Url] = "body-3",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+
+        // Assert: All 3 catalogs must be present with distinct keys
+        Assert.Equal(3, vm.DefinitionCatalogOptions.Count);
+        var keys = vm.DefinitionCatalogOptions.Select(opt => opt.Key).ToList();
+        Assert.Equal("primary-cat", keys[0]);
+
+        // Blank catalog skips __catalog_1 (which is declared on cat 3) and becomes __catalog_2
+        Assert.Equal("__catalog_2", keys[1]);
+        Assert.Equal("__catalog_1", keys[2]);
+
+        // Act: selecting __catalog_1 selects catalog 3, not catalog 2
+        vm.SelectDefinitionCatalog("__catalog_1");
+        Assert.Single(vm.ContentItems);
+        Assert.Equal("cat3-item", vm.ContentItems[0].Id);
+
+        // Act: selecting __catalog_2 selects catalog 2
+        vm.SelectDefinitionCatalog("__catalog_2");
+        Assert.Single(vm.ContentItems);
+        Assert.Equal("cat2-item", vm.ContentItems[0].Id);
+    }
+
+    /// <summary>
+    /// Verifies that when the primary catalog has a blank Name and blank Id,
+    /// it uses the localized default name ("Content").
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PrimaryCatalogWithBlankNameAndId_UsesLocalizedDefaultNameAsync()
+    {
+        const string definitionUrl = "https://93.184.216.34/definition.json";
+        const string cat1Url = "https://93.184.216.34/cat1.json";
+
+        var definitionJson = """
+            {
+                "$schemaVersion": 1,
+                "publisher": { "id": "test-pub", "name": "Test Publisher" },
+                "catalogs": [
+                    {
+                        "id": "",
+                        "name": "",
+                        "url": "https://93.184.216.34/cat1.json"
+                    }
+                ]
+            }
+            """;
+
+        var cat1 = CreateSampleCatalog("test-pub", "Cat 1");
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync("body-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(cat1));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("test-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        using var httpClient = new HttpClient(new MappedFakeHttpMessageHandler(new Dictionary<string, string>
+        {
+            [definitionUrl] = definitionJson,
+            [cat1Url] = "body-1",
+        }));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            definitionUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        Assert.Single(vm.DefinitionCatalogOptions);
+        Assert.Equal("Content", vm.DefinitionCatalogOptions[0].Label);
+    }
+
     private static PublisherCatalog CreateSampleCatalog(string id, string name)
     {
         return new PublisherCatalog

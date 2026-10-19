@@ -4273,6 +4273,9 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
     <value>+ New Publisher • {0} catalogs</value>
   </data>
+  <data name="Downloads.Subscription.Catalog.DefaultName" xml:space="preserve">
+    <value>Content</value>
+  </data>
   <data name="Downloads.Subscription.Catalog.FallbackNameFormat" xml:space="preserve">
     <value>Catalog {0}</value>
   </data>

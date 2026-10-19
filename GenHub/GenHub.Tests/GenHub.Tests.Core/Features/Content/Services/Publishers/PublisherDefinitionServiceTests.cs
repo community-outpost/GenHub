@@ -442,6 +442,106 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that when a definition has multiple catalogs, FetchCatalogFromDefinitionAsync uses the target
+    /// catalog entry mirrors rather than top-level definition mirrors from a sibling catalog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_TargetEntryHasMirrors_UsesTargetEntryMirrorsAsync()
+    {
+        var requestedUrls = new List<string>();
+        var handler = new ScriptedHttpMessageHandler(request =>
+        {
+            if (request.RequestUri != null)
+            {
+                requestedUrls.Add(request.RequestUri.AbsoluteUri);
+            }
+
+            return request.RequestUri?.AbsolutePath == "/target-mirror.json"
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var service = CreateServiceWithHandler(handler);
+        _catalogParserMock
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(new PublisherCatalog()));
+
+        var definition = new PublisherDefinition
+        {
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "target",
+                    Url = "https://example.com/target.json",
+                    Mirrors = ["https://example.com/target-mirror.json"],
+                },
+                new CatalogEntry
+                {
+                    Id = "sibling",
+                    Url = "https://example.com/sibling.json",
+                    Mirrors = ["https://example.com/sibling-mirror.json"],
+                },
+            ],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains("https://example.com/target.json", requestedUrls);
+        Assert.Contains("https://example.com/target-mirror.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/sibling-mirror.json", requestedUrls);
+    }
+
+    /// <summary>
+    /// Tests that when a resolved target catalog entry declares no mirrors, FetchCatalogFromDefinitionAsync
+    /// does not fall back to top-level definition mirrors (from Catalogs[0]).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_TargetEntryHasNoMirrors_DoesNotFallbackToDefinitionMirrorsAsync()
+    {
+        var requestedUrls = new List<string>();
+        var handler = new ScriptedHttpMessageHandler(request =>
+        {
+            if (request.RequestUri != null)
+            {
+                requestedUrls.Add(request.RequestUri.AbsoluteUri);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var service = CreateServiceWithHandler(handler);
+        var definition = new PublisherDefinition
+        {
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "primary",
+                    Mirrors = ["https://example.com/primary-mirror.json"],
+                },
+                new CatalogEntry
+                {
+                    Id = "secondary",
+                    Url = "https://example.com/secondary.json",
+                    Mirrors = [],
+                },
+            ],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.False(result.Success);
+        Assert.Contains("https://example.com/secondary.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/primary-mirror.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/primary.json", requestedUrls);
+    }
+
+    /// <summary>
     /// Tests that fetching a catalog without any catalog URL returns a failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

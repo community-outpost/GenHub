@@ -126,10 +126,17 @@ public class PublisherDefinitionService(
     {
         try
         {
+            CatalogEntry? targetEntry = null;
             var catalogUrl = definition.CatalogUrl;
             if (string.IsNullOrWhiteSpace(catalogUrl) && definition.Catalogs.Count > 0)
             {
-                catalogUrl = definition.Catalogs.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url))?.Url;
+                targetEntry = definition.Catalogs.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url));
+                catalogUrl = targetEntry?.Url;
+            }
+            else if (definition.Catalogs.Count > 0)
+            {
+                targetEntry = definition.Catalogs.FirstOrDefault(cat => cat != null && string.Equals(cat.Url, catalogUrl, StringComparison.OrdinalIgnoreCase))
+                    ?? definition.Catalogs.FirstOrDefault(cat => cat != null);
             }
 
             if (string.IsNullOrWhiteSpace(catalogUrl))
@@ -139,18 +146,19 @@ public class PublisherDefinitionService(
 
             using var client = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
             var urlsToTry = new List<string> { catalogUrl };
-            if (definition.CatalogMirrors != null)
+            var targetMirrors = targetEntry != null ? targetEntry.Mirrors : definition.CatalogMirrors;
+            if (targetMirrors != null)
             {
-                var mirrors = definition.CatalogMirrors
+                var mirrors = targetMirrors
                     .Where(mirror => !string.IsNullOrWhiteSpace(mirror))
                     .Take(CatalogConstants.MaxCatalogMirrorAttempts)
                     .ToList();
-                if (definition.CatalogMirrors.Count > mirrors.Count)
+                if (targetMirrors.Count > mirrors.Count)
                 {
                     logger.LogDebug(
                         "Limiting catalog mirror attempts to {Max} of {Total} configured mirrors",
                         CatalogConstants.MaxCatalogMirrorAttempts,
-                        definition.CatalogMirrors.Count);
+                        targetMirrors.Count);
                 }
 
                 urlsToTry.AddRange(mirrors);

@@ -391,7 +391,9 @@ public class GenericCatalogDiscoverer(
             if (selected == null && !string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
             {
                 selected = definition.Catalogs.FirstOrDefault(e =>
-                    e != null && string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase));
+                    e != null && (
+                        string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                        (e.Mirrors != null && e.Mirrors.Any(m => string.Equals(m, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase)))));
             }
 
             if (selected != null)
@@ -453,6 +455,20 @@ public class GenericCatalogDiscoverer(
         {
             urls.Add(url);
         }
+    }
+
+    private static bool IsSiblingCatalogUrl(Core.Models.Providers.PublisherSubscription? subscription, PublisherDefinition? definition)
+    {
+        if (subscription == null || string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) || definition?.Catalogs == null)
+        {
+            return false;
+        }
+
+        return definition.Catalogs.Any(other =>
+            other != null &&
+            !string.Equals(other.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(other.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+             (other.Mirrors != null && other.Mirrors.Any(mirror => string.Equals(mirror, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase)))));
     }
 
     private static IReadOnlyList<string> ResolveIncludedContentNames(
@@ -960,18 +976,9 @@ public class GenericCatalogDiscoverer(
             }
         }
 
-        var subscription = _subscription;
-        var isSiblingUrl = subscription != null &&
-            !string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) &&
-            definition?.Catalogs != null &&
-            definition.Catalogs.Any(other =>
-                other != null &&
-                !string.Equals(other.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(other.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase));
-
-        if (!isSiblingUrl)
+        if (!IsSiblingCatalogUrl(_subscription, definition))
         {
-            AddDefinitionUrl(urls, subscription?.CatalogUrl);
+            AddDefinitionUrl(urls, _subscription?.CatalogUrl);
         }
 
         return urls;

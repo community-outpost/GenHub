@@ -410,7 +410,10 @@ public partial class SubscriptionConfirmationViewModel(
             ?? definition.Catalogs?.FirstOrDefault(cat => cat != null);
 
         AddUniqueMirrors(candidateUrls, targetEntry?.Mirrors);
-        AddUniqueMirrors(candidateUrls, definition.CatalogMirrors);
+        if (targetEntry == null)
+        {
+            AddUniqueMirrors(candidateUrls, definition.CatalogMirrors);
+        }
 
         return candidateUrls;
     }
@@ -854,15 +857,57 @@ public partial class SubscriptionConfirmationViewModel(
         logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
     }
 
-    private void AddPrimaryDefinitionCatalog(CatalogEntry? firstEntry, string firstCatalogUrl, PublisherCatalog firstCatalog)
+    private void AddPrimaryDefinitionCatalog(
+        CatalogEntry? firstEntry,
+        string firstCatalogUrl,
+        PublisherCatalog firstCatalog,
+        IReadOnlyList<CatalogEntry>? declaredCatalogs)
     {
-        var firstEntryId = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.PrimarySyntheticCatalogId;
-        var fallbackName = !string.IsNullOrWhiteSpace(firstEntry?.Id) ? firstEntry.Id : CatalogConstants.DefaultCatalogName;
+        var hasExplicitId = !string.IsNullOrWhiteSpace(firstEntry?.Id);
+        string firstEntryId;
+        if (hasExplicitId)
+        {
+            firstEntryId = firstEntry!.Id;
+        }
+        else
+        {
+            firstEntryId = CatalogConstants.PrimarySyntheticCatalogId;
+            if (IsCatalogIdInUse(firstEntryId, declaredCatalogs))
+            {
+                var index = 0;
+                firstEntryId = GenerateSyntheticCatalogId(declaredCatalogs, ref index);
+            }
+        }
+
+        var localizedDefaultName = GetLocalizedString(
+            "Downloads.Subscription.Catalog.DefaultName",
+            CatalogConstants.DefaultCatalogName);
+        var fallbackName = hasExplicitId ? firstEntry!.Id : localizedDefaultName;
+
         _definitionCatalogs.Add((
             firstEntryId,
             ResolveCatalogDisplayName(firstEntry?.Name, fallbackName),
             firstCatalogUrl,
             firstCatalog));
+    }
+
+    private bool IsCatalogIdInUse(string catalogId, IReadOnlyList<CatalogEntry>? declaredCatalogs)
+    {
+        return _definitionCatalogs.Any(existing => string.Equals(existing.Id, catalogId, StringComparison.OrdinalIgnoreCase)) ||
+               (declaredCatalogs != null && declaredCatalogs.Any(entry => entry != null && string.Equals(entry.Id, catalogId, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private string GenerateSyntheticCatalogId(IReadOnlyList<CatalogEntry>? declaredCatalogs, ref int catalogIndex)
+    {
+        string candidateId;
+        do
+        {
+            catalogIndex++;
+            candidateId = $"{CatalogConstants.SyntheticCatalogIdPrefix}{catalogIndex}";
+        }
+        while (IsCatalogIdInUse(candidateId, declaredCatalogs));
+
+        return candidateId;
     }
 
     private bool ShouldSkipCatalogEntry(CatalogEntry? entry, CatalogEntry? firstEntry, string firstCatalogUrl)
@@ -873,17 +918,25 @@ public partial class SubscriptionConfirmationViewModel(
             _definitionCatalogs.Any(existing => string.Equals(existing.Url, entry.Url, StringComparison.OrdinalIgnoreCase));
     }
 
-    private void AddDefinitionCatalogEntry(CatalogEntry entry, PublisherCatalog parsed, ref int catalogIndex)
+    private void AddDefinitionCatalogEntry(
+        CatalogEntry entry,
+        PublisherCatalog parsed,
+        IReadOnlyList<CatalogEntry>? declaredCatalogs,
+        ref int catalogIndex)
     {
-        catalogIndex++;
-        var entryCatalogId = !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : $"{CatalogConstants.SyntheticCatalogIdPrefix}{catalogIndex}";
+        var hasExplicitId = !string.IsNullOrWhiteSpace(entry.Id);
+        var entryCatalogId = hasExplicitId
+            ? entry.Id
+            : GenerateSyntheticCatalogId(declaredCatalogs, ref catalogIndex);
+
         var fallbackCatalogName = GetLocalizedString(
             "Downloads.Subscription.Catalog.FallbackNameFormat",
             "Catalog {0}",
             catalogIndex);
+
         _definitionCatalogs.Add((
             entryCatalogId,
-            ResolveCatalogDisplayName(entry.Name, !string.IsNullOrWhiteSpace(entry.Id) ? entry.Id : fallbackCatalogName),
+            ResolveCatalogDisplayName(entry.Name, hasExplicitId ? entry.Id : fallbackCatalogName),
             entry.Url,
             parsed));
     }
@@ -897,7 +950,7 @@ public partial class SubscriptionConfirmationViewModel(
         _definitionCatalogs.Clear();
         var catalogs = definition.Catalogs ?? [];
         var firstEntry = ResolveFirstCatalogEntry(catalogs, firstCatalogUrl);
-        AddPrimaryDefinitionCatalog(firstEntry, firstCatalogUrl, firstCatalog);
+        AddPrimaryDefinitionCatalog(firstEntry, firstCatalogUrl, firstCatalog, catalogs);
 
         var catalogIndex = 0;
         foreach (var entry in catalogs)
@@ -910,7 +963,7 @@ public partial class SubscriptionConfirmationViewModel(
             var parsed = await TryFetchDefinitionCatalogEntryAsync(entry, cancellationToken);
             if (parsed != null)
             {
-                AddDefinitionCatalogEntry(entry, parsed, ref catalogIndex);
+                AddDefinitionCatalogEntry(entry, parsed, catalogs, ref catalogIndex);
             }
         }
     }

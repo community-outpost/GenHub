@@ -285,6 +285,138 @@ public sealed class GenericCatalogDiscovererDefinitionRefreshTests : IDisposable
         Assert.DoesNotContain(staleUrl, requestedUrls);
     }
 
+    /// <summary>
+    /// When the selected catalog fails and the subscription CatalogUrl happens to be a mirror
+    /// of a sibling catalog, discovery must not fall back to that sibling mirror.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_SelectedCatalogFails_CachedUrlIsSiblingMirror_DoesNotFallbackToSiblingMirrorAsync()
+    {
+        const string siblingMirrorUrl = "https://example.com/sibling-mirror.json";
+        const string siblingUrl = "https://example.com/sibling.json";
+        const string selectedUrl = "https://example.com/selected.json";
+        const string definitionUrl = "https://example.com/publisher.json";
+        var catalog = CreateCatalog();
+
+        var definition = new PublisherDefinition
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "sibling",
+                    Name = "Sibling Catalog",
+                    Url = siblingUrl,
+                    Mirrors = [siblingMirrorUrl],
+                },
+                new CatalogEntry
+                {
+                    Id = "selected",
+                    Name = "Selected Catalog",
+                    Url = selectedUrl,
+                },
+            ],
+        };
+        var definitionJson = JsonSerializer.Serialize(definition);
+
+        var routes = new Dictionary<string, HttpResponseMessage>(StringComparer.OrdinalIgnoreCase)
+        {
+            [definitionUrl] = JsonResponse(definitionJson),
+            [selectedUrl] = new HttpResponseMessage(System.Net.HttpStatusCode.NotFound),
+            [siblingUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+            [siblingMirrorUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+        };
+
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = siblingMirrorUrl, // subscription URL matches a mirror of the sibling catalog
+            DefinitionUrl = definitionUrl,
+            SelectedCatalogId = "selected",
+        };
+
+        var requestedUrls = new List<string>();
+        var discoverer = CreateDiscoverer(catalog, routes, requestedUrls);
+        discoverer.Configure(subscription);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        // Assert: Discovery fails because selected catalog 404s and sibling mirror was correctly excluded from fallback
+        Assert.False(result.Success);
+        Assert.Contains(selectedUrl, requestedUrls);
+        Assert.DoesNotContain(siblingMirrorUrl, requestedUrls);
+        Assert.DoesNotContain(siblingUrl, requestedUrls);
+    }
+
+    /// <summary>
+    /// When a legacy subscription has no SelectedCatalogId and its CatalogUrl is a mirror of a catalog
+    /// in a multi-catalog definition, failing that mirror falls back to that catalog's primary URL.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DiscoverAsync_LegacySubscriptionMatchesMirrorOfCatalog_TriesPrimaryUrlWhenMirrorFailsAsync()
+    {
+        const string targetMirrorUrl = "https://example.com/target-mirror.json";
+        const string targetPrimaryUrl = "https://example.com/target.json";
+        const string siblingUrl = "https://example.com/sibling.json";
+        const string definitionUrl = "https://example.com/publisher.json";
+        var catalog = CreateCatalog();
+
+        var definition = new PublisherDefinition
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Publisher" },
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "sibling",
+                    Name = "Sibling Catalog",
+                    Url = siblingUrl,
+                },
+                new CatalogEntry
+                {
+                    Id = "target",
+                    Name = "Target Catalog",
+                    Url = targetPrimaryUrl,
+                    Mirrors = [targetMirrorUrl],
+                },
+            ],
+        };
+        var definitionJson = JsonSerializer.Serialize(definition);
+
+        var routes = new Dictionary<string, HttpResponseMessage>(StringComparer.OrdinalIgnoreCase)
+        {
+            [definitionUrl] = JsonResponse(definitionJson),
+            [targetMirrorUrl] = new HttpResponseMessage(System.Net.HttpStatusCode.NotFound),
+            [targetPrimaryUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+            [siblingUrl] = JsonResponse(JsonSerializer.Serialize(catalog)),
+        };
+
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test-pub",
+            PublisherName = "Test Publisher",
+            CatalogUrl = targetMirrorUrl,
+            DefinitionUrl = definitionUrl,
+            SelectedCatalogId = null,
+        };
+
+        var requestedUrls = new List<string>();
+        var discoverer = CreateDiscoverer(catalog, routes, requestedUrls);
+        discoverer.Configure(subscription);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Contains(targetPrimaryUrl, requestedUrls);
+        Assert.DoesNotContain(siblingUrl, requestedUrls);
+    }
+
     private static GenericCatalogDiscoverer CreateDiscoverer(
         PublisherCatalog catalog,
         Dictionary<string, HttpResponseMessage> routes,
