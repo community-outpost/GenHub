@@ -210,6 +210,8 @@ public partial class AddReleaseDialogViewModel(
     private readonly string? _originalVersion;
     private readonly ContentRelease? _existingRelease;
     private readonly Func<ContentRelease, Task>? _onReleaseDeleted;
+    private bool _isUserEditedVersion;
+    private bool _isApplyingBuildVersion;
 
     [ObservableProperty]
     private bool _isAddonMode = isAddon;
@@ -252,6 +254,10 @@ public partial class AddReleaseDialogViewModel(
     {
         OnPropertyChanged(nameof(TitlePlaceholder));
         Validate();
+        if (!_isApplyingBuildVersion)
+        {
+            _isUserEditedVersion = true;
+        }
     }
 
     partial void OnIsAddonModeChanged(bool value)
@@ -713,6 +719,7 @@ public partial class AddReleaseDialogViewModel(
     private void ApplySuggestedVersion()
     {
         Version = SuggestedVersion;
+        _isUserEditedVersion = false;
     }
 
     /// <summary>
@@ -801,10 +808,19 @@ public partial class AddReleaseDialogViewModel(
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(buildInfo.Version) &&
+        if ((!_isUserEditedVersion || string.IsNullOrWhiteSpace(Version)) &&
+            !string.IsNullOrWhiteSpace(buildInfo.Version) &&
             !buildInfo.Version.Equals(GenHubBuildConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
         {
-            Version = buildInfo.Version;
+            _isApplyingBuildVersion = true;
+            try
+            {
+                Version = buildInfo.Version;
+            }
+            finally
+            {
+                _isApplyingBuildVersion = false;
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(buildInfo.SuggestedCategory))

@@ -140,6 +140,48 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
         Assert.Equal(GenHubBuildConstants.CategoryCustomFork, createdRelease.Category);
     }
 
+    /// <summary>
+    /// Verifies that AddReleaseDialogViewModel does not overwrite a manually edited version when a GenHub build is added.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddReleaseDialog_WhenVersionManuallyEntered_PreservesManualVersionWhenBuildAddedAsync()
+    {
+        var buildPath = WriteTempFile("GenHub-v1.8.0.zip", "fake release zip");
+        var existingContent = new CatalogContentItem
+        {
+            Id = "genhub",
+            Name = "GenHub",
+            ContentType = CoreContentType.GenHubBuild,
+        };
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "test-pub", Name = "Test Pub" },
+        };
+
+        ContentRelease? createdRelease = null;
+        var mockDialogService = new Mock<IPublisherStudioDialogService>();
+        var vm = new AddReleaseDialogViewModel(
+            existingContent,
+            catalog,
+            rel => createdRelease = rel,
+            mockDialogService.Object,
+            buildInspector: _inspector);
+
+        // Manually set custom version before dropping/adding artifact
+        vm.Version = "2.5.0-custom";
+
+        await vm.AddArtifactsFromPathsAsync([buildPath]);
+
+        // Manually edited version should be preserved instead of overwritten by buildInfo.Version ("1.8.0")
+        Assert.Equal("2.5.0-custom", vm.Version);
+        Assert.Equal(GenHubBuildConstants.CategoryRelease, vm.Category);
+
+        vm.CreateReleaseCommand.Execute(null);
+        Assert.NotNull(createdRelease);
+        Assert.Equal("2.5.0-custom", createdRelease.Version);
+    }
+
     private static async Task WaitForComputeAsync(AddContentDialogViewModel vm)
     {
         var timeout = TimeSpan.FromSeconds(5);
