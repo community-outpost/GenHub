@@ -390,12 +390,9 @@ public partial class SubscriptionConfirmationViewModel(
             return;
         }
 
-        foreach (var mirror in mirrors.Where(m => !string.IsNullOrWhiteSpace(m)))
+        foreach (var mirror in mirrors.Where(m => !string.IsNullOrWhiteSpace(m) && !candidateUrls.Contains(m, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!candidateUrls.Contains(mirror, StringComparer.OrdinalIgnoreCase))
-            {
-                candidateUrls.Add(mirror);
-            }
+            candidateUrls.Add(mirror);
         }
     }
 
@@ -468,6 +465,24 @@ public partial class SubscriptionConfirmationViewModel(
             ?? catalogs.FirstOrDefault(e => e != null);
     }
 
+    private static string? ResolveSelectedCatalogId(
+        string? resolvedSelectedCatalogId,
+        string effectiveCatalogUrl,
+        PublisherSubscription? existingSub)
+    {
+        if (resolvedSelectedCatalogId != null)
+        {
+            return resolvedSelectedCatalogId;
+        }
+
+        if (existingSub != null && string.Equals(effectiveCatalogUrl, existingSub.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return existingSub.SelectedCatalogId;
+        }
+
+        return null;
+    }
+
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
     {
         if (_resolvedDefinition?.Catalogs == null || _definitionCatalogs.Count == 0)
@@ -513,8 +528,7 @@ public partial class SubscriptionConfirmationViewModel(
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
             var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
-            var isSameCatalogUrl = existingSub != null && string.Equals(effectiveCatalogUrl, existingSub.CatalogUrl, StringComparison.OrdinalIgnoreCase);
-            var selectedCatalogId = resolvedSelectedCatalogId ?? (isSameCatalogUrl ? existingSub?.SelectedCatalogId : null);
+            var selectedCatalogId = ResolveSelectedCatalogId(resolvedSelectedCatalogId, effectiveCatalogUrl, existingSub);
 
             var subscription = new PublisherSubscription
             {

@@ -222,6 +222,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
                 It.Is<PublisherSubscription>(sub =>
                     sub.PublisherId == "existing-pub" &&
                     sub.CatalogUrl == "https://example.com/new-catalog.json" &&
+                    sub.SelectedCatalogId == null &&
                     sub.TrustLevel == TrustLevel.Trusted &&
                     sub.AutoUpdate == true &&
                     sub.NotifyNewReleases == false &&
@@ -230,6 +231,117 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
                 It.IsAny<CancellationToken>()),
             Times.Once);
         _subscriptionStore.Verify(s => s.AddSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when updating an existing subscription with a different catalog URL,
+    /// any previously persisted SelectedCatalogId is dropped (set to null).
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmCommand_WhenAlreadySubscribed_DifferentCatalogUrl_DropsPersistedSelectedCatalogIdAsync()
+    {
+        // Arrange
+        const string oldCatalogUrl = "https://example.com/old-catalog.json";
+        const string newCatalogUrl = "https://example.com/new-catalog.json";
+        var catalog = CreateSampleCatalog("existing-pub", "Existing Publisher");
+        PublisherSubscription? savedSubscription = null;
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("existing-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("existing-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription
+            {
+                PublisherId = "existing-pub",
+                PublisherName = "Existing Publisher",
+                CatalogUrl = oldCatalogUrl,
+                SelectedCatalogId = "maps",
+                TrustLevel = TrustLevel.Trusted,
+            }));
+
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            newCatalogUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            _httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Act
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedSubscription);
+        Assert.Equal(newCatalogUrl, savedSubscription.CatalogUrl);
+        Assert.Null(savedSubscription.SelectedCatalogId);
+    }
+
+    /// <summary>
+    /// Verifies that when confirming an existing subscription with the same catalog URL
+    /// and the definition does not resolve a catalog ID, the existing SelectedCatalogId is preserved.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConfirmCommand_WhenAlreadySubscribed_SameCatalogUrlAndDefinitionDoesNotResolve_PreservesPersistedSelectedCatalogIdAsync()
+    {
+        // Arrange
+        const string catalogUrl = "https://example.com/catalog.json";
+        var catalog = CreateSampleCatalog("existing-pub", "Existing Publisher");
+        PublisherSubscription? savedSubscription = null;
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        _subscriptionStore
+            .Setup(s => s.IsSubscribedAsync("existing-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync("existing-pub", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription
+            {
+                PublisherId = "existing-pub",
+                PublisherName = "Existing Publisher",
+                CatalogUrl = catalogUrl,
+                SelectedCatalogId = "maps",
+                TrustLevel = TrustLevel.Trusted,
+            }));
+
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherSubscription, CancellationToken>((sub, _) => savedSubscription = sub)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var vm = new SubscriptionConfirmationViewModel(
+            catalogUrl,
+            _subscriptionStore.Object,
+            _catalogParser.Object,
+            _httpClient,
+            _logger.Object);
+
+        await vm.InitializeAsync();
+
+        // Act
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(savedSubscription);
+        Assert.Equal(catalogUrl, savedSubscription.CatalogUrl);
+        Assert.Equal("maps", savedSubscription.SelectedCatalogId);
     }
 
     /// <summary>
