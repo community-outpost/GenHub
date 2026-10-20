@@ -10,7 +10,7 @@ public static class TgaWriter
 {
     /// <summary>
     /// Writes <paramref name="image"/> to <paramref name="destinationPath"/> as an uncompressed 32-bit TGA.
-    /// The image is modified in place: an alpha channel is added if missing, metadata is stripped,
+    /// The image is modified in place: it is converted to RGBA, metadata is stripped,
     /// and the rows are flipped for the bottom-left origin.
     /// </summary>
     /// <param name="image">The image to write.</param>
@@ -18,6 +18,10 @@ public static class TgaWriter
     public static void Write32BitUncompressed(IMagickImage<ushort> image, string destinationPath)
     {
         image.Strip();
+
+        // Grayscale and palette sources would otherwise be written as TGA type 3 or type 1.
+        image.ColorSpace = ColorSpace.sRGB;
+        image.ColorType = ColorType.TrueColorAlpha;
         image.Alpha(AlphaOption.Set);
         image.Depth = 8;
         image.Settings.Compression = CompressionMethod.NoCompression;

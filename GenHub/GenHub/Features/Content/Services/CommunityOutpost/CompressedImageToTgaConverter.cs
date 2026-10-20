@@ -99,6 +99,8 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
 
     /// <summary>
     /// Converts a single compressed image file (AVIF or WebP) to TGA format.
+    /// The decoder is chosen from the file extension, so a <c>.avif</c> path must hold AVIF data
+    /// and any other path is decoded as WebP.
     /// </summary>
     /// <param name="sourcePath">The path to the source image file.</param>
     /// <param name="destinationPath">The path for the output TGA file.</param>
