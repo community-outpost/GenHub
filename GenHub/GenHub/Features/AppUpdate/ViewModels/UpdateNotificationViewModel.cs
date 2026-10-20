@@ -2290,6 +2290,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private async Task Unsubscribe()
     {
         await CancelPreviousArtifactLoadAsync();
+        IsLoadingVersions = false;
 
         _velopackUpdateManager.SubscribedPrNumber = null;
         _velopackUpdateManager.SubscribedBranch = null;

@@ -158,6 +158,25 @@ public class CloudUrlHelperTests
     }
 
     /// <summary>
+    /// Verifies that when a non-download form (like a search or sign-in form) precedes the download form, the download confirmation form is correctly matched.
+    /// </summary>
+    [Fact]
+    public void TryExtractGoogleDriveConfirmationUrl_FirstFormSearchSecondFormDownload_ExtractsDownloadForm()
+    {
+        const string html = "<html><body>" +
+            "<form action=\"https://drive.google.com/search\" method=\"get\"><input name=\"q\" value=\"test\" /></form>" +
+            "<form id=\"download-form\" method=\"post\" action=\"https://drive.usercontent.google.com/download?id=12345\"><input type=\"hidden\" value=\"abc_token\" name=\"confirm\" /></form>" +
+            "</body></html>";
+        var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
+
+        var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
+
+        Assert.True(success);
+        Assert.NotNull(confirmedUrl);
+        Assert.Contains("confirm=abc_token", confirmedUrl);
+    }
+
+    /// <summary>
     /// Verifies that null, empty, or HTML without a confirmation link returns false.
     /// </summary>
     /// <param name="html">The HTML payload to test.</param>

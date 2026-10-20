@@ -3271,6 +3271,9 @@ public class DownloadsBrowserViewModelTests
         // Assert
         Assert.Equal(hostSupported, viewModel.Publishers.Any(p => p.PublisherId == PublisherTypeConstants.GeneralsOnline));
         Assert.Contains(viewModel.Publishers, p => p.PublisherId == PublisherTypeConstants.TheSuperHackers);
+    }
+
+    /// <summary>
     /// Verifies that IsGeneralsOnlineResult identifies Generals Online content and rejects fork or custom catalog items.
     /// </summary>
     /// <param name="providerName">The provider name.</param>

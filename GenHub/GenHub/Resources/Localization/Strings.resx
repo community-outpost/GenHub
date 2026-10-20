@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -689,12 +689,6 @@
   </data>
   <data name="GameProfiles.Notification.Error.Title" xml:space="preserve">
     <value>Error</value>
-  </data>
-  <data name="GameProfiles.GenHubBuild.CreateNotAllowed" xml:space="preserve">
-    <value>GenHub application builds cannot be used to create game profiles.</value>
-  </data>
-  <data name="GameProfiles.GenHubBuild.AddNotAllowed" xml:space="preserve">
-    <value>GenHub application builds cannot be added to game profiles.</value>
   </data>
   <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
     <value>Profile '{0}' launched successfully</value>
@@ -3835,14 +3829,14 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="ContentType.Screensaver" xml:space="preserve">
     <value>Screensaver</value>
   </data>
-  <data name="ContentType.GenHubBuild" xml:space="preserve">
-    <value>GenHub Build</value>
-  </data>
   <data name="ContentType.Executable" xml:space="preserve">
     <value>Executable</value>
   </data>
   <data name="ContentType.ModdingTool" xml:space="preserve">
     <value>Modding Tool</value>
+  </data>
+  <data name="ContentType.GenHubBuild" xml:space="preserve">
+    <value>GenHub Build</value>
   </data>
   <data name="ContentType.UnknownContentType" xml:space="preserve">
     <value>Unknown Content</value>
@@ -18275,9 +18269,6 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
   </data>
-  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
-    <value>Custom &amp; Fork Builds</value>
-  </data>
   <data name="Downloads.ContentDetail.PreviousImage" xml:space="preserve">
     <value>Previous image</value>
   </data>
@@ -18305,8 +18296,15 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
   </data>
-<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
-<data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve"><value>Ready to install: {0} ({1})</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
+  <data name="GameProfiles.GenHubBuild.CreateNotAllowed" xml:space="preserve">
+    <value>GenHub application builds cannot be used to create game profiles.</value>
+  </data>
+  <data name="GameProfiles.GenHubBuild.AddNotAllowed" xml:space="preserve">
+    <value>GenHub application builds cannot be added to game profiles.</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>Custom &amp; Fork Builds</value>
+  </data>
   <data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve">
     <value>Checking updates for {0}...</value>
   </data>

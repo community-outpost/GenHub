@@ -214,20 +214,16 @@ public static partial class CloudUrlHelper
 
     private static string? TryExtractFromConfirmHref(string html, Uri? requestUri)
     {
-        var matches = GoogleDriveConfirmHrefRegexCompiled().Matches(html);
-        foreach (Match confirmMatch in matches)
-        {
-            var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
-            if (resolvedUri is not null &&
-                IsAllowedGoogleDriveHost(resolvedUri) &&
-                (resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase)) &&
-                HasExportDownloadParam(resolvedUri.Query))
-            {
-                return resolvedUri.ToString();
-            }
-        }
-
-        return null;
+        return GoogleDriveConfirmHrefRegexCompiled()
+            .Matches(html)
+            .Select(confirmMatch => ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri))
+            .Where(resolvedUri => resolvedUri is not null &&
+                                  IsAllowedGoogleDriveHost(resolvedUri) &&
+                                  (resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) ||
+                                   resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase)) &&
+                                  HasExportDownloadParam(resolvedUri.Query))
+            .Select(resolvedUri => resolvedUri!.ToString())
+            .FirstOrDefault();
     }
 
     private static bool HasExportDownloadParam(string? query)
@@ -235,31 +231,54 @@ public static partial class CloudUrlHelper
         return string.Equals(GetQueryParam(query, HostingConstants.GoogleDriveQueryExport), HostingConstants.GoogleDriveExportDownload, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string? TryExtractFromFormAction(string html, Uri? requestUri)
+    private static bool IsConfirmationForm(Uri resolvedUri, IReadOnlyList<KeyValuePair<string, string>> inputs)
     {
-        var actionMatch = GoogleDriveFormActionRegexCompiled().Match(html);
-        if (!actionMatch.Success)
+        var isDownloadPath = resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) ||
+                             resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase);
+
+        if (!isDownloadPath)
         {
-            return null;
+            return false;
         }
 
+        return HasQueryParam(resolvedUri.Query, HostingConstants.GoogleDriveQueryConfirm) ||
+               inputs.Any(i => string.Equals(i.Key, HostingConstants.GoogleDriveQueryConfirm, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? TryExtractFromFormAction(string html, Uri? requestUri)
+    {
+        return GoogleDriveFormActionRegexCompiled()
+            .Matches(html)
+            .Select(actionMatch => TryBuildConfirmationUrl(actionMatch, requestUri))
+            .FirstOrDefault(url => url is not null);
+    }
+
+    private static string? TryBuildConfirmationUrl(Match actionMatch, Uri? requestUri)
+    {
         var resolvedUri = ResolveGoogleDriveUri(actionMatch.Groups[1].Value, requestUri);
         if (resolvedUri is null || !IsAllowedGoogleDriveHost(resolvedUri))
         {
             return null;
         }
 
-        var action = resolvedUri.ToString();
         var formInnerHtml = actionMatch.Groups[2].Value;
-
         var inputMatches = GoogleDriveFormInputRegexCompiled().Matches(formInnerHtml);
-        var queryParams = inputMatches
-            .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")
+        var inputs = inputMatches
+            .Select(m => new KeyValuePair<string, string>(
+                System.Net.WebUtility.HtmlDecode(m.Groups[1].Value),
+                System.Net.WebUtility.HtmlDecode(m.Groups[2].Value)))
             .ToList();
 
-        if (queryParams.Count > 0)
+        if (!IsConfirmationForm(resolvedUri, inputs))
+        {
+            return null;
+        }
+
+        var action = resolvedUri.ToString();
+        if (inputs.Count > 0)
         {
             var separator = action.Contains('?') ? "&" : "?";
+            var queryParams = inputs.Select(i => $"{Uri.EscapeDataString(i.Key)}={Uri.EscapeDataString(i.Value)}");
             return $"{action}{separator}{string.Join("&", queryParams)}";
         }
 
