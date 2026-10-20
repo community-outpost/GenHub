@@ -379,38 +379,54 @@ public class GenericCatalogDiscoverer(
             return urls;
         }
 
-        if (definition.Catalogs != null)
+        if (definition.Catalogs != null && definition.Catalogs.Count > 0)
         {
-            // The selected catalog goes first so the feed the user follows wins
-            // over sibling catalogs when a publisher hosts several.
             var selected = !string.IsNullOrWhiteSpace(selectedCatalogId)
                 ? definition.Catalogs.FirstOrDefault(e =>
-                    string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(e.Url, selectedCatalogId, StringComparison.OrdinalIgnoreCase))
+                    e != null && (
+                        string.Equals(e.Id, selectedCatalogId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(e.Url, selectedCatalogId, StringComparison.OrdinalIgnoreCase)))
                 : null;
 
             if (selected == null && !string.IsNullOrWhiteSpace(subscriptionCatalogUrl))
             {
                 selected = definition.Catalogs.FirstOrDefault(e =>
-                    string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase));
+                    e != null && (
+                        string.Equals(e.Url, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                        (e.Mirrors != null && e.Mirrors.Any(m => string.Equals(m, subscriptionCatalogUrl, StringComparison.OrdinalIgnoreCase)))));
             }
 
             if (selected != null)
             {
                 AddDefinitionUrl(urls, selected.Url);
                 AddDefinitionMirrors(urls, selected.Mirrors);
+                return urls;
             }
 
-            foreach (var entry in definition.Catalogs)
+            // If a specific catalog was requested by ID but not found in the definition,
+            // the catalog was removed from the publisher definition.
+            // Do not fall back to sibling catalogs.
+            if (!string.IsNullOrWhiteSpace(selectedCatalogId))
             {
-                if (ReferenceEquals(entry, selected))
-                {
-                    continue;
-                }
-
-                AddDefinitionUrl(urls, entry.Url);
-                AddDefinitionMirrors(urls, entry.Mirrors);
+                return urls;
             }
+
+            // If selectedCatalogId was not specified:
+            // 1. If definition has only one valid catalog entry, the catalog was likely updated/renamed in the definition.
+            // 2. Or neither selectedCatalogId nor subscriptionCatalogUrl was specified.
+            var validCatalogs = definition.Catalogs.Where(cat => cat != null).ToList();
+            if (validCatalogs.Count == 1 || (validCatalogs.Count > 0 && string.IsNullOrWhiteSpace(subscriptionCatalogUrl)))
+            {
+                var defaultEntry = validCatalogs[0];
+                AddDefinitionUrl(urls, defaultEntry.Url);
+                AddDefinitionMirrors(urls, defaultEntry.Mirrors);
+                return urls;
+            }
+
+            // subscriptionCatalogUrl was specified but not found in a multi-catalog definition,
+            // and selectedCatalogId was not set.
+            // Do not fall back to unrelated catalogs.
+            return urls;
         }
 
         AddDefinitionUrl(urls, definition.CatalogUrl);
@@ -439,6 +455,20 @@ public class GenericCatalogDiscoverer(
         {
             urls.Add(url);
         }
+    }
+
+    private static bool IsSiblingCatalogUrl(Core.Models.Providers.PublisherSubscription? subscription, PublisherDefinition? definition)
+    {
+        if (subscription == null || string.IsNullOrWhiteSpace(subscription.SelectedCatalogId) || definition?.Catalogs == null)
+        {
+            return false;
+        }
+
+        return definition.Catalogs.Any(other =>
+            other != null &&
+            !string.Equals(other.Id, subscription.SelectedCatalogId, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(other.Url, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+             (other.Mirrors != null && other.Mirrors.Any(mirror => string.Equals(mirror, subscription.CatalogUrl, StringComparison.OrdinalIgnoreCase)))));
     }
 
     private static IReadOnlyList<string> ResolveIncludedContentNames(
@@ -927,9 +957,10 @@ public class GenericCatalogDiscoverer(
         CancellationToken cancellationToken)
     {
         var urls = new List<string>();
+        PublisherDefinition? definition = null;
         if (_subscription != null && !string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
         {
-            var definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
+            definition = await TryFetchDefinitionAsync(httpClient, _subscription.DefinitionUrl, cancellationToken);
             if (definition != null)
             {
                 RememberResolvedPublisherInfo(definition.Publisher);
@@ -945,7 +976,11 @@ public class GenericCatalogDiscoverer(
             }
         }
 
-        AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        if (!IsSiblingCatalogUrl(_subscription, definition))
+        {
+            AddDefinitionUrl(urls, _subscription?.CatalogUrl);
+        }
+
         return urls;
     }
 
@@ -1075,9 +1110,7 @@ public class GenericCatalogDiscoverer(
             if (parsed?.Success == true && parsed.Data != null)
             {
                 // Only persist the resolved URL when the preferred (first) candidate
-                // wins. A sibling winning after the selected catalog 404d is a
-                // fallback, not a redirect: persisting it would desync CatalogUrl
-                // from SelectedCatalogId and show the wrong catalog's items.
+                // wins, avoiding transient mirror fallbacks from clobbering the primary endpoint.
                 if (string.Equals(candidateUrl, candidateUrls[0], StringComparison.OrdinalIgnoreCase))
                 {
                     RememberResolvedCatalogUrl(candidateUrl);

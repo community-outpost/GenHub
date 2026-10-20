@@ -160,6 +160,91 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that checking for updates when a selected catalog URL changed in a multi-catalog definition updates the subscription.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_SelectedCatalogUrlChanged_UpdatesSubscriptionCatalogUrlAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/main.json\"},{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/new-maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Equal("https://example.com/new-maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
+    /// Tests that changes to a sibling catalog URL in a multi-catalog definition do not overwrite the selected catalog URL.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_SiblingCatalogUrlChanged_DoesNotUpdateSubscriptionCatalogUrlAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/new-main.json\"},{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal("https://example.com/maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
+    /// Tests that a legacy subscription without SelectedCatalogId in a multi-catalog definition
+    /// does not silently migrate to the primary catalog URL when its catalog URL does not match.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_LegacySubscriptionInMultiCatalogDefinition_DoesNotMigrateToPrimaryCatalogUrlAsync()
+    {
+        // Arrange: Legacy subscription with no SelectedCatalogId pointing to an unlisted/old catalog URL
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = null,
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[{\"id\":\"main\",\"name\":\"Main\",\"url\":\"https://example.com/main.json\"},{\"id\":\"secondary\",\"name\":\"Secondary\",\"url\":\"https://example.com/secondary.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert: must NOT silently switch to main.json
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal("https://example.com/old-maps.json", subscription.CatalogUrl);
+    }
+
+    /// <summary>
     /// Tests that checking for updates when there's no definition URL returns false.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -357,6 +442,106 @@ public class PublisherDefinitionServiceTests
     }
 
     /// <summary>
+    /// Tests that when a definition has multiple catalogs, FetchCatalogFromDefinitionAsync uses the target
+    /// catalog entry mirrors rather than top-level definition mirrors from a sibling catalog.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_TargetEntryHasMirrors_UsesTargetEntryMirrorsAsync()
+    {
+        var requestedUrls = new List<string>();
+        var handler = new ScriptedHttpMessageHandler(request =>
+        {
+            if (request.RequestUri != null)
+            {
+                requestedUrls.Add(request.RequestUri.AbsoluteUri);
+            }
+
+            return request.RequestUri?.AbsolutePath == "/target-mirror.json"
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var service = CreateServiceWithHandler(handler);
+        _catalogParserMock
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(new PublisherCatalog()));
+
+        var definition = new PublisherDefinition
+        {
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "target",
+                    Url = "https://example.com/target.json",
+                    Mirrors = ["https://example.com/target-mirror.json"],
+                },
+                new CatalogEntry
+                {
+                    Id = "sibling",
+                    Url = "https://example.com/sibling.json",
+                    Mirrors = ["https://example.com/sibling-mirror.json"],
+                },
+            ],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains("https://example.com/target.json", requestedUrls);
+        Assert.Contains("https://example.com/target-mirror.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/sibling-mirror.json", requestedUrls);
+    }
+
+    /// <summary>
+    /// Tests that when a resolved target catalog entry declares no mirrors, FetchCatalogFromDefinitionAsync
+    /// does not fall back to top-level definition mirrors (from Catalogs[0]).
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task FetchCatalogFromDefinitionAsync_TargetEntryHasNoMirrors_DoesNotFallbackToDefinitionMirrorsAsync()
+    {
+        var requestedUrls = new List<string>();
+        var handler = new ScriptedHttpMessageHandler(request =>
+        {
+            if (request.RequestUri != null)
+            {
+                requestedUrls.Add(request.RequestUri.AbsoluteUri);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        });
+
+        var service = CreateServiceWithHandler(handler);
+        var definition = new PublisherDefinition
+        {
+            Catalogs =
+            [
+                new CatalogEntry
+                {
+                    Id = "primary",
+                    Mirrors = ["https://example.com/primary-mirror.json"],
+                },
+                new CatalogEntry
+                {
+                    Id = "secondary",
+                    Url = "https://example.com/secondary.json",
+                    Mirrors = [],
+                },
+            ],
+        };
+
+        var result = await service.FetchCatalogFromDefinitionAsync(definition);
+
+        Assert.False(result.Success);
+        Assert.Contains("https://example.com/secondary.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/primary-mirror.json", requestedUrls);
+        Assert.DoesNotContain("https://example.com/primary.json", requestedUrls);
+    }
+
+    /// <summary>
     /// Tests that fetching a catalog without any catalog URL returns a failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -429,6 +614,34 @@ public class PublisherDefinitionServiceTests
         Assert.Equal("mod-1", content.Id);
         Assert.Equal("Mod One", content.Name);
         Assert.Equal(GenHub.Core.Models.Enums.ContentType.Mod, content.ContentType);
+    }
+
+    /// <summary>
+    /// Tests that CheckForDefinitionUpdateAsync does not throw NullReferenceException when a definition contains null catalog entries.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForDefinitionUpdateAsync_DefinitionWithNullCatalogEntry_DoesNotThrowNreAsync()
+    {
+        // Arrange
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "test",
+            DefinitionUrl = "https://example.com/provider.json",
+            CatalogUrl = "https://example.com/old-maps.json",
+            SelectedCatalogId = "maps",
+        };
+
+        var json = "{\"$schemaVersion\":1,\"catalogs\":[null,{\"id\":\"maps\",\"name\":\"Maps\",\"url\":\"https://example.com/new-maps.json\"}]}";
+        SetupHttpResponse(HttpStatusCode.OK, json);
+
+        // Act
+        var result = await _service.CheckForDefinitionUpdateAsync(subscription);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.Equal("https://example.com/new-maps.json", subscription.CatalogUrl);
     }
 
     /// <summary>
