@@ -388,7 +388,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             logger.LogWarning(ex, "Unsupported image format: {Path}", path);
             return OperationResult<DecodedTexture>.CreateFailure($"Unsupported image format: {path}", Stopwatch.GetElapsedTime(started));
         }
-        catch (MagickException ex)
+        catch (Exception ex) when (ex is MagickException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Invalid image content: {Path}", path);
             return OperationResult<DecodedTexture>.CreateFailure($"Invalid image content: {path}", Stopwatch.GetElapsedTime(started));
