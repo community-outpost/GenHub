@@ -199,4 +199,60 @@ public class GenHubBuildInspectorTests
             }
         }
     }
+
+    /// <summary>
+    /// Verifies that inspecting a synthetic zip archive containing GenHub.dll before GenHub.Windows.exe prefers the executable entry point.
+    /// </summary>
+    [Fact]
+    public void Inspect_SyntheticZipArchive_PrefersExecutableOverManagedAssembly()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_test_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var dllEntry = archive.CreateEntry("bin/GenHub.dll");
+                using (var stream = dllEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+
+                var exeEntry = archive.CreateEntry("bin/GenHub.Windows.exe");
+                using (var stream = exeEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("bin/GenHub.Windows.exe", info.EntryPoint);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that filename-only inspection classifies a beta suffix as the test channel and prerelease.
+    /// </summary>
+    [Fact]
+    public void Inspect_FileNameWithBetaSuffix_IdentifiesAsTestChannel()
+    {
+        var fakePath = Path.Combine(Path.GetTempPath(), "GenHub-v1.2.3-beta.zip");
+
+        var info = _inspector.Inspect(fakePath);
+
+        Assert.True(info.IsGenHubBuild);
+        Assert.Equal("1.2.3-beta", info.Version);
+        Assert.Equal(GenHubBuildConstants.ChannelTest, info.BuildChannel);
+        Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+    }
 }

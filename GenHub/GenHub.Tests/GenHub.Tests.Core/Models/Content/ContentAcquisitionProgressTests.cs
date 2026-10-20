@@ -1,9 +1,10 @@
+using GenHub.Core.Extensions;
 using GenHub.Core.Models.Content;
 
 namespace GenHub.Tests.Core.Models.Content;
 
 /// <summary>
-/// Tests for <see cref="ContentAcquisitionProgress"/> percentage clamping.
+/// Tests for <see cref="ContentAcquisitionProgress"/> percentage clamping and extensions.
 /// </summary>
 public class ContentAcquisitionProgressTests
 {
@@ -57,5 +58,24 @@ public class ContentAcquisitionProgressTests
 
         Assert.Equal(0, progress.ProgressPercentage);
         Assert.Equal(0, progress.StageProgress);
+    }
+
+    /// <summary>
+    /// Verifies that filename containing 'files' prefix is preserved and not truncated when deduplicating.
+    /// </summary>
+    [Fact]
+    public void FormatProgressStatus_PreservesFileNameWithFilesPrefix()
+    {
+        var progress = new ContentAcquisitionProgress
+        {
+            CurrentStage = 2,
+            TotalStages = 4,
+            StageDescription = "Extracting files",
+            CurrentOperation = "Extracting files backup.bin",
+        };
+
+        var status = progress.FormatProgressStatus();
+
+        Assert.Contains("Extracting files: files backup.bin", status);
     }
 }

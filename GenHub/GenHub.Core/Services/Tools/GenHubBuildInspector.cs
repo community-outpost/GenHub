@@ -143,7 +143,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     [GeneratedRegex(@"(?:^|[-_.])pr[-_]?(\d+)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
     private static partial Regex PrFileNamePattern();
 
-    [GeneratedRegex(@"(?:\b|[vV]|Setup-)(\d+\.\d+(?:\.\d+)?(?:-(?:dev|alpha|beta|rc|preview|pr)\.?[a-zA-Z0-9]+)?)(?:[-_.]|$)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
+    [GeneratedRegex(@"(?:\b|[vV]|Setup-)(\d+\.\d+(?:\.\d+)?(?:-(?:dev|alpha|beta|rc|preview|pr)\.?[a-zA-Z0-9]*)?)(?:[-_.]|$)", RegexOptions.IgnoreCase, RegexTimeoutMs)]
     private static partial Regex SemVerFileNamePattern();
 
     [GeneratedRegex(@"(\d+\.\d+(?:\.\d+)?)", RegexOptions.None, RegexTimeoutMs)]
@@ -405,7 +405,8 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             return GenHubBuildConstants.ChannelDev;
         }
 
-        if (baseName.Contains("test", StringComparison.OrdinalIgnoreCase))
+        if (baseName.Contains("test", StringComparison.OrdinalIgnoreCase) ||
+            baseName.Contains("beta", StringComparison.OrdinalIgnoreCase))
         {
             return GenHubBuildConstants.ChannelTest;
         }
@@ -832,10 +833,14 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             var (nuspecId, nuspecVersion, nuspecAuthors, nuspecTitle, nuspecDescription) = ReadNuspecMetadata(nuspecEntry);
 
             // 2. Look for primary GenHub executable inside archive
-            var targetEntry = archive.Entries.FirstOrDefault(e =>
-                e.Name.Equals(GenHubBuildConstants.WindowsExecutable, StringComparison.OrdinalIgnoreCase) ||
-                e.Name.Equals(GenHubBuildConstants.GenericExecutable, StringComparison.OrdinalIgnoreCase) ||
-                e.Name.Equals(GenHubBuildConstants.ManagedAssembly, StringComparison.OrdinalIgnoreCase));
+            var targetEntry = new[]
+                {
+                    GenHubBuildConstants.WindowsExecutable,
+                    GenHubBuildConstants.GenericExecutable,
+                    GenHubBuildConstants.ManagedAssembly,
+                }
+                .Select(candidate => archive.Entries.FirstOrDefault(e => e.Name.Equals(candidate, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(e => e != null);
 
             if (targetEntry != null)
             {

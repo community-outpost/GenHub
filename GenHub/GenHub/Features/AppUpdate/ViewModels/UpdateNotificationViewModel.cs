@@ -17,6 +17,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -41,12 +42,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 {
     private const string InstallationFailedLocalizationKey = "Updates.Status.InstallationFailed";
 
-    private static readonly IComparer<string> ReleaseVersionComparer = Comparer<string>.Create((a, b) =>
-    {
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-        return 0;
-    });
+    private static readonly IComparer<string> ReleaseVersionComparer = Comparer<string>.Create(CompareReleaseVersions);
 
     private static readonly Lazy<string> CachedCurrentAppVersion = new(() =>
     {
@@ -496,6 +492,48 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         });
     }
 
+    private static int CompareReleaseVersions(string? a, string? b)
+    {
+        if (string.IsNullOrWhiteSpace(a) && string.IsNullOrWhiteSpace(b))
+        {
+            return 0;
+        }
+
+        if (string.IsNullOrWhiteSpace(a))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(b))
+        {
+            return 1;
+        }
+
+        var cleanA = a.Trim().TrimStart('v', 'V').Split('+')[0];
+        var cleanB = b.Trim().TrimStart('v', 'V').Split('+')[0];
+
+        if (NuGetVersion.TryParse(cleanA, out var nugetA) && NuGetVersion.TryParse(cleanB, out var nugetB))
+        {
+            var cmp = nugetA.CompareTo(nugetB);
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+        }
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(cleanA, cleanB, allowCrossChannel: true))
+        {
+            return 1;
+        }
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(cleanB, cleanA, allowCrossChannel: true))
+        {
+            return -1;
+        }
+
+        return string.Compare(cleanA, cleanB, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void RunOnUi(Action action)
     {
         if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -556,7 +594,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         try
         {
             var artifacts = await FetchSubscribedArtifactsAsync(targetPrNumber, targetBranch, targetCustomBuild, token);
-            if (token.IsCancellationRequested)
+            if (token.IsCancellationRequested || !IsSubscribedToAny)
             {
                 return;
             }
@@ -750,7 +788,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var isNotInstalledYet = string.IsNullOrWhiteSpace(SubscribedCustomBuildVersion);
         var installedVersion = (SubscribedCustomBuildVersion ?? CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
-        var isNewer = AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
+        var isNewer = CompareReleaseVersions(latestVersion, installedVersion) > 0 ||
+                      AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
         if (isNotInstalledYet || isNewer)
         {
             var settings = _userSettingsService.Get();
@@ -880,7 +919,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (string.Equals(SubscribedCustomBuildContentId, item.ContentId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(SubscribedCustomBuildPublisherId, item.PublisherId, StringComparison.OrdinalIgnoreCase))
         {
-            Unsubscribe();
+            await Unsubscribe();
             return;
         }
 
@@ -915,6 +954,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private void PopulateAvailableVersions(IReadOnlyList<ArtifactUpdateInfo> artifacts)
     {
+        if (!IsSubscribedToAny)
+        {
+            return;
+        }
+
         _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
 
         var addedArtifactIds = new HashSet<long>();
@@ -1591,7 +1635,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         // 0. handle explicitly selected version
-        if (SelectedVersion != null)
+        if (IsSubscribedToAny && SelectedVersion != null)
         {
             _logger.LogInformation("Installing selected artifact version: {Version}", SelectedVersion.DisplayVersion);
             await InstallArtifactAsync(SelectedVersion);
@@ -2119,11 +2163,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void SubscribeToPr(int prNumber)
+    private async Task SubscribeToPr(int prNumber)
     {
         if (SubscribedPr?.Number == prNumber)
         {
-            Unsubscribe();
+            await Unsubscribe();
             return;
         }
 
@@ -2172,13 +2216,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void SubscribeToBranch(string branchName)
+    private async Task SubscribeToBranch(string branchName)
     {
         if (string.IsNullOrEmpty(branchName)) return;
 
         if (string.Equals(SubscribedBranch, branchName, StringComparison.Ordinal))
         {
-            Unsubscribe();
+            await Unsubscribe();
             return;
         }
 
@@ -2238,8 +2282,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void Unsubscribe()
+    private async Task Unsubscribe()
     {
+        await CancelPreviousArtifactLoadAsync();
+
         _velopackUpdateManager.SubscribedPrNumber = null;
         _velopackUpdateManager.SubscribedBranch = null;
         SubscribedPr = null;
@@ -2248,6 +2294,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         SubscribedCustomBuildName = null;
         SubscribedCustomBuildPublisherId = null;
         SubscribedCustomBuildVersion = null;
+        AvailableVersions.Clear();
         SelectedVersion = null;
         ShowPrMergedWarning = false;
         IsUpdateAvailable = false;
@@ -2275,7 +2322,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void UnsubscribeFromPr() => Unsubscribe();
+    private Task UnsubscribeFromPr() => Unsubscribe();
 
     private void OnLocalizationPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

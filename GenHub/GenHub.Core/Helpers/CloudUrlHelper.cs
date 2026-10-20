@@ -214,19 +214,25 @@ public static partial class CloudUrlHelper
 
     private static string? TryExtractFromConfirmHref(string html, Uri? requestUri)
     {
-        var confirmMatch = GoogleDriveConfirmHrefRegexCompiled().Match(html);
-        if (!confirmMatch.Success)
+        var matches = GoogleDriveConfirmHrefRegexCompiled().Matches(html);
+        foreach (Match confirmMatch in matches)
         {
-            return null;
+            if (!confirmMatch.Success)
+            {
+                continue;
+            }
+
+            var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
+            if (resolvedUri is not null &&
+                IsAllowedGoogleDriveHost(resolvedUri) &&
+                (resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase)) &&
+                HasExportDownloadParam(resolvedUri.Query))
+            {
+                return resolvedUri.ToString();
+            }
         }
 
-        var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
-        return resolvedUri is not null &&
-               IsAllowedGoogleDriveHost(resolvedUri) &&
-               (resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase) || resolvedUri.AbsolutePath.EndsWith(HostingConstants.GoogleDriveDownloadPath, StringComparison.OrdinalIgnoreCase)) &&
-               HasExportDownloadParam(resolvedUri.Query)
-            ? resolvedUri.ToString()
-            : null;
+        return null;
     }
 
     private static bool HasExportDownloadParam(string? query)

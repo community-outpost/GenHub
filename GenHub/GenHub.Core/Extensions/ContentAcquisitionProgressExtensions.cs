@@ -55,15 +55,9 @@ public static class ContentAcquisitionProgressExtensions
 
     private static string DeduplicateOperation(string desc, string op)
     {
-        if (string.IsNullOrEmpty(desc) || string.IsNullOrEmpty(op))
+        if (string.IsNullOrEmpty(desc) || string.IsNullOrEmpty(op) || string.Equals(desc, op, StringComparison.OrdinalIgnoreCase))
         {
-            return op;
-        }
-
-        var trimmed = TrimPrefix(op, desc);
-        if (!string.Equals(trimmed, op, StringComparison.Ordinal))
-        {
-            return trimmed;
+            return string.Empty;
         }
 
         var firstWord = desc.Split(' ')[0];

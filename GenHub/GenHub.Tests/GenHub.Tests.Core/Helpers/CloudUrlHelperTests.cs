@@ -139,6 +139,25 @@ public class CloudUrlHelperTests
     }
 
     /// <summary>
+    /// Verifies that when the first href containing confirm= is invalid, subsequent valid hrefs are matched.
+    /// </summary>
+    [Fact]
+    public void TryExtractGoogleDriveConfirmationUrl_FirstHrefInvalidSecondValid_ExtractsValidLink()
+    {
+        const string html = "<html><body>" +
+            "<a href=\"https://malicious.example.com/invalid?confirm=bad\">Invalid Link</a>" +
+            "<a href=\"https://drive.google.com/uc?export=download&amp;id=12345&amp;confirm=goodToken\">Valid Link</a>" +
+            "</body></html>";
+        var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
+
+        var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
+
+        Assert.True(success);
+        Assert.NotNull(confirmedUrl);
+        Assert.Contains("confirm=goodToken", confirmedUrl);
+    }
+
+    /// <summary>
     /// Verifies that null, empty, or HTML without a confirmation link returns false.
     /// </summary>
     /// <param name="html">The HTML payload to test.</param>

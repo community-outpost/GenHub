@@ -736,6 +736,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         var isExtracting = !isValidatingOrStoring &&
             (reported.Phase == ContentAcquisitionPhase.Extracting ||
+                reported.Phase == ContentAcquisitionPhase.Copying ||
                 reported.CurrentStage == ContentConstants.PipelineStageExtracting ||
                 (!string.IsNullOrEmpty(reported.StageDescription) &&
                     (reported.StageDescription.Contains(ContentConstants.StageKeywordExtracting, StringComparison.OrdinalIgnoreCase) ||
@@ -746,7 +747,9 @@ public class ContentOrchestrator : IContentOrchestrator
         int rangeEnd;
         if (isExtracting)
         {
-            effectivePhase = ContentAcquisitionPhase.Extracting;
+            effectivePhase = reported.Phase == ContentAcquisitionPhase.Copying
+                ? ContentAcquisitionPhase.Copying
+                : ContentAcquisitionPhase.Extracting;
             rangeStart = ContentConstants.ProgressStepValidatingFiles;
             rangeEnd = ContentConstants.ProgressStepExtracting;
         }
