@@ -512,13 +512,22 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var cleanA = a.Trim().TrimStart('v', 'V').Split('+')[0];
         var cleanB = b.Trim().TrimStart('v', 'V').Split('+')[0];
 
-        if (NuGetVersion.TryParse(cleanA, out var nugetA) && NuGetVersion.TryParse(cleanB, out var nugetB))
+        var parsedA = NuGetVersion.TryParse(cleanA, out var nugetA);
+        var parsedB = NuGetVersion.TryParse(cleanB, out var nugetB);
+
+        if (parsedA && parsedB && nugetA != null && nugetB != null)
         {
-            var cmp = nugetA.CompareTo(nugetB);
-            if (cmp != 0)
-            {
-                return cmp;
-            }
+            return nugetA.CompareTo(nugetB);
+        }
+
+        if (parsedA && nugetA != null && (!parsedB || nugetB == null))
+        {
+            return 1;
+        }
+
+        if ((!parsedA || nugetA == null) && parsedB && nugetB != null)
+        {
+            return -1;
         }
 
         if (AppUpdateVersionHelper.IsArtifactVersionNewer(cleanA, cleanB, allowCrossChannel: true))
@@ -883,9 +892,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             HasCustomBuilds = AvailableCustomBuilds.Count > 0;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException oce)
         {
-            _logger.LogDebug("Custom build loading was canceled.");
+            _logger.LogDebug(oce, "Custom build loading was canceled.");
         }
         catch (Exception ex)
         {
@@ -1048,9 +1057,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             // check for updates after subscriptions are populated
             await CheckForUpdatesAsync();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException oce)
         {
-            _logger.LogDebug("Initialization was canceled");
+            _logger.LogDebug(oce, "Initialization was canceled");
         }
         catch (Exception ex)
         {
@@ -1077,7 +1086,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// Gets a value indicating whether an update is available and can be downloaded.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling && !IsDownloading && !IsChecking && !IsLoadingVersions;
 
     /// <summary>
@@ -1089,7 +1097,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// Gets a value indicating whether an operation is currently loading versions, checking updates, or installing.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool IsLoadingOrInstalling => IsLoadingVersions || IsChecking || IsInstalling || IsDownloading;
 
     /// <summary>
@@ -1493,9 +1500,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 StatusMessage = GetLocalizedString("Updates.Status.UpToDate", "You're up to date!");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException oce)
         {
-            _logger.LogDebug("Update check was canceled");
+            _logger.LogDebug(oce, "Update check was canceled");
         }
         catch (Exception ex)
         {
@@ -1742,7 +1749,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// Gets a value indicating whether the branch artifact can be installed.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool CanInstallBranchArtifact => !string.IsNullOrEmpty(SubscribedBranch) && !IsInstalling && !IsDownloading;
 
     /// <summary>
@@ -1814,7 +1820,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// Gets a value indicating whether the PR artifact can be installed.
     /// </summary>
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool CanInstallPrArtifact => SubscribedPr != null && !IsInstalling && !IsDownloading;
 
     /// <summary>

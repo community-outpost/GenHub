@@ -79,13 +79,13 @@ public class FastHttpClientFileDownloader(
 
     private static async Task ValidateHostAddressesAsync(string url, CancellationToken cancellationToken)
     {
-        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.HostNameType == UriHostNameType.Unknown)
         {
-            if (uri.HostNameType == UriHostNameType.Unknown)
-            {
-                throw new SecurityException($"Invalid host name: '{uri.Host}'.");
-            }
+            throw new SecurityException($"Invalid host name: '{uri.Host}'.");
+        }
 
+        if (uri != null)
+        {
             try
             {
                 var addresses = await Dns.GetHostAddressesAsync(uri.Host, cancellationToken).ConfigureAwait(false);
@@ -498,13 +498,14 @@ public class FastHttpClientFileDownloader(
             }
 
             // If probe returned 200 OK (server ignored Range header), check for HTML response or stream directly
+            if (probeResponse.StatusCode == HttpStatusCode.OK &&
+                await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
             if (probeResponse.StatusCode == HttpStatusCode.OK)
             {
-                if (await TryHandleHtmlResponseAsync(probeResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
-                {
-                    return;
-                }
-
                 var totalBytes = probeResponse.Content.Headers.ContentLength ?? -1L;
                 await DownloadSingleStreamAsync(probeResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
                 ValidateDownloadedFileHeader(targetFile);
@@ -527,6 +528,7 @@ public class FastHttpClientFileDownloader(
         }
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private async Task<bool> TryDownloadGitHubArtifactArchiveAsync(
         HttpClient client,
         string url,
@@ -558,6 +560,7 @@ public class FastHttpClientFileDownloader(
         return true;
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Fallback download helper requires all original download configuration parameters and cancel token.")]
     private async Task DownloadFallbackSingleStreamAsync(
         HttpClient client,
         string url,
@@ -591,6 +594,7 @@ public class FastHttpClientFileDownloader(
         ValidateDownloadedFileHeader(targetFile);
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private IDictionary<string, string>? StripSensitiveHeadersOnCrossOrigin(
         string originalUrl,
         string redirectUrl,
@@ -603,7 +607,9 @@ public class FastHttpClientFileDownloader(
 
         if (Uri.TryCreate(originalUrl, UriKind.Absolute, out var origUri) &&
             Uri.TryCreate(redirectUrl, UriKind.Absolute, out var redirUri) &&
-            string.Equals(origUri.Host, redirUri.Host, StringComparison.OrdinalIgnoreCase))
+            origUri.Scheme.Equals(redirUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(origUri.Host, redirUri.Host, StringComparison.OrdinalIgnoreCase) &&
+            origUri.Port == redirUri.Port)
         {
             return headers;
         }
@@ -635,13 +641,13 @@ public class FastHttpClientFileDownloader(
         var html = await ReadBoundedStringAsync(response.Content, AppUpdateConstants.MaxHtmlInspectionSizeBytes, cancelToken).ConfigureAwait(false);
         var resolvedUri = response.RequestMessage?.RequestUri ?? new Uri(url);
         var confirmedUrl = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, resolvedUri);
+        if (!string.IsNullOrEmpty(confirmedUrl) && remainingRedirects <= 0)
+        {
+            throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
+        }
+
         if (!string.IsNullOrEmpty(confirmedUrl))
         {
-            if (remainingRedirects <= 0)
-            {
-                throw new InvalidOperationException("Exceeded maximum redirects following download confirmation link.");
-            }
-
             if (!NetworkSecurityHelper.IsSafeUrl(confirmedUrl, out var confirmedError))
             {
                 throw new SecurityException($"Confirmation URL target is not allowed: {confirmedError}");

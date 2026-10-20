@@ -217,11 +217,6 @@ public static partial class CloudUrlHelper
         var matches = GoogleDriveConfirmHrefRegexCompiled().Matches(html);
         foreach (Match confirmMatch in matches)
         {
-            if (!confirmMatch.Success)
-            {
-                continue;
-            }
-
             var resolvedUri = ResolveGoogleDriveUri(confirmMatch.Groups[1].Value, requestUri);
             if (resolvedUri is not null &&
                 IsAllowedGoogleDriveHost(resolvedUri) &&
@@ -255,13 +250,7 @@ public static partial class CloudUrlHelper
         }
 
         var action = resolvedUri.ToString();
-        var formInnerHtml = actionMatch.Groups[1].Value;
-
-        // In the updated regex, Groups[1] is the action and Groups[2] is the inner html
-        if (actionMatch.Groups.Count > 2)
-        {
-            formInnerHtml = actionMatch.Groups[2].Value;
-        }
+        var formInnerHtml = actionMatch.Groups[2].Value;
 
         var inputMatches = GoogleDriveFormInputRegexCompiled().Matches(formInnerHtml);
         var queryParams = inputMatches

@@ -216,6 +216,13 @@ public class GitHubContentDelivererTests
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([variantDefault, variantRu]));
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([variantDefault, variantRu]));
 
             var factoryResolver = new PublisherManifestFactoryResolver(
                 [factoryMock.Object],
@@ -375,6 +382,13 @@ public class GitHubContentDelivererTests
                 .Setup(f => f.CreateManifestsFromExtractedContentAsync(
                     It.IsAny<ContentManifest>(),
                     It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([extractedManifest]));
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([extractedManifest]));
 

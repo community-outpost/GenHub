@@ -286,11 +286,6 @@ public static class GenHubBuildConstants
     public const string ArchiveExtension = ".zip";
 
     /// <summary>
-    /// Zip archive extension inspected for embedded builds.
-    /// </summary>
-    public const string ZipExtension = ".zip";
-
-    /// <summary>
     /// Package extension inspected for embedded builds.
     /// </summary>
     public const string PackageExtension = ".nupkg";

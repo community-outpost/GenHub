@@ -2038,6 +2038,26 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return "releases.win.json";
     }
 
+    private string ResolvePackageVersion(string nupkgPath, string fileName)
+    {
+        var fileVersion = TryExtractNuspecVersion(nupkgPath);
+        if (string.IsNullOrWhiteSpace(fileVersion))
+        {
+            var versionMatch = NupkgVersionRegex().Match(fileName);
+            if (versionMatch.Success)
+            {
+                fileVersion = versionMatch.Groups[1].Value;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(fileVersion))
+        {
+            throw new InvalidOperationException($"Unable to determine package version from nupkg '{fileName}'.");
+        }
+
+        return fileVersion;
+    }
+
     private string? TryExtractNuspecVersion(string nupkgFile)
     {
         try
@@ -2076,53 +2096,27 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             throw new FileNotFoundException($"Package file not found: '{nupkgFile}'", nupkgFile);
         }
 
-        var nupkgFileName = Path.GetFileName(nupkgFile);
-        var targetNupkgInTemp = Path.Combine(tempDir, nupkgFileName);
-        if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(targetNupkgInTemp), StringComparison.OrdinalIgnoreCase))
+        var sha1 = CalculateSHA1(nupkgFile);
+        var sha256 = CalculateSHA256(nupkgFile);
+
+        var uniqueNupkgFileName = $"{Path.GetFileNameWithoutExtension(nupkgFile)}-{sha256[..8]}.nupkg";
+        var uniqueNupkgPath = Path.Combine(tempDir, uniqueNupkgFileName);
+        if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(uniqueNupkgPath), StringComparison.OrdinalIgnoreCase))
         {
             await using (var sourceStream = new FileStream(nupkgFile, FileMode.Open, FileAccess.Read, FileShare.Read, DownloadDefaults.BufferSizeBytes, useAsync: true))
-            await using (var destinationStream = new FileStream(targetNupkgInTemp, FileMode.Create, FileAccess.Write, FileShare.None, DownloadDefaults.BufferSizeBytes, useAsync: true))
+            await using (var destinationStream = new FileStream(uniqueNupkgPath, FileMode.Create, FileAccess.Write, FileShare.None, DownloadDefaults.BufferSizeBytes, useAsync: true))
             {
                 await sourceStream.CopyToAsync(destinationStream, cancellationToken).ConfigureAwait(false);
             }
 
-            nupkgFile = targetNupkgInTemp;
-        }
-
-        var releasesFileName = GetReleasesFileName();
-        var releasesPath = Path.Combine(tempDir, releasesFileName);
-        var sha1 = CalculateSHA1(nupkgFile);
-        var sha256 = CalculateSHA256(nupkgFile);
-
-        var uniqueNupkgFileName = $"{Path.GetFileNameWithoutExtension(nupkgFileName)}-{sha256[..8]}.nupkg";
-        var uniqueNupkgPath = Path.Combine(tempDir, uniqueNupkgFileName);
-        if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(uniqueNupkgPath), StringComparison.OrdinalIgnoreCase))
-        {
-            if (!File.Exists(uniqueNupkgPath))
-            {
-                File.Copy(nupkgFile, uniqueNupkgPath, overwrite: true);
-            }
-
             nupkgFile = uniqueNupkgPath;
-            nupkgFileName = uniqueNupkgFileName;
         }
 
         var fileInfo = new FileInfo(nupkgFile);
-
-        var fileVersion = TryExtractNuspecVersion(nupkgFile);
-        if (string.IsNullOrWhiteSpace(fileVersion))
-        {
-            var versionMatch = NupkgVersionRegex().Match(nupkgFileName);
-            if (versionMatch.Success)
-            {
-                fileVersion = versionMatch.Groups[1].Value;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(fileVersion))
-        {
-            throw new InvalidOperationException($"Unable to determine package version from nupkg '{nupkgFileName}'.");
-        }
+        var nupkgFileName = uniqueNupkgFileName;
+        var fileVersion = ResolvePackageVersion(nupkgFile, nupkgFileName);
+        var releasesFileName = GetReleasesFileName();
+        var releasesPath = Path.Combine(tempDir, releasesFileName);
 
         var releasesJson = new
         {

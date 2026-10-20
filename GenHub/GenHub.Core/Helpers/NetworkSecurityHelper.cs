@@ -237,19 +237,7 @@ public static class NetworkSecurityHelper
         createValidationException ??= static msg => new SecurityException(msg);
 
         // Normalize IDN names using IdnHost and canonicalize IPv6 literal brackets on both sides for proxy comparison
-        var targetHost = context.InitialRequestMessage?.RequestUri?.IdnHost;
-        if (string.IsNullOrEmpty(targetHost) &&
-            context.InitialRequestMessage?.Headers.Host is { Length: > 0 } hostHeader)
-        {
-            var colonIdx = hostHeader.IndexOf(':');
-            targetHost = colonIdx >= 0 ? hostHeader[..colonIdx].Trim() : hostHeader.Trim();
-        }
-        else if (string.IsNullOrEmpty(targetHost) &&
-            context.InitialRequestMessage?.RequestUri?.Authority is { Length: > 0 } authority)
-        {
-            var colonIdx = authority.IndexOf(':');
-            targetHost = colonIdx >= 0 ? authority[..colonIdx].Trim() : authority.Trim();
-        }
+        var targetHost = ExtractTargetHost(context.InitialRequestMessage);
 
         var isProxy = !string.IsNullOrEmpty(targetHost) &&
                       !string.Equals(
@@ -266,16 +254,7 @@ public static class NetworkSecurityHelper
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectCts.CancelAfter(TimeSpan.FromSeconds(connectTimeoutSeconds));
 
-        IPAddress[] validationAddresses;
-        try
-        {
-            validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
-        }
-        catch (SocketException ex)
-        {
-            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, hostToValidate), ex);
-        }
-
+        var validationAddresses = await ResolveAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
         if (validationAddresses.Length == 0)
         {
             throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, hostToValidate));
@@ -286,17 +265,9 @@ public static class NetworkSecurityHelper
             throw createValidationException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, hostToValidate));
         }
 
-        IPAddress[] connectAddresses;
-        try
-        {
-            connectAddresses = isProxy
-                ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
-                : validationAddresses;
-        }
-        catch (SocketException ex)
-        {
-            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, context.DnsEndPoint.Host), ex);
-        }
+        var connectAddresses = isProxy
+            ? await ResolveAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
+            : validationAddresses;
 
         if (connectAddresses.Length == 0)
         {
@@ -321,6 +292,46 @@ public static class NetworkSecurityHelper
             {
                 socket.Dispose();
             }
+        }
+    }
+
+    private static string? ExtractTargetHost(HttpRequestMessage? requestMessage)
+    {
+        if (requestMessage == null)
+        {
+            return null;
+        }
+
+        var targetHost = requestMessage.RequestUri?.IdnHost;
+        if (!string.IsNullOrEmpty(targetHost))
+        {
+            return targetHost;
+        }
+
+        if (requestMessage.Headers.Host is { Length: > 0 } hostHeader)
+        {
+            var colonIdx = hostHeader.IndexOf(':');
+            return colonIdx >= 0 ? hostHeader[..colonIdx].Trim() : hostHeader.Trim();
+        }
+
+        if (requestMessage.RequestUri?.Authority is { Length: > 0 } authority)
+        {
+            var colonIdx = authority.IndexOf(':');
+            return colonIdx >= 0 ? authority[..colonIdx].Trim() : authority.Trim();
+        }
+
+        return null;
+    }
+
+    private static async Task<IPAddress[]> ResolveAddressesAsync(string host, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Dns.GetHostAddressesAsync(host, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SocketException ex)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, host), ex);
         }
     }
 

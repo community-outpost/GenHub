@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -461,6 +462,7 @@ public class GitHubContentDeliverer(
             cancellationToken);
     }
 
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
     private async Task<long> ExtractSingleArchiveEntryAsync(
         IArchiveEntry entry,
         string targetDirectory,
@@ -485,7 +487,7 @@ public class GitHubContentDeliverer(
             Directory.CreateDirectory(destinationDir);
         }
 
-        await using var entryStream = entry.OpenEntryStream();
+        await using var entryStream = await entry.OpenEntryStreamAsync(cancellationToken).ConfigureAwait(false);
         return await BoundedArchiveExtractor.CopyEntryToFileAsync(
             entryStream,
             destinationPath,
