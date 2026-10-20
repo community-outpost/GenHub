@@ -558,6 +558,43 @@ public sealed class ContentDetailVideoPlaybackTests
         Assert.Equal(string.Empty, viewModel.FullScreenMediaPosition);
     }
 
+    /// <summary>
+    /// Verifies gallery navigation never shows a video file as an image.
+    /// </summary>
+    [Fact]
+    public void OpenFullScreenMedia_Gallery_ExcludesVideoFiles()
+    {
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "test-item",
+            Name = "Mixed Media",
+            Metadata = new ContentRichMetadata
+            {
+                ScreenshotUrls = ["https://cdn.example.com/clip.mp4", "https://cdn.example.com/shot.jpg"],
+            },
+        };
+        var json = JsonSerializer.Serialize(catalogItem);
+        var searchResult = new ContentSearchResult
+        {
+            Id = "mixed-media-test",
+            Name = "Mixed Media",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata = { [CatalogConstants.CatalogItemJsonMetadataKey] = json },
+        };
+        var viewModel = CreateViewModel(searchResult);
+        viewModel.Initialize();
+        Assert.Equal(2, viewModel.Images.Count);
+
+        viewModel.OpenFullScreenMediaCommand.Execute(viewModel.Images[1]);
+
+        Assert.True(viewModel.IsFullScreenMediaOpen);
+        Assert.Equal("https://cdn.example.com/shot.jpg", viewModel.FullScreenMediaUrl);
+        Assert.Equal("1 / 1", viewModel.FullScreenMediaPosition);
+        Assert.False(viewModel.HasNextFullScreenImage);
+    }
+
     private static ContentDetailViewModel CreateViewModel(ContentSearchResult? customResult = null)
     {
         var searchResult = customResult ?? new ContentSearchResult

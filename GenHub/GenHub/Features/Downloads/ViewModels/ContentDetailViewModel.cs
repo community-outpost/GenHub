@@ -147,7 +147,7 @@ public partial class ContentDetailViewModel(
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
     private readonly List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> _pendingGitHubNotes = [];
-    private readonly List<(string Url, string? Title)> fullScreenGallery = [];
+    private readonly List<(string Url, string? Title)> _fullScreenGallery = [];
     private readonly ConcurrentDictionary<string, string?> _gitHubNotesCache = new(StringComparer.OrdinalIgnoreCase);
     private ContentSearchResult? _updateTargetSearchResult = updateTargetSearchResult;
     private bool _initialIsUpdateAvailable = isUpdateAvailable ?? (updateTargetSearchResult != null);
@@ -334,19 +334,19 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether the full-screen image viewer has a next image.
     /// </summary>
     public bool HasNextFullScreenImage =>
-        FullScreenGalleryIndex >= 0 && FullScreenGalleryIndex < fullScreenGallery.Count - 1;
+        FullScreenGalleryIndex >= 0 && FullScreenGalleryIndex < _fullScreenGallery.Count - 1;
 
     /// <summary>
     /// Gets a value indicating whether the full-screen image viewer can navigate a gallery.
     /// </summary>
-    public bool HasFullScreenGallery => fullScreenGallery.Count > 1;
+    public bool HasFullScreenGallery => _fullScreenGallery.Count > 1;
 
     /// <summary>
     /// Gets the 1-based position of the current full-screen image within its gallery.
     /// </summary>
     public string FullScreenMediaPosition =>
-        FullScreenGalleryIndex >= 0 && fullScreenGallery.Count > 0
-            ? $"{FullScreenGalleryIndex + 1} / {fullScreenGallery.Count}"
+        FullScreenGalleryIndex >= 0 && _fullScreenGallery.Count > 0
+            ? $"{FullScreenGalleryIndex + 1} / {_fullScreenGallery.Count}"
             : string.Empty;
 
     /// <summary>
@@ -6960,7 +6960,7 @@ public partial class ContentDetailViewModel(
         IsFullScreenMediaOpen = false;
         FullScreenMediaUrl = null;
         FullScreenMediaTitle = null;
-        fullScreenGallery.Clear();
+        _fullScreenGallery.Clear();
         FullScreenGalleryIndex = -1;
     }
 
@@ -7056,13 +7056,13 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        fullScreenGallery.Clear();
-        fullScreenGallery.AddRange(BuildFullScreenGallery(item, url));
-        var index = fullScreenGallery.FindIndex(entry => string.Equals(entry.Url, url, StringComparison.OrdinalIgnoreCase));
+        _fullScreenGallery.Clear();
+        _fullScreenGallery.AddRange(BuildFullScreenGallery(item, url));
+        var index = _fullScreenGallery.FindIndex(entry => string.Equals(entry.Url, url, StringComparison.OrdinalIgnoreCase));
         FullScreenGalleryIndex = index >= 0 ? index : 0;
-        if (fullScreenGallery.Count == 0)
+        if (_fullScreenGallery.Count == 0)
         {
-            fullScreenGallery.Add((url, null));
+            _fullScreenGallery.Add((url, null));
             FullScreenGalleryIndex = 0;
         }
 
@@ -7072,13 +7072,13 @@ public partial class ContentDetailViewModel(
 
     private void ApplyFullScreenGalleryItem(int index)
     {
-        if (index < 0 || index >= fullScreenGallery.Count)
+        if (index < 0 || index >= _fullScreenGallery.Count)
         {
             return;
         }
 
         FullScreenGalleryIndex = index;
-        var entry = fullScreenGallery[index];
+        var entry = _fullScreenGallery[index];
         FullScreenMediaUrl = entry.Url;
         FullScreenMediaTitle = string.IsNullOrWhiteSpace(entry.Title)
             ? GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview")
@@ -7093,17 +7093,31 @@ public partial class ContentDetailViewModel(
     {
         if (item is Image && Images.Count > 0)
         {
-            return Images
-                .Select(image => (Url: image.FullSizeUrl ?? image.ThumbnailUrl, Title: (string?)image.Title))
-                .Where(entry => MediaFileHelper.IsRemoteHttpUrl(entry.Url))
-                .Select(entry => (entry.Url!, entry.Title))
-                .ToList();
+            var gallery = new List<(string Url, string? Title)>();
+            foreach (var image in Images)
+            {
+                // Only images the classifier would show belong in the image gallery;
+                // video or embed URLs are handled by the player or browser instead.
+                if (ContentDetailMediaDisplay.Resolve(image).Action != MediaDisplayAction.ShowImage)
+                {
+                    continue;
+                }
+
+                var imageUrl = image.FullSizeUrl ?? image.ThumbnailUrl;
+                if (imageUrl != null && MediaFileHelper.IsRemoteHttpUrl(imageUrl))
+                {
+                    gallery.Add((imageUrl, image.Title));
+                }
+            }
+
+            return gallery;
         }
 
         if (item is string && Screenshots.Contains(url))
         {
             return Screenshots
                 .Select((shot, shotIndex) => (Url: shot, Title: ResolveScreenshotTitle(shot, shotIndex)))
+                .Where(entry => ContentDetailMediaDisplay.Resolve(entry.Url).Action == MediaDisplayAction.ShowImage)
                 .ToList();
         }
 
@@ -7111,7 +7125,8 @@ public partial class ContentDetailViewModel(
         {
             var previewGallery = Releases.Cast<DownloadableItemViewModel>().Concat(Addons)
                 .SelectMany(row => row.PreviewImages)
-                .Where(preview => MediaFileHelper.IsRemoteHttpUrl(preview))
+                .Where(preview => MediaFileHelper.IsRemoteHttpUrl(preview)
+                    && ContentDetailMediaDisplay.Resolve(preview).Action == MediaDisplayAction.ShowImage)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Select(preview => (Url: preview, Title: (string?)null))
                 .ToList();

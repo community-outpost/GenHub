@@ -62,6 +62,40 @@ public class PublisherStudioArtifactHeuristicsTests
     }
 
     /// <summary>
+    /// Verifies clearing a screenshot name in edit mode does not restore the old name on save.
+    /// </summary>
+    [Fact]
+    public void ScreenshotTitle_ClearInEditMode_SavedItemHasNoTitle()
+    {
+        CatalogContentItem? saved = null;
+        var existing = new CatalogContentItem
+        {
+            Id = "existing",
+            Name = "Existing",
+            Description = "Existing description",
+            Metadata = new ContentRichMetadata
+            {
+                ScreenshotUrls = ["https://cdn.example.com/lobby.jpg"],
+                ScreenshotTitles = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    ["https://cdn.example.com/lobby.jpg"] = "Main Lobby",
+                },
+            },
+        };
+        var vm = new AddContentDialogViewModel(existing, item => saved = item);
+        vm.IncludeInitialRelease = false;
+
+        vm.SelectScreenshotCommand.Execute("https://cdn.example.com/lobby.jpg");
+        vm.SelectedScreenshotTitle = string.Empty;
+        vm.ApplyScreenshotTitleCommand.Execute(null);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(saved);
+        Assert.NotNull(saved.Metadata);
+        Assert.Null(saved.Metadata.GetScreenshotTitle("https://cdn.example.com/lobby.jpg"));
+    }
+
+    /// <summary>
     /// Verifies that dropping an executable auto-detects the game client content type.
     /// </summary>
     [Fact]

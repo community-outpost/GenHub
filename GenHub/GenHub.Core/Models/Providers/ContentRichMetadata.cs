@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -62,16 +63,11 @@ public class ContentRichMetadata
             return null;
         }
 
-        foreach (var entry in ScreenshotTitles)
-        {
-            if (string.Equals(entry.Key, screenshotUrl, StringComparison.OrdinalIgnoreCase)
+        return ScreenshotTitles
+            .Where(entry => string.Equals(entry.Key, screenshotUrl, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(entry.Value))
-            {
-                return entry.Value.Trim();
-            }
-        }
-
-        return null;
+            .Select(entry => entry.Value.Trim())
+            .FirstOrDefault();
     }
 
     /// <summary>
@@ -106,16 +102,8 @@ public class ContentRichMetadata
             return;
         }
 
-        string? existingKey = null;
-        foreach (var key in ScreenshotTitles.Keys)
-        {
-            if (string.Equals(key, screenshotUrl, StringComparison.OrdinalIgnoreCase))
-            {
-                existingKey = key;
-                break;
-            }
-        }
-
+        var existingKey = ScreenshotTitles.Keys
+            .FirstOrDefault(key => string.Equals(key, screenshotUrl, StringComparison.OrdinalIgnoreCase));
         if (existingKey != null)
         {
             ScreenshotTitles.Remove(existingKey);

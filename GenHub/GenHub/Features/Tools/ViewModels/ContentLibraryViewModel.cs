@@ -1609,8 +1609,6 @@ public partial class ContentLibraryViewModel(
 
     partial void OnSelectedContentChanged(CatalogContentItem? value)
     {
-        SelectedScreenshotUrl = null;
-        SelectedScreenshotTitle = string.Empty;
         RefreshHostingHint();
         OnPropertyChanged(nameof(SelectedContentTracksUpstream));
         OnPropertyChanged(nameof(ShowFallbackReleasesNote));
@@ -1627,6 +1625,10 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        // Genuine content switch: drop any unapplied screenshot-name draft.
+        // Same-item refreshes set _suppressUpstreamPreviewReload and keep it.
+        SelectedScreenshotUrl = null;
+        SelectedScreenshotTitle = string.Empty;
         BeginUpstreamPreviewLoad(value);
     }
 

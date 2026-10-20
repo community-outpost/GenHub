@@ -331,7 +331,9 @@ public partial class AddContentDialogViewModel(
     /// </summary>
     public ObservableCollection<string> Screenshots { get; } = [];
 
-    private readonly Dictionary<string, string> screenshotTitles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _screenshotTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly HashSet<string> _clearedScreenshotTitles = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedScreenshot))]
@@ -353,7 +355,7 @@ public partial class AddContentDialogViewModel(
     private void SelectScreenshot(string? url)
     {
         SelectedScreenshot = url;
-        SelectedScreenshotTitle = url != null && screenshotTitles.TryGetValue(url, out var title) ? title : string.Empty;
+        SelectedScreenshotTitle = url != null && _screenshotTitles.TryGetValue(url, out var title) ? title : string.Empty;
     }
 
     /// <summary>
@@ -366,11 +368,13 @@ public partial class AddContentDialogViewModel(
 
         if (string.IsNullOrWhiteSpace(SelectedScreenshotTitle))
         {
-            screenshotTitles.Remove(SelectedScreenshot);
+            _screenshotTitles.Remove(SelectedScreenshot);
+            _clearedScreenshotTitles.Add(SelectedScreenshot);
         }
         else
         {
-            screenshotTitles[SelectedScreenshot] = SelectedScreenshotTitle.Trim();
+            _screenshotTitles[SelectedScreenshot] = SelectedScreenshotTitle.Trim();
+            _clearedScreenshotTitles.Remove(SelectedScreenshot);
         }
     }
 
@@ -491,7 +495,7 @@ public partial class AddContentDialogViewModel(
                 var existingTitle = existing.Metadata.GetScreenshotTitle(shot);
                 if (existingTitle != null)
                 {
-                    screenshotTitles[shot] = existingTitle;
+                    _screenshotTitles[shot] = existingTitle;
                 }
             }
         }
@@ -799,7 +803,7 @@ public partial class AddContentDialogViewModel(
     /// <param name="url">The screenshot URL or path.</param>
     /// <returns>The display name, or null when unnamed.</returns>
     public string? GetScreenshotTitle(string? url) =>
-        url != null && screenshotTitles.TryGetValue(url, out var title) && !string.IsNullOrWhiteSpace(title) ? title : null;
+        url != null && _screenshotTitles.TryGetValue(url, out var title) && !string.IsNullOrWhiteSpace(title) ? title : null;
 
     /// <summary>
     /// Populates content item fields from a local directory or file path.
@@ -1760,7 +1764,8 @@ public partial class AddContentDialogViewModel(
         if (!string.IsNullOrWhiteSpace(url))
         {
             Screenshots.Remove(url);
-            screenshotTitles.Remove(url);
+            _screenshotTitles.Remove(url);
+            _clearedScreenshotTitles.Remove(url);
             if (string.Equals(SelectedScreenshot, url, StringComparison.OrdinalIgnoreCase))
             {
                 SelectedScreenshot = null;
@@ -2348,7 +2353,8 @@ public partial class AddContentDialogViewModel(
         var titles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var shot in effectiveScreenshots)
         {
-            var title = GetScreenshotTitle(shot) ?? source?.GetScreenshotTitle(shot);
+            var title = GetScreenshotTitle(shot)
+                ?? (_clearedScreenshotTitles.Contains(shot) ? null : source?.GetScreenshotTitle(shot));
             if (!string.IsNullOrWhiteSpace(title))
             {
                 titles[shot] = title;
