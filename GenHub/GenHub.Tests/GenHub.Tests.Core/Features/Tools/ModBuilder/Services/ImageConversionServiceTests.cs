@@ -1,9 +1,9 @@
 using FluentAssertions;
-using GenHub.Tests.Core.Infrastructure.Imaging;
 using GenHub.Features.Tools.ModBuilder.Services;
+using GenHub.Tests.Core.Infrastructure.Imaging;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
 using Moq;
-using ImageMagick;
 using System;
 using System.Collections.Generic;
 using System.IO;
