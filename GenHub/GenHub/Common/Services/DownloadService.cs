@@ -734,19 +734,8 @@ public class DownloadService(
         return DownloadResult.CreateFailure(finalError, 0, TimeSpan.Zero);
     }
 
-    private async Task<DownloadResult> PerformDownloadAsync(
-        DownloadConfiguration configuration,
-        IProgress<DownloadProgress>? progress,
-        CancellationToken cancellationToken)
+    private long DetermineExistingBytes(DownloadConfiguration configuration, FileInfo destFileInfo, string etagSidecarPath)
     {
-        var destFileInfo = new FileInfo(configuration.DestinationPath);
-        if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
-        {
-            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
-            return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
-        }
-
-        var etagSidecarPath = $"{configuration.DestinationPath}.etag";
         var hasMatchingSidecar = TryGetETagHeader(configuration, out var configEtag)
             && TryParseEntityTag(configEtag, out var parsedConfigEtag)
             && TryReadSidecarEtag(etagSidecarPath, out var parsedSidecarEtag)
@@ -763,6 +752,90 @@ public class DownloadService(
             TryDeleteFile(etagSidecarPath);
         }
 
+        return existingBytes;
+    }
+
+    private async Task<(bool Success, DownloadResult? Result, DownloadConnection Connection)> TryParallelDownloadAsync(
+        DownloadConfiguration configuration,
+        IDownloadUrlValidator validator,
+        DownloadConnection connection,
+        string etagSidecarPath,
+        IProgress<DownloadProgress>? progress,
+        CancellationTokenSource cts,
+        CancellationToken cancellationToken)
+    {
+        if (!CanUseParallelDownload(configuration, connection) ||
+            !IsResponseLatencyAcceptableForParallel(configuration, connection.ResponseLatency))
+        {
+            return (false, null, connection);
+        }
+
+        var parallelContext = new ParallelDownloadContext(
+            configuration,
+            validator,
+            connection.Response.RequestMessage?.RequestUri ?? configuration.Url,
+            connection.TotalBytes,
+            connection.Response.Headers.ETag,
+            connection.Response.Content.Headers.LastModified);
+        connection.Response.Dispose();
+
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var downloadedBytes = await DownloadParallelChunksAsync(
+                parallelContext,
+                progress,
+                stopwatch,
+                cts).ConfigureAwait(false);
+            stopwatch.Stop();
+
+            var result = await FinalizeDownloadAsync(
+                configuration,
+                downloadedBytes,
+                stopwatch.Elapsed,
+                cancellationToken);
+            return (true, result, connection);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Parallel chunk download failed for {Url}. Falling back to sequential download.", configuration.Url);
+            TryDeleteFile(configuration.DestinationPath);
+            TryDeleteFile(etagSidecarPath);
+            cts.CancelAfter(configuration.Timeout);
+
+            if (progress != null)
+            {
+                ReportConnectingProgress(progress, configuration, 0, connection.TotalBytes);
+            }
+
+            var fallbackConnection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
+            return (false, null, fallbackConnection);
+        }
+    }
+
+    private async Task<DownloadResult> PerformDownloadAsync(
+        DownloadConfiguration configuration,
+        IProgress<DownloadProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var destFileInfo = new FileInfo(configuration.DestinationPath);
+        if (destFileInfo.Exists && await TrySkipAlreadyCompletedDownloadAsync(configuration, cancellationToken))
+        {
+            TrackDownloadCompleted(configuration, destFileInfo.Length, TimeSpan.Zero);
+            return DownloadResult.CreateSuccess(configuration.DestinationPath, destFileInfo.Length, TimeSpan.Zero, true);
+        }
+
+        var etagSidecarPath = $"{configuration.DestinationPath}.etag";
+        var existingBytes = DetermineExistingBytes(configuration, destFileInfo, etagSidecarPath);
+
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(configuration.Timeout);
         var validator = urlValidator ?? new DownloadUrlValidator();
@@ -774,63 +847,19 @@ public class DownloadService(
             ReportConnectingProgress(progress, configuration, connection.ExistingBytes, connection.TotalBytes);
         }
 
-        if (CanUseParallelDownload(configuration, connection) &&
-            IsResponseLatencyAcceptableForParallel(configuration, connection.ResponseLatency))
+        var (parallelSuccess, parallelResult, activeConnection) = await TryParallelDownloadAsync(
+            configuration, validator, connection, etagSidecarPath, progress, cts, cancellationToken);
+
+        if (parallelSuccess && parallelResult != null)
         {
-            var parallelContext = new ParallelDownloadContext(
-                configuration,
-                validator,
-                connection.Response.RequestMessage?.RequestUri ?? configuration.Url,
-                connection.TotalBytes,
-                connection.Response.Headers.ETag,
-                connection.Response.Content.Headers.LastModified);
-            connection.Response.Dispose();
-
-            try
-            {
-                var stopwatch = Stopwatch.StartNew();
-                var downloadedBytes = await DownloadParallelChunksAsync(
-                    parallelContext,
-                    progress,
-                    stopwatch,
-                    cts).ConfigureAwait(false);
-                stopwatch.Stop();
-
-                return await FinalizeDownloadAsync(
-                    configuration,
-                    downloadedBytes,
-                    stopwatch.Elapsed,
-                    cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (InvalidDataException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Parallel chunk download failed for {Url}. Falling back to sequential download.", configuration.Url);
-                TryDeleteFile(configuration.DestinationPath);
-                TryDeleteFile(etagSidecarPath);
-                cts.CancelAfter(configuration.Timeout);
-
-                if (progress != null)
-                {
-                    ReportConnectingProgress(progress, configuration, 0, connection.TotalBytes);
-                }
-
-                connection = await EstablishDownloadConnectionAsync(configuration, validator, 0, cts);
-            }
+            return parallelResult;
         }
 
-        using (connection.Response)
+        using (activeConnection.Response)
         {
             var stopwatch = Stopwatch.StartNew();
             var downloadedBytes = await StreamContentToFileAsync(
-                connection,
+                activeConnection,
                 configuration,
                 progress,
                 stopwatch,

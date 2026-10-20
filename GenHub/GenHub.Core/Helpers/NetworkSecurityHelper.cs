@@ -238,6 +238,19 @@ public static class NetworkSecurityHelper
 
         // Normalize IDN names using IdnHost and canonicalize IPv6 literal brackets on both sides for proxy comparison
         var targetHost = context.InitialRequestMessage?.RequestUri?.IdnHost;
+        if (string.IsNullOrEmpty(targetHost) &&
+            context.InitialRequestMessage?.Headers.Host is { Length: > 0 } hostHeader)
+        {
+            var colonIdx = hostHeader.IndexOf(':');
+            targetHost = colonIdx >= 0 ? hostHeader[..colonIdx].Trim() : hostHeader.Trim();
+        }
+        else if (string.IsNullOrEmpty(targetHost) &&
+            context.InitialRequestMessage?.RequestUri?.Authority is { Length: > 0 } authority)
+        {
+            var colonIdx = authority.IndexOf(':');
+            targetHost = colonIdx >= 0 ? authority[..colonIdx].Trim() : authority.Trim();
+        }
+
         var isProxy = !string.IsNullOrEmpty(targetHost) &&
                       !string.Equals(
                           CanonicalizeHostForComparison(targetHost),
@@ -253,7 +266,16 @@ public static class NetworkSecurityHelper
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectCts.CancelAfter(TimeSpan.FromSeconds(connectTimeoutSeconds));
 
-        var validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
+        IPAddress[] validationAddresses;
+        try
+        {
+            validationAddresses = await Dns.GetHostAddressesAsync(hostToValidate, connectCts.Token).ConfigureAwait(false);
+        }
+        catch (SocketException ex)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, hostToValidate), ex);
+        }
+
         if (validationAddresses.Length == 0)
         {
             throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, hostToValidate));
@@ -264,9 +286,17 @@ public static class NetworkSecurityHelper
             throw createValidationException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.UnsafeIpAddressFormat, hostToValidate));
         }
 
-        var connectAddresses = isProxy
-            ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
-            : validationAddresses;
+        IPAddress[] connectAddresses;
+        try
+        {
+            connectAddresses = isProxy
+                ? await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, connectCts.Token).ConfigureAwait(false)
+                : validationAddresses;
+        }
+        catch (SocketException ex)
+        {
+            throw new HttpRequestException(string.Format(CultureInfo.InvariantCulture, NetworkSecurityConstants.NoIpAddressesFoundFormat, context.DnsEndPoint.Host), ex);
+        }
 
         if (connectAddresses.Length == 0)
         {

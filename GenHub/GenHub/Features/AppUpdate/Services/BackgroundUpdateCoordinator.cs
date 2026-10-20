@@ -106,6 +106,7 @@ public class BackgroundUpdateCoordinator(
             // 1. check for subscribed custom build / fork
             if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
             {
+                logger?.LogDebug("Checking for updates to subscribed custom build '{ContentId}'", settings.SubscribedCustomBuildContentId);
                 await CheckSubscribedCustomBuildUpdateAsync(settings, effectiveToken);
                 return;
             }
@@ -970,8 +971,9 @@ public class BackgroundUpdateCoordinator(
         var latestVersion = latestRelease.Version.TrimStart('v', 'V');
         var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
+        var customDismissKey = $"{contentId}@{latestVersion}";
         if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) &&
-            !string.Equals(latestVersion, settings.DismissedUpdateVersion?.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase))
+            !string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase))
         {
             NotifyCustomBuildUpdateAvailable(contentId, buildName, latestVersion);
         }

@@ -436,24 +436,8 @@ public class FastHttpClientFileDownloader(
         {
             using var client = CreateHttpClient(headers, timeout);
 
-            if (url.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase))
+            if (await TryDownloadGitHubArtifactArchiveAsync(client, url, targetFile, progress, cancelToken).ConfigureAwait(false))
             {
-                using var artifactResponse = await client.GetAsync(
-                    url,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancelToken).ConfigureAwait(false);
-
-                artifactResponse.EnsureSuccessStatusCode();
-
-                var artifactResolvedUri = artifactResponse.RequestMessage?.RequestUri ?? new Uri(url);
-                if (!NetworkSecurityHelper.IsSafeUrl(artifactResolvedUri.ToString(), out var artifactRedirectError))
-                {
-                    throw new SecurityException($"Redirect target is not allowed: {artifactRedirectError}");
-                }
-
-                var totalBytes = artifactResponse.Content.Headers.ContentLength ?? -1L;
-                await DownloadSingleStreamAsync(artifactResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
-                ValidateDownloadedFileHeader(targetFile);
                 return;
             }
 
@@ -528,27 +512,7 @@ public class FastHttpClientFileDownloader(
             }
 
             // Fallback to single-stream GET (e.g. for files below parallel threshold)
-            using var fullResponse = await client.GetAsync(
-                url,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancelToken).ConfigureAwait(false);
-
-            fullResponse.EnsureSuccessStatusCode();
-
-            var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
-            if (!NetworkSecurityHelper.IsSafeUrl(fullResolvedUri.ToString(), out var fullRedirectError))
-            {
-                throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
-            }
-
-            if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
-            {
-                return;
-            }
-
-            var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
-            await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
-            ValidateDownloadedFileHeader(targetFile);
+            await DownloadFallbackSingleStreamAsync(client, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (!IsNonRecoverableDownloadException(ex))
         {
@@ -561,6 +525,94 @@ public class FastHttpClientFileDownloader(
             await base.DownloadFile(url, targetFile, progress, headers, timeout, cancelToken).ConfigureAwait(false);
             ValidateDownloadedFileHeader(targetFile);
         }
+    }
+
+    private async Task<bool> TryDownloadGitHubArtifactArchiveAsync(
+        HttpClient client,
+        string url,
+        string targetFile,
+        Action<int> progress,
+        CancellationToken cancelToken)
+    {
+        if (!url.Contains(ApiConstants.GitHubApiArtifactsPathSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        using var artifactResponse = await client.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancelToken).ConfigureAwait(false);
+
+        artifactResponse.EnsureSuccessStatusCode();
+
+        var artifactResolvedUri = artifactResponse.RequestMessage?.RequestUri ?? new Uri(url);
+        if (!NetworkSecurityHelper.IsSafeUrl(artifactResolvedUri.ToString(), out var artifactRedirectError))
+        {
+            throw new SecurityException($"Redirect target is not allowed: {artifactRedirectError}");
+        }
+
+        var totalBytes = artifactResponse.Content.Headers.ContentLength ?? -1L;
+        await DownloadSingleStreamAsync(artifactResponse, targetFile, totalBytes, progress, cancelToken).ConfigureAwait(false);
+        ValidateDownloadedFileHeader(targetFile);
+        return true;
+    }
+
+    private async Task DownloadFallbackSingleStreamAsync(
+        HttpClient client,
+        string url,
+        string targetFile,
+        Action<int> progress,
+        IDictionary<string, string>? headers,
+        double timeout,
+        int remainingRedirects,
+        CancellationToken cancelToken)
+    {
+        using var fullResponse = await client.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancelToken).ConfigureAwait(false);
+
+        fullResponse.EnsureSuccessStatusCode();
+
+        var fullResolvedUri = fullResponse.RequestMessage?.RequestUri ?? new Uri(url);
+        if (!NetworkSecurityHelper.IsSafeUrl(fullResolvedUri.ToString(), out var fullRedirectError))
+        {
+            throw new SecurityException($"Redirect target is not allowed: {fullRedirectError}");
+        }
+
+        if (await TryHandleHtmlResponseAsync(fullResponse, url, targetFile, progress, headers, timeout, remainingRedirects, cancelToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        var fullBytes = fullResponse.Content.Headers.ContentLength ?? -1L;
+        await DownloadSingleStreamAsync(fullResponse, targetFile, fullBytes, progress, cancelToken).ConfigureAwait(false);
+        ValidateDownloadedFileHeader(targetFile);
+    }
+
+    private IDictionary<string, string>? StripSensitiveHeadersOnCrossOrigin(
+        string originalUrl,
+        string redirectUrl,
+        IDictionary<string, string>? headers)
+    {
+        if (headers == null || headers.Count == 0)
+        {
+            return headers;
+        }
+
+        if (Uri.TryCreate(originalUrl, UriKind.Absolute, out var origUri) &&
+            Uri.TryCreate(redirectUrl, UriKind.Absolute, out var redirUri) &&
+            string.Equals(origUri.Host, redirUri.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return headers;
+        }
+
+        var safeHeaders = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
+        safeHeaders.Remove("Authorization");
+        safeHeaders.Remove("Cookie");
+        safeHeaders.Remove("Proxy-Authorization");
+        return safeHeaders;
     }
 
     [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal helper requires download options and progress state.")]
@@ -596,7 +648,8 @@ public class FastHttpClientFileDownloader(
             }
 
             logger?.LogInformation("Following Google Drive download confirmation from {Url} to {ConfirmedUrl}", url, confirmedUrl);
-            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, headers, timeout, remainingRedirects - 1, cancelToken).ConfigureAwait(false);
+            var sanitizedHeaders = StripSensitiveHeadersOnCrossOrigin(url, confirmedUrl, headers);
+            await DownloadFileCoreAsync(confirmedUrl, targetFile, progress, sanitizedHeaders, timeout, remainingRedirects - 1, cancelToken).ConfigureAwait(false);
             return true;
         }
 

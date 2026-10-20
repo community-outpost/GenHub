@@ -18307,6 +18307,25 @@ Mapped image texture reference</value>
   </data>
 <data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
 <data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve"><value>Checking updates for {0}...</value></data><data name="Updates.Status.CustomBuildNotFound" xml:space="preserve"><value>Subscribed build '{0}' not found in publisher subscriptions.</value></data><data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve"><value>No releases available for this build.</value></data><data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve"><value>Update available: {0} for {1}</value></data><data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve"><value>Ready to install: {0} ({1})</value></data><data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve"><value>{0} is up to date (v{1})</value></data>  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
+  <data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve">
+    <value>Checking updates for {0}...</value>
+  </data>
+  <data name="Updates.Status.CustomBuildNotFound" xml:space="preserve">
+    <value>Subscribed build '{0}' not found in publisher subscriptions.</value>
+  </data>
+  <data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve">
+    <value>No releases available for this build.</value>
+  </data>
+  <data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve">
+    <value>Update available: {0} for {1}</value>
+  </data>
+  <data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve">
+    <value>Ready to install: {0} ({1})</value>
+  </data>
+  <data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve">
+    <value>{0} is up to date (v{1})</value>
+  </data>
+  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
     <value>Install Build</value>
   </data>
   <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
@@ -18332,5 +18351,35 @@ Mapped image texture reference</value>
   </data>
   <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
     <value>No versions available for the subscribed custom build</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.ServicesUnavailable" xml:space="preserve">
+    <value>Required services for build installation are unavailable.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.GenericMessage" xml:space="preserve">
+    <value>An unexpected error occurred while installing the build.</value>
+  </data>
+  <data name="Profiles.Error.NoInstallationsFound" xml:space="preserve">
+    <value>No game installations found. Please configure a game installation first.</value>
+  </data>
+  <data name="Profiles.Error.NoInstallationForGameType" xml:space="preserve">
+    <value>No {0} installation is available for the required game client.</value>
+  </data>
+  <data name="Profiles.Error.NoGameClientForInstallation" xml:space="preserve">
+    <value>No suitable game client found for installation '{0}'.</value>
+  </data>
+  <data name="Updates.Mock.DemoUpdateTitle" xml:space="preserve">
+    <value>Demo Update</value>
+  </data>
+  <data name="Updates.Mock.RestartMessage" xml:space="preserve">
+    <value>In a real installation, the app would restart now to apply the update!</value>
+  </data>
+  <data name="Updates.Mock.DemoDeploymentTitle" xml:space="preserve">
+    <value>Demo Deployment</value>
+  </data>
+  <data name="Updates.Mock.ArtifactInstalledFormat" xml:space="preserve">
+    <value>Artifact {0} would be installed and the app restarted.</value>
+  </data>
+  <data name="Updates.Mock.BuildInstalledFormat" xml:space="preserve">
+    <value>Build {0} would be installed and the app restarted.</value>
   </data>
 </root>

@@ -1039,6 +1039,8 @@ public class BackgroundUpdateCoordinatorTests
         var mockSubStore = new Mock<IPublisherSubscriptionStore>();
         var tempCatalogFile = Path.Combine(Path.GetTempPath(), $"catalog_{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(tempCatalogFile, """{"version": "1.0.0"}""");
+        try
+        {
         var subscription = new PublisherSubscription
         {
             PublisherId = "pub-1",
@@ -1110,10 +1112,13 @@ public class BackgroundUpdateCoordinatorTests
         Assert.Equal(AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle, notification.Title);
         Assert.Contains("1.1.0", notification.Message);
         Assert.Contains("Custom GenHub", notification.Message);
-
-        if (File.Exists(tempCatalogFile))
+        }
+        finally
         {
-            File.Delete(tempCatalogFile);
+            if (File.Exists(tempCatalogFile))
+            {
+                File.Delete(tempCatalogFile);
+            }
         }
     }
 

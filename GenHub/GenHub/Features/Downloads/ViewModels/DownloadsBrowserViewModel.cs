@@ -4632,25 +4632,27 @@ public sealed partial class DownloadsBrowserViewModel(
     private async Task InstallBuildContentByIdAsync(string contentId, string contentName, CancellationToken cancellationToken)
     {
         var velopackManager = serviceProvider.GetService<IVelopackUpdateManager>();
-        if (velopackManager == null)
-        {
-            logger.LogWarning("IVelopackUpdateManager is not available to install build");
-            return;
-        }
-
         var storageService = serviceProvider.GetService<IContentStorageService>();
-        if (storageService == null)
+        var locService = serviceProvider.GetService<ILocalizationService>();
+
+        if (velopackManager == null || storageService == null)
         {
-            logger.LogWarning("IContentStorageService is not available to retrieve build files");
+            logger.LogWarning("Required services for build installation are unavailable");
+            var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
+            var failedMsg = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.ServicesUnavailable", "Required services for build installation are unavailable.") ?? "Required services for build installation are unavailable.";
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Error,
+                failedTitle,
+                failedMsg,
+                NotificationDurations.Long));
             return;
         }
 
-        var locService = serviceProvider.GetService<ILocalizationService>();
         string? tempDir = null;
 
         try
         {
-            CleanStaleBuildInstallDirectories();
+            _ = Task.Run(CleanStaleBuildInstallDirectories, CancellationToken.None);
 
             var prepTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Preparing.Title", "Preparing Installation") ?? "Preparing Installation";
             var prepMessage = locService != null
@@ -4706,10 +4708,11 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Failed to install GenHub build {ContentId}", contentId);
             var failedTitle = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.Title", InstallationFailedFallbackTitle) ?? InstallationFailedFallbackTitle;
+            var genericMsg = locService?.GetLocalizedString("Downloads.Notification.InstallBuild.Failed.GenericMessage", "An unexpected error occurred while installing the build.") ?? "An unexpected error occurred while installing the build.";
             notificationService.Show(new NotificationMessage(
                 NotificationType.Error,
                 failedTitle,
-                ex.Message,
+                genericMsg,
                 NotificationDurations.Long));
         }
         finally

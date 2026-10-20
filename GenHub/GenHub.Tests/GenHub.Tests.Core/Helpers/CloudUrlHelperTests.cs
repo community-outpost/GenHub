@@ -124,6 +124,21 @@ public class CloudUrlHelperTests
     }
 
     /// <summary>
+    /// Verifies that non-Google confirmation URL targets return false.
+    /// </summary>
+    [Fact]
+    public void TryExtractGoogleDriveConfirmationUrl_NonGoogleHost_ReturnsFalse()
+    {
+        const string html = "<html><body><a href=\"https://malicious.example.com/download?confirm=t\">Download</a></body></html>";
+        var requestUri = new Uri("https://drive.google.com/uc?export=download&id=12345");
+
+        var success = CloudUrlHelper.TryExtractGoogleDriveConfirmationUrl(html, requestUri, out var confirmedUrl);
+
+        Assert.False(success);
+        Assert.Null(confirmedUrl);
+    }
+
+    /// <summary>
     /// Verifies that null, empty, or HTML without a confirmation link returns false.
     /// </summary>
     /// <param name="html">The HTML payload to test.</param>

@@ -433,6 +433,7 @@ public class ContentOrchestrator : IContentOrchestrator
         _logger.LogInformation("Acquiring content {ContentName} from {ProviderName}", searchResult.Name, searchResult.ProviderName);
 
         var maxReportedPercentage = 0;
+        var progressLock = new object();
         void ReportMonotonicProgress(ContentAcquisitionProgress cap)
         {
             if (progress == null)
@@ -440,11 +441,14 @@ public class ContentOrchestrator : IContentOrchestrator
                 return;
             }
 
-            var targetPct = (int)Math.Round(cap.ProgressPercentage);
-            maxReportedPercentage = Math.Max(maxReportedPercentage, targetPct);
+            lock (progressLock)
+            {
+                var targetPct = (int)Math.Round(cap.ProgressPercentage);
+                maxReportedPercentage = Math.Max(maxReportedPercentage, targetPct);
 
-            cap.ProgressPercentage = maxReportedPercentage;
-            progress.Report(cap);
+                cap.ProgressPercentage = maxReportedPercentage;
+                progress.Report(cap);
+            }
         }
 
         try

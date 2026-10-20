@@ -316,16 +316,11 @@ public class GitHubContentDeliverer(
                 originalManifest.Id);
 
             // Use the factory to create manifests from extracted content
-            var manifestResult = progress != null
-                ? await factory.CreateManifestsFromExtractedContentAsync(
-                    originalManifest,
-                    extractedDirectory,
-                    progress,
-                    cancellationToken).ConfigureAwait(false)
-                : await factory.CreateManifestsFromExtractedContentAsync(
-                    originalManifest,
-                    extractedDirectory,
-                    cancellationToken).ConfigureAwait(false);
+            var manifestResult = await factory.CreateManifestsFromExtractedContentAsync(
+                originalManifest,
+                extractedDirectory,
+                progress,
+                cancellationToken).ConfigureAwait(false);
 
             var manifests = manifestResult.Data ?? [];
             if (!manifestResult.Success || manifests.Count == 0)
@@ -441,35 +436,11 @@ public class GitHubContentDeliverer(
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (!ArchiveEntryName.IsExtractable(entry.Key))
-                    {
-                        throw new InvalidOperationException(
-                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
-                    }
-
-                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
-                    if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
-                    {
-                        throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
-                    }
-
-                    var destinationDir = Path.GetDirectoryName(destinationPath);
-                    if (!string.IsNullOrEmpty(destinationDir))
-                    {
-                        Directory.CreateDirectory(destinationDir);
-                    }
-
-                    await using (var entryStream = entry.OpenEntryStream())
-                    {
-                        expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                            entryStream,
-                            destinationPath,
-                            entry.Key,
-                            GitHubConstants.MaxEntryUncompressedBytes,
-                            expansionBudget - expandedBytes,
-                            overwrite: true,
-                            cancellationToken);
-                    }
+                    expandedBytes += await ExtractSingleArchiveEntryAsync(
+                        entry,
+                        targetDirectory,
+                        expansionBudget - expandedBytes,
+                        cancellationToken).ConfigureAwait(false);
 
                     currentEntry++;
 
@@ -488,5 +459,40 @@ public class GitHubContentDeliverer(
                 }
             },
             cancellationToken);
+    }
+
+    private async Task<long> ExtractSingleArchiveEntryAsync(
+        IArchiveEntry entry,
+        string targetDirectory,
+        long remainingExpansionBudget,
+        CancellationToken cancellationToken)
+    {
+        if (!ArchiveEntryName.IsExtractable(entry.Key))
+        {
+            throw new InvalidOperationException(
+                $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+        }
+
+        var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
+        if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
+        {
+            throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
+        }
+
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        await using var entryStream = entry.OpenEntryStream();
+        return await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            entryStream,
+            destinationPath,
+            entry.Key,
+            GitHubConstants.MaxEntryUncompressedBytes,
+            remainingExpansionBudget,
+            overwrite: true,
+            cancellationToken).ConfigureAwait(false);
     }
 }

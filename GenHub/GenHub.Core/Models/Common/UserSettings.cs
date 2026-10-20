@@ -221,6 +221,11 @@ public class UserSettings
     public string? DismissedUpdateVersion { get; set; }
 
     /// <summary>
+    /// Gets or sets the last dismissed custom build version (scoped as contentId@version) to prevent repeated notifications.
+    /// </summary>
+    public string? DismissedCustomBuildVersion { get; set; }
+
+    /// <summary>
     /// Gets or sets the last known running application version to detect version upgrades.
     /// </summary>
     public string? LastSeenAppVersion { get; set; }
@@ -305,6 +310,7 @@ public class UserSettings
             SubscribedCustomBuildName = SubscribedCustomBuildName,
             SubscribedCustomBuildVersion = SubscribedCustomBuildVersion,
             DismissedUpdateVersion = DismissedUpdateVersion,
+            DismissedCustomBuildVersion = DismissedCustomBuildVersion,
             LastSeenAppVersion = LastSeenAppVersion,
             ContentDirectories = ContentDirectories != null ? [.. ContentDirectories] : null,
             CustomInstallationDirectories = CustomInstallationDirectories != null ? [.. CustomInstallationDirectories] : [],

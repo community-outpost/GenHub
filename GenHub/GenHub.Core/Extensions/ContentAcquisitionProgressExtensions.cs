@@ -31,27 +31,7 @@ public static class ContentAcquisitionProgressExtensions
     {
         string stagePart = $"{progress.CurrentStage}/{progress.TotalStages}";
         var desc = progress.StageDescription ?? string.Empty;
-        var op = progress.CurrentOperation ?? string.Empty;
-
-        // If op starts with the stage description or its first word, avoid repeating it
-        if (!string.IsNullOrEmpty(desc) && !string.IsNullOrEmpty(op))
-        {
-            if (op.StartsWith(desc, StringComparison.OrdinalIgnoreCase) &&
-                (op.Length == desc.Length || op[desc.Length] is ':' or ' '))
-            {
-                op = op.Substring(desc.Length).TrimStart(':', ' ');
-            }
-            else
-            {
-                var firstWord = desc.Split(' ')[0];
-                if (firstWord.Length > 2 &&
-                    op.StartsWith(firstWord, StringComparison.OrdinalIgnoreCase) &&
-                    (op.Length == firstWord.Length || op[firstWord.Length] is ':' or ' '))
-                {
-                    op = op.Substring(firstWord.Length).TrimStart(':', ' ');
-                }
-            }
-        }
+        var op = DeduplicateOperation(desc, progress.CurrentOperation ?? string.Empty);
 
         string description = !string.IsNullOrEmpty(op) &&
                              !string.Equals(op, desc, StringComparison.OrdinalIgnoreCase)
@@ -71,6 +51,39 @@ public static class ContentAcquisitionProgressExtensions
             : string.Empty;
 
         return $"{stagePart} - {description}{percentPart}{filesPart}{bottleneckPart}";
+    }
+
+    private static string DeduplicateOperation(string desc, string op)
+    {
+        if (string.IsNullOrEmpty(desc) || string.IsNullOrEmpty(op))
+        {
+            return op;
+        }
+
+        var trimmed = TrimPrefix(op, desc);
+        if (!string.Equals(trimmed, op, StringComparison.Ordinal))
+        {
+            return trimmed;
+        }
+
+        var firstWord = desc.Split(' ')[0];
+        if (firstWord.Length > 2)
+        {
+            return TrimPrefix(op, firstWord);
+        }
+
+        return op;
+    }
+
+    private static string TrimPrefix(string text, string prefix)
+    {
+        if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            (text.Length == prefix.Length || text[prefix.Length] is ':' or ' '))
+        {
+            return text.Substring(prefix.Length).TrimStart(':', ' ');
+        }
+
+        return text;
     }
 
     private static string GetPhaseName(ContentAcquisitionPhase phase) => phase switch
@@ -96,13 +109,7 @@ public static class ContentAcquisitionProgressExtensions
     {
         if (!string.IsNullOrEmpty(progress.CurrentOperation))
         {
-            var op = progress.CurrentOperation;
-            if (op.StartsWith(phaseName, StringComparison.OrdinalIgnoreCase) &&
-                (op.Length == phaseName.Length || op[phaseName.Length] is ':' or ' '))
-            {
-                op = op.Substring(phaseName.Length).TrimStart(':', ' ');
-            }
-
+            var op = TrimPrefix(progress.CurrentOperation, phaseName);
             if (!string.IsNullOrWhiteSpace(op))
             {
                 return $"{phaseName}: {op}";

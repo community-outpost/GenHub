@@ -104,17 +104,21 @@ public class GitHubManifestFactory(
             var count = Interlocked.Increment(ref processedCount);
             if (progress != null && totalFiles > 0)
             {
-                progress.Report(new ContentAcquisitionProgress
+                var throttleInterval = Math.Max(1, totalFiles / 50);
+                if (count == 1 || count == totalFiles || count % throttleInterval == 0)
                 {
-                    Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    TotalFiles = totalFiles,
-                    FilesProcessed = count,
-                    CurrentOperation = $"Hashing {relativePath}",
-                    StageDescription = "Validating files",
-                    CurrentStage = ContentConstants.PipelineStageValidating,
-                    TotalStages = ContentConstants.TotalPipelineStages,
-                    StageProgress = (double)count / totalFiles * 100.0,
-                });
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.ValidatingFiles,
+                        TotalFiles = totalFiles,
+                        FilesProcessed = count,
+                        CurrentOperation = $"Hashing {relativePath}",
+                        StageDescription = "Validating files",
+                        CurrentStage = ContentConstants.PipelineStageValidating,
+                        TotalStages = ContentConstants.TotalPipelineStages,
+                        StageProgress = (double)count / totalFiles * 100.0,
+                    });
+                }
             }
 
             // Classify from content: extensionless native binaries count, libraries do not.

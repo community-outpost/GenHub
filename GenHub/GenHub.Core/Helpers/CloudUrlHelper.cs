@@ -58,7 +58,14 @@ public static partial class CloudUrlHelper
             return null;
         }
 
-        return TryExtractFromConfirmHref(html, requestUri) ?? TryExtractFromFormAction(html, requestUri);
+        try
+        {
+            return TryExtractFromConfirmHref(html, requestUri) ?? TryExtractFromFormAction(html, requestUri);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -140,7 +147,7 @@ public static partial class CloudUrlHelper
     [GeneratedRegex(@"href=[""']([^""']*confirm=[^""']*)[""']", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveConfirmHrefRegexCompiled();
 
-    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])(?=[^>]*\bmethod=[""'](?:post|get)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexConstants.DefaultTimeoutMs)]
+    [GeneratedRegex(@"<form\b(?=[^>]*\baction=[""']([^""']*)[""'])[^>]*>(.*?)(?:<\/form>|$)", RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexConstants.DefaultTimeoutMs)]
     private static partial Regex GoogleDriveFormActionRegexCompiled();
 
     [GeneratedRegex(@"<input\s+(?=[^>]*\bname=[""']([^""']+)[""'])(?=[^>]*\bvalue=[""']([^""']*)[""'])[^>]*>", RegexOptions.IgnoreCase, RegexConstants.DefaultTimeoutMs)]
@@ -242,7 +249,14 @@ public static partial class CloudUrlHelper
         }
 
         var action = resolvedUri.ToString();
-        var formInnerHtml = actionMatch.Groups[2].Value;
+        var formInnerHtml = actionMatch.Groups[1].Value;
+
+        // In the updated regex, Groups[1] is the action and Groups[2] is the inner html
+        if (actionMatch.Groups.Count > 2)
+        {
+            formInnerHtml = actionMatch.Groups[2].Value;
+        }
+
         var inputMatches = GoogleDriveFormInputRegexCompiled().Matches(formInnerHtml);
         var queryParams = inputMatches
             .Select(m => $"{Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[1].Value))}={Uri.EscapeDataString(System.Net.WebUtility.HtmlDecode(m.Groups[2].Value))}")

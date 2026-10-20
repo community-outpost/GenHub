@@ -26,6 +26,31 @@ public static class GenHubBuildConstants
     public const string OfficialContentId = "genhub";
 
     /// <summary>
+    /// Content ID format for PR builds.
+    /// </summary>
+    public const string PrContentIdFormat = "genhub-pr-{0}";
+
+    /// <summary>
+    /// Content ID format for fork builds.
+    /// </summary>
+    public const string ForkContentIdFormat = "genhub-fork-{0}";
+
+    /// <summary>
+    /// Default content ID for PR builds where no PR number could be parsed.
+    /// </summary>
+    public const string PrBuildContentId = "genhub-pr";
+
+    /// <summary>
+    /// Default name for PR builds where no PR number could be parsed.
+    /// </summary>
+    public const string PrBuildName = "GenHub PR Build";
+
+    /// <summary>
+    /// Prefix identifying a fork in the description or title.
+    /// </summary>
+    public const string ForkOfPrefix = "Fork of ";
+
+    /// <summary>
     /// Tag identifier for genhub-build tag.
     /// </summary>
     public const string GenHubBuildTag = "genhub-build";
@@ -261,6 +286,11 @@ public static class GenHubBuildConstants
     public const string ArchiveExtension = ".zip";
 
     /// <summary>
+    /// Zip archive extension inspected for embedded builds.
+    /// </summary>
+    public const string ZipExtension = ".zip";
+
+    /// <summary>
     /// Package extension inspected for embedded builds.
     /// </summary>
     public const string PackageExtension = ".nupkg";
@@ -269,6 +299,41 @@ public static class GenHubBuildConstants
     /// Nuspec manifest extension identifying package metadata entries.
     /// </summary>
     public const string NuspecExtension = ".nuspec";
+
+    /// <summary>
+    /// CLR assembly attribute name for informational version.
+    /// </summary>
+    public const string AttrAssemblyInformationalVersion = "AssemblyInformationalVersionAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for file version.
+    /// </summary>
+    public const string AttrAssemblyFileVersion = "AssemblyFileVersionAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for product name.
+    /// </summary>
+    public const string AttrAssemblyProduct = "AssemblyProductAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for company name.
+    /// </summary>
+    public const string AttrAssemblyCompany = "AssemblyCompanyAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for assembly title.
+    /// </summary>
+    public const string AttrAssemblyTitle = "AssemblyTitleAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for assembly description.
+    /// </summary>
+    public const string AttrAssemblyDescription = "AssemblyDescriptionAttribute";
+
+    /// <summary>
+    /// CLR assembly attribute name for assembly metadata key-value pairs.
+    /// </summary>
+    public const string AttrAssemblyMetadata = "AssemblyMetadataAttribute";
 
     /// <summary>
     /// Checks whether a build channel represents a prerelease (PR, dev, or test) build.

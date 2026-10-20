@@ -369,7 +369,7 @@
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <TextBlock Text="{localization:Localize Updates.CustomBuilds.Label}" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <TextBlock Text="{localization:Localize Updates.CustomBuilds.Label}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                 <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding AvailableCustomBuilds.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>

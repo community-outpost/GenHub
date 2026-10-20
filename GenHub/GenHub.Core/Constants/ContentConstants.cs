@@ -149,6 +149,11 @@ public static class ContentConstants
     public const string PreparingContentViaProviderOperation = "Preparing content via provider pipeline";
 
     /// <summary>
+    /// Localization key for the default operation text when preparing content via provider pipeline.
+    /// </summary>
+    public const string PreparingContentViaProviderOperationKey = "Downloads.Status.PreparingContentViaProvider";
+
+    /// <summary>
     /// Maximum allowed size for the content catalog in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;

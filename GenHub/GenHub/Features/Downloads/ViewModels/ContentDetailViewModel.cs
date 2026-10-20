@@ -936,6 +936,7 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether the Install Build button should be shown.
     /// </summary>
     public bool ShowInstallBuildButton => IsGenHubBuild &&
+        installBuildAction != null &&
         (SelectedDownloadableItem != null ? SelectedDownloadableItem.IsDownloaded : IsDownloaded);
 
     /// <summary>

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
@@ -17,9 +18,10 @@ namespace GenHub.Features.Info.Services;
 /// <summary>
 /// Mock implementation of IVelopackUpdateManager for interactive demos.
 /// </summary>
-public class MockVelopackUpdateManager(INotificationService? notificationService = null) : IVelopackUpdateManager
+public class MockVelopackUpdateManager(INotificationService? notificationService = null, ILocalizationService? localizationService = null) : IVelopackUpdateManager
 {
     private readonly INotificationService? _notificationService = notificationService;
+    private readonly ILocalizationService? _localizationService = localizationService;
 
     /// <inheritdoc/>
     public bool HasUpdateAvailableFromGitHub => true;
@@ -54,10 +56,12 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
     /// <inheritdoc/>
     public Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
+        var title = _localizationService?.GetString("Updates.Mock.DemoUpdateTitle") ?? "Demo Update";
+        var message = _localizationService?.GetString("Updates.Mock.RestartMessage") ?? "In a real installation, the app would restart now to apply the update!";
         _notificationService?.Show(new NotificationMessage(
             NotificationType.Success,
-            "Demo Update",
-            "In a real installation, the app would restart now to apply the update!",
+            title,
+            message,
             NotificationDurations.Medium));
         return Task.CompletedTask;
     }
@@ -140,10 +144,14 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
             await Task.Delay(150, cancellationToken);
         }
 
+        var title = _localizationService?.GetString("Updates.Mock.DemoDeploymentTitle") ?? "Demo Deployment";
+        var message = _localizationService != null
+            ? _localizationService.GetString("Updates.Mock.ArtifactInstalledFormat", artifactInfo.Version)
+            : $"Artifact {artifactInfo.Version} would be installed and the app restarted.";
         _notificationService?.Show(new NotificationMessage(
             NotificationType.Success,
-            "Demo Deployment",
-            $"Artifact {artifactInfo.Version} would be installed and the app restarted.",
+            title,
+            message,
             NotificationDurations.Medium));
     }
 
@@ -160,10 +168,15 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
             await Task.Delay(150, cancellationToken);
         }
 
+        var title = _localizationService?.GetString("Updates.Mock.DemoDeploymentTitle") ?? "Demo Deployment";
+        var buildName = Path.GetFileName(filePath);
+        var message = _localizationService != null
+            ? _localizationService.GetString("Updates.Mock.BuildInstalledFormat", buildName)
+            : $"Build {buildName} would be installed and the app restarted.";
         _notificationService?.Show(new NotificationMessage(
             NotificationType.Success,
-            "Demo Deployment",
-            $"Build {Path.GetFileName(filePath)} would be installed and the app restarted.",
+            title,
+            message,
             NotificationDurations.Medium));
     }
 

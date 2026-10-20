@@ -1663,7 +1663,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var arguments = string.Empty;
         if (!string.IsNullOrWhiteSpace(customPath))
         {
-            arguments = $"--installto \"{customPath}\"";
+            var trimmedCustomPath = customPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            arguments = $"--installto \"{trimmedCustomPath}\"";
         }
 
         ProcessStartInfo startInfo;
@@ -1761,10 +1762,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     .Where(e => !Path.GetFileName(e).StartsWith("createdump", StringComparison.OrdinalIgnoreCase))
                     .ToArray();
                 var fallbackExe = exeFiles.FirstOrDefault(e => Path.GetFileName(e).Contains("Setup", StringComparison.OrdinalIgnoreCase)) ?? exeFiles.FirstOrDefault();
+                var originalFileName = Path.GetFileName(targetPath);
+                var matchedNupkg = nupkgFiles.FirstOrDefault(f => !string.IsNullOrEmpty(originalFileName) && string.Equals(Path.GetFileName(f), originalFileName, StringComparison.OrdinalIgnoreCase)) ?? nupkgFiles[0];
 
                 try
                 {
-                    await InstallLocalNupkgAsync(nupkgFiles[0], tempDir, Path.GetFileName(targetPath), fallbackExe, progress, cancellationToken).ConfigureAwait(false);
+                    await InstallLocalNupkgAsync(matchedNupkg, tempDir, originalFileName, fallbackExe, progress, cancellationToken).ConfigureAwait(false);
                     return;
                 }
                 catch (OperationCanceledException)
@@ -1875,7 +1878,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var isGitHubApiUrl = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri) &&
                              parsedUri.Scheme == Uri.UriSchemeHttps &&
-                             string.Equals(parsedUri.Host, "api.github.com", StringComparison.OrdinalIgnoreCase);
+                             string.Equals(parsedUri.Host, ApiConstants.GitHubApiHost, StringComparison.OrdinalIgnoreCase);
 
         if ((!isDirectUrl || isGitHubApiUrl) && _gitHubAuthService != null && _gitHubAuthService.IsAuthenticated)
         {
@@ -2088,9 +2091,23 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         var releasesFileName = GetReleasesFileName();
         var releasesPath = Path.Combine(tempDir, releasesFileName);
-        var fileInfo = new FileInfo(nupkgFile);
         var sha1 = CalculateSHA1(nupkgFile);
         var sha256 = CalculateSHA256(nupkgFile);
+
+        var uniqueNupkgFileName = $"{Path.GetFileNameWithoutExtension(nupkgFileName)}-{sha256[..8]}.nupkg";
+        var uniqueNupkgPath = Path.Combine(tempDir, uniqueNupkgFileName);
+        if (!string.Equals(Path.GetFullPath(nupkgFile), Path.GetFullPath(uniqueNupkgPath), StringComparison.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(uniqueNupkgPath))
+            {
+                File.Copy(nupkgFile, uniqueNupkgPath, overwrite: true);
+            }
+
+            nupkgFile = uniqueNupkgPath;
+            nupkgFileName = uniqueNupkgFileName;
+        }
+
+        var fileInfo = new FileInfo(nupkgFile);
 
         var fileVersion = TryExtractNuspecVersion(nupkgFile);
         if (string.IsNullOrWhiteSpace(fileVersion))

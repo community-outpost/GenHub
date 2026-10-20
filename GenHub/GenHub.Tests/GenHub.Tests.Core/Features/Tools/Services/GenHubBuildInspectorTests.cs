@@ -159,4 +159,44 @@ public class GenHubBuildInspectorTests
         var result = GenHubBuildInspector.IsGenHubApplicationBuild(ContentType.GenHubBuild, []);
         Assert.True(result);
     }
+
+    /// <summary>
+    /// Verifies that inspecting a synthetic zip archive extracts nuspec metadata and entry point correctly.
+    /// </summary>
+    [Fact]
+    public void Inspect_SyntheticZipArchive_InfersVersionAndEntryPoint()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_test_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("package.nuspec");
+                using (var writer = new StreamWriter(nuspecEntry.Open()))
+                {
+                    writer.Write("<package><metadata><id>GenHub</id><version>2.5.0</version></metadata></package>");
+                }
+
+                var exeEntry = archive.CreateEntry("bin/GenHub.exe");
+                using (var stream = exeEntry.Open())
+                {
+                    stream.WriteByte(0x4D); // "MZ" header
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("2.5.0", info.Version);
+            Assert.Equal("bin/GenHub.exe", info.EntryPoint);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
 }

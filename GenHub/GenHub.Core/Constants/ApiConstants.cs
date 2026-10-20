@@ -18,6 +18,11 @@ public static class ApiConstants
     public const string GitHubDomain = "github.com";
 
     /// <summary>
+    /// GitHub API host name.
+    /// </summary>
+    public const string GitHubApiHost = "api.github.com";
+
+    /// <summary>
     /// GitHub URL regex pattern for parsing repository URLs.
     /// </summary>
     public const string GitHubUrlRegexPattern = @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?";

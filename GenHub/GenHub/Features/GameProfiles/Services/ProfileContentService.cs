@@ -735,9 +735,14 @@ public sealed class ProfileContentService(
             var checkResult = string.Equals(reqId, primaryManifestId, StringComparison.Ordinal)
                 ? primaryManifestResult
                 : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
-            if (checkResult.Success && checkResult.Data?.ContentType == ContentType.GenHubBuild)
+            if (checkResult.Success && checkResult.Data != null)
             {
-                return reqId;
+                var manifest = checkResult.Data;
+                if (manifest.ContentType == ContentType.GenHubBuild ||
+                    (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(t => string.Equals(t, GenHubBuildConstants.GenHubBuildTag, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return reqId;
+                }
             }
         }
 
@@ -974,7 +979,8 @@ public sealed class ProfileContentService(
         var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
         if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
         {
-            return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
+            var noInstMsg = localizationService?.GetLocalizedString("Profiles.Error.NoInstallationsFound", "No game installations found. Please configure a game installation first.") ?? "No game installations found. Please configure a game installation first.";
+            return ProfileOperationResult<GameProfile>.CreateFailure(noInstMsg);
         }
 
         var requiredGameClient = resolution.Data.RequiredGameClient;
@@ -987,8 +993,10 @@ public sealed class ProfileContentService(
 
         if (installation == null)
         {
-            return ProfileOperationResult<GameProfile>.CreateFailure(
-                $"No {requiredGameType} installation is available for the required game client.");
+            var noMatchMsg = localizationService != null
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, localizationService.GetLocalizedString("Profiles.Error.NoInstallationForGameType", "No {0} installation is available for the required game client."), requiredGameType)
+                : $"No {requiredGameType} installation is available for the required game client.";
+            return ProfileOperationResult<GameProfile>.CreateFailure(noMatchMsg);
         }
 
         var gameClient = installation.AvailableGameClients
@@ -996,7 +1004,10 @@ public sealed class ProfileContentService(
 
         if (gameClient == null)
         {
-            return ProfileOperationResult<GameProfile>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
+            var noClientMsg = localizationService != null
+                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, localizationService.GetLocalizedString("Profiles.Error.NoGameClientForInstallation", "No suitable game client found for installation '{0}'."), installation.InstallationType)
+                : $"No suitable game client found for installation '{installation.InstallationType}'.";
+            return ProfileOperationResult<GameProfile>.CreateFailure(noClientMsg);
         }
 
         var profileGameClient = requiredGameClient != null

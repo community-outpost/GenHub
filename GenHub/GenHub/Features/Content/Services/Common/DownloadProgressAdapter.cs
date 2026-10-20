@@ -48,8 +48,8 @@ public static class DownloadProgressAdapter
             }
             else
             {
-                double fileProgressRange = 100.0 / totalFiles;
-                double baseProgress = (fileIndex - 1) * fileProgressRange;
+                double fileProgressRange = totalFiles > 0 ? 100.0 / totalFiles : 100.0;
+                double baseProgress = totalFiles > 0 ? (fileIndex - 1) * fileProgressRange : 0.0;
                 currentProgress = Math.Clamp(baseProgress + (downloadProgress.Percentage / 100.0 * fileProgressRange), 0, 100);
                 aggregateBytesProcessed = downloadProgress.BytesReceived;
                 aggregateTotalBytes = downloadProgress.TotalBytes;

@@ -645,6 +645,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         foreach (var sub in candidateSubs)
         {
             var catalogResult = await FetchCatalogForSubscriptionAsync(sub, token).ConfigureAwait(false);
+            if (!catalogResult.Success)
+            {
+                _logger.LogDebug("Failed to fetch catalog for subscription '{PublisherId}': {Error}", sub.PublisherId, catalogResult.FirstError);
+                continue;
+            }
+
             var catalog = catalogResult.Data;
             var item = catalog?.Content.FirstOrDefault(c =>
                 string.Equals(c.Id, contentId, StringComparison.OrdinalIgnoreCase) &&
@@ -747,7 +753,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var isNewer = AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
         if (isNotInstalledYet || isNewer)
         {
-            var isDismissed = string.Equals(latestVersion, _userSettingsService.Get().DismissedUpdateVersion?.TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase);
+            var settings = _userSettingsService.Get();
+            var customDismissKey = $"{SubscribedCustomBuildContentId}@{latestVersion}";
+            var isDismissed = string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase);
             if (isDismissed && !isNotInstalledYet)
             {
                 IsUpdateAvailable = false;
@@ -836,9 +844,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             HasCustomBuilds = AvailableCustomBuilds.Count > 0;
         }
-        catch (OperationCanceledException) when (_cancellationTokenSource.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            throw;
+            _logger.LogDebug("Custom build loading was canceled.");
         }
         catch (Exception ex)
         {
@@ -936,63 +944,74 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     private async Task InitializeAsync()
     {
-        // load subscribed pr, branch, or custom build from settings with strict mutual exclusivity
-        var settings = _userSettingsService.Get();
-        if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
+        try
         {
-            SubscribedCustomBuildContentId = settings.SubscribedCustomBuildContentId;
-            SubscribedCustomBuildName = settings.SubscribedCustomBuildName;
-            SubscribedCustomBuildPublisherId = settings.SubscribedCustomBuildPublisherId;
-            SubscribedCustomBuildVersion = settings.SubscribedCustomBuildVersion;
-            _velopackUpdateManager.SubscribedPrNumber = null;
-            SubscribedPr = null;
-            SubscribedBranch = null;
-            _logger.LogInformation("Loaded subscribed custom build '{Name}' ({Id}) from settings", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
-        }
-        else if (settings.SubscribedPrNumber.HasValue)
-        {
-            var prNumber = settings.SubscribedPrNumber.Value;
-            _velopackUpdateManager.SubscribedPrNumber = prNumber;
-            SubscribedPr = new PullRequestInfo
+            // load subscribed pr, branch, or custom build from settings with strict mutual exclusivity
+            var settings = _userSettingsService.Get();
+            if (!string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildContentId))
             {
-                Number = prNumber,
-                Title = $"PR #{prNumber}",
-                BranchName = "unknown",
-                Author = "unknown",
-                State = "open",
-            };
-            SubscribedBranch = null;
-            SubscribedCustomBuildContentId = null;
-            SubscribedCustomBuildName = null;
-            SubscribedCustomBuildPublisherId = null;
-            SubscribedCustomBuildVersion = null;
-            _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", prNumber);
+                SubscribedCustomBuildContentId = settings.SubscribedCustomBuildContentId;
+                SubscribedCustomBuildName = settings.SubscribedCustomBuildName;
+                SubscribedCustomBuildPublisherId = settings.SubscribedCustomBuildPublisherId;
+                SubscribedCustomBuildVersion = settings.SubscribedCustomBuildVersion;
+                _velopackUpdateManager.SubscribedPrNumber = null;
+                SubscribedPr = null;
+                SubscribedBranch = null;
+                _logger.LogInformation("Loaded subscribed custom build '{Name}' ({Id}) from settings", SubscribedCustomBuildName, SubscribedCustomBuildContentId);
+            }
+            else if (settings.SubscribedPrNumber.HasValue)
+            {
+                var prNumber = settings.SubscribedPrNumber.Value;
+                _velopackUpdateManager.SubscribedPrNumber = prNumber;
+                SubscribedPr = new PullRequestInfo
+                {
+                    Number = prNumber,
+                    Title = $"PR #{prNumber}",
+                    BranchName = "unknown",
+                    Author = "unknown",
+                    State = "open",
+                };
+                SubscribedBranch = null;
+                SubscribedCustomBuildContentId = null;
+                SubscribedCustomBuildName = null;
+                SubscribedCustomBuildPublisherId = null;
+                SubscribedCustomBuildVersion = null;
+                _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", prNumber);
+            }
+            else if (!string.IsNullOrEmpty(settings.SubscribedBranch))
+            {
+                SubscribedBranch = settings.SubscribedBranch;
+                _velopackUpdateManager.SubscribedPrNumber = null;
+                SubscribedPr = null;
+                SubscribedCustomBuildContentId = null;
+                SubscribedCustomBuildName = null;
+                SubscribedCustomBuildPublisherId = null;
+                SubscribedCustomBuildVersion = null;
+                _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
+            }
+
+            await LoadCustomBuildsAsync();
+
+            // load data if we are authenticated
+            if (IsAuthenticated)
+            {
+                // initial check and load
+                await Task.WhenAll(
+                    LoadPullRequestsAsync(),
+                    LoadBranchesAsync());
+            }
+
+            // check for updates after subscriptions are populated
+            await CheckForUpdatesAsync();
         }
-        else if (!string.IsNullOrEmpty(settings.SubscribedBranch))
+        catch (OperationCanceledException)
         {
-            SubscribedBranch = settings.SubscribedBranch;
-            _velopackUpdateManager.SubscribedPrNumber = null;
-            SubscribedPr = null;
-            SubscribedCustomBuildContentId = null;
-            SubscribedCustomBuildName = null;
-            SubscribedCustomBuildPublisherId = null;
-            SubscribedCustomBuildVersion = null;
-            _logger.LogInformation("Loaded subscribed branch '{Branch}' from settings", settings.SubscribedBranch);
+            _logger.LogDebug("Initialization was canceled");
         }
-
-        await LoadCustomBuildsAsync();
-
-        // load data if we are authenticated
-        if (IsAuthenticated)
+        catch (Exception ex)
         {
-            // initial check and load
-            await Task.WhenAll(
-                LoadPullRequestsAsync(),
-                LoadBranchesAsync());
+            _logger.LogError(ex, "Failed to initialize update notification view model");
         }
-
-        // check for updates after subscriptions are populated
-        await CheckForUpdatesAsync();
     }
 
     /// <summary>
@@ -1430,6 +1449,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 StatusMessage = GetLocalizedString("Updates.Status.UpToDate", "You're up to date!");
             }
         }
+        catch (OperationCanceledException)
+        {
+            _logger.LogDebug("Update check was canceled");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Update check failed");
@@ -1455,9 +1478,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         // clear dismissal status in settings so the user can see the update again
         var settings = _userSettingsService.Get();
-        if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion))
+        if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion) || !string.IsNullOrEmpty(settings.DismissedCustomBuildVersion))
         {
-            _userSettingsService.Update(s => s.DismissedUpdateVersion = string.Empty);
+            _userSettingsService.Update(s =>
+            {
+                s.DismissedUpdateVersion = string.Empty;
+                s.DismissedCustomBuildVersion = string.Empty;
+            });
             await _userSettingsService.SaveAsync(CancellationToken.None);
         }
 
@@ -1670,6 +1697,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the branch artifact can be installed.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool CanInstallBranchArtifact => !string.IsNullOrEmpty(SubscribedBranch) && !IsInstalling && !IsDownloading;
 
     /// <summary>
@@ -1740,6 +1769,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the PR artifact can be installed.
     /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel property bound to UI elements")]
     public bool CanInstallPrArtifact => SubscribedPr != null && !IsInstalling && !IsDownloading;
 
     /// <summary>
@@ -1811,6 +1842,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         ErrorMessage = string.Empty;
         DownloadProgress = 0;
 
+        var startingPublisherId = SubscribedCustomBuildPublisherId;
+        var startingContentId = SubscribedCustomBuildContentId;
         var previousCustomBuildVersion = SubscribedCustomBuildVersion;
         try
         {
@@ -1835,7 +1868,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to install artifact");
-            if (IsSubscribedToCustomBuild)
+            if (IsSubscribedToCustomBuild &&
+                string.Equals(SubscribedCustomBuildContentId, startingContentId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(SubscribedCustomBuildPublisherId, startingPublisherId, StringComparison.OrdinalIgnoreCase))
             {
                 SubscribedCustomBuildVersion = previousCustomBuildVersion;
                 try
@@ -1886,9 +1921,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (!string.IsNullOrEmpty(LatestVersion))
         {
-            _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion.TrimStart('v', 'V'));
+            var cleanVer = LatestVersion.TrimStart('v', 'V');
+            if (IsSubscribedToCustomBuild && !string.IsNullOrWhiteSpace(SubscribedCustomBuildContentId))
+            {
+                var customDismissKey = $"{SubscribedCustomBuildContentId}@{cleanVer}";
+                _userSettingsService.Update(s => s.DismissedCustomBuildVersion = customDismissKey);
+                _logger.LogInformation("Dismissed custom build update {Key}", customDismissKey);
+            }
+            else
+            {
+                _userSettingsService.Update(s => s.DismissedUpdateVersion = cleanVer);
+                _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
+            }
+
             _ = _userSettingsService.SaveAsync(CancellationToken.None);
-            _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }
 
         IsUpdateAvailable = false;

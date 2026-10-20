@@ -26,16 +26,6 @@ public static class NetworkSecurityConstants
     public const string BlockedInternalSuffix = ".internal";
 
     /// <summary>
-    /// IPv4 loopback literal address.
-    /// </summary>
-    public const string LoopbackIpv4 = "127.0.0.1";
-
-    /// <summary>
-    /// IPv6 loopback literal address.
-    /// </summary>
-    public const string LoopbackIpv6 = "::1";
-
-    /// <summary>
     /// Error message format when a host name is invalid or unknown.
     /// </summary>
     public const string InvalidHostFormat = "Invalid host name: '{0}'.";
