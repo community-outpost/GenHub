@@ -2,11 +2,7 @@ using FluentAssertions;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Bmp;
-using SixLabors.ImageSharp.Formats.Tga;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -73,11 +69,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var targetPath = Path.Combine(_tempDirectory, "test.tga");
 
         // Create a simple 1x1 BMP file
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         // Act
         var result = await _service.ConvertImageAsync(sourcePath, targetPath);
@@ -94,11 +86,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
         var targetPath = Path.Combine(_tempDirectory, "test.tga");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         var parameters = new Dictionary<string, object>
         {
@@ -120,11 +108,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
         var targetPath = Path.Combine(_tempDirectory, "test.tga");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -142,11 +126,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "rgba.bmp");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 128);
-            image.Save(imagePath, new BmpEncoder { BitsPerPixel = BmpBitsPerPixel.Pixel32 });
-        }
+        WriteSolidImage(imagePath, 1, 1, MagickColor.FromRgba(255, 0, 0, 128), MagickFormat.Bmp);
 
         // Act
         var result = await _service.HasAlphaChannelAsync(imagePath);
@@ -161,11 +141,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "rgb.bmp");
 
-        using (var image = new Image<Rgb24>(1, 1))
-        {
-            image[0, 0] = new Rgb24(255, 0, 0);
-            image.Save(imagePath, new BmpEncoder());
-        }
+        WriteSolidImage(imagePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         // Act
         var result = await _service.HasAlphaChannelAsync(imagePath);
@@ -193,11 +169,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "rgba.bmp");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 128);
-            image.Save(imagePath, new BmpEncoder { BitsPerPixel = BmpBitsPerPixel.Pixel32 });
-        }
+        WriteSolidImage(imagePath, 1, 1, MagickColor.FromRgba(255, 0, 0, 128), MagickFormat.Bmp);
 
         // Act
         var result = await _service.GetRecommendedDxtFormatAsync(imagePath);
@@ -212,11 +184,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "rgb.bmp");
 
-        using (var image = new Image<Rgb24>(1, 1))
-        {
-            image[0, 0] = new Rgb24(255, 0, 0);
-            image.Save(imagePath, new BmpEncoder());
-        }
+        WriteSolidImage(imagePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         // Act
         var result = await _service.GetRecommendedDxtFormatAsync(imagePath);
@@ -233,11 +201,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var targetDir = Path.Combine(_tempDirectory, "subdir");
         var targetPath = Path.Combine(targetDir, "test.tga");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         // Act
         var result = await _service.ConvertImageAsync(sourcePath, targetPath);
@@ -255,11 +219,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
         var targetPath = Path.Combine(_tempDirectory, "test_resized.bmp");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         var parameters = new Dictionary<string, object>
         {
@@ -281,11 +241,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
         var targetPath = Path.Combine(_tempDirectory, "test.tga");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(sourcePath, new BmpEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         var parameters = new Dictionary<string, object>
         {
@@ -309,14 +265,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, $"test{sourceExt}");
         var targetPath = Path.Combine(_tempDirectory, $"test{targetExt}");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            if (sourceExt == ".bmp")
-                image.Save(sourcePath, new BmpEncoder());
-            else if (sourceExt == ".tga")
-                image.Save(sourcePath, new TgaEncoder());
-        }
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, sourceExt == ".tga" ? MagickFormat.Tga : MagickFormat.Bmp3);
 
         // Act
         var result = await _service.ConvertImageAsync(sourcePath, targetPath);
@@ -332,11 +281,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Arrange
         var imagePath = Path.Combine(_tempDirectory, "test.bmp");
 
-        using (var image = new Image<Rgba32>(1, 1))
-        {
-            image[0, 0] = new Rgba32(255, 0, 0, 255);
-            image.Save(imagePath, new BmpEncoder());
-        }
+        WriteSolidImage(imagePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
 
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -355,11 +300,7 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "opaque.tga");
         var targetPath = Path.Combine(_tempDirectory, "opaque.dds");
 
-        using (var image = new Image<Rgba32>(8, 8))
-        {
-            image.Mutate(ctx => ctx.BackgroundColor(new Rgba32(255, 0, 0, 255)));
-            image.Save(sourcePath, new TgaEncoder());
-        }
+        WriteSolidImage(sourcePath, 8, 8, MagickColors.Red, MagickFormat.Tga);
 
         // Act
         var result = await _service.ConvertImageAsync(sourcePath, targetPath);
@@ -376,11 +317,15 @@ public sealed class ImageConversionServiceTests : IDisposable
         var sourcePath = Path.Combine(_tempDirectory, "transparent.tga");
         var targetPath = Path.Combine(_tempDirectory, "transparent.dds");
 
-        using (var image = new Image<Rgba32>(8, 8))
+        using (var image = new MagickImage(MagickColors.Red, 8, 8))
         {
-            image.Mutate(ctx => ctx.BackgroundColor(new Rgba32(255, 0, 0, 255)));
-            image[0, 0] = new Rgba32(255, 0, 0, 0);
-            image.Save(sourcePath, new TgaEncoder { BitsPerPixel = TgaBitsPerPixel.Pixel32 });
+            image.Alpha(AlphaOption.Set);
+            using (var pixels = image.GetPixelsUnsafe())
+            {
+                pixels.SetPixel(0, 0, [ushort.MaxValue, 0, 0, 0]);
+            }
+
+            image.Write(sourcePath, MagickFormat.Tga);
         }
 
         // Act
@@ -389,6 +334,209 @@ public sealed class ImageConversionServiceTests : IDisposable
         // Assert
         result.Should().BeTrue();
         ReadDdsFourCC(targetPath).Should().Be("DXT5");
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_WithResizeArray_WritesResizedTga()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
+        var targetPath = Path.Combine(_tempDirectory, "test.tga");
+        WriteSolidImage(sourcePath, 1, 1, MagickColors.Red, MagickFormat.Bmp3);
+
+        var parameters = new Dictionary<string, object>
+        {
+            ["resize"] = new[] { 4, 2 },
+            ["resampling"] = "nearest"
+        };
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath, parameters);
+
+        // Assert
+        result.Should().BeTrue();
+        var bytes = await File.ReadAllBytesAsync(targetPath);
+        BitConverter.ToUInt16(bytes, 12).Should().Be(4);
+        BitConverter.ToUInt16(bytes, 14).Should().Be(2);
+        bytes[16].Should().Be(32);
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_ResizeWithTransparency_KeepsColorUnderZeroAlpha()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "transparent.tga");
+        var targetPath = Path.Combine(_tempDirectory, "resized.tga");
+        WriteSolidImage(sourcePath, 2, 2, MagickColor.FromRgba(0, 255, 0, 0), MagickFormat.Tga);
+
+        var parameters = new Dictionary<string, object>
+        {
+            ["resize"] = 4,
+            ["resampling"] = "bilinear"
+        };
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath, parameters);
+
+        // Assert
+        result.Should().BeTrue();
+        var bytes = await File.ReadAllBytesAsync(targetPath);
+        BitConverter.ToUInt16(bytes, 12).Should().Be(4);
+
+        // BGRA. Green survives even though every pixel is fully transparent.
+        bytes[18..22].Should().Equal(0, 255, 0, 0);
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_ResizeGrayscaleWithTransparency_WritesRgbaTga()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "gray.png");
+        var targetPath = Path.Combine(_tempDirectory, "gray.tga");
+        using (var image = new MagickImage(MagickColor.FromRgba(128, 128, 128, 64), 2, 2))
+        {
+            image.ColorType = ColorType.GrayscaleAlpha;
+            image.Write(sourcePath, MagickFormat.Png);
+        }
+
+        var parameters = new Dictionary<string, object>
+        {
+            ["resize"] = 4,
+            ["resampling"] = "nearest"
+        };
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath, parameters);
+
+        // Assert
+        result.Should().BeTrue();
+        var bytes = await File.ReadAllBytesAsync(targetPath);
+        bytes[2].Should().Be(2);
+        bytes[16].Should().Be(32);
+        bytes[18..22].Should().Equal(128, 128, 128, 64);
+    }
+
+    [Theory]
+    [InlineData(255)]
+    [InlineData(128)]
+    public async Task ConvertImageAsync_TgaToBmp_Writes24BitTruecolor(byte alpha)
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "source.tga");
+        var targetPath = Path.Combine(_tempDirectory, "target.bmp");
+        WriteSolidImage(sourcePath, 2, 2, MagickColor.FromRgba(255, 0, 0, alpha), MagickFormat.Tga);
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        ReadBmpBitsPerPixel(targetPath).Should().Be(24);
+    }
+
+    [Theory]
+    [InlineData(ColorType.Grayscale)]
+    [InlineData(ColorType.Palette)]
+    public async Task ConvertImageAsync_GrayscaleOrPalettePngToBmp_Writes24BitTruecolor(ColorType colorType)
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "source.png");
+        var targetPath = Path.Combine(_tempDirectory, "target.bmp");
+        using (var image = new MagickImage(MagickColors.Gray, 2, 2))
+        {
+            image.ColorType = colorType;
+            image.Write(sourcePath, colorType == ColorType.Palette ? MagickFormat.Png8 : MagickFormat.Png);
+        }
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        ReadBmpBitsPerPixel(targetPath).Should().Be(24);
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_BmpWithAlphaToBmp_Stays32Bit()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "source.bmp");
+        var targetPath = Path.Combine(_tempDirectory, "target.bmp");
+        WriteSolidImage(sourcePath, 2, 2, MagickColor.FromRgba(255, 0, 0, 128), MagickFormat.Bmp);
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        ReadBmpBitsPerPixel(targetPath).Should().Be(32);
+    }
+
+    [Theory]
+    [InlineData(ColorType.TrueColor, 8, true)]
+    [InlineData(ColorType.Grayscale, 8, false)]
+    [InlineData(ColorType.Grayscale, 16, false)]
+    [InlineData(ColorType.GrayscaleAlpha, 8, false)]
+    [InlineData(ColorType.GrayscaleAlpha, 16, true)]
+    public async Task ConvertImageAsync_Tiff_RejectsFewerThan24BitsPerPixel(ColorType colorType, int depth, bool expected)
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "source.tif");
+        var targetPath = Path.Combine(_tempDirectory, "target.tga");
+        using (var image = new MagickImage(MagickColor.FromRgba(200, 100, 50, 200), 2, 2))
+        {
+            image.ColorType = colorType;
+            image.Depth = (uint)depth;
+            image.Write(sourcePath, MagickFormat.Tiff);
+        }
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task ConvertImageAsync_CmykTiffToDds_ConvertsColorsToRgb()
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "cmyk.tif");
+        var targetPath = Path.Combine(_tempDirectory, "cmyk.dds");
+        using (var image = new MagickImage(MagickColors.Red, 4, 4))
+        {
+            image.ColorSpace = ColorSpace.CMYK;
+            image.Write(sourcePath, MagickFormat.Tiff);
+        }
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath);
+
+        // Assert
+        result.Should().BeTrue();
+        using var decoded = new MagickImage(targetPath);
+        using var pixels = decoded.GetPixels();
+        var color = pixels.GetPixel(0, 0).ToColor()!;
+        (color.R >> 8).Should().BeGreaterThan(200);
+        (color.G >> 8).Should().BeLessThan(40);
+        (color.B >> 8).Should().BeLessThan(40);
+    }
+
+    private static void WriteSolidImage(string path, int width, int height, MagickColor color, MagickFormat format)
+    {
+        using var image = new MagickImage(color, (uint)width, (uint)height);
+        if (color.A == ushort.MaxValue)
+        {
+            image.Alpha(AlphaOption.Off);
+        }
+
+        image.Write(path, format);
+    }
+
+    private static int ReadBmpBitsPerPixel(string bmpPath)
+    {
+        var bytes = File.ReadAllBytes(bmpPath);
+        return BitConverter.ToUInt16(bytes, 28);
     }
 
     private static string ReadDdsFourCC(string ddsPath)

@@ -6,7 +6,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
+using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -463,9 +463,10 @@ public sealed class ImageCacheService : IImageCacheService
                 var initialPosition = stream.Position;
                 try
                 {
-                    var imageInfo = Image.Identify(stream);
-                    if (imageInfo != null)
+                    using var codec = SKCodec.Create(new SKManagedStream(stream, disposeManagedStream: false));
+                    if (codec != null)
                     {
+                        var imageInfo = codec.Info;
                         var estimatedBytes = (long)imageInfo.Width * imageInfo.Height * 4;
                         if (estimatedBytes > ImageCacheConstants.MaxDecodedImageSizeBytes)
                         {
@@ -481,7 +482,7 @@ public sealed class ImageCacheService : IImageCacheService
                 }
                 catch
                 {
-                    // Fall back to Avalonia decode if ImageSharp cannot identify the image format.
+                    // Fall back to Avalonia decode if Skia cannot identify the image format.
                 }
                 finally
                 {

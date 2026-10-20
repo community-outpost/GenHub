@@ -1,9 +1,7 @@
 using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Features.Tools.GenHotkeys.Services;
+using ImageMagick;
 using Microsoft.Extensions.Logging.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using System.IO;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,10 +22,7 @@ public class IconOverlayServiceTests
         var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
 
         // Create a 60x48 test image
-        using var testImage = new Image<Rgba32>(60, 48);
-        using var ms = new MemoryStream();
-        await testImage.SaveAsPngAsync(ms);
-        var inputBytes = ms.ToArray();
+        var inputBytes = CreatePngIcon(60, 48);
 
         var tgaBytes = await service.GenerateOverlayTgaAsync(inputBytes, 'D', OverlayCorner.TopLeft);
 
@@ -48,6 +43,11 @@ public class IconOverlayServiceTests
 
         // Byte 16: Pixel depth (32 bpp with alpha channel)
         Assert.Equal(32, tgaBytes[16]);
+
+        // The badge border starts two pixels in from the top-left corner. Rows are stored
+        // bottom-up, so image row 2 is file row (48 - 1 - 2). The border is opaque gold in BGRA.
+        var borderOffset = 18 + ((((48 - 1 - 2) * 60) + 2) * 4);
+        Assert.Equal(new byte[] { 35, 175, 245, 255 }, tgaBytes[borderOffset..(borderOffset + 4)]);
     }
 
     /// <summary>
@@ -67,15 +67,18 @@ public class IconOverlayServiceTests
     {
         var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
 
-        using var testImage = new Image<Rgba32>(60, 48);
-        using var ms = new MemoryStream();
-        await testImage.SaveAsPngAsync(ms);
-        var inputBytes = ms.ToArray();
+        var inputBytes = CreatePngIcon(60, 48);
 
         var tgaBytes = await service.GenerateOverlayTgaAsync(inputBytes, key, corner);
 
         Assert.NotNull(tgaBytes);
         Assert.True(tgaBytes.Length > 18);
         Assert.Equal(32, tgaBytes[16]); // 32-bit depth
+    }
+
+    private static byte[] CreatePngIcon(int width, int height)
+    {
+        using var image = new MagickImage(MagickColors.Transparent, (uint)width, (uint)height);
+        return image.ToByteArray(MagickFormat.Png);
     }
 }

@@ -8,9 +8,9 @@ using GenHub.Core.Interfaces.Tools.TextureEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.TextureEditor;
 using GenHub.Core.Services.Tools.Checksum;
+using GenHub.Infrastructure.Imaging;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -87,7 +87,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
     /// <summary>
     /// Loads an image file into portable RGBA pixels.
     /// Supports loose files on disk and entries archived inside .BIG packages (via archive#entry syntax).
-    /// TGA and DDS files use the SAGE codec, other formats use ImageSharp.
+    /// TGA and DDS files use the SAGE codec, other formats use Magick.NET.
     /// </summary>
     /// <param name="path">The image file path or archive#entry reference.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -193,8 +193,8 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             tempPath = CreateTempPath(path);
             using (var stream = File.Create(tempPath))
             {
-                using var image = Image.LoadPixelData<Rgba32>(texture.PixelData, texture.Width, texture.Height);
-                await image.SaveAsPngAsync(stream, cancellationToken).ConfigureAwait(false);
+                using var image = RgbaPixels.FromBytes(texture.PixelData, texture.Width, texture.Height);
+                await image.WriteAsync(stream, MagickFormat.Png, cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -297,6 +297,17 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         }
     }
 
+    private static OperationResult<DecodedTexture> ToDecodedTexture(MagickImage image, long started)
+    {
+        if ((long)image.Width * image.Height * 4 > int.MaxValue)
+        {
+            return OperationResult<DecodedTexture>.CreateFailure("Image dimensions exceed maximum supported pixel buffer size.", Stopwatch.GetElapsedTime(started));
+        }
+
+        var texture = new DecodedTexture((int)image.Width, (int)image.Height, RgbaPixels.ToBytes(image));
+        return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+    }
+
     private async Task<OperationResult<DecodedTexture>> LoadDecodedFromArchiveAsync(
         string archivePath,
         string entryRelativePath,
@@ -335,22 +346,15 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
             }
 
             using var ms = new MemoryStream(bytes);
-            using var image = await Image.LoadAsync<Rgba32>(ms, cancellationToken).ConfigureAwait(false);
-            if ((long)image.Width * image.Height * 4 > int.MaxValue)
-            {
-                return OperationResult<DecodedTexture>.CreateFailure("Image dimensions exceed maximum supported pixel buffer size.", Stopwatch.GetElapsedTime(started));
-            }
-
-            var pixels = new byte[image.Width * image.Height * 4];
-            image.CopyPixelDataTo(pixels);
-            var texture = new DecodedTexture(image.Width, image.Height, pixels);
-            return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+            using var image = new MagickImage();
+            await image.ReadAsync(ms, cancellationToken).ConfigureAwait(false);
+            return ToDecodedTexture(image, started);
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException or IOException or EndOfStreamException or NotSupportedException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is MagickException or IOException or EndOfStreamException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Failed to decode texture {Entry} from archive {Archive}", entryRelativePath, archivePath);
             return OperationResult<DecodedTexture>.CreateFailure($"Failed to decode texture from archive: {ex.Message}", Stopwatch.GetElapsedTime(started));
@@ -375,23 +379,16 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
 
         try
         {
-            using var image = await Image.LoadAsync<Rgba32>(path, cancellationToken).ConfigureAwait(false);
-            if ((long)image.Width * image.Height * 4 > int.MaxValue)
-            {
-                return OperationResult<DecodedTexture>.CreateFailure("Image dimensions exceed maximum supported pixel buffer size.", Stopwatch.GetElapsedTime(started));
-            }
-
-            var pixels = new byte[image.Width * image.Height * 4];
-            image.CopyPixelDataTo(pixels);
-            var texture = new DecodedTexture(image.Width, image.Height, pixels);
-            return OperationResult<DecodedTexture>.CreateSuccess(texture, Stopwatch.GetElapsedTime(started));
+            using var image = new MagickImage();
+            await image.ReadAsync(path, cancellationToken).ConfigureAwait(false);
+            return ToDecodedTexture(image, started);
         }
-        catch (UnknownImageFormatException ex)
+        catch (MagickMissingDelegateErrorException ex)
         {
             logger.LogWarning(ex, "Unsupported image format: {Path}", path);
             return OperationResult<DecodedTexture>.CreateFailure($"Unsupported image format: {path}", Stopwatch.GetElapsedTime(started));
         }
-        catch (InvalidImageContentException ex)
+        catch (MagickException ex)
         {
             logger.LogWarning(ex, "Invalid image content: {Path}", path);
             return OperationResult<DecodedTexture>.CreateFailure($"Invalid image content: {path}", Stopwatch.GetElapsedTime(started));
