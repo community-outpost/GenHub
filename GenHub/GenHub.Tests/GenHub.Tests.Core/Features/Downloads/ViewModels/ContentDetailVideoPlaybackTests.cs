@@ -101,6 +101,32 @@ public sealed class ContentDetailVideoPlaybackTests
     }
 
     /// <summary>
+    /// Verifies that an image record pointing at an embed page opens in the browser,
+    /// matching the string and video paths instead of rendering a broken image.
+    /// </summary>
+    [Fact]
+    public void ResolveMediaDisplay_ImageRecordWithEmbedUrl_ReturnsOpenExternally()
+    {
+        var image = new Image("Trailer Page", null, "https://www.youtube.com/watch?v=abc123");
+
+        var decision = ContentDetailMediaDisplay.Resolve(image);
+
+        Assert.Equal(MediaDisplayAction.OpenExternally, decision.Action);
+    }
+
+    /// <summary>
+    /// Verifies that an unknown bare URL in a video context opens in the browser
+    /// instead of showing as an image or handing an HTML page to the player.
+    /// </summary>
+    [Fact]
+    public void ResolveMediaDisplay_UnknownUrlInVideoContext_ReturnsOpenExternally()
+    {
+        var decision = ContentDetailMediaDisplay.Resolve("https://www.moddb.com/mods/x/videos/y", inVideoContext: true);
+
+        Assert.Equal(MediaDisplayAction.OpenExternally, decision.Action);
+    }
+
+    /// <summary>
     /// Verifies that extensionless hosted URLs clicked from an image context
     /// (summary screenshots and preview images are bare strings) resolve to the
     /// image viewer, not the video player. Extensionless hosted files carry no
@@ -434,6 +460,102 @@ public sealed class ContentDetailVideoPlaybackTests
 
         Assert.Single(viewModel.Videos);
         Assert.Equal("https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", viewModel.Videos[0].ThumbnailUrl);
+    }
+
+    /// <summary>
+    /// Verifies publisher-provided screenshot names replace the generic numbered name.
+    /// </summary>
+    [Fact]
+    public void BuildCatalogImages_PublisherScreenshotTitle_UsesCustomName()
+    {
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "test-item",
+            Name = "Named Shots",
+            Metadata = new ContentRichMetadata
+            {
+                ScreenshotUrls = ["https://cdn.example.com/a.jpg", "https://cdn.example.com/b.jpg"],
+                ScreenshotTitles = new Dictionary<string, string> { ["https://cdn.example.com/b.jpg"] = "Main Menu" },
+            },
+        };
+        var json = JsonSerializer.Serialize(catalogItem);
+        var searchResult = new ContentSearchResult
+        {
+            Id = "named-shots-test",
+            Name = "Named Shots",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ResolverMetadata = { [CatalogConstants.CatalogItemJsonMetadataKey] = json },
+        };
+
+        var viewModel = CreateViewModel(searchResult);
+        viewModel.Initialize();
+
+        Assert.Equal(2, viewModel.Images.Count);
+        Assert.Equal("Screenshot 1", viewModel.Images[0].Title);
+        Assert.Equal("Main Menu", viewModel.Images[1].Title);
+    }
+
+    /// <summary>
+    /// Verifies screenshot titles can be set, cleared, and remapped to a hosted URL.
+    /// </summary>
+    [Fact]
+    public void ScreenshotTitles_SetClearAndRemap_RoundTrips()
+    {
+        var metadata = new ContentRichMetadata();
+        metadata.SetScreenshotTitle("media/a.jpg", "  Lobby  ");
+        Assert.Equal("Lobby", metadata.GetScreenshotTitle("MEDIA/A.JPG"));
+
+        metadata.RemapScreenshotTitle("media/a.jpg", "https://utfs.io/f/abc");
+        Assert.Null(metadata.GetScreenshotTitle("media/a.jpg"));
+        Assert.Equal("Lobby", metadata.GetScreenshotTitle("https://utfs.io/f/abc"));
+
+        metadata.SetScreenshotTitle("https://utfs.io/f/abc", "   ");
+        Assert.Null(metadata.GetScreenshotTitle("https://utfs.io/f/abc"));
+    }
+
+    /// <summary>
+    /// Verifies the full-screen viewer navigates next/previous through summary screenshots.
+    /// </summary>
+    [Fact]
+    public void OpenFullScreenMedia_ScreenshotGallery_NavigatesNextAndPrevious()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "gallery-test",
+            Name = "Gallery",
+            ProviderName = "Test",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        };
+        searchResult.ScreenshotUrls.Add("https://cdn.example.com/1.jpg");
+        searchResult.ScreenshotUrls.Add("https://cdn.example.com/2.jpg");
+        searchResult.ScreenshotUrls.Add("https://cdn.example.com/3.jpg");
+        var viewModel = CreateViewModel(searchResult);
+
+        viewModel.OpenFullScreenMediaCommand.Execute("https://cdn.example.com/1.jpg");
+        Assert.True(viewModel.IsFullScreenMediaOpen);
+        Assert.Equal("1 / 3", viewModel.FullScreenMediaPosition);
+        Assert.False(viewModel.HasPreviousFullScreenImage);
+        Assert.True(viewModel.HasNextFullScreenImage);
+
+        viewModel.NextFullScreenImageCommand.Execute(null);
+        Assert.Equal("https://cdn.example.com/2.jpg", viewModel.FullScreenMediaUrl);
+        Assert.Equal("Screenshot 2", viewModel.FullScreenMediaTitle);
+        Assert.Equal("2 / 3", viewModel.FullScreenMediaPosition);
+
+        viewModel.NextFullScreenImageCommand.Execute(null);
+        viewModel.NextFullScreenImageCommand.Execute(null);
+        Assert.Equal("https://cdn.example.com/3.jpg", viewModel.FullScreenMediaUrl);
+        Assert.False(viewModel.HasNextFullScreenImage);
+
+        viewModel.PreviousFullScreenImageCommand.Execute(null);
+        Assert.Equal("https://cdn.example.com/2.jpg", viewModel.FullScreenMediaUrl);
+
+        viewModel.CloseFullScreenMediaCommand.Execute(null);
+        Assert.False(viewModel.IsFullScreenMediaOpen);
+        Assert.Equal(string.Empty, viewModel.FullScreenMediaPosition);
     }
 
     private static ContentDetailViewModel CreateViewModel(ContentSearchResult? customResult = null)

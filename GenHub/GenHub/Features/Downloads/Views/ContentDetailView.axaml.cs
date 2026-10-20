@@ -41,6 +41,27 @@ public partial class ContentDetailView : UserControl
             return;
         }
 
+        if (DataContext is ContentDetailViewModel imageVm && imageVm.IsFullScreenMediaOpen)
+        {
+            switch (e.Key)
+            {
+                case Key.Left:
+                    imageVm.PreviousFullScreenImageCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                case Key.Right:
+                    imageVm.NextFullScreenImageCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                case Key.Escape:
+                    imageVm.CloseFullScreenMediaCommand.Execute(null);
+                    e.Handled = true;
+                    return;
+                default:
+                    break;
+            }
+        }
+
         if (e.Key == Key.Escape && DataContext is ContentDetailViewModel vm && vm.IsVideoPlayerOpen)
         {
             if (vm.IsVideoPlayerFullscreen)

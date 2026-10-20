@@ -46,6 +46,11 @@ public static class ContentDetailMediaDisplay
                 return new MediaDisplayDecision(MediaDisplayAction.None, null);
             }
 
+            if (MediaFileHelper.IsEmbedVideoPageUrl(imageUrl))
+            {
+                return new MediaDisplayDecision(MediaDisplayAction.OpenExternally, imageUrl);
+            }
+
             return MediaFileHelper.IsDirectVideoFileUrl(imageUrl)
                 ? new MediaDisplayDecision(MediaDisplayAction.PlayVideo, imageUrl)
                 : new MediaDisplayDecision(MediaDisplayAction.ShowImage, imageUrl);

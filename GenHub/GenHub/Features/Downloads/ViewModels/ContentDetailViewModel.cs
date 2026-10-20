@@ -147,6 +147,7 @@ public partial class ContentDetailViewModel(
     private readonly List<Task> _pendingRowStateTasks = [];
     private readonly object _gitHubNotesLock = new();
     private readonly List<(ReleaseItemViewModel Row, string Owner, string Repo, string Tag, string? Placeholder)> _pendingGitHubNotes = [];
+    private readonly List<(string Url, string? Title)> fullScreenGallery = [];
     private readonly ConcurrentDictionary<string, string?> _gitHubNotesCache = new(StringComparer.OrdinalIgnoreCase);
     private ContentSearchResult? _updateTargetSearchResult = updateTargetSearchResult;
     private bool _initialIsUpdateAvailable = isUpdateAvailable ?? (updateTargetSearchResult != null);
@@ -292,6 +293,13 @@ public partial class ContentDetailViewModel(
     private bool _isFullScreenMediaOpen;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPreviousFullScreenImage))]
+    [NotifyPropertyChangedFor(nameof(HasNextFullScreenImage))]
+    [NotifyPropertyChangedFor(nameof(HasFullScreenGallery))]
+    [NotifyPropertyChangedFor(nameof(FullScreenMediaPosition))]
+    private int _fullScreenGalleryIndex = -1;
+
+    [ObservableProperty]
     private string? _videoPlayerUrl;
 
     [ObservableProperty]
@@ -316,6 +324,30 @@ public partial class ContentDetailViewModel(
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EffectiveVideoModalHeight))]
     private double _videoModalHeight = 620;
+
+    /// <summary>
+    /// Gets a value indicating whether the full-screen image viewer has a previous image.
+    /// </summary>
+    public bool HasPreviousFullScreenImage => FullScreenGalleryIndex > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the full-screen image viewer has a next image.
+    /// </summary>
+    public bool HasNextFullScreenImage =>
+        FullScreenGalleryIndex >= 0 && FullScreenGalleryIndex < fullScreenGallery.Count - 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the full-screen image viewer can navigate a gallery.
+    /// </summary>
+    public bool HasFullScreenGallery => fullScreenGallery.Count > 1;
+
+    /// <summary>
+    /// Gets the 1-based position of the current full-screen image within its gallery.
+    /// </summary>
+    public string FullScreenMediaPosition =>
+        FullScreenGalleryIndex >= 0 && fullScreenGallery.Count > 0
+            ? $"{FullScreenGalleryIndex + 1} / {fullScreenGallery.Count}"
+            : string.Empty;
 
     /// <summary>
     /// Gets the effective width of the video modal dialog, unconstrained when full screen.
@@ -4324,7 +4356,8 @@ public partial class ContentDetailViewModel(
             var shotIndex = 1;
             foreach (var shot in catalogItem.Metadata.ScreenshotUrls)
             {
-                AddImage(shot, $"Screenshot {shotIndex++}");
+                var fallback = $"Screenshot {shotIndex++}";
+                AddImage(shot, catalogItem.Metadata.GetScreenshotTitle(shot) ?? fallback);
             }
         }
 
@@ -6879,14 +6912,7 @@ public partial class ContentDetailViewModel(
                 break;
             case MediaDisplayAction.ShowImage:
                 CloseVideoPlayer();
-                FullScreenMediaUrl = decision.Url;
-                FullScreenMediaTitle = item switch
-                {
-                    Video titledVideo => titledVideo.Title,
-                    Image image => image.Title,
-                    _ => GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview"),
-                };
-                IsFullScreenMediaOpen = true;
+                ShowFullScreenImage(item, decision.Url);
                 break;
             default:
                 // Unpresentable references are ignored.
@@ -6934,6 +6960,180 @@ public partial class ContentDetailViewModel(
         IsFullScreenMediaOpen = false;
         FullScreenMediaUrl = null;
         FullScreenMediaTitle = null;
+        fullScreenGallery.Clear();
+        FullScreenGalleryIndex = -1;
+    }
+
+    /// <summary>
+    /// Shows the previous image in the full-screen gallery, if any.
+    /// </summary>
+    [RelayCommand]
+    private void PreviousFullScreenImage()
+    {
+        if (HasPreviousFullScreenImage)
+        {
+            ApplyFullScreenGalleryItem(FullScreenGalleryIndex - 1);
+        }
+    }
+
+    /// <summary>
+    /// Shows the next image in the full-screen gallery, if any.
+    /// </summary>
+    [RelayCommand]
+    private void NextFullScreenImage()
+    {
+        if (HasNextFullScreenImage)
+        {
+            ApplyFullScreenGalleryItem(FullScreenGalleryIndex + 1);
+        }
+    }
+
+    /// <summary>
+    /// Copies an image URL to the clipboard. Uses the current full-screen image when no URL is passed.
+    /// </summary>
+    /// <param name="url">The image URL to copy, or null for the current full-screen image.</param>
+    [RelayCommand]
+    private async Task CopyImageUrlAsync(string? url)
+    {
+        var target = string.IsNullOrWhiteSpace(url) ? FullScreenMediaUrl : url;
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return;
+        }
+
+        try
+        {
+            var lifetime = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var topLevel = lifetime?.MainWindow is { } mainWindow ? Avalonia.Controls.TopLevel.GetTopLevel(mainWindow) : null;
+            if (topLevel?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(target);
+                notificationService.ShowSuccess(
+                    GetLocalizedString("Common.Notification.Copied.Title", "Copied"),
+                    GetLocalizedString("Downloads.ContentDetail.ImageUrlCopied", "Image URL copied to clipboard."),
+                    NotificationDurations.Short);
+            }
+            else
+            {
+                notificationService.ShowError(
+                    GetLocalizedString("Common.Notification.Error", "Error"),
+                    GetLocalizedString("Common.Notification.ClipboardUnavailable.Message", "Clipboard not available."),
+                    NotificationDurations.Short);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException)
+        {
+            logger.LogWarning(ex, "Failed to copy image URL");
+            notificationService.ShowError(
+                GetLocalizedString("Common.Notification.Error", "Error"),
+                GetLocalizedString("Downloads.ContentDetail.ImageUrlCopyFailed", "Failed to copy the image URL."),
+                NotificationDurations.Short);
+        }
+    }
+
+    /// <summary>
+    /// Opens an image in the system browser. Uses the current full-screen image when no URL is passed.
+    /// </summary>
+    /// <param name="url">The image URL to open, or null for the current full-screen image.</param>
+    [RelayCommand]
+    private void OpenImageInBrowser(string? url)
+    {
+        var target = string.IsNullOrWhiteSpace(url) ? FullScreenMediaUrl : url;
+        if (!BrowserHelper.TryOpenUrl(target, logger))
+        {
+            notificationService.ShowWarning(
+                GetLocalizedString("Downloads.ContentDetail.ImageOpenFailedTitle", "Cannot Open Image"),
+                GetLocalizedString(
+                    "Downloads.ContentDetail.ImageOpenFailedMessage",
+                    "The image link could not be opened in a browser."));
+        }
+    }
+
+    private void ShowFullScreenImage(object? item, string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        fullScreenGallery.Clear();
+        fullScreenGallery.AddRange(BuildFullScreenGallery(item, url));
+        var index = fullScreenGallery.FindIndex(entry => string.Equals(entry.Url, url, StringComparison.OrdinalIgnoreCase));
+        FullScreenGalleryIndex = index >= 0 ? index : 0;
+        if (fullScreenGallery.Count == 0)
+        {
+            fullScreenGallery.Add((url, null));
+            FullScreenGalleryIndex = 0;
+        }
+
+        ApplyFullScreenGalleryItem(FullScreenGalleryIndex);
+        IsFullScreenMediaOpen = true;
+    }
+
+    private void ApplyFullScreenGalleryItem(int index)
+    {
+        if (index < 0 || index >= fullScreenGallery.Count)
+        {
+            return;
+        }
+
+        FullScreenGalleryIndex = index;
+        var entry = fullScreenGallery[index];
+        FullScreenMediaUrl = entry.Url;
+        FullScreenMediaTitle = string.IsNullOrWhiteSpace(entry.Title)
+            ? GetLocalizedString("Downloads.ContentDetail.ImagePreview", "Image Preview")
+            : entry.Title;
+        OnPropertyChanged(nameof(HasPreviousFullScreenImage));
+        OnPropertyChanged(nameof(HasNextFullScreenImage));
+        OnPropertyChanged(nameof(HasFullScreenGallery));
+        OnPropertyChanged(nameof(FullScreenMediaPosition));
+    }
+
+    private List<(string Url, string? Title)> BuildFullScreenGallery(object? item, string url)
+    {
+        if (item is Image && Images.Count > 0)
+        {
+            return Images
+                .Select(image => (Url: image.FullSizeUrl ?? image.ThumbnailUrl, Title: (string?)image.Title))
+                .Where(entry => MediaFileHelper.IsRemoteHttpUrl(entry.Url))
+                .Select(entry => (entry.Url!, entry.Title))
+                .ToList();
+        }
+
+        if (item is string && Screenshots.Contains(url))
+        {
+            return Screenshots
+                .Select((shot, shotIndex) => (Url: shot, Title: ResolveScreenshotTitle(shot, shotIndex)))
+                .ToList();
+        }
+
+        if (item is string)
+        {
+            var previewGallery = Releases.Cast<DownloadableItemViewModel>().Concat(Addons)
+                .SelectMany(row => row.PreviewImages)
+                .Where(preview => MediaFileHelper.IsRemoteHttpUrl(preview))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(preview => (Url: preview, Title: (string?)null))
+                .ToList();
+            if (previewGallery.Any(entry => string.Equals(entry.Url, url, StringComparison.OrdinalIgnoreCase)))
+            {
+                return previewGallery;
+            }
+        }
+
+        return [(url, item switch
+        {
+            Video titledVideo => titledVideo.Title,
+            Image image => image.Title,
+            _ => null,
+        })];
+    }
+
+    private string? ResolveScreenshotTitle(string url, int index)
+    {
+        var fromImages = Images.FirstOrDefault(image =>
+            string.Equals(image.FullSizeUrl ?? image.ThumbnailUrl, url, StringComparison.OrdinalIgnoreCase));
+        return fromImages?.Title ?? $"Screenshot {index + 1}";
     }
 
     private void OpenMediaExternally(string? url)

@@ -4912,7 +4912,12 @@ public partial class PublishShareViewModel(
             return;
         }
 
-        AddPendingMediaList(pending, skipped, content.Id, "metadata", "screenshots", metadata.ScreenshotUrls, projectDirectory, (index, url) => metadata.ScreenshotUrls[index] = url);
+        AddPendingMediaList(pending, skipped, content.Id, "metadata", "screenshots", metadata.ScreenshotUrls, projectDirectory, (index, url) =>
+        {
+            var oldUrl = metadata.ScreenshotUrls[index];
+            metadata.ScreenshotUrls[index] = url;
+            metadata.RemapScreenshotTitle(oldUrl, url);
+        });
         AddPendingMediaList(pending, skipped, content.Id, "metadata", "videos", metadata.VideoUrls, projectDirectory, (index, url) => metadata.VideoUrls[index] = url);
         AddPendingMediaUrl(pending, skipped, content.Id, "metadata", "trailer", 0, metadata.VideoUrl, projectDirectory, url => metadata.VideoUrl = url);
     }
