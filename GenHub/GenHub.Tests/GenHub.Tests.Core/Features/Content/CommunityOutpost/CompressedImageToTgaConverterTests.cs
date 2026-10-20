@@ -135,7 +135,7 @@ public class CompressedImageToTgaConverterTests : IDisposable
     }
 
     /// <summary>
-    /// Concurrent conversions all succeed.
+    /// Concurrent conversions all produce a complete 8x8 uncompressed 32-bit TGA.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -154,7 +154,7 @@ public class CompressedImageToTgaConverterTests : IDisposable
 
         var destinations = await Task.WhenAll(tasks);
 
-        Assert.All(destinations, destination => Assert.True(File.Exists(destination)));
+        Assert.All(destinations, destination => AssertUncompressed32BitTga(File.ReadAllBytes(destination), width: 8, height: 8));
     }
 
     /// <summary>
