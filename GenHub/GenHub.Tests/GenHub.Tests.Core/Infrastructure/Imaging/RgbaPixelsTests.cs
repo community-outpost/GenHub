@@ -10,12 +10,28 @@ namespace GenHub.Tests.Core.Infrastructure.Imaging;
 public class RgbaPixelsTests
 {
     /// <summary>
-    /// CMYK, grayscale and palette images are exported as sRGB with an opaque alpha.
+    /// A CMYK JPEG decoded from raw channel values exports as sRGB, not as raw C, M and Y.
+    /// </summary>
+    [Fact]
+    public void ToBytes_DecodedCmykJpeg_ExportsSrgb()
+    {
+        using var image = new MagickImage(CreateCmykRedJpeg());
+        Assert.Equal(ColorSpace.CMYK, image.ColorSpace);
+
+        var bytes = RgbaPixels.ToBytes(image);
+
+        Assert.InRange(bytes[0], 230, 255);
+        Assert.InRange(bytes[1], 0, 25);
+        Assert.InRange(bytes[2], 0, 25);
+        Assert.Equal(255, bytes[3]);
+    }
+
+    /// <summary>
+    /// Palette and truecolor images are exported as sRGB with an opaque alpha.
     /// </summary>
     /// <param name="colorSpace">The source colour space.</param>
     /// <param name="colorType">The source colour type.</param>
     [Theory]
-    [InlineData(ColorSpace.CMYK, ColorType.ColorSeparation)]
     [InlineData(ColorSpace.sRGB, ColorType.Palette)]
     [InlineData(ColorSpace.sRGB, ColorType.TrueColor)]
     public void ToBytes_NonRgbaSource_ExportsOpaqueSrgb(ColorSpace colorSpace, ColorType colorType)
@@ -52,5 +68,18 @@ public class RgbaPixelsTests
         using var image = RgbaPixels.FromBytes(pixels, 2, 1);
 
         Assert.Equal(pixels, RgbaPixels.ToBytes(image));
+    }
+
+    /// <summary>
+    /// Builds a CMYK JPEG whose pixels are pure red (C=0, M=255, Y=255, K=0) without going through
+    /// the colorspace setter under test.
+    /// </summary>
+    /// <returns>The JPEG bytes.</returns>
+    internal static byte[] CreateCmykRedJpeg()
+    {
+        byte[] cmyk = [0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0];
+        using var image = new MagickImage();
+        image.ReadPixels(cmyk, new PixelReadSettings(2, 2, StorageType.Char, "CMYK"));
+        return image.ToByteArray(MagickFormat.Jpeg);
     }
 }

@@ -1,4 +1,5 @@
 using ImageMagick;
+using System;
 
 namespace GenHub.Infrastructure.Imaging;
 
@@ -20,7 +21,8 @@ public static class RgbaPixels
         rgba.ColorType = ColorType.TrueColorAlpha;
         rgba.Alpha(AlphaOption.Set);
         using var pixels = rgba.GetPixelsUnsafe();
-        return pixels.ToByteArray(PixelMapping.RGBA) ?? [];
+        return pixels.ToByteArray(PixelMapping.RGBA)
+            ?? throw new InvalidOperationException("Failed to export RGBA pixels.");
     }
 
     /// <summary>

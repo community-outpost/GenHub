@@ -191,6 +191,11 @@ internal static class ImageProcessingHelper
             return image;
         }
 
+        if (size.Width <= 0 || size.Height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(parameters), $"Resize target {size.Width}x{size.Height} must be positive.");
+        }
+
         var resamplingMode = ResamplingMode.Bilinear;
         if (parameters.TryGetValue("resampling", out var resamplingObj) &&
             resamplingObj is string resamplingStr &&
@@ -210,10 +215,10 @@ internal static class ImageProcessingHelper
 
     /// <summary>
     /// Saves an image to target path with the encoder settings the game expects.
-    /// TGA is written as uncompressed 32-bit. BMP is written as 24-bit truecolor, except that a source
-    /// BMP with an alpha channel stays 32-bit.
+    /// TGA is written as uncompressed 32-bit. BMP is written as 24-bit truecolor, except that a BMP
+    /// source with an alpha channel that was not resized stays 32-bit, as with the old ImageSharp encoder.
     /// </summary>
-    /// <param name="image">The image to save. TGA output modifies it in place.</param>
+    /// <param name="image">The image to save. TGA and BMP output modify it in place.</param>
     /// <param name="targetPath">The destination file path.</param>
     /// <param name="targetExt">The file extension.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

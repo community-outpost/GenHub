@@ -211,8 +211,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
             using var image = new MagickImage();
             await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
-            // Matches the old rule of rejecting fewer than 24 bits per pixel: gray and bilevel always,
-            // gray with alpha only at 8 bits per sample.
+            // Rejects gray and bilevel TIFFs, and gray with alpha at 8 bits per sample.
+            // Palette TIFFs are accepted because Magick.NET expands them to truecolor.
             if (image.ColorType is ColorType.Bilevel or ColorType.Grayscale
                 || (image.ColorType == ColorType.GrayscaleAlpha && image.Depth <= 8))
             {

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Tests.Core.Infrastructure.Imaging;
 using GenHub.Features.Tools.ModBuilder.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -498,16 +499,12 @@ public sealed class ImageConversionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertImageAsync_CmykTiffToDds_ConvertsColorsToRgb()
+    public async Task ConvertImageAsync_CmykJpegToDds_ConvertsColorsToRgb()
     {
         // Arrange
-        var sourcePath = Path.Combine(_tempDirectory, "cmyk.tif");
+        var sourcePath = Path.Combine(_tempDirectory, "cmyk.jpg");
         var targetPath = Path.Combine(_tempDirectory, "cmyk.dds");
-        using (var image = new MagickImage(MagickColors.Red, 4, 4))
-        {
-            image.ColorSpace = ColorSpace.CMYK;
-            image.Write(sourcePath, MagickFormat.Tiff);
-        }
+        await File.WriteAllBytesAsync(sourcePath, RgbaPixelsTests.CreateCmykRedJpeg());
 
         // Act
         var result = await _service.ConvertImageAsync(sourcePath, targetPath);
@@ -531,6 +528,23 @@ public sealed class ImageConversionServiceTests : IDisposable
         }
 
         image.Write(path, format);
+    }
+
+    [Theory]
+    [InlineData(-5)]
+    [InlineData(0)]
+    public async Task ConvertImageAsync_WithNonPositiveResize_ReturnsFalse(int size)
+    {
+        // Arrange
+        var sourcePath = Path.Combine(_tempDirectory, "test.bmp");
+        var targetPath = Path.Combine(_tempDirectory, "test.tga");
+        WriteSolidImage(sourcePath, 2, 2, MagickColors.Red, MagickFormat.Bmp3);
+
+        // Act
+        var result = await _service.ConvertImageAsync(sourcePath, targetPath, new Dictionary<string, object> { ["resize"] = size });
+
+        // Assert
+        result.Should().BeFalse();
     }
 
     private static int ReadBmpBitsPerPixel(string bmpPath)

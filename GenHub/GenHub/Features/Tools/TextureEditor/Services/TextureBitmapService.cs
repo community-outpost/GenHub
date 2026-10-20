@@ -207,7 +207,7 @@ public sealed class TextureBitmapService(ISageTextureCodec codec, ILogger<Textur
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        catch (Exception ex) when (ex is MagickException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             logger.LogWarning(ex, "Failed to save PNG file: {Path}", path);
             return OperationResult<string>.CreateFailure($"Failed to save PNG file: {path}", Stopwatch.GetElapsedTime(started));

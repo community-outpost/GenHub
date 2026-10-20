@@ -19,6 +19,8 @@
     <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageVersion Include="Google.Apis.Drive.v3" Version="1.73.0.3996" />
     <PackageVersion Include="Magick.NET-Q16-AnyCPU" Version="14.17.1" />
+    <!-- Matches the version Avalonia.Skia resolves. ImageCacheService reads image headers with SKCodec. -->
+    <PackageVersion Include="SkiaSharp" Version="2.88.9" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
     <PackageVersion Include="Markdown.Avalonia" Version="11.0.3" />
     <PackageVersion Include="Material.Icons.Avalonia" Version="2.4.1" />
