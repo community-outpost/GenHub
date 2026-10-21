@@ -8475,6 +8475,15 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation" xml:space="preserve">
     <value>Этот реплей записан с retail-клиентом '{0}'. Добавьте установку retail-версии игры, затем создайте профиль для просмотра.</value>
   </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Available" xml:space="preserve">
+    <value>Карта найдена. Совпадение по CRC {0} и размеру {1} байт.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.NotFound" xml:space="preserve">
+    <value>Карта не найдена. Ни одна пользовательская или установленная стандартная карта не совпадает по CRC {0} и размеру {1} байт.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Unknown" xml:space="preserve">
+    <value>Не удалось проверить наличие карты. CRC карты {0}, размер {1} байт.</value>
+  </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
     <value>Метаданные заголовка реплея недоступны или их не удалось проанализировать.</value>
   </data>

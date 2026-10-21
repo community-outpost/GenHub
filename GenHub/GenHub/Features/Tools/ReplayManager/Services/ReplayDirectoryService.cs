@@ -48,7 +48,8 @@ public sealed class ReplayDirectoryService(
     IServiceScopeFactory scopeFactory,
     ILogger<ReplayDirectoryService> logger,
     IGameCrcCalculatorService? crcCalculator = null,
-    IGamePathProvider? pathProvider = null) : IReplayDirectoryService
+    IGamePathProvider? pathProvider = null,
+    IReplayMapLookupService? mapLookupService = null) : IReplayDirectoryService
 {
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
@@ -235,7 +236,9 @@ public sealed class ReplayDirectoryService(
                 replayFiles.Add(replay);
             });
 
-        return replayFiles.OrderByDescending(r => r.LastModified).ToList().AsReadOnly();
+        var orderedReplays = replayFiles.OrderByDescending(r => r.LastModified).ToList();
+        await ResolveMapAvailabilityAsync(version, orderedReplays, ct);
+        return orderedReplays.AsReadOnly();
     }
 
     /// <inheritdoc />
@@ -3038,6 +3041,23 @@ public sealed class ReplayDirectoryService(
         {
             logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
             return (false, acquiredIds, existingProfiles);
+        }
+    }
+
+    private async Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct)
+    {
+        if (mapLookupService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to resolve replay map availability for {GameType}", version);
         }
     }
 

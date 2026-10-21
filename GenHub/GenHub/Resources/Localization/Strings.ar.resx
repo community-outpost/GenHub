@@ -8475,6 +8475,15 @@
   <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation" xml:space="preserve">
     <value>تم تسجيل هذه الإعادة باستخدام العميل الأصلي '{0}'. أضف تثبيتًا أصليًا للعبة، ثم أنشئ ملفًا تعريفيًا لمشاهدتها.</value>
   </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Available" xml:space="preserve">
+    <value>تم العثور على الخريطة. تمت المطابقة برمز CRC {0} والحجم {1} بايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.NotFound" xml:space="preserve">
+    <value>لم يتم العثور على الخريطة. لا توجد خريطة مستخدم أو خريطة أصلية مثبتة تطابق رمز CRC {0} والحجم {1} بايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Unknown" xml:space="preserve">
+    <value>تعذر التحقق من توفر الخريطة. رمز CRC للخريطة {0}، الحجم {1} بايت.</value>
+  </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
     <value>بيانات رأس الإعادة غير متوفرة أو تعذر تحليلها.</value>
   </data>

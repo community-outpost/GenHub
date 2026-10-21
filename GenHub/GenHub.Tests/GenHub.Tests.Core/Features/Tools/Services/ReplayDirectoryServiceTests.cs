@@ -5095,6 +5095,66 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Equal(expected, ReplayDirectoryService.DetermineUnconfiguredStatus(match, isInstalled: false));
     }
 
+    /// <summary>
+    /// Verifies that GetReplaysAsync passes the parsed replays to the map lookup so each replay reports its map availability.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetReplaysAsync_WithMapLookup_ResolvesMapAvailabilityAsync()
+    {
+        var optionsDirectory = CreateReplayOptionsDirectoryWithReplay();
+        try
+        {
+            var mapLookup = new Mock<IReplayMapLookupService>();
+            mapLookup
+                .Setup(m => m.ResolveMapAvailabilityAsync(GameType.ZeroHour, It.IsAny<IReadOnlyList<ReplayFile>>(), It.IsAny<CancellationToken>()))
+                .Callback<GameType, IReadOnlyList<ReplayFile>, CancellationToken>((_, replays, _) =>
+                {
+                    foreach (var replay in replays)
+                    {
+                        replay.MapAvailability = ReplayMapAvailability.Available;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            var replays = await CreateServiceForReplayListing(optionsDirectory, mapLookup.Object).GetReplaysAsync(GameType.ZeroHour);
+
+            var replay = Assert.Single(replays);
+            Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
+            Assert.Equal(0x6314F5FDu, replay.Metadata?.MapCrc);
+        }
+        finally
+        {
+            Directory.Delete(optionsDirectory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a failing map lookup does not hide the replay list and leaves the map availability unknown.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task GetReplaysAsync_WhenMapLookupThrows_ReturnsReplaysWithUnknownMapAsync()
+    {
+        var optionsDirectory = CreateReplayOptionsDirectoryWithReplay();
+        try
+        {
+            var mapLookup = new Mock<IReplayMapLookupService>();
+            mapLookup
+                .Setup(m => m.ResolveMapAvailabilityAsync(It.IsAny<GameType>(), It.IsAny<IReadOnlyList<ReplayFile>>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("map scan failed"));
+
+            var replays = await CreateServiceForReplayListing(optionsDirectory, mapLookup.Object).GetReplaysAsync(GameType.ZeroHour);
+
+            var replay = Assert.Single(replays);
+            Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
+        }
+        finally
+        {
+            Directory.Delete(optionsDirectory, true);
+        }
+    }
+
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
     {
         FileName = fileName,
@@ -5214,6 +5274,15 @@ public sealed class ReplayDirectoryServiceTests
         }
     }
 
+    private static string CreateReplayOptionsDirectoryWithReplay()
+    {
+        var optionsDirectory = Path.Combine(Path.GetTempPath(), "genhub_test_replay_maps_" + Guid.NewGuid().ToString("N"));
+        var replayDirectory = Path.Combine(optionsDirectory, GameSettingsConstants.FolderNames.Replays);
+        Directory.CreateDirectory(replayDirectory);
+        File.WriteAllText(Path.Combine(replayDirectory, "match.rep"), "replay");
+        return optionsDirectory;
+    }
+
     private static ReplayFile CreateTestReplayForPathResolution(string publisher) => new()
     {
         FileName = "Test.rep",
@@ -5226,4 +5295,21 @@ public sealed class ReplayDirectoryServiceTests
             Publisher = publisher,
         },
     };
+
+    private ReplayDirectoryService CreateServiceForReplayListing(string optionsDirectory, IReplayMapLookupService mapLookup)
+    {
+        var pathProvider = new Mock<IGamePathProvider>();
+        pathProvider.Setup(p => p.GetOptionsDirectory(GameType.ZeroHour)).Returns(optionsDirectory);
+        _mockHeaderParser
+            .Setup(p => p.ParseHeaderAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ReplayMetadata>.CreateSuccess(new ReplayMetadata { MapName = "tansooo", MapCrc = 0x6314F5FD, MapSize = 106110 }));
+
+        return new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance,
+            pathProvider: pathProvider.Object,
+            mapLookupService: mapLookup);
+    }
 }

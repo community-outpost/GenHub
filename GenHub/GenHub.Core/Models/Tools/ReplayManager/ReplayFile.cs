@@ -102,6 +102,11 @@ public sealed class ReplayFile : IExportableFile
     }
 
     /// <summary>
+    /// Gets or sets whether the replay map is available locally, matched by map CRC and size.
+    /// </summary>
+    public ReplayMapAvailability MapAvailability { get; set; } = ReplayMapAvailability.Unknown;
+
+    /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.
     /// </summary>
     public ReplayCompatibilityStatus CompatibilityStatus { get; set; } = ReplayCompatibilityStatus.Unknown;

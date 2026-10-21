@@ -5,6 +5,7 @@ using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -192,7 +193,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         }
 
         // 8. Extract map name, players, and structured slots from init string if present
-        var (mapName, players, slots) = ParseMatchMetadata(initString);
+        var (mapName, mapCrc, mapSize, players, slots) = ParseMatchMetadata(initString);
 
         // 9. Determine tick rate (FPS), total frames, duration, and match date
         var timingContext = new ReplayTimingContext(
@@ -219,6 +220,8 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             IniCrc = iniCrc,
             GameDate = gameDate ?? timingGameDate,
             MapName = mapName,
+            MapCrc = mapCrc,
+            MapSize = mapSize,
             Players = players,
             Slots = slots,
             TotalFrames = totalFrames,
@@ -496,14 +499,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
         return false;
     }
 
-    private static (string? MapName, IReadOnlyList<string>? Players, IReadOnlyList<ReplaySlotInfo>? Slots) ParseMatchMetadata(string? initString)
+    private static (string? MapName, uint? MapCrc, uint? MapSize, IReadOnlyList<string>? Players, IReadOnlyList<ReplaySlotInfo>? Slots) ParseMatchMetadata(string? initString)
     {
         if (string.IsNullOrWhiteSpace(initString))
         {
-            return (null, null, null);
+            return (null, null, null, null, null);
         }
 
         string? mapName = null;
+        uint? mapCrc = null;
+        uint? mapSize = null;
         var players = new List<string>();
         var slots = new List<ReplaySlotInfo>();
 
@@ -513,6 +518,16 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (token.StartsWith("M=", StringComparison.OrdinalIgnoreCase))
             {
                 mapName = Path.GetFileNameWithoutExtension(token[2..]);
+            }
+            else if (token.StartsWith(ReplayManagerConstants.MapCrcTokenPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                mapCrc = TryParseMapCrc(token[ReplayManagerConstants.MapCrcTokenPrefix.Length..]) ?? mapCrc;
+            }
+            else if (token.StartsWith(ReplayManagerConstants.MapSizeTokenPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                mapSize = uint.TryParse(token[ReplayManagerConstants.MapSizeTokenPrefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var size)
+                    ? size
+                    : mapSize;
             }
             else if (token.StartsWith("S=", StringComparison.OrdinalIgnoreCase))
             {
@@ -526,8 +541,18 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         return (
             mapName,
+            mapCrc,
+            mapSize,
             players.Count > 0 ? players.AsReadOnly() : null,
             slots.Count > 0 ? slots.AsReadOnly() : null);
+    }
+
+    private static uint? TryParseMapCrc(string value)
+    {
+        var hex = value.StartsWith(ReplayManagerConstants.HexPrefix, StringComparison.OrdinalIgnoreCase)
+            ? value[ReplayManagerConstants.HexPrefix.Length..]
+            : value;
+        return uint.TryParse(hex, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out var crc) ? crc : null;
     }
 
     private static void ExtractSlotPlayers(

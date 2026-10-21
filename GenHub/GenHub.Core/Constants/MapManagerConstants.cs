@@ -108,6 +108,11 @@ public static class MapManagerConstants
     public const string MapFilePattern = "*.map";
 
     /// <summary>
+    /// File extension of a map file.
+    /// </summary>
+    public const string MapFileExtension = ".map";
+
+    /// <summary>
     /// File pattern for ZIP files.
     /// </summary>
     public const string ZipFilePattern = "*.zip";
