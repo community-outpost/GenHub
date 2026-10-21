@@ -6,6 +6,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Windows.Input;
 using ParsedImage = GenHub.Core.Models.Parsers.Image;
@@ -50,7 +51,7 @@ public partial class ContentDetailView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        BindCustomTabs(DataContext as ContentDetailViewModel);
+        BindCustomTabs(VisualRoot != null ? DataContext as ContentDetailViewModel : null);
     }
 
     /// <inheritdoc />
@@ -64,7 +65,11 @@ public partial class ContentDetailView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
-        BindCustomTabs(null);
+        if (_customTabsViewModel != null)
+        {
+            _customTabsViewModel.CustomTabs.CollectionChanged -= OnCustomTabsChanged;
+            _customTabsViewModel = null;
+        }
     }
 
     /// <inheritdoc />
@@ -89,6 +94,25 @@ public partial class ContentDetailView : UserControl
 
             e.Handled = true;
         }
+    }
+
+    private static bool GeneratedTabsMatch(ItemCollection items, IList<CustomTabDefinition> tabs)
+    {
+        if (items.Count - ContentDetailViewModel.BuiltInTabCount != tabs.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < tabs.Count; i++)
+        {
+            if (items[ContentDetailViewModel.BuiltInTabCount + i] is not TabItem { Content: CustomTabContentView view } ||
+                !ReferenceEquals(view.DataContext, tabs[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void OnResizeGripPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -171,25 +195,28 @@ public partial class ContentDetailView : UserControl
         }
 
         var items = _detailTabs.Items;
+        IList<CustomTabDefinition> tabs = _customTabsViewModel?.CustomTabs ?? [];
+        if (GeneratedTabsMatch(items, tabs))
+        {
+            return;
+        }
+
         while (items.Count > ContentDetailViewModel.BuiltInTabCount)
         {
             items.RemoveAt(items.Count - 1);
         }
 
-        if (_customTabsViewModel != null)
+        foreach (var tab in tabs)
         {
-            foreach (var tab in _customTabsViewModel.CustomTabs)
+            items.Add(new TabItem
             {
-                items.Add(new TabItem
+                Header = tab.Header,
+                Content = new CustomTabContentView
                 {
-                    Header = tab.Header,
-                    Content = new CustomTabContentView
-                    {
-                        DataContext = tab,
-                        ImageCommand = _openCardImageCommand,
-                    },
-                });
-            }
+                    DataContext = tab,
+                    ImageCommand = _openCardImageCommand,
+                },
+            });
         }
 
         if (_detailTabs.SelectedIndex < 0 || _detailTabs.SelectedIndex >= items.Count)

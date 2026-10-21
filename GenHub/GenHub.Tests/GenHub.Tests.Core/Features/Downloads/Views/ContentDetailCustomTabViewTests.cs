@@ -49,6 +49,7 @@ public class ContentDetailCustomTabViewTests
     public async Task ContentDetailView_SwitchingItems_ReplacesGeneratedTabsAsync()
     {
         var view = new ContentDetailView();
+        var window = ShowInWindow(view);
         var tabControl = view.FindControl<TabControl>("DetailTabs")!;
         using var itemA = await CreateLoadedViewModelAsync("mod-a", "Install guide", "FAQ");
         using var itemB = await CreateLoadedViewModelAsync("mod-b", "Changelog");
@@ -69,6 +70,38 @@ public class ContentDetailCustomTabViewTests
 
         view.DataContext = null;
         Assert.Empty(GeneratedHeaders(tabControl));
+        window.Close();
+    }
+
+    /// <summary>
+    /// A detached view stops listening to the view model's tabs and picks them up again when it is
+    /// attached, without resetting the selected publisher tab when nothing changed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentDetailView_DetachAndReattach_UnsubscribesAndRestoresTabsAsync()
+    {
+        using var viewModel = await CreateLoadedViewModelAsync("mod-a", "Install guide", "FAQ");
+        var view = new ContentDetailView { DataContext = viewModel };
+        var window = ShowInWindow(view);
+        var tabControl = view.FindControl<TabControl>("DetailTabs")!;
+        tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+
+        window.Content = null;
+        window.Content = view;
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, viewModel.SelectedTabIndex);
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, tabControl.SelectedIndex);
+
+        window.Content = null;
+        viewModel.CustomTabs.Add(new CustomTabDefinition { TabId = "changelog", Header = "Changelog" });
+        Assert.Equal(["Install guide", "FAQ"], GeneratedHeaders(tabControl));
+
+        window.Content = view;
+        Assert.Equal(["Install guide", "FAQ", "Changelog"], GeneratedHeaders(tabControl));
+
+        viewModel.CustomTabs.RemoveAt(0);
+        Assert.Equal(["FAQ", "Changelog"], GeneratedHeaders(tabControl));
+        window.Close();
     }
 
     /// <summary>
@@ -105,6 +138,7 @@ public class ContentDetailCustomTabViewTests
         viewModel.Initialize();
         await viewModel.WaitForInitializationAsync();
         var view = new ContentDetailView { DataContext = viewModel };
+        var window = ShowInWindow(view);
         var tabControl = view.FindControl<TabControl>("DetailTabs")!;
         tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount + 1;
         Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, viewModel.SelectedTabIndex);
@@ -122,6 +156,14 @@ public class ContentDetailCustomTabViewTests
 
         tabControl.SelectedIndex = 0;
         Assert.Equal(0, viewModel.SelectedTabIndex);
+        window.Close();
+    }
+
+    private static Window ShowInWindow(Control view)
+    {
+        var window = new Window { Content = view };
+        window.Show();
+        return window;
     }
 
     private static List<string?> GeneratedHeaders(TabControl tabControl)
