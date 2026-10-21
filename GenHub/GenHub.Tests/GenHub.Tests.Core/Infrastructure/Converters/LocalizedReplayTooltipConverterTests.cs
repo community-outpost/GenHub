@@ -174,4 +174,28 @@ public class LocalizedReplayTooltipConverterTests
         Assert.Throws<NotSupportedException>(() =>
             _converter.ConvertBack("test", typeof(string), null, _culture));
     }
+
+    /// <summary>
+    /// Verifies that a retail replay without a retail installation gets a tooltip naming the retail client.
+    /// </summary>
+    [Fact]
+    public void Convert_WithRetailInstallationRequired_NamesRetailClient()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "Retail.rep",
+            FullPath = @"C:\Games\Replays\Retail.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.RequiresRetailInstallation,
+            MatchedClient = new CrcMappingEntry { Description = "Zero Hour 1.04 (Retail)" },
+        };
+
+        var result = _converter.Convert(replay, typeof(string), "Compatibility", _culture) as string;
+
+        Assert.NotNull(result);
+        Assert.Contains("Zero Hour 1.04 (Retail)", result);
+        Assert.DoesNotContain("not in the official catalog", result);
+    }
 }

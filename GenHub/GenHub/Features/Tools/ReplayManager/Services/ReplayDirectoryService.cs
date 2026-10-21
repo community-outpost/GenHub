@@ -1028,7 +1028,7 @@ public sealed class ReplayDirectoryService(
             return ReplayCompatibilityStatus.Downloadable;
         }
 
-        return ReplayCompatibilityStatus.Orphaned;
+        return isRetail ? ReplayCompatibilityStatus.RequiresRetailInstallation : ReplayCompatibilityStatus.Orphaned;
     }
 
     /// <summary>

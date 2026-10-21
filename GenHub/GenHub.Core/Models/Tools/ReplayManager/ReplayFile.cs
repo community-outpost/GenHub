@@ -234,6 +234,7 @@ public sealed class ReplayFile : IExportableFile
         ReplayCompatibilityStatus.RequiresProfile => "Profile Needed",
         ReplayCompatibilityStatus.Downloadable => "Download Required",
         ReplayCompatibilityStatus.Orphaned => "Custom / Unmapped",
+        ReplayCompatibilityStatus.RequiresRetailInstallation => "Retail Install Needed",
         _ => UnknownValue,
     };
 

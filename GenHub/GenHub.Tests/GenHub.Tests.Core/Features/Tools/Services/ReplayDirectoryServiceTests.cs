@@ -2919,16 +2919,16 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that ResolveCompatibility resolves to Orphaned when a retail client is not installed on the system and has no CDN URL.
+    /// Verifies that ResolveCompatibility reports a needed retail installation when a catalog-matched retail client is not installed and has no CDN URL.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveCompatibility_WhenRetailClientNotInstalled_ResolvesToOrphanedAsync()
+    public async Task ResolveCompatibility_WhenRetailClientNotInstalled_ResolvesToRequiresRetailInstallationAsync()
     {
         var replay = new ReplayFile
         {
-            FileName = "MatchRetailOrphaned.rep",
-            FullPath = "/replays/MatchRetailOrphaned.rep",
+            FileName = "MatchRetailNotInstalled.rep",
+            FullPath = "/replays/MatchRetailNotInstalled.rep",
             SizeInBytes = 2048,
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
@@ -2963,9 +2963,9 @@ public sealed class ReplayDirectoryServiceTests
 
         await service.ResolveCompatibilityAsync(replay, new HashSet<string>(), []);
 
-        Assert.Equal(ReplayCompatibilityStatus.Orphaned, replay.CompatibilityStatus);
+        Assert.Equal(ReplayCompatibilityStatus.RequiresRetailInstallation, replay.CompatibilityStatus);
         Assert.Null(replay.MatchingProfileId);
-        Assert.Equal("Custom / Unmapped", replay.CompatibilityBadgeText);
+        Assert.Equal("Retail Install Needed", replay.CompatibilityBadgeText);
     }
 
     /// <summary>
@@ -5050,6 +5050,49 @@ public sealed class ReplayDirectoryServiceTests
         _mockLauncherFacade.Verify(
             l => l.LaunchProfileAsync("test-profile-id", true, It.IsAny<CancellationToken>()),
             Times.Once());
+    }
+
+    /// <summary>
+    /// Verifies that a catalog-matched retail replay still needs only a profile once the retail installation is acquired.
+    /// </summary>
+    [Fact]
+    public void ResolveMatchedClientCompatibility_RetailMatchWithInstallation_RequiresProfile()
+    {
+        var replay = CreateCrcReplayFile("12-11-35_2v2_babai_ILnur_HardAI_HardAI.rep", 0xDA2B4B18, 0xFEAAE3F3);
+        var match = CreateRetailMappingEntry();
+
+        ReplayDirectoryService.ResolveMatchedClientCompatibility(replay, match, ["1.104.retail.gameinstallation.zerohour"], []);
+
+        Assert.Equal(ReplayCompatibilityStatus.RequiresProfile, replay.CompatibilityStatus);
+    }
+
+    /// <summary>
+    /// Verifies the unconfigured status for each catalog entry shape when no client is installed.
+    /// </summary>
+    /// <param name="publisher">The catalog entry publisher.</param>
+    /// <param name="manifestId">The catalog entry manifest ID.</param>
+    /// <param name="cdnUrl">The catalog entry CDN URL.</param>
+    /// <param name="expected">The expected compatibility status.</param>
+    [Theory]
+    [InlineData("retail", "1.104.retail.gameclient.zerohour", null, ReplayCompatibilityStatus.RequiresRetailInstallation)]
+    [InlineData("steam", "1.104.steam.gameclient.zerohour", null, ReplayCompatibilityStatus.RequiresRetailInstallation)]
+    [InlineData("communityoutpost", "1.104.communityoutpost.gameclient.zerohour", null, ReplayCompatibilityStatus.Downloadable)]
+    [InlineData("generalsonline", "1.0.generalsonline.gameclient.zerohour", "https://cdn.example.com/go.zip", ReplayCompatibilityStatus.Downloadable)]
+    [InlineData("thesuperhackers", null, null, ReplayCompatibilityStatus.Orphaned)]
+    public void DetermineUnconfiguredStatus_WhenNotInstalled_ReturnsStatusForEntryShape(
+        string publisher,
+        string? manifestId,
+        string? cdnUrl,
+        ReplayCompatibilityStatus expected)
+    {
+        var match = new CrcMappingEntry
+        {
+            Publisher = publisher,
+            ManifestId = manifestId ?? string.Empty,
+            CdnUrl = cdnUrl,
+        };
+
+        Assert.Equal(expected, ReplayDirectoryService.DetermineUnconfiguredStatus(match, isInstalled: false));
     }
 
     private static ReplayFile CreateCrcReplayFile(string fileName, uint exeCrc, uint iniCrc, CrcMappingEntry? matchedClient = null) => new()
