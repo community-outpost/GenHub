@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services;
+using GenHub.Features.Content.Services.Catalog;
 using System;
 using System.ComponentModel;
 using System.Text.Json;
@@ -47,6 +48,7 @@ public partial class CustomTabEditorItem : ObservableObject
     public CustomTabEditorItem(CatalogTabDefinition? source = null)
     {
         _source = source != null ? Clone(source) : new CatalogTabDefinition();
+        CatalogTabValidator.Normalize([_source]);
         TabId = _source.TabId ?? string.Empty;
         Header = _source.Header ?? string.Empty;
         Order = _source.Order;
