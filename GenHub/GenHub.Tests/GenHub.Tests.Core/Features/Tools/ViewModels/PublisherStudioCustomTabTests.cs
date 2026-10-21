@@ -184,7 +184,32 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         dialog.CreateContentCommand.Execute(null);
 
         Assert.False(saved);
-        Assert.Contains("gallery", dialog.ValidationError);
+        Assert.Equal("Custom tab 'gallery' has cards that break the catalog rules. Fix them in the catalog file.", dialog.ValidationError);
+    }
+
+    /// <summary>
+    /// Null card entries kept from a hand-written catalog are dropped like the parser does, instead of blocking the save.
+    /// </summary>
+    [Fact]
+    public void EditContentDialog_NullKeptCard_IsDroppedAndSaves()
+    {
+        var existing = CreateItem();
+        existing.CustomTabs =
+        [
+            new CatalogTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CatalogTabCardDefinition { Title = "Card" }, null!],
+            },
+        ];
+        CatalogContentItem? edited = null;
+        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
+
+        dialog.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(edited);
+        Assert.Equal("Card", Assert.Single(Assert.Single(edited.CustomTabs).Cards).Title);
     }
 
     /// <summary>

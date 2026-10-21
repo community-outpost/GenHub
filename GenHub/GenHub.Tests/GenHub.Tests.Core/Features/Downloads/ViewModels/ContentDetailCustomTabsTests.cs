@@ -215,6 +215,55 @@ public sealed class ContentDetailCustomTabsTests
         Assert.Equal(0, viewModel.SelectedTabIndex);
     }
 
+    /// <summary>
+    /// A load for a previous item that fails late leaves the current item's pending selection intact.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task StaleLoadFailsLate_KeepsCurrentPendingSelectionAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", Tab("a-notes"), Tab("shared"));
+        using var viewModel = CreateViewModel(registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        viewModel.SelectedTabIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+
+        var pendingB = registry.Pending("mod-b");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
+        var staleLoad = viewModel.WaitForInitializationAsync();
+        var pendingA = registry.Pending("mod-a");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = ItemAManifestId, Name = "Mod A" };
+
+        pendingB.SetException(new InvalidOperationException("late failure"));
+        await staleLoad;
+        pendingA.SetResult([Tab("shared")]);
+        await viewModel.WaitForInitializationAsync();
+
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount, viewModel.SelectedTabIndex);
+    }
+
+    /// <summary>
+    /// A load that fails after the view model is disposed completes quietly and changes nothing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Dispose_BeforeTabsLoadFails_CompletesWithoutChangesAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        var pendingA = registry.Pending("mod-a");
+        var viewModel = CreateViewModel(registry);
+        viewModel.Initialize();
+        var initialLoad = viewModel.WaitForInitializationAsync();
+        viewModel.Dispose();
+
+        pendingA.SetException(new InvalidOperationException("late failure"));
+        await initialLoad;
+
+        Assert.Empty(viewModel.CustomTabs);
+        Assert.Equal(0, viewModel.SelectedTabIndex);
+    }
+
     private static CustomTabDefinition Tab(string tabId) => new() { TabId = tabId, Header = tabId };
 
     private static ContentDetailViewModel CreateViewModel(ITabProviderRegistry registry)
