@@ -187,6 +187,7 @@ public partial class ContentDetailViewModel(
     private int _customTabsLoadVersion;
     private string? _customTabsItemKey;
     private string? _pendingCustomTabId;
+    private bool _isUpdatingCustomTabs;
     private Task? _variantsTask;
     private Task? _gitHubReadmeTask;
     private Task? _generalsOnlineNotesTask;
@@ -8349,23 +8350,39 @@ public partial class ContentDetailViewModel(
         }
 
         _pendingCustomTabId = null;
-        CustomTabs.Clear();
-        foreach (var tab in tabs)
+        _isUpdatingCustomTabs = true;
+        try
         {
-            CustomTabs.Add(tab);
+            CustomTabs.Clear();
+            foreach (var tab in tabs)
+            {
+                CustomTabs.Add(tab);
+            }
+
+            OnPropertyChanged(nameof(HasCustomTabs));
+
+            if (previousTabId == null && SelectedTabIndex < BuiltInTabCount)
+            {
+                return;
+            }
+
+            var restoredIndex = previousTabId == null
+                ? -1
+                : CustomTabs.ToList().FindIndex(tab => tab.TabId.Equals(previousTabId, StringComparison.OrdinalIgnoreCase));
+            SelectedTabIndex = restoredIndex >= 0 ? BuiltInTabCount + restoredIndex : 0;
         }
-
-        OnPropertyChanged(nameof(HasCustomTabs));
-
-        if (previousTabId == null && SelectedTabIndex < BuiltInTabCount)
+        finally
         {
-            return;
+            _isUpdatingCustomTabs = false;
         }
+    }
 
-        var restoredIndex = previousTabId == null
-            ? -1
-            : CustomTabs.ToList().FindIndex(tab => tab.TabId.Equals(previousTabId, StringComparison.OrdinalIgnoreCase));
-        SelectedTabIndex = restoredIndex >= 0 ? BuiltInTabCount + restoredIndex : 0;
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        if (!_isUpdatingCustomTabs)
+        {
+            _pendingCustomTabId = null;
+        }
     }
 
     private string? GetSelectedCustomTabId()
@@ -8389,12 +8406,20 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        _pendingCustomTabId = GetSelectedCustomTabId();
-        CustomTabs.Clear();
-        OnPropertyChanged(nameof(HasCustomTabs));
-        if (SelectedTabIndex >= BuiltInTabCount)
+        _pendingCustomTabId = GetSelectedCustomTabId() ?? _pendingCustomTabId;
+        _isUpdatingCustomTabs = true;
+        try
         {
-            SelectedTabIndex = 0;
+            CustomTabs.Clear();
+            OnPropertyChanged(nameof(HasCustomTabs));
+            if (SelectedTabIndex >= BuiltInTabCount)
+            {
+                SelectedTabIndex = 0;
+            }
+        }
+        finally
+        {
+            _isUpdatingCustomTabs = false;
         }
 
         _customTabsTask = LoadCustomTabsAsync();
