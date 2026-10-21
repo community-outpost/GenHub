@@ -80,20 +80,21 @@ public sealed class ReplayFile : IExportableFile
 
     /// <summary>
     /// Gets a comma-separated list of player names in the replay match, or null when unknown.
+    /// Lists one entry per slot so it agrees with <see cref="PlayerCount"/>.
     /// Null suppresses the tooltip instead of rendering an empty box.
     /// </summary>
     public string? PlayerNamesDisplay
     {
         get
         {
-            if (Metadata?.Players is { Count: > 0 } players)
-            {
-                return string.Join(", ", players);
-            }
-
             if (Metadata?.Slots is { Count: > 0 } slots)
             {
                 return string.Join(", ", slots.Select(s => s.PlayerName));
+            }
+
+            if (Metadata?.Players is { Count: > 0 } players)
+            {
+                return string.Join(", ", players);
             }
 
             return null;

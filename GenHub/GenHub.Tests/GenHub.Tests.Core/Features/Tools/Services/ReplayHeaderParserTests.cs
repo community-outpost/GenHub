@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -602,6 +604,35 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal(TimeSpan.FromSeconds(5), result.Data.Duration);
     }
 
+    /// <summary>
+    /// Verifies that duplicate AI slots of the same difficulty appear once per slot in the player names,
+    /// so the names tooltip agrees with the player count.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_DuplicateAiSlots_PlayerNamesAgreeWithPlayerCountAsync()
+    {
+        using var stream = new MemoryStream();
+        WriteHeaderWithInitString(stream, "M=maps/test/test.map;S=Hbabai,0,0,0,1,2:HILnur,0,0,0,3,4:CH,5,6,0,1:CH,7,8,0,1:X:X:X:X;");
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var replay = new ReplayFile
+        {
+            FullPath = "test.rep",
+            FileName = "test.rep",
+            SizeInBytes = stream.Length,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = result.Data,
+        };
+
+        Assert.Equal(4, replay.PlayerCount);
+        Assert.Equal("babai, ILnur, AI (Hard), AI (Hard)", replay.PlayerNamesDisplay);
+    }
+
     private static void WriteMinimalValidHeader(Stream stream)
     {
         using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
@@ -620,6 +651,22 @@ public sealed class ReplayHeaderParserTests
         writer.Write(0x27533BB0u);
         writer.Write(0x76B251A3u);
         writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,127.0.0.1,8086,0,1,2:X:X;" + char.MinValue));
+        writer.Flush();
+    }
+
+    private static void WriteHeaderWithInitString(Stream stream, string initString)
+    {
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(new byte[22]);
+        writer.Write(Encoding.Unicode.GetBytes("Init String Test" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes(initString + char.MinValue));
         writer.Flush();
     }
 
