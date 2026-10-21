@@ -17,6 +17,11 @@ internal sealed class InMemoryPublisherKeyStore : IPublisherKeyStore
     public string? ReadFailure { get; set; }
 
     /// <summary>
+    /// Gets or sets a failure returned by every save and remove, simulating a store that cannot be written.
+    /// </summary>
+    public string? WriteFailure { get; set; }
+
+    /// <summary>
     /// Gets the stored keys.
     /// </summary>
     public IReadOnlyDictionary<string, TrustedPublisherKey> Keys => _keys;
@@ -36,13 +41,20 @@ internal sealed class InMemoryPublisherKeyStore : IPublisherKeyStore
     /// <inheritdoc />
     public Task<OperationResult> SaveKeyAsync(TrustedPublisherKey key, CancellationToken cancellationToken = default)
     {
+        if (WriteFailure is not null)
+        {
+            return Task.FromResult(OperationResult.CreateFailure(WriteFailure));
+        }
+
         _keys[key.PublisherId] = key;
         return Task.FromResult(OperationResult.CreateSuccess());
     }
 
     /// <inheritdoc />
     public Task<OperationResult<bool>> RemoveKeyAsync(string publisherId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(OperationResult<bool>.CreateSuccess(_keys.Remove(publisherId)));
+        Task.FromResult(WriteFailure is null
+            ? OperationResult<bool>.CreateSuccess(_keys.Remove(publisherId))
+            : OperationResult<bool>.CreateFailure(WriteFailure));
 
     /// <inheritdoc />
     public Task<OperationResult<string?>> QuarantineAsync(CancellationToken cancellationToken = default) =>

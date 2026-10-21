@@ -120,6 +120,8 @@ Trust is established on first use. The first subscription whose proof verifies s
 - the signature verifies with the key already trusted for the publisher ID, and
 - `signedAt` is later than the last proof accepted for the subscription, so an old proof replayed from a former URL is rejected.
 
+A `signedAt` more than a day in the future is rejected.
+
 Otherwise the user sees the collision prompt. Replacing the publisher trusts the new source's key, or forgets the old key when the new source has none. Keep the private key offline; losing it means subscribers see the collision prompt on the next move.
 
 ---

@@ -6705,6 +6705,9 @@
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
+    <value>تعذّر تحديث مفتاح الناشر الموثوق، لذلك أُبقي على الناشر الحالي.</value>
+  </data>
   <data name="Downloads.Subscription.MoveSubscription" xml:space="preserve">
     <value>نقل الاشتراك</value>
   </data>

@@ -637,6 +637,14 @@ public partial class SubscriptionConfirmationViewModel(
                 ? BuildReplacementSubscription(effectivePublisher, effectiveCatalogUrl, assessment)
                 : BuildSubscription(effectivePublisher, effectiveCatalogUrl, existingSub, assessment);
 
+            // Replacing changes trust first, so a failed key store write keeps the existing publisher instead of leaving its key trusted for the new one.
+            if (replacing && !await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
+            {
+                ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+                ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustUpdateFailed", "The trusted publisher key could not be updated, so the existing publisher was kept.");
+                return;
+            }
+
             var result = existingSub != null
                 ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
                 : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
@@ -644,7 +652,11 @@ public partial class SubscriptionConfirmationViewModel(
             if (result.Success)
             {
                 logger.LogInformation("Subscription saved successfully for publisher {PublisherId}", subscription.PublisherId);
-                await RecordTrustAsync(publisherId, assessment, replaceTrust: existingSub == null || replacing, cancellationToken);
+                if (!replacing)
+                {
+                    await RecordTrustAsync(publisherId, assessment, replaceTrust: existingSub == null, cancellationToken);
+                }
+
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 RequestClose?.Invoke(true);
             }
@@ -735,7 +747,7 @@ public partial class SubscriptionConfirmationViewModel(
         return assessment;
     }
 
-    private async Task RecordTrustAsync(
+    private async Task<bool> RecordTrustAsync(
         string publisherId,
         PublisherSourceAssessment assessment,
         bool replaceTrust,
@@ -743,7 +755,7 @@ public partial class SubscriptionConfirmationViewModel(
     {
         if (identityService == null)
         {
-            return;
+            return true;
         }
 
         var trustResult = await identityService.RecordTrustAsync(publisherId, assessment, replaceTrust, cancellationToken);
@@ -751,6 +763,8 @@ public partial class SubscriptionConfirmationViewModel(
         {
             logger.LogWarning("Failed to record the trusted key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", trustResult.Errors));
         }
+
+        return trustResult.Success;
     }
 
     [RelayCommand]

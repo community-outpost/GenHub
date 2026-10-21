@@ -164,7 +164,8 @@ public sealed class PublisherIdentityService(
         var payload = BuildProofPayload(definition.Publisher?.Id, definition.DefinitionUrl, identity.SignedAt);
         if (payload is null ||
             !DateTimeOffset.TryParse(identity.SignedAt, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var signedAt) ||
-            !TryDecodeBase64(identity.Signature, out var signature))
+            !TryDecodeBase64(identity.Signature, out var signature) ||
+            signedAt > DateTimeOffset.UtcNow.Add(PublisherKeyConstants.IdentityProofMaxClockSkew))
         {
             return null;
         }

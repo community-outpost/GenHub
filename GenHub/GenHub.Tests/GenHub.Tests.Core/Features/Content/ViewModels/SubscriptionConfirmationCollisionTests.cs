@@ -161,6 +161,29 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     }
 
     /// <summary>
+    /// When the trusted key cannot be updated, replace keeps the existing subscription and shows an error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_KeyStoreWriteFails_KeepsExistingSubscriptionAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        _keyStore.WriteFailure = "locked";
+        SetExisting(ExistingSubscription());
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+        bool? closed = null;
+        vm.RequestClose = r => closed = r;
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.Null(closed);
+        Assert.Null(_updated);
+        Assert.True(vm.ShowActionError);
+        Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
+    }
+
+    /// <summary>
     /// Skip closes the dialog without touching the subscription or the trusted key.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

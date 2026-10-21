@@ -244,6 +244,21 @@ public sealed class PublisherIdentityServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A proof signed far in the future is rejected, so it cannot become a freshness floor that blocks later moves.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AssessAsync_FutureDatedProof_IsNotProvenAsync()
+    {
+        var definition = SignedDefinition(NewDefinitionUrl, _genuineKey, "2100-01-01T00:00:00Z");
+
+        var assessment = await CreateService().AssessAsync(null, Candidate(NewDefinitionUrl, definition));
+
+        Assert.Null(assessment.ProvenKey);
+        Assert.Null(assessment.ProofSignedAt);
+    }
+
+    /// <summary>
     /// A corrupted signature is not a proof.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
