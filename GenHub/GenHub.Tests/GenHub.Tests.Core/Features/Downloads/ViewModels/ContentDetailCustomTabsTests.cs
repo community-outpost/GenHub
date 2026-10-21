@@ -64,6 +64,7 @@ public sealed class ContentDetailCustomTabsTests
         var pendingB = registry.Pending("mod-b");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
         var staleLoad = viewModel.WaitForInitializationAsync();
+        Assert.Empty(viewModel.CustomTabs);
 
         var pendingA = registry.Pending("mod-a");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = ItemAManifestId, Name = "Mod A" };

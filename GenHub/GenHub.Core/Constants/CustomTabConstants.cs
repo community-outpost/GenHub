@@ -36,6 +36,16 @@ public static class CustomTabConstants
     public const int MaxBodyLength = 50000;
 
     /// <summary>
+    /// The maximum length of a card title or label.
+    /// </summary>
+    public const int MaxCardTitleLength = 100;
+
+    /// <summary>
+    /// The maximum length of a card description.
+    /// </summary>
+    public const int MaxCardDescriptionLength = 1000;
+
+    /// <summary>
     /// The URI scheme for images bundled with the application.
     /// </summary>
     public const string AvaloniaResourceScheme = "avares";

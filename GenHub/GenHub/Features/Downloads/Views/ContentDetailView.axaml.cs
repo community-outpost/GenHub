@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.ViewModels;
 using System;
@@ -31,7 +32,9 @@ public partial class ContentDetailView : UserControl
         InitializeComponent();
 
         _detailTabs = this.FindControl<TabControl>("DetailTabs");
-        _openCardImageCommand = new RelayCommand<CustomTabCardDefinition>(OpenCardImage);
+        _openCardImageCommand = new RelayCommand<CustomTabCardDefinition>(
+            OpenCardImage,
+            card => MediaFileHelper.IsRemoteHttpUrl(card?.ImageUrl));
 
         var resizeGrip = this.FindControl<Border>("VideoModalResizeGrip");
         if (resizeGrip != null)
