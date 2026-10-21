@@ -584,7 +584,7 @@
                                             <Grid ColumnDefinitions="*,8,*,8,90,Auto">
                                                 <StackPanel Grid.Column="0" Spacing="4">
                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabId}" Classes="label"/>
-                                                    <TextBox Text="{Binding TabId}" Watermark="release-notes"/>
+                                                    <TextBox Text="{Binding TabId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder}"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Spacing="4">
                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Header}" Classes="label"/>

@@ -13548,6 +13548,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>معرّف علامة التبويب</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder" xml:space="preserve">
+    <value>release-notes</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
     <value>العنوان</value>
   </data>
