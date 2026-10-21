@@ -220,6 +220,7 @@ This automatically:
 | `lastUpdated` | DateTime | Yes | Catalog last modified date |
 | `signature` | string | No | SHA256 signature (future) |
 | `referrals` | PublisherReferral[] | No | Links to other publishers |
+| `customTabs` | CatalogTabDefinition[] | No | Catalog-level detail tabs. Each applies only to the IDs in its `appliesTo` |
 
 Multi-catalog publishers declare a `PublisherDefinition` whose `catalogs` array points at one catalog file per entry; each catalog file keeps the single-catalog shape above.
 
@@ -246,6 +247,28 @@ Multi-catalog publishers declare a `PublisherDefinition` whose `catalogs` array 
 | `releases` | ContentRelease[] | Yes | Version releases |
 | `metadata` | ContentRichMetadata | No | Banners, screenshots, videos |
 | `tags` | string[] | No | Search tags |
+| `customTabs` | CatalogTabDefinition[] | No | Detail tabs shown only for this item |
+
+### CatalogTabDefinition
+
+Publisher tabs appear on the item's detail page after the built-in tabs. Declare them on the item in `customTabs`.
+A catalog-level tab in the root `customTabs` applies only to the content IDs in its `appliesTo` list. An empty list applies to no item.
+When an item tab and a catalog-level tab share a `tabId`, the item tab is shown.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tabId` | string | Yes | Tab ID, unique within its scope (case-insensitive, up to 64 characters) |
+| `header` | string | Yes | Tab header text (up to 40 characters) |
+| `order` | int | No | Sort order among publisher tabs (default `100`) |
+| `intro` | string | No | Plain-text intro (up to 2000 characters) |
+| `body` | string | No | Markdown documentation (up to 50000 characters) |
+| `cards` | CatalogTabCardDefinition[] | No | Card grid (up to 24 cards). Each card needs a `title`. `imageUrl` must use `https` or `avares` |
+| `isVisible` | bool | No | Set to `false` to hide the tab (default `true`) |
+| `appliesTo` | string[] | No | Content IDs for a catalog-level tab. Ignored on item tabs |
+| `contentType` | string | No | Rendering hint. Unsupported values render as `custom` |
+
+An item or the catalog root can declare up to 10 tabs. A catalog that breaks these rules fails validation with an error that names the content ID and tab ID.
+Tab content renders as plain text, safe Markdown, and images only. Markdown links open only for HTTP and HTTPS URLs, and Markdown images load only from safe remote HTTP and HTTPS URLs.
 
 ### ContentRelease
 

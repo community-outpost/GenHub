@@ -300,7 +300,9 @@
                 </StackPanel>
 
                 <!-- Tabs -->
-                <TabControl Grid.Row="2"
+                <!-- Publisher-defined tabs are appended after the built-in tabs by the code-behind. -->
+                <TabControl x:Name="DetailTabs"
+                            Grid.Row="2"
                             SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                             IsVisible="{Binding !IsLoadingDetails}">
                     <TabControl.Styles>
@@ -1441,9 +1443,6 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-
-                    <!-- Publisher Tabs - catalog-defined cards for subscribed publishers -->
-                    <!-- Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported. See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621). -->
                 </TabControl>
             </Grid>
 
