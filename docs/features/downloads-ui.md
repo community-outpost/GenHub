@@ -127,8 +127,9 @@ graph TD
 3. **Addons Tab**:
    - Discovered compatible addons, map packs, and complementary files.
 4. **Dynamic Custom Tabs**:
-   - Populated dynamically at runtime via `ITabProviderRegistry` and `CatalogTabProvider`.
-   - Allows creator catalogs to define dedicated documentation, server configuration, or extra information tabs directly in their `catalog.json`.
+   - Populated at runtime via `ITabProviderRegistry` and `CatalogTabProvider` from the selected item's `customTabs`.
+   - Rendered as top-level tabs after the built-in tabs through `CustomTabContentView`: plain-text intro, safe Markdown body, and card grid.
+   - Catalog-level tabs appear only on items listed in their `appliesTo`.
 
 ---
 

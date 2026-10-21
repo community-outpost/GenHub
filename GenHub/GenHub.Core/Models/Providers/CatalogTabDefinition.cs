@@ -60,6 +60,13 @@ public class CatalogTabDefinition
     public string? Intro { get; set; }
 
     /// <summary>
+    /// Gets or sets optional Markdown documentation displayed below the intro.
+    /// Links open only for HTTP and HTTPS URLs, and images load only from safe remote HTTP and HTTPS URLs.
+    /// </summary>
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
+
+    /// <summary>
     /// Gets or sets the display cards supplied by the publisher for this tab.
     /// </summary>
     [JsonPropertyName("cards")]
@@ -85,8 +92,9 @@ public class CatalogTabDefinition
     public bool LazyLoad { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets content IDs this tab applies to (optional).
-    /// If empty, applies to all content from this publisher.
+    /// Gets or sets the content IDs a catalog-level tab applies to.
+    /// A catalog-level tab applies only to the content IDs listed here, so an empty list applies to no item.
+    /// Tabs declared on a content item ignore this list.
     /// </summary>
     [JsonPropertyName("appliesTo")]
     public List<string> AppliesTo { get; set; } = [];

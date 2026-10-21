@@ -967,6 +967,7 @@ public partial class ContentLibraryViewModel(
             target.Releases = edited.Releases;
             target.Addons = edited.Addons;
             target.AddonReleases = edited.AddonReleases;
+            target.CustomTabs = edited.CustomTabs;
             var (catalogIcon, publisherAvatar) = ResolveCatalogPresentationUrls(activeCatalog, parentViewModel);
             target.CatalogIconUrl = catalogIcon;
             target.PublisherAvatarUrl = publisherAvatar;

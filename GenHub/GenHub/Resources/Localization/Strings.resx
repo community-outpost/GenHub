@@ -13600,6 +13600,63 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>Paste an image URL or pick a local file. Local files are uploaded to your hosting provider when you publish the catalog.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Title" xml:space="preserve">
+    <value>Custom tabs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Hint" xml:space="preserve">
+    <value>Tabs shown after the built-in tabs on this item's detail page in the Downloads browser.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>Tab ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>Header</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>Release notes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
+    <value>Remove tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>Intro</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>Body (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>Links open only for HTTP and HTTPS URLs. Images load only from remote HTTP and HTTPS URLs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardCountFormat" xml:space="preserve">
+    <value>{0} card(s) from the catalog file are kept.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>Visible</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Add" xml:space="preserve">
+    <value>Add tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>A content item can have at most {0} custom tabs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>Each custom tab needs an ID of 1 to {0} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>Custom tab ID '{0}' is used more than once.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>Icon</value>
   </data>

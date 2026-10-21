@@ -478,6 +478,11 @@ public partial class AddContentDialogViewModel(
         {
             RefreshBundleComponentOptions();
         }
+
+        foreach (var tab in existing.CustomTabs.Where(tab => tab != null))
+        {
+            CustomTabs.Add(new CustomTabEditorItem(tab));
+        }
     }
 
     private void RefreshBundleComponentOptions()
@@ -718,6 +723,11 @@ public partial class AddContentDialogViewModel(
     /// Each entry becomes one release artifact uploaded separately.
     /// </summary>
     public ObservableCollection<StagedContentFile> StagedFiles { get; } = [];
+
+    /// <summary>
+    /// Gets the publisher-defined tabs authored for this content item.
+    /// </summary>
+    public ObservableCollection<CustomTabEditorItem> CustomTabs { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether any local files are staged.
@@ -1739,6 +1749,38 @@ public partial class AddContentDialogViewModel(
     }
 
     /// <summary>
+    /// Adds a new publisher-defined tab to the content item.
+    /// </summary>
+    [RelayCommand]
+    private void AddCustomTab()
+    {
+        var number = CustomTabs.Count + 1;
+        while (CustomTabs.Any(tab => tab.TabId.Equals($"tab-{number}", StringComparison.OrdinalIgnoreCase)))
+        {
+            number++;
+        }
+
+        CustomTabs.Add(new CustomTabEditorItem
+        {
+            TabId = $"tab-{number}",
+            Order = (CustomTabs.Count + 1) * 10,
+        });
+    }
+
+    /// <summary>
+    /// Removes a publisher-defined tab from the content item.
+    /// </summary>
+    /// <param name="tab">The tab to remove.</param>
+    [RelayCommand]
+    private void RemoveCustomTab(CustomTabEditorItem? tab)
+    {
+        if (tab != null)
+        {
+            CustomTabs.Remove(tab);
+        }
+    }
+
+    /// <summary>
     /// Opens the artifact creation dialog to add an artifact to the initial release.
     /// </summary>
     [RelayCommand]
@@ -1909,7 +1951,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        if (!ValidateArtwork())
+        if (!ValidateArtwork() || !ValidateCustomTabs())
         {
             return;
         }
@@ -1926,6 +1968,7 @@ public partial class AddContentDialogViewModel(
             Tags = [.. tags],
             ExtendsContentId = SelectedContentType == ContentType.Addon ? ExtendsContentId : null,
             Metadata = MergeArtworkMetadata(),
+            CustomTabs = [.. CustomTabs.Select(tab => tab.ToDefinition())],
         };
 
         contentItem.IsFeatured = IsFeatured;
@@ -2165,6 +2208,68 @@ public partial class AddContentDialogViewModel(
             GameType.ZeroHour => GetLocalizedString("GameProfiles.GameType.ZeroHour", "C&C Generals: Zero Hour"),
             _ => game.ToString(),
         };
+    }
+
+    private bool ValidateCustomTabs()
+    {
+        var error = FindCustomTabError();
+        if (error == null)
+        {
+            return true;
+        }
+
+        ValidationError = error;
+        IsValid = false;
+        return false;
+    }
+
+    private string? FindCustomTabError()
+    {
+        if (CustomTabs.Count > CustomTabConstants.MaxTabsPerScope)
+        {
+            return string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.TooManyTabs", "A content item can have at most {0} custom tabs."),
+                CustomTabConstants.MaxTabsPerScope);
+        }
+
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tab in CustomTabs)
+        {
+            var tabId = tab.TabId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(tabId) || tabId.Length > CustomTabConstants.MaxTabIdLength)
+            {
+                return string.Format(
+                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidTabId", "Each custom tab needs an ID of 1 to {0} characters."),
+                    CustomTabConstants.MaxTabIdLength);
+            }
+
+            if (!seenIds.Add(tabId))
+            {
+                return string.Format(
+                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId", "Custom tab ID '{0}' is used more than once."),
+                    tabId);
+            }
+
+            var header = tab.Header?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(header) || header.Length > CustomTabConstants.MaxHeaderLength)
+            {
+                return string.Format(
+                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidHeader", "Custom tab '{0}' needs a header of 1 to {1} characters."),
+                    tabId,
+                    CustomTabConstants.MaxHeaderLength);
+            }
+
+            if (tab.Intro?.Trim().Length > CustomTabConstants.MaxIntroLength || tab.Body?.Length > CustomTabConstants.MaxBodyLength)
+            {
+                return string.Format(
+                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.ContentTooLong", "Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters."),
+                    tabId,
+                    CustomTabConstants.MaxIntroLength,
+                    CustomTabConstants.MaxBodyLength);
+            }
+        }
+
+        return null;
     }
 
     private string? NormalizeArtworkValue(string? value)

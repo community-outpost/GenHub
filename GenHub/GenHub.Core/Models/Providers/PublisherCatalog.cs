@@ -71,8 +71,9 @@ public class PublisherCatalog
     public List<PublisherReferral> Referrals { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets custom tabs for content detail pages.
-    /// Publishers can define custom tabs to display additional content.
+    /// Gets or sets catalog-level custom tabs for content detail pages.
+    /// Each tab applies only to the content IDs listed in its <see cref="CatalogTabDefinition.AppliesTo"/>.
+    /// Prefer <see cref="CatalogContentItem.CustomTabs"/> for tabs authored for a single item.
     /// </summary>
     [JsonPropertyName("customTabs")]
     public List<CatalogTabDefinition> CustomTabs { get; set; } = [];

@@ -1099,6 +1099,7 @@ Manages content items, releases, artifacts, and dependencies.
 - Upload artifacts with SHA256 verification
 - Define cross-publisher dependencies
 - Rich metadata (tags, screenshots, descriptions)
+- Per-item custom tabs for the Downloads detail page (ID, header, order, intro, Markdown body, visibility) with a live preview. Cards written in the catalog file are kept when the item is edited
 
 **Dialog Integration**:
 
