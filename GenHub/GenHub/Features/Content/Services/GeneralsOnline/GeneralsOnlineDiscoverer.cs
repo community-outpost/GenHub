@@ -60,9 +60,10 @@ public class GeneralsOnlineDiscoverer(
 
     /// <inheritdoc />
     /// <remarks>
-    /// False on hosts the provider definition does not list, so the release is not offered there.
+    /// False when the provider definition is disabled or does not list this host, so the release
+    /// is not offered.
     /// </remarks>
-    public bool IsEnabled => providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType)?.SupportsHostPlatform() ?? true;
+    public bool IsEnabled => providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType)?.IsAvailableOnHost() ?? true;
 
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities =>

@@ -147,6 +147,12 @@ public class ProviderDefinition
     /// </summary>
     /// <returns><c>true</c> when the current host is supported.</returns>
     public bool SupportsHostPlatform() => SupportsPlatform(HostPlatform.Current);
+
+    /// <summary>
+    /// Determines whether this provider is enabled and its content can run on the current host.
+    /// </summary>
+    /// <returns><c>true</c> when <see cref="Enabled"/> is set and the current host is supported.</returns>
+    public bool IsAvailableOnHost() => Enabled && SupportsHostPlatform();
 }
 
 /// <summary>

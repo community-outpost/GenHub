@@ -1141,23 +1141,7 @@ public class SetupWizardServiceTests
     public async Task RunSetupWizardAsync_GeneralsOnline_OfferedOnlyOnSupportedHostAsync(bool hostSupported)
     {
         // Arrange
-        var platform = hostSupported ? HostPlatform.Current : GeneralsOnlinePlatformTests.OtherPlatform;
-        var loader = new Mock<IProviderDefinitionLoader>();
-        loader
-            .Setup(l => l.GetProvider(GeneralsOnlineConstants.PublisherType))
-            .Returns(new ProviderDefinition { SupportedPlatforms = [platform] });
-
-        var goDiscoverer = new Mock<GeneralsOnlineDiscoverer>(
-            Mock.Of<Microsoft.Extensions.Logging.ILogger<GeneralsOnlineDiscoverer>>(),
-            loader.Object,
-            Mock.Of<ICatalogParserFactory>(),
-            Mock.Of<System.Net.Http.IHttpClientFactory>());
-        goDiscoverer
-            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
-            {
-                Items = [new ContentSearchResult { Version = "082826_QFE1" }],
-            }));
+        var goDiscoverer = CreateGeneralsOnlineDiscovererMock(hostSupported ? HostPlatform.Current : GeneralsOnlinePlatformTests.OtherPlatform);
 
         _cpDiscovererMock
             .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
@@ -1185,6 +1169,93 @@ public class SetupWizardServiceTests
         Assert.Equal(
             hostSupported ? GameClientConstants.WizardActionTypes.Install : GameClientConstants.WizardActionTypes.Decline,
             result.GeneralsOnlineAction);
+    }
+
+    /// <summary>
+    /// Verifies that on a host Generals Online does not support, an installed native Generals Online
+    /// client is still offered for profiling. Only the Windows download is withheld. Windows has no
+    /// native Unix client, so there the item is absent.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_GeneralsOnlineUnsupportedHostWithNativeClient_OffersCreateProfileAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var executablePath = Path.Combine(directory, GameClientConstants.GeneralsOnlineUnixExecutable);
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
+
+            var goDiscoverer = CreateGeneralsOnlineDiscovererMock(GeneralsOnlinePlatformTests.OtherPlatform);
+            _cpDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _manifestPoolMock
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            installation.AvailableGameClients =
+            [
+                new GameClient
+                {
+                    Id = "1.82826.generalsonline.gameclient.zerohour",
+                    InstallationId = installation.Id,
+                    Name = "Generals Online",
+                    PublisherType = PublisherTypeConstants.GeneralsOnline,
+                    GameType = GameType.ZeroHour,
+                    Version = "082826_QFE1",
+                    ExecutablePath = executablePath,
+                },
+            ];
+
+            var service = CreateService(goDiscoverer: goDiscoverer.Object);
+            SetupWizardViewModel? capturedVm = null;
+            service.DialogShower = vm =>
+            {
+                capturedVm = vm;
+                return Task.FromResult(true);
+            };
+
+            var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.DoesNotContain(capturedVm?.Items ?? [], i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+                Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
+            }
+            else
+            {
+                var goItem = Assert.Single(capturedVm!.Items, i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline));
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, goItem.ActionType);
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.GeneralsOnlineAction);
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static Mock<GeneralsOnlineDiscoverer> CreateGeneralsOnlineDiscovererMock(ExecutablePlatform supportedPlatform)
+    {
+        var loader = new Mock<IProviderDefinitionLoader>();
+        loader
+            .Setup(l => l.GetProvider(GeneralsOnlineConstants.PublisherType))
+            .Returns(new ProviderDefinition { SupportedPlatforms = [supportedPlatform] });
+
+        var goDiscoverer = new Mock<GeneralsOnlineDiscoverer>(
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<GeneralsOnlineDiscoverer>>(),
+            loader.Object,
+            Mock.Of<ICatalogParserFactory>(),
+            Mock.Of<System.Net.Http.IHttpClientFactory>());
+        goDiscoverer
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = "082826_QFE1" }],
+            }));
+        return goDiscoverer;
     }
 
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()

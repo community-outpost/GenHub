@@ -51,10 +51,10 @@ public abstract class BaseContentProvider : IContentProvider
 
     /// <inheritdoc />
     /// <remarks>
-    /// A provider whose definition declares supported platforms is disabled on any other host,
-    /// so content that cannot run here is not searched or offered.
+    /// A provider whose definition is disabled, or declares supported platforms that exclude this
+    /// host, is disabled, so content that cannot run here is not searched or offered.
     /// </remarks>
-    public virtual bool IsEnabled => GetProviderDefinition()?.SupportsHostPlatform() ?? true;
+    public virtual bool IsEnabled => GetProviderDefinition()?.IsAvailableOnHost() ?? true;
 
     /// <inheritdoc />
     public virtual ContentSourceCapabilities Capabilities =>

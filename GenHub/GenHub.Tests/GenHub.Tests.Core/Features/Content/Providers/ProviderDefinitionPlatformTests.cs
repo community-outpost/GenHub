@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Services.Providers;
@@ -52,6 +53,28 @@ public class ProviderDefinitionPlatformTests : IDisposable
         var definition = new ProviderDefinition { SupportedPlatforms = [ExecutablePlatform.Windows] };
 
         Assert.Equal(expected, definition.SupportsPlatform(platform));
+    }
+
+    /// <summary>
+    /// A provider is available on the host only when it is enabled and supports the host.
+    /// </summary>
+    /// <param name="enabled">The definition's <c>enabled</c> value.</param>
+    /// <param name="hostListed">Whether the definition lists the current host.</param>
+    /// <param name="expected">Whether the provider is available.</param>
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    public void IsAvailableOnHost_CombinesEnabledAndPlatform(bool enabled, bool hostListed, bool expected)
+    {
+        var other = HostPlatform.Current == ExecutablePlatform.Windows ? ExecutablePlatform.MacOS : ExecutablePlatform.Windows;
+        var definition = new ProviderDefinition
+        {
+            Enabled = enabled,
+            SupportedPlatforms = [hostListed ? HostPlatform.Current : other],
+        };
+
+        Assert.Equal(expected, definition.IsAvailableOnHost());
     }
 
     /// <summary>

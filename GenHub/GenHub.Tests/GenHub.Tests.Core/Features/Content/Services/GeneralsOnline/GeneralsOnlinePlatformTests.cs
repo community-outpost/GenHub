@@ -89,6 +89,33 @@ public class GeneralsOnlinePlatformTests
     }
 
     /// <summary>
+    /// A definition with <c>enabled</c> set to false disables the provider and the discoverer,
+    /// even on a supported host.
+    /// </summary>
+    [Fact]
+    public void IsEnabled_WithDisabledDefinitionOnSupportedHost_ReturnsFalse()
+    {
+        var loader = CreateLoader([HostPlatform.Current], enabled: false);
+        var provider = new GeneralsOnlineProvider(
+            loader.Object,
+            [],
+            [],
+            [],
+            Mock.Of<IContentValidator>(),
+            Mock.Of<IInstallationInstructionsService>(),
+            Mock.Of<IContentManifestPool>(),
+            NullLogger<GeneralsOnlineProvider>.Instance);
+        var discoverer = new GeneralsOnlineDiscoverer(
+            NullLogger<GeneralsOnlineDiscoverer>.Instance,
+            loader.Object,
+            Mock.Of<ICatalogParserFactory>(),
+            Mock.Of<IHttpClientFactory>());
+
+        Assert.False(provider.IsEnabled);
+        Assert.False(discoverer.IsEnabled);
+    }
+
+    /// <summary>
     /// Creates a discoverer whose provider definition lists <paramref name="platforms"/>.
     /// </summary>
     /// <param name="platforms">The supported platforms to declare.</param>
@@ -96,13 +123,14 @@ public class GeneralsOnlinePlatformTests
     /// <returns>The discoverer.</returns>
     internal static GeneralsOnlineDiscoverer CreateDiscoverer(List<ExecutablePlatform> platforms, HttpMessageHandler? handler = null)
     {
+        handler ??= new CountingHandler();
         var parserFactory = new Mock<ICatalogParserFactory>();
         parserFactory.Setup(factory => factory.GetParser(It.IsAny<string>()))
             .Returns(new GeneralsOnlineJsonCatalogParser(NullLogger<GeneralsOnlineJsonCatalogParser>.Instance));
 
         var httpClientFactory = new Mock<IHttpClientFactory>();
         httpClientFactory.Setup(factory => factory.CreateClient(It.IsAny<string>()))
-            .Returns(() => new HttpClient(handler ?? new CountingHandler()));
+            .Returns(() => new HttpClient(handler, disposeHandler: false));
 
         return new GeneralsOnlineDiscoverer(
             NullLogger<GeneralsOnlineDiscoverer>.Instance,
@@ -111,7 +139,7 @@ public class GeneralsOnlinePlatformTests
             httpClientFactory.Object);
     }
 
-    private static Mock<IProviderDefinitionLoader> CreateLoader(List<ExecutablePlatform> platforms)
+    private static Mock<IProviderDefinitionLoader> CreateLoader(List<ExecutablePlatform> platforms, bool enabled = true)
     {
         var loader = new Mock<IProviderDefinitionLoader>();
         loader.Setup(l => l.GetProvider(GeneralsOnlineConstants.PublisherType)).Returns(new ProviderDefinition
@@ -120,6 +148,7 @@ public class GeneralsOnlinePlatformTests
             CatalogFormat = "generalsonline",
             Endpoints = new ProviderEndpoints { CatalogUrl = "https://cdn.playgenerals.online/catalog.json" },
             SupportedPlatforms = platforms,
+            Enabled = enabled,
         });
         return loader;
     }

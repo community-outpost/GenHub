@@ -159,6 +159,12 @@ public class SetupWizardService(
                 return (true, GameClientConstants.WizardActionTypes.Decline, true, null);
             }
 
+            if (!config.OfferDownload)
+            {
+                logger.LogInformation("[SetupWizard] {Title} cannot be downloaded on this platform, not offering it", config.Title);
+                return (true, GameClientConstants.WizardActionTypes.Decline, false, null);
+            }
+
             // 1. Identify managed clients in the manifest pool
             var managedManifests = allPoolManifests
                 .Where(m => m.ContentType == ContentType.GameClient &&
@@ -379,23 +385,21 @@ public class SetupWizardService(
             result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
         }
 
-        if (generalsOnlineDiscoverer.IsEnabled)
+        var goConfig = new WizardComponentConfig
         {
-            var goConfig = new WizardComponentConfig
-            {
-                PublisherType = PublisherTypeConstants.GeneralsOnline,
-                ComponentGlobal = goGlobal,
-                ClientFilter = IsGeneralsOnlineClient,
-                LatestVersion = goCleanVersion,
-                Title = goTitle,
-                MissingDescription = FormatInstallDescription(goTitle, goCleanVersion),
-                IconPath = UriConstants.GeneralsOnlineLogoUri,
-                Metadata = PublisherTypeConstants.GeneralsOnline,
-                DefaultSelected = true,
-            };
-            var goRes = await ProcessComponentAsync(goConfig);
-            result.GeneralsOnlineAction = goRes.FinalAction;
-        }
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+            ComponentGlobal = goGlobal,
+            ClientFilter = IsGeneralsOnlineClient,
+            LatestVersion = goCleanVersion,
+            Title = goTitle,
+            MissingDescription = FormatInstallDescription(goTitle, goCleanVersion),
+            IconPath = UriConstants.GeneralsOnlineLogoUri,
+            Metadata = PublisherTypeConstants.GeneralsOnline,
+            DefaultSelected = true,
+            OfferDownload = generalsOnlineDiscoverer.IsEnabled,
+        };
+        var goRes = await ProcessComponentAsync(goConfig);
+        result.GeneralsOnlineAction = goRes.FinalAction;
 
         var shConfig = new WizardComponentConfig
         {
@@ -684,5 +688,11 @@ public class SetupWizardService(
 
         /// <summary>Gets an optional description suffix (e.g., compatibility warnings).</summary>
         public string? DescriptionSuffix { get; init; }
+
+        /// <summary>
+        /// Gets a value indicating whether the publisher package can be downloaded on this host.
+        /// When false, only an installed native client is offered, to create its profile.
+        /// </summary>
+        public bool OfferDownload { get; init; } = true;
     }
 }
