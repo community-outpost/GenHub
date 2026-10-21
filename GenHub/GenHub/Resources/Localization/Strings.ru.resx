@@ -6711,6 +6711,9 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Обновлено {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
+    <value>Подписка не изменена, но предыдущий ключ издателя восстановить не удалось.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
     <value>Не удалось обновить доверенный ключ издателя, поэтому текущий издатель сохранён.</value>
   </data>

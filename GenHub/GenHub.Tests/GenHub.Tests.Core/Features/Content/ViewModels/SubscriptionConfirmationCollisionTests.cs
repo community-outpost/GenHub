@@ -337,6 +337,78 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     }
 
     /// <summary>
+    /// A trust write that lands and then throws is rolled back, so the old subscription keeps its key.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_TrustWriteLandsThenThrows_RestoresPreviousKeyAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        _keyStore.ThrowAfterNextSave = new IOException("interrupted");
+        SetExisting(ExistingSubscription());
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShowActionError);
+        Assert.Null(_updated);
+        Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
+    }
+
+    /// <summary>
+    /// When the update fails and the previous key cannot be restored, the dialog reports that distinctly.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_RestoreFails_ReportsRestoreFailureAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        _keyStore.RemainingWrites = 1;
+        SetExisting(ExistingSubscription());
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.Contains("could not be restored", vm.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Two dialogs cannot interleave their saves: the second waits until the first has finished.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_TwoDialogs_SavesDoNotInterleaveAsync()
+    {
+        SetExisting(ExistingSubscription());
+        var release = new TaskCompletionSource<OperationResult<bool>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var updateCalls = 0;
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Interlocked.Increment(ref updateCalls) == 1 ? release.Task : Task.FromResult(OperationResult<bool>.CreateSuccess(true)));
+        var first = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+        var second = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+        await first.InitializeAsync();
+        await second.InitializeAsync();
+
+        var firstSave = first.ReplaceExistingCommand.ExecuteAsync(null);
+        var secondSave = second.ReplaceExistingCommand.ExecuteAsync(null);
+        await Task.Delay(100);
+
+        Assert.Equal(1, Volatile.Read(ref updateCalls));
+        Assert.False(secondSave.IsCompleted);
+
+        release.SetResult(OperationResult<bool>.CreateSuccess(true));
+        await Task.WhenAll(firstSave, secondSave);
+
+        Assert.Equal(2, updateCalls);
+    }
+
+    /// <summary>
     /// A subscription that saves but whose key cannot be stored still closes, and warns the user.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

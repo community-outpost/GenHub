@@ -6711,6 +6711,9 @@
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
+    <value>لم يتغير الاشتراك، لكن تعذّرت استعادة مفتاح الناشر السابق.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
     <value>تعذّر تحديث مفتاح الناشر الموثوق، لذلك أُبقي على الناشر الحالي.</value>
   </data>

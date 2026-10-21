@@ -63,6 +63,8 @@ public partial class SubscriptionConfirmationViewModel(
 
     private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
 
+    private static readonly SemaphoreSlim SaveLock = new(1, 1);
+
     private readonly List<(string Id, string Name, string Url, PublisherCatalog Catalog)> _definitionCatalogs = [];
 
     private PublisherCatalog? _parsedCatalog;
@@ -622,7 +624,16 @@ public partial class SubscriptionConfirmationViewModel(
         IsSaving = true;
         try
         {
-            await SaveSubscriptionCoreAsync(_parsedCatalog, replaceExisting, cancellationToken);
+            // Dialogs share one lock so a replace in one cannot interleave its trust and subscription writes with another.
+            await SaveLock.WaitAsync(cancellationToken);
+            try
+            {
+                await SaveSubscriptionCoreAsync(_parsedCatalog, replaceExisting, cancellationToken);
+            }
+            finally
+            {
+                SaveLock.Release();
+            }
         }
         finally
         {
@@ -723,36 +734,72 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         var previous = await identityService.GetTrustedKeyAsync(publisherId, cancellationToken);
-        if (previous.Failed || !await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
+        if (previous.Failed)
         {
-            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
-            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustUpdateFailed", "The trusted publisher key could not be updated, so the existing publisher was kept.");
+            ShowTrustUpdateFailed();
             return null;
         }
 
+        OperationResult<bool>? result = null;
         var committed = false;
+        var restoreFailed = false;
         try
         {
-            var result = await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
-            committed = result.Success;
-            return result;
+            if (await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
+            {
+                result = await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+                committed = result.Success;
+            }
         }
         finally
         {
             if (!committed)
             {
-                await RestoreTrustAsync(publisherId, previous.Data);
+                restoreFailed = !await RestoreTrustAsync(publisherId, previous.Data);
             }
         }
+
+        if (restoreFailed)
+        {
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRestoreFailed", "The subscription was not changed, but the previous publisher key could not be restored.");
+            return null;
+        }
+
+        if (result == null)
+        {
+            ShowTrustUpdateFailed();
+        }
+
+        return result;
     }
 
-    private async Task RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous)
+    private void ShowTrustUpdateFailed()
+    {
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+        ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustUpdateFailed", "The trusted publisher key could not be updated, so the existing publisher was kept.");
+    }
+
+    private async Task<bool> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous)
     {
         var restored = await identityService!.RestoreTrustAsync(publisherId, previous, CancellationToken.None);
-        if (restored.Failed)
+        if (restored.Success)
         {
-            logger.LogError("Failed to restore the trusted key for publisher {PublisherId} after a failed replace: {Errors}", publisherId, string.Join("; ", restored.Errors));
+            return true;
         }
+
+        logger.LogError("Failed to restore the trusted key for publisher {PublisherId} after a failed replace: {Errors}", publisherId, string.Join("; ", restored.Errors));
+        if (previous != null)
+        {
+            // Without the previous key nothing can verify a move, so removing the replacement key fails closed.
+            var removed = await identityService.RestoreTrustAsync(publisherId, null, CancellationToken.None);
+            if (removed.Failed)
+            {
+                logger.LogError("Failed to remove the replacement key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", removed.Errors));
+            }
+        }
+
+        return false;
     }
 
     private async Task ReassessSourceAsync(CancellationToken cancellationToken)

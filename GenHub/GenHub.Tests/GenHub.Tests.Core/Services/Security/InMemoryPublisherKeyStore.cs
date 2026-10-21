@@ -22,6 +22,17 @@ internal sealed class InMemoryPublisherKeyStore : IPublisherKeyStore
     public string? WriteFailure { get; set; }
 
     /// <summary>
+    /// Gets or sets an exception thrown once by the next save after the key was stored, simulating a write that lands before a failure.
+    /// </summary>
+    public Exception? ThrowAfterNextSave { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many more writes succeed before every write returns <see cref="WriteFailure"/>-style failures.
+    /// Null means writes do not run out.
+    /// </summary>
+    public int? RemainingWrites { get; set; }
+
+    /// <summary>
     /// Gets the stored keys.
     /// </summary>
     public IReadOnlyDictionary<string, TrustedPublisherKey> Keys => _keys;
@@ -41,22 +52,44 @@ internal sealed class InMemoryPublisherKeyStore : IPublisherKeyStore
     /// <inheritdoc />
     public Task<OperationResult> SaveKeyAsync(TrustedPublisherKey key, CancellationToken cancellationToken = default)
     {
-        if (WriteFailure is not null)
+        if (WriteFailure is not null || !TryConsumeWrite())
         {
-            return Task.FromResult(OperationResult.CreateFailure(WriteFailure));
+            return Task.FromResult(OperationResult.CreateFailure(WriteFailure ?? "out of writes"));
         }
 
         _keys[key.PublisherId] = key;
+        if (ThrowAfterNextSave is { } exception)
+        {
+            ThrowAfterNextSave = null;
+            throw exception;
+        }
+
         return Task.FromResult(OperationResult.CreateSuccess());
     }
 
     /// <inheritdoc />
     public Task<OperationResult<bool>> RemoveKeyAsync(string publisherId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(WriteFailure is null
+        Task.FromResult(WriteFailure is null && TryConsumeWrite()
             ? OperationResult<bool>.CreateSuccess(_keys.Remove(publisherId))
-            : OperationResult<bool>.CreateFailure(WriteFailure));
+            : OperationResult<bool>.CreateFailure(WriteFailure ?? "out of writes"));
 
     /// <inheritdoc />
     public Task<OperationResult<string?>> QuarantineAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(OperationResult<string?>.CreateSuccess(null));
+
+    private bool TryConsumeWrite()
+    {
+        if (RemainingWrites is not { } remaining)
+        {
+            return true;
+        }
+
+        if (remaining <= 0)
+        {
+            return false;
+        }
+
+        RemainingWrites = remaining - 1;
+        return true;
+    }
 }
