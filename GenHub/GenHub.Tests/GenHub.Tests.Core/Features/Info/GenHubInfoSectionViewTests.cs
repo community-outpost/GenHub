@@ -73,6 +73,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
+            await DisposeAndDrainAsync(vm);
         }
     }
 
@@ -112,6 +113,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
+            await DisposeAndDrainAsync(vm);
         }
     }
 
@@ -162,6 +164,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
+            await DisposeAndDrainAsync(vm);
         }
     }
 
@@ -205,6 +208,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
+            await DisposeAndDrainAsync(vm);
         }
     }
 
@@ -227,6 +231,13 @@ public sealed class GenHubInfoSectionViewTests
         }
 
         return null;
+    }
+
+    private static async Task DisposeAndDrainAsync(GenHubInfoSectionViewModel vm)
+    {
+        var replayMapScan = vm.DemoReplayManager?.MapAvailabilityScan ?? Task.CompletedTask;
+        vm.Dispose();
+        await replayMapScan.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     private static async Task<GenHubInfoSectionViewModel> CreateInitializedViewModelAsync()

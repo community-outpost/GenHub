@@ -105,6 +105,7 @@ public sealed class ReplayFile : IExportableFile, INotifyPropertyChanged
 
     /// <summary>
     /// Gets or sets whether the replay map is available locally, matched by map CRC and size.
+    /// Setting it raises <see cref="PropertyChanged"/>, so once the replay is bound to a view it must be set on the UI thread.
     /// </summary>
     public ReplayMapAvailability MapAvailability
     {

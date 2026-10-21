@@ -81,11 +81,10 @@ public partial class ReplayManagerViewModel(
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _selectedRecoveryProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _currentRecoveryProfileIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
+    private readonly ReplayLoadCancellation _loadCancellation = new();
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
     private int _lastLoadedCount = -1;
-    private CancellationTokenSource? _loadCts;
-    private volatile bool _disposed;
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -311,7 +310,8 @@ public partial class ReplayManagerViewModel(
     public ObservableCollection<ReplayFile> CurrentReplays { get; } = [];
 
     /// <summary>
-    /// Gets the map availability scan started by the most recent replay load.
+    /// Gets the map availability scan started by the most recent replay load,
+    /// or a completed task when that load was canceled or failed before starting a scan.
     /// </summary>
     internal Task MapAvailabilityScan { get; private set; } = Task.CompletedTask;
 
@@ -361,12 +361,12 @@ public partial class ReplayManagerViewModel(
     {
         try
         {
-            CancelLoad(Volatile.Read(ref _loadCts));
+            _loadCancellation.CancelCurrent();
             Interlocked.Increment(ref _pendingReloadRequests);
-            await _reloadLock.WaitAsync();
+            await _reloadLock.WaitAsync(_loadCancellation.DisposeToken);
             try
             {
-                while (!_disposed && Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
+                while (!_loadCancellation.IsDisposed && Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
                 {
                     await LoadReplaysCoreAsync();
                 }
@@ -386,6 +386,10 @@ public partial class ReplayManagerViewModel(
         catch (ObjectDisposedException)
         {
             // Suppress ObjectDisposedException when viewmodel is disposed while waiting on lock
+        }
+        catch (OperationCanceledException) when (_loadCancellation.IsDisposed)
+        {
+            // The view model was disposed while this reload waited for the running one.
         }
     }
 
@@ -553,13 +557,13 @@ public partial class ReplayManagerViewModel(
                 LocalizationService.PropertyChanged -= OnLocalizationChanged;
             }
 
-            _disposed = true;
+            // Canceling the dispose token completes reloads waiting on the reload lock. The lock itself is not disposed,
+            // because SemaphoreSlim.Dispose drops queued waiters without completing them.
+            _loadCancellation.Dispose();
             Interlocked.Exchange(ref _pendingReloadRequests, 0);
             Interlocked.Increment(ref _drawerSessionId);
-            CancelLoad(Interlocked.Exchange(ref _loadCts, null));
             checkpointService.CancelActiveMint();
             WeakReferenceMessenger.Default.UnregisterAll(this);
-            _reloadLock.Dispose();
 
             foreach (var item in UploadHistory)
             {
@@ -567,18 +571,6 @@ public partial class ReplayManagerViewModel(
             }
 
             UploadHistory.Clear();
-        }
-    }
-
-    private static void CancelLoad(CancellationTokenSource? cts)
-    {
-        try
-        {
-            cts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // The load already finished and released its token source.
         }
     }
 
@@ -2012,8 +2004,9 @@ public partial class ReplayManagerViewModel(
     private async Task LoadReplaysCoreAsync()
     {
         EnsureMessengerRegistered();
-        var loadCts = new CancellationTokenSource();
-        CancelLoad(Interlocked.Exchange(ref _loadCts, loadCts));
+        MapAvailabilityScan = Task.CompletedTask;
+        var dispatcher = Dispatcher.UIThread;
+        var loadCts = _loadCancellation.Begin();
         var token = loadCts.Token;
         var scanStarted = false;
 
@@ -2027,7 +2020,7 @@ public partial class ReplayManagerViewModel(
             token.ThrowIfCancellationRequested();
             await RevalidateSelectedRecoveryProfilesAsync(replays);
             token.ThrowIfCancellationRequested();
-            await UpdateLoadedReplaysCollectionAsync(gameType, replays, token);
+            await UpdateLoadedReplaysCollectionAsync(dispatcher, gameType, replays, token);
             token.ThrowIfCancellationRequested();
 
             _lastLoadedCount = replays.Count;
@@ -2035,7 +2028,7 @@ public partial class ReplayManagerViewModel(
                 ? string.Format(LocalizationService.GetString("Tools.ReplayManager.Status.Loaded") ?? "Loaded {0} replays.", replays.Count)
                 : $"Loaded {replays.Count} replays.";
 
-            MapAvailabilityScan = ResolveMapAvailabilityAsync(gameType, replays, loadCts);
+            MapAvailabilityScan = ResolveMapAvailabilityAsync(dispatcher, gameType, replays, loadCts);
             scanStarted = true;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -2055,7 +2048,7 @@ public partial class ReplayManagerViewModel(
         {
             if (!scanStarted)
             {
-                ReleaseLoad(loadCts);
+                _loadCancellation.Release(loadCts);
             }
 
             IsBusy = false;
@@ -2063,13 +2056,18 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task ResolveMapAvailabilityAsync(GameType gameType, IReadOnlyList<ReplayFile> replays, CancellationTokenSource loadCts)
+    private async Task ResolveMapAvailabilityAsync(Dispatcher dispatcher, GameType gameType, IReadOnlyList<ReplayFile> replays, CancellationTokenSource loadCts)
     {
         var token = loadCts.Token;
         try
         {
             var availability = await directoryService.ResolveMapAvailabilityAsync(gameType, replays, token);
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            void ApplyAvailability()
             {
                 if (token.IsCancellationRequested)
                 {
@@ -2080,7 +2078,9 @@ public partial class ReplayManagerViewModel(
                 {
                     replays[i].MapAvailability = availability[i];
                 }
-            });
+            }
+
+            await dispatcher.InvokeAsync(ApplyAvailability, DispatcherPriority.Default, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -2092,14 +2092,8 @@ public partial class ReplayManagerViewModel(
         }
         finally
         {
-            ReleaseLoad(loadCts);
+            _loadCancellation.Release(loadCts);
         }
-    }
-
-    private void ReleaseLoad(CancellationTokenSource loadCts)
-    {
-        Interlocked.CompareExchange(ref _loadCts, null, loadCts);
-        loadCts.Dispose();
     }
 
     private async Task RevalidateSelectedRecoveryProfilesAsync(IReadOnlyList<ReplayFile> replays)
@@ -2157,9 +2151,9 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task UpdateLoadedReplaysCollectionAsync(GameType gameType, IReadOnlyList<ReplayFile> replays, CancellationToken token)
+    private async Task UpdateLoadedReplaysCollectionAsync(Dispatcher dispatcher, GameType gameType, IReadOnlyList<ReplayFile> replays, CancellationToken token)
     {
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        void ReplaceCollection()
         {
             if (token.IsCancellationRequested)
             {
@@ -2174,7 +2168,9 @@ public partial class ReplayManagerViewModel(
             }
 
             ApplyFilter();
-        });
+        }
+
+        await dispatcher.InvokeAsync(ReplaceCollection, DispatcherPriority.Default, token);
     }
 
     /// <summary>
@@ -2792,6 +2788,11 @@ public partial class ReplayManagerViewModel(
 
     private void PostReloadReplays(string reason, string? profileId = null, Action? onUiThread = null)
     {
+        if (_loadCancellation.IsDisposed)
+        {
+            return;
+        }
+
         Dispatcher.UIThread.Post(async () =>
         {
             onUiThread?.Invoke();
