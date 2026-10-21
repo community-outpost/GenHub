@@ -149,8 +149,9 @@ public sealed class ContentDetailCustomTabsTests
         await viewModel.WaitForInitializationAsync();
         viewModel.SelectedTabIndex = ContentDetailViewModel.BuiltInTabCount + 1;
 
-        registry.Pending("mod-b");
+        var pendingB = registry.Pending("mod-b");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
+        var abandonedLoad = viewModel.WaitForInitializationAsync();
         Assert.Equal(0, viewModel.SelectedTabIndex);
 
         var pendingA = registry.Pending("mod-a");
@@ -158,6 +159,9 @@ public sealed class ContentDetailCustomTabsTests
         pendingA.SetResult([Tab("shared"), Tab("a-notes")]);
         await viewModel.WaitForInitializationAsync();
 
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount, viewModel.SelectedTabIndex);
+        pendingB.SetResult([Tab("b-notes")]);
+        await abandonedLoad;
         Assert.Equal(ContentDetailViewModel.BuiltInTabCount, viewModel.SelectedTabIndex);
     }
 

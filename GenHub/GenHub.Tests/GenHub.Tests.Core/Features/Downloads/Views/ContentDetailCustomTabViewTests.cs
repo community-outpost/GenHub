@@ -143,8 +143,9 @@ public class ContentDetailCustomTabViewTests
         tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount + 1;
         Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, viewModel.SelectedTabIndex);
 
-        Respond("mod-b");
+        var pendingB = Respond("mod-b");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = itemBId, Name = "Mod B" };
+        var abandonedLoad = viewModel.WaitForInitializationAsync();
         Assert.Equal(0, tabControl.SelectedIndex);
         var reloadA = Respond("mod-a");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = itemAId, Name = "Mod A" };
@@ -156,6 +157,9 @@ public class ContentDetailCustomTabViewTests
 
         tabControl.SelectedIndex = 0;
         Assert.Equal(0, viewModel.SelectedTabIndex);
+        pendingB.SetResult([Tab("b-notes")]);
+        await abandonedLoad;
+        Assert.Equal(["shared", "a-guide"], viewModel.CustomTabs.Select(t => t.TabId));
         window.Close();
     }
 

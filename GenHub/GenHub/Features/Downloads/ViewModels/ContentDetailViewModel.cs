@@ -8335,6 +8335,11 @@ public partial class ContentDetailViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load custom tabs for content: {Name}", Name);
+            if (IsStaleCustomTabsLoad(loadVersion, token))
+            {
+                return;
+            }
+
             await RunOnUiThreadAsync(() =>
             {
                 if (!IsStaleCustomTabsLoad(loadVersion, token))
