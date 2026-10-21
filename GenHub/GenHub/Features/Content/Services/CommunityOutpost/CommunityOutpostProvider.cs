@@ -51,9 +51,6 @@ public class CommunityOutpostProvider(
     public override string Description => CommunityOutpostConstants.ProviderDescription;
 
     /// <inheritdoc/>
-    public override bool IsEnabled => true;
-
-    /// <inheritdoc/>
     public override ContentSourceCapabilities Capabilities =>
         ContentSourceCapabilities.RequiresDiscovery |
         ContentSourceCapabilities.SupportsPackageAcquisition;

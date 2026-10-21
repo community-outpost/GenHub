@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -16,6 +17,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Downloads.ViewModels;
+using GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -3247,6 +3249,30 @@ public class DownloadsBrowserViewModelTests
         Assert.False(DownloadsBrowserViewModel.MatchesNotificationTarget(card, unrelatedItem));
     }
 
+    /// <summary>
+    /// Verifies that the Generals Online publisher is listed only on hosts its provider
+    /// definition supports, so Windows-only content is not offered on macOS or Linux.
+    /// </summary>
+    /// <param name="hostSupported">Whether the definition lists the current host.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InitializeAsync_GeneralsOnlinePublisher_ListedOnlyOnSupportedHostAsync(bool hostSupported)
+    {
+        // Arrange
+        var platform = hostSupported ? HostPlatform.Current : GeneralsOnlinePlatformTests.OtherPlatform;
+        var discoverer = GeneralsOnlinePlatformTests.CreateDiscoverer([platform]);
+        using var viewModel = CreateViewModel(contentDiscoverers: [discoverer]);
+
+        // Act
+        await viewModel.InitializeAsync();
+
+        // Assert
+        Assert.Equal(hostSupported, viewModel.Publishers.Any(p => p.PublisherId == PublisherTypeConstants.GeneralsOnline));
+        Assert.Contains(viewModel.Publishers, p => p.PublisherId == PublisherTypeConstants.TheSuperHackers);
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,
@@ -3298,7 +3324,8 @@ public class DownloadsBrowserViewModelTests
         IPublisherReconcilerRegistry? reconcilerRegistry = null,
         IServiceProvider? serviceProvider = null,
         IContentStateService? contentStateService = null,
-        INotificationService? notificationService = null)
+        INotificationService? notificationService = null,
+        IReadOnlyList<IContentDiscoverer>? contentDiscoverers = null)
     {
         var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
         subscriptionStore
@@ -3308,7 +3335,7 @@ public class DownloadsBrowserViewModelTests
         return new DownloadsBrowserViewModel(
             serviceProvider ?? new Mock<IServiceProvider>().Object,
             new Mock<ILogger<DownloadsBrowserViewModel>>().Object,
-            [],
+            contentDiscoverers ?? [],
             contentStateService ?? new Mock<IContentStateService>().Object,
             orchestrator ?? new Mock<IContentOrchestrator>().Object,
             new Mock<IProfileContentService>().Object,
