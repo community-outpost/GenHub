@@ -123,10 +123,60 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         Assert.Equal(ReplayMapAvailability.Unknown, Assert.Single(_viewModel.CurrentReplays).MapAvailability);
     }
 
-    private static ReplayFile CreateReplay() => new()
+    /// <summary>
+    /// Verifies that a load superseded while it was still listing replays does not publish its stale list.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task LoadReplaysAsync_SupersededLoad_DoesNotPublishStaleListAsync()
     {
-        FullPath = "/replays/match.rep",
-        FileName = "match.rep",
+        var firstListing = new TaskCompletionSource<IReadOnlyList<ReplayFile>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var listings = 0;
+        _directoryService
+            .Setup(d => d.GetReplaysAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .Returns(() => ++listings == 1 ? firstListing.Task : Task.FromResult<IReadOnlyList<ReplayFile>>([CreateReplay("new.rep")]));
+
+        var firstLoad = _viewModel.LoadReplaysAsync();
+        var secondLoad = _viewModel.LoadReplaysAsync();
+        firstListing.SetResult([CreateReplay("stale.rep")]);
+        await Task.WhenAll(firstLoad, secondLoad).WaitAsync(LoadTimeout);
+
+        Assert.Equal(2, listings);
+        Assert.Equal("new.rep", Assert.Single(_viewModel.CurrentReplays).FileName);
+        Assert.Single(_scans);
+    }
+
+    /// <summary>
+    /// Verifies that a reload queued behind a running load is dropped when the tool closes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task Dispose_DropsQueuedReloadAsync()
+    {
+        var firstListing = new TaskCompletionSource<IReadOnlyList<ReplayFile>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var listings = 0;
+        _directoryService
+            .Setup(d => d.GetReplaysAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                listings++;
+                return firstListing.Task;
+            });
+
+        var firstLoad = _viewModel.LoadReplaysAsync();
+        _ = _viewModel.LoadReplaysAsync();
+        _viewModel.Dispose();
+        firstListing.SetResult([CreateReplay()]);
+        await firstLoad.WaitAsync(LoadTimeout);
+
+        Assert.Equal(1, listings);
+        Assert.Empty(_scans);
+    }
+
+    private static ReplayFile CreateReplay(string fileName = "match.rep") => new()
+    {
+        FullPath = "/replays/" + fileName,
+        FileName = fileName,
         SizeInBytes = 2048,
         LastModified = DateTime.UtcNow,
         GameVersion = GameType.ZeroHour,

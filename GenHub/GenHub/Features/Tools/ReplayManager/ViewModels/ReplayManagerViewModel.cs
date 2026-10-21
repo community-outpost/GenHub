@@ -85,6 +85,7 @@ public partial class ReplayManagerViewModel(
     private bool _messengerRegistered;
     private int _lastLoadedCount = -1;
     private CancellationTokenSource? _loadCts;
+    private volatile bool _disposed;
 
     private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -365,7 +366,7 @@ public partial class ReplayManagerViewModel(
             await _reloadLock.WaitAsync();
             try
             {
-                while (Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
+                while (!_disposed && Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
                 {
                     await LoadReplaysCoreAsync();
                 }
@@ -552,6 +553,8 @@ public partial class ReplayManagerViewModel(
                 LocalizationService.PropertyChanged -= OnLocalizationChanged;
             }
 
+            _disposed = true;
+            Interlocked.Exchange(ref _pendingReloadRequests, 0);
             Interlocked.Increment(ref _drawerSessionId);
             CancelLoad(Interlocked.Exchange(ref _loadCts, null));
             checkpointService.CancelActiveMint();
@@ -2023,7 +2026,9 @@ public partial class ReplayManagerViewModel(
             var replays = await directoryService.GetReplaysAsync(gameType, token);
             token.ThrowIfCancellationRequested();
             await RevalidateSelectedRecoveryProfilesAsync(replays);
-            await UpdateLoadedReplaysCollectionAsync(gameType, replays);
+            token.ThrowIfCancellationRequested();
+            await UpdateLoadedReplaysCollectionAsync(gameType, replays, token);
+            token.ThrowIfCancellationRequested();
 
             _lastLoadedCount = replays.Count;
             StatusMessage = LocalizationService != null
@@ -2152,10 +2157,15 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task UpdateLoadedReplaysCollectionAsync(GameType gameType, IReadOnlyList<ReplayFile> replays)
+    private async Task UpdateLoadedReplaysCollectionAsync(GameType gameType, IReadOnlyList<ReplayFile> replays, CancellationToken token)
     {
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
             var targetCollection = gameType == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
             targetCollection.Clear();
             foreach (var r in replays)

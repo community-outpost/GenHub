@@ -72,6 +72,7 @@ public sealed class ReplayMapLookupService(
     };
 
     private readonly ConcurrentDictionary<(string Path, long Offset), CachedCrc> _crcCache = new();
+    private readonly object _crcCacheWriteLock = new();
 
     /// <summary>
     /// Gets the maximum number of map CRCs kept in memory. The cache is cleared when it is full.
@@ -312,12 +313,16 @@ public sealed class ReplayMapLookupService(
         try
         {
             crc = compute();
-            if (!_crcCache.ContainsKey(cacheKey) && _crcCache.Count >= CrcCacheCapacity)
+            lock (_crcCacheWriteLock)
             {
-                _crcCache.Clear();
+                if (!_crcCache.ContainsKey(cacheKey) && _crcCache.Count >= CrcCacheCapacity)
+                {
+                    _crcCache.Clear();
+                }
+
+                _crcCache[cacheKey] = new CachedCrc(key.Size, key.LastWriteUtc, crc);
             }
 
-            _crcCache[cacheKey] = new CachedCrc(key.Size, key.LastWriteUtc, crc);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
