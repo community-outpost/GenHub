@@ -1,0 +1,1297 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.WorldBuilder.ViewModels"
+             xmlns:controls="using:GenHub.Features.Tools.WorldBuilder.Controls"
+             xmlns:tools="using:GenHub.Core.Models.Tools.WorldBuilder"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:material="using:Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.WorldBuilder.Views.WorldBuilderView"
+             x:DataType="vm:WorldBuilderViewModel"
+             Focusable="True">
+
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewMapCommand}"/>
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenMapWithDialogCommand}"/>
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveMapCommand}"/>
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveMapAsWithDialogCommand}"/>
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
+    <KeyBinding Gesture="F5" Command="{Binding Toggle3DViewCommand}"/>
+  </UserControl.KeyBindings>
+
+  <Grid RowDefinitions="Auto,Auto,*" DragDrop.AllowDrop="True">
+    <!-- Top Native Menu Bar (C&C Generals / Zero Hour Authentic Menu Structure) -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource SurfaceElevatedBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,0,1">
+      <Menu>
+        <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.File}">
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.FileNew}"
+                    Command="{Binding NewMapCommand}" InputGesture="Ctrl+N">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="FilePlusOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.FileOpen}"
+                    Command="{Binding OpenMapWithDialogCommand}" InputGesture="Ctrl+O">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="FolderOpenOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.FileSave}"
+                    Command="{Binding SaveMapCommand}" InputGesture="Ctrl+S"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="ContentSaveOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.FileSaveAs}"
+                    Command="{Binding SaveMapAsWithDialogCommand}" InputGesture="Ctrl+Shift+S"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="ContentSaveEditOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <Separator/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.FileClose}"
+                    Command="{Binding CloseMapCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+
+        <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.Edit}">
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Canvas.Undo}"
+                    Command="{Binding UndoCommand}" InputGesture="Ctrl+Z"
+                    IsEnabled="{Binding CanUndo}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="Undo" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Canvas.Redo}"
+                    Command="{Binding RedoCommand}" InputGesture="Ctrl+Y"
+                    IsEnabled="{Binding CanRedo}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <Separator/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.EditIni}"
+                    Command="{Binding EditMapIniInEditorCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="FileEditOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.TidyIni}"
+                    Command="{Binding TidyMapIniCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="FileCodeOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+
+        <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.View}">
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Toggle3D}"
+                    Command="{Binding Toggle3DViewCommand}" InputGesture="F5">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="CubeOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Wireframe}"
+                    Command="{Binding ToggleWireframeCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="GridLarge" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <Separator/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Camera.RotateLeft}" Command="{Binding RotateCameraLeftCommand}" InputGesture="Q"/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Camera.RotateRight}" Command="{Binding RotateCameraRightCommand}" InputGesture="E"/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Camera.TiltUp}" Command="{Binding TiltCameraUpCommand}" InputGesture="R"/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Camera.TiltDown}" Command="{Binding TiltCameraDownCommand}" InputGesture="F"/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Camera.Reset}" Command="{Binding ResetCameraCommand}" InputGesture="Home"/>
+          <Separator/>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Canvas.ZoomIn}"
+                    Command="{Binding ZoomInCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Canvas.ZoomOut}"
+                    Command="{Binding ZoomOutCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Canvas.ZoomFit}"
+                    Command="{Binding ZoomFitCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="FitToScreen" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+
+        <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.Tools}">
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Validate}"
+                    Command="{Binding ValidateMapCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="CheckCircleOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.ImportTeams}"
+                    Command="{Binding ImportTeamsWithDialogCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="AccountMultiplePlusOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.ExportTeams}"
+                    Command="{Binding ExportTeamsWithDialogCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="AccountMultipleCheckOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Minimap.GenerateHighRes}"
+                    Command="{Binding GenerateMinimapCommand}"
+                    IsEnabled="{Binding HasDocument}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="Radar" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+
+        <MenuItem Header="{localization:Localize Tools.WorldBuilder.Menu.Window}">
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.ObjectProperties}"
+                    Command="{Binding ToggleObjectPropertiesCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="InformationCircleOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.ScriptEditor}"
+                    Command="{Binding ToggleScriptEditorCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="ScriptTextOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Teams}"
+                    Command="{Binding ToggleTeamsCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="AccountGroupOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Environment}"
+                    Command="{Binding ToggleEnvironmentCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="WhiteBalanceSunny" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Roads}"
+                    Command="{Binding ToggleRoadsCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="RoadVariant" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Minimap}"
+                    Command="{Binding ToggleMinimapCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="Radar" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.Layers}"
+                    Command="{Binding ToggleLayersCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="LayersOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="{localization:Localize Tools.WorldBuilder.Toolbar.MapInfo}"
+                    Command="{Binding ToggleMapInfoCommand}">
+            <MenuItem.Icon>
+              <material:MaterialIcon Kind="InformationCircleOutline" Width="14" Height="14"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+      </Menu>
+    </Border>
+
+    <!-- Compact Ribbon Toolbar -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="8,4">
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- New / Open / Save / Undo / Redo -->
+        <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,8,0">
+          <Button Command="{Binding NewMapCommand}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.GenerateTooltip}">
+            <material:MaterialIcon Kind="FilePlusOutline" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding OpenMapWithDialogCommand}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.OpenTooltip}">
+            <material:MaterialIcon Kind="FolderOpenOutline" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SaveMapCommand}"
+                  IsEnabled="{Binding HasDocument}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.SaveTooltip}">
+            <material:MaterialIcon Kind="ContentSaveOutline" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding UndoCommand}"
+                  IsEnabled="{Binding CanUndo}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Canvas.Undo}">
+            <material:MaterialIcon Kind="Undo" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding RedoCommand}"
+                  IsEnabled="{Binding CanRedo}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Canvas.Redo}">
+            <material:MaterialIcon Kind="Redo" Width="14" Height="14"/>
+          </Button>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- Tool Palette Buttons -->
+        <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,8,0">
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Pointer}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Pointer}">
+            <material:MaterialIcon Kind="CursorDefault" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.MoundUp}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.MoundUp}">
+            <material:MaterialIcon Kind="ArrowUpBold" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.MoundDown}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.MoundDown}">
+            <material:MaterialIcon Kind="ArrowDownBold" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Smooth}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Smooth}">
+            <material:MaterialIcon Kind="WaterPercent" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Plateau}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Plateau}">
+            <material:MaterialIcon Kind="TableFurniture" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.TilePaint}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.TilePaint}">
+            <material:MaterialIcon Kind="Brush" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Eyedropper}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Eyedropper}">
+            <material:MaterialIcon Kind="Eyedropper" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Waypoint}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Waypoint}">
+            <material:MaterialIcon Kind="MapMarkerPlus" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.ObjectPlace}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.ObjectPlace}">
+            <material:MaterialIcon Kind="DomainPlus" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.ObjectErase}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.ObjectErase}">
+            <material:MaterialIcon Kind="Eraser" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Road}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Road}">
+            <material:MaterialIcon Kind="RoadVariant" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Bridge}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Bridge}">
+            <material:MaterialIcon Kind="Bridge" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Ramp}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Ramp}">
+            <material:MaterialIcon Kind="SlopeUphill" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Border}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Border}">
+            <material:MaterialIcon Kind="CropSquare" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.WaterArea}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.WaterArea}">
+            <material:MaterialIcon Kind="Water" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding SelectToolCommand}" CommandParameter="{x:Static tools:MapCanvasTool.Ruler}"
+                  Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Tools.Ruler}">
+            <material:MaterialIcon Kind="Ruler" Width="14" Height="14"/>
+          </Button>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- 3D and Wireframe Toggles -->
+        <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,8,0">
+          <Button Command="{Binding Toggle3DViewCommand}"
+                  Padding="6,4"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1" CornerRadius="4"
+                  ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Toggle3D}">
+            <material:MaterialIcon Kind="CubeOutline" Width="14" Height="14"/>
+          </Button>
+          <ToggleButton IsChecked="{Binding IsWireframe}"
+                        Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Wireframe}">
+            <material:MaterialIcon Kind="GridLarge" Width="14" Height="14"/>
+          </ToggleButton>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- 3D Camera Pan / Tilt / Orbit Controls -->
+        <StackPanel Orientation="Horizontal" Spacing="2" Margin="0,0,8,0" VerticalAlignment="Center">
+          <Button Command="{Binding RotateCameraLeftCommand}"
+                  Padding="5,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.RotateLeftTooltip}">
+            <material:MaterialIcon Kind="RotateLeft" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding RotateCameraRightCommand}"
+                  Padding="5,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.RotateRightTooltip}">
+            <material:MaterialIcon Kind="RotateRight" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding TiltCameraUpCommand}"
+                  Padding="5,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.TiltUpTooltip}">
+            <material:MaterialIcon Kind="ChevronUp" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding TiltCameraDownCommand}"
+                  Padding="5,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.TiltDownTooltip}">
+            <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding ResetCameraCommand}"
+                  Padding="5,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.ResetTooltip}">
+            <material:MaterialIcon Kind="ImageFilterCenterFocus" Width="14" Height="14"/>
+          </Button>
+          <TextBlock Text="{Binding CameraPitch, StringFormat='{}{0:0}°'}" FontSize="10" VerticalAlignment="Center" Margin="2,0,0,0" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.PitchTooltip}"/>
+          <TextBlock Text="{Binding CameraYaw, StringFormat='{} {0:0}°'}" FontSize="10" VerticalAlignment="Center" Margin="0,0,2,0" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.YawTooltip}"/>
+          <ToggleButton IsChecked="{Binding ShowAllObjectLabels}" Padding="5,4" CornerRadius="4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Camera.ToggleLabelsTooltip}">
+            <material:MaterialIcon Kind="LabelOutline" Width="14" Height="14"/>
+          </ToggleButton>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- Brush Controls -->
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Canvas.BrushRadius}" FontSize="11" VerticalAlignment="Center"/>
+          <Slider Minimum="1" Maximum="24" Value="{Binding BrushRadius}" Width="70" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding BrushRadius, StringFormat='{}{0:0}'}" FontSize="11" VerticalAlignment="Center" Width="16"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Canvas.BrushIntensity}" FontSize="11" VerticalAlignment="Center"/>
+          <Slider Minimum="1" Maximum="30" Value="{Binding BrushIntensity}" Width="60" VerticalAlignment="Center"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Canvas.BrushHeight}" FontSize="11" VerticalAlignment="Center"/>
+          <NumericUpDown Minimum="0" Maximum="255" Value="{Binding BrushHeight}" Width="70" Height="26"/>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- Zoom Controls -->
+        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
+          <Button Command="{Binding ZoomOutCommand}" Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Canvas.ZoomOut}">
+            <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
+          </Button>
+          <TextBlock Text="{Binding Zoom, StringFormat='{}{0:P0}'}" FontSize="11" VerticalAlignment="Center" MinWidth="38" TextAlignment="Center"/>
+          <Button Command="{Binding ZoomInCommand}" Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Canvas.ZoomIn}">
+            <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
+          </Button>
+          <Button Command="{Binding ZoomFitCommand}" Padding="6,4" ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Canvas.ZoomFit}">
+            <material:MaterialIcon Kind="FitToScreen" Width="14" Height="14"/>
+          </Button>
+        </StackPanel>
+
+        <Separator Margin="0,2,8,2"/>
+
+        <!-- Floating Window Toggles -->
+        <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,0,8,0">
+          <ToggleButton IsChecked="{Binding IsObjectPropertiesOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.ObjectProperties}">
+            <material:MaterialIcon Kind="InformationCircleOutline" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsScriptEditorOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.ScriptEditor}">
+            <material:MaterialIcon Kind="ScriptTextOutline" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsTeamsOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Teams}">
+            <material:MaterialIcon Kind="AccountGroupOutline" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsEnvironmentOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Environment}">
+            <material:MaterialIcon Kind="WhiteBalanceSunny" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsRoadsOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Roads}">
+            <material:MaterialIcon Kind="RoadVariant" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsMinimapOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Minimap}">
+            <material:MaterialIcon Kind="Radar" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsLayersOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.Layers}">
+            <material:MaterialIcon Kind="LayersOutline" Width="14" Height="14"/>
+          </ToggleButton>
+          <ToggleButton IsChecked="{Binding IsMapInfoOpen}" Padding="6,4" CornerRadius="4"
+                        ToolTip.Tip="{localization:Localize Tools.WorldBuilder.Toolbar.MapInfo}">
+            <material:MaterialIcon Kind="InformationCircleOutline" Width="14" Height="14"/>
+          </ToggleButton>
+        </StackPanel>
+      </WrapPanel>
+    </Border>
+
+    <!-- Main Viewport Area (100% Canvas + Overlaid Draggable Windows) -->
+    <Grid Grid.Row="2">
+      <!-- Full-screen Canvas Viewport: GPU 3D view with 2D fallback -->
+      <Border Background="{DynamicResource SurfaceElevatedBrush}" ClipToBounds="True">
+        <Grid>
+          <controls:WbGlViewport x:Name="GlViewport"
+                                 RenderOptions="{Binding RenderOptions}"
+                                 IsVisible="{Binding Is3DViewportVisible}"
+                                 Focusable="True"
+                                 HorizontalAlignment="Stretch"
+                                 VerticalAlignment="Stretch"/>
+          <controls:MapCanvasControl x:Name="MapCanvas"
+                                     Source="{Binding CanvasBitmap}"
+                                     MapWidth="{Binding MapWidth}"
+                                     MapHeight="{Binding MapHeight}"
+                                     Zoom="{Binding Zoom, Mode=TwoWay}"
+                                     BrushRadiusCells="{Binding BrushRadius, Mode=TwoWay}"
+                                     ActiveLinePreview="{Binding ActiveLinePreview}"
+                                     ViewMode="TopDown2D"
+                                     IsVisible="{Binding !Is3DViewportVisible}"
+                                     Focusable="True"
+                                     HorizontalAlignment="Stretch"
+                                     VerticalAlignment="Stretch"/>
+        </Grid>
+      </Border>
+
+      <!-- Empty State Overlay when no document is loaded -->
+      <Border Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="10" Padding="24"
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              IsVisible="{Binding !HasDocument}">
+        <StackPanel Spacing="12" HorizontalAlignment="Center">
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.EmptyState.Title}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.EmptyState.Message}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="440"/>
+          <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center" Margin="0,8,0,0">
+            <Button Command="{Binding OpenMapWithDialogCommand}" Padding="12,8"
+                    Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="6">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Toolbar.Open}" FontSize="12" FontWeight="SemiBold"/>
+            </Button>
+            <Button Command="{Binding NewMapCommand}" Padding="12,8"
+                    Background="{DynamicResource AccentBrush}" CornerRadius="6">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Toolbar.Generate}" FontSize="12" FontWeight="SemiBold"/>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- FLOATING WINDOW 1: Object Properties Dialog -->
+      <Border IsVisible="{Binding IsObjectPropertiesOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Right" VerticalAlignment="Top"
+              Margin="0,16,16,0" Width="360" MaxHeight="580"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,*,Auto">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Title}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleObjectPropertiesCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+
+          <!-- Tabbed Sections: General, Logical, Distance, Visual, Sound -->
+          <TabControl Grid.Row="1">
+            <TabItem Header="{localization:Localize Tools.WorldBuilder.ObjectProps.General}">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Objects.Name}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectName}" FontSize="11"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Tabs.Teams}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <ComboBox ItemsSource="{Binding SkirmishTeams}" SelectedItem="{Binding SelectedObjectTeam}" HorizontalAlignment="Stretch"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Tabs.Scripts}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectScript}" FontSize="11"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Upgrades}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectUpgrades}" FontSize="11"/>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{localization:Localize Tools.WorldBuilder.ObjectProps.Logical}">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Health}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="1" Maximum="100" Value="{Binding SelectedObjectHealthPercent}" Width="80" Height="26"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.HitPoints}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Maximum="100000" Value="{Binding SelectedObjectHitPoints}" Width="80" Height="26"/>
+                </Grid>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Aggressiveness}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <ComboBox SelectedIndex="{Binding SelectedObjectAggressivenessIndex}" HorizontalAlignment="Stretch">
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.AggressivenessPassive}"/>
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.AggressivenessNormal}"/>
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.AggressivenessAggressive}"/>
+                </ComboBox>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Veterancy}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <ComboBox SelectedIndex="{Binding SelectedObjectVeterancyIndex}" HorizontalAlignment="Stretch">
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.VeterancyRegular}"/>
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.VeterancyVeteran}"/>
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.VeterancyElite}"/>
+                  <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.ObjectProps.VeterancyHeroic}"/>
+                </ComboBox>
+                <CheckBox IsChecked="{Binding SelectedObjectEnabled}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Enabled}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectUnsellable}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Unsellable}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectTargetable}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Targetable}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectIndestructible}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Indestructible}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectRecruitableAI}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.RecruitableAI}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectPowered}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Powered}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectSelectable}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.Selectable}" FontSize="11"/>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{localization:Localize Tools.WorldBuilder.ObjectProps.Distance}">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.StoppingDistance}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <NumericUpDown Minimum="0" Value="{Binding SelectedObjectStoppingDistance}" Height="26"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.VisionDistance}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <NumericUpDown Minimum="0" Value="{Binding SelectedObjectVisionDistance}" Height="26"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.ShroudClearingDistance}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <NumericUpDown Minimum="0" Value="{Binding SelectedObjectShroudClearingDistance}" Height="26"/>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{localization:Localize Tools.WorldBuilder.ObjectProps.Visual}">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Position}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <Grid ColumnDefinitions="*,*,*">
+                  <NumericUpDown Grid.Column="0" Value="{Binding SelectedObjectX}" Margin="0,0,4,0" Height="26"/>
+                  <NumericUpDown Grid.Column="1" Value="{Binding SelectedObjectY}" Margin="0,0,4,0" Height="26"/>
+                  <NumericUpDown Grid.Column="2" Value="{Binding SelectedObjectZ}" Height="26"/>
+                </Grid>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Angle}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <NumericUpDown Minimum="0" Maximum="360" Value="{Binding SelectedObjectAngle}" Height="26"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Weather}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <ComboBox ItemsSource="{Binding ObjectWeatherOptions}" SelectedItem="{Binding SelectedObjectWeather}" HorizontalAlignment="Stretch"/>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Time}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectTime}" FontSize="11"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Scale}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Value="{Binding SelectedObjectScale}" Width="80" Height="26"/>
+                </Grid>
+                <CheckBox IsChecked="{Binding SelectedObjectScaleEnabled}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.ScaleEnabled}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectReflectsInMirror}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.ReflectsInMirror}" FontSize="11"/>
+              </StackPanel>
+            </TabItem>
+
+            <TabItem Header="{localization:Localize Tools.WorldBuilder.ObjectProps.Sound}">
+              <StackPanel Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Sound}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectSound}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectSoundCustomize}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundCustomize}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectSoundEnabled}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundEnabled}" FontSize="11"/>
+                <CheckBox IsChecked="{Binding SelectedObjectSoundLooping}" Content="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundLooping}" FontSize="11"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundLoopCount}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Maximum="1000" Value="{Binding SelectedObjectSoundLoopCount}" Width="80" Height="26"/>
+                </Grid>
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundPriority}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBox Text="{Binding SelectedObjectSoundPriority}" FontSize="11"/>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundVolume}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Value="{Binding SelectedObjectSoundVolume}" Width="80" Height="26"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundMinVolume}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Value="{Binding SelectedObjectSoundMinVolume}" Width="80" Height="26"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundMinRange}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Value="{Binding SelectedObjectSoundMinRange}" Width="80" Height="26"/>
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.ObjectProps.SoundMaxRange}" FontSize="11" VerticalAlignment="Center"/>
+                  <NumericUpDown Grid.Column="1" Minimum="0" Value="{Binding SelectedObjectSoundMaxRange}" Width="80" Height="26"/>
+                </Grid>
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+
+          <!-- Action Buttons -->
+          <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6" Margin="0,8,0,0">
+            <Button Command="{Binding ApplyObjectPropertiesCommand}" Padding="8,4" Background="{DynamicResource AccentBrush}" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Apply}" FontSize="11" FontWeight="SemiBold"/>
+            </Button>
+            <Button Command="{Binding DuplicateObjectCommand}" Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.ObjectProps.Duplicate}" FontSize="11"/>
+            </Button>
+            <Button Command="{Binding DeleteObjectCommand}" Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Objects.Delete}" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 2: Script Editor Window (Qt QoL Live Filter + Search) -->
+      <Border IsVisible="{Binding IsScriptEditorOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Left" VerticalAlignment="Top"
+              Margin="16,16,0,0" Width="620" MaxHeight="600"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Toolbar.ScriptEditor}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleScriptEditorCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+
+          <!-- Search & Filter Bar -->
+          <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,0,4">
+            <TextBox Grid.Column="0" Text="{Binding ScriptSearchText}" Watermark="{localization:Localize Tools.WorldBuilder.Scripts.SearchWatermark}" FontSize="11" Margin="0,0,6,0"/>
+            <ToggleButton Grid.Column="1" IsChecked="{Binding ScriptFilterActive}" Padding="6,3" Margin="0,0,4,0" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.FilterActive}" FontSize="10"/>
+            </ToggleButton>
+            <ToggleButton Grid.Column="2" IsChecked="{Binding ScriptFilterInactive}" Padding="6,3" Margin="0,0,4,0" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.FilterInactive}" FontSize="10"/>
+            </ToggleButton>
+            <ToggleButton Grid.Column="3" IsChecked="{Binding ScriptFilterWarnings}" Padding="6,3" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.FilterWarnings}" FontSize="10"/>
+            </ToggleButton>
+          </Grid>
+
+          <!-- Difficulty Filter Chips + Find/Replace Bar -->
+          <Grid Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,0,0,6">
+            <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+              <ToggleButton IsChecked="{Binding ScriptFilterEasy}" Padding="6,3" Margin="0,0,4,0" CornerRadius="4">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Easy}" FontSize="10"/>
+              </ToggleButton>
+              <ToggleButton IsChecked="{Binding ScriptFilterNormal}" Padding="6,3" Margin="0,0,4,0" CornerRadius="4">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Normal}" FontSize="10"/>
+              </ToggleButton>
+              <ToggleButton IsChecked="{Binding ScriptFilterHard}" Padding="6,3" CornerRadius="4">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Hard}" FontSize="10"/>
+              </ToggleButton>
+            </WrapPanel>
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,Auto,Auto,Auto">
+              <TextBox Grid.Column="0" Text="{Binding ScriptFindText}" Watermark="{localization:Localize Tools.WorldBuilder.Scripts.FindWatermark}" FontSize="11" Margin="0,0,4,0"/>
+              <TextBox Grid.Column="1" Text="{Binding ScriptReplaceText}" Watermark="{localization:Localize Tools.WorldBuilder.Scripts.ReplaceWatermark}" FontSize="11" Margin="0,0,4,0"/>
+              <CheckBox Grid.Column="2" IsChecked="{Binding ScriptMatchCase}" Content="{localization:Localize Tools.WorldBuilder.Scripts.MatchCase}" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+              <CheckBox Grid.Column="3" IsChecked="{Binding ScriptReplaceCurrentOnly}" Content="{localization:Localize Tools.WorldBuilder.Scripts.CurrentScriptOnly}" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+              <Button Grid.Column="4" Command="{Binding ReplaceAllScriptValuesCommand}" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ReplaceAll}" FontSize="10"/>
+              </Button>
+            </Grid>
+          </Grid>
+
+          <!-- Split View: Groups & Scripts (Left) vs Conditions & Actions (Right) -->
+          <Grid Grid.Row="3" ColumnDefinitions="240,*">
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6" Margin="0,0,6,0">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+                <ComboBox Grid.Row="0" ItemsSource="{Binding ScriptSides}" SelectedItem="{Binding SelectedScriptSide}" HorizontalAlignment="Stretch" Margin="0,0,0,4"/>
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                  <Button Command="{Binding AddScriptGroupCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.AddGroup}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding AddScriptCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.AddScript}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding DuplicateScriptCommand}" IsEnabled="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Duplicate}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding DeleteScriptCommand}" IsEnabled="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Delete}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding ClearAllScriptsCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ClearAll}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding ExportScriptsCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ExportScripts}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding ImportScriptsCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ImportScripts}" FontSize="10"/>
+                  </Button>
+                  <Button Command="{Binding ReplaceAllMissingReferencesCommand}" Padding="4,2" Margin="0,0,3,3" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ReplaceMissing}" FontSize="10"/>
+                  </Button>
+                </WrapPanel>
+                <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                  <TextBox Grid.Column="0" Text="{Binding ScriptRenameText}" Watermark="{localization:Localize Tools.WorldBuilder.Scripts.RenameWatermark}" FontSize="10" Margin="0,0,4,0"/>
+                  <Button Grid.Column="1" Command="{Binding RenameScriptCommand}" CommandParameter="{Binding ScriptRenameText}" IsEnabled="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Rename}" FontSize="10"/>
+                  </Button>
+                </Grid>
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                  <ComboBox Grid.Column="0" ItemsSource="{Binding ScriptSides}" SelectedItem="{Binding TeamOwnerFixPlayer}" Margin="0,0,4,0"/>
+                  <Button Grid.Column="1" Command="{Binding FixTeamOwnersCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.FixTeamOwner}" FontSize="10"/>
+                  </Button>
+                </Grid>
+                <ListBox Grid.Row="4" ItemsSource="{Binding GroupScripts}" SelectedItem="{Binding SelectedScript}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <material:MaterialIcon Kind="ScriptTextOutline" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Name}" FontSize="11" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <Button Grid.Row="5" Command="{Binding ScanBrokenReferencesCommand}" Margin="0,4,0,0" Padding="6,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource CardBackground}" CornerRadius="4">
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.BrokenReferences}" FontSize="10"/>
+                </Button>
+              </Grid>
+            </Border>
+
+            <!-- Script Conditions & Actions Panel -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+              <StackPanel Spacing="6">
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6" IsVisible="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Spacing="4">
+                    <TextBlock FontSize="11" FontWeight="Bold"><Run Text="{localization:Localize Tools.WorldBuilder.Scripts.ScriptPrefix}"/> <Run Text="{Binding SelectedScript.Name, FallbackValue=''}"/></TextBlock>
+                    <WrapPanel Orientation="Horizontal">
+                      <CheckBox IsChecked="{Binding SelectedScript.IsActive}" Content="{localization:Localize Tools.WorldBuilder.Scripts.Active}" FontSize="10" Margin="0,0,8,0"/>
+                      <CheckBox IsChecked="{Binding SelectedScript.IsOneShot}" Content="{localization:Localize Tools.WorldBuilder.Scripts.OneShot}" FontSize="10" Margin="0,0,8,0"/>
+                      <CheckBox IsChecked="{Binding SelectedScript.IsSubroutine}" Content="{localization:Localize Tools.WorldBuilder.Scripts.Subroutine}" FontSize="10" Margin="0,0,8,0"/>
+                      <CheckBox IsChecked="{Binding SelectedScript.Easy}" Content="{localization:Localize Tools.WorldBuilder.Scripts.Easy}" FontSize="10" Margin="0,0,6,0"/>
+                      <CheckBox IsChecked="{Binding SelectedScript.Normal}" Content="{localization:Localize Tools.WorldBuilder.Scripts.Normal}" FontSize="10" Margin="0,0,6,0"/>
+                      <CheckBox IsChecked="{Binding SelectedScript.Hard}" Content="{localization:Localize Tools.WorldBuilder.Scripts.Hard}" FontSize="10"/>
+                    </WrapPanel>
+                  </StackPanel>
+                </Border>
+
+                <!-- Conditions -->
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6" IsVisible="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Scripts.Conditions}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                        <Button Command="{Binding AddConditionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.AddCondition}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding CopyConditionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Copy}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding PasteConditionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Paste}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding DeleteConditionCommand}" IsEnabled="{Binding SelectedCondition, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.DeleteCondition}" FontSize="9"/>
+                        </Button>
+                      </StackPanel>
+                    </Grid>
+                    <ListBox ItemsSource="{Binding SelectedScript.OrConditions[0].Conditions}" SelectedItem="{Binding SelectedCondition}" MaxHeight="100">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <material:MaterialIcon Kind="HelpCircleOutline" Width="10" Height="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding InternalName}" FontSize="10" VerticalAlignment="Center"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </StackPanel>
+                </Border>
+
+                <!-- Actions -->
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6" IsVisible="{Binding SelectedScript, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Scripts.Actions}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
+                        <Button Command="{Binding AddActionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.AddAction}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding CopyActionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Copy}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding PasteActionCommand}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.Paste}" FontSize="9"/>
+                        </Button>
+                        <Button Command="{Binding DeleteActionCommand}" IsEnabled="{Binding SelectedAction, Converter={x:Static ObjectConverters.IsNotNull}}" Padding="4,2" Background="{DynamicResource CardBackground}" CornerRadius="3">
+                          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.DeleteAction}" FontSize="9"/>
+                        </Button>
+                      </StackPanel>
+                    </Grid>
+                    <ListBox ItemsSource="{Binding SelectedScript.ActionsTrue}" SelectedItem="{Binding SelectedAction}" MaxHeight="100">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <material:MaterialIcon Kind="PlayCircleOutline" Width="10" Height="10" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding InternalName}" FontSize="10" VerticalAlignment="Center"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </StackPanel>
+                </Border>
+
+                <!-- Diagnostics -->
+                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6" IsVisible="{Binding BrokenReferenceReport.Count}">
+                  <StackPanel Spacing="3">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Scripts.ReferenceDiagnostics}" FontSize="10" FontWeight="SemiBold"/>
+                    <ListBox ItemsSource="{Binding BrokenReferenceReport}" MaxHeight="80"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 3: Sides & Teams -->
+      <Border IsVisible="{Binding IsTeamsOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Center" VerticalAlignment="Top"
+              Margin="0,40,0,0" Width="480" MaxHeight="520"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,*">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Teams.Title}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleTeamsCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+          <Grid Grid.Row="1" ColumnDefinitions="*,*">
+            <Border Grid.Column="0" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,4,0">
+              <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="{localization:Localize Tools.WorldBuilder.Teams.SidesTitle}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                  <TextBox Grid.Column="0" Text="{Binding NewSideName}" Watermark="{localization:Localize Tools.WorldBuilder.Teams.SideNameWatermark}" FontSize="10" Margin="0,0,4,0"/>
+                  <Button Grid.Column="1" Command="{Binding AddSideCommand}" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.AddSide}" FontSize="10"/>
+                  </Button>
+                </Grid>
+                <ListBox Grid.Row="2" ItemsSource="{Binding PlayerSides}" SelectedItem="{Binding SelectedPlayerSide}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <material:MaterialIcon Kind="AccountGroup" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.PlayerSideItem}" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Properties.Values.Count, StringFormat='({0})'}" FontSize="10" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <Button Grid.Row="3" Command="{Binding DeleteSideCommand}" Margin="0,4,0,0" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4" HorizontalAlignment="Left">
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.DeleteSide}" FontSize="10"/>
+                </Button>
+                <StackPanel Grid.Row="4" Spacing="3" Margin="0,6,0,0" IsVisible="{Binding SelectedPlayerSide, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.SideDisplayName}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding SelectedSideDisplayName}" FontSize="10"/>
+                  <CheckBox IsChecked="{Binding SelectedSideIsHuman}" Content="{localization:Localize Tools.WorldBuilder.Teams.SideIsHuman}" FontSize="10"/>
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.SideFaction}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding SelectedSideFaction}" FontSize="10"/>
+                  <Button Command="{Binding ApplySidePropertiesCommand}" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4" HorizontalAlignment="Left">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.Apply}" FontSize="10"/>
+                  </Button>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Border Grid.Column="1" Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="8" Margin="4,0,0,0">
+              <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="{localization:Localize Tools.WorldBuilder.Teams.SkirmishTeamsTitle}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                  <TextBox Grid.Column="0" Text="{Binding NewTeamName}" Watermark="{localization:Localize Tools.WorldBuilder.Teams.TeamNameWatermark}" FontSize="10" Margin="0,0,4,0"/>
+                  <Button Grid.Column="1" Command="{Binding AddTeamCommand}" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.AddTeam}" FontSize="10"/>
+                  </Button>
+                </Grid>
+                <ListBox Grid.Row="2" ItemsSource="{Binding SkirmishTeams}" SelectedItem="{Binding SelectedSkirmishTeam}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <material:MaterialIcon Kind="ShieldAccount" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.TeamItem}" FontSize="10" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Properties.Values.Count, StringFormat='({0})'}" FontSize="10" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <Button Grid.Row="3" Command="{Binding DeleteTeamCommand}" Margin="0,4,0,0" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4" HorizontalAlignment="Left">
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.DeleteTeam}" FontSize="10"/>
+                </Button>
+                <StackPanel Grid.Row="4" Spacing="3" Margin="0,6,0,0" IsVisible="{Binding SelectedSkirmishTeam, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.TeamName}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                  <TextBox Text="{Binding SelectedTeamName}" FontSize="10"/>
+                  <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.TeamOwner}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                  <ComboBox ItemsSource="{Binding ScriptSides}" SelectedItem="{Binding SelectedTeamOwner}" HorizontalAlignment="Stretch"/>
+                  <Button Command="{Binding ApplyTeamPropertiesCommand}" Padding="6,3" Background="{DynamicResource CardBackground}" CornerRadius="4" HorizontalAlignment="Left">
+                    <TextBlock Text="{localization:Localize Tools.WorldBuilder.Teams.Apply}" FontSize="10"/>
+                  </Button>
+                </StackPanel>
+              </Grid>
+            </Border>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 4: Environment & Lighting (Sun Pitch / Yaw 3D Shading controls) -->
+      <Border IsVisible="{Binding IsEnvironmentOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Right" VerticalAlignment="Bottom"
+              Margin="0,0,16,16" Width="320"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <StackPanel Spacing="6">
+          <!-- Draggable Header -->
+          <Grid ColumnDefinitions="*,Auto"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Environment.Title}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleEnvironmentCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.TimeOfDay}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+          <ComboBox SelectedIndex="{Binding SelectedTimeOfDayIndex}" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.Environment.TimeMorning}"/>
+            <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.Environment.TimeAfternoon}"/>
+            <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.Environment.TimeDusk}"/>
+            <ComboBoxItem Content="{localization:Localize Tools.WorldBuilder.Environment.TimeNight}"/>
+          </ComboBox>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.SunPitch}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <Slider Grid.Column="0" Minimum="10" Maximum="85" Value="{Binding SunPitch}"/>
+            <TextBlock Grid.Column="1" Text="{Binding SunPitch, StringFormat='{}{0:0}°'}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
+          </Grid>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.SunYaw}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <Slider Grid.Column="0" Minimum="0" Maximum="360" Value="{Binding SunYaw}"/>
+            <TextBlock Grid.Column="1" Text="{Binding SunYaw, StringFormat='{}{0:0}°'}" FontSize="10" VerticalAlignment="Center" Margin="6,0,0,0"/>
+          </Grid>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.WaterElevation}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+          <Grid ColumnDefinitions="*,Auto">
+            <Slider Grid.Column="0" Minimum="0" Maximum="255" Value="{Binding WaterLevel}"/>
+            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="255" Value="{Binding WaterLevel}" Width="65" Height="24" Margin="6,0,0,0"/>
+          </Grid>
+          <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.Weather}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+          <ComboBox ItemsSource="{Binding WeatherOptions}" SelectedItem="{Binding SelectedWeather}" HorizontalAlignment="Stretch"/>
+          <Button Command="{Binding ApplyLightingCommand}" Margin="0,4,0,0" Padding="8,4" Background="{DynamicResource AccentBrush}" CornerRadius="4" HorizontalAlignment="Right">
+            <TextBlock Text="{localization:Localize Tools.WorldBuilder.Environment.Apply}" FontSize="10" FontWeight="SemiBold"/>
+          </Button>
+        </StackPanel>
+      </Border>
+
+      <!-- FLOATING WINDOW 5: Minimap Radar (AdrianeZH authentic replica) -->
+      <Border IsVisible="{Binding IsMinimapOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Left" VerticalAlignment="Bottom"
+              Margin="16,0,0,16" Width="220"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="8">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <StackPanel Spacing="6">
+          <!-- Draggable Header -->
+          <Grid ColumnDefinitions="*,Auto"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Toolbar.Minimap}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleMinimapCommand}" Padding="3,1" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+            </Button>
+          </Grid>
+          <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
+            <Image Source="{Binding PreviewImage}" Width="196" Height="196" Stretch="Uniform"/>
+          </Border>
+          <Button Command="{Binding GenerateMinimapCommand}" Padding="6,3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4">
+            <TextBlock Text="{localization:Localize Tools.WorldBuilder.Minimap.GenerateHighRes}" FontSize="10"/>
+          </Button>
+        </StackPanel>
+      </Border>
+
+      <!-- FLOATING WINDOW 6: Roads & Bridges -->
+      <Border IsVisible="{Binding IsRoadsOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Right" VerticalAlignment="Center"
+              Margin="0,0,16,0" Width="320" MaxHeight="450"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,*,Auto">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Roads.Title}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleRoadsCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="6">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Roads.RoadType}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+              <ComboBox ItemsSource="{Binding AvailableRoadTypes}" SelectedItem="{Binding SelectedRoadType}" HorizontalAlignment="Stretch"/>
+              <WrapPanel Orientation="Horizontal">
+                <CheckBox IsChecked="{Binding IsRoadAngledCorner}" Content="{localization:Localize Tools.WorldBuilder.Roads.AngledCorner}" FontSize="10" Margin="0,0,8,0"/>
+                <CheckBox IsChecked="{Binding IsRoadTightCorner}" Content="{localization:Localize Tools.WorldBuilder.Roads.TightCorner}" FontSize="10"/>
+              </WrapPanel>
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Roads.SegmentsTitle}" FontSize="10" FontWeight="SemiBold"/>
+              <ListBox ItemsSource="{Binding RoadSegments}" SelectedItem="{Binding SelectedRoadSegment}" MaxHeight="100">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding RoadType}" FontSize="10"/>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <Button Command="{Binding DeleteRoadSegmentCommand}" Padding="6,2" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="3" HorizontalAlignment="Left">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Roads.DeleteSegment}" FontSize="10"/>
+              </Button>
+              <Separator/>
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Roads.BridgesTitle}" FontSize="10" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding AvailableBridgeTemplates}" SelectedItem="{Binding SelectedBridgeTemplate}" HorizontalAlignment="Stretch"/>
+              <ListBox ItemsSource="{Binding BridgeSegments}" SelectedItem="{Binding SelectedBridgeSegment}" MaxHeight="80">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Template}" FontSize="10"/>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <Button Command="{Binding DeleteBridgeCommand}" Padding="6,2" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="3" HorizontalAlignment="Left">
+                <TextBlock Text="{localization:Localize Tools.WorldBuilder.Roads.DeleteBridge}" FontSize="10"/>
+              </Button>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 7: Layers & Palette -->
+      <Border IsVisible="{Binding IsLayersOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Left" VerticalAlignment="Center"
+              Margin="16,0,0,0" Width="220" MaxHeight="450"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="10">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,*">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Canvas.Layers}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleLayersCommand}" Padding="3,1" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+            </Button>
+          </Grid>
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="4">
+              <CheckBox IsChecked="{Binding ShowTerrainLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerTerrain}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowWaterLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerWater}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowCliffsLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerCliffs}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowBlendLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerBlend}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowGridLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerGrid}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowObjectsLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerObjects}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowWaypointsLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerWaypoints}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowTriggersLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerTriggers}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowBoundaryLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerBoundary}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowRoadsLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerRoads}" FontSize="10"/>
+              <CheckBox IsChecked="{Binding ShowBridgesLayer}" Content="{localization:Localize Tools.WorldBuilder.Canvas.LayerBridges}" FontSize="10"/>
+              <Separator Margin="0,4"/>
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Objects.Template}" FontSize="10" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding ObjectTemplates}" SelectedItem="{Binding SelectedObjectTemplate}" HorizontalAlignment="Stretch"/>
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Tools.TilePaint}" FontSize="10" FontWeight="SemiBold"/>
+              <ComboBox ItemsSource="{Binding TextureClasses}" SelectedItem="{Binding SelectedTexture}" HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Name}" FontSize="10"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 8: Map Info & Validation -->
+      <Border IsVisible="{Binding IsMapInfoOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              Width="440" MaxHeight="520"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="12">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <Grid RowDefinitions="Auto,*,Auto">
+          <!-- Draggable Header -->
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Toolbar.MapInfo}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleMapInfoCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Summary.Dimensions}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,4"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" FontSize="11">
+                  <Run Text="{Binding Summary.Width}"/><Run Text="×"/><Run Text="{Binding Summary.Height}"/>
+                </TextBlock>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Summary.Objects}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,4"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Summary.ObjectCount}" FontSize="11"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Summary.Scripts}" FontSize="11" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,4"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Summary.TotalScripts}" FontSize="11"/>
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Summary.Teams}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Summary.TeamCount}" FontSize="11"/>
+              </Grid>
+              <Separator/>
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Validation.Title}" FontSize="11" FontWeight="SemiBold"/>
+              <ListBox ItemsSource="{Binding ValidationIssues}" MaxHeight="160">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Spacing="2" Margin="0,2">
+                      <TextBlock Text="{Binding Severity}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                      <TextBlock Text="{Binding Message}" FontSize="10" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+          </ScrollViewer>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6" Margin="0,8,0,0">
+            <Button Command="{Binding ValidateMapCommand}" Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Toolbar.Validate}" FontSize="10"/>
+            </Button>
+            <Button Command="{Binding TidyMapIniCommand}" Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4">
+              <TextBlock Text="{localization:Localize Tools.WorldBuilder.Toolbar.TidyIni}" FontSize="10"/>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- FLOATING WINDOW 9: Map Generator Modal Dialog -->
+      <Border IsVisible="{Binding IsMapGenOpen}"
+              PointerPressed="OnWindowBorderPressed"
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              Width="320"
+              Background="{DynamicResource CardBackground}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              CornerRadius="8" BoxShadow="0 8 24 0 #40000000"
+              Padding="12">
+        <Border.RenderTransform>
+          <TranslateTransform/>
+        </Border.RenderTransform>
+        <StackPanel Spacing="8">
+          <!-- Draggable Header -->
+          <Grid ColumnDefinitions="*,Auto"
+                Background="Transparent" Cursor="SizeAll"
+                PointerPressed="OnWindowHeaderPressed"
+                PointerMoved="OnWindowHeaderMoved"
+                PointerReleased="OnWindowHeaderReleased">
+            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Generate.Title}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Command="{Binding ToggleMapGenCommand}" Padding="4,2" Background="Transparent" BorderThickness="0">
+              <material:MaterialIcon Kind="Close" Width="14" Height="14"/>
+            </Button>
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Generate.Seed}" FontSize="10" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+            <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Seed}" Minimum="0" Height="26" Margin="0,0,0,4"/>
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Generate.Width}" FontSize="10" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding MapWidth}" Minimum="32" Maximum="512" Height="26" Margin="0,0,0,4"/>
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Generate.Height}" FontSize="10" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,4"/>
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding MapHeight}" Minimum="32" Maximum="512" Height="26" Margin="0,0,0,4"/>
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="{localization:Localize Tools.WorldBuilder.Generate.Players}" FontSize="10" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <NumericUpDown Grid.Row="3" Grid.Column="1" Value="{Binding PlayerCount}" Minimum="2" Maximum="8" Height="26"/>
+          </Grid>
+          <Button Command="{Binding GenerateNewMapCommand}" Padding="10,6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="{DynamicResource AccentBrush}" CornerRadius="4">
+            <TextBlock Text="{localization:Localize Tools.WorldBuilder.Generate.Run}" FontSize="11" FontWeight="SemiBold"/>
+          </Button>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

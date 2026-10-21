@@ -4,16 +4,17 @@ GenHub provides a suite of integrated tools designed to enhance your Command & C
 
 ## Available Tools
 
-GenHub currently offers seven fully-featured tools with another in development:
+GenHub currently offers eight fully-featured tools with another in development:
 
 1. **Replay Manager** - Manage, import, and share replay files
 2. **Map Manager** - Manage, import, and share custom maps with MapPack support
 3. **Hotkeys Editor** - Customize in-game hotkeys and generate overlay textures
-4. **ModBuilder** - Build, package, and deploy Generals and Zero Hour mods
-5. **WND Editor** - Edit window definition (.wnd) menu layouts
-6. **Texture Editor** - Slice texture atlases, edit MappedImages, and pack sprite sheets
-7. **INI Editor** - Browse and edit Generals and Zero Hour INI data files with schema assistance
-8. **Publisher Studio** (Future) - Create and distribute custom content catalogs
+4. **WorldBuilder** - Open, validate, generate, and save custom maps
+5. **ModBuilder** - Build, package, and deploy Generals and Zero Hour mods
+6. **WND Editor** - Edit window definition (.wnd) menu layouts
+7. **Texture Editor** - Slice texture atlases, edit MappedImages, and pack sprite sheets
+8. **INI Editor** - Browse and edit Generals and Zero Hour INI data files with schema assistance
+9. **Publisher Studio** (Future) - Create and distribute custom content catalogs
 
 All tools are accessible from the **TOOLS** tab in the GenHub interface and share common features like cloud uploading, import/export capabilities, and seamless integration with game profiles.
 
@@ -122,6 +123,25 @@ The Visual Hotkeys Editor allows visual configuration of unit, structure, upgrad
 - **Addon manifest lifecycle** with in-place updates and profile integration
 
 [View Full Hotkeys Editor Documentation](./hotkeys-editor.md)
+
+---
+
+## WorldBuilder
+
+WorldBuilder opens, validates, generates, and saves Generals and Zero Hour `.map` files with their `.wak` and `.tga` sidecars.
+
+### Key Features
+
+- **Map summary** with sides, objects, teams, triggers, scripts, and world cash
+- **128x128 preview** with editable map display name
+- **Validation** reported by severity
+- **Procedural generation** from seed, dimensions, and player count
+- **Team exchange** via `.teams` import/export
+- **map.ini tidy** for the companion override script
+- **Project folders** with game-data import
+- **Native launch** of the original Windows builder through Wine
+
+[View Full WorldBuilder Documentation](./worldbuilder.md)
 
 ---
 
