@@ -135,6 +135,56 @@ public sealed class ContentDetailCustomTabsTests
         Assert.Equal(expectedIndex, viewModel.SelectedTabIndex);
     }
 
+    /// <summary>
+    /// Switching items twice while a tab load is pending still restores the tab the user had selected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectedVariantChangedTwiceWhileLoading_RestoresOriginalSelectedTabAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", Tab("a-notes"), Tab("shared"));
+        using var viewModel = CreateViewModel(registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        viewModel.SelectedTabIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+
+        registry.Pending("mod-b");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
+        Assert.Equal(0, viewModel.SelectedTabIndex);
+
+        var pendingA = registry.Pending("mod-a");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = ItemAManifestId, Name = "Mod A" };
+        pendingA.SetResult([Tab("shared"), Tab("a-notes")]);
+        await viewModel.WaitForInitializationAsync();
+
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount, viewModel.SelectedTabIndex);
+    }
+
+    /// <summary>
+    /// Choosing a built-in tab while a tab load is pending cancels restoring the previously selected publisher tab.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task BuiltInTabSelectedWhileLoading_DoesNotRestorePublisherTabAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", Tab("a-notes"), Tab("shared"));
+        using var viewModel = CreateViewModel(registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        viewModel.SelectedTabIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+
+        var pendingB = registry.Pending("mod-b");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
+        viewModel.SelectedTabIndex = 2;
+        viewModel.SelectedTabIndex = 0;
+        pendingB.SetResult([Tab("shared")]);
+        await viewModel.WaitForInitializationAsync();
+
+        Assert.Equal(0, viewModel.SelectedTabIndex);
+    }
+
     private static CustomTabDefinition Tab(string tabId) => new() { TabId = tabId, Header = tabId };
 
     private static ContentDetailViewModel CreateViewModel(ITabProviderRegistry registry)
