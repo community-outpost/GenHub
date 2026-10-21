@@ -240,20 +240,22 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
-    public async Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ReplayMapAvailability>> ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(replays);
         if (mapLookupService == null)
         {
-            return;
+            return new ReplayMapAvailability[replays.Count];
         }
 
         try
         {
-            await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
+            return await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to resolve replay map availability for {GameType}", version);
+            return new ReplayMapAvailability[replays.Count];
         }
     }
 

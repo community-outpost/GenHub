@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 
@@ -10,10 +11,11 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 /// <summary>
 /// Represents a replay file on disk.
 /// </summary>
-public sealed class ReplayFile : IExportableFile
+public sealed class ReplayFile : IExportableFile, INotifyPropertyChanged
 {
     private const string UnknownValue = "Unknown";
     private bool _supportsCheckpoints;
+    private ReplayMapAvailability _mapAvailability = ReplayMapAvailability.Unknown;
 
     /// <summary>
     /// Gets or sets the full path to the replay file.
@@ -104,7 +106,20 @@ public sealed class ReplayFile : IExportableFile
     /// <summary>
     /// Gets or sets whether the replay map is available locally, matched by map CRC and size.
     /// </summary>
-    public ReplayMapAvailability MapAvailability { get; set; } = ReplayMapAvailability.Unknown;
+    public ReplayMapAvailability MapAvailability
+    {
+        get => _mapAvailability;
+        set
+        {
+            if (_mapAvailability == value)
+            {
+                return;
+            }
+
+            _mapAvailability = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MapAvailability)));
+        }
+    }
 
     /// <summary>
     /// Gets or sets the compatibility status against known and installed game clients.
@@ -251,6 +266,9 @@ public sealed class ReplayFile : IExportableFile
         get => _supportsCheckpoints || MatchedClient?.SupportsCheckpoints == true;
         set => _supportsCheckpoints = value;
     }
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     private static string FormatFileSize(long bytes) => bytes switch
     {

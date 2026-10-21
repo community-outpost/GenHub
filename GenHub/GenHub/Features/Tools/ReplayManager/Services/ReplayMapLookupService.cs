@@ -30,6 +30,8 @@ public sealed class ReplayMapLookupService(
 
     private readonly record struct MapSourceKey(string Path, long Offset, long Size, DateTime LastWriteUtc);
 
+    private readonly record struct CachedCrc(long Size, DateTime LastWriteUtc, uint Crc);
+
     private sealed class MapScan(HashSet<MapReference> wanted)
     {
         public HashSet<MapReference> Wanted { get; } = wanted;
@@ -54,6 +56,8 @@ public sealed class ReplayMapLookupService(
 
     private const int ReadBufferSize = 81920;
 
+    private const int DefaultCrcCacheCapacity = 4096;
+
     private static readonly EnumerationOptions RecursiveEnumeration = new()
     {
         RecurseSubdirectories = true,
@@ -67,17 +71,27 @@ public sealed class ReplayMapLookupService(
         MatchCasing = MatchCasing.CaseInsensitive,
     };
 
-    private readonly ConcurrentDictionary<MapSourceKey, uint> _crcCache = new();
+    private readonly ConcurrentDictionary<(string Path, long Offset), CachedCrc> _crcCache = new();
+
+    /// <summary>
+    /// Gets the maximum number of map CRCs kept in memory. The cache is cleared when it is full.
+    /// </summary>
+    internal int CrcCacheCapacity { get; init; } = DefaultCrcCacheCapacity;
+
+    /// <summary>
+    /// Gets the number of map CRCs currently cached.
+    /// </summary>
+    internal int CachedCrcCount => _crcCache.Count;
 
     /// <inheritdoc />
-    public async Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ReplayMapAvailability>> ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(replays);
 
+        var results = new ReplayMapAvailability[replays.Count];
         var wanted = new HashSet<MapReference>();
         foreach (var replay in replays)
         {
-            replay.MapAvailability = ReplayMapAvailability.Unknown;
             if (TryGetMapReference(replay, out var reference))
             {
                 wanted.Add(reference);
@@ -86,7 +100,7 @@ public sealed class ReplayMapLookupService(
 
         if (wanted.Count == 0)
         {
-            return;
+            return results;
         }
 
         var stockRoots = await GetStockRootsAsync(version, cancellationToken);
@@ -95,22 +109,24 @@ public sealed class ReplayMapLookupService(
         var scan = new MapScan(wanted);
         var isComplete = await Task.Run(() => ScanSources(scan, userMapDirectory, stockRoots, cancellationToken), cancellationToken);
 
-        foreach (var replay in replays)
+        for (var i = 0; i < replays.Count; i++)
         {
-            if (!TryGetMapReference(replay, out var reference))
+            if (!TryGetMapReference(replays[i], out var reference))
             {
                 continue;
             }
 
             if (scan.Found.Contains(reference))
             {
-                replay.MapAvailability = ReplayMapAvailability.Available;
+                results[i] = ReplayMapAvailability.Available;
             }
             else if (isComplete)
             {
-                replay.MapAvailability = ReplayMapAvailability.NotFound;
+                results[i] = ReplayMapAvailability.NotFound;
             }
         }
+
+        return results;
     }
 
     private static bool TryGetMapReference(ReplayFile replay, out MapReference reference)
@@ -284,15 +300,24 @@ public sealed class ReplayMapLookupService(
 
     private bool TryGetCrc(MapSourceKey key, Func<uint> compute, out uint crc)
     {
-        if (_crcCache.TryGetValue(key, out crc))
+        var cacheKey = (key.Path, key.Offset);
+        if (_crcCache.TryGetValue(cacheKey, out var cached) &&
+            cached.Size == key.Size &&
+            cached.LastWriteUtc == key.LastWriteUtc)
         {
+            crc = cached.Crc;
             return true;
         }
 
         try
         {
             crc = compute();
-            _crcCache[key] = crc;
+            if (!_crcCache.ContainsKey(cacheKey) && _crcCache.Count >= CrcCacheCapacity)
+            {
+                _crcCache.Clear();
+            }
+
+            _crcCache[cacheKey] = new CachedCrc(key.Size, key.LastWriteUtc, crc);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

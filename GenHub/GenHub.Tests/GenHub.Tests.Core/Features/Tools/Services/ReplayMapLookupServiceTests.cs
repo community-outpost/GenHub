@@ -68,7 +68,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         WriteUserMap("Custom Map", MapContents);
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
     }
@@ -83,7 +83,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         WriteStockArchive(("Maps\\Lone Eagle\\Lone Eagle.map", MapContents), ("Data\\INI\\Weapon.ini", MapContents));
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
     }
@@ -99,7 +99,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         WriteUserMap("Custom Map", OtherMapContents);
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.NotFound, replay.MapAvailability);
     }
@@ -115,7 +115,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         WriteUserMap("Custom Map", MapContents);
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length + 1);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.NotFound, replay.MapAvailability);
     }
@@ -133,7 +133,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         var matched = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
         var unmatched = CreateReplay(0xDEADBEEF, 12345);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [matched, unmatched]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, matched, unmatched);
 
         Assert.Equal(ReplayMapAvailability.Available, matched.MapAvailability);
         Assert.Equal(ReplayMapAvailability.Unknown, unmatched.MapAvailability);
@@ -155,10 +155,9 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
             SizeInBytes = 0,
             LastModified = DateTime.UtcNow,
             GameVersion = GameType.ZeroHour,
-            MapAvailability = ReplayMapAvailability.Available,
         };
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [withoutSize, withoutMetadata]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, withoutSize, withoutMetadata);
 
         Assert.Equal(ReplayMapAvailability.Unknown, withoutSize.MapAvailability);
         Assert.Equal(ReplayMapAvailability.Unknown, withoutMetadata.MapAvailability);
@@ -186,7 +185,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         SetInstallations(installation);
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.Generals, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.Generals, replay);
 
         Assert.Equal(ReplayMapAvailability.NotFound, replay.MapAvailability);
     }
@@ -202,12 +201,12 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         var mapPath = WriteUserMap("Custom Map", MapContents);
         var service = CreateService();
         var first = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
-        await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, [first]);
+        await ResolveIntoAsync(service, GameType.ZeroHour, first);
 
         File.WriteAllText(mapPath, OtherMapContents);
         File.SetLastWriteTimeUtc(mapPath, DateTime.UtcNow.AddMinutes(5));
         var second = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
-        await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, [second]);
+        await ResolveIntoAsync(service, GameType.ZeroHour, second);
 
         Assert.Equal(ReplayMapAvailability.Available, first.MapAvailability);
         Assert.Equal(ReplayMapAvailability.NotFound, second.MapAvailability);
@@ -227,7 +226,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         WriteStockArchive(("Maps\\Stock Map\\Stock Map.map", MapContents));
         var replay = CreateReplay(mapCrc, mapSize);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
     }
@@ -245,7 +244,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         var matched = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
         var unmatched = CreateReplay(0xDEADBEEF, 12345);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [matched, unmatched]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, matched, unmatched);
 
         Assert.Equal(ReplayMapAvailability.Available, matched.MapAvailability);
         Assert.Equal(ReplayMapAvailability.Unknown, unmatched.MapAvailability);
@@ -264,7 +263,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
             ("Art\\Textures\\Second.map", OtherMapContents));
         var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, replay);
 
         Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
     }
@@ -284,11 +283,84 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         var userReplay = CreateReplay(ComputeExpectedCrc(userContents), (uint)userContents.Length);
         var truncatedReplay = CreateReplay(ComputeExpectedCrc(stockContents[..81_920]), (uint)stockContents.Length);
 
-        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [stockReplay, userReplay, truncatedReplay]);
+        await ResolveIntoAsync(CreateService(), GameType.ZeroHour, stockReplay, userReplay, truncatedReplay);
 
         Assert.Equal(ReplayMapAvailability.Available, stockReplay.MapAvailability);
         Assert.Equal(ReplayMapAvailability.Available, userReplay.MapAvailability);
         Assert.Equal(ReplayMapAvailability.NotFound, truncatedReplay.MapAvailability);
+    }
+
+    /// <summary>
+    /// Verifies that the lookup returns results without changing the replays it was given.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_ReturnsResultsWithoutModifyingReplaysAsync()
+    {
+        WriteStockArchive(("Maps\\Stock Map\\Stock Map.map", MapContents));
+        var found = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+        var missing = CreateReplay(0xDEADBEEF, 12345);
+        var noData = CreateReplay(MapContentsCrc, null);
+
+        var results = await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [found, missing, noData]);
+
+        Assert.Equal([ReplayMapAvailability.Available, ReplayMapAvailability.NotFound, ReplayMapAvailability.Unknown], results);
+        Assert.All([found, missing, noData], r => Assert.Equal(ReplayMapAvailability.Unknown, r.MapAvailability));
+    }
+
+    /// <summary>
+    /// Verifies that a changed map file replaces its cached CRC instead of adding a second entry for the same file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_ChangedMap_ReplacesCachedCrcAsync()
+    {
+        var mapPath = WriteUserMap("Custom Map", MapContents);
+        var service = CreateService();
+        var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+        await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        Assert.Equal(1, service.CachedCrcCount);
+
+        for (var i = 1; i <= 3; i++)
+        {
+            File.WriteAllText(mapPath, i % 2 == 0 ? MapContents : OtherMapContents);
+            File.SetLastWriteTimeUtc(mapPath, DateTime.UtcNow.AddMinutes(i));
+            await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        }
+
+        Assert.Equal(1, service.CachedCrcCount);
+    }
+
+    /// <summary>
+    /// Verifies that the CRC cache never grows past its capacity.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_CacheAtCapacity_StaysWithinCapacityAsync()
+    {
+        WriteUserMap("First", OtherMapContents);
+        WriteUserMap("Second", OtherMapContents);
+        WriteUserMap("Third", MapContents);
+        var service = new ReplayMapLookupService(_mapDirectoryService.Object, _installationService.Object, NullLogger<ReplayMapLookupService>.Instance)
+        {
+            CrcCacheCapacity = 2,
+        };
+        var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+
+        var results = await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+
+        Assert.Equal(ReplayMapAvailability.Available, results[0]);
+        Assert.InRange(service.CachedCrcCount, 1, 2);
+    }
+
+    private static async Task ResolveIntoAsync(ReplayMapLookupService service, GameType version, params ReplayFile[] replays)
+    {
+        var results = await service.ResolveMapAvailabilityAsync(version, replays);
+        Assert.Equal(replays.Length, results.Count);
+        for (var i = 0; i < replays.Length; i++)
+        {
+            replays[i].MapAvailability = results[i];
+        }
     }
 
     private static string CreateLargeContents(int length, int seed)

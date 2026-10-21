@@ -123,8 +123,13 @@
             <DataGridTemplateColumn Header="{localization:Localize Tools.ReplayManager.Column.Map}" Width="120" MaxWidth="160" SortMemberPath="MapName">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Grid ColumnDefinitions="Auto,*" Margin="4,0" VerticalAlignment="Center" Background="Transparent"
-                        ToolTip.Tip="{Binding Converter={x:Static converters:LocalizedReplayMapTooltipConverter.Instance}}">
+                  <Grid ColumnDefinitions="Auto,*" Margin="4,0" VerticalAlignment="Center" Background="Transparent">
+                    <ToolTip.Tip>
+                      <MultiBinding Converter="{x:Static converters:LocalizedReplayMapTooltipConverter.Instance}">
+                        <Binding />
+                        <Binding Path="MapAvailability" />
+                      </MultiBinding>
+                    </ToolTip.Tip>
                     <Ellipse Grid.Column="0" Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{DynamicResource SuccessBrush}"
                              IsVisible="{Binding MapAvailability, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayMapAvailability.Available}}"/>
                     <Ellipse Grid.Column="0" Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center" Fill="{DynamicResource ErrorBrush}"
