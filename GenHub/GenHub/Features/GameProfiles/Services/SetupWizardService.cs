@@ -379,20 +379,23 @@ public class SetupWizardService(
             result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
         }
 
-        var goConfig = new WizardComponentConfig
+        if (generalsOnlineDiscoverer.IsEnabled)
         {
-            PublisherType = PublisherTypeConstants.GeneralsOnline,
-            ComponentGlobal = goGlobal,
-            ClientFilter = IsGeneralsOnlineClient,
-            LatestVersion = goCleanVersion,
-            Title = goTitle,
-            MissingDescription = FormatInstallDescription(goTitle, goCleanVersion),
-            IconPath = UriConstants.GeneralsOnlineLogoUri,
-            Metadata = PublisherTypeConstants.GeneralsOnline,
-            DefaultSelected = true,
-        };
-        var goRes = await ProcessComponentAsync(goConfig);
-        result.GeneralsOnlineAction = goRes.FinalAction;
+            var goConfig = new WizardComponentConfig
+            {
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                ComponentGlobal = goGlobal,
+                ClientFilter = IsGeneralsOnlineClient,
+                LatestVersion = goCleanVersion,
+                Title = goTitle,
+                MissingDescription = FormatInstallDescription(goTitle, goCleanVersion),
+                IconPath = UriConstants.GeneralsOnlineLogoUri,
+                Metadata = PublisherTypeConstants.GeneralsOnline,
+                DefaultSelected = true,
+            };
+            var goRes = await ProcessComponentAsync(goConfig);
+            result.GeneralsOnlineAction = goRes.FinalAction;
+        }
 
         var shConfig = new WizardComponentConfig
         {

@@ -21,6 +21,9 @@
     },
     "mirrorPreference": [],
     "targetGame": "ZeroHour",
+    "supportedPlatforms": [
+        "Windows"
+    ],
     "defaultTags": [
         "multiplayer",
         "online",

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -10,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.CommunityOutpost;
@@ -17,6 +19,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
+using GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
@@ -1126,16 +1129,77 @@ public class SetupWizardServiceTests
         }
     }
 
+    /// <summary>
+    /// Verifies that Generals Online is offered only on hosts its provider definition supports,
+    /// so the wizard never preselects a Windows-only download on macOS or Linux.
+    /// </summary>
+    /// <param name="hostSupported">Whether the definition lists the current host.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunSetupWizardAsync_GeneralsOnline_OfferedOnlyOnSupportedHostAsync(bool hostSupported)
+    {
+        // Arrange
+        var platform = hostSupported ? HostPlatform.Current : GeneralsOnlinePlatformTests.OtherPlatform;
+        var loader = new Mock<IProviderDefinitionLoader>();
+        loader
+            .Setup(l => l.GetProvider(GeneralsOnlineConstants.PublisherType))
+            .Returns(new ProviderDefinition { SupportedPlatforms = [platform] });
+
+        var goDiscoverer = new Mock<GeneralsOnlineDiscoverer>(
+            Mock.Of<Microsoft.Extensions.Logging.ILogger<GeneralsOnlineDiscoverer>>(),
+            loader.Object,
+            Mock.Of<ICatalogParserFactory>(),
+            Mock.Of<System.Net.Http.IHttpClientFactory>());
+        goDiscoverer
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = "082826_QFE1" }],
+            }));
+
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        var service = CreateService(goDiscoverer: goDiscoverer.Object);
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            return Task.FromResult(true);
+        };
+
+        // Act
+        var result = await service.RunSetupWizardAsync([], CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(capturedVm);
+        Assert.Equal(hostSupported, capturedVm.Items.Any(i => Equals(i.Metadata, PublisherTypeConstants.GeneralsOnline)));
+        Assert.Equal(
+            hostSupported ? GameClientConstants.WizardActionTypes.Install : GameClientConstants.WizardActionTypes.Decline,
+            result.GeneralsOnlineAction);
+    }
+
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
         ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
         : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
 
-    private SetupWizardService CreateService(SuperHackersProvider? superHackersProvider = null, ILocalizationService? localizationService = null)
+    private SetupWizardService CreateService(
+        SuperHackersProvider? superHackersProvider = null,
+        ILocalizationService? localizationService = null,
+        GeneralsOnlineDiscoverer? goDiscoverer = null)
     {
         return new SetupWizardService(
             _profileServiceMock.Object,
             _cpDiscovererMock.Object,
-            _goDiscovererMock.Object,
+            goDiscoverer ?? _goDiscovererMock.Object,
             superHackersProvider!, // Null is caught by null check / try-catch
             _manifestPoolMock.Object,
             NullLogger<SetupWizardService>.Instance,

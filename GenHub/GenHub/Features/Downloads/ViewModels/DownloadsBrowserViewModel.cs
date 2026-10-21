@@ -347,7 +347,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 _localizationService.PropertyChanged += OnLocalizationChanged;
             }
 
-            Publishers = CreateBuiltInPublishers(ResolveDownloadedContentLabel());
+            Publishers = [.. CreateBuiltInPublishers(ResolveDownloadedContentLabel()).Where(IsPublisherAvailableOnHost)];
             InitializeFilterViewModels();
             contentStateService.ContentStateChanged += OnContentStateChanged;
             WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(
@@ -3742,6 +3742,17 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogWarning(ex, "Failed to persist refreshed subscription data for {PublisherId}", publisherId);
         }
+    }
+
+    /// <summary>
+    /// Keeps a built-in publisher out of the sidebar when its discoverer is disabled on this host,
+    /// such as Windows-only content on macOS or Linux.
+    /// </summary>
+    /// <param name="publisher">The built-in publisher entry.</param>
+    /// <returns><c>false</c> only when the publisher's discoverer reports it is disabled.</returns>
+    private bool IsPublisherAvailableOnHost(PublisherItemViewModel publisher)
+    {
+        return GetDiscovererForPublisher(publisher.PublisherId)?.IsEnabled != false;
     }
 
     /// <returns>The discoverer for the specified publisher, or null if not found.</returns>
