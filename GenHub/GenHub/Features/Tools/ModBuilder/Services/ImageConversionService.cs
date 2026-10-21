@@ -2,13 +2,9 @@ using BCnEncoder.Encoder;
 using BCnEncoder.Shared;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Infrastructure.Imaging;
 using ImageMagick;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Bmp;
-using SixLabors.ImageSharp.Formats.Tga;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -66,7 +62,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
                     return HasAlphaChannelPsd(imagePath);
                 }
 
-                using var image = Image.Load<Rgba32>(imagePath);
+                using var image = new MagickImage(imagePath);
                 return ImageProcessingHelper.DetectAlpha(image);
             }, cancellationToken);
         }
@@ -148,31 +144,6 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
         }
     }
 
-    /// <summary>
-    /// Builds an image from PSD with multi-alpha compositing.
-    ///
-    /// CRITICAL ALGORITHM (from Python implementation):
-    /// For RGBA PSD (>3 channels):
-    /// 1. Composite with psd.composite(color=0.0, alpha=1.0)
-    /// 2. Extract R, G, B channels separately
-    /// 3. Multi-Alpha Compositing: Merge ALL alpha channels (channels 3+)
-    ///    - Create white and black base images
-    ///    - Iterate through each alpha channel
-    ///    - Use Image.composite(an, black, a) to blend alphas
-    /// 4. Final output: RGBA image with merged alpha
-    /// </summary>
-    private Image<Rgba32> BuildImageFromPsd(string sourcePath)
-    {
-        using var magickImage = new MagickImage(sourcePath)
-        {
-            Format = MagickFormat.Png,
-        };
-        using var ms = new MemoryStream();
-        magickImage.Write(ms);
-        ms.Position = 0;
-        return Image.Load<Rgba32>(ms);
-    }
-
     private bool HasAlphaChannelPsd(string sourcePath)
     {
         try
@@ -203,7 +174,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
+            using var image = new MagickImage();
+            await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
             using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 
@@ -236,9 +208,13 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            using var image = new MagickImage();
+            await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
-            if (image.PixelType.BitsPerPixel < 24)
+            // Rejects gray and bilevel TIFFs, and gray with alpha at 8 bits per sample.
+            // Palette TIFFs are accepted because Magick.NET expands them to truecolor.
+            if (image.ColorType is ColorType.Bilevel or ColorType.Grayscale
+                || (image.ColorType == ColorType.GrayscaleAlpha && image.Depth <= 8))
             {
                 logger.LogError("TIFF image has unsupported color mode: {SourcePath}", sourcePath);
                 return false;
@@ -279,7 +255,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
     }
 
     private async Task<bool> EncodeImageToDdsAsync(
-        Image image,
+        IMagickImage<ushort> image,
         string targetPath,
         string sourcePath,
         CancellationToken cancellationToken)
@@ -288,15 +264,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Clone only when the loaded pixel format differs; the caller owns the input image.
-            using var ownedClone = image is Image<Rgba32> ? null : image.CloneAs<Rgba32>();
-            var rgbaImage = ownedClone ?? (Image<Rgba32>)image;
-            var width = rgbaImage.Width;
-            var height = rgbaImage.Height;
-            var hasAlpha = ImageProcessingHelper.DetectAlpha(rgbaImage);
-
-            var rawData = new byte[width * height * 4];
-            rgbaImage.CopyPixelDataTo(rawData);
+            var width = (int)image.Width;
+            var height = (int)image.Height;
+            var hasAlpha = ImageProcessingHelper.DetectAlpha(image);
+            var rawData = RgbaPixels.ToBytes(image);
 
             return await WriteDdsDataAsync(rawData, width, height, hasAlpha, targetPath, sourcePath, cancellationToken).ConfigureAwait(false);
         }
@@ -364,18 +335,13 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
+        using var image = new MagickImage();
+        await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
         var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
         using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
-        var rgbaImage = resizedImage as Image<Rgba32> ?? resizedImage.CloneAs<Rgba32>();
-        using var rgbaScope = ReferenceEquals(rgbaImage, resizedImage) ? null : rgbaImage;
-        var width = rgbaImage.Width;
-        var height = rgbaImage.Height;
-        var hasAlpha = ImageProcessingHelper.DetectAlpha(rgbaImage);
-
-        var rawData = new byte[width * height * 4];
-        rgbaImage.CopyPixelDataTo(rawData);
-        return (rawData, width, height, hasAlpha);
+        var hasAlpha = ImageProcessingHelper.DetectAlpha(resizedImage);
+        var rawData = RgbaPixels.ToBytes(resizedImage);
+        return (rawData, (int)resizedImage.Width, (int)resizedImage.Height, hasAlpha);
     }
 
     private static async Task<bool> ConvertGenericAsync(
@@ -395,7 +361,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger)
                 return true;
             }
 
-            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            using var image = new MagickImage();
+            await image.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
             var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
             using var resizedScope = ReferenceEquals(resizedImage, image) ? null : resizedImage;
 

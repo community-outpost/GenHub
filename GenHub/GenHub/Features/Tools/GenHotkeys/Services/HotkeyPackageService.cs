@@ -93,7 +93,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or ImageMagick.MagickException)
         {
             logger.LogError(ex, "Failed to package hotkeys addon for profile '{Name}'", profile.Name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to create hotkeys addon: {ex.Message}");
@@ -459,7 +459,7 @@ public class HotkeyPackageService(
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or SixLabors.ImageSharp.ImageFormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or InvalidDataException or NotSupportedException or ImageMagick.MagickException)
         {
             logger.LogWarning(ex, "Failed to stamp hotkey overlay on icon {Icon}", iconName);
         }

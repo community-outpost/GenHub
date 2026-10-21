@@ -32,6 +32,7 @@
         <PackageReference Include="Avalonia.Diagnostics" Condition="'$(Configuration)' == 'Debug'" />
         <PackageReference Include="BCnEncoder.Net" />
         <PackageReference Include="Magick.NET-Q16-AnyCPU" />
+        <PackageReference Include="SkiaSharp" />
 
         <PackageReference Include="CommunityToolkit.Mvvm" />
         <PackageReference Include="Google.Apis.Auth" />
@@ -66,7 +67,6 @@
         <PackageReference Include="Serilog.Extensions.Logging" />
         <PackageReference Include="SharpCompress" />
         <PackageReference Include="Slugify.Core" />
-        <PackageReference Include="SixLabors.ImageSharp" />
         <PackageReference Include="StyleCop.Analyzers" />
         <PackageReference Include="System.Security.Cryptography.ProtectedData" />
         <PackageReference Include="Velopack" />
