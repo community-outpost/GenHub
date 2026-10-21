@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -70,6 +71,59 @@ public class ContentDetailCustomTabViewTests
         Assert.Empty(GeneratedHeaders(tabControl));
     }
 
+    /// <summary>
+    /// With the tab control bound two-way, a selected publisher tab survives two variant switches
+    /// while the tab load is pending, and a later user tab change reaches the view model.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentDetailView_VariantSwitchesWhileLoading_RestoresSelectedPublisherTabAsync()
+    {
+        const string itemAId = "1.0.tabs-pub.mod.mod-a";
+        const string itemBId = "1.0.tabs-pub.mod.mod-b";
+        var responses = new Dictionary<string, TaskCompletionSource<IReadOnlyList<CustomTabDefinition>>>();
+        TaskCompletionSource<IReadOnlyList<CustomTabDefinition>> Respond(string contentId)
+        {
+            var source = new TaskCompletionSource<IReadOnlyList<CustomTabDefinition>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            responses[contentId] = source;
+            return source;
+        }
+
+        var registry = new Mock<ITabProviderRegistry>();
+        registry
+            .Setup(r => r.GetTabsForContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .Returns((ContentSearchResult result, CancellationToken _) => responses[result.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey]].Task);
+        Respond("mod-a").SetResult([Tab("a-notes"), Tab("shared")]);
+        using var viewModel = CreateViewModel(
+            CreateSearchResult("mod-a"),
+            registry.Object,
+            new Dictionary<string, ContentSearchResult>
+            {
+                [itemAId] = CreateSearchResult("mod-a"),
+                [itemBId] = CreateSearchResult("mod-b"),
+            });
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var view = new ContentDetailView { DataContext = viewModel };
+        var tabControl = view.FindControl<TabControl>("DetailTabs")!;
+        tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, viewModel.SelectedTabIndex);
+
+        Respond("mod-b");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = itemBId, Name = "Mod B" };
+        Assert.Equal(0, tabControl.SelectedIndex);
+        var reloadA = Respond("mod-a");
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = itemAId, Name = "Mod A" };
+        reloadA.SetResult([Tab("shared"), Tab("a-guide")]);
+        await viewModel.WaitForInitializationAsync();
+
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount, viewModel.SelectedTabIndex);
+        Assert.Equal(ContentDetailViewModel.BuiltInTabCount, tabControl.SelectedIndex);
+
+        tabControl.SelectedIndex = 0;
+        Assert.Equal(0, viewModel.SelectedTabIndex);
+    }
+
     private static List<string?> GeneratedHeaders(TabControl tabControl)
     {
         return [.. tabControl.Items
@@ -78,9 +132,11 @@ public class ContentDetailCustomTabViewTests
             .Select(item => item.Header as string)];
     }
 
-    private static async Task<ContentDetailViewModel> CreateLoadedViewModelAsync(string contentId, params string[] headers)
+    private static CustomTabDefinition Tab(string tabId) => new() { TabId = tabId, Header = tabId };
+
+    private static ContentSearchResult CreateSearchResult(string contentId)
     {
-        var searchResult = new ContentSearchResult
+        var result = new ContentSearchResult
         {
             Id = $"1.0.tabs-pub.mod.{contentId}",
             Name = contentId,
@@ -88,11 +144,28 @@ public class ContentDetailCustomTabViewTests
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
         };
+        result.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = contentId;
+        return result;
+    }
+
+    private static async Task<ContentDetailViewModel> CreateLoadedViewModelAsync(string contentId, params string[] headers)
+    {
         IReadOnlyList<CustomTabDefinition> tabs = [.. headers.Select(header => new CustomTabDefinition { TabId = header.ToLowerInvariant(), Header = header })];
         var registry = new Mock<ITabProviderRegistry>();
         registry
             .Setup(r => r.GetTabsForContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(tabs);
+        var viewModel = CreateViewModel(CreateSearchResult(contentId), registry.Object);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        return viewModel;
+    }
+
+    private static ContentDetailViewModel CreateViewModel(
+        ContentSearchResult searchResult,
+        ITabProviderRegistry registry,
+        IReadOnlyDictionary<string, ContentSearchResult>? variants = null)
+    {
         var stateService = new Mock<IContentStateService>();
         stateService
             .Setup(s => s.GetStateByManifestIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -101,20 +174,18 @@ public class ContentDetailCustomTabViewTests
             .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ContentSearchResult result, CancellationToken _) => result.Id);
 
-        var viewModel = new ContentDetailViewModel(
+        return new ContentDetailViewModel(
             searchResult,
             [],
             new Mock<IProfileContentService>().Object,
             new Mock<IGameProfileManager>().Object,
             new Mock<INotificationService>().Object,
-            registry.Object,
+            registry,
             stateService.Object,
             new Mock<IContentDownloadCoordinator>().Object,
             new Mock<IContentManifestPool>().Object,
             new Mock<ILoggerFactory>().Object,
-            new Mock<ILogger<ContentDetailViewModel>>().Object);
-        viewModel.Initialize();
-        await viewModel.WaitForInitializationAsync();
-        return viewModel;
+            new Mock<ILogger<ContentDetailViewModel>>().Object,
+            variantSearchResults: variants);
     }
 }
