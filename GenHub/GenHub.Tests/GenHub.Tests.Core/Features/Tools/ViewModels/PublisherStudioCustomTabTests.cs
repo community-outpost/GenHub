@@ -70,7 +70,9 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         added.Order = 5;
         added.Intro = "Read this first.";
         added.Body = "## Steps\n\n1. Install the base game.";
-        Assert.Equal("## Steps\n\n1. Install the base game.", added.Preview.Body);
+        Assert.Null(added.Preview);
+        added.IsPreviewVisible = true;
+        Assert.Equal("## Steps\n\n1. Install the base game.", added.Preview!.Body);
 
         dialog.CreateContentCommand.Execute(null);
 
@@ -130,6 +132,59 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         Assert.False(saved);
         Assert.False(dialog.IsValid);
         Assert.False(string.IsNullOrWhiteSpace(dialog.ValidationError));
+    }
+
+    /// <summary>
+    /// The preview is rebuilt only while it is shown, and once when it is turned on.
+    /// </summary>
+    [Fact]
+    public void CustomTabEditorItem_Preview_NotifiesOnlyWhileVisible()
+    {
+        var tab = new CustomTabEditorItem(new CatalogTabDefinition { TabId = "notes", Header = "Notes" });
+        var previewChanges = 0;
+        tab.PropertyChanged += (_, e) => previewChanges += e.PropertyName == nameof(CustomTabEditorItem.Preview) ? 1 : 0;
+
+        tab.Body = "hidden edit";
+        tab.Header = "Hidden header";
+        Assert.Equal(0, previewChanges);
+
+        tab.IsPreviewVisible = true;
+        Assert.Equal(1, previewChanges);
+        Assert.Equal("Hidden header", tab.Preview!.Header);
+
+        tab.Body = "visible edit";
+        Assert.Equal(2, previewChanges);
+        Assert.Equal("visible edit", tab.Preview!.Body);
+
+        tab.IsPreviewVisible = false;
+        tab.Intro = "hidden again";
+        Assert.Equal(3, previewChanges);
+        Assert.Null(tab.Preview);
+    }
+
+    /// <summary>
+    /// The content dialog applies the shared catalog tab rules, including card rules for cards kept from the catalog file.
+    /// </summary>
+    [Fact]
+    public void EditContentDialog_InvalidKeptCard_ShowsCardErrorAndDoesNotSave()
+    {
+        var existing = CreateItem();
+        existing.CustomTabs =
+        [
+            new CatalogTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = "http://example.com/card.png" }],
+            },
+        ];
+        var saved = false;
+        using var dialog = new AddContentDialogViewModel(existing, _ => saved = true);
+
+        dialog.CreateContentCommand.Execute(null);
+
+        Assert.False(saved);
+        Assert.Contains("gallery", dialog.ValidationError);
     }
 
     /// <summary>

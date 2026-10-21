@@ -3,6 +3,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services;
 using System;
+using System.ComponentModel;
 using System.Text.Json;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
@@ -19,23 +20,18 @@ public partial class CustomTabEditorItem : ObservableObject
     private readonly CatalogTabDefinition _source;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Preview))]
     private string _tabId = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Preview))]
     private string _header = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Preview))]
     private int _order = 100;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Preview))]
     private string? _intro;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Preview))]
     private string? _body;
 
     [ObservableProperty]
@@ -65,9 +61,9 @@ public partial class CustomTabEditorItem : ObservableObject
     public int CardCount => _source.Cards?.Count ?? 0;
 
     /// <summary>
-    /// Gets the runtime tab definition rendered by the live preview.
+    /// Gets the runtime tab definition rendered by the live preview, or null while the preview is hidden.
     /// </summary>
-    public CustomTabDefinition Preview => CatalogTabMapper.Map(ToDefinition());
+    public CustomTabDefinition? Preview => IsPreviewVisible ? CatalogTabMapper.Map(ToDefinition()) : null;
 
     /// <summary>
     /// Builds the catalog tab definition from the edited fields.
@@ -83,6 +79,17 @@ public partial class CustomTabEditorItem : ObservableObject
         definition.Body = string.IsNullOrWhiteSpace(Body) ? null : Body;
         definition.IsVisible = IsVisible;
         return definition;
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.PropertyName == nameof(IsPreviewVisible) ||
+            (IsPreviewVisible && e.PropertyName is nameof(TabId) or nameof(Header) or nameof(Order) or nameof(Intro) or nameof(Body)))
+        {
+            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(Preview)));
+        }
     }
 
     private static CatalogTabDefinition Clone(CatalogTabDefinition source)
