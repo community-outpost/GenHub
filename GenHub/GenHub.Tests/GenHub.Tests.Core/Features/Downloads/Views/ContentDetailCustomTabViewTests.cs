@@ -57,6 +57,8 @@ public class ContentDetailCustomTabViewTests
         var content = Assert.IsType<CustomTabContentView>(((TabItem)tabControl.Items[ContentDetailViewModel.BuiltInTabCount]!).Content);
         Assert.Same(itemA.CustomTabs[0], content.DataContext);
         Assert.NotNull(content.ImageCommand);
+        Assert.True(content.ImageCommand.CanExecute(new CustomTabCardDefinition { Title = "Remote", ImageUrl = "https://example.com/card.png" }));
+        Assert.False(content.ImageCommand.CanExecute(new CustomTabCardDefinition { Title = "Bundled", ImageUrl = "avares://GenHub/Assets/Covers/usa-cover.jpg" }));
 
         view.DataContext = itemB;
         Assert.Equal(["Changelog"], GeneratedHeaders(tabControl));

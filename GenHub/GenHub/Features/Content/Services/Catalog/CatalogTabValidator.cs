@@ -154,6 +154,16 @@ public static class CatalogTabValidator
                 errors.Add($"{scope} {tabLabel} card {cardIndex} is missing title");
             }
 
+            if (card.Title?.Length > CustomTabConstants.MaxCardTitleLength || card.Label?.Length > CustomTabConstants.MaxCardTitleLength)
+            {
+                errors.Add($"{scope} {tabLabel} card {cardIndex} has a title or label longer than {CustomTabConstants.MaxCardTitleLength} characters");
+            }
+
+            if (card.Description?.Length > CustomTabConstants.MaxCardDescriptionLength)
+            {
+                errors.Add($"{scope} {tabLabel} card {cardIndex} has a description longer than {CustomTabConstants.MaxCardDescriptionLength} characters");
+            }
+
             if (!string.IsNullOrWhiteSpace(card.ImageUrl) && !IsAllowedImageUrl(card.ImageUrl))
             {
                 errors.Add($"{scope} {tabLabel} card {cardIndex} has invalid image URL '{card.ImageUrl}'. Card images must use HTTPS or a bundled avares resource.");

@@ -212,6 +212,30 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
+    /// Card text longer than the limits fails validation.
+    /// </summary>
+    [Fact]
+    public void ValidateCatalog_CardTextTooLong_Fails()
+    {
+        var catalog = CreateCatalog(new CatalogTabDefinition
+        {
+            TabId = "gallery",
+            Header = "Gallery",
+            Cards =
+            [
+                new CatalogTabCardDefinition { Title = new string('t', CustomTabConstants.MaxCardTitleLength + 1) },
+                new CatalogTabCardDefinition { Title = "Card", Description = new string('d', CustomTabConstants.MaxCardDescriptionLength + 1) },
+            ],
+        });
+
+        var result = _parser.ValidateCatalog(catalog);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, e => e.Contains("card 0 has a title or label longer than"));
+        Assert.Contains(result.Errors, e => e.Contains("card 1 has a description longer than"));
+    }
+
+    /// <summary>
     /// An item that declares more tabs than the limit fails validation.
     /// </summary>
     [Fact]

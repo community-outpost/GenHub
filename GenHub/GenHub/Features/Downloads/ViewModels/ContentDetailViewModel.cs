@@ -186,6 +186,7 @@ public partial class ContentDetailViewModel(
     private Task? _customTabsTask;
     private int _customTabsLoadVersion;
     private string? _customTabsItemKey;
+    private string? _pendingCustomTabId;
     private Task? _variantsTask;
     private Task? _gitHubReadmeTask;
     private Task? _generalsOnlineNotesTask;
@@ -8341,9 +8342,13 @@ public partial class ContentDetailViewModel(
 
     private void ApplyCustomTabs(IReadOnlyList<CustomTabDefinition> tabs)
     {
-        var customIndex = SelectedTabIndex - BuiltInTabCount;
-        var previousTabId = customIndex >= 0 && customIndex < CustomTabs.Count ? CustomTabs[customIndex].TabId : null;
+        var previousTabId = GetSelectedCustomTabId();
+        if (previousTabId == null && SelectedTabIndex == 0)
+        {
+            previousTabId = _pendingCustomTabId;
+        }
 
+        _pendingCustomTabId = null;
         CustomTabs.Clear();
         foreach (var tab in tabs)
         {
@@ -8363,6 +8368,12 @@ public partial class ContentDetailViewModel(
         SelectedTabIndex = restoredIndex >= 0 ? BuiltInTabCount + restoredIndex : 0;
     }
 
+    private string? GetSelectedCustomTabId()
+    {
+        var customIndex = SelectedTabIndex - BuiltInTabCount;
+        return customIndex >= 0 && customIndex < CustomTabs.Count ? CustomTabs[customIndex].TabId : null;
+    }
+
     private string ResolveCustomTabsItemKey()
     {
         return searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var contentId) &&
@@ -8376,6 +8387,14 @@ public partial class ContentDetailViewModel(
         if (_disposed || string.Equals(_customTabsItemKey, ResolveCustomTabsItemKey(), StringComparison.OrdinalIgnoreCase))
         {
             return;
+        }
+
+        _pendingCustomTabId = GetSelectedCustomTabId();
+        CustomTabs.Clear();
+        OnPropertyChanged(nameof(HasCustomTabs));
+        if (SelectedTabIndex >= BuiltInTabCount)
+        {
+            SelectedTabIndex = 0;
         }
 
         _customTabsTask = LoadCustomTabsAsync();
