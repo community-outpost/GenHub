@@ -165,7 +165,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that confirming an already subscribed publisher calls UpdateSubscriptionAsync and preserves settings.
+    /// Verifies that confirming an already subscribed publisher from the same source calls UpdateSubscriptionAsync and preserves settings.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
@@ -188,7 +188,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
             {
                 PublisherId = "existing-pub",
                 PublisherName = "Existing Publisher",
-                CatalogUrl = "https://example.com/old-catalog.json",
+                CatalogUrl = "https://example.com/new-catalog.json",
                 TrustLevel = TrustLevel.Trusted,
                 AutoUpdate = true,
                 NotifyNewReleases = false,
@@ -234,12 +234,12 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that when updating an existing subscription with a different catalog URL,
-    /// any previously persisted SelectedCatalogId is dropped (set to null).
+    /// Verifies that a different catalog URL for a subscribed publisher is a collision that confirm does not save,
+    /// and that replacing the existing publisher drops the previously persisted SelectedCatalogId.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConfirmCommand_WhenAlreadySubscribed_DifferentCatalogUrl_DropsPersistedSelectedCatalogIdAsync()
+    public async Task ReplaceExistingCommand_WhenAlreadySubscribed_DifferentCatalogUrl_DropsPersistedSelectedCatalogIdAsync()
     {
         // Arrange
         const string oldCatalogUrl = "https://example.com/old-catalog.json";
@@ -282,11 +282,16 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
 
         // Act
         await vm.ConfirmCommand.ExecuteAsync(null);
+        Assert.True(vm.RequiresSourceDecision);
+        Assert.Null(savedSubscription);
+
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
 
         // Assert
         Assert.NotNull(savedSubscription);
         Assert.Equal(newCatalogUrl, savedSubscription.CatalogUrl);
         Assert.Null(savedSubscription.SelectedCatalogId);
+        Assert.Equal(TrustLevel.Untrusted, savedSubscription.TrustLevel);
     }
 
     /// <summary>

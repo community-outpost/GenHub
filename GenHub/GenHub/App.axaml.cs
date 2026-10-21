@@ -13,6 +13,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Telemetry;
@@ -276,7 +277,8 @@ public partial class App : Application
                 httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName),
                 vmLogger,
                 definitionService,
-                _localizationService);
+                _localizationService,
+                _serviceProvider.GetService<IPublisherIdentityService>());
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
             if (confirmed)

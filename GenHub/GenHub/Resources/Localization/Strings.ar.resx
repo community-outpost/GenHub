@@ -6705,6 +6705,33 @@
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.MoveSubscription" xml:space="preserve">
+    <value>نقل الاشتراك</value>
+  </data>
+  <data name="Downloads.Subscription.ReplaceExisting" xml:space="preserve">
+    <value>استبدال الحالي</value>
+  </data>
+  <data name="Downloads.Subscription.Skip" xml:space="preserve">
+    <value>تخطي</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionMessageFormat" xml:space="preserve">
+    <value>أنت مشترك بالفعل في معرّف الناشر '{0}' من عنوان مختلف. قد يكون أحدهما غير أصلي. استبدل الناشر الحالي بهذا الناشر، أو تخطَّ هذا الناشر.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionTitle" xml:space="preserve">
+    <value>معرّف الناشر مشترك فيه بالفعل</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat" xml:space="preserve">
+    <value>يستخدم هذا العنوان معرّف الناشر '{0}' لكنه لا يثبت امتلاكه مفتاح الناشر الذي تشترك فيه. قد يكون انتحالًا. تخطَّه ما لم تكن تثق بهذا العنوان وتريد أن يحل محل الناشر الحالي.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchTitle" xml:space="preserve">
+    <value>هوية الناشر غير مثبتة</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat" xml:space="preserve">
+    <value>انتقل الناشر '{0}' إلى هذا العنوان وأثبت امتلاكه مفتاح الناشر نفسه. سينتقل اشتراكك معه.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveTitle" xml:space="preserve">
+    <value>انتقال ناشر موثّق</value>
+  </data>
   <data name="Settings.Section.CloudUploads" xml:space="preserve">
     <value>التخزين السحابي والملفات المرفوعة</value>
   </data>
