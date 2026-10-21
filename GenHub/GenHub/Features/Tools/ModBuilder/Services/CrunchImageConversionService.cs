@@ -560,7 +560,8 @@ public class CrunchImageConversionService(
     {
         return await Task.Run(async () =>
         {
-            using var magickImage = new MagickImage(sourcePath);
+            using var magickImage = new MagickImage();
+            await magickImage.ReadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
             if (magickImage.ChannelCount <= 3)
             {
@@ -590,6 +591,7 @@ public class CrunchImageConversionService(
             }
 
             alpha.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
 
             var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(merged, parameters);
             using var resizedPsdScope = ReferenceEquals(resizedPsd, merged) ? null : resizedPsd;

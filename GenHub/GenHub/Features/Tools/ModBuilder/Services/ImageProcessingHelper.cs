@@ -225,6 +225,8 @@ internal static class ImageProcessingHelper
     /// <returns>A task representing the asynchronous save operation.</returns>
     public static async Task SaveImageToTargetAsync(IMagickImage<ushort> image, string targetPath, string targetExt, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         switch (targetExt)
         {
             case ".bmp":
