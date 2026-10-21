@@ -1994,8 +1994,9 @@ public partial class ReplayManagerViewModel(
         StatusMessage = LocalizationService?.GetString("Tools.ReplayManager.Status.LoadingReplays") ?? "Loading replays...";
         try
         {
-            var replays = await directoryService.GetReplaysAsync(SelectedTab);
-            await directoryService.ResolveMapAvailabilityAsync(SelectedTab, replays);
+            var gameType = SelectedTab;
+            var replays = await directoryService.GetReplaysAsync(gameType);
+            await directoryService.ResolveMapAvailabilityAsync(gameType, replays);
             await RevalidateSelectedRecoveryProfilesAsync(replays);
             await UpdateLoadedReplaysCollectionAsync(replays);
 

@@ -57,13 +57,13 @@ public sealed class ReplayMapLookupService(
     private static readonly EnumerationOptions RecursiveEnumeration = new()
     {
         RecurseSubdirectories = true,
-        IgnoreInaccessible = true,
+        IgnoreInaccessible = false,
         MatchCasing = MatchCasing.CaseInsensitive,
     };
 
     private static readonly EnumerationOptions TopLevelEnumeration = new()
     {
-        IgnoreInaccessible = true,
+        IgnoreInaccessible = false,
         MatchCasing = MatchCasing.CaseInsensitive,
     };
 

@@ -4,12 +4,14 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Services.Tools.Checksum;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -265,6 +267,46 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
 
         Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
+    }
+
+    /// <summary>
+    /// Verifies that archive entries and user maps larger than the read buffer are checksummed in full.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_MapsLargerThanReadBuffer_MatchFullFileCrcAsync()
+    {
+        var stockContents = CreateLargeContents(200_003, 7);
+        var userContents = CreateLargeContents(150_001, 13);
+        WriteStockArchive(("Maps\\Big Stock\\Big Stock.map", stockContents), ("Maps\\Other\\Other.map", "x"));
+        WriteUserMap("Big User", userContents);
+        var stockReplay = CreateReplay(ComputeExpectedCrc(stockContents), (uint)stockContents.Length);
+        var userReplay = CreateReplay(ComputeExpectedCrc(userContents), (uint)userContents.Length);
+        var truncatedReplay = CreateReplay(ComputeExpectedCrc(stockContents[..81_920]), (uint)stockContents.Length);
+
+        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [stockReplay, userReplay, truncatedReplay]);
+
+        Assert.Equal(ReplayMapAvailability.Available, stockReplay.MapAvailability);
+        Assert.Equal(ReplayMapAvailability.Available, userReplay.MapAvailability);
+        Assert.Equal(ReplayMapAvailability.NotFound, truncatedReplay.MapAvailability);
+    }
+
+    private static string CreateLargeContents(int length, int seed)
+    {
+        var chars = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            chars[i] = (char)('A' + ((i * seed) % 26));
+        }
+
+        return new string(chars);
+    }
+
+    private static uint ComputeExpectedCrc(string contents)
+    {
+        var checksum = new LegacyChecksum();
+        checksum.Add(Encoding.ASCII.GetBytes(contents));
+        return checksum.Value;
     }
 
     private static ReplayFile CreateReplay(uint mapCrc, uint? mapSize) => new()
