@@ -110,10 +110,10 @@ public class GeneralsOnlineDiscoverer(
                     $"Provider definition '{GeneralsOnlineConstants.PublisherType}' not found. Ensure generalsonline.provider.json exists.");
             }
 
-            if (!provider.SupportsHostPlatform())
+            if (!provider.IsAvailableOnHost())
             {
                 logger.LogInformation(
-                    "Skipping Generals Online discovery: the provider does not support {Platform}",
+                    "Skipping Generals Online discovery: the provider is disabled or does not support {Platform}",
                     HostPlatform.Current);
                 return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
                 {

@@ -9,6 +9,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -58,10 +59,14 @@ public class GeneralsOnlinePlatformTests
         var handler = new CountingHandler();
         var discoverer = CreateDiscoverer([HostPlatform.Current], handler);
 
-        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+        var first = await discoverer.DiscoverAsync(new ContentSearchQuery());
+        var requestsAfterFirst = handler.Requests;
+        var second = await discoverer.DiscoverAsync(new ContentSearchQuery());
 
-        Assert.True(result.Success);
-        Assert.Contains(result.Data!.Items, item => item.Version == LatestVersion);
+        Assert.True(first.Success);
+        Assert.True(second.Success);
+        Assert.Contains(second.Data!.Items, item => item.Version == LatestVersion);
+        Assert.True(handler.Requests > requestsAfterFirst);
         Assert.True(discoverer.IsEnabled);
     }
 
@@ -86,6 +91,24 @@ public class GeneralsOnlinePlatformTests
             NullLogger<GeneralsOnlineProvider>.Instance);
 
         Assert.Equal(hostSupported, provider.IsEnabled);
+    }
+
+    /// <summary>
+    /// Discovery returns nothing and never contacts the CDN when the definition is disabled,
+    /// even on a supported host.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DiscoverAsync_WithDisabledDefinition_ReturnsNoReleasesWithoutFetchingAsync()
+    {
+        var handler = new CountingHandler();
+        var discoverer = CreateDiscoverer([HostPlatform.Current], handler, enabled: false);
+
+        var result = await discoverer.DiscoverAsync(new ContentSearchQuery());
+
+        Assert.True(result.Success);
+        Assert.Empty(result.Data!.Items);
+        Assert.Equal(0, handler.Requests);
     }
 
     /// <summary>
@@ -120,8 +143,9 @@ public class GeneralsOnlinePlatformTests
     /// </summary>
     /// <param name="platforms">The supported platforms to declare.</param>
     /// <param name="handler">The HTTP handler serving the catalog.</param>
+    /// <param name="enabled">The definition's <c>enabled</c> value.</param>
     /// <returns>The discoverer.</returns>
-    internal static GeneralsOnlineDiscoverer CreateDiscoverer(List<ExecutablePlatform> platforms, HttpMessageHandler? handler = null)
+    internal static GeneralsOnlineDiscoverer CreateDiscoverer(List<ExecutablePlatform> platforms, HttpMessageHandler? handler = null, bool enabled = true)
     {
         handler ??= new CountingHandler();
         var parserFactory = new Mock<ICatalogParserFactory>();
@@ -134,7 +158,7 @@ public class GeneralsOnlinePlatformTests
 
         return new GeneralsOnlineDiscoverer(
             NullLogger<GeneralsOnlineDiscoverer>.Instance,
-            CreateLoader(platforms).Object,
+            CreateLoader(platforms, enabled).Object,
             parserFactory.Object,
             httpClientFactory.Object);
     }
@@ -155,13 +179,22 @@ public class GeneralsOnlinePlatformTests
 
     private sealed class CountingHandler : HttpMessageHandler
     {
+        private bool _disposed;
+
         public int Requests { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             Requests++;
             var json = $"{{\"Version\":\"{LatestVersion}\",\"Download_Url\":\"https://cdn.playgenerals.online/GeneralsOnline_portable_{LatestVersion}.zip\",\"Size\":42,\"Release_Notes\":\"Latest\"}}";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json) });
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            _disposed = true;
+            base.Dispose(disposing);
         }
     }
 }
