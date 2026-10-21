@@ -75,6 +75,7 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _selectedCatalogUrl;
     private string? _definitionCatalogFetchError;
     private string _assessedPublisherId = string.Empty;
+    private int _assessmentGeneration;
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -384,7 +385,20 @@ public partial class SubscriptionConfirmationViewModel(
 
         logger.LogDebug("Showing definition catalog {CatalogId} in subscription confirmation", selected.Id);
         ApplyCatalogSelection(selected.Catalog, selected.Url);
-        await ReassessSourceAsync(cancellationToken);
+        try
+        {
+            await ReassessSourceAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            ResetSourceChange();
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to re-check the source after selecting definition catalog {CatalogId}", selected.Id);
+            ShowSourceCheckFailed();
+        }
     }
 
     /// <summary>
@@ -761,8 +775,15 @@ public partial class SubscriptionConfirmationViewModel(
 
         if (restoreFailed)
         {
+            if (result is { Success: false })
+            {
+                logger.LogWarning("Replacing publisher {PublisherId} failed: {Errors}", publisherId, string.Join("; ", result.Errors));
+            }
+
             ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
-            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRestoreFailed", "The subscription was not changed, but the previous publisher key could not be restored.");
+            ErrorMessage = previous.Data != null
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRestoreFailed", "The subscription was not changed, but the previous publisher key could not be restored.")
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRemoveFailed", "The subscription was not changed, but the replacement publisher key could not be removed.");
             return null;
         }
 
@@ -806,15 +827,45 @@ public partial class SubscriptionConfirmationViewModel(
     {
         if (_parsedCatalog == null || !IsAlreadySubscribed)
         {
+            ResetSourceChange();
             return;
         }
 
+        var generation = ++_assessmentGeneration;
         var publisherId = ResolveEffectivePublisher(_parsedCatalog).Id;
         var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
-        if (existingResult is { Success: true, Data: { } existingSub })
+        if (generation != _assessmentGeneration)
         {
-            await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, cancellationToken);
+            return;
         }
+
+        if (!existingResult.Success)
+        {
+            logger.LogWarning("Failed to read the existing subscription for {PublisherId}: {Errors}", publisherId, string.Join("; ", existingResult.Errors));
+            ShowSourceCheckFailed();
+            return;
+        }
+
+        if (existingResult.Data is not { } existingSub)
+        {
+            ResetSourceChange();
+            return;
+        }
+
+        await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, cancellationToken);
+    }
+
+    private void ResetSourceChange()
+    {
+        _assessmentGeneration++;
+        SourceChange = PublisherSourceChange.None;
+    }
+
+    private void ShowSourceCheckFailed()
+    {
+        ResetSourceChange();
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+        ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.SourceCheckFailed", "GenHub could not compare this source with your existing subscription. It checks again when you save.");
     }
 
     private PublisherSubscription BuildSubscription(
@@ -878,6 +929,7 @@ public partial class SubscriptionConfirmationViewModel(
         string effectiveCatalogUrl,
         CancellationToken cancellationToken)
     {
+        var generation = ++_assessmentGeneration;
         var candidate = new PublisherSourceCandidate(publisherId, _resolvedDefinitionUrl, effectiveCatalogUrl, _resolvedDefinition);
         PublisherSourceAssessment assessment;
         if (identityService != null)
@@ -892,8 +944,12 @@ public partial class SubscriptionConfirmationViewModel(
             assessment = new PublisherSourceAssessment(change, null, null);
         }
 
-        _assessedPublisherId = publisherId;
-        SourceChange = assessment.Change;
+        if (generation == _assessmentGeneration)
+        {
+            _assessedPublisherId = publisherId;
+            SourceChange = assessment.Change;
+        }
+
         return assessment;
     }
 

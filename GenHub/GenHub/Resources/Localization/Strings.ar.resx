@@ -6711,6 +6711,12 @@
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.SourceCheckFailed" xml:space="preserve">
+    <value>تعذّر على GenHub مقارنة هذا المصدر باشتراكك الحالي. سيتحقق مجددًا عند الحفظ.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRemoveFailed" xml:space="preserve">
+    <value>لم يتغير الاشتراك، لكن تعذّرت إزالة مفتاح الناشر البديل.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
     <value>لم يتغير الاشتراك، لكن تعذّرت استعادة مفتاح الناشر السابق.</value>
   </data>

@@ -34,7 +34,7 @@ public interface IPublisherIdentityService
     /// Puts back a trusted key captured with <see cref="GetTrustedKeyAsync"/>, or removes the trusted key when none was captured.
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>
-    /// <param name="previous">The captured key, or null.</param>
+    /// <param name="previous">The captured key to save back. Null removes the trusted key, which restores a store that had no key.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The operation result.</returns>
     Task<OperationResult> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous, CancellationToken cancellationToken = default);

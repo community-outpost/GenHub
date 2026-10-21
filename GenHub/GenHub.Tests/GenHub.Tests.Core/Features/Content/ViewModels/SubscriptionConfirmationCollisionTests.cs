@@ -7,7 +7,6 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Tests.Core.Collections;
 using GenHub.Tests.Core.Services.Security;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -34,6 +33,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     private readonly Mock<IPublisherCatalogParser> _catalogParser = new();
     private readonly InMemoryPublisherKeyStore _keyStore = new();
     private readonly Mock<INotificationService> _notifications = new();
+    private readonly CapturingLogger<SubscriptionConfirmationViewModel> _logger = new();
     private readonly RSA _genuineKey = RSA.Create(2048);
     private readonly RSA _attackerKey = RSA.Create(2048);
     private PublisherSubscription? _added;
@@ -375,6 +375,123 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         await vm.ReplaceExistingCommand.ExecuteAsync(null);
 
         Assert.Contains("could not be restored", vm.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains(_logger.Entries, e => e.Contains("disk full", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// When no key was trusted before and the replacement key cannot be removed again, the message says so.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_RemoveFailsWithoutPreviousKey_ReportsRemoveFailureAsync()
+    {
+        _keyStore.RemainingWrites = 1;
+        SetExisting(ExistingSubscription());
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.Contains("could not be removed", vm.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A failing store read while re-checking a new catalog selection clears the stale decision and shows an error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_StoreThrows_ResetsDecisionAndShowsErrorAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("locked"));
+        await vm.SelectDefinitionCatalogAsync("main");
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+        Assert.True(vm.ShowActionError);
+    }
+
+    /// <summary>
+    /// A failed store read while re-checking clears the stale decision and shows an error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_StoreReadFails_ResetsDecisionAndShowsErrorAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateFailure("corrupt"));
+        await vm.SelectDefinitionCatalogAsync("main");
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+        Assert.True(vm.ShowActionError);
+    }
+
+    /// <summary>
+    /// When the subscription disappears before a re-check, the stale decision is cleared.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_SubscriptionRemoved_ResetsDecisionAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+        await vm.SelectDefinitionCatalogAsync("main");
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+    }
+
+    /// <summary>
+    /// A re-check that finishes after a newer one does not overwrite the newer result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_OutOfOrderChecks_KeepsNewestResultAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+
+        var slowRead = new TaskCompletionSource<OperationResult<PublisherSubscription?>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = new Queue<Task<OperationResult<PublisherSubscription?>>>(
+        [
+            slowRead.Task,
+            Task.FromResult(OperationResult<PublisherSubscription?>.CreateSuccess(CatalogDirectSubscription(NewCatalogUrl))),
+        ]);
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .Returns(() => reads.Dequeue());
+
+        var olderCheck = vm.SelectDefinitionCatalogAsync("maps");
+        await vm.SelectDefinitionCatalogAsync("main");
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+
+        slowRead.SetResult(OperationResult<PublisherSubscription?>.CreateSuccess(CatalogDirectSubscription(OldCatalogUrl)));
+        await olderCheck;
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
     }
 
     /// <summary>
@@ -395,9 +512,13 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         await first.InitializeAsync();
         await second.InitializeAsync();
 
+        // The mocked stores complete synchronously, so the first save runs until it waits on its update inside the lock,
+        // and the second runs until it waits on the lock. Without the lock the second would finish its update here.
         var firstSave = first.ReplaceExistingCommand.ExecuteAsync(null);
+        Assert.Equal(1, Volatile.Read(ref updateCalls));
+        Assert.False(firstSave.IsCompleted);
+
         var secondSave = second.ReplaceExistingCommand.ExecuteAsync(null);
-        await Task.Delay(100);
 
         Assert.Equal(1, Volatile.Read(ref updateCalls));
         Assert.False(secondSave.IsCompleted);
@@ -439,8 +560,12 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     public async Task ReplaceExisting_WhenNoDecisionNeeded_KeepsSettingsAndTrustAsync()
     {
         await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        var added = new DateTime(2025, 3, 4, 5, 6, 7, DateTimeKind.Utc);
         var existing = ExistingSubscription();
         existing.DefinitionUrl = NewDefinitionUrl;
+        existing.AutoUpdate = false;
+        existing.NotifyNewReleases = false;
+        existing.Added = added;
         SetExisting(existing);
         var vm = CreateViewModel(PublisherIdentityTestData.CreateDefinition(PublisherId, NewDefinitionUrl, NewCatalogUrl));
 
@@ -450,6 +575,9 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         Assert.NotNull(_updated);
         Assert.Equal(TrustLevel.Trusted, _updated.TrustLevel);
         Assert.Equal("old-hash", _updated.CachedCatalogHash);
+        Assert.False(_updated.AutoUpdate);
+        Assert.False(_updated.NotifyNewReleases);
+        Assert.Equal(added, _updated.Added);
         Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
     }
 
@@ -586,7 +714,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
             _subscriptionStore.Object,
             _catalogParser.Object,
             new HttpClient(new MappedHttpMessageHandler(responses)),
-            NullLogger<SubscriptionConfirmationViewModel>.Instance,
+            _logger,
             identityService: PublisherIdentityTestData.CreateService(_keyStore),
             notificationService: _notifications.Object);
     }

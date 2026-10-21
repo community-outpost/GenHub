@@ -6769,6 +6769,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Updated {0:yyyy-MM-dd}</value>
   </data>
+  <data name="Downloads.Subscription.ErrorMessage.SourceCheckFailed" xml:space="preserve">
+    <value>GenHub could not compare this source with your existing subscription. It checks again when you save.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRemoveFailed" xml:space="preserve">
+    <value>The subscription was not changed, but the replacement publisher key could not be removed.</value>
+  </data>
   <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
     <value>The subscription was not changed, but the previous publisher key could not be restored.</value>
   </data>
