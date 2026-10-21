@@ -6702,6 +6702,12 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>Обновить подписку</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>Подписка сохранена, но ключ издателя сохранить не удалось. Если этот издатель переедет, GenHub попросит вас подтвердить переезд.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>Ключ издателя не сохранён</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Обновлено {0:yyyy-MM-dd}</value>
   </data>

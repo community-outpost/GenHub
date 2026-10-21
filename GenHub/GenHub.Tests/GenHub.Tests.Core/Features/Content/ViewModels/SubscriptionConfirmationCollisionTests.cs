@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -32,6 +33,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     private readonly Mock<IPublisherSubscriptionStore> _subscriptionStore = new();
     private readonly Mock<IPublisherCatalogParser> _catalogParser = new();
     private readonly InMemoryPublisherKeyStore _keyStore = new();
+    private readonly Mock<INotificationService> _notifications = new();
     private readonly RSA _genuineKey = RSA.Create(2048);
     private readonly RSA _attackerKey = RSA.Create(2048);
     private PublisherSubscription? _added;
@@ -293,6 +295,185 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         Assert.Null(_added);
     }
 
+    /// <summary>
+    /// When the subscription update fails after Replace changed trust, the previous trusted key is put back.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_UpdateFails_RestoresPreviousTrustedKeyAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        SetExisting(ExistingSubscription());
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShowActionError);
+        Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
+    }
+
+    /// <summary>
+    /// When the subscription update throws after Replace trusted a new key, and no key was trusted before, the new key is removed again.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_UpdateThrows_RemovesNewlyTrustedKeyAsync()
+    {
+        SetExisting(ExistingSubscription());
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("locked"));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShowActionError);
+        Assert.Empty(_keyStore.Keys);
+    }
+
+    /// <summary>
+    /// A subscription that saves but whose key cannot be stored still closes, and warns the user.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Confirm_TrustWriteFails_SavesAndWarnsAsync()
+    {
+        SetExisting(null);
+        _keyStore.WriteFailure = "locked";
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _genuineKey, NewSignedAt));
+        bool? closed = null;
+        vm.RequestClose = r => closed = r;
+
+        await vm.InitializeAsync();
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.True(closed);
+        Assert.NotNull(_added);
+        _notifications.Verify(
+            n => n.ShowWarning("Publisher Key Not Saved", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A Replace click when the save-time check finds the same source updates normally and keeps the user's settings and trust.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_WhenNoDecisionNeeded_KeepsSettingsAndTrustAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        var existing = ExistingSubscription();
+        existing.DefinitionUrl = NewDefinitionUrl;
+        SetExisting(existing);
+        var vm = CreateViewModel(PublisherIdentityTestData.CreateDefinition(PublisherId, NewDefinitionUrl, NewCatalogUrl));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.NotNull(_updated);
+        Assert.Equal(TrustLevel.Trusted, _updated.TrustLevel);
+        Assert.Equal("old-hash", _updated.CachedCatalogHash);
+        Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
+    }
+
+    /// <summary>
+    /// Confirm and Replace cannot run at the same time.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Confirm_WhileSaving_DisablesConfirmAndReplaceAsync()
+    {
+        var existing = ExistingSubscription();
+        existing.DefinitionUrl = NewDefinitionUrl;
+        SetExisting(existing);
+        var release = new TaskCompletionSource<OperationResult<bool>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .Returns(release.Task);
+        var vm = CreateViewModel(PublisherIdentityTestData.CreateDefinition(PublisherId, NewDefinitionUrl, NewCatalogUrl));
+        await vm.InitializeAsync();
+
+        var confirm = vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsSaving);
+        Assert.False(vm.ConfirmCommand.CanExecute(null));
+        Assert.False(vm.ReplaceExistingCommand.CanExecute(null));
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+        release.SetResult(OperationResult<bool>.CreateSuccess(true));
+        await confirm;
+
+        _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.True(vm.ConfirmCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// A definition that lists the catalog of an existing catalog-direct subscription is the same source. It updates without a
+    /// prompt but is not attached, and its key is not trusted, so it cannot redirect the subscription later.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Confirm_DefinitionSharingCatalogDirectCatalog_UpdatesWithoutAttachingAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ConfirmCommand.ExecuteAsync(null);
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+        Assert.NotNull(_updated);
+        Assert.Null(_updated.DefinitionUrl);
+        Assert.Equal(NewCatalogUrl, _updated.CatalogUrl);
+        Assert.Equal(TrustLevel.Trusted, _updated.TrustLevel);
+        Assert.Empty(_keyStore.Keys);
+    }
+
+    /// <summary>
+    /// Selecting another definition catalog re-runs the collision check for a catalog-direct subscription.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_ChangesCatalog_ReassessesCollisionAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+
+        await vm.InitializeAsync();
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        await vm.SelectDefinitionCatalogAsync("main");
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+    }
+
+    private static PublisherSubscription CatalogDirectSubscription(string catalogUrl) =>
+        new()
+        {
+            PublisherId = PublisherId,
+            PublisherName = "Test Publisher",
+            CatalogUrl = catalogUrl,
+            TrustLevel = TrustLevel.Trusted,
+        };
+
+    private static PublisherDefinition TwoCatalogDefinition() =>
+        new()
+        {
+            Publisher = new PublisherProfile { Id = PublisherId, Name = "Test Publisher" },
+            Catalogs =
+            [
+                new CatalogEntry { Id = "main", Name = "Main", Url = NewCatalogUrl },
+                new CatalogEntry { Id = "maps", Name = "Maps", Url = OldCatalogUrl },
+            ],
+            DefinitionUrl = NewDefinitionUrl,
+        };
+
     private static PublisherSubscription ExistingSubscription(string? proofSignedAt = null) =>
         new()
         {
@@ -334,7 +515,8 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
             _catalogParser.Object,
             new HttpClient(new MappedHttpMessageHandler(responses)),
             NullLogger<SubscriptionConfirmationViewModel>.Instance,
-            identityService: PublisherIdentityTestData.CreateService(_keyStore));
+            identityService: PublisherIdentityTestData.CreateService(_keyStore),
+            notificationService: _notifications.Object);
     }
 
     private sealed class MappedHttpMessageHandler(Dictionary<string, string> responses) : HttpMessageHandler

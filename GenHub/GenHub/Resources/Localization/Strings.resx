@@ -6760,6 +6760,12 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>Update Subscription</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>The subscription was saved, but the publisher key could not be stored. If this publisher moves, GenHub will ask you to confirm the move.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>Publisher Key Not Saved</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Updated {0:yyyy-MM-dd}</value>
   </data>

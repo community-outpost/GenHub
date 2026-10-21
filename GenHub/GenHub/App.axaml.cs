@@ -278,7 +278,8 @@ public partial class App : Application
                 vmLogger,
                 definitionService,
                 _localizationService,
-                _serviceProvider.GetService<IPublisherIdentityService>());
+                _serviceProvider.GetService<IPublisherIdentityService>(),
+                _serviceProvider.GetService<INotificationService>());
 
             var confirmed = await ShowSubscriptionDialogAsync(confirmationVm, mainWindow);
             if (confirmed)

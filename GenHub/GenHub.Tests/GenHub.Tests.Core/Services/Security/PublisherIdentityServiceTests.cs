@@ -416,6 +416,45 @@ public sealed class PublisherIdentityServiceTests : IDisposable
         Assert.True(PublisherSourceComparer.IsDifferentSource(existing, new PublisherSourceCandidate(PublisherId, "https://example.com/publisher.json", "https://example.com/catalog.json", null)));
         Assert.False(PublisherSourceComparer.IsDifferentSource(existing, new PublisherSourceCandidate(PublisherId, null, "https://example.com/catalog.json", null)));
         Assert.True(PublisherSourceComparer.IsDifferentSource(existing, new PublisherSourceCandidate(PublisherId, null, "https://example.com/other.json", null)));
+        var catalogDirect = new PublisherSubscription { PublisherId = PublisherId, CatalogUrl = "https://example.com/catalog.json" };
+        Assert.False(PublisherSourceComparer.IsDifferentSource(catalogDirect, new PublisherSourceCandidate(PublisherId, "https://example.com/publisher.json", "https://example.com/catalog.json", null)));
+        Assert.True(PublisherSourceComparer.IsDifferentSource(catalogDirect, new PublisherSourceCandidate(PublisherId, "https://example.com/publisher.json", "https://example.com/other.json", null)));
+    }
+
+    /// <summary>
+    /// A definition sharing a catalog-direct subscription's catalog is the same source, but its key is not offered for trust.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task AssessAsync_DefinitionSharingCatalogDirectCatalog_ReturnsNoneWithoutKeyAsync()
+    {
+        var existing = new PublisherSubscription { PublisherId = PublisherId, CatalogUrl = CatalogUrl };
+        var definition = SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt);
+
+        var assessment = await CreateService().AssessAsync(existing, Candidate(NewDefinitionUrl, definition));
+
+        Assert.Equal(PublisherSourceChange.None, assessment.Change);
+        Assert.Null(assessment.ProvenKey);
+        Assert.Null(assessment.ProofSignedAt);
+    }
+
+    /// <summary>
+    /// Restoring trust puts back a captured key, or removes the key when none was captured.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RestoreTrustAsync_RestoresCapturedKeyOrRemovesAsync()
+    {
+        var service = CreateService();
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        var captured = await service.GetTrustedKeyAsync(PublisherId);
+        await _keyStore.SaveKeyAsync(TrustOf(_attackerKey));
+
+        Assert.True((await service.RestoreTrustAsync(PublisherId, captured.Data)).Success);
+        Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
+
+        Assert.True((await service.RestoreTrustAsync(PublisherId, null)).Success);
+        Assert.Empty(_keyStore.Keys);
     }
 
     private static PublisherSubscription Existing(string definitionUrl, string? proofSignedAt = null) =>

@@ -6702,6 +6702,12 @@
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>تحديث الاشتراك</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>حُفظ الاشتراك، لكن تعذّر تخزين مفتاح الناشر. إذا انتقل هذا الناشر، سيطلب منك GenHub تأكيد الانتقال.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>لم يُحفظ مفتاح الناشر</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
   </data>

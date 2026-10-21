@@ -23,6 +23,23 @@ public interface IPublisherIdentityService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the key currently trusted for a publisher, so a replace can be undone.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The trusted key, null when none is stored, or a failure when the store cannot be read.</returns>
+    Task<OperationResult<TrustedPublisherKey?>> GetTrustedKeyAsync(string publisherId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Puts back a trusted key captured with <see cref="GetTrustedKeyAsync"/>, or removes the trusted key when none was captured.
+    /// </summary>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="previous">The captured key, or null.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The operation result.</returns>
+    Task<OperationResult> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Updates the trusted key after a subscription was saved.
     /// </summary>
     /// <param name="publisherId">The publisher identifier.</param>

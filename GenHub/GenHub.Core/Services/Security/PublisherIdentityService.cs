@@ -67,6 +67,12 @@ public sealed class PublisherIdentityService(
         var trusted = await keyStore.GetKeyAsync(candidate.PublisherId, cancellationToken);
         if (!PublisherSourceComparer.IsDifferentSource(existing, candidate))
         {
+            if (string.IsNullOrWhiteSpace(existing.DefinitionUrl) && !string.IsNullOrWhiteSpace(candidate.DefinitionUrl))
+            {
+                // A definition that only shares the existing catalog URL does not prove it belongs to that publisher, so its key is not offered for trust.
+                return new PublisherSourceAssessment(PublisherSourceChange.None, null, null);
+            }
+
             return AssessSameSource(candidate.PublisherId, proven, trusted);
         }
 
@@ -93,6 +99,26 @@ public sealed class PublisherIdentityService(
 
         logger.LogWarning("New source for publisher {PublisherId} does not prove the trusted key", candidate.PublisherId);
         return new PublisherSourceAssessment(PublisherSourceChange.IdentityMismatch, proven?.Key, proven?.SignedAt);
+    }
+
+    /// <inheritdoc />
+    public Task<OperationResult<TrustedPublisherKey?>> GetTrustedKeyAsync(string publisherId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publisherId);
+        return keyStore.GetKeyAsync(publisherId, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publisherId);
+        if (previous is not null)
+        {
+            return await keyStore.SaveKeyAsync(previous, cancellationToken);
+        }
+
+        var removed = await keyStore.RemoveKeyAsync(publisherId, cancellationToken);
+        return removed.Success ? OperationResult.CreateSuccess() : OperationResult.CreateFailure(removed.Errors);
     }
 
     /// <inheritdoc />

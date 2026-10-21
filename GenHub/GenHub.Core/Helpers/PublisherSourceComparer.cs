@@ -10,7 +10,8 @@ public static class PublisherSourceComparer
 {
     /// <summary>
     /// Returns true when the candidate's source differs from the existing subscription's source.
-    /// A definition candidate compares definition URLs. A catalog-direct candidate compares catalog URLs.
+    /// A definition candidate compares definition URLs, or catalog URLs when the existing subscription
+    /// has no definition. A catalog-direct candidate compares catalog URLs.
     /// </summary>
     /// <param name="existing">The existing subscription.</param>
     /// <param name="candidate">The subscription candidate.</param>
@@ -20,7 +21,7 @@ public static class PublisherSourceComparer
         ArgumentNullException.ThrowIfNull(existing);
         ArgumentNullException.ThrowIfNull(candidate);
 
-        if (!string.IsNullOrWhiteSpace(candidate.DefinitionUrl))
+        if (!string.IsNullOrWhiteSpace(candidate.DefinitionUrl) && !string.IsNullOrWhiteSpace(existing.DefinitionUrl))
         {
             return !UrlsMatch(existing.DefinitionUrl, candidate.DefinitionUrl);
         }

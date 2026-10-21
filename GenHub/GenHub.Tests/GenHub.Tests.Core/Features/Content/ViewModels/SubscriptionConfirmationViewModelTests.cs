@@ -517,7 +517,7 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal(3, vm.ContentCount);
 
         // Act: switch to the second catalog
-        vm.SelectDefinitionCatalog("maps");
+        await vm.SelectDefinitionCatalogAsync("maps");
 
         // Assert: content reflects the selected catalog
         Assert.Equal(1, vm.ContentCount);
@@ -1607,12 +1607,12 @@ public sealed class SubscriptionConfirmationViewModelTests : IDisposable
         Assert.Equal("__catalog_1", keys[2]);
 
         // Act: selecting __catalog_1 selects catalog 3, not catalog 2
-        vm.SelectDefinitionCatalog("__catalog_1");
+        await vm.SelectDefinitionCatalogAsync("__catalog_1");
         Assert.Single(vm.ContentItems);
         Assert.Equal("cat3-item", vm.ContentItems[0].Id);
 
         // Act: selecting __catalog_2 selects catalog 2
-        vm.SelectDefinitionCatalog("__catalog_2");
+        await vm.SelectDefinitionCatalogAsync("__catalog_2");
         Assert.Single(vm.ContentItems);
         Assert.Equal("cat2-item", vm.ContentItems[0].Id);
     }
