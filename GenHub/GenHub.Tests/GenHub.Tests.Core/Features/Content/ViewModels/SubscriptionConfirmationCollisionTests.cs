@@ -443,6 +443,88 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     }
 
     /// <summary>
+    /// An older re-check that fails after a newer one finished does not clear the newer decision.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_OlderCheckFailsLate_KeepsNewerDecisionAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+
+        var slowRead = new TaskCompletionSource<OperationResult<PublisherSubscription?>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = new Queue<Task<OperationResult<PublisherSubscription?>>>(
+        [
+            slowRead.Task,
+            Task.FromResult(OperationResult<PublisherSubscription?>.CreateSuccess(CatalogDirectSubscription(OldCatalogUrl))),
+        ]);
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .Returns(() => reads.Dequeue());
+
+        var olderCheck = vm.SelectDefinitionCatalogAsync("maps");
+        await vm.SelectDefinitionCatalogAsync("main");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        slowRead.SetException(new IOException("locked"));
+        await olderCheck;
+
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+        Assert.Null(vm.ErrorMessage);
+    }
+
+    /// <summary>
+    /// A check still running from before a reload cannot write its result into the reloaded dialog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Initialize_Retried_InvalidatesOlderCheckAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+
+        var slowRead = new TaskCompletionSource<OperationResult<PublisherSubscription?>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .Returns(slowRead.Task);
+        var olderCheck = vm.SelectDefinitionCatalogAsync("maps");
+
+        _catalogParser
+            .Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateFailure("offline"));
+        await vm.InitializeAsync();
+
+        slowRead.SetResult(OperationResult<PublisherSubscription?>.CreateSuccess(CatalogDirectSubscription(NewCatalogUrl)));
+        await olderCheck;
+
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+    }
+
+    /// <summary>
+    /// When the update throws and the previous key cannot be restored, the rollback failure is reported and the update error logged.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ReplaceExisting_UpdateThrowsAndRestoreFails_ReportsRestoreFailureAsync()
+    {
+        await _keyStore.SaveKeyAsync(TrustOf(_genuineKey));
+        _keyStore.RemainingWrites = 1;
+        SetExisting(ExistingSubscription());
+        _subscriptionStore
+            .Setup(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("locked"));
+        var vm = CreateViewModel(SignedDefinition(NewDefinitionUrl, _attackerKey, NewSignedAt));
+
+        await vm.InitializeAsync();
+        await vm.ReplaceExistingCommand.ExecuteAsync(null);
+
+        Assert.Contains("could not be restored", vm.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains(_logger.Entries, e => e.Contains("locked", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// When the subscription disappears before a re-check, the stale decision is cleared.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>

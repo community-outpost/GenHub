@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Mail;
@@ -308,7 +309,7 @@ public partial class SubscriptionConfirmationViewModel(
             ErrorMessage = null;
             CanConfirm = false;
             IsAlreadySubscribed = false;
-            SourceChange = PublisherSourceChange.None;
+            ResetSourceChange();
 
             logger.LogInformation("Fetching catalog subscription");
             var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
@@ -385,20 +386,7 @@ public partial class SubscriptionConfirmationViewModel(
 
         logger.LogDebug("Showing definition catalog {CatalogId} in subscription confirmation", selected.Id);
         ApplyCatalogSelection(selected.Catalog, selected.Url);
-        try
-        {
-            await ReassessSourceAsync(cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            ResetSourceChange();
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to re-check the source after selecting definition catalog {CatalogId}", selected.Id);
-            ShowSourceCheckFailed();
-        }
+        await ReassessSourceAsync(cancellationToken);
     }
 
     /// <summary>
@@ -761,7 +749,7 @@ public partial class SubscriptionConfirmationViewModel(
         {
             if (await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
             {
-                result = await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+                result = await UpdateForReplacementAsync(subscription, cancellationToken);
                 committed = result.Success;
             }
         }
@@ -793,6 +781,19 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         return result;
+    }
+
+    private async Task<OperationResult<bool>> UpdateForReplacementAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogError(ex, "Failed to update subscription {PublisherId} while replacing it", subscription.PublisherId);
+            return OperationResult<bool>.CreateFailure(ex.Message);
+        }
     }
 
     private void ShowTrustUpdateFailed()
@@ -833,6 +834,31 @@ public partial class SubscriptionConfirmationViewModel(
 
         var generation = ++_assessmentGeneration;
         var publisherId = ResolveEffectivePublisher(_parsedCatalog).Id;
+        try
+        {
+            await ReassessSourceCoreAsync(generation, publisherId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (generation == _assessmentGeneration)
+            {
+                ResetSourceChange();
+            }
+
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogError(ex, "Failed to re-check the source for publisher {PublisherId}", publisherId);
+            if (generation == _assessmentGeneration)
+            {
+                ShowSourceCheckFailed();
+            }
+        }
+    }
+
+    private async Task ReassessSourceCoreAsync(int generation, string publisherId, CancellationToken cancellationToken)
+    {
         var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
         if (generation != _assessmentGeneration)
         {
