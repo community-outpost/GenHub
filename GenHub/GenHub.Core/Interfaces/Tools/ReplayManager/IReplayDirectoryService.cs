@@ -37,6 +37,16 @@ public interface IReplayDirectoryService
     Task<IReadOnlyList<ReplayFile>> GetReplaysAsync(GameType version, CancellationToken ct = default);
 
     /// <summary>
+    /// Sets the map availability of each replay by matching its map CRC and size against local maps.
+    /// A lookup failure leaves the availability unknown instead of failing.
+    /// </summary>
+    /// <param name="version">The game version the replays belong to.</param>
+    /// <param name="replays">The replays to resolve.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default);
+
+    /// <summary>
     /// Deletes the specified replay files (moves to Recycle Bin).
     /// </summary>
     /// <param name="replays">The replays to delete.</param>

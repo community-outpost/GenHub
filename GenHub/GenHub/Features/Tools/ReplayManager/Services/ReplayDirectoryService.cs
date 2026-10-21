@@ -236,9 +236,25 @@ public sealed class ReplayDirectoryService(
                 replayFiles.Add(replay);
             });
 
-        var orderedReplays = replayFiles.OrderByDescending(r => r.LastModified).ToList();
-        await ResolveMapAvailabilityAsync(version, orderedReplays, ct);
-        return orderedReplays.AsReadOnly();
+        return replayFiles.OrderByDescending(r => r.LastModified).ToList().AsReadOnly();
+    }
+
+    /// <inheritdoc />
+    public async Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default)
+    {
+        if (mapLookupService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to resolve replay map availability for {GameType}", version);
+        }
     }
 
     /// <inheritdoc />
@@ -3041,23 +3057,6 @@ public sealed class ReplayDirectoryService(
         {
             logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
             return (false, acquiredIds, existingProfiles);
-        }
-    }
-
-    private async Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct)
-    {
-        if (mapLookupService == null)
-        {
-            return;
-        }
-
-        try
-        {
-            await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Failed to resolve replay map availability for {GameType}", version);
         }
     }
 

@@ -1995,6 +1995,7 @@ public partial class ReplayManagerViewModel(
         try
         {
             var replays = await directoryService.GetReplaysAsync(SelectedTab);
+            await directoryService.ResolveMapAvailabilityAsync(SelectedTab, replays);
             await RevalidateSelectedRecoveryProfilesAsync(replays);
             await UpdateLoadedReplaysCollectionAsync(replays);
 

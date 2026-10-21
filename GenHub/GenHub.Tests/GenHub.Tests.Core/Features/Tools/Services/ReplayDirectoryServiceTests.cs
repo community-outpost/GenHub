@@ -5096,11 +5096,39 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetReplaysAsync passes the parsed replays to the map lookup so each replay reports its map availability.
+    /// Verifies that GetReplaysAsync lists replays without scanning maps, so callers that only need the list
+    /// (such as pinned manifest collection) do not read map archives.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetReplaysAsync_WithMapLookup_ResolvesMapAvailabilityAsync()
+    public async Task GetReplaysAsync_DoesNotScanMapsAsync()
+    {
+        var optionsDirectory = CreateReplayOptionsDirectoryWithReplay();
+        try
+        {
+            var mapLookup = new Mock<IReplayMapLookupService>();
+
+            var replays = await CreateServiceForReplayListing(optionsDirectory, mapLookup.Object).GetReplaysAsync(GameType.ZeroHour);
+
+            var replay = Assert.Single(replays);
+            Assert.Equal(0x6314F5FDu, replay.Metadata?.MapCrc);
+            Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
+            mapLookup.Verify(
+                m => m.ResolveMapAvailabilityAsync(It.IsAny<GameType>(), It.IsAny<IReadOnlyList<ReplayFile>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(optionsDirectory, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ResolveMapAvailabilityAsync passes the listed replays to the map lookup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_WithMapLookup_SetsMapAvailabilityAsync()
     {
         var optionsDirectory = CreateReplayOptionsDirectoryWithReplay();
         try
@@ -5116,12 +5144,12 @@ public sealed class ReplayDirectoryServiceTests
                     }
                 })
                 .Returns(Task.CompletedTask);
+            var service = CreateServiceForReplayListing(optionsDirectory, mapLookup.Object);
 
-            var replays = await CreateServiceForReplayListing(optionsDirectory, mapLookup.Object).GetReplaysAsync(GameType.ZeroHour);
+            var replays = await service.GetReplaysAsync(GameType.ZeroHour);
+            await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, replays);
 
-            var replay = Assert.Single(replays);
-            Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
-            Assert.Equal(0x6314F5FDu, replay.Metadata?.MapCrc);
+            Assert.Equal(ReplayMapAvailability.Available, Assert.Single(replays).MapAvailability);
         }
         finally
         {
@@ -5130,11 +5158,11 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that a failing map lookup does not hide the replay list and leaves the map availability unknown.
+    /// Verifies that a failing map lookup does not throw and leaves the map availability unknown.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetReplaysAsync_WhenMapLookupThrows_ReturnsReplaysWithUnknownMapAsync()
+    public async Task ResolveMapAvailabilityAsync_WhenMapLookupThrows_LeavesMapUnknownAsync()
     {
         var optionsDirectory = CreateReplayOptionsDirectoryWithReplay();
         try
@@ -5143,11 +5171,12 @@ public sealed class ReplayDirectoryServiceTests
             mapLookup
                 .Setup(m => m.ResolveMapAvailabilityAsync(It.IsAny<GameType>(), It.IsAny<IReadOnlyList<ReplayFile>>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new IOException("map scan failed"));
+            var service = CreateServiceForReplayListing(optionsDirectory, mapLookup.Object);
 
-            var replays = await CreateServiceForReplayListing(optionsDirectory, mapLookup.Object).GetReplaysAsync(GameType.ZeroHour);
+            var replays = await service.GetReplaysAsync(GameType.ZeroHour);
+            await service.ResolveMapAvailabilityAsync(GameType.ZeroHour, replays);
 
-            var replay = Assert.Single(replays);
-            Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
+            Assert.Equal(ReplayMapAvailability.Unknown, Assert.Single(replays).MapAvailability);
         }
         finally
         {

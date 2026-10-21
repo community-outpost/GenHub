@@ -211,6 +211,62 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         Assert.Equal(ReplayMapAvailability.NotFound, second.MapAvailability);
     }
 
+    /// <summary>
+    /// Verifies that a zero map CRC or size, which the engine writes when it has no map data, is treated as missing data.
+    /// </summary>
+    /// <param name="mapCrc">The replay map CRC.</param>
+    /// <param name="mapSize">The replay map size.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(0u, 2u)]
+    [InlineData(MapContentsCrc, 0u)]
+    public async Task ResolveMapAvailabilityAsync_ZeroMapCrcOrSize_ReportsUnknownAsync(uint mapCrc, uint mapSize)
+    {
+        WriteStockArchive(("Maps\\Stock Map\\Stock Map.map", MapContents));
+        var replay = CreateReplay(mapCrc, mapSize);
+
+        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+
+        Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
+    }
+
+    /// <summary>
+    /// Verifies that an unreadable archive in the installation leaves unmatched maps unknown instead of not found,
+    /// while maps found in readable sources are still reported as available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_UnreadableArchive_ReportsUnknownForUnmatchedMapAsync()
+    {
+        WriteStockArchive(("Maps\\Stock Map\\Stock Map.map", MapContents));
+        File.WriteAllText(Path.Combine(_installDirectory, "Corrupt.big"), "not a big archive");
+        var matched = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+        var unmatched = CreateReplay(0xDEADBEEF, 12345);
+
+        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [matched, unmatched]);
+
+        Assert.Equal(ReplayMapAvailability.Available, matched.MapAvailability);
+        Assert.Equal(ReplayMapAvailability.Unknown, unmatched.MapAvailability);
+    }
+
+    /// <summary>
+    /// Verifies that the matching map is found when several stock entries share its size and only one matches its CRC.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_SeveralSameSizeEntries_MatchesByCrcAsync()
+    {
+        WriteStockArchive(
+            ("Maps\\First\\First.map", OtherMapContents),
+            ("Maps\\Second\\Second.map", MapContents),
+            ("Art\\Textures\\Second.map", OtherMapContents));
+        var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+
+        await CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+
+        Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
+    }
+
     private static ReplayFile CreateReplay(uint mapCrc, uint? mapSize) => new()
     {
         FullPath = "/replays/test.rep",

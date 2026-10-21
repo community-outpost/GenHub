@@ -229,6 +229,9 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     }
 
     /// <inheritdoc/>
+    public Task ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default) => Task.CompletedTask;
+
+    /// <inheritdoc/>
     public void EnsureDirectoryExists(GameType version)
     {
     }

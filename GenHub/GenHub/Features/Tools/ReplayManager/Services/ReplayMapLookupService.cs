@@ -40,6 +40,8 @@ public sealed class ReplayMapLookupService(
 
         public int StockMapCount { get; set; }
 
+        public bool HadReadFailure { get; set; }
+
         public void Consider(uint crc, long size)
         {
             var reference = new MapReference(crc, (uint)size);
@@ -113,7 +115,7 @@ public sealed class ReplayMapLookupService(
 
     private static bool TryGetMapReference(ReplayFile replay, out MapReference reference)
     {
-        if (replay.Metadata is { MapCrc: { } crc, MapSize: { } size })
+        if (replay.Metadata is { MapCrc: { } crc and not 0, MapSize: { } size and not 0 })
         {
             reference = new MapReference(crc, size);
             return true;
@@ -132,24 +134,26 @@ public sealed class ReplayMapLookupService(
                entryPath.EndsWith(MapManagerConstants.MapFileExtension, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static uint ComputeFileCrc(string path)
+    private static uint ComputeCrc(string path, long offset, long length, CancellationToken cancellationToken)
     {
         var checksum = new LegacyChecksum();
         var buffer = new byte[ReadBufferSize];
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, ReadBufferSize);
-        int read;
-        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+        stream.Seek(offset, SeekOrigin.Begin);
+        var remaining = length;
+        while (remaining > 0)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+            if (read == 0)
+            {
+                throw new EndOfStreamException($"'{path}' ended before {length} bytes were read at offset {offset}.");
+            }
+
             checksum.Add(buffer.AsSpan(0, read));
+            remaining -= read;
         }
 
-        return checksum.Value;
-    }
-
-    private static uint ComputeEntryCrc(BigArchiveEntry entry)
-    {
-        var checksum = new LegacyChecksum();
-        checksum.Add(BigArchiveReader.ReadEntryData(entry));
         return checksum.Value;
     }
 
@@ -174,7 +178,7 @@ public sealed class ReplayMapLookupService(
             }
         }
 
-        return userScanned && scan.StockMapCount > 0;
+        return userScanned && scan.StockMapCount > 0 && !scan.HadReadFailure;
     }
 
     private bool ScanLooseMaps(MapScan scan, string directory, bool isStock, CancellationToken cancellationToken)
@@ -196,9 +200,13 @@ public sealed class ReplayMapLookupService(
                 }
 
                 var key = new MapSourceKey(info.FullName, 0, info.Length, info.LastWriteTimeUtc);
-                if (TryGetCrc(key, () => ComputeFileCrc(info.FullName), out var crc))
+                if (TryGetCrc(key, () => ComputeCrc(info.FullName, 0, info.Length, cancellationToken), out var crc))
                 {
                     scan.Consider(crc, info.Length);
+                }
+                else
+                {
+                    scan.HadReadFailure = true;
                 }
             }
 
@@ -207,6 +215,7 @@ public sealed class ReplayMapLookupService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Could not scan maps in {Directory} for replay map matching", directory);
+            scan.HadReadFailure = true;
             return false;
         }
     }
@@ -221,6 +230,7 @@ public sealed class ReplayMapLookupService(
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Could not list archives in {Directory} for replay map matching", root);
+            scan.HadReadFailure = true;
             return;
         }
 
@@ -229,6 +239,8 @@ public sealed class ReplayMapLookupService(
             cancellationToken.ThrowIfCancellationRequested();
             if (!BigArchiveReader.TryReadIndex(archivePath, out var entries))
             {
+                logger.LogDebug("Could not read the index of {Archive} for replay map matching", archivePath);
+                scan.HadReadFailure = true;
                 continue;
             }
 
@@ -240,6 +252,7 @@ public sealed class ReplayMapLookupService(
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 logger.LogDebug(ex, "Could not read the timestamp of {Archive}", archivePath);
+                scan.HadReadFailure = true;
                 continue;
             }
 
@@ -257,9 +270,13 @@ public sealed class ReplayMapLookupService(
                 }
 
                 var key = new MapSourceKey(archivePath, entry.Offset, entry.Size, archiveWriteUtc);
-                if (TryGetCrc(key, () => ComputeEntryCrc(entry), out var crc))
+                if (TryGetCrc(key, () => ComputeCrc(entry.ArchivePath, entry.Offset, entry.Size, cancellationToken), out var crc))
                 {
                     scan.Consider(crc, entry.Size);
+                }
+                else
+                {
+                    scan.HadReadFailure = true;
                 }
             }
         }
@@ -278,7 +295,7 @@ public sealed class ReplayMapLookupService(
             _crcCache[key] = crc;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogDebug(ex, "Could not compute the map CRC of {Path}", key.Path);
             crc = 0;
