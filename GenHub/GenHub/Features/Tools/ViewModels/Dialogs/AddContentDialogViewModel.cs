@@ -10,6 +10,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Infrastructure.Services;
 using System;
@@ -2225,51 +2226,37 @@ public partial class AddContentDialogViewModel(
 
     private string? FindCustomTabError()
     {
-        if (CustomTabs.Count > CustomTabConstants.MaxTabsPerScope)
+        var issue = CatalogTabValidator.Inspect([.. CustomTabs.Select(tab => tab.ToDefinition())]).FirstOrDefault();
+        if (issue == null)
         {
-            return string.Format(
+            return null;
+        }
+
+        var tabId = issue.TabId?.Trim() ?? string.Empty;
+        return issue.Kind switch
+        {
+            CustomTabIssueKind.TooManyTabs => string.Format(
                 GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.TooManyTabs", "A content item can have at most {0} custom tabs."),
-                CustomTabConstants.MaxTabsPerScope);
-        }
-
-        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var tab in CustomTabs)
-        {
-            var tabId = tab.TabId?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(tabId) || tabId.Length > CustomTabConstants.MaxTabIdLength)
-            {
-                return string.Format(
-                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidTabId", "Each custom tab needs an ID of 1 to {0} characters."),
-                    CustomTabConstants.MaxTabIdLength);
-            }
-
-            if (!seenIds.Add(tabId))
-            {
-                return string.Format(
-                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId", "Custom tab ID '{0}' is used more than once."),
-                    tabId);
-            }
-
-            var header = tab.Header?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(header) || header.Length > CustomTabConstants.MaxHeaderLength)
-            {
-                return string.Format(
-                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidHeader", "Custom tab '{0}' needs a header of 1 to {1} characters."),
-                    tabId,
-                    CustomTabConstants.MaxHeaderLength);
-            }
-
-            if (tab.Intro?.Trim().Length > CustomTabConstants.MaxIntroLength || tab.Body?.Length > CustomTabConstants.MaxBodyLength)
-            {
-                return string.Format(
-                    GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.ContentTooLong", "Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters."),
-                    tabId,
-                    CustomTabConstants.MaxIntroLength,
-                    CustomTabConstants.MaxBodyLength);
-            }
-        }
-
-        return null;
+                CustomTabConstants.MaxTabsPerScope),
+            CustomTabIssueKind.MissingTabId or CustomTabIssueKind.TabIdTooLong or CustomTabIssueKind.NullTab => string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidTabId", "Each custom tab needs an ID of 1 to {0} characters."),
+                CustomTabConstants.MaxTabIdLength),
+            CustomTabIssueKind.DuplicateTabId => string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId", "Custom tab ID '{0}' is used more than once."),
+                tabId),
+            CustomTabIssueKind.MissingHeader or CustomTabIssueKind.HeaderTooLong => string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidHeader", "Custom tab '{0}' needs a header of 1 to {1} characters."),
+                tabId,
+                CustomTabConstants.MaxHeaderLength),
+            CustomTabIssueKind.IntroTooLong or CustomTabIssueKind.BodyTooLong => string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.ContentTooLong", "Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters."),
+                tabId,
+                CustomTabConstants.MaxIntroLength,
+                CustomTabConstants.MaxBodyLength),
+            _ => string.Format(
+                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidCards", "Custom tab '{0}' has cards that break the catalog rules. Fix them in the catalog file."),
+                tabId),
+        };
     }
 
     private string? NormalizeArtworkValue(string? value)

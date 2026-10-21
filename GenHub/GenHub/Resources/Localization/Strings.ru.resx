@@ -13593,6 +13593,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
     <value>ID пользовательской вкладки '{0}' используется несколько раз.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>У пользовательской вкладки '{0}' есть карточки, нарушающие правила каталога. Исправьте их в файле каталога.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Пользовательской вкладке '{0}' нужен заголовок длиной от 1 до {1} символов.</value>
   </data>

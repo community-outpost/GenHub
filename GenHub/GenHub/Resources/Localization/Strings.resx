@@ -13654,6 +13654,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
     <value>Custom tab ID '{0}' is used more than once.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>Custom tab '{0}' has cards that break the catalog rules. Fix them in the catalog file.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>
   </data>

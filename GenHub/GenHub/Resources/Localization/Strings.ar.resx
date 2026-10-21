@@ -13593,6 +13593,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
     <value>معرّف علامة التبويب المخصصة '{0}' مستخدم أكثر من مرة.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقات تخالف قواعد الكتالوج. أصلحها في ملف الكتالوج.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>
   </data>

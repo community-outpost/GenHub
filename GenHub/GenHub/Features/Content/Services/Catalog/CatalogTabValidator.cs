@@ -44,15 +44,25 @@ public static class CatalogTabValidator
     public static void Validate(string scope, IReadOnlyList<CatalogTabDefinition>? tabs, List<string> errors)
     {
         ArgumentNullException.ThrowIfNull(errors);
+        errors.AddRange(Inspect(tabs).Select(issue => Describe(scope, issue)));
+    }
 
+    /// <summary>
+    /// Finds every rule broken by one scope of custom tabs.
+    /// </summary>
+    /// <param name="tabs">The tabs declared in the scope.</param>
+    /// <returns>The issues in declaration order.</returns>
+    public static IReadOnlyList<CustomTabIssue> Inspect(IReadOnlyList<CatalogTabDefinition>? tabs)
+    {
+        var issues = new List<CustomTabIssue>();
         if (tabs == null || tabs.Count == 0)
         {
-            return;
+            return issues;
         }
 
         if (tabs.Count > CustomTabConstants.MaxTabsPerScope)
         {
-            errors.Add($"{scope} declares {tabs.Count} custom tabs. The maximum is {CustomTabConstants.MaxTabsPerScope}.");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.TooManyTabs, -1, Count: tabs.Count));
         }
 
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -61,12 +71,14 @@ public static class CatalogTabValidator
             var tab = tabs[i];
             if (tab == null)
             {
-                errors.Add($"{scope} custom tab {i} is null");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.NullTab, i));
                 continue;
             }
 
-            ValidateTab(scope, tab, i, seenIds, errors);
+            InspectTab(tab, i, seenIds, issues);
         }
+
+        return issues;
     }
 
     /// <summary>
@@ -81,55 +93,50 @@ public static class CatalogTabValidator
              uri.Scheme.Equals(CustomTabConstants.AvaloniaResourceScheme, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static void ValidateTab(
-        string scope,
-        CatalogTabDefinition tab,
-        int index,
-        HashSet<string> seenIds,
-        List<string> errors)
+    private static void InspectTab(CatalogTabDefinition tab, int index, HashSet<string> seenIds, List<CustomTabIssue> issues)
     {
-        var tabLabel = string.IsNullOrWhiteSpace(tab.TabId) ? $"custom tab {index}" : $"custom tab '{tab.TabId}'";
+        var tabId = string.IsNullOrWhiteSpace(tab.TabId) ? null : tab.TabId;
 
-        if (string.IsNullOrWhiteSpace(tab.TabId))
+        if (tabId == null)
         {
-            errors.Add($"{scope} {tabLabel} is missing tabId");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.MissingTabId, index));
         }
-        else if (tab.TabId.Length > CustomTabConstants.MaxTabIdLength)
+        else if (tabId.Length > CustomTabConstants.MaxTabIdLength)
         {
-            errors.Add($"{scope} {tabLabel} has a tabId longer than {CustomTabConstants.MaxTabIdLength} characters");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.TabIdTooLong, index, tabId));
         }
-        else if (!seenIds.Add(tab.TabId.Trim()))
+        else if (!seenIds.Add(tabId.Trim()))
         {
-            errors.Add($"{scope} declares duplicate custom tab ID '{tab.TabId}'");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.DuplicateTabId, index, tabId));
         }
 
         if (string.IsNullOrWhiteSpace(tab.Header))
         {
-            errors.Add($"{scope} {tabLabel} is missing header");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.MissingHeader, index, tabId));
         }
         else if (tab.Header.Length > CustomTabConstants.MaxHeaderLength)
         {
-            errors.Add($"{scope} {tabLabel} has a header longer than {CustomTabConstants.MaxHeaderLength} characters");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.HeaderTooLong, index, tabId));
         }
 
         if (tab.Intro?.Length > CustomTabConstants.MaxIntroLength)
         {
-            errors.Add($"{scope} {tabLabel} has an intro longer than {CustomTabConstants.MaxIntroLength} characters");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.IntroTooLong, index, tabId));
         }
 
         if (tab.Body?.Length > CustomTabConstants.MaxBodyLength)
         {
-            errors.Add($"{scope} {tabLabel} has a body longer than {CustomTabConstants.MaxBodyLength} characters");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.BodyTooLong, index, tabId));
         }
 
-        ValidateCards(scope, tabLabel, tab.Cards, errors);
+        InspectCards(tab.Cards, index, tabId, issues);
     }
 
-    private static void ValidateCards(
-        string scope,
-        string tabLabel,
+    private static void InspectCards(
         IReadOnlyList<CatalogTabCardDefinition>? cards,
-        List<string> errors)
+        int tabIndex,
+        string? tabId,
+        List<CustomTabIssue> issues)
     {
         if (cards == null)
         {
@@ -138,36 +145,62 @@ public static class CatalogTabValidator
 
         if (cards.Count > CustomTabConstants.MaxCardsPerTab)
         {
-            errors.Add($"{scope} {tabLabel} declares {cards.Count} cards. The maximum is {CustomTabConstants.MaxCardsPerTab}.");
+            issues.Add(new CustomTabIssue(CustomTabIssueKind.TooManyCards, tabIndex, tabId, Count: cards.Count));
         }
 
-        foreach (var (card, cardIndex) in cards.Select((card, cardIndex) => (card, cardIndex)))
+        for (var cardIndex = 0; cardIndex < cards.Count; cardIndex++)
         {
+            var card = cards[cardIndex];
             if (card == null)
             {
-                errors.Add($"{scope} {tabLabel} card {cardIndex} is null");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.NullCard, tabIndex, tabId, cardIndex));
                 continue;
             }
 
             if (string.IsNullOrWhiteSpace(card.Title))
             {
-                errors.Add($"{scope} {tabLabel} card {cardIndex} is missing title");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.CardMissingTitle, tabIndex, tabId, cardIndex));
             }
 
             if (card.Title?.Length > CustomTabConstants.MaxCardTitleLength || card.Label?.Length > CustomTabConstants.MaxCardTitleLength)
             {
-                errors.Add($"{scope} {tabLabel} card {cardIndex} has a title or label longer than {CustomTabConstants.MaxCardTitleLength} characters");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.CardTitleTooLong, tabIndex, tabId, cardIndex));
             }
 
             if (card.Description?.Length > CustomTabConstants.MaxCardDescriptionLength)
             {
-                errors.Add($"{scope} {tabLabel} card {cardIndex} has a description longer than {CustomTabConstants.MaxCardDescriptionLength} characters");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.CardDescriptionTooLong, tabIndex, tabId, cardIndex));
             }
 
             if (!string.IsNullOrWhiteSpace(card.ImageUrl) && !IsAllowedImageUrl(card.ImageUrl))
             {
-                errors.Add($"{scope} {tabLabel} card {cardIndex} has invalid image URL '{card.ImageUrl}'. Card images must use HTTPS or a bundled avares resource.");
+                issues.Add(new CustomTabIssue(CustomTabIssueKind.InvalidCardImageUrl, tabIndex, tabId, cardIndex, ImageUrl: card.ImageUrl));
             }
         }
+    }
+
+    private static string Describe(string scope, CustomTabIssue issue)
+    {
+        var tab = issue.TabId == null ? $"custom tab {issue.TabIndex}" : $"custom tab '{issue.TabId}'";
+        var card = $"{scope} {tab} card {issue.CardIndex}";
+        return issue.Kind switch
+        {
+            CustomTabIssueKind.TooManyTabs => $"{scope} declares {issue.Count} custom tabs. The maximum is {CustomTabConstants.MaxTabsPerScope}.",
+            CustomTabIssueKind.NullTab => $"{scope} custom tab {issue.TabIndex} is null",
+            CustomTabIssueKind.MissingTabId => $"{scope} {tab} is missing tabId",
+            CustomTabIssueKind.TabIdTooLong => $"{scope} {tab} has a tabId longer than {CustomTabConstants.MaxTabIdLength} characters",
+            CustomTabIssueKind.DuplicateTabId => $"{scope} declares duplicate custom tab ID '{issue.TabId}'",
+            CustomTabIssueKind.MissingHeader => $"{scope} {tab} is missing header",
+            CustomTabIssueKind.HeaderTooLong => $"{scope} {tab} has a header longer than {CustomTabConstants.MaxHeaderLength} characters",
+            CustomTabIssueKind.IntroTooLong => $"{scope} {tab} has an intro longer than {CustomTabConstants.MaxIntroLength} characters",
+            CustomTabIssueKind.BodyTooLong => $"{scope} {tab} has a body longer than {CustomTabConstants.MaxBodyLength} characters",
+            CustomTabIssueKind.TooManyCards => $"{scope} {tab} declares {issue.Count} cards. The maximum is {CustomTabConstants.MaxCardsPerTab}.",
+            CustomTabIssueKind.NullCard => $"{card} is null",
+            CustomTabIssueKind.CardMissingTitle => $"{card} is missing title",
+            CustomTabIssueKind.CardTitleTooLong => $"{card} has a title or label longer than {CustomTabConstants.MaxCardTitleLength} characters",
+            CustomTabIssueKind.CardDescriptionTooLong => $"{card} has a description longer than {CustomTabConstants.MaxCardDescriptionLength} characters",
+            CustomTabIssueKind.InvalidCardImageUrl => $"{card} has invalid image URL '{issue.ImageUrl}'. Card images must use HTTPS or a bundled avares resource.",
+            _ => $"{scope} {tab} is invalid",
+        };
     }
 }
