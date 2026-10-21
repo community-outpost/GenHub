@@ -185,6 +185,32 @@ public sealed class ContentDetailCustomTabsTests
         Assert.Equal(0, viewModel.SelectedTabIndex);
     }
 
+    /// <summary>
+    /// A failed tab load for the current item drops the pending tab ID, so a later item does not restore it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FailedLoadWhilePending_DoesNotRestoreTabOnLaterItemAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", Tab("a-notes"), Tab("shared"));
+        using var viewModel = CreateViewModel(registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        viewModel.SelectedTabIndex = ContentDetailViewModel.BuiltInTabCount + 1;
+
+        registry.Pending("mod-b").SetException(new InvalidOperationException("registry failure"));
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = VariantBManifestId, Name = "Mod B" };
+        await viewModel.WaitForInitializationAsync();
+
+        registry.Complete("mod-a", Tab("shared"));
+        viewModel.SelectedVariant = new InstallableVariant { ManifestId = ItemAManifestId, Name = "Mod A" };
+        await viewModel.WaitForInitializationAsync();
+
+        Assert.Equal(["shared"], viewModel.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(0, viewModel.SelectedTabIndex);
+    }
+
     private static CustomTabDefinition Tab(string tabId) => new() { TabId = tabId, Header = tabId };
 
     private static ContentDetailViewModel CreateViewModel(ITabProviderRegistry registry)
