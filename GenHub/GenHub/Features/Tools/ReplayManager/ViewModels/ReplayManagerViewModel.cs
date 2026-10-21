@@ -545,6 +545,16 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
+    /// Waits until no replay load holds the reload lock. After disposal this means every load has stopped.
+    /// </summary>
+    /// <returns>A task that completes when the running load, if any, has finished.</returns>
+    internal async Task WhenLoadsIdleAsync()
+    {
+        await _reloadLock.WaitAsync();
+        _reloadLock.Release();
+    }
+
+    /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
     /// </summary>
     /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
@@ -650,34 +660,45 @@ public partial class ReplayManagerViewModel(
             }
 
             // Verify file existence for each item asynchronously
-            _ = Task.Run(async () =>
-            {
-                using var httpClient = new System.Net.Http.HttpClient
+            var dispatcher = Dispatcher.UIThread;
+            var disposeToken = _loadCancellation.DisposeToken;
+            _ = Task.Run(
+                async () =>
                 {
-                    Timeout = TimeSpan.FromSeconds(5),
-                };
+                    using var httpClient = new System.Net.Http.HttpClient
+                    {
+                        Timeout = TimeSpan.FromSeconds(5),
+                    };
 
-                foreach (var vm in viewModels)
-                {
-                    bool exists = false;
-                    try
+                    foreach (var vm in viewModels)
                     {
-                        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
-                        using var response = await httpClient.SendAsync(request);
-                        exists = response.IsSuccessStatusCode;
-                    }
-                    catch
-                    {
-                        exists = false;
-                    }
+                        bool exists = false;
+                        try
+                        {
+                            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
+                            using var response = await httpClient.SendAsync(request, disposeToken);
+                            exists = response.IsSuccessStatusCode;
+                        }
+                        catch
+                        {
+                            exists = false;
+                        }
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        vm.FileExists = exists;
-                        vm.IsVerified = true;
-                    });
-                }
-            });
+                        if (disposeToken.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
+                        void MarkVerified()
+                        {
+                            vm.FileExists = exists;
+                            vm.IsVerified = true;
+                        }
+
+                        await dispatcher.InvokeAsync(MarkVerified, DispatcherPriority.Default, disposeToken);
+                    }
+                },
+                disposeToken);
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
@@ -2795,6 +2816,11 @@ public partial class ReplayManagerViewModel(
 
         Dispatcher.UIThread.Post(async () =>
         {
+            if (_loadCancellation.IsDisposed)
+            {
+                return;
+            }
+
             onUiThread?.Invoke();
             try
             {

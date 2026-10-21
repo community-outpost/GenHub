@@ -235,9 +235,13 @@ public sealed class GenHubInfoSectionViewTests
 
     private static async Task DisposeAndDrainAsync(GenHubInfoSectionViewModel vm)
     {
-        var replayMapScan = vm.DemoReplayManager?.MapAvailabilityScan ?? Task.CompletedTask;
+        var demoReplayManager = vm.DemoReplayManager;
         vm.Dispose();
-        await replayMapScan.WaitAsync(TimeSpan.FromSeconds(10));
+        if (demoReplayManager != null)
+        {
+            await demoReplayManager.WhenLoadsIdleAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            await demoReplayManager.MapAvailabilityScan.WaitAsync(TimeSpan.FromSeconds(10));
+        }
     }
 
     private static async Task<GenHubInfoSectionViewModel> CreateInitializedViewModelAsync()

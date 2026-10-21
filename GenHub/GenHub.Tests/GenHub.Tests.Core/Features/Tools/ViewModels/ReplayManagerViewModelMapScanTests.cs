@@ -19,7 +19,7 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// <summary>
 /// Tests that the Replay Manager shows replays before the map availability scan finishes and cancels stale scans.
 /// </summary>
-public sealed class ReplayManagerViewModelMapScanTests : IDisposable
+public sealed class ReplayManagerViewModelMapScanTests : IAsyncLifetime
 {
     private static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(10);
 
@@ -57,7 +57,10 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose() => _viewModel.Dispose();
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    /// <inheritdoc />
+    public Task DisposeAsync() => DisposeAndDrainAsync();
 
     /// <summary>
     /// Verifies that the replay list is shown while the map scan is still running, and that the map availability
@@ -81,7 +84,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
 
         Assert.Equal(ReplayMapAvailability.Available, replay.MapAvailability);
         Assert.Contains(nameof(ReplayFile.MapAvailability), changed);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -106,7 +108,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         await _viewModel.MapAvailabilityScan;
 
         Assert.Equal(ReplayMapAvailability.NotFound, Assert.Single(_viewModel.CurrentReplays).MapAvailability);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -124,7 +125,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         Assert.True(Assert.Single(_scans).Token.IsCancellationRequested);
         await scan.WaitAsync(LoadTimeout);
         Assert.Equal(ReplayMapAvailability.Unknown, Assert.Single(_viewModel.CurrentReplays).MapAvailability);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -148,7 +148,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         Assert.Equal(2, listings);
         Assert.Equal("new.rep", Assert.Single(_viewModel.CurrentReplays).FileName);
         Assert.Single(_scans);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -176,7 +175,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
 
         Assert.Equal(1, listings);
         Assert.Empty(_scans);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -197,7 +195,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         Assert.NotSame(firstScan, _viewModel.MapAvailabilityScan);
         Assert.True(_viewModel.MapAvailabilityScan.IsCompleted);
         await firstScan.WaitAsync(LoadTimeout);
-        await DisposeAndDrainAsync();
     }
 
     /// <summary>
@@ -221,7 +218,6 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
         await scan.WaitAsync(LoadTimeout);
 
         Assert.Equal(ReplayMapAvailability.Unknown, replay.MapAvailability);
-        await DisposeAndDrainAsync();
     }
 
     private static ReplayFile CreateReplay(string fileName = "match.rep") => new()
@@ -237,7 +233,11 @@ public sealed class ReplayManagerViewModelMapScanTests : IDisposable
     private async Task DisposeAndDrainAsync()
     {
         _viewModel.Dispose();
+        await _viewModel.WhenLoadsIdleAsync().WaitAsync(LoadTimeout);
         await _viewModel.MapAvailabilityScan.WaitAsync(LoadTimeout);
-        Assert.All(_scans, scan => Assert.True(scan.Result.Task.IsCompleted));
+        foreach (var scan in _scans)
+        {
+            await Task.WhenAny(scan.Result.Task).WaitAsync(LoadTimeout);
+        }
     }
 }
