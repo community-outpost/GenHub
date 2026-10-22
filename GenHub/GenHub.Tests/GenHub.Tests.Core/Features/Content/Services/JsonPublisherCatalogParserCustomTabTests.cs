@@ -226,7 +226,7 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     /// <param name="issue">The tab content issue to introduce.</param>
     [Theory]
     [InlineData("missing-header")]
-    [InlineData("missing-id")]
+    [InlineData("missing-id-and-header")]
     [InlineData("long-header")]
     [InlineData("long-intro")]
     [InlineData("long-body")]
@@ -238,8 +238,9 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
             case "missing-header":
                 bad.Header = " ";
                 break;
-            case "missing-id":
+            case "missing-id-and-header":
                 bad.TabId = string.Empty;
+                bad.Header = string.Empty;
                 break;
             case "long-header":
                 bad.Header = new string('h', CustomTabConstants.MaxHeaderLength + 1);
@@ -261,7 +262,38 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
         Assert.Equal("good", Assert.Single(Assert.Single(catalog.Content).CustomTabs).TabId);
-        Assert.Single(logger.Warnings, w => w.Contains("Dropped publisher tab content"));
+        Assert.Contains(logger.Warnings, w => w.Contains("Dropped publisher tab content"));
+    }
+
+    /// <summary>
+    /// A tab without an ID gets one generated from its header, unique within the scope.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_TabWithoutId_GetsIdFromHeaderAsync()
+    {
+        const string json = """
+            {
+              "$schemaVersion": 1,
+              "publisher": { "id": "tabs-pub", "name": "Tabs Publisher" },
+              "content": [
+                {
+                  "id": "mod-a",
+                  "name": "Mod A",
+                  "releases": [ { "version": "1.0.0", "artifacts": [ { "filename": "a.zip", "downloadUrl": "https://example.com/a.zip" } ] } ],
+                  "customTabs": [
+                    { "tabId": "how-to-play", "header": "Rules" },
+                    { "header": "How to Play" }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var result = await _parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal(["how-to-play", "how-to-play-2"], Assert.Single(result.Data!.Content).CustomTabs.Select(t => t.TabId));
     }
 
     /// <summary>
