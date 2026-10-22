@@ -4846,6 +4846,12 @@ Would you like to update and replace it in the profile as part of this bundle in
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>Publisher</value>
   </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>Image could not be loaded. Open the link:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>Open the image link in your browser</value>
+  </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Content provided by third-party publishers. GenHub does not guarantee compatibility.</value>
   </data>
@@ -13659,6 +13665,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
     <value>Custom tab '{0}' has cards that break the catalog rules. Fix them in the catalog file.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>Discord attachment links expire after about a day and then stop loading. Host the image somewhere permanent.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>

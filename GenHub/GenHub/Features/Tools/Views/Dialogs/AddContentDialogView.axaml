@@ -616,6 +616,11 @@
                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.BodyHint}" Classes="hint" TextWrapping="Wrap"/>
                                                 <TextBox Text="{Binding Body}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="120" FontFamily="Consolas,Menlo,monospace"/>
                                             </StackPanel>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks}"
+                                                       Foreground="{DynamicResource WarningBrush}"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding HasExpiringImageLinks}"/>
                                             <TextBlock Text="{Binding CardCount, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.PublisherStudio.Content.CustomTabs.CardCountFormat'}"
                                                        Classes="hint"
                                                        IsVisible="{Binding CardCount}"/>

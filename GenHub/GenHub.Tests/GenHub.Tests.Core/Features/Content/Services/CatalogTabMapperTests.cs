@@ -21,6 +21,7 @@ public sealed class CatalogTabMapperTests
     [InlineData("file:///etc/passwd", null)]
     [InlineData("/Users/someone/secret.png", null)]
     [InlineData("relative/card.png", null)]
+    [InlineData("https://drive.google.com/file/d/18onwpszLRsc62P92f7biat6ORbXtL7u4/view?usp=sharing", "https://drive.usercontent.google.com/download?id=18onwpszLRsc62P92f7biat6ORbXtL7u4&export=view")]
     [InlineData("http://example.com/card.png", null)]
     public void Map_CardImageUrl_KeepsOnlyAllowedSchemes(string imageUrl, string? expected)
     {

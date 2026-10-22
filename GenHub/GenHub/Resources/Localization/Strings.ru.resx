@@ -4846,6 +4846,12 @@
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>Издатель</value>
   </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>Не удалось загрузить изображение. Откройте ссылку:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>Открыть ссылку на изображение в браузере</value>
+  </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Контент предоставлен сторонними издателями. GenHub не гарантирует совместимость.</value>
   </data>
@@ -13598,6 +13604,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
     <value>У пользовательской вкладки '{0}' есть карточки, нарушающие правила каталога. Исправьте их в файле каталога.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>Ссылки на вложения Discord истекают примерно через сутки и перестают загружаться. Разместите изображение на постоянном хостинге.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Пользовательской вкладке '{0}' нужен заголовок длиной от 1 до {1} символов.</value>

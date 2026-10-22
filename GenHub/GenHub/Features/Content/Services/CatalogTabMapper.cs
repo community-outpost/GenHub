@@ -60,7 +60,7 @@ public static class CatalogTabMapper
                 {
                     Title = card.Title,
                     Description = card.Description,
-                    ImageUrl = !string.IsNullOrWhiteSpace(card.ImageUrl) && CatalogTabValidator.IsAllowedImageUrl(card.ImageUrl) ? card.ImageUrl : null,
+                    ImageUrl = ToRuntimeImageUrl(card.ImageUrl),
                     Label = card.Label,
                     AccentColor = card.AccentColor,
                 })
@@ -69,5 +69,11 @@ public static class CatalogTabMapper
             IsVisible = catalogTab.IsVisible,
             LazyLoad = catalogTab.LazyLoad,
         };
+    }
+
+    private static string? ToRuntimeImageUrl(string? imageUrl)
+    {
+        var normalized = PublisherImageUrl.Normalize(imageUrl);
+        return !string.IsNullOrWhiteSpace(normalized) && CatalogTabValidator.IsAllowedImageUrl(normalized) ? normalized : null;
     }
 }

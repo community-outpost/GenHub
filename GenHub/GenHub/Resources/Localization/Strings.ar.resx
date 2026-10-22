@@ -4846,6 +4846,12 @@
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>الناشر</value>
   </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>تعذّر تحميل الصورة. افتح الرابط:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>افتح رابط الصورة في المتصفح</value>
+  </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>المحتوى مقدم من ناشرين خارجيين. GenHub لا يضمن التوافق.</value>
   </data>
@@ -13598,6 +13604,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
     <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقات تخالف قواعد الكتالوج. أصلحها في ملف الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>تنتهي صلاحية روابط مرفقات Discord بعد يوم تقريبًا ثم تتوقف عن التحميل. استضف الصورة في مكان دائم.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>

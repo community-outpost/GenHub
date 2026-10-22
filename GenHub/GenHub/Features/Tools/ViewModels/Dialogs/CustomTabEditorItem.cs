@@ -5,7 +5,9 @@ using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Features.Tools.ViewModels.Dialogs;
 
@@ -33,6 +35,7 @@ public partial class CustomTabEditorItem : ObservableObject
     private string? _intro;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasExpiringImageLinks))]
     private string? _body;
 
     [ObservableProperty]
@@ -66,6 +69,14 @@ public partial class CustomTabEditorItem : ObservableObject
     public int CardCount => _source.Cards?.Count ?? 0;
 
     /// <summary>
+    /// Gets a value indicating whether a card image or a link in the body is a signed Discord attachment
+    /// link, which stops working when Discord's signature expires.
+    /// </summary>
+    public bool HasExpiringImageLinks =>
+        (_source.Cards?.Any(card => PublisherImageUrl.IsExpiringDiscordAttachment(card?.ImageUrl)) ?? false) ||
+        (!string.IsNullOrEmpty(Body) && UrlRegex().Matches(Body).Any(match => PublisherImageUrl.IsExpiringDiscordAttachment(match.Value)));
+
+    /// <summary>
     /// Gets the runtime tab definition rendered by the live preview, or null while the preview is hidden.
     /// </summary>
     public CustomTabDefinition? Preview => IsPreviewVisible ? CatalogTabMapper.Map(ToDefinition()) : null;
@@ -96,6 +107,9 @@ public partial class CustomTabEditorItem : ObservableObject
             base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(Preview)));
         }
     }
+
+    [GeneratedRegex(@"https?://[^\s)\]""'<>]+")]
+    private static partial Regex UrlRegex();
 
     private static CatalogTabDefinition Clone(CatalogTabDefinition source)
     {

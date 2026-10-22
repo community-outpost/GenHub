@@ -163,6 +163,28 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
+    /// A tab whose card image or body links to a signed Discord attachment warns that the link will expire.
+    /// </summary>
+    [Fact]
+    public void CustomTabEditorItem_DiscordAttachmentLinks_Warn()
+    {
+        const string discord = "https://cdn.discordapp.com/attachments/1/2/card.png?ex=6720b1c3&is=671f6043&hm=abcdef";
+        var cardTab = new CustomTabEditorItem(new CatalogTabDefinition
+        {
+            TabId = "gallery",
+            Header = "Gallery",
+            Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = discord }],
+        });
+        var plainTab = new CustomTabEditorItem(new CatalogTabDefinition { TabId = "notes", Header = "Notes", Body = "![shot](https://example.com/shot.png)" });
+
+        Assert.True(cardTab.HasExpiringImageLinks);
+        Assert.False(plainTab.HasExpiringImageLinks);
+
+        plainTab.Body = $"![shot]({discord})";
+        Assert.True(plainTab.HasExpiringImageLinks);
+    }
+
+    /// <summary>
     /// The content dialog applies the shared catalog tab rules, including card rules for cards kept from the catalog file.
     /// </summary>
     [Fact]
