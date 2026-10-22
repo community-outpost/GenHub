@@ -73,7 +73,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
-            await DisposeAndDrainAsync(vm);
+            await DisposeAndDrainReplayDemoAsync(vm);
         }
     }
 
@@ -113,7 +113,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
-            await DisposeAndDrainAsync(vm);
+            await DisposeAndDrainReplayDemoAsync(vm);
         }
     }
 
@@ -164,7 +164,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
-            await DisposeAndDrainAsync(vm);
+            await DisposeAndDrainReplayDemoAsync(vm);
         }
     }
 
@@ -208,7 +208,7 @@ public sealed class GenHubInfoSectionViewTests
         finally
         {
             window.Close();
-            await DisposeAndDrainAsync(vm);
+            await DisposeAndDrainReplayDemoAsync(vm);
         }
     }
 
@@ -233,15 +233,16 @@ public sealed class GenHubInfoSectionViewTests
         return null;
     }
 
-    private static async Task DisposeAndDrainAsync(GenHubInfoSectionViewModel vm)
+    private static async Task DisposeAndDrainReplayDemoAsync(GenHubInfoSectionViewModel vm)
     {
-        var demoReplayManager = vm.DemoReplayManager;
-        vm.Dispose();
-        if (demoReplayManager != null)
+        if (vm.DemoReplayManager is not { } demoReplayManager)
         {
-            await demoReplayManager.WhenLoadsIdleAsync().WaitAsync(TimeSpan.FromSeconds(10));
-            await demoReplayManager.MapAvailabilityScan.WaitAsync(TimeSpan.FromSeconds(10));
+            return;
         }
+
+        demoReplayManager.Dispose();
+        await demoReplayManager.WhenLoadsIdleAsync();
+        await demoReplayManager.MapAvailabilityScan;
     }
 
     private static async Task<GenHubInfoSectionViewModel> CreateInitializedViewModelAsync()

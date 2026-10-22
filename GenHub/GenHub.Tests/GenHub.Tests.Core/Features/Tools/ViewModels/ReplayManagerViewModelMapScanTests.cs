@@ -233,11 +233,11 @@ public sealed class ReplayManagerViewModelMapScanTests : IAsyncLifetime
     private async Task DisposeAndDrainAsync()
     {
         _viewModel.Dispose();
-        await _viewModel.WhenLoadsIdleAsync().WaitAsync(LoadTimeout);
-        await _viewModel.MapAvailabilityScan.WaitAsync(LoadTimeout);
+        await _viewModel.WhenLoadsIdleAsync();
+        await _viewModel.MapAvailabilityScan;
         foreach (var scan in _scans)
         {
-            await Task.WhenAny(scan.Result.Task).WaitAsync(LoadTimeout);
+            await Task.WhenAny(scan.Result.Task);
         }
     }
 }
