@@ -659,7 +659,7 @@ public partial class ReplayManagerViewModel(
 
         foreach (var item in items)
         {
-            bool exists;
+            bool exists = false;
             try
             {
                 using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, item.Url);
@@ -668,7 +668,7 @@ public partial class ReplayManagerViewModel(
             }
             catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or UriFormatException)
             {
-                exists = false;
+                // An unreachable or invalid URL counts as a missing file.
             }
 
             if (token.IsCancellationRequested)
