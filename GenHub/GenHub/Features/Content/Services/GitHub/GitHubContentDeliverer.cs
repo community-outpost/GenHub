@@ -9,11 +9,13 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services.Common;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -93,6 +95,8 @@ public class GitHubContentDeliverer(
             var downloadedFiles = new List<string>();
             int currentFileIndex = 0;
             int totalFiles = filesToDownload.Count;
+            long totalBytesAllFiles = filesToDownload.All(f => f.Size > 0) ? filesToDownload.Sum(f => f.Size) : 0L;
+            long previousFilesBytes = 0L;
 
             foreach (var file in filesToDownload)
             {
@@ -104,32 +108,26 @@ public class GitHubContentDeliverer(
                     Directory.CreateDirectory(localDir);
                 }
 
-                // Create progress adapter for download progress
-                IProgress<DownloadProgress>? downloadProgress = null;
-                if (progress != null)
-                {
-                    downloadProgress = new Progress<DownloadProgress>(dp =>
-                    {
-                        // Map download progress (0-100) to the Downloading phase range (40-65%)
-                        // We start at 40 (ProgressStepDownloading) and use 25% of the range for downloads
-                        double downloadRange = 25.0; // 40% to 65%
-                        double fileProgressRange = downloadRange / totalFiles;
-                        double baseProgress = ContentConstants.ProgressStepDownloading + ((currentFileIndex - 1) * fileProgressRange);
-                        double currentProgress = Math.Clamp(baseProgress + (dp.Percentage / 100.0 * fileProgressRange), 0, 100);
+                // Capture immutable snapshot of loop state for progress reporting
+                long fileBaseBytes = previousFilesBytes;
+                int fileIndex = currentFileIndex;
+                string fileRelativePath = file.RelativePath;
 
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Downloading,
-                            ProgressPercentage = currentProgress,
-                            CurrentOperation = $"{file.RelativePath} ({currentFileIndex}/{totalFiles}) - {dp.Percentage:F0}% ({dp.FormattedSpeed})",
-                            FilesProcessed = currentFileIndex - 1,
-                            TotalFiles = totalFiles,
-                            TotalBytes = dp.TotalBytes,
-                            BytesProcessed = dp.BytesReceived,
-                            CurrentFile = file.RelativePath,
-                        });
-                    });
-                }
+                var downloadProgress = DownloadProgressAdapter.CreateDownloadAdapter(
+                    progress,
+                    fileRelativePath,
+                    fileIndex,
+                    totalFiles,
+                    fileBaseBytes,
+                    totalBytesAllFiles);
+
+                DownloadProgressAdapter.ReportConnecting(
+                    progress,
+                    fileRelativePath,
+                    fileIndex,
+                    totalFiles,
+                    fileBaseBytes,
+                    totalBytesAllFiles);
 
                 var downloadConfig = new DownloadConfiguration
                 {
@@ -148,6 +146,14 @@ public class GitHubContentDeliverer(
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
+                var downloadedFileSize = file.Size;
+                if (downloadedFileSize <= 0)
+                {
+                    var downloadedFileInfo = new FileInfo(localPath);
+                    downloadedFileSize = downloadedFileInfo.Exists ? downloadedFileInfo.Length : 0L;
+                }
+
+                previousFilesBytes += downloadedFileSize;
                 downloadedFiles.Add(localPath);
                 logger.LogInformation("Downloaded {FileName} to {Path}", file.RelativePath, localPath);
             }
@@ -314,7 +320,8 @@ public class GitHubContentDeliverer(
             var manifestResult = await factory.CreateManifestsFromExtractedContentAsync(
                 originalManifest,
                 extractedDirectory,
-                cancellationToken);
+                progress,
+                cancellationToken).ConfigureAwait(false);
 
             var manifests = manifestResult.Data ?? [];
             if (!manifestResult.Success || manifests.Count == 0)
@@ -340,13 +347,13 @@ public class GitHubContentDeliverer(
                     manifest.Id,
                     manifestDirectory);
 
-                // Create adapter for storage progress
-                var storageProgress = new Progress<ContentStorageProgress>(p =>
+                // Create adapter for storage progress (0-100% scale)
+                var storageProgress = new SynchronousProgress<ContentStorageProgress>(p =>
                 {
                     progress?.Report(new ContentAcquisitionProgress
                     {
                         Phase = ContentAcquisitionPhase.StoringInCas,
-                        ProgressPercentage = Math.Clamp(ContentConstants.ProgressStepStoring + (p.Percentage * 0.1), 0, 100), // Map to Storing phase
+                        ProgressPercentage = p.Percentage,
                         CurrentOperation = $"Storing content: {p.CurrentFileName} ({p.ProcessedCount}/{p.TotalCount})",
                         FilesProcessed = p.ProcessedCount,
                         TotalFiles = p.TotalCount,
@@ -430,50 +437,22 @@ public class GitHubContentDeliverer(
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (!ArchiveEntryName.IsExtractable(entry.Key))
-                    {
-                        throw new InvalidOperationException(
-                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
-                    }
-
-                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
-                    if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
-                    {
-                        throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
-                    }
-
-                    var destinationDir = Path.GetDirectoryName(destinationPath);
-                    if (!string.IsNullOrEmpty(destinationDir))
-                    {
-                        Directory.CreateDirectory(destinationDir);
-                    }
-
-                    await using (var entryStream = entry.OpenEntryStream())
-                    {
-                        expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                            entryStream,
-                            destinationPath,
-                            entry.Key,
-                            GitHubConstants.MaxEntryUncompressedBytes,
-                            expansionBudget - expandedBytes,
-                            overwrite: true,
-                            cancellationToken);
-                    }
+                    expandedBytes += await ExtractSingleArchiveEntryAsync(
+                        entry,
+                        targetDirectory,
+                        expansionBudget - expandedBytes,
+                        cancellationToken).ConfigureAwait(false);
 
                     currentEntry++;
 
-                    // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
-                    double extractStart = ContentConstants.ProgressStepValidatingFiles;
-                    double extractEnd = ContentConstants.ProgressStepExtracting;
-                    double progressRange = extractEnd - extractStart;
-                    double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
+                    double currentPercentage = totalEntries > 0 ? (double)currentEntry / totalEntries * 100.0 : 100.0;
 
                     progress?.Report(
                         new ContentAcquisitionProgress
                         {
                             Phase = ContentAcquisitionPhase.Extracting,
                             ProgressPercentage = currentPercentage,
-                            CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
+                            CurrentOperation = $"Extracting {Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
                             FilesProcessed = currentEntry,
                             TotalFiles = totalEntries,
                             CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
@@ -481,5 +460,41 @@ public class GitHubContentDeliverer(
                 }
             },
             cancellationToken);
+    }
+
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance method to satisfy StyleCop SA1204 member ordering.")]
+    private async Task<long> ExtractSingleArchiveEntryAsync(
+        IArchiveEntry entry,
+        string targetDirectory,
+        long remainingExpansionBudget,
+        CancellationToken cancellationToken)
+    {
+        if (!ArchiveEntryName.IsExtractable(entry.Key))
+        {
+            throw new InvalidOperationException(
+                $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+        }
+
+        var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
+        if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
+        {
+            throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
+        }
+
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        await using var entryStream = await entry.OpenEntryStreamAsync(cancellationToken).ConfigureAwait(false);
+        return await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            entryStream,
+            destinationPath,
+            entry.Key,
+            GitHubConstants.MaxEntryUncompressedBytes,
+            remainingExpansionBudget,
+            overwrite: true,
+            cancellationToken).ConfigureAwait(false);
     }
 }

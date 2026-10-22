@@ -1,7 +1,7 @@
 namespace GenHub.Core.Constants;
 
 /// <summary>
-/// Constants for Publisher Studio project storage paths and settings.
+/// Constants for Publisher Studio project storage paths, settings, and authoring defaults.
 /// </summary>
 public static class PublisherStudioConstants
 {
@@ -24,4 +24,9 @@ public static class PublisherStudioConstants
     /// File name of the Publisher Studio settings file under the application data directory.
     /// </summary>
     public const string SettingsFileName = "publisher_studio_settings.json";
+
+    /// <summary>
+    /// Default initial version assigned to new content and first releases.
+    /// </summary>
+    public const string DefaultInitialVersion = "1.0.0";
 }

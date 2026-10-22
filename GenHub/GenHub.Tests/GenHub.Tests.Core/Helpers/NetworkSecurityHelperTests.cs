@@ -1,5 +1,11 @@
 using GenHub.Core.Helpers;
+using System;
 using System.Net;
+using System.Net.Http;
+using System.Reflection;
+using System.Security;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
@@ -209,5 +215,102 @@ public class NetworkSecurityHelperTests
         var urlResult = NetworkSecurityHelper.IsSafeUrl($"https://[{address}]/catalog.json", out var failureReason);
         Assert.False(urlResult);
         Assert.NotNull(failureReason);
+    }
+
+    /// <summary>
+    /// Verifies that connecting to a loopback host throws a SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_LoopbackHost_ThrowsSecurityException()
+    {
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that connecting to an invalid host name format throws a SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_InvalidHost_ThrowsSecurityException()
+    {
+        var context = CreateConnectionContext(new DnsEndPoint("not a valid host!@#", 80));
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that connecting directly to an IPv6 loopback literal is rejected without proxy false-positive.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_DirectIPv6Loopback_ThrowsSecurityException()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
+        var context = CreateConnectionContext(new DnsEndPoint("[::1]", 8080), request);
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that proxy mode connecting to an IPv4 untrusted/loopback target throws a SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetLoopback_ThrowsSecurityException()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://127.0.0.1:8080/test");
+        var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that proxy mode connecting to an IPv6 untrusted/loopback target throws a SecurityException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetIPv6Loopback_ThrowsSecurityException()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
+        var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
+
+        await Assert.ThrowsAsync<SecurityException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(context, 1, CancellationToken.None).AsTask());
+    }
+
+    /// <summary>
+    /// Verifies that a custom validation exception factory is invoked when validation fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConnectSocketWithSsrfCheckAsync_CustomExceptionFactory_ThrowsCustomException()
+    {
+        var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(
+                context,
+                1,
+                CancellationToken.None,
+                static msg => new HttpRequestException(msg)).AsTask());
+    }
+
+    private static SocketsHttpConnectionContext CreateConnectionContext(DnsEndPoint endPoint, HttpRequestMessage? request = null)
+    {
+        var ctor = typeof(SocketsHttpConnectionContext).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            [typeof(DnsEndPoint), typeof(HttpRequestMessage)],
+            modifiers: null);
+
+        Assert.NotNull(ctor);
+        return (SocketsHttpConnectionContext)ctor.Invoke([endPoint, request]);
     }
 }

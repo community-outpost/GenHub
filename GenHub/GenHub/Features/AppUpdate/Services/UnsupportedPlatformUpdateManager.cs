@@ -129,6 +129,13 @@ public sealed class UnsupportedPlatformUpdateManager(
     }
 
     /// <inheritdoc/>
+    public Task InstallDownloadedBuildAsync(string filePath, string? originalFileName = null, IProgress<UpdateProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        LogSuppressed(nameof(InstallDownloadedBuildAsync));
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
     public Task ApplyUpdatesAndRestartAsync(UpdateInfo updateInfo, CancellationToken cancellationToken = default)
     {
         LogSuppressed(nameof(ApplyUpdatesAndRestartAsync));

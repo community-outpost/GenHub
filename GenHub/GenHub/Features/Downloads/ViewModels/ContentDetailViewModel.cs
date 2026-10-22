@@ -28,6 +28,7 @@ using GenHub.Core.Models.Parsers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
@@ -81,6 +82,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="patchNotesService">Optional service for fetching Generals Online patch notes on demand.</param>
 /// <param name="onDescriptionEnriched">Optional callback invoked when the content description is updated with patch notes (version, changelog).</param>
 /// <param name="userSettingsService">Optional user settings service for reading the saved profile sort mode.</param>
+/// <param name="installBuildAction">Optional action to install a downloaded GenHub build.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 [SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
@@ -110,7 +112,8 @@ public partial class ContentDetailViewModel(
     IWorkspaceManager? workspaceManager = null,
     IGeneralsOnlinePatchNotesService? patchNotesService = null,
     Action<string, string>? onDescriptionEnriched = null,
-    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable
+    IUserSettingsService? userSettingsService = null,
+    Func<string?, string?, CancellationToken, Task>? installBuildAction = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
     private const string UnknownValue = "Unknown";
@@ -260,6 +263,9 @@ public partial class ContentDetailViewModel(
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ContentType))]
+    [NotifyPropertyChangedFor(nameof(IsGenHubBuild))]
+    [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallBuildButton))]
     private ContentType _selectedContentType = searchResult.ContentType == ContentType.UnknownContentType
         ? ContentType.Mod
         : searchResult.ContentType;
@@ -898,12 +904,23 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
+    /// Gets a value indicating whether the current content is a GenHub build.
+    /// </summary>
+    public bool IsGenHubBuild =>
+        GenHubBuildInspector.IsGenHubApplicationBuild(SelectedDownloadableItem?.ContentType ?? ContentType, Tags);
+
+    /// <summary>
     /// Gets a value indicating whether the Add to Profile button should be shown.
     /// </summary>
     public bool ShowAddToProfileButton
     {
         get
         {
+            if (IsGenHubBuild)
+            {
+                return false;
+            }
+
             if (HasBundleComponents)
             {
                 return AreBundleComponentsReadyForProfile;
@@ -912,6 +929,35 @@ public partial class ContentDetailViewModel(
             return SelectedDownloadableItem != null
                 ? SelectedDownloadableItem.IsDownloaded
                 : IsDownloaded;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the Install Build button should be shown.
+    /// </summary>
+    public bool ShowInstallBuildButton => IsGenHubBuild &&
+        installBuildAction != null &&
+        (SelectedDownloadableItem != null ? SelectedDownloadableItem.IsDownloaded : IsDownloaded);
+
+    /// <summary>
+    /// Installs the downloaded GenHub build.
+    /// </summary>
+    [RelayCommand]
+    private async Task InstallBuildAsync()
+    {
+        var preferredManifestId = SelectedDownloadableItem?.DownloadedManifestId ?? SelectedVariant?.ManifestId;
+        var preferredName = SelectedDownloadableItem?.Name ?? SelectedVariant?.Name ?? Name;
+        await ExecuteInstallBuildAsync(preferredManifestId, preferredName);
+    }
+
+    private async Task ExecuteInstallBuildAsync(string? preferredManifestId, string? fallbackName)
+    {
+        if (installBuildAction != null)
+        {
+            var targetManifestId = preferredManifestId ??
+                await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
+            var targetName = fallbackName ?? Name;
+            await installBuildAction(targetManifestId, targetName, _cts.Token);
         }
     }
 
@@ -1163,6 +1209,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(HasIncludesSummary));
         if (HasBundleComponents)
         {
@@ -2781,6 +2828,9 @@ public partial class ContentDetailViewModel(
             var targetManifestId = releaseItem.DownloadedManifestId ?? manifestId;
             await AddFileToProfileAsync(releaseItem.File ?? file, targetManifestId);
         });
+
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId ?? manifestId, releaseItem.Name));
     }
 
     partial void OnSelectedVariantChanged(InstallableVariant? value)
@@ -2847,6 +2897,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(HasDownloadSize));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
             OnPropertyChanged(nameof(IconUrl));
             OnPropertyChanged(nameof(ThumbnailUrl));
@@ -3091,6 +3142,7 @@ public partial class ContentDetailViewModel(
                 IsUpdateAvailable = e.NewState == ContentState.UpdateAvailable;
                 OnPropertyChanged(nameof(ShowDownloadButton));
                 OnPropertyChanged(nameof(ShowAddToProfileButton));
+                OnPropertyChanged(nameof(ShowInstallBuildButton));
                 OnPropertyChanged(nameof(ShowUpdateButton));
             }
 
@@ -3607,6 +3659,7 @@ public partial class ContentDetailViewModel(
             }
 
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             OnPropertyChanged(nameof(ShowDeleteButton));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowUpdateButton));
@@ -4941,6 +4994,9 @@ public partial class ContentDetailViewModel(
                 () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
         }
 
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId, releaseItem.Name));
+
         return releaseItem;
     }
 
@@ -5331,6 +5387,7 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(HasVersion));
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+        OnPropertyChanged(nameof(ShowInstallBuildButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowDeleteButton));
         OnPropertyChanged(nameof(CanChangeContentType));
@@ -5668,6 +5725,7 @@ public partial class ContentDetailViewModel(
 
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
             scope.CompleteSuccess();
         }
         catch (OperationCanceledException)
@@ -6118,6 +6176,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
         });
     }
 
@@ -6139,6 +6198,7 @@ public partial class ContentDetailViewModel(
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+            OnPropertyChanged(nameof(ShowInstallBuildButton));
         }
     }
 
@@ -6581,15 +6641,43 @@ public partial class ContentDetailViewModel(
             }
         }
 
-        if (searchResult.GetData<CatalogContentItem>() is { } catalogContent)
+        var catalogContent = searchResult.GetData<CatalogContentItem>()
+            ?? TryDeserializeCatalogContent(baseResult)
+            ?? TryDeserializeCatalogContent(searchResult);
+        if (catalogContent != null)
         {
             var matchingRelease = catalogContent.Releases.FirstOrDefault(r => string.Equals(r.Version, file.Version, StringComparison.OrdinalIgnoreCase))
                 ?? catalogContent.AddonReleases?.FirstOrDefault(a => string.Equals(a.Version, file.Version, StringComparison.OrdinalIgnoreCase));
             if (matchingRelease != null)
             {
-                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = System.Text.Json.JsonSerializer.Serialize(matchingRelease);
+                rowSearchResult.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(matchingRelease);
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves the catalog content item backing a search result. Generic catalog discoverers
+    /// embed it as JSON resolver metadata rather than a typed payload, so both shapes are supported.
+    /// Without this fallback every release row resolves the card's release instead of its own version.
+    /// </summary>
+    /// <param name="result">The search result carrying catalog metadata.</param>
+    /// <returns>The deserialized catalog content item, or null when absent or invalid.</returns>
+    private CatalogContentItem? TryDeserializeCatalogContent(ContentSearchResult result)
+    {
+        if (result.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var catalogItemJson) &&
+            !string.IsNullOrWhiteSpace(catalogItemJson))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<CatalogContentItem>(catalogItemJson);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -7355,6 +7443,12 @@ public partial class ContentDetailViewModel(
     [RelayCommand]
     private async Task AddToProfileAsync()
     {
+        if (IsGenHubBuild)
+        {
+            await InstallBuildAsync();
+            return;
+        }
+
         await WaitForContentTypePersistAsync();
 
         if (HasBundleComponents)
@@ -8225,6 +8319,8 @@ public partial class ContentDetailViewModel(
         releaseItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadReleaseAsync(releaseItem, releaseItem.File ?? file, ct));
         releaseItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
+        releaseItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(releaseItem.DownloadedManifestId, releaseItem.Name));
 
         return releaseItem;
     }
@@ -8325,6 +8421,8 @@ public partial class ContentDetailViewModel(
         addonItem.DownloadCommand = new AsyncRelayCommand(ct => DownloadAddonAsync(addonItem, addonItem.File ?? file, ct));
         addonItem.AddToProfileCommand = new AsyncRelayCommand(
             () => AddFileToProfileAsync(addonItem.File ?? file, addonItem.DownloadedManifestId));
+        addonItem.InstallBuildCommand = new AsyncRelayCommand(
+            () => ExecuteInstallBuildAsync(addonItem.DownloadedManifestId, addonItem.Name));
 
         return addonItem;
     }

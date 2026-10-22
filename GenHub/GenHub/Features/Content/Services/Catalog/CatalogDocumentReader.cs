@@ -1,6 +1,10 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
 using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
@@ -8,6 +12,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -69,6 +74,56 @@ public static class CatalogDocumentReader
 
         var uri = ValidateInitialRemoteUri(catalogLocation);
         return await ReadRemoteCatalogAsync(httpClient, uri, maximumSizeBytes, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Fetches and parses a publisher catalog from a remote or local location.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use for network requests.</param>
+    /// <param name="parser">The publisher catalog parser.</param>
+    /// <param name="catalogLocation">The URL or local file path to the catalog.</param>
+    /// <param name="logger">Optional logger for diagnostic messages.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A result containing the parsed publisher catalog, or failure details.</returns>
+    public static async Task<OperationResult<PublisherCatalog>> FetchAndParseCatalogAsync(
+        HttpClient httpClient,
+        IPublisherCatalogParser parser,
+        string catalogLocation,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        ArgumentNullException.ThrowIfNull(parser);
+
+        if (string.IsNullOrWhiteSpace(catalogLocation))
+        {
+            return OperationResult<PublisherCatalog>.CreateFailure("A catalog location is required.");
+        }
+
+        try
+        {
+            var json = await ReadAsync(httpClient, catalogLocation, CatalogConstants.MaxCatalogSizeBytes, cancellationToken).ConfigureAwait(false);
+            return await parser.ParseCatalogAsync(json, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is ArgumentException or
+            FileNotFoundException or
+            InvalidDataException or
+            InvalidOperationException or
+            HttpRequestException or
+            SocketException or
+            TimeoutException or
+            TaskCanceledException or
+            IOException or
+            UnauthorizedAccessException or
+            JsonException)
+        {
+            logger?.LogDebug(ex, "Failed to fetch or parse catalog from '{CatalogLocation}'", catalogLocation);
+            return OperationResult<PublisherCatalog>.CreateFailure($"Failed to fetch or parse catalog from '{catalogLocation}': {ex.Message}");
+        }
     }
 
     private static async Task<string> ReadLocalCatalogAsync(

@@ -34,6 +34,7 @@ public static class ContentTypePriority
             ContentType.Replay => 20,              // Replays
             ContentType.Screensaver => 20,         // Screensavers
             ContentType.GameInstallation => 10,    // Lowest: Base game files
+            ContentType.GenHubBuild => 0,          // GenHub application build (not game workspace content)
             _ => 0,                                // Unknown or meta types (bundles, referrals, etc.)
         };
     }
@@ -43,7 +44,7 @@ public static class ContentTypePriority
     /// </summary>
     /// <param name="a">First content type.</param>
     /// <param name="b">Second content type.</param>
-    /// <returns>Negative if a &lt; b, positive if a &gt; b, zero if equal.</returns>
+    /// <returns>A signed number indicating relative values (positive = a wins, negative = b wins).</returns>
     public static int Compare(ContentType a, ContentType b)
     {
         return GetPriority(a).CompareTo(GetPriority(b));

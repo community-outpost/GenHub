@@ -1,5 +1,6 @@
 using FluentAssertions;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -215,6 +216,13 @@ public class GitHubContentDelivererTests
                     It.IsAny<string>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([variantDefault, variantRu]));
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([variantDefault, variantRu]));
 
             var factoryResolver = new PublisherManifestFactoryResolver(
                 [factoryMock.Object],
@@ -374,6 +382,13 @@ public class GitHubContentDelivererTests
                 .Setup(f => f.CreateManifestsFromExtractedContentAsync(
                     It.IsAny<ContentManifest>(),
                     It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([extractedManifest]));
+            factoryMock
+                .Setup(f => f.CreateManifestsFromExtractedContentAsync(
+                    It.IsAny<ContentManifest>(),
+                    It.IsAny<string>(),
+                    It.IsAny<IProgress<ContentAcquisitionProgress>?>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<List<ContentManifest>>.CreateSuccess([extractedManifest]));
 
@@ -575,6 +590,76 @@ public class GitHubContentDelivererTests
         finally
         {
             Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that DeliverContentAsync reports connecting progress before download starts and uses 0-100 scale.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_ReportsConnectingProgressBeforeDownloadAsync()
+    {
+        var targetDirectory = CreateWorkingDirectory();
+        var progressReports = new List<ContentAcquisitionProgress>();
+        var syncLock = new object();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
+        {
+            lock (syncLock)
+            {
+                progressReports.Add(p);
+            }
+        });
+
+        try
+        {
+            _downloadService
+                .Setup(d => d.DownloadFileAsync(
+                    It.IsAny<DownloadConfiguration>(),
+                    It.IsAny<IProgress<DownloadProgress>?>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((DownloadConfiguration config, IProgress<DownloadProgress>? dp, CancellationToken _) =>
+                {
+                    dp?.Report(new DownloadProgress(50, 100, "payload.bin", config.Url, 100, TimeSpan.FromSeconds(1)));
+                    File.WriteAllText(config.DestinationPath, "test content");
+                    return Task.FromResult(DownloadResult.CreateSuccess(config.DestinationPath, 100, TimeSpan.FromSeconds(1)));
+                });
+
+            var deliverer = new GitHubContentDeliverer(
+                _downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+
+            var manifest = new ContentManifest
+            {
+                Files =
+                [
+                    new ManifestFile
+                    {
+                        RelativePath = "payload.bin",
+                        DownloadUrl = "https://github.com/user/repo/payload.bin",
+                        Size = 100,
+                    },
+                ],
+            };
+
+            var result = await deliverer.DeliverContentAsync(manifest, targetDirectory, progress, CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            progressReports.Should().NotBeEmpty();
+
+            // First progress report must be the initial "Connecting to download..." report before bytes start flowing
+            var firstReport = progressReports.First();
+            firstReport.Phase.Should().Be(ContentAcquisitionPhase.Downloading);
+            firstReport.CurrentOperation.Should().Contain("Connecting to download payload.bin");
+            firstReport.ProgressPercentage.Should().Be(0);
+
+            // Intermediate progress must report within 0-100% scale
+            var downloadReport = progressReports.FirstOrDefault(r => r.CurrentOperation?.Contains("payload.bin - 50%") == true);
+            downloadReport.Should().NotBeNull();
+            downloadReport!.ProgressPercentage.Should().Be(50);
+        }
+        finally
+        {
+            Directory.Delete(targetDirectory, recursive: true);
         }
     }
 

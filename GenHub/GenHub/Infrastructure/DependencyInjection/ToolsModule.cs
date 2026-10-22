@@ -26,6 +26,9 @@ public static class ToolsModule
         services.AddSingleton<IToolRegistry, ToolRegistry>();
         services.AddSingleton<IToolManager, ToolService>();
 
+        // Register GenHub build inspector
+        services.AddSingleton<IGenHubBuildInspector, GenHubBuildInspector>();
+
         // Register Publisher Studio services
         services.AddSingleton<IPublisherStudioService, PublisherStudioService>();
         services.AddSingleton<IPublisherStudioDialogService, PublisherStudioDialogService>();

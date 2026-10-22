@@ -72,6 +72,6 @@ public enum ContentType
     /// <summary>Unknown content type.</summary>
     UnknownContentType,
 
-    /// <summary>GenHub application installer or build.</summary>
+    /// <summary>GenHub application build (release, dev, test, or custom fork).</summary>
     GenHubBuild,
 }

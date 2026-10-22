@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -794,5 +795,40 @@ public class UpdateNotificationViewModelTests
         Assert.NotNull(vm.SelectedVersion);
         Assert.Equal("0.0.2804-pr378", vm.SelectedVersion.Version);
         Assert.Equal("development", vm.SubscribedBranch);
+    }
+
+    /// <summary>
+    /// Verifies that adding and removing items from AvailableCustomBuilds updates HasCustomBuilds and CustomBuildsColumnWidth.
+    /// </summary>
+    [Fact]
+    public void AvailableCustomBuilds_WhenUpdated_UpdatesHasCustomBuildsAndColumnWidth()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        using var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        Assert.False(vm.HasCustomBuilds);
+        Assert.Equal("0", vm.CustomBuildsColumnWidth.ToString());
+
+        vm.AvailableCustomBuilds.Add(new CustomBuildSubscriptionItem
+        {
+            PublisherId = "pub1",
+            PublisherName = "Publisher 1",
+            Name = "Custom Fork",
+            ContentId = "fork1",
+            LatestVersion = "1.0.0",
+        });
+
+        Assert.True(vm.HasCustomBuilds);
+        Assert.NotEqual("0", vm.CustomBuildsColumnWidth.ToString());
+
+        vm.AvailableCustomBuilds.Clear();
+
+        Assert.False(vm.HasCustomBuilds);
+        Assert.Equal("0", vm.CustomBuildsColumnWidth.ToString());
     }
 }

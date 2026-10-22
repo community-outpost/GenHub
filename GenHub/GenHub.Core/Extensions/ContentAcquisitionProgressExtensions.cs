@@ -30,12 +30,16 @@ public static class ContentAcquisitionProgressExtensions
     private static string FormatStagedProgress(ContentAcquisitionProgress progress)
     {
         string stagePart = $"{progress.CurrentStage}/{progress.TotalStages}";
-        string description = !string.IsNullOrEmpty(progress.CurrentOperation) &&
-                             !string.Equals(progress.CurrentOperation, progress.StageDescription, StringComparison.Ordinal)
-            ? $"{progress.StageDescription}: {progress.CurrentOperation}"
-            : progress.StageDescription;
+        var desc = progress.StageDescription ?? string.Empty;
+        var op = DeduplicateOperation(desc, progress.CurrentOperation ?? string.Empty);
 
-        string percentPart = progress.StageProgress is > 0 and < 100
+        string description = string.IsNullOrEmpty(desc)
+            ? op
+            : (!string.IsNullOrEmpty(op) && !string.Equals(op, desc, StringComparison.OrdinalIgnoreCase)
+                ? $"{desc}: {op}"
+                : desc);
+
+        string percentPart = progress.StageProgress is > 0 and < 100 && progress.TotalFiles <= 1
             ? $" ({progress.StageProgress:F0}%)"
             : string.Empty;
 
@@ -48,6 +52,38 @@ public static class ContentAcquisitionProgressExtensions
             : string.Empty;
 
         return $"{stagePart} - {description}{percentPart}{filesPart}{bottleneckPart}";
+    }
+
+    private static string DeduplicateOperation(string desc, string op)
+    {
+        if (string.IsNullOrEmpty(op))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrEmpty(desc) || string.Equals(desc, op, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrEmpty(desc) ? op : string.Empty;
+        }
+
+        var firstWord = desc.Split(' ')[0];
+        if (firstWord.Length > 2)
+        {
+            return TrimPrefix(op, firstWord);
+        }
+
+        return op;
+    }
+
+    private static string TrimPrefix(string text, string prefix)
+    {
+        if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            (text.Length == prefix.Length || text[prefix.Length] is ':' or ' '))
+        {
+            return text.Substring(prefix.Length).TrimStart(':', ' ');
+        }
+
+        return text;
     }
 
     private static string GetPhaseName(ContentAcquisitionPhase phase) => phase switch
@@ -73,13 +109,7 @@ public static class ContentAcquisitionProgressExtensions
     {
         if (!string.IsNullOrEmpty(progress.CurrentOperation))
         {
-            var op = progress.CurrentOperation;
-            if (op.StartsWith(phaseName, StringComparison.OrdinalIgnoreCase) &&
-                (op.Length == phaseName.Length || op[phaseName.Length] is ':' or ' '))
-            {
-                op = op.Substring(phaseName.Length).TrimStart(':', ' ');
-            }
-
+            var op = TrimPrefix(progress.CurrentOperation, phaseName);
             if (!string.IsNullOrWhiteSpace(op))
             {
                 return $"{phaseName}: {op}";

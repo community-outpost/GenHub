@@ -70,11 +70,6 @@ public class ProfileLauncherFacade(
     ILocalizationService? localizationService = null,
     IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null) : IProfileLauncherFacade
 {
-    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
-    }
-
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,

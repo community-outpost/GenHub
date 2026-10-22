@@ -109,6 +109,46 @@ public static class ContentConstants
     public const int ProgressStepCompleted = 100;
 
     /// <summary>
+    /// Total number of standard acquisition pipeline stages.
+    /// </summary>
+    public const int TotalPipelineStages = 5;
+
+    /// <summary>
+    /// Stage index for extracting payload archives (1-based; Stage 3 of 5).
+    /// </summary>
+    public const int PipelineStageExtracting = 3;
+
+    /// <summary>
+    /// Stage index for validating extracted files (1-based; Stage 4 of 5).
+    /// </summary>
+    public const int PipelineStageValidating = 4;
+
+    /// <summary>
+    /// Stage description keyword identifying extraction work when no explicit stage is set.
+    /// </summary>
+    public const string StageKeywordExtracting = "Extract";
+
+    /// <summary>
+    /// Stage description keyword identifying payload processing work when no explicit stage is set.
+    /// </summary>
+    public const string StageKeywordProcessing = "Process";
+
+    /// <summary>
+    /// Default minimum percentage for progress normalization (0.0).
+    /// </summary>
+    public const double ProgressMinPercentage = 0.0;
+
+    /// <summary>
+    /// Default maximum percentage for progress normalization (100.0).
+    /// </summary>
+    public const double ProgressMaxPercentage = 100.0;
+
+    /// <summary>
+    /// Default operation text when preparing content via provider pipeline.
+    /// </summary>
+    public const string PreparingContentViaProviderOperation = "Preparing content via provider pipeline";
+
+    /// <summary>
     /// Maximum allowed size for the content catalog in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;

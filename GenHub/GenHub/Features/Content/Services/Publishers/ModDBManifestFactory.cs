@@ -137,10 +137,13 @@ public class ModDBManifestFactory(
             var stageProgress = (double)(i + 1) / allFiles.Count * 100;
             progress?.Report(new ContentAcquisitionProgress
             {
-                CurrentStage = 3,
-                TotalStages = 5,
+                Phase = ContentAcquisitionPhase.Extracting,
+                ProgressPercentage = stageProgress,
+                CurrentStage = ContentConstants.PipelineStageExtracting,
+                TotalStages = ContentConstants.TotalPipelineStages,
                 StageDescription = "Processing files",
                 CurrentOperation = $"Hashing {relativePath} ({i + 1}/{allFiles.Count})",
+                CurrentFile = relativePath,
                 FilesProcessed = i + 1,
                 TotalFiles = allFiles.Count,
                 StageProgress = stageProgress,
