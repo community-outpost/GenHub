@@ -226,6 +226,36 @@ public static class GenHubBuildConstants
     public const string ChannelDevAlias = "Development";
 
     /// <summary>
+    /// Explicit channel alias mapping to the development nightly channel.
+    /// </summary>
+    public const string ChannelDevNightlyAlias = "Nightly";
+
+    /// <summary>
+    /// Package ID prefix for platform-specific GenHub packages.
+    /// </summary>
+    public const string OfficialPackageIdPrefix = "GenHub.";
+
+    /// <summary>
+    /// Package ID for Windows GenHub packages.
+    /// </summary>
+    public const string WindowsPackageId = OfficialPackageIdPrefix + "Windows";
+
+    /// <summary>
+    /// Package ID for Linux GenHub packages.
+    /// </summary>
+    public const string LinuxPackageId = OfficialPackageIdPrefix + "Linux";
+
+    /// <summary>
+    /// Package ID for macOS GenHub packages.
+    /// </summary>
+    public const string MacOsPackageId = OfficialPackageIdPrefix + "macOS";
+
+    /// <summary>
+    /// Package ID for Desktop GenHub packages.
+    /// </summary>
+    public const string DesktopPackageId = OfficialPackageIdPrefix + "Desktop";
+
+    /// <summary>
     /// Explicit channel alias mapping to the test channel.
     /// </summary>
     public const string ChannelTestAlias = "Beta";
@@ -249,6 +279,11 @@ public static class GenHubBuildConstants
     /// Assembly metadata key carrying the commit hash (alternate spelling).
     /// </summary>
     public const string MetadataKeyCommitHash = "CommitHash";
+
+    /// <summary>
+    /// Assembly metadata key carrying the git short hash.
+    /// </summary>
+    public const string MetadataKeyGitShortHash = "GitShortHash";
 
     /// <summary>
     /// Tag prefix for fork slug tags (e.g. "fork:user").

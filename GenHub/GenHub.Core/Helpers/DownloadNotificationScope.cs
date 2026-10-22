@@ -215,7 +215,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
 
         var clamped = ClampPercentage(fraction * 100);
         var message = string.IsNullOrWhiteSpace(status) ? _contentName : status;
-        UpdatePinnedToast(clamped, message, includePercentagePrefix: !StatusShowsPercentage(message));
+        UpdatePinnedToast(clamped, message);
     }
 
     /// <summary>

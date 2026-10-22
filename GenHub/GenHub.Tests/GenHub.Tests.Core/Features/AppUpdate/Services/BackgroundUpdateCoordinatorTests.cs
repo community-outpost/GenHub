@@ -1122,6 +1122,117 @@ public class BackgroundUpdateCoordinatorTests
         }
     }
 
+    /// <summary>
+    /// Verifies that updating from a custom build prerelease (e.g. 1.2.0-beta) to a stable release (1.2.0) triggers an update notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenCustomBuildPrereleaseUpdatesToRelease_ShowsNotificationAsync()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            AutoCheckForUpdatesOnStartup = true,
+            SubscribedCustomBuildContentId = "custom-fork",
+            SubscribedCustomBuildPublisherId = "pub-fork",
+            SubscribedCustomBuildName = "Fork GenHub",
+            SubscribedCustomBuildVersion = "1.2.0-beta",
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var subscription = new PublisherSubscription
+        {
+            PublisherId = "pub-fork",
+            CatalogUrl = "https://example.com/catalog.json",
+        };
+        mockSubStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
+
+        var mockCatalogParser = new Mock<IPublisherCatalogParser>();
+        var catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile { Id = "pub-fork", Name = "Custom Publisher" },
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "custom-fork",
+                    Name = "Fork GenHub",
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GenHubBuild,
+                    Releases =
+                    [
+                        new ContentRelease
+                        {
+                            Version = "1.2.0-beta",
+                            ReleaseDate = DateTime.UtcNow.AddDays(-1),
+                        },
+                        new ContentRelease
+                        {
+                            Version = "1.2.0",
+                            ReleaseDate = DateTime.UtcNow,
+                            Artifacts =
+                            [
+                                new ReleaseArtifact
+                                {
+                                    Filename = "GenHub-1.2.0.exe",
+                                    DownloadUrl = "https://example.com/build.exe",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        mockCatalogParser.Setup(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
+
+        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"version": "1.0.0"}"""),
+        };
+        mockHttpMessageHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(response);
+
+        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
+        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
+        mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
+            publisherSubscriptionStore: mockSubStore.Object,
+            publisherCatalogParser: mockCatalogParser.Object,
+            httpClientFactory: mockHttpClientFactory.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+
+        var notification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.NotNull(notification);
+        Assert.Equal(AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle, notification.Title);
+        Assert.Contains("1.2.0", notification.Message);
+        Assert.Contains("Fork GenHub", notification.Message);
+    }
+
     private static Mock<INotificationService> CreateNotificationServiceMock()
     {
         var mock = new Mock<INotificationService>();

@@ -320,4 +320,23 @@ public sealed class DownloadNotificationScopeTests
                 It.IsAny<string>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that ReportFraction preserves the aggregate percentage prefix even when status text contains a component percentage.
+    /// </summary>
+    [Fact]
+    public void ReportFraction_WithComponentPercentageInStatus_PreservesAggregatePercentagePrefix()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "Bundle Content");
+
+        scope.ReportFraction(0.4, "Downloading component (80%)");
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "40% - Downloading component (80%)",
+                It.IsAny<string>()),
+            Times.Once);
+    }
 }

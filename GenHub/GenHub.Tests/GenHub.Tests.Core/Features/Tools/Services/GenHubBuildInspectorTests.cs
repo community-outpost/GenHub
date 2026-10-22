@@ -80,6 +80,20 @@ public class GenHubBuildInspectorTests
     }
 
     /// <summary>
+    /// Verifies that nightly builds are categorized as Dev with prerelease flag.
+    /// </summary>
+    [Fact]
+    public void Inspect_NightlyBuildArtifact_InfersDevCategory()
+    {
+        var info = _inspector.Inspect(@"C:\CI\GenHub-Nightly.zip");
+
+        Assert.True(info.IsGenHubBuild);
+        Assert.Equal(GenHubBuildConstants.CategoryDev, info.SuggestedCategory);
+        Assert.Equal(GenHubBuildConstants.ChannelDev, info.BuildChannel);
+        Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+    }
+
+    /// <summary>
     /// Verifies that community forks are categorized as CustomFork.
     /// </summary>
     [Fact]
@@ -254,5 +268,530 @@ public class GenHubBuildInspectorTests
         Assert.Equal("1.2.3-beta", info.Version);
         Assert.Equal(GenHubBuildConstants.ChannelTest, info.BuildChannel);
         Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+    }
+
+    /// <summary>
+    /// Verifies that inspecting a community build zip containing an executable without company or channel metadata
+    /// infers custom fork identity from the archive filename.
+    /// </summary>
+    [Fact]
+    public void Inspect_CommunityZipWithoutMetadata_InfersCustomForkIdentity()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"GenHub-community-1.0.0_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var exeEntry = archive.CreateEntry("GenHub.exe");
+                using (var stream = exeEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.True(info.IsCustomBuild);
+            Assert.Equal(GenHubBuildConstants.ChannelCustomFork, info.BuildChannel);
+            Assert.Equal(GenHubBuildConstants.CategoryCustomFork, info.SuggestedCategory);
+            Assert.NotEqual(GenHubBuildConstants.OfficialContentId, info.SuggestedContentId);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that filename-only inspection preserves a nightly prerelease suffix in the parsed version and classifies as Dev channel.
+    /// </summary>
+    [Fact]
+    public void Inspect_FileNameWithNightlySuffix_PreservesNightlyVersionAndIdentifiesDevChannel()
+    {
+        var fakePath = Path.Combine(Path.GetTempPath(), "GenHub-v1.2.3-nightly.42.zip");
+
+        var info = _inspector.Inspect(fakePath);
+
+        Assert.True(info.IsGenHubBuild);
+        Assert.Equal("1.2.3-nightly.42", info.Version);
+        Assert.Equal(GenHubBuildConstants.ChannelDev, info.BuildChannel);
+        Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+        Assert.False(info.IsCustomBuild);
+        Assert.False(info.IsFork);
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a non-matching filename but with nuspec id GenHub and a renamed executable
+    /// is recognized as a GenHub build preserving nuspec version and authors.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithGenHubNuspecAndRenamedExe_IdentifiesAsGenHubBuild()
+    {
+        var tempNupkg = Path.Combine(Path.GetTempPath(), $"package_{Guid.NewGuid():N}.nupkg");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempNupkg, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("package.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>GenHub</id>
+                                <version>2.5.0</version>
+                                <authors>CommunityForkAuthor</authors>
+                                <title>GenHub Fork</title>
+                            </metadata>
+                        </package>
+                        """);
+                }
+
+                var exeEntry = archive.CreateEntry("CustomGenApp.exe");
+                using (var stream = exeEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempNupkg);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("2.5.0", info.Version);
+            Assert.Equal("CustomGenApp.exe", info.EntryPoint);
+            Assert.True(info.IsFork);
+            Assert.True(info.IsCustomBuild);
+            Assert.Equal("CommunityForkAuthor", info.ForkName);
+            Assert.Equal(GenHubBuildConstants.ChannelCustomFork, info.BuildChannel);
+        }
+        finally
+        {
+            if (File.Exists(tempNupkg))
+            {
+                File.Delete(tempNupkg);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a release filename pattern but with a nuspec prerelease version
+    /// resolves to a prerelease test channel across alpha, beta, rc, and preview prerelease tags.
+    /// </summary>
+    /// <param name="prereleaseVersion">The prerelease version string to inspect.</param>
+    [Theory]
+    [InlineData("1.2.3-alpha")]
+    [InlineData("1.2.3-beta")]
+    [InlineData("1.2.3-rc.1")]
+    [InlineData("1.2.3-preview")]
+    public void Inspect_ArchiveWithReleaseNameAndNuspecPrereleaseVersion_ResolvesPrereleaseChannel(string prereleaseVersion)
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"GenHub-Setup_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("GenHub.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write($"""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>GenHub</id>
+                                <version>{prereleaseVersion}</version>
+                                <authors>Community Outpost</authors>
+                            </metadata>
+                        </package>
+                        """);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal(prereleaseVersion, info.Version);
+            Assert.Equal(GenHubBuildConstants.ChannelTest, info.BuildChannel);
+            Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a GenHub filename pattern but a non-GenHub nuspec id
+    /// exercises InspectFromFileNameWithNuspec and resolves the prerelease channel from nuspec version.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithGenHubFileNameAndNonGenHubNuspecId_ResolvesChannelFromVersion()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"GenHub-release-1.5.0_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("addon.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>thirdparty-addon</id>
+                                <version>1.5.0-alpha</version>
+                                <authors>CommunityAuthor</authors>
+                            </metadata>
+                        </package>
+                        """);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("1.5.0-alpha", info.Version);
+            Assert.Equal(GenHubBuildConstants.ChannelTest, info.BuildChannel);
+            Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that filename-only inspection recognizes widened prerelease tokens such as alpha, rc, and preview.
+    /// </summary>
+    /// <param name="fileName">The archive file name to test.</param>
+    [Theory]
+    [InlineData("GenHub-1.2.0-alpha-win.zip")]
+    [InlineData("GenHub-1.2.0-rc1-win.zip")]
+    [InlineData("GenHub-1.2.0-preview-win.zip")]
+    public void Inspect_FileNameWithWidenedPrereleaseTokens_ResolvesToTestChannel(string fileName)
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{Path.GetFileNameWithoutExtension(fileName)}_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal(GenHubBuildConstants.ChannelTest, info.BuildChannel);
+            Assert.True(GenHubBuildConstants.IsPrereleaseChannel(info.BuildChannel));
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a tool package with a nuspec id like GenHub.MapBuilder or title containing GenHub
+    /// but without a GenHub binary or exact package identity is not misclassified as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithToolPackageNuspecId_IsNotClassifiedAsGenHubBuild()
+    {
+        var tempNupkg = Path.Combine(Path.GetTempPath(), $"tool_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempNupkg, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("tool.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>GenHub.MapBuilder</id>
+                                <version>1.0.0</version>
+                                <authors>Community Author</authors>
+                                <title>GenHub Map Builder Tool</title>
+                            </metadata>
+                        </package>
+                        """);
+                }
+
+                var toolExe = archive.CreateEntry("MapBuilder.exe");
+                using (var stream = toolExe.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempNupkg);
+
+            Assert.False(info.IsGenHubBuild);
+        }
+        finally
+        {
+            if (File.Exists(tempNupkg))
+            {
+                File.Delete(tempNupkg);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that bundled helper binaries (e.g. vcredist_x64.exe) do not hijack classification over the primary application binary.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithRenamedExeAndIgnoredHelperBinary_ChoosesMainExecutableNotHelper()
+    {
+        var tempNupkg = Path.Combine(Path.GetTempPath(), $"package_{Guid.NewGuid():N}.nupkg");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempNupkg, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("package.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>GenHub</id>
+                                <version>3.0.0</version>
+                                <authors>CommunityForkAuthor</authors>
+                            </metadata>
+                        </package>
+                        """);
+                }
+
+                // Helper appears first in archive
+                var helperEntry = archive.CreateEntry("vcredist_x64.exe");
+                using (var stream = helperEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+
+                // Actual app executable
+                var appEntry = archive.CreateEntry("CustomApp.exe");
+                using (var stream = appEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempNupkg);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("CustomApp.exe", info.EntryPoint);
+        }
+        finally
+        {
+            if (File.Exists(tempNupkg))
+            {
+                File.Delete(tempNupkg);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that candidate binary selection prefers an executable matching the nuspec id
+    /// over a bundled secondary binary that merely contains the generic GenHub substring.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithForkIdAndBundledGenHubHelper_PrefersForkExecutableOverGenHubHelper()
+    {
+        var tempNupkg = Path.Combine(Path.GetTempPath(), $"package_{Guid.NewGuid():N}.nupkg");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempNupkg, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("package.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>SuperFork</id>
+                                <version>1.0.0</version>
+                                <authors>CommunityForkAuthor</authors>
+                                <title>GenHub (SuperFork)</title>
+                            </metadata>
+                        </package>
+                        """);
+                }
+
+                // Generic GenHub helper appearing first
+                var helperEntry = archive.CreateEntry("GenHubUpdater.exe");
+                using (var stream = helperEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+
+                // Fork executable matching nuspec id
+                var appEntry = archive.CreateEntry("SuperFork.exe");
+                using (var stream = appEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempNupkg);
+
+            Assert.True(info.IsGenHubBuild);
+            Assert.Equal("SuperFork.exe", info.EntryPoint);
+        }
+        finally
+        {
+            if (File.Exists(tempNupkg))
+            {
+                File.Delete(tempNupkg);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a non-version digit continuation like GenHub-3DViewer.zip
+    /// is not misclassified as a GenHub build.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithDigitWordPrefix_IsNotClassifiedAsGenHubBuild()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"GenHub-3DViewer_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.False(info.IsGenHubBuild);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a tool package with a tool nuspec id (e.g. GenHub.MapBuilder) and primary tool binary MapBuilder.exe
+    /// bundling a secondary GenHub.dll dependency is not misclassified as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithToolBinaryIdentity_IsNotClassifiedAsGenHubBuild()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"ToolPackage_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var nuspecEntry = archive.CreateEntry("tool.nuspec");
+                using (var stream = nuspecEntry.Open())
+                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
+                {
+                    writer.Write("""
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                            <metadata>
+                                <id>GenHub.MapBuilder</id>
+                                <version>1.0.0</version>
+                                <authors>Community Author</authors>
+                                <title>GenHub Map Builder Tool</title>
+                            </metadata>
+                        </package>
+                        """);
+                }
+
+                // Primary tool binary
+                var entry = archive.CreateEntry("MapBuilder.exe");
+                using (var stream = entry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+
+                // Bundled secondary GenHub library
+                var libEntry = archive.CreateEntry("GenHub.dll");
+                using (var stream = libEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.False(info.IsGenHubBuild);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an archive with a non-GenHub name containing only GenHub.dll
+    /// without nuspec or PE metadata branding is not classified as a GenHub application build.
+    /// </summary>
+    [Fact]
+    public void Inspect_ArchiveWithBundledGenHubDllOnlyAndNoBranding_IsNotClassifiedAsGenHubBuild()
+    {
+        var tempZip = Path.Combine(Path.GetTempPath(), $"ModPackage_{Guid.NewGuid():N}.zip");
+        try
+        {
+            using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
+            {
+                var libEntry = archive.CreateEntry("GenHub.dll");
+                using (var stream = libEntry.Open())
+                {
+                    stream.WriteByte(0x4D);
+                    stream.WriteByte(0x5A);
+                }
+            }
+
+            var info = _inspector.Inspect(tempZip);
+
+            Assert.False(info.IsGenHubBuild);
+        }
+        finally
+        {
+            if (File.Exists(tempZip))
+            {
+                File.Delete(tempZip);
+            }
+        }
     }
 }

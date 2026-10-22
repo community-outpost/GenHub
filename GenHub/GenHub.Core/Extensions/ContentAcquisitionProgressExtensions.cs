@@ -33,10 +33,11 @@ public static class ContentAcquisitionProgressExtensions
         var desc = progress.StageDescription ?? string.Empty;
         var op = DeduplicateOperation(desc, progress.CurrentOperation ?? string.Empty);
 
-        string description = !string.IsNullOrEmpty(op) &&
-                             !string.Equals(op, desc, StringComparison.OrdinalIgnoreCase)
-            ? $"{desc}: {op}"
-            : desc;
+        string description = string.IsNullOrEmpty(desc)
+            ? op
+            : (!string.IsNullOrEmpty(op) && !string.Equals(op, desc, StringComparison.OrdinalIgnoreCase)
+                ? $"{desc}: {op}"
+                : desc);
 
         string percentPart = progress.StageProgress is > 0 and < 100 && progress.TotalFiles <= 1
             ? $" ({progress.StageProgress:F0}%)"

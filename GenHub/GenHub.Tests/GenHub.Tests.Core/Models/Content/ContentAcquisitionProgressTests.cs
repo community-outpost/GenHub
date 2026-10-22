@@ -78,4 +78,23 @@ public class ContentAcquisitionProgressTests
 
         Assert.Contains("Extracting files: files backup.bin", status);
     }
+
+    /// <summary>
+    /// Verifies that when stage description is empty, operation is formatted without a leading colon separator.
+    /// </summary>
+    [Fact]
+    public void FormatProgressStatus_WhenStageDescriptionIsEmpty_DoesNotPrefixWithColon()
+    {
+        var progress = new ContentAcquisitionProgress
+        {
+            CurrentStage = 2,
+            TotalStages = 3,
+            StageDescription = string.Empty,
+            CurrentOperation = "Extracting files",
+        };
+
+        var status = progress.FormatProgressStatus();
+
+        Assert.Equal("2/3 - Extracting files", status);
+    }
 }

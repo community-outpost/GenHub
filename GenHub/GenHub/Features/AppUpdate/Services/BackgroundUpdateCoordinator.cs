@@ -909,12 +909,7 @@ public class BackgroundUpdateCoordinator(
     [SuppressMessage("Major Code Smell", "S2325", Justification = "Preserve method ordering and instance scope")]
     private ContentRelease? GetLatestRelease(CatalogContentItem item) =>
         item.Releases
-            .OrderByDescending(r => r.Version, Comparer<string>.Create((a, b) =>
-            {
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(a, b, allowCrossChannel: true)) return 1;
-                if (AppUpdateVersionHelper.IsArtifactVersionNewer(b, a, allowCrossChannel: true)) return -1;
-                return 0;
-            }))
+            .OrderByDescending(r => r.Version, Comparer<string>.Create(UpdateNotificationViewModel.CompareReleaseVersions))
             .ThenByDescending(r => r.ReleaseDate)
             .FirstOrDefault();
 
@@ -972,7 +967,7 @@ public class BackgroundUpdateCoordinator(
         var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
         var customDismissKey = $"{contentId}@{latestVersion}";
-        if (AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true) &&
+        if (UpdateNotificationViewModel.CompareReleaseVersions(latestVersion, installedVersion) > 0 &&
             !string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase))
         {
             NotifyCustomBuildUpdateAvailable(contentId, buildName, latestVersion);

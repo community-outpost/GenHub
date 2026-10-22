@@ -461,38 +461,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Creates the progress reporter shared by every install path. Reports marshal to the UI
-    /// thread and mirror installation state into the dialog bindings.
+    /// Compares two release version strings, taking NuGet semantic versioning, prerelease tags, and cross-channel rules into account.
     /// </summary>
-    private static Progress<UpdateProgress> CreateInstallationProgress(UpdateNotificationViewModel viewModel)
-    {
-        return new Progress<UpdateProgress>(p =>
-        {
-            Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                viewModel.InstallationProgress = p;
-                viewModel.StatusMessage = p.Status;
-                viewModel.DownloadProgress = p.PercentComplete;
-
-                if (!string.IsNullOrEmpty(p.Status) &&
-                    p.Status.StartsWith("Downloading", StringComparison.OrdinalIgnoreCase))
-                {
-                    viewModel.IsDownloading = true;
-                }
-                else if (!string.IsNullOrEmpty(p.Status) &&
-                         (p.Status.StartsWith("Extracting", StringComparison.OrdinalIgnoreCase) ||
-                          p.Status.StartsWith("Preparing", StringComparison.OrdinalIgnoreCase) ||
-                          p.Status.StartsWith("Applying", StringComparison.OrdinalIgnoreCase) ||
-                          p.Status.StartsWith("Launching", StringComparison.OrdinalIgnoreCase) ||
-                          p.Status.StartsWith("Installing", StringComparison.OrdinalIgnoreCase)))
-                {
-                    viewModel.IsDownloading = false;
-                }
-            });
-        });
-    }
-
-    private static int CompareReleaseVersions(string? a, string? b)
+    /// <param name="a">The first version string.</param>
+    /// <param name="b">The second version string.</param>
+    /// <returns>A signed number indicating the relative values of <paramref name="a"/> and <paramref name="b"/>.</returns>
+    internal static int CompareReleaseVersions(string? a, string? b)
     {
         if (string.IsNullOrWhiteSpace(a) && string.IsNullOrWhiteSpace(b))
         {
@@ -541,6 +515,38 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         return string.Compare(cleanA, cleanB, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Creates the progress reporter shared by every install path. Reports marshal to the UI
+    /// thread and mirror installation state into the dialog bindings.
+    /// </summary>
+    private static Progress<UpdateProgress> CreateInstallationProgress(UpdateNotificationViewModel viewModel)
+    {
+        return new Progress<UpdateProgress>(p =>
+        {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                viewModel.InstallationProgress = p;
+                viewModel.StatusMessage = p.Status;
+                viewModel.DownloadProgress = p.PercentComplete;
+
+                if (!string.IsNullOrEmpty(p.Status) &&
+                    p.Status.StartsWith("Downloading", StringComparison.OrdinalIgnoreCase))
+                {
+                    viewModel.IsDownloading = true;
+                }
+                else if (!string.IsNullOrEmpty(p.Status) &&
+                         (p.Status.StartsWith("Extracting", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Preparing", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Applying", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Launching", StringComparison.OrdinalIgnoreCase) ||
+                          p.Status.StartsWith("Installing", StringComparison.OrdinalIgnoreCase)))
+                {
+                    viewModel.IsDownloading = false;
+                }
+            });
+        });
     }
 
     private static void RunOnUi(Action action)
@@ -2289,17 +2295,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task Unsubscribe()
     {
-        await CancelPreviousArtifactLoadAsync();
-        IsLoadingVersions = false;
-
         _velopackUpdateManager.SubscribedPrNumber = null;
         _velopackUpdateManager.SubscribedBranch = null;
-        SubscribedPr = null;
-        SubscribedBranch = null;
         SubscribedCustomBuildContentId = null;
         SubscribedCustomBuildName = null;
         SubscribedCustomBuildPublisherId = null;
         SubscribedCustomBuildVersion = null;
+        SubscribedPr = null;
+        SubscribedBranch = null;
+
+        await CancelPreviousArtifactLoadAsync();
+        IsLoadingVersions = false;
         AvailableVersions.Clear();
         SelectedVersion = null;
         ShowPrMergedWarning = false;
