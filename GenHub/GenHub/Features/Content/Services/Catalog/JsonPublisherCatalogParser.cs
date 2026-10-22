@@ -338,6 +338,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         if (content.Metadata != null)
         {
             content.Metadata.ScreenshotUrls ??= [];
+            content.Metadata.ScreenshotTitles ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         NormalizeReleases(content.Releases);

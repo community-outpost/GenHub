@@ -18210,4 +18210,31 @@ Error: فشل: {3}
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviousImage" xml:space="preserve">
+    <value>الصورة السابقة</value>
+  </data>
+  <data name="Downloads.ContentDetail.NextImage" xml:space="preserve">
+    <value>الصورة التالية</value>
+  </data>
+  <data name="Downloads.ContentDetail.CopyImageUrl" xml:space="preserve">
+    <value>نسخ رابط الصورة</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopied" xml:space="preserve">
+    <value>تم نسخ رابط الصورة إلى الحافظة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopyFailed" xml:space="preserve">
+    <value>فشل نسخ رابط الصورة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedTitle" xml:space="preserve">
+    <value>لا يمكن فتح الصورة</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedMessage" xml:space="preserve">
+    <value>لا يمكن فتح رابط الصورة في المتصفح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameTooltip" xml:space="preserve">
+    <value>تسمية لقطة الشاشة هذه</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
+    <value>اسم لقطة الشاشة (اختياري)</value>
+  </data>
 </root>

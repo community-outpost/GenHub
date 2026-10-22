@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace GenHub.Core.Models.Providers;
@@ -40,6 +42,91 @@ public class ContentRichMetadata
     /// </summary>
     [JsonPropertyName("screenshotUrls")]
     public List<string> ScreenshotUrls { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets optional publisher-provided display names for screenshots,
+    /// keyed by the exact URL or path stored in <see cref="ScreenshotUrls"/>.
+    /// Screenshots without an entry fall back to a generic numbered name.
+    /// </summary>
+    [JsonPropertyName("screenshotTitles")]
+    public Dictionary<string, string> ScreenshotTitles { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the publisher-provided display name for a screenshot, if one was set.
+    /// </summary>
+    /// <param name="screenshotUrl">The URL or path stored in <see cref="ScreenshotUrls"/>.</param>
+    /// <returns>The display name, or null when the screenshot is unnamed.</returns>
+    public string? GetScreenshotTitle(string? screenshotUrl)
+    {
+        if (string.IsNullOrWhiteSpace(screenshotUrl) || ScreenshotTitles == null)
+        {
+            return null;
+        }
+
+        return ScreenshotTitles
+            .Where(entry => string.Equals(entry.Key, screenshotUrl, StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(entry.Value))
+            .Select(entry => entry.Value.Trim())
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Sets or clears the publisher-provided display name for a screenshot.
+    /// A blank name removes the entry so the screenshot uses its generic name.
+    /// </summary>
+    /// <param name="screenshotUrl">The URL or path stored in <see cref="ScreenshotUrls"/>.</param>
+    /// <param name="title">The display name to store, or blank to clear it.</param>
+    public void SetScreenshotTitle(string? screenshotUrl, string? title)
+    {
+        if (string.IsNullOrWhiteSpace(screenshotUrl))
+        {
+            return;
+        }
+
+        RemoveScreenshotTitle(screenshotUrl);
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            ScreenshotTitles ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            ScreenshotTitles[screenshotUrl] = title.Trim();
+        }
+    }
+
+    /// <summary>
+    /// Removes any publisher-provided display name for a screenshot.
+    /// </summary>
+    /// <param name="screenshotUrl">The URL or path stored in <see cref="ScreenshotUrls"/>.</param>
+    public void RemoveScreenshotTitle(string? screenshotUrl)
+    {
+        if (string.IsNullOrWhiteSpace(screenshotUrl) || ScreenshotTitles == null)
+        {
+            return;
+        }
+
+        var existingKey = ScreenshotTitles.Keys
+            .FirstOrDefault(key => string.Equals(key, screenshotUrl, StringComparison.OrdinalIgnoreCase));
+        if (existingKey != null)
+        {
+            ScreenshotTitles.Remove(existingKey);
+        }
+    }
+
+    /// <summary>
+    /// Moves a screenshot display name to a new URL or path, for example when a
+    /// local file is replaced by its hosted URL during publishing.
+    /// </summary>
+    /// <param name="oldUrl">The previous URL or path.</param>
+    /// <param name="newUrl">The replacement URL or path.</param>
+    public void RemapScreenshotTitle(string? oldUrl, string? newUrl)
+    {
+        var title = GetScreenshotTitle(oldUrl);
+        if (title == null || string.IsNullOrWhiteSpace(newUrl))
+        {
+            return;
+        }
+
+        RemoveScreenshotTitle(oldUrl);
+        ScreenshotTitles[newUrl] = title;
+    }
 
     /// <summary>
     /// Gets or sets a video URL (YouTube, Vimeo, direct MP4).

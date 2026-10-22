@@ -18210,4 +18210,31 @@ Error: не удалось: {3}
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Манифест содержимого «{0}», указанный в профиле, не найден в локальном пуле манифестов.</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviousImage" xml:space="preserve">
+    <value>Предыдущее изображение</value>
+  </data>
+  <data name="Downloads.ContentDetail.NextImage" xml:space="preserve">
+    <value>Следующее изображение</value>
+  </data>
+  <data name="Downloads.ContentDetail.CopyImageUrl" xml:space="preserve">
+    <value>Копировать URL изображения</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopied" xml:space="preserve">
+    <value>URL изображения скопирован в буфер обмена.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopyFailed" xml:space="preserve">
+    <value>Не удалось скопировать URL изображения.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedTitle" xml:space="preserve">
+    <value>Не удается открыть изображение</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedMessage" xml:space="preserve">
+    <value>Не удалось открыть ссылку на изображение в браузере.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameTooltip" xml:space="preserve">
+    <value>Назвать этот снимок экрана</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
+    <value>Название снимка (необязательно)</value>
+  </data>
 </root>

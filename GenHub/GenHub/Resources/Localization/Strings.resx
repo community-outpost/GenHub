@@ -18269,4 +18269,31 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>Content manifest '{0}' referenced by profile could not be found in local manifest pool.</value>
   </data>
+  <data name="Downloads.ContentDetail.PreviousImage" xml:space="preserve">
+    <value>Previous image</value>
+  </data>
+  <data name="Downloads.ContentDetail.NextImage" xml:space="preserve">
+    <value>Next image</value>
+  </data>
+  <data name="Downloads.ContentDetail.CopyImageUrl" xml:space="preserve">
+    <value>Copy image URL</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopied" xml:space="preserve">
+    <value>Image URL copied to clipboard.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopyFailed" xml:space="preserve">
+    <value>Failed to copy the image URL.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedTitle" xml:space="preserve">
+    <value>Cannot Open Image</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedMessage" xml:space="preserve">
+    <value>The image link could not be opened in a browser.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameTooltip" xml:space="preserve">
+    <value>Name this screenshot</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
+    <value>Screenshot name (optional)</value>
+  </data>
 </root>

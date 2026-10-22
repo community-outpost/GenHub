@@ -470,9 +470,19 @@
                                                 CornerRadius="6"
                                                 Padding="8,4"
                                                 Margin="0,0,0,4">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                            <Grid ColumnDefinitions="*,Auto,Auto">
                                                 <TextBlock Text="{Binding}" VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                                 <Button Grid.Column="1"
+                                                        Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).SelectScreenshotCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Background="Transparent"
+                                                        BorderThickness="0"
+                                                        Padding="4"
+                                                        Cursor="Hand"
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}">
+                                                    <PathIcon Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" Width="10" Height="10" Foreground="{DynamicResource TextSecondary}"/>
+                                                </Button>
+                                                <Button Grid.Column="2"
                                                         Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveScreenshotCommand}"
                                                         CommandParameter="{Binding}"
                                                         Background="Transparent"
@@ -486,6 +496,20 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- Screenshot Name Editor -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0" IsVisible="{Binding HasSelectedScreenshot}">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding SelectedScreenshotTitle, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameWatermark}"
+                                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}"/>
+                                <Button Grid.Column="1"
+                                        Content="{localization:Localize Common.Button.Apply}"
+                                        Command="{Binding ApplyScreenshotTitleCommand}"
+                                        Background="{DynamicResource GlassStrongBrush}"
+                                        Padding="12,6"
+                                        CornerRadius="6"/>
+                            </Grid>
 
                             <!-- Add Screenshot URL Input -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">

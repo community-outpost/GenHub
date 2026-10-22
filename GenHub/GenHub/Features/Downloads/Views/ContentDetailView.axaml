@@ -852,7 +852,7 @@
                                                                         </ItemsControl.ItemsPanel>
                                                                         <ItemsControl.ItemTemplate>
                                                                             <DataTemplate>
-                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenMediaCommand}"
+                                                                                <Button Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).OpenFullScreenVideoCommand}"
                                                                                         CommandParameter="{Binding}"
                                                                                         Background="{DynamicResource CardBackground}"
                                                                                         BorderThickness="1"
@@ -1933,12 +1933,57 @@
 
                 <!-- Image Display -->
                 <Border Grid.Row="1" Background="{DynamicResource WindowBackground}" Padding="12">
-                    <Image controls:ImageLoader.Source="{Binding FullScreenMediaUrl}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           MaxHeight="680"
-                           MaxWidth="1060" />
+                    <Panel>
+                        <Image controls:ImageLoader.Source="{Binding FullScreenMediaUrl}"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               MaxHeight="680"
+                               MaxWidth="1060">
+                            <Image.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="{localization:Localize Downloads.ContentDetail.PreviousImage}"
+                                              Command="{Binding PreviousFullScreenImageCommand}"
+                                              IsEnabled="{Binding HasPreviousFullScreenImage}" />
+                                    <MenuItem Header="{localization:Localize Downloads.ContentDetail.NextImage}"
+                                              Command="{Binding NextFullScreenImageCommand}"
+                                              IsEnabled="{Binding HasNextFullScreenImage}" />
+                                    <Separator />
+                                    <MenuItem Header="{localization:Localize Downloads.ContentDetail.CopyImageUrl}"
+                                              Command="{Binding CopyImageUrlCommand}" />
+                                    <MenuItem Header="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
+                                              Command="{Binding OpenImageInBrowserCommand}" />
+                                </ContextMenu>
+                            </Image.ContextMenu>
+                        </Image>
+                        <Button Command="{Binding PreviousFullScreenImageCommand}"
+                                IsVisible="{Binding HasPreviousFullScreenImage}"
+                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="20" Width="40" Height="40" Margin="8,0,0,0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.PreviousImage}">
+                            <PathIcon Data="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" Width="18" Height="18" />
+                        </Button>
+                        <Button Command="{Binding NextFullScreenImageCommand}"
+                                IsVisible="{Binding HasNextFullScreenImage}"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="20" Width="40" Height="40" Margin="0,0,8,0"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Cursor="Hand"
+                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.NextImage}">
+                            <PathIcon Data="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" Width="18" Height="18" />
+                        </Button>
+                        <Border Background="#99000000" CornerRadius="4" Padding="8,3"
+                                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,8"
+                                IsVisible="{Binding HasFullScreenGallery}">
+                            <TextBlock Text="{Binding FullScreenMediaPosition}" FontSize="12" Foreground="White" />
+                        </Border>
+                    </Panel>
                 </Border>
             </Grid>
         </Border>
