@@ -104,6 +104,34 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
+    /// A null entry in a catalog-level tab's appliesTo list does not break parsing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_NullAppliesToEntry_ParsesAsync()
+    {
+        const string json = """
+            {
+              "$schemaVersion": 1,
+              "publisher": { "id": "tabs-pub", "name": "Tabs Publisher" },
+              "customTabs": [ { "tabId": "shared", "header": "Shared", "appliesTo": [ null, "mod-a", "missing" ] } ],
+              "content": [
+                {
+                  "id": "mod-a",
+                  "name": "Mod A",
+                  "releases": [ { "version": "1.0.0", "artifacts": [ { "filename": "a.zip", "downloadUrl": "https://example.com/a.zip" } ] } ]
+                }
+              ]
+            }
+            """;
+
+        var result = await _parser.ParseCatalogAsync(json);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Contains("mod-a", Assert.Single(result.Data!.CustomTabs).AppliesTo);
+    }
+
+    /// <summary>
     /// A tab without a header fails validation with an error naming the content item and tab.
     /// </summary>
     [Fact]

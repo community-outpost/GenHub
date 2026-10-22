@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -203,6 +204,32 @@ public sealed class CatalogTabProviderTests : IDisposable
     }
 
     /// <summary>
+    /// Ensures item metadata that carries no customTabs field still falls back to the catalog item's tabs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetTabsAsync_ItemMetadataWithoutTabsField_FallsBackToCatalogItemTabsAsync()
+    {
+        var provider = CreateProvider(new PublisherCatalog
+        {
+            Content =
+            [
+                new CatalogContentItem
+                {
+                    Id = "mod-a",
+                    CustomTabs = [new CatalogTabDefinition { TabId = "a-notes", Header = "A notes" }],
+                },
+            ],
+        });
+        var searchResult = CreateSearchResult("mod-a");
+        searchResult.ResolverMetadata[CatalogConstants.CatalogItemJsonMetadataKey] = "{\"id\":\"mod-a\",\"name\":\"Mod A\"}";
+
+        var tabs = await provider.GetTabsAsync(searchResult);
+
+        Assert.Equal("a-notes", Assert.Single(tabs).TabId);
+    }
+
+    /// <summary>
     /// Ensures the selected item receives only its own tabs when the provider falls back to the cached catalog.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -256,9 +283,8 @@ public sealed class CatalogTabProviderTests : IDisposable
 
         var tabs = await provider.GetTabsAsync(CreateSearchResult("mod-a", item));
 
-        Assert.Equal(2, tabs.Count);
-        Assert.Equal("Item notes", Assert.Single(tabs, t => t.TabId.Equals("notes", StringComparison.OrdinalIgnoreCase)).Header);
-        Assert.Contains(tabs, t => t.TabId == "faq");
+        Assert.Equal(["NOTES", "faq"], tabs.Select(t => t.TabId));
+        Assert.Equal("Item notes", tabs[0].Header);
     }
 
     /// <summary>
