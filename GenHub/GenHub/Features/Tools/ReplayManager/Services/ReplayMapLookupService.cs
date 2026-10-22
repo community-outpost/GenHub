@@ -104,11 +104,15 @@ public sealed class ReplayMapLookupService(
             return results;
         }
 
-        var stockRoots = await GetStockRootsAsync(version, cancellationToken);
-        var userMapDirectory = GetUserMapDirectory(version);
-
         var scan = new MapScan(wanted);
-        var isComplete = await Task.Run(() => ScanSources(scan, userMapDirectory, stockRoots, cancellationToken), cancellationToken);
+        var isComplete = await Task.Run(
+            async () =>
+            {
+                var stockRoots = await GetStockRootsAsync(version, cancellationToken);
+                var userMapDirectory = GetUserMapDirectory(version);
+                return ScanSources(scan, userMapDirectory, stockRoots, cancellationToken);
+            },
+            cancellationToken);
 
         for (var i = 0; i < replays.Count; i++)
         {

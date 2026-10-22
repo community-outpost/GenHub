@@ -353,6 +353,37 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
         Assert.InRange(service.CachedCrcCount, 1, 2);
     }
 
+    /// <summary>
+    /// Verifies that installation discovery runs off the calling thread, so a slow first detection does not block
+    /// the caller before the map scan starts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_SlowInstallationDiscovery_DoesNotBlockCallerAsync()
+    {
+        using var discoveryReleased = new ManualResetEventSlim();
+        var callReturned = false;
+        var callReturnedBeforeDiscoveryFinished = false;
+        _installationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                discoveryReleased.Wait(TimeSpan.FromSeconds(10));
+                callReturnedBeforeDiscoveryFinished = Volatile.Read(ref callReturned);
+                return Task.FromResult(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([CreateZeroHourInstallation()]));
+            });
+        WriteStockArchive(("Maps\\Stock Map\\Stock Map.map", MapContents));
+        var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+
+        var resolve = CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay]);
+        Volatile.Write(ref callReturned, true);
+        discoveryReleased.Set();
+        var results = await resolve;
+
+        Assert.True(callReturnedBeforeDiscoveryFinished);
+        Assert.Equal(ReplayMapAvailability.Available, results[0]);
+    }
+
     private static async Task ResolveIntoAsync(ReplayMapLookupService service, GameType version, params ReplayFile[] replays)
     {
         var results = await service.ResolveMapAvailabilityAsync(version, replays);
