@@ -181,7 +181,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
 
         Assert.Null(closed);
         Assert.Null(_updated);
-        Assert.True(vm.ShowActionError);
+        Assert.Contains("could not be updated", vm.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
     }
 
@@ -399,50 +399,6 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     }
 
     /// <summary>
-    /// A failing store read while re-checking a new catalog selection clears the stale decision and shows an error.
-    /// </summary>
-    /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task SelectDefinitionCatalog_StoreThrows_ResetsDecisionAndShowsErrorAsync()
-    {
-        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
-        var vm = CreateViewModel(TwoCatalogDefinition());
-        await vm.InitializeAsync();
-        await vm.SelectDefinitionCatalogAsync("maps");
-        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
-
-        _subscriptionStore
-            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new IOException("locked"));
-        await vm.SelectDefinitionCatalogAsync("main");
-
-        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
-        Assert.True(vm.ShowActionError);
-    }
-
-    /// <summary>
-    /// A failed store read while re-checking clears the stale decision and shows an error.
-    /// </summary>
-    /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task SelectDefinitionCatalog_StoreReadFails_ResetsDecisionAndShowsErrorAsync()
-    {
-        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
-        var vm = CreateViewModel(TwoCatalogDefinition());
-        await vm.InitializeAsync();
-        await vm.SelectDefinitionCatalogAsync("maps");
-        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
-
-        _subscriptionStore
-            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateFailure("corrupt"));
-        await vm.SelectDefinitionCatalogAsync("main");
-
-        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
-        Assert.True(vm.ShowActionError);
-    }
-
-    /// <summary>
     /// An older re-check that fails after a newer one finished does not clear the newer decision.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
@@ -525,24 +481,62 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     }
 
     /// <summary>
-    /// When the subscription disappears before a re-check, the stale decision is cleared.
+    /// A re-check whose store read throws, fails, or finds no subscription clears the stale decision, and every failure shows an error.
     /// </summary>
+    /// <param name="outcome">The store outcome for the re-check.</param>
+    /// <param name="expectError">Whether the dialog should show an error.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task SelectDefinitionCatalog_SubscriptionRemoved_ResetsDecisionAsync()
+    [Theory]
+    [InlineData("io-exception", true)]
+    [InlineData("json-exception", true)]
+    [InlineData("failed-read", true)]
+    [InlineData("removed", false)]
+    public async Task SelectDefinitionCatalog_StoreOutcome_ResetsDecisionAsync(string outcome, bool expectError)
     {
-        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
-        var vm = CreateViewModel(TwoCatalogDefinition());
-        await vm.InitializeAsync();
-        await vm.SelectDefinitionCatalogAsync("maps");
-        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+        var vm = await CreateViewModelWithCollisionAsync();
 
-        _subscriptionStore
-            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+        var read = _subscriptionStore.Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()));
+        switch (outcome)
+        {
+            case "io-exception":
+                read.ThrowsAsync(new IOException("locked"));
+                break;
+            case "json-exception":
+                read.ThrowsAsync(new JsonException("corrupt"));
+                break;
+            case "failed-read":
+                read.ReturnsAsync(OperationResult<PublisherSubscription?>.CreateFailure("corrupt"));
+                break;
+            default:
+                read.ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(null));
+                break;
+        }
+
         await vm.SelectDefinitionCatalogAsync("main");
 
         Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+        Assert.Equal(expectError, vm.ShowActionError);
+    }
+
+    /// <summary>
+    /// A successful re-check clears the error left by an earlier failed re-check.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_SucceedsAfterFailure_ClearsSourceCheckErrorAsync()
+    {
+        var vm = await CreateViewModelWithCollisionAsync();
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("locked"));
+        await vm.SelectDefinitionCatalogAsync("main");
+        Assert.True(vm.ShowActionError);
+
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        await vm.SelectDefinitionCatalogAsync("maps");
+
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+        Assert.Null(vm.ErrorMessage);
     }
 
     /// <summary>
@@ -597,16 +591,23 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         // The mocked stores complete synchronously, so the first save runs until it waits on its update inside the lock,
         // and the second runs until it waits on the lock. Without the lock the second would finish its update here.
         var firstSave = first.ReplaceExistingCommand.ExecuteAsync(null);
-        Assert.Equal(1, Volatile.Read(ref updateCalls));
-        Assert.False(firstSave.IsCompleted);
+        var secondSave = Task.CompletedTask;
+        try
+        {
+            Assert.Equal(1, Volatile.Read(ref updateCalls));
+            Assert.False(firstSave.IsCompleted);
 
-        var secondSave = second.ReplaceExistingCommand.ExecuteAsync(null);
+            secondSave = second.ReplaceExistingCommand.ExecuteAsync(null);
 
-        Assert.Equal(1, Volatile.Read(ref updateCalls));
-        Assert.False(secondSave.IsCompleted);
-
-        release.SetResult(OperationResult<bool>.CreateSuccess(true));
-        await Task.WhenAll(firstSave, secondSave);
+            Assert.Equal(1, Volatile.Read(ref updateCalls));
+            Assert.False(secondSave.IsCompleted);
+        }
+        finally
+        {
+            // Release the shared save lock even when an assertion fails, so later tests cannot hang on it.
+            release.TrySetResult(OperationResult<bool>.CreateSuccess(true));
+            await Task.WhenAll(firstSave, secondSave);
+        }
 
         Assert.Equal(2, updateCalls);
     }
@@ -681,13 +682,18 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         await vm.InitializeAsync();
 
         var confirm = vm.ConfirmCommand.ExecuteAsync(null);
-
-        Assert.True(vm.IsSaving);
-        Assert.False(vm.ConfirmCommand.CanExecute(null));
-        Assert.False(vm.ReplaceExistingCommand.CanExecute(null));
-        await vm.ReplaceExistingCommand.ExecuteAsync(null);
-        release.SetResult(OperationResult<bool>.CreateSuccess(true));
-        await confirm;
+        try
+        {
+            Assert.True(vm.IsSaving);
+            Assert.False(vm.ConfirmCommand.CanExecute(null));
+            Assert.False(vm.ReplaceExistingCommand.CanExecute(null));
+            await vm.ReplaceExistingCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            release.TrySetResult(OperationResult<bool>.CreateSuccess(true));
+            await confirm;
+        }
 
         _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.True(vm.ConfirmCommand.CanExecute(null));
@@ -781,6 +787,16 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         _subscriptionStore
             .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(existing));
+    }
+
+    private async Task<SubscriptionConfirmationViewModel> CreateViewModelWithCollisionAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition());
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+        return vm;
     }
 
     private SubscriptionConfirmationViewModel CreateViewModel(PublisherDefinition definition)

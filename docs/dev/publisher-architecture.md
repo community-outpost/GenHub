@@ -111,7 +111,7 @@ Each value is used exactly as written in the definition. With OpenSSL:
 
 ```bash
 printf 'genhub-publisher-identity-v1\n%s\n%s\n%s' "$ID" "$DEFINITION_URL" "$SIGNED_AT" \
-  | openssl dgst -sha256 -sign private.pem | base64
+  | openssl dgst -sha256 -sign private.pem | openssl base64 -A
 ```
 
 Trust is established on first use. The first subscription whose proof verifies stores the key for that publisher ID. A later subscription from a new URL is a verified move only when:

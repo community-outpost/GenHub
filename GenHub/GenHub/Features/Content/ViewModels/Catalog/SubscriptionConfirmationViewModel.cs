@@ -744,6 +744,7 @@ public partial class SubscriptionConfirmationViewModel(
 
         OperationResult<bool>? result = null;
         var committed = false;
+        var trustMayHaveChanged = true;
         var restoreFailed = false;
         try
         {
@@ -752,10 +753,15 @@ public partial class SubscriptionConfirmationViewModel(
                 result = await UpdateForReplacementAsync(subscription, cancellationToken);
                 committed = result.Success;
             }
+            else
+            {
+                // A write the key store reports as failed leaves the previous key in place.
+                trustMayHaveChanged = false;
+            }
         }
         finally
         {
-            if (!committed)
+            if (!committed && trustMayHaveChanged)
             {
                 restoreFailed = !await RestoreTrustAsync(publisherId, previous.Data);
             }
@@ -847,7 +853,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to re-check the source for publisher {PublisherId}", publisherId);
             if (generation == _assessmentGeneration)
@@ -875,9 +881,11 @@ public partial class SubscriptionConfirmationViewModel(
         if (existingResult.Data is not { } existingSub)
         {
             ResetSourceChange();
+            ClearSourceCheckError();
             return;
         }
 
+        ClearSourceCheckError();
         await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, cancellationToken);
     }
 
@@ -891,7 +899,19 @@ public partial class SubscriptionConfirmationViewModel(
     {
         ResetSourceChange();
         ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
-        ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.SourceCheckFailed", "GenHub could not compare this source with your existing subscription. It checks again when you save.");
+        ErrorMessage = GetSourceCheckFailedMessage();
+    }
+
+    private string GetSourceCheckFailedMessage() => GetLocalizedString(
+        "Downloads.Subscription.ErrorMessage.SourceCheckFailed",
+        "GenHub could not compare this source with your existing subscription. It checks again when you save.");
+
+    private void ClearSourceCheckError()
+    {
+        if (string.Equals(ErrorMessage, GetSourceCheckFailedMessage(), StringComparison.Ordinal))
+        {
+            ErrorMessage = null;
+        }
     }
 
     private PublisherSubscription BuildSubscription(
