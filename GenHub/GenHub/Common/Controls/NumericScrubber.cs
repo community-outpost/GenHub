@@ -1,8 +1,12 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using GenHub.Common.Markup;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using System;
 
 namespace GenHub.Common.Controls;
@@ -22,6 +26,7 @@ public static class NumericScrubber
             typeof(NumericScrubber),
             defaultValue: false);
 
+    private const string ScrubberTipKey = "Common.Tooltip.NumericScrubber";
     private const double DragThresholdPixels = 4.0;
     private const double PixelsPerStep = 6.0;
 
@@ -81,6 +86,23 @@ public static class NumericScrubber
         var state = new ScrubberState(control);
         control.SetValue(StateProperty, state);
         state.AttachHandlers();
+        AttachLocalizedTip(control);
+    }
+
+    private static void AttachLocalizedTip(NumericUpDown control)
+    {
+        // Application styles load before the localization service is in the application resources,
+        // so a Localize setter in the global style resolves to the raw key. Bind it per control instead.
+        if (control.IsSet(ToolTip.TipProperty) ||
+            Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) != true ||
+            resource is not ILocalizationService localizationService)
+        {
+            return;
+        }
+
+        var binding = new LocalizeExtension(ScrubberTipKey).CreateBinding(localizationService);
+        binding.Priority = BindingPriority.Style;
+        control.Bind(ToolTip.TipProperty, binding);
     }
 
     private static void Detach(NumericUpDown control)
