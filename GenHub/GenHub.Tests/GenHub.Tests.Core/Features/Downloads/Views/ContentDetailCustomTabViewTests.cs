@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.Downloads.Views;
@@ -46,7 +48,8 @@ public class ContentDetailCustomTabViewTests
         {
             view.DataContext = itemA;
             Assert.Equal(["Install guide", "FAQ"], GeneratedHeaders(tabControl));
-            var content = Assert.IsType<CustomTabContentView>(((TabItem)tabControl.Items[ContentDetailViewModel.BuiltInTabCount]!).Content);
+            var scroller = Assert.IsType<ScrollViewer>(((TabItem)tabControl.Items[ContentDetailViewModel.BuiltInTabCount]!).Content);
+            var content = Assert.IsType<CustomTabContentView>(scroller.Content);
             Assert.Same(itemA.CustomTabs[0], content.DataContext);
             Assert.NotNull(content.ImageCommand);
             Assert.True(content.ImageCommand.CanExecute(new CustomTabCardDefinition { Title = "Remote", ImageUrl = "https://example.com/card.png" }));
@@ -133,6 +136,48 @@ public class ContentDetailCustomTabViewTests
             pendingB.SetResult([Tab("b-notes")]);
             await abandonedLoad;
             Assert.Equal(["shared", "a-guide"], viewModel.CustomTabs.Select(t => t.TabId));
+        });
+    }
+
+    /// <summary>
+    /// Long publisher tab content scrolls through the detail view's own scroller around the tab content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentDetailView_LongPublisherTab_ScrollsInTabScrollerAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", new CustomTabDefinition
+        {
+            TabId = "long",
+            Header = "Long",
+            Intro = string.Join(" ", Enumerable.Repeat("Long intro text.", 400)),
+            Cards = [.. Enumerable.Range(0, 24).Select(i => new CustomTabCardDefinition { Title = $"Card {i}", Description = "Card description" })],
+        });
+        using var viewModel = CreateViewModel(CreateSearchResult("mod-a"), registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var view = new ContentDetailView { DataContext = viewModel };
+        await InWindowAsync(view, tabControl =>
+        {
+            tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount;
+            var window = (Window)view.Parent!;
+            window.Width = 900;
+            window.Height = 600;
+            window.UpdateLayout();
+
+            var scroller = Assert.IsType<ScrollViewer>(((TabItem)tabControl.Items[ContentDetailViewModel.BuiltInTabCount]!).Content);
+            var ownScrollers = Assert.IsType<CustomTabContentView>(scroller.Content)
+                .GetVisualDescendants()
+                .OfType<ScrollViewer>()
+                .Where(viewer => viewer.FindAncestorOfType<Markdown.Avalonia.MarkdownScrollViewer>() == null);
+            Assert.Empty(ownScrollers);
+            Assert.True(scroller.Extent.Height > scroller.Viewport.Height, $"Extent {scroller.Extent.Height} should exceed viewport {scroller.Viewport.Height}");
+
+            scroller.Offset = new Vector(0, 500);
+            window.UpdateLayout();
+            Assert.Equal(500, scroller.Offset.Y);
+            return Task.CompletedTask;
         });
     }
 

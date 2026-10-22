@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Helpers;
@@ -105,7 +106,7 @@ public partial class ContentDetailView : UserControl
 
         for (var i = 0; i < tabs.Count; i++)
         {
-            if (items[ContentDetailViewModel.BuiltInTabCount + i] is not TabItem { Content: CustomTabContentView view } ||
+            if (items[ContentDetailViewModel.BuiltInTabCount + i] is not TabItem { Content: ScrollViewer { Content: CustomTabContentView view } } ||
                 !ReferenceEquals(view.DataContext, tabs[i]))
             {
                 return false;
@@ -211,10 +212,14 @@ public partial class ContentDetailView : UserControl
             items.Add(new TabItem
             {
                 Header = tab.Header,
-                Content = new CustomTabContentView
+                Content = new ScrollViewer
                 {
-                    DataContext = tab,
-                    ImageCommand = _openCardImageCommand,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Content = new CustomTabContentView
+                    {
+                        DataContext = tab,
+                        ImageCommand = _openCardImageCommand,
+                    },
                 },
             });
         }

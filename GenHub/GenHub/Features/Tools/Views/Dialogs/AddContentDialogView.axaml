@@ -631,8 +631,7 @@
                                                     BorderBrush="{DynamicResource GlassBorderBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="6"
-                                                    Padding="8"
-                                                    MaxHeight="420">
+                                                    Padding="8">
                                                 <downloadViews:CustomTabContentView DataContext="{Binding Preview}"/>
                                             </Border>
                                         </StackPanel>
