@@ -271,7 +271,7 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     [Fact]
     public void NormalizeCatalog_BadCards_DropsCardsAndTrimsToLimit()
     {
-        var cards = Enumerable.Range(0, CustomTabConstants.MaxCardsPerTab + 2)
+        var cards = Enumerable.Range(0, CustomTabConstants.MaxCardsPerTab + 6)
             .Select(i => new CatalogTabCardDefinition { Title = $"Card {i}" })
             .ToList();
         cards[0].ImageUrl = "file:///etc/passwd";
@@ -286,8 +286,9 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
         var kept = Assert.Single(Assert.Single(catalog.Content).CustomTabs).Cards;
-        Assert.Equal(CustomTabConstants.MaxCardsPerTab - 2, kept.Count);
+        Assert.Equal(CustomTabConstants.MaxCardsPerTab, kept.Count);
         Assert.Equal("Card 4", kept[0].Title);
+        Assert.Equal($"Card {4 + CustomTabConstants.MaxCardsPerTab - 1}", kept[^1].Title);
     }
 
     /// <summary>
