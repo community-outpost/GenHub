@@ -26,6 +26,12 @@ public static class ImageLoader
     public static readonly AttachedProperty<IImage?> PlaceholderProperty =
         AvaloniaProperty.RegisterAttached<Image, IImage?>("Placeholder", typeof(ImageLoader));
 
+    /// <summary>
+    /// Identifies the LoadFailed attached property, true when the last source could not be loaded.
+    /// </summary>
+    public static readonly AttachedProperty<bool> LoadFailedProperty =
+        AvaloniaProperty.RegisterAttached<Image, bool>("LoadFailed", typeof(ImageLoader));
+
     private static readonly AttachedProperty<CancellationTokenSource?> CurrentCtsProperty =
         AvaloniaProperty.RegisterAttached<Image, CancellationTokenSource?>("CurrentCts", typeof(ImageLoader));
 
@@ -62,12 +68,20 @@ public static class ImageLoader
     /// <param name="value">The placeholder image.</param>
     public static void SetPlaceholder(Image element, IImage? value) => element.SetValue(PlaceholderProperty, value);
 
+    /// <summary>
+    /// Gets a value indicating whether the last source of the image could not be loaded.
+    /// </summary>
+    /// <param name="element">The image.</param>
+    /// <returns><c>true</c> when loading failed.</returns>
+    public static bool GetLoadFailed(Image element) => element.GetValue(LoadFailedProperty);
+
     private static void OnSourceChanged(Image image, AvaloniaPropertyChangedEventArgs e)
     {
         image.AttachedToVisualTree -= OnAttachedToVisualTree;
         image.DetachedFromVisualTree -= OnDetachedFromVisualTree;
 
         CancelActiveLoad(image);
+        image.SetValue(LoadFailedProperty, false);
 
         // Clear previous source immediately to avoid displaying stale thumbnails during virtual scrolling or loading
         var placeholder = GetPlaceholder(image);
@@ -156,6 +170,7 @@ public static class ImageLoader
                 }
 
                 image.Source = bitmap ?? GetPlaceholder(image);
+                image.SetValue(LoadFailedProperty, bitmap == null);
                 InvalidateImage(image);
 
                 var currentCts = image.GetValue(CurrentCtsProperty);
