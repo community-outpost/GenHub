@@ -354,6 +354,28 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that cancellation during installation discovery is reported as cancellation, not as unknown results,
+    /// even when discovery turns the cancellation into a failure result and there are no maps to scan.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResolveMapAvailabilityAsync_CanceledDuringDiscovery_ThrowsOperationCanceledAsync()
+    {
+        using var cts = new CancellationTokenSource();
+        _installationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                cts.Cancel();
+                return Task.FromResult(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("canceled"));
+            });
+        var replay = CreateReplay(MapContentsCrc, (uint)MapContents.Length);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay], cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that installation discovery runs off the calling thread, so a slow first detection does not block
     /// the caller before the map scan starts.
     /// </summary>

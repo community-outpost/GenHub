@@ -113,6 +113,7 @@ public sealed class ReplayMapLookupService(
                 return ScanSources(scan, userMapDirectory, stockRoots, cancellationToken);
             },
             cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         for (var i = 0; i < replays.Count; i++)
         {

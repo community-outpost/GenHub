@@ -2019,7 +2019,7 @@ public partial class ReplayManagerViewModel(
             var gameType = SelectedTab;
             var replays = await directoryService.GetReplaysAsync(gameType, token);
             token.ThrowIfCancellationRequested();
-            await RevalidateSelectedRecoveryProfilesAsync(replays);
+            await RevalidateSelectedRecoveryProfilesAsync(replays, token);
             token.ThrowIfCancellationRequested();
             await UpdateLoadedReplaysCollectionAsync(dispatcher, gameType, replays, token);
             token.ThrowIfCancellationRequested();
@@ -2097,7 +2097,7 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private async Task RevalidateSelectedRecoveryProfilesAsync(IReadOnlyList<ReplayFile> replays)
+    private async Task RevalidateSelectedRecoveryProfilesAsync(IReadOnlyList<ReplayFile> replays, CancellationToken token)
     {
         if (_selectedRecoveryProfiles.IsEmpty)
         {
@@ -2112,7 +2112,7 @@ public partial class ReplayManagerViewModel(
                 return;
             }
 
-            var profilesResult = await manager.GetAllProfilesAsync();
+            var profilesResult = await manager.GetAllProfilesAsync(token);
             var profiles = profilesResult.Data;
             if (profiles == null || profiles.Count == 0)
             {
