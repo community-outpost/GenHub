@@ -5411,7 +5411,7 @@
     <value>مخصص / غير معروف</value>
   </data>
   <data name="Tools.ReplayManager.Badge.RetailInstallNeeded" xml:space="preserve">
-    <value>مطلوب تثبيت النسخة الأصلية</value>
+    <value>مطلوب تثبيت نسخة التجزئة</value>
   </data>
   <data name="Tools.ReplayManager.Badge.Unknown" xml:space="preserve">
     <value>مجهول</value>
@@ -8473,7 +8473,7 @@
     <value>رمز التحقق الدوري Exe CRC {0} / INI CRC {1} غير موجود في الكتالوج الرسمي. انقر فوق 'ملف تعريفي' للتهيئة باستخدام التثبيت الأساسي.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation" xml:space="preserve">
-    <value>تم تسجيل هذه الإعادة باستخدام العميل الأصلي '{0}'. أضف تثبيتًا أصليًا للعبة، ثم أنشئ ملفًا تعريفيًا لمشاهدتها.</value>
+    <value>تم تسجيل هذه الإعادة باستخدام عميل نسخة التجزئة '{0}'. أضف تثبيتًا لنسخة التجزئة من اللعبة، ثم أنشئ ملفًا تعريفيًا لمشاهدتها.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.Map.Available" xml:space="preserve">
     <value>تم العثور على الخريطة. تمت المطابقة برمز CRC {0} والحجم {1} بايت.</value>
