@@ -80,7 +80,6 @@ public partial class ReplayManagerViewModel(
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _runningProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _selectedRecoveryProfiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _currentRecoveryProfileIds = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private readonly ReplayLoadCancellation _loadCancellation = new();
     private int _pendingReloadRequests;
     private bool _messengerRegistered;
@@ -359,37 +358,23 @@ public partial class ReplayManagerViewModel(
     [RelayCommand]
     public async Task LoadReplaysAsync()
     {
+        _loadCancellation.CancelCurrent();
+        Interlocked.Increment(ref _pendingReloadRequests);
+        if (!await _loadCancellation.WaitForTurnAsync())
+        {
+            return;
+        }
+
         try
         {
-            _loadCancellation.CancelCurrent();
-            Interlocked.Increment(ref _pendingReloadRequests);
-            await _reloadLock.WaitAsync(_loadCancellation.DisposeToken);
-            try
+            while (!_loadCancellation.IsDisposed && Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
             {
-                while (!_loadCancellation.IsDisposed && Interlocked.Exchange(ref _pendingReloadRequests, 0) > 0)
-                {
-                    await LoadReplaysCoreAsync();
-                }
-            }
-            finally
-            {
-                try
-                {
-                    _reloadLock.Release();
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Suppress ObjectDisposedException when viewmodel is disposed during reload release
-                }
+                await LoadReplaysCoreAsync();
             }
         }
-        catch (ObjectDisposedException)
+        finally
         {
-            // Suppress ObjectDisposedException when viewmodel is disposed while waiting on lock
-        }
-        catch (OperationCanceledException) when (_loadCancellation.IsDisposed)
-        {
-            // The view model was disposed while this reload waited for the running one.
+            _loadCancellation.EndTurn();
         }
     }
 
@@ -545,14 +530,10 @@ public partial class ReplayManagerViewModel(
     }
 
     /// <summary>
-    /// Waits until no replay load holds the reload lock. After disposal this means every load has stopped.
+    /// Waits until no replay load is running. After disposal this means every load has stopped.
     /// </summary>
     /// <returns>A task that completes when the running load, if any, has finished.</returns>
-    internal async Task WhenLoadsIdleAsync()
-    {
-        await _reloadLock.WaitAsync();
-        _reloadLock.Release();
-    }
+    internal Task WhenLoadsIdleAsync() => _loadCancellation.WhenIdleAsync();
 
     /// <summary>
     /// Releases unmanaged and - optionally - managed resources.
@@ -567,8 +548,6 @@ public partial class ReplayManagerViewModel(
                 LocalizationService.PropertyChanged -= OnLocalizationChanged;
             }
 
-            // Canceling the dispose token completes reloads waiting on the reload lock. The lock itself is not disposed,
-            // because SemaphoreSlim.Dispose drops queued waiters without completing them.
             _loadCancellation.Dispose();
             Interlocked.Exchange(ref _pendingReloadRequests, 0);
             Interlocked.Increment(ref _drawerSessionId);
@@ -661,48 +640,49 @@ public partial class ReplayManagerViewModel(
 
             // Verify file existence for each item asynchronously
             var dispatcher = Dispatcher.UIThread;
-            var disposeToken = _loadCancellation.DisposeToken;
-            _ = Task.Run(
-                async () =>
-                {
-                    using var httpClient = new System.Net.Http.HttpClient
-                    {
-                        Timeout = TimeSpan.FromSeconds(5),
-                    };
-
-                    foreach (var vm in viewModels)
-                    {
-                        bool exists = false;
-                        try
-                        {
-                            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
-                            using var response = await httpClient.SendAsync(request, disposeToken);
-                            exists = response.IsSuccessStatusCode;
-                        }
-                        catch
-                        {
-                            exists = false;
-                        }
-
-                        if (disposeToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        void MarkVerified()
-                        {
-                            vm.FileExists = exists;
-                            vm.IsVerified = true;
-                        }
-
-                        await dispatcher.InvokeAsync(MarkVerified, DispatcherPriority.Default, disposeToken);
-                    }
-                },
-                disposeToken);
+            _ = Task.Run(() => VerifyUploadHistoryAsync(dispatcher, viewModels));
         }
         catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to load upload history");
+        }
+    }
+
+    private async Task VerifyUploadHistoryAsync(Dispatcher dispatcher, IReadOnlyList<UploadHistoryItemViewModel> items)
+    {
+        using var verifyCts = _loadCancellation.CreateDisposeLinkedSource();
+        var token = verifyCts.Token;
+        using var httpClient = new System.Net.Http.HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(5),
+        };
+
+        foreach (var item in items)
+        {
+            bool exists;
+            try
+            {
+                using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, item.Url);
+                using var response = await httpClient.SendAsync(request, token);
+                exists = response.IsSuccessStatusCode;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException or UriFormatException)
+            {
+                exists = false;
+            }
+
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            void MarkVerified()
+            {
+                item.FileExists = exists;
+                item.IsVerified = true;
+            }
+
+            await dispatcher.InvokeAsync(MarkVerified, DispatcherPriority.Default, token);
         }
     }
 
