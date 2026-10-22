@@ -45,6 +45,7 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ExpanderStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/NumericUpDownStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/TabControlStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Editors/EditorShellStyles.axaml" />
 

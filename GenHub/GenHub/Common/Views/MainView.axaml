@@ -13,6 +13,8 @@
              xmlns:downloadsViews="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:toolsVM="clr-namespace:GenHub.Features.Tools.ViewModels"
              xmlns:toolsViews="clr-namespace:GenHub.Features.Tools.Views"
+             xmlns:onlineVM="clr-namespace:GenHub.Features.Online.ViewModels"
+             xmlns:onlineViews="clr-namespace:GenHub.Features.Online.Views"
              xmlns:settingsVM="clr-namespace:GenHub.Features.Settings.ViewModels"
              xmlns:settingsViews="clr-namespace:GenHub.Features.Settings.Views"
              xmlns:infoVM="clr-namespace:GenHub.Features.Info.ViewModels"
@@ -153,6 +155,9 @@
         <DataTemplate DataType="toolsVM:ToolsViewModel">
             <toolsViews:ToolsView />
         </DataTemplate>
+        <DataTemplate DataType="onlineVM:OnlineViewModel">
+            <onlineViews:OnlineView />
+        </DataTemplate>
         <DataTemplate DataType="settingsVM:SettingsViewModel">
             <settingsViews:SettingsView />
         </DataTemplate>
@@ -210,6 +215,13 @@
                                 CommandParameter="{x:Static enums:NavigationTab.Tools}"
                                 Content="{localization:Localize Navigation.Tools}"
                                 Name="Tab2Button" />
+                        <Button Classes="pill-tab"
+                                Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Online}}"
+                                Command="{Binding SelectTabCommand}"
+                                CommandParameter="{x:Static enums:NavigationTab.Online}"
+                                Content="{localization:Localize Navigation.Online}"
+                                IsVisible="{Binding IsOnlineEnabled}"
+                                Name="Tab3Button" />
                     </StackPanel>
                 </Border>
 

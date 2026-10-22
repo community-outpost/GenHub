@@ -19,6 +19,7 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.ViewModels;
 using GenHub.Features.Notifications.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
@@ -46,6 +47,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="dialogService">Dialog service for showing message boxes.</param>
 /// <param name="notificationFeedViewModel">Notification feed view model.</param>
 /// <param name="infoViewModel">Info view model.</param>
+/// <param name="onlineViewModel">Online view model.</param>
 /// <param name="logger">Logger instance.</param>
 /// <param name="localizationService">The optional localization service.</param>
 /// <param name="linkActivationTracker">The optional tracker that reports whether this session was opened to handle a link.</param>
@@ -63,6 +65,7 @@ public partial class MainViewModel(
     IDialogService dialogService,
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
+    OnlineViewModel onlineViewModel,
     ILogger<MainViewModel> logger,
     ILocalizationService? localizationService = null,
     ILinkActivationTracker? linkActivationTracker = null) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
@@ -76,7 +79,7 @@ public partial class MainViewModel(
 #pragma warning disable CS8625
     [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
     public MainViewModel()
-        : this(null, null, null, null, null, null, null, null, null, null, null, null, null, null)
+        : this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
     {
     }
 #pragma warning restore CS8625
@@ -85,6 +88,17 @@ public partial class MainViewModel(
     /// Gets the info view model.
     /// </summary>
     public InfoViewModel InfoViewModel { get; } = infoViewModel;
+
+    /// <summary>
+    /// Gets the online view model.
+    /// </summary>
+    public OnlineViewModel OnlineViewModel { get; } = onlineViewModel;
+
+    /// <summary>
+    /// Gets a value indicating whether the Online tab is enabled via feature flag.
+    /// </summary>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Bound as an instance property from MainView.axaml; making it static would break the binding.")]
+    public bool IsOnlineEnabled => OnlineConstants.IsOnlineEnabled;
 
     /// <summary>
     /// Gets the notification feed view model.
@@ -129,6 +143,7 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
         NavigationTab.Tools,
+        NavigationTab.Online,
         NavigationTab.Info,
         NavigationTab.Settings,
     ];
@@ -141,6 +156,7 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles => GameProfilesViewModel,
         NavigationTab.Downloads => DownloadsBrowserViewModel,
         NavigationTab.Tools => ToolsViewModel,
+        NavigationTab.Online => OnlineViewModel,
         NavigationTab.Settings => SettingsViewModel,
         NavigationTab.Info => InfoViewModel,
         _ => GameProfilesViewModel,
@@ -159,6 +175,7 @@ public partial class MainViewModel(
         NavigationTab.GameProfiles => "Game Profiles",
         NavigationTab.Downloads => "Downloads",
         NavigationTab.Tools => "Tools",
+        NavigationTab.Online => "Online",
         NavigationTab.Settings => "Settings",
         NavigationTab.Info => "Info",
         _ => tab.ToString(),
@@ -198,6 +215,11 @@ public partial class MainViewModel(
         await DownloadsBrowserViewModel.InitializeAsync();
         await ToolsViewModel.InitializeAsync();
         await InfoViewModel.InitializeAsync();
+        if (OnlineConstants.IsOnlineEnabled)
+        {
+            OnlineViewModel?.Initialize();
+        }
+
         logger?.LogInformation("MainViewModel initialized");
 
         // Ensure the initial tab's activation logic runs (triggers lazy loading)
@@ -241,6 +263,11 @@ public partial class MainViewModel(
         {
             var tab = configurationProvider.GetLastSelectedTab();
             if (tab == NavigationTab.Tools)
+            {
+                tab = NavigationTab.GameProfiles;
+            }
+
+            if (tab == NavigationTab.Online && !OnlineConstants.IsOnlineEnabled)
             {
                 tab = NavigationTab.GameProfiles;
             }
@@ -474,6 +501,10 @@ public partial class MainViewModel(
         else if (value == NavigationTab.Info)
         {
             InfoViewModel.IsPaneOpen = true;
+        }
+        else if (value == NavigationTab.Online && OnlineConstants.IsOnlineEnabled)
+        {
+            _ = OnlineViewModel?.RefreshAsync(_initializationCts.Token);
         }
 
         SaveSelectedTab(value);

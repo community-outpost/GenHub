@@ -62,6 +62,12 @@ public static class GitHubConstants
     /// <summary>Encrypted token file format version byte.</summary>
     public const byte TokenFileFormatVersion = MachineBoundEncryptionConstants.FormatVersion;
 
+    /// <summary>PBKDF2-HMAC-SHA256 iterations for deriving the token file encryption key (OWASP guidance: 600,000).</summary>
+    public const int TokenFileKeyIterations = MachineBoundEncryptionConstants.KeyIterations;
+
+    /// <summary>AES-256 key size for the token file encryption key, in bytes.</summary>
+    public const int TokenFileKeySizeBytes = MachineBoundEncryptionConstants.KeySizeBytes;
+
     /// <summary>AES-GCM nonce size for token file encryption, in bytes.</summary>
     public const int TokenFileNonceSizeBytes = MachineBoundEncryptionConstants.NonceSizeBytes;
 

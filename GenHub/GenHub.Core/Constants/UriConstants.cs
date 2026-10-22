@@ -39,9 +39,14 @@ public static class UriConstants
     public const string ZeroHourIconUri = "avares://GenHub/Assets/Icons/zerohour-icon.png";
 
     /// <summary>
-    /// Default icon URI for unknown game types.
+    /// Default icon URI for unknown game types and GenHub branding.
     /// </summary>
     public const string DefaultIconUri = "avares://GenHub/Assets/Icons/generalshub-icon.png";
+
+    /// <summary>
+    /// Icon URI for GenHub.
+    /// </summary>
+    public const string GenHubIconUri = DefaultIconUri;
 
     /// <summary>
     /// Icon URI for GenPatcher tool.

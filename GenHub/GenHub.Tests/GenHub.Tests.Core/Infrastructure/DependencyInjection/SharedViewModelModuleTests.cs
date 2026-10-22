@@ -9,6 +9,8 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GeneralsOnline.ViewModels;
+using GenHub.Features.Online.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,6 +130,7 @@ public class SharedViewModelModuleTests
         services.AddGameProfileServices();
         services.AddUserDataServices();
         services.AddLaunchingServices();
+        services.AddOnlineServices();
         services.AddToolsServices();
         services.AddStorageMigrationServices();
         services.AddSharedViewModelModule();
@@ -147,6 +150,8 @@ public class SharedViewModelModuleTests
         Assert.NotNull(serviceProvider.GetService<DownloadsBrowserViewModel>());
         Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
+        Assert.NotNull(serviceProvider.GetService<OnlineViewModel>());
+        Assert.NotNull(serviceProvider.GetService<GeneralsOnlineLobbiesViewModel>());
     }
 
     private static IConfigurationProviderService CreateMockConfigProvider()

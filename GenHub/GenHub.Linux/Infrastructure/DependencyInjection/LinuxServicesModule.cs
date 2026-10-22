@@ -1,6 +1,7 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -11,6 +12,7 @@ using GenHub.Features.GameSettings;
 using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Linux.Features.GeneralsOnline.Services;
 using GenHub.Linux.Features.GitHub.Services;
 using GenHub.Linux.Features.Shortcuts;
 using GenHub.Linux.Features.Storage;
@@ -38,6 +40,7 @@ public static class LinuxServicesModule
     {
         services.AddSingleton<IGameInstallationDetector, LinuxInstallationDetector>();
         services.AddSingleton<IGitHubTokenStorage, LinuxGitHubTokenStorage>();
+        services.AddSingleton<IGeneralsOnlineTokenStorage, LinuxGeneralsOnlineTokenStorage>();
         services.AddSingleton<IGamePathProvider, LinuxGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, UnixSymlinkCapabilityProvider>();
         services.AddSingleton<IShortcutService, LinuxShortcutService>();

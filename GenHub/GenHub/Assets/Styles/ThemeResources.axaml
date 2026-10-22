@@ -51,6 +51,7 @@
     <Color x:Key="TextPrimaryColor">#F0F0F8</Color>
     <Color x:Key="TextSecondaryColor">#9A9AB0</Color>
     <Color x:Key="TextMutedColor">#656578</Color>
+    <Color x:Key="TextOnAccentColor">#FFFFFF</Color>
 
     <SolidColorBrush x:Key="TextPrimary" Color="{StaticResource TextPrimaryColor}" />
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
@@ -58,6 +59,8 @@
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="TextMuted" Color="{StaticResource TextMutedColor}" />
     <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
+    <SolidColorBrush x:Key="TextOnAccent" Color="{StaticResource TextOnAccentColor}" />
+    <SolidColorBrush x:Key="TextOnAccentBrush" Color="{StaticResource TextOnAccentColor}" />
 
     <!-- ==================================================================== -->
     <!-- 4. Faction / Accent / Status Tokens                                  -->
