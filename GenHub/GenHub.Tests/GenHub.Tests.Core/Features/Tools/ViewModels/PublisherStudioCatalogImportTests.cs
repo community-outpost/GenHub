@@ -6,12 +6,14 @@ using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
+using GenHub.Features.Tools.Services;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -133,6 +135,63 @@ public sealed class PublisherStudioCatalogImportTests : IDisposable
         var item = Assert.Single(named.Catalog.Content);
         Assert.Equal("gla-campaign-by-tklyo", item.Id);
         Assert.True(string.IsNullOrEmpty(item.PublisherType));
+    }
+
+    /// <summary>
+    /// Importing an author's catalog keeps invalid custom tab content as written, so Studio validation
+    /// can report it instead of the import silently dropping it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ImportCatalogFromFileAsync_InvalidTabContent_KeepsContentAndValidationReportsItAsync()
+    {
+        await _viewModel.CreateNewProjectCommand.ExecuteAsync(null);
+        const string json = """
+            {
+              "publisher": { "id": "tabs-pub", "name": "Tabs Publisher" },
+              "content": [
+                {
+                  "id": "mod-a",
+                  "name": "Mod A",
+                  "description": "A mod with publisher tabs.",
+                  "contentType": "Mod",
+                  "targetGame": "ZeroHour",
+                  "releases": [ { "version": "1.0.0", "artifacts": [ { "filename": "a.zip", "downloadUrl": "https://example.com/a.zip", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "size": 10 } ] } ],
+                  "customTabs": [
+                    {
+                      "tabId": "gallery",
+                      "header": "Gallery",
+                      "cards": [
+                        { "title": "Good card", "imageUrl": "https://example.com/good.png" },
+                        { "title": "Bad card", "imageUrl": "http://example.com/bad.png" }
+                      ]
+                    },
+                    { "tabId": "notes", "header": "Notes" },
+                    { "tabId": "NOTES", "header": "More notes" }
+                  ]
+                }
+              ]
+            }
+            """;
+        var filePath = Path.Combine(_testDirectory, "tabs.catalog.json");
+        await File.WriteAllTextAsync(filePath, json);
+
+        var imported = await _viewModel.ImportCatalogFromFileAsync(filePath, announceFailures: true);
+
+        Assert.True(imported);
+        var named = Assert.Single(_viewModel.CurrentProject!.Catalogs, c => c.FileName == "tabs.catalog.json");
+        var tabs = Assert.Single(named.Catalog.Content).CustomTabs;
+        Assert.Equal(["gallery", "notes", "NOTES"], tabs.Select(t => t.TabId));
+        Assert.Equal(["Good card", "Bad card"], tabs[0].Cards.Select(c => c.Title));
+
+        var studioService = new PublisherStudioService(
+            NullLogger<PublisherStudioService>.Instance,
+            new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance));
+        var validation = await studioService.ValidateCatalogAsync(named.Catalog);
+
+        Assert.False(validation.Success);
+        Assert.Contains(validation.Errors, e => e.Contains("'gallery' card 1 has invalid image URL"));
+        Assert.Contains(validation.Errors, e => e.Contains("duplicate custom tab ID 'NOTES'"));
     }
 
     /// <summary>

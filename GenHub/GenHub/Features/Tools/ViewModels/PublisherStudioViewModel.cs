@@ -652,8 +652,8 @@ public partial class PublisherStudioViewModel(
 
         if (catalogParser != null)
         {
-            catalogParser.NormalizeCatalog(catalog);
-            var validation = catalogParser.ValidateCatalog(catalog);
+            catalogParser.NormalizeCatalog(catalog, CatalogTabHandling.Preserve);
+            var validation = catalogParser.ValidateCatalog(catalog, CatalogTabHandling.Preserve);
             if (!validation.Success)
             {
                 ReportImportFailure(filePath, validation.FirstError ?? "The file is not a valid catalog.", announceFailures);

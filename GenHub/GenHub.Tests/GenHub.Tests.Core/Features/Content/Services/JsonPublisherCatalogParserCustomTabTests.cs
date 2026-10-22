@@ -308,6 +308,31 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
+    /// Structural checks run after invalid tabs are dropped. A duplicate whose copy cannot render, or an
+    /// eleventh tab that cannot render, leaves an unambiguous scope within the limit, so the catalog is valid.
+    /// </summary>
+    /// <param name="overLimit">Whether to test the tab limit instead of a duplicate ID.</param>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NormalizeCatalog_StructuralIssueOnDroppedTab_IsAccepted(bool overLimit)
+    {
+        var tabs = overLimit
+            ? Enumerable.Range(0, CustomTabConstants.MaxTabsPerScope)
+                .Select(i => new CatalogTabDefinition { TabId = $"tab-{i}", Header = $"Tab {i}" })
+                .Append(new CatalogTabDefinition { TabId = "broken", Header = string.Empty })
+                .ToArray()
+            : [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }, new CatalogTabDefinition { TabId = "NOTES", Header = string.Empty }];
+        var catalog = CreateCatalog(tabs);
+
+        _parser.NormalizeCatalog(catalog);
+        var result = _parser.ValidateCatalog(catalog);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal(overLimit ? CustomTabConstants.MaxTabsPerScope : 1, Assert.Single(catalog.Content).CustomTabs.Count);
+    }
+
+    /// <summary>
     /// The same tab ID on two different items is allowed.
     /// </summary>
     [Fact]
