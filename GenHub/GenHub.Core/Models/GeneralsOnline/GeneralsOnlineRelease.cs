@@ -9,6 +9,8 @@ namespace GenHub.Core.Models.GeneralsOnline;
 /// </summary>
 public class GeneralsOnlineRelease
 {
+    private readonly string? _sha256;
+
     /// <summary>
     /// Gets version string in format: MMDDYY_QFE# (e.g., "101525_QFE5").
     /// </summary>
@@ -35,6 +37,16 @@ public class GeneralsOnlineRelease
     /// Null when size is unknown (e.g., from latest.txt API).
     /// </summary>
     public long? PortableSize { get; init; }
+
+    /// <summary>
+    /// Gets SHA256 hash of the portable ZIP package for file verification.
+    /// Null when hash is unknown (e.g., from latest.txt API).
+    /// </summary>
+    public string? Sha256
+    {
+        get => _sha256;
+        init => _sha256 = value?.Trim();
+    }
 
     /// <summary>
     /// Gets release changelog/notes.

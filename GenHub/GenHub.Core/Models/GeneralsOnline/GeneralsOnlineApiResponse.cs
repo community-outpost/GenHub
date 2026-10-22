@@ -7,6 +7,8 @@ namespace GenHub.Core.Models.GeneralsOnline;
 /// </summary>
 public class GeneralsOnlineApiResponse
 {
+    private string? _sha256;
+
     /// <summary>
     /// Gets or sets the version string (e.g., "111825_QFE2" for November 18, 2025).
     /// Format: MMDDYY_QFE# where MM=month, DD=day, YY=year, #=QFE number.
@@ -36,5 +38,9 @@ public class GeneralsOnlineApiResponse
     /// Gets or sets the SHA256 hash for file verification.
     /// </summary>
     [JsonPropertyName("sha256")]
-    public string? Sha256 { get; set; }
+    public string? Sha256
+    {
+        get => _sha256;
+        set => _sha256 = value?.Trim();
+    }
 }

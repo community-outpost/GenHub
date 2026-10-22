@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System.Text.RegularExpressions;
 
 namespace GenHub.Core.Models.Manifest;
 

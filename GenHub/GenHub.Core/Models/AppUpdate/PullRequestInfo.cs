@@ -51,6 +51,11 @@ public record PullRequestInfo
     public string DisplayVersion => LatestArtifact?.DisplayVersion ?? $"0.0.{Number}";
 
     /// <summary>
+    /// Gets the display title formatted with the PR number (e.g., "#123 - PR Title").
+    /// </summary>
+    public string DisplayTitle => $"#{Number} - {Title}";
+
+    /// <summary>
     /// Gets a value indicating whether this PR is still open.
     /// </summary>
     public bool IsOpen => State.Equals("open", StringComparison.OrdinalIgnoreCase);

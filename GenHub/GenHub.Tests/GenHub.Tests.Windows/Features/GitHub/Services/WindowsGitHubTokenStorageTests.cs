@@ -1,0 +1,356 @@
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Tests.Shared;
+using GenHub.Tests.Windows.Infrastructure.DependencyInjection;
+using GenHub.Windows.Features.GitHub.Services;
+using Moq;
+using System;
+using System.IO;
+using System.Linq;
+using System.Security;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace GenHub.Tests.Windows.Features.GitHub.Services;
+
+/// <summary>
+/// Contains unit tests for <see cref="WindowsGitHubTokenStorage"/>.
+/// </summary>
+[Collection(ApplicationCompositionCollection.Name)]
+public class WindowsGitHubTokenStorageTests : IDisposable
+{
+    private readonly TemporaryApplicationEnvironment _environment;
+    private readonly string _tempDir;
+    private bool _disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WindowsGitHubTokenStorageTests"/> class.
+    /// </summary>
+    public WindowsGitHubTokenStorageTests()
+    {
+        _environment = new TemporaryApplicationEnvironment();
+        _tempDir = Path.Combine(Path.GetTempPath(), "GenHubWindowsTokenStorageTests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_tempDir);
+
+        // Pin the default data root explicitly: composition tests in this collection build the
+        // full provider, which installs a resolver closure that would otherwise win over the
+        // isolated environment above depending on test order.
+        StorageMigrationService.SetConfiguredDataPathResolver(() => _environment.AppDataPath);
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        StorageMigrationService.SetConfiguredDataPathResolver(null);
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(null);
+        DeleteDirectoryBestEffort(_tempDir);
+        ((IDisposable)_environment).Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Verifies that a saved token round-trips through DPAPI protected storage.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveAndLoadToken_RoundTripsSecretAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+        using var token = SecureStringHelper.ToSecureString("oauth-token-value");
+
+        // Act
+        await storage.SaveTokenAsync(token);
+
+        // Assert
+        Assert.True(storage.HasToken());
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("oauth-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that saving leaves no temporary files behind after the atomic rename.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveToken_LeavesNoTempFilesAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+        using var token = SecureStringHelper.ToSecureString("oauth-token-value");
+
+        // Act
+        await storage.SaveTokenAsync(token);
+        using var overwrite = SecureStringHelper.ToSecureString("oauth-token-value-2");
+        await storage.SaveTokenAsync(overwrite);
+
+        // Assert
+        var files = Directory.GetFiles(_tempDir).Select(Path.GetFileName).ToList();
+        Assert.Equal([AppConstants.TokenFileName], files);
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("oauth-token-value-2", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that loading without a stored token returns null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithoutStoredToken_ReturnsNullAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+
+        // Act & Assert
+        Assert.False(storage.HasToken());
+        Assert.Null(await storage.LoadTokenAsync());
+    }
+
+    /// <summary>
+    /// Verifies that a token stored only in the default data root is found from a relocated data directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadToken_WithOnlyFallbackCopy_LoadsFromFallbackAsync()
+    {
+        // Arrange
+        var writer = CreateStorage(_environment.AppDataPath);
+        using var token = SecureStringHelper.ToSecureString("oauth-token-value");
+        await writer.SaveTokenAsync(token);
+        var reader = CreateStorage(_tempDir);
+
+        // Act
+        using var loaded = await reader.LoadTokenAsync();
+
+        // Assert
+        Assert.True(reader.HasToken());
+        Assert.NotNull(loaded);
+        Assert.Equal("oauth-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that saving a primary token deletes an obsolete fallback token copy.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveToken_WithFallbackCopy_DeletesFallbackCopyAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+
+        var storage = CreateStorage(_tempDir);
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+
+        // Act
+        await storage.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath(_tempDir)));
+        Assert.False(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies that deleting removes both the primary and fallback token copies.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteToken_WithBothCopies_RemovesBothAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        await storage.SaveTokenAsync(primaryToken);
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+
+        // Act
+        await storage.DeleteTokenAsync();
+
+        // Assert
+        Assert.False(storage.HasToken());
+        Assert.False(File.Exists(TokenFilePath(_tempDir)));
+        Assert.False(File.Exists(TokenFilePath(_environment.AppDataPath)));
+    }
+
+    /// <summary>
+    /// Verifies that deleting without a stored token succeeds.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeleteToken_WithoutStoredToken_SucceedsAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+
+        // Act
+        await storage.DeleteTokenAsync();
+
+        // Assert
+        Assert.False(storage.HasToken());
+    }
+
+    /// <summary>
+    /// Verifies that saving a null or empty token throws.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveToken_WithNullOrEmpty_ThrowsAsync()
+    {
+        // Arrange
+        var storage = CreateStorage(_tempDir);
+        using var empty = new SecureString();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => storage.SaveTokenAsync(null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => storage.SaveTokenAsync(empty));
+    }
+
+    /// <summary>
+    /// Verifies that a primary copy that fails decryption is dropped while the valid fallback copy is recovered in the same load.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadTokenAsync_WhenPrimaryDecryptionFails_RecoversFallbackAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var fallbackToken = SecureStringHelper.ToSecureString("fallback-token-value");
+        await fallbackWriter.SaveTokenAsync(fallbackToken);
+        File.WriteAllBytes(TokenFilePath(_tempDir), [0x01, 0x02, 0x03, 0x04]);
+        var storage = CreateStorage(_tempDir);
+
+        // Act
+        using var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.NotNull(loaded);
+        Assert.Equal("fallback-token-value", SecureStringHelper.ToUnsecureString(loaded));
+        Assert.False(File.Exists(TokenFilePath(_tempDir)));
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+    }
+
+    /// <summary>
+    /// Verifies that invalid primary and fallback copies are both dropped and the load returns null.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LoadTokenAsync_WhenBothCopiesInvalid_DeletesBothAndReturnsNullAsync()
+    {
+        // Arrange
+        File.WriteAllBytes(TokenFilePath(_tempDir), [0x01, 0x02, 0x03, 0x04]);
+        File.WriteAllBytes(TokenFilePath(_environment.AppDataPath), [0x05, 0x06, 0x07, 0x08]);
+        var storage = CreateStorage(_tempDir);
+
+        // Act
+        var loaded = await storage.LoadTokenAsync();
+
+        // Assert
+        Assert.Null(loaded);
+        Assert.False(File.Exists(TokenFilePath(_tempDir)));
+        Assert.False(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        Assert.False(storage.HasToken());
+    }
+
+    /// <summary>
+    /// Verifies that saving succeeds when the stale fallback copy is locked, leaving the primary token persisted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveTokenAsync_WhenFallbackLocked_SucceedsAndKeepsPrimaryAsync()
+    {
+        // Arrange
+        var fallbackWriter = CreateStorage(_environment.AppDataPath);
+        using var staleToken = SecureStringHelper.ToSecureString("stale-token-value");
+        await fallbackWriter.SaveTokenAsync(staleToken);
+        var storage = CreateStorage(_tempDir);
+        using var primaryToken = SecureStringHelper.ToSecureString("primary-token-value");
+        using var lockStream = new FileStream(TokenFilePath(_environment.AppDataPath), System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.None);
+
+        // Act
+        await storage.SaveTokenAsync(primaryToken);
+
+        // Assert
+        Assert.True(File.Exists(TokenFilePath(_tempDir)));
+        Assert.True(File.Exists(TokenFilePath(_environment.AppDataPath)));
+        using var loaded = await storage.LoadTokenAsync();
+        Assert.NotNull(loaded);
+        Assert.Equal("primary-token-value", SecureStringHelper.ToUnsecureString(loaded));
+    }
+
+    /// <summary>
+    /// Verifies a legacy roaming token is migrated into the data directory when a legacy root applies.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithLegacyRoot_MigratesLegacyToken()
+    {
+        var legacyRoot = Path.Combine(_tempDir, "Roaming");
+        var appDataDir = Path.Combine(_tempDir, "AppData");
+        Directory.CreateDirectory(legacyRoot);
+        File.WriteAllText(Path.Combine(legacyRoot, AppConstants.TokenFileName), "legacy token");
+        AppDataPathHelper.SetLegacyRoamingRootOverrideForTesting(legacyRoot);
+
+        _ = CreateStorage(appDataDir);
+
+        Assert.Equal("legacy token", File.ReadAllText(TokenFilePath(appDataDir)));
+        Assert.False(File.Exists(Path.Combine(legacyRoot, AppConstants.TokenFileName)));
+    }
+
+    /// <summary>
+    /// Verifies no legacy token migration is attempted while the data root is overridden.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithOverriddenDataRoot_DoesNotMigrateLegacyToken()
+    {
+        var appDataDir = Path.Combine(_tempDir, "AppData");
+
+        _ = CreateStorage(appDataDir);
+
+        Assert.Null(AppDataPathHelper.GetLegacyRoamingRoot());
+        Assert.False(File.Exists(TokenFilePath(appDataDir)));
+    }
+
+    private static void DeleteDirectoryBestEffort(string directory)
+    {
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup of the temp directory.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of the temp directory.
+        }
+    }
+
+    private static WindowsGitHubTokenStorage CreateStorage(string appDataDir)
+    {
+        var configuration = new Mock<IConfigurationProviderService>();
+        configuration.Setup(x => x.GetApplicationDataPath()).Returns(appDataDir);
+        return new WindowsGitHubTokenStorage(configuration.Object);
+    }
+
+    private static string TokenFilePath(string appDataDir)
+    {
+        return Path.Combine(appDataDir, AppConstants.TokenFileName);
+    }
+}

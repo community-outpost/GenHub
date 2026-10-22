@@ -3,6 +3,8 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -30,7 +32,7 @@ public class SuperHackersManifestFactory(
     /// </summary>
     private static int ExtractVersionFromManifestId(string manifestId)
     {
-        var parts = manifestId.Split('.');
+        var parts = manifestId.Split(SuperHackersConstants.VersionDelimiter);
         if (parts.Length >= 2 && int.TryParse(parts[1], out int version))
         {
             return version;
@@ -46,7 +48,8 @@ public class SuperHackersManifestFactory(
     public bool CanHandle(ContentManifest manifest)
     {
         // Only handle manifests with explicit thesuperhackers publisher type
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true;
+        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true
+            || manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.LegacySuperHackers, StringComparison.OrdinalIgnoreCase) == true;
 
         // Only handle GameClient content type
         var isGameClient = manifest.ContentType == ContentType.GameClient;
@@ -55,19 +58,19 @@ public class SuperHackersManifestFactory(
     }
 
     /// <inheritdoc />
-    public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+    public async Task<OperationResult<List<ContentManifest>>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Creating SuperHackers manifests from extracted content in: {Directory}", extractedDirectory);
 
-        var detectedExecutables = DetectGameExecutables(extractedDirectory);
+        var detectedExecutables = DetectGameExecutables(extractedDirectory, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
             logger.LogWarning("No SuperHackers game executables detected in {Directory}", extractedDirectory);
-            return [];
+            return OperationResult<List<ContentManifest>>.CreateFailure($"No SuperHackers game executables detected in {extractedDirectory}");
         }
 
         logger.LogInformation("Detected {Count} game executables for SuperHackers release", detectedExecutables.Count);
@@ -93,7 +96,7 @@ public class SuperHackersManifestFactory(
                 manifest.Files.Count);
         }
 
-        return manifests;
+        return OperationResult<List<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <inheritdoc />
@@ -127,7 +130,7 @@ public class SuperHackersManifestFactory(
         // Detect executables in installation path
         // For SuperHackers, the "extracted directory" logic works on installation path too
         // since the executables are direct children usually
-        var detectedExecutables = DetectGameExecutables(installationPath);
+        var detectedExecutables = DetectGameExecutables(installationPath, cancellationToken);
 
         if (detectedExecutables.Count == 0)
         {
@@ -145,18 +148,18 @@ public class SuperHackersManifestFactory(
         {
             Id = ManifestId.Create(Guid.NewGuid().ToString()), // Temporary ID
             ManifestVersion = ManifestConstants.DefaultManifestVersion,
-            Name = "SuperHackers (Local)",
-            Version = GameClientConstants.AutoDetectedVersion,
+            Name = SuperHackersConstants.LocalInstallDisplayName,
+            Version = GameClientConstants.UnknownVersion,
             ContentType = ContentType.GameClient,
             Publisher = new()
             {
-                Name = "The Super Hackers",
+                Name = SuperHackersConstants.PublisherDisplayName,
                 PublisherType = PublisherTypeConstants.TheSuperHackers,
             },
             Metadata = new()
             {
-                Description = "Auto-detected local installation",
-                ReleaseDate = DateTime.Now,
+                Description = SuperHackersConstants.LocalInstallDescription,
+                ReleaseDate = DateTime.UtcNow,
             },
         };
 
@@ -185,28 +188,52 @@ public class SuperHackersManifestFactory(
     /// <summary>
     /// Detects SuperHackers game executables in the extracted directory.
     /// </summary>
-    private Dictionary<GameType, string> DetectGameExecutables(string directory)
+    /// <remarks>
+    /// Candidates are selected via <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>
+    /// instead of a <c>*.exe</c> glob, because a native Mach-O or ELF build of the same
+    /// client is extensionless and the glob hid it entirely. The name match then accepts
+    /// either the Windows executable name or its extensionless form. The classifier
+    /// verifies native executable signatures for extensionless candidates.
+    /// </remarks>
+    /// <param name="directory">The extracted content directory.</param>
+    /// <param name="cancellationToken">Cancellation for discovery and classification.</param>
+    /// <returns>The preferred executable path for each detected game.</returns>
+    internal Dictionary<GameType, string> DetectGameExecutables(string directory, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var result = new Dictionary<GameType, string>();
 
         if (!Directory.Exists(directory))
             return result;
 
-        var allFiles = Directory.GetFiles(directory, "*.exe", SearchOption.AllDirectories);
+        var allFiles = Directory.EnumerateFiles(directory, "*", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+        }).Select(path =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return path;
+        }).OrderBy(path => OperatingSystem.IsWindows() == Path.HasExtension(path) ? 0 : 1)
+          .ThenBy(path => path, StringComparer.Ordinal);
 
         foreach (var filePath in allFiles)
         {
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
-
-            // Check for SuperHackers executables
-            if (string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+            cancellationToken.ThrowIfCancellationRequested();
+            var matchesGenerals = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable);
+            var matchesZeroHour = SuperHackersClientIdentifier.MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable);
+            if ((!matchesGenerals && !matchesZeroHour) || !ExecutableFileClassifier.IsLegacyLaunchCandidate(filePath, filePath))
             {
-                result[GameType.Generals] = filePath;
+                continue;
+            }
+
+            // Prefer the platform's executable form, with stable path ordering for ties.
+            if (matchesGenerals && result.TryAdd(GameType.Generals, filePath))
+            {
                 logger.LogInformation("Detected SuperHackers Generals executable: {Path}", filePath);
             }
-            else if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+            else if (matchesZeroHour && result.TryAdd(GameType.ZeroHour, filePath))
             {
-                result[GameType.ZeroHour] = filePath;
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }
         }
@@ -265,15 +292,36 @@ public class SuperHackersManifestFactory(
                     continue;
                 }
 
-                // For GameClient manifests, only include the main executable and its PDB
-                // Exclude all development tools and other executables
+                // For GameClient manifests, we need to include:
+                // 1. The main game executable (already checked)
+                // 2. Its PDB file (debug info)
+                // 3. Critical DLL dependencies (dbghlp.dll, d3d8.dll, etc.)
+                // 4. Game data files (.big) that might be part of the patch
+                // 5. Configuration files (.ini)
                 if (originalManifest.ContentType == ContentType.GameClient)
                 {
-                    // Only include the main game executable and its PDB file
-                    if (fileName != executableFileName && fileName != Path.ChangeExtension(executableFileName, ".pdb"))
+                    // Always include the main executable and its PDB
+                    if (fileName == executableFileName || fileName == Path.ChangeExtension(executableFileName, ".pdb"))
                     {
-                        logger.LogDebug("Excluding development tool {FileName} from GameClient manifest", fileName);
-                        continue;
+                        // Keep it
+                    }
+                    else
+                    {
+                        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+
+                        // Define allowed extensions for patch dependencies
+                        // .dll: required libraries (dbghlp.dll, etc.)
+                        // .big: game data archives (Comanche.big, etc.)
+                        // .bg:  background resources
+                        // .ini: configuration
+                        // .manifest: side-by-side manifests
+                        var allowedExtensions = new[] { ".dll", ".big", ".bg", ".ini", ".manifest" };
+
+                        if (!allowedExtensions.Contains(extension))
+                        {
+                            logger.LogDebug("Excluding irrelevant file {FileName} from GameClient manifest", fileName);
+                            continue;
+                        }
                     }
                 }
 
@@ -281,6 +329,7 @@ public class SuperHackersManifestFactory(
                 var fileInfo = new FileInfo(filePath);
 
                 // Check if this is the game executable by comparing normalized full paths
+                // For ModdingTools, we also need to ensure the executable is at the root or correctly located
                 var normalizedFilePath = Path.GetFullPath(filePath);
                 bool isExecutable = string.Equals(normalizedFilePath, normalizedExecutablePath, StringComparison.OrdinalIgnoreCase);
 
@@ -357,6 +406,7 @@ public class SuperHackersManifestFactory(
                 ReleaseDate = originalManifest.Metadata.ReleaseDate,
                 IconUrl = SuperHackersConstants.LogoSource,
                 CoverUrl = gameType == GameType.Generals ? SuperHackersConstants.GeneralsCoverSource : SuperHackersConstants.ZeroHourCoverSource,
+                ThemeColor = gameType == GameType.ZeroHour ? SuperHackersConstants.ZeroHourThemeColor : SuperHackersConstants.GeneralsThemeColor,
                 ScreenshotUrls = originalManifest.Metadata.ScreenshotUrls,
                 Tags = originalManifest.Metadata.Tags,
                 ChangelogUrl = originalManifest.Metadata.ChangelogUrl,
@@ -367,6 +417,10 @@ public class SuperHackersManifestFactory(
             Files = files,
             RequiredDirectories = originalManifest.RequiredDirectories,
             InstallationInstructions = originalManifest.InstallationInstructions,
+            OriginalContentId = !string.IsNullOrEmpty(originalManifest.OriginalContentId)
+                ? originalManifest.OriginalContentId
+                : originalManifest.Id.Value,
+            OriginalProviderName = PublisherTypeConstants.TheSuperHackers,
         };
 
         return await Task.FromResult(manifest);

@@ -1,11 +1,12 @@
-namespace GenHub.Core.Models.Enums;
-
+using GenHub.Core.Serialization;
 using System.Text.Json.Serialization;
+
+namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Defines the type of content in a manifest.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonContentTypeConverter))]
 public enum ContentType
 {
     // Foundation types (detected/installed)
@@ -62,9 +63,15 @@ public enum ContentType
     /// <summary>Screensaver files.</summary>
     Screensaver,
 
+    /// <summary>Standalone executable file.</summary>
+    Executable,
+
     /// <summary>Modding and mapping tools/utilities.</summary>
     ModdingTool,
 
     /// <summary>Unknown content type.</summary>
     UnknownContentType,
+
+    /// <summary>GenHub application installer or build.</summary>
+    GenHubBuild,
 }

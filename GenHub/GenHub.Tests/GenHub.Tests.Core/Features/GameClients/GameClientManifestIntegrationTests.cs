@@ -1,14 +1,8 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.Content;
-using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -16,6 +10,10 @@ using GenHub.Features.GameClients;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Tests.Core.Features.GameClients;
 
@@ -25,11 +23,13 @@ namespace GenHub.Tests.Core.Features.GameClients;
 public class GameClientManifestIntegrationTests : IDisposable
 {
     private readonly string _tempDirectory;
-    private readonly IFileHashProvider _hashProvider;
+    private readonly Sha256HashProvider _hashProvider;
     private readonly IManifestIdService _manifestIdService;
     private readonly ManifestGenerationService _manifestService;
     private readonly Mock<IContentManifestPool> _manifestPoolMock;
     private readonly GameClientDetector _detector;
+    private readonly Mock<IDownloadService> _downloadServiceMock;
+    private readonly Mock<IConfigurationProviderService> _configProviderMock;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameClientManifestIntegrationTests"/> class.
@@ -41,13 +41,18 @@ public class GameClientManifestIntegrationTests : IDisposable
 
         _hashProvider = new Sha256HashProvider();
         _manifestIdService = new ManifestIdService();
+        _downloadServiceMock = new Mock<IDownloadService>();
+        _configProviderMock = new Mock<IConfigurationProviderService>();
+
         _manifestService = new ManifestGenerationService(
             NullLogger<ManifestGenerationService>.Instance,
             _hashProvider,
-            _manifestIdService);
+            _manifestIdService,
+            _downloadServiceMock.Object,
+            _configProviderMock.Object);
 
         _manifestPoolMock = new Mock<IContentManifestPool>();
-        _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), default))
+        _manifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         _detector = new GameClientDetector(
@@ -55,7 +60,7 @@ public class GameClientManifestIntegrationTests : IDisposable
             _manifestPoolMock.Object,
             _hashProvider,
             new GameClientHashRegistry(),
-            Enumerable.Empty<IGameClientIdentifier>(),
+            [],
             NullLogger<GameClientDetector>.Instance);
     }
 
@@ -64,7 +69,7 @@ public class GameClientManifestIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GenerateGameClientManifest_WithSteamGeneralsInstallation_CreatesManifestWithExecutable()
+    public async Task GenerateGameClientManifest_WithSteamGeneralsInstallation_CreatesManifestWithExecutableAsync()
     {
         var generalsPath = Path.Combine(_tempDirectory, "Steam", "Generals");
         Directory.CreateDirectory(generalsPath);
@@ -80,12 +85,12 @@ public class GameClientManifestIntegrationTests : IDisposable
             GeneralsPath = generalsPath,
         };
 
-        var result = await _detector.DetectGameClientsFromInstallationsAsync(new[] { installation });
+        var result = await _detector.DetectGameClientsFromInstallationsAsync([installation]);
 
         Assert.True(result.Success);
         Assert.Single(result.Items);
 
-        var gameClient = result.Items.First();
+        var gameClient = result.Items[0];
         Assert.NotNull(gameClient);
         Assert.NotEmpty(gameClient.Id);
         Assert.Equal(GameType.Generals, gameClient.GameType);
@@ -97,7 +102,7 @@ public class GameClientManifestIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GenerateGameClientManifest_ExecutableHashIsComputed()
+    public async Task GenerateGameClientManifest_ExecutableHashIsComputedAsync()
     {
         var clientPath = Path.Combine(_tempDirectory, "TestClient");
         Directory.CreateDirectory(clientPath);
@@ -123,7 +128,7 @@ public class GameClientManifestIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GenerateGameClientManifest_IncludesAllExpectedFiles()
+    public async Task GenerateGameClientManifest_IncludesAllExpectedFilesAsync()
     {
         var clientPath = Path.Combine(_tempDirectory, "FullClient");
         Directory.CreateDirectory(clientPath);
@@ -164,5 +169,7 @@ public class GameClientManifestIntegrationTests : IDisposable
                 // Ignore cleanup errors in tests
             }
         }
+
+        GC.SuppressFinalize(this);
     }
 }

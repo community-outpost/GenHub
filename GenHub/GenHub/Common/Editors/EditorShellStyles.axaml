@@ -1,0 +1,58 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:editors="clr-namespace:GenHub.Common.Editors"
+        xmlns:constants="using:GenHub.Core.Constants">
+  <!-- Shared editor shell styles for the WND, Texture, and future INI editors. -->
+
+  <!-- Square resize handles shared by every editor canvas. -->
+  <Style Selector="Border.resize-handle">
+    <Setter Property="Width" Value="{x:Static constants:EditorConstants.ResizeHandleSize}" />
+    <Setter Property="Height" Value="{x:Static constants:EditorConstants.ResizeHandleSize}" />
+    <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="CornerRadius" Value="2" />
+  </Style>
+
+  <!-- Pan/zoom canvas host template. -->
+  <Style Selector="editors|EditorCanvasControl">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <ScrollViewer Name="PART_Scroll"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="{TemplateBinding Background}">
+          <ContentPresenter Name="PART_Content"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+        </ScrollViewer>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <!-- Compact sidebar tab strip shared by every editor sidebar. -->
+  <Style Selector="TabControl.compact-tabs TabItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="Padding" Value="6,2,6,3" />
+    <Setter Property="Margin" Value="0,0,3,0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="TabControl.compact-tabs TabItem:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector="TabControl.compact-tabs TabItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector="TabControl.compact-tabs TabItem /template/ Border#PART_SelectedPipe">
+    <Setter Property="Height" Value="2" />
+    <Setter Property="CornerRadius" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+  </Style>
+  <Style Selector="TabControl.compact-tabs TabItem:selected /template/ Border#PART_SelectedPipe">
+    <Setter Property="IsVisible" Value="True" />
+  </Style>
+</Styles>

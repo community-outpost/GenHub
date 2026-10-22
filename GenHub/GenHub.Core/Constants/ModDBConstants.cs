@@ -1,20 +1,54 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to ModDB and its content pipeline components.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class ModDBConstants
 {
     // ===== Base URLs =====
 
+    /// <summary>Domain name for ModDB.</summary>
+    public const string Domain = "moddb.com";
+
+    /// <summary>Domain name for DBolical (ModDB parent network and CDN download mirrors).</summary>
+    public const string DBolicalDomain = "dbolical.com";
+
     /// <summary>Base URL for ModDB website.</summary>
     public const string BaseUrl = "https://www.moddb.com";
 
+    /// <summary>Domain name fragment for ModDB URLs.</summary>
+    public const string DomainFragment = Domain;
+
+    /// <summary>URL path fragment identifying mods.</summary>
+    public const string ModsPathFragment = "/mods/";
+
+    /// <summary>URL path fragment identifying addons.</summary>
+    public const string AddonsPathFragment = "/addons/";
+
+    /// <summary>
+    /// URL to the ModDB icon.
+    /// </summary>
+    public const string IconUrl = "avares://GenHub/Assets/Icons/Publishers/moddb.png";
+
+    /// <summary>Game slug for C&amp;C Generals.</summary>
+    public const string GeneralsGameSlug = "cc-generals";
+
+    /// <summary>Game slug for C&amp;C Generals Zero Hour.</summary>
+    public const string ZeroHourGameSlug = "cc-generals-zero-hour";
+
+    /// <summary>Format URL template for ModDB RSS feed.</summary>
+    public const string RssFeedUrlTemplate = "https://rss.moddb.com/games/{0}/{1}/feed/rss.xml";
+
     /// <summary>Base URL for C&amp;C Generals content.</summary>
-    public const string GeneralsBaseUrl = BaseUrl + "/games/cc-generals";
+    public const string GeneralsBaseUrl = BaseUrl + "/games/" + GeneralsGameSlug;
 
     /// <summary>Base URL for C&amp;C Generals Zero Hour content.</summary>
-    public const string ZeroHourBaseUrl = BaseUrl + "/games/cc-generals-zero-hour";
+    public const string ZeroHourBaseUrl = BaseUrl + "/games/" + ZeroHourGameSlug;
 
     // ===== Section URLs =====
 
@@ -30,28 +64,90 @@ public static class ModDBConstants
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
 
+    /// <summary>Maps URL path segment.</summary>
+    public const string MapsSegment = "/maps/";
+
+    /// <summary>Tools URL path segment.</summary>
+    public const string ToolsSegment = "/tools/";
+
+    /// <summary>Patches URL path segment.</summary>
+    public const string PatchesSegment = "/patches/";
+
+    /// <summary>Mods URL path segment.</summary>
+    public const string ModsSegment = "/mods/";
+
+    /// <summary>Downloads URL path segment.</summary>
+    public const string DownloadsSegment = "/downloads/";
+
+    /// <summary>Downloads section name.</summary>
+    public const string DownloadsSection = "downloads";
+
+    /// <summary>Mods section name.</summary>
+    public const string ModsSection = "mods";
+
+    /// <summary>Addons URL path segment.</summary>
+    public const string AddonsSegment = "/addons/";
+
+    /// <summary>Addons section name.</summary>
+    public const string AddonsSection = "addons";
+
+    /// <summary>Games URL path segment.</summary>
+    public const string GamesSegment = "/games/";
+
+    /// <summary>Games section name.</summary>
+    public const string GamesSection = "games";
+
+    /// <summary>Placeholder blank gif image filename.</summary>
+    public const string BlankGifFileName = "blank.gif";
+
     /// <summary>Addons section for Generals.</summary>
     public const string GeneralsAddonsUrl = GeneralsBaseUrl + "/addons";
 
     /// <summary>Addons section for Zero Hour.</summary>
     public const string ZeroHourAddonsUrl = ZeroHourBaseUrl + "/addons";
 
+    /// <summary>Media RSS XML namespace URI.</summary>
+    public const string MediaRssNamespace = "http://search.yahoo.com/mrss/";
+
     // ===== Publisher Info =====
 
+    /// <summary>Canonical lowercase identifier for ModDB.</summary>
+    public const string CanonicalIdentifier = "moddb";
+
     /// <summary>Publisher prefix for ModDB content (to be combined with author: moddb-{author}).</summary>
-    public const string PublisherPrefix = "moddb";
+    public const string PublisherPrefix = CanonicalIdentifier;
 
     /// <summary>Publisher type identifier for ModDB content pipeline.</summary>
-    public const string PublisherType = "moddb";
+    public const string PublisherType = CanonicalIdentifier;
 
-    /// <summary>Publisher name for manifests.</summary>
-    public const string PublisherName = "ModDB";
+    /// <summary>Publisher ID for the ModDB service.</summary>
+    public const string PublisherId = CanonicalIdentifier;
+
+    /// <summary>Display name for the publisher.</summary>
+    public const string PublisherDisplayName = "ModDB";
+
+    /// <summary>Format string for including the author with the publisher name.</summary>
+    public const string PublisherNameFormat = "ModDB ({0})";
+
+    /// <summary>Format for author tag.</summary>
+    public const string AuthorTagFormat = "by {0}";
+
+    /// <summary>
+    /// UserAgent string that mimics a standard web browser.
+    /// </summary>
+    public const string BrowserUserAgent = ApiConstants.BrowserUserAgent;
 
     /// <summary>Publisher logo source path for UI display.</summary>
     public const string LogoSource = "/Assets/Logos/moddb-logo.png";
 
     /// <summary>ModDB website URL.</summary>
     public const string PublisherWebsite = BaseUrl;
+
+    /// <summary>
+    /// On-disk Playwright browser profile name used to persist the Cloudflare clearance cookie so
+    /// the user only solves the bot challenge once per session (and across restarts until expiry).
+    /// </summary>
+    public const string BrowserProfileName = CanonicalIdentifier;
 
     /// <summary>Short description for publisher card display.</summary>
     public const string ShortDescription = "Community mods, maps, and content from ModDB";
@@ -165,9 +261,35 @@ public static class ModDBConstants
     /// <summary>Value for filter parameter when enabled.</summary>
     public const string FilterEnabledValue = "t";
 
+    // ===== Sort Values =====
+
+    /// <summary>Sort: Date descending (newest first).</summary>
+    public const string SortDateDesc = "date-desc";
+
+    /// <summary>Sort: Date ascending (oldest first).</summary>
+    public const string SortDateAsc = "date-asc";
+
+    /// <summary>Sort: Visits / Popularity descending.</summary>
+    public const string SortVisitDesc = "visit-desc";
+
+    /// <summary>Sort: Rating descending.</summary>
+    public const string SortRatingDesc = "rating-desc";
+
+    /// <summary>Sort: Name ascending (A-Z).</summary>
+    public const string SortNameAsc = "name-asc";
+
+    /// <summary>Sort: Name descending (Z-A).</summary>
+    public const string SortNameDesc = "name-desc";
+
+    /// <summary>Default sort value for ModDB searches and listings (newest first).</summary>
+    public const string DefaultSort = SortDateDesc;
+
     // ===== Category Values =====
 
     // Downloads Section - Releases
+
+    /// <summary>Category: Releases.</summary>
+    public const string CategoryReleases = "1";
 
     /// <summary>Category: Full Version (Mod).</summary>
     public const string CategoryFullVersion = "2";
@@ -186,6 +308,9 @@ public static class ModDBConstants
 
     // Downloads Section - Media
 
+    /// <summary>Category: Media.</summary>
+    public const string CategoryMedia = "6";
+
     /// <summary>Category: Trailer (Video).</summary>
     public const string CategoryTrailer = "7";
 
@@ -202,6 +327,9 @@ public static class ModDBConstants
     public const string CategoryWallpaper = "10";
 
     // Downloads Section - Tools
+
+    /// <summary>Category: Tools.</summary>
+    public const string CategoryTools = "11";
 
     /// <summary>Category: Archive Tool.</summary>
     public const string CategoryArchiveTool = "20";
@@ -230,7 +358,16 @@ public static class ModDBConstants
     /// <summary>Category: Source Code.</summary>
     public const string CategorySourceCode = "26";
 
+    /// <summary>Category: RTX Remix.</summary>
+    public const string CategoryRTXRemix = "31";
+
+    /// <summary>Category: RTX.conf.</summary>
+    public const string CategoryRTXConf = "32";
+
     // Downloads Section - Miscellaneous
+
+    /// <summary>Category: Miscellaneous.</summary>
+    public const string CategoryMiscellaneous = "21";
 
     /// <summary>Category: Guide.</summary>
     public const string CategoryGuide = "22";
@@ -246,6 +383,9 @@ public static class ModDBConstants
 
     // Addons Section - Maps
 
+    /// <summary>Addon Category: Maps.</summary>
+    public const string AddonMaps = "100";
+
     /// <summary>Addon Category: Multiplayer Map.</summary>
     public const string AddonMultiplayerMap = "101";
 
@@ -256,6 +396,9 @@ public static class ModDBConstants
     public const string AddonPrefab = "103";
 
     // Addons Section - Models
+
+    /// <summary>Addon Category: Models.</summary>
+    public const string AddonModels = "104";
 
     /// <summary>Addon Category: Player Model.</summary>
     public const string AddonPlayerModel = "106";
@@ -274,6 +417,9 @@ public static class ModDBConstants
 
     // Addons Section - Skins
 
+    /// <summary>Addon Category: Skins.</summary>
+    public const string AddonSkins = "110";
+
     /// <summary>Addon Category: Player Skin.</summary>
     public const string AddonPlayerSkin = "112";
 
@@ -291,6 +437,9 @@ public static class ModDBConstants
 
     // Addons Section - Audio
 
+    /// <summary>Addon Category: Audio.</summary>
+    public const string AddonAudio = "116";
+
     /// <summary>Addon Category: Music.</summary>
     public const string AddonMusic = "117";
 
@@ -304,6 +453,9 @@ public static class ModDBConstants
     public const string AddonAudioPack = "118";
 
     // Addons Section - Graphics
+
+    /// <summary>Addon Category: Graphics.</summary>
+    public const string AddonGraphics = "123";
 
     /// <summary>Addon Category: Decal.</summary>
     public const string AddonDecal = "124";
@@ -323,6 +475,35 @@ public static class ModDBConstants
     /// <summary>Addon Category: Texture.</summary>
     public const string AddonTexture = "129";
 
+    // ===== License Values =====
+
+    /// <summary>License: Commercial.</summary>
+    public const string LicenseCommercial = "1";
+
+    /// <summary>License: Creative Commons.</summary>
+    public const string LicenseCreativeCommons = "2";
+
+    /// <summary>License: Proprietary.</summary>
+    public const string LicenseProprietary = "3";
+
+    /// <summary>License: Public Domain.</summary>
+    public const string LicensePublicDomain = "4";
+
+    /// <summary>License: GPL.</summary>
+    public const string LicenseGPL = "5";
+
+    /// <summary>License: L-GPL.</summary>
+    public const string LicenseLGPL = "6";
+
+    /// <summary>License: BSD.</summary>
+    public const string LicenseBSD = "7";
+
+    /// <summary>License: MIT.</summary>
+    public const string LicenseMIT = "8";
+
+    /// <summary>License: Zlib.</summary>
+    public const string LicenseZlib = "9";
+
     // ===== Metadata Keys =====
 
     /// <summary>Metadata key for ModDB content ID.</summary>
@@ -336,6 +517,34 @@ public static class ModDBConstants
 
     /// <summary>Metadata key for original category.</summary>
     public const string OriginalCategoryMetadataKey = "moddbCategory";
+
+    /// <summary>Metadata key for identifying if content is a mod.</summary>
+    public const string IsModMetadataKey = "IsMod";
+
+    /// <summary>Metadata key for parent mod URL.</summary>
+    public const string ParentModUrlMetadataKey = "ParentModUrl";
+
+    // ===== Playwright / Scraping Constants =====
+
+    /// <summary>Default timeout for page navigation (ms).</summary>
+    public const int DefaultGotoTimeout = 30000;
+
+    /// <summary>
+    /// Default timeout for waiting for a selector (ms). ModDB sits behind Cloudflare; the headed
+    /// browser persistent profile usually receives the clearance cookie after verification, but 15 s gives a safe margin
+    /// for manual challenge solves before the scraper parses whatever it has.
+    /// </summary>
+    public const int DefaultSelectorTimeout = 15000;
+
+    /// <summary>
+    /// How long (ms) the listing scrape waits for the user to solve a Cloudflare challenge in the
+    /// visible browser before giving up. Long enough for a manual "I am not a robot" click; the
+    /// page stays open after the deadline so the user can finish and retry.
+    /// </summary>
+    public const int VerificationWaitTimeoutMs = 120000;
+
+    /// <summary>Selector for content items in listing pages (Fallback).</summary>
+    public const string DefaultListItemSelector = "div.row.rowcontent, div.table tr";
 
     // ===== Error Messages =====
 
@@ -362,6 +571,12 @@ public static class ModDBConstants
     /// <summary>Default description when none is available.</summary>
     public const string DefaultDescription = "Content from ModDB";
 
+    /// <summary>Format for parsing release dates (YYYYMMDD).</summary>
+    public const string ReleaseDateFormat = "yyyyMMdd";
+
+    /// <summary>Default filename for ModDB downloads.</summary>
+    public const string DefaultDownloadFilename = "ModDBDownload.zip";
+
     // ===== Timeframe Values =====
 
     /// <summary>Timeframe: Past 24 hours.</summary>
@@ -379,8 +594,184 @@ public static class ModDBConstants
     /// <summary>Timeframe: Year or older.</summary>
     public const string TimeframeYearOrOlder = "5";
 
+    // ===== Cloudflare Verification Notifications =====
+
+    /// <summary>Title for the ModDB Cloudflare verification required toast.</summary>
+    public const string VerificationRequiredTitle = "ModDB Verification Required";
+
+    /// <summary>Message for the ModDB Cloudflare verification required toast.</summary>
+    public const string VerificationRequiredMessage = "A browser window was opened for Cloudflare verification. Please complete the verification in the browser to continue.";
+
+    /// <summary>Title for the ModDB Cloudflare verification cleared toast.</summary>
+    public const string VerificationClearedTitle = "ModDB Verification Cleared";
+
+    /// <summary>Message for the ModDB Cloudflare verification cleared toast.</summary>
+    public const string VerificationClearedMessage = "Verification completed successfully.";
+
+    // ===== Managed Chromium Runtime Notifications =====
+
+    /// <summary>Expected download size in megabytes for the managed Chromium runtime.</summary>
+    public const double ChromiumExpectedSizeMegabytes = 240.0;
+
+    /// <summary>Expected download size in bytes for the managed Chromium runtime.</summary>
+    public const double ChromiumExpectedSizeBytes = ChromiumExpectedSizeMegabytes * 1024.0 * 1024.0;
+
+    /// <summary>Format string for progress reporting during Chromium runtime download.</summary>
+    public const string ChromiumProgressStatusFormat = "{0:F0} MB / ~{1:F0} MB";
+
+    /// <summary>Name for the managed Chromium runtime.</summary>
+    public const string ChromiumRuntimeName = "ModDB Chromium Runtime";
+
+    /// <summary>Title for the Chromium runtime installation toast.</summary>
+    public const string ChromiumInstallTitle = "Installing Chromium Runtime";
+
+    /// <summary>Initial message when downloading the managed Chromium runtime.</summary>
+    public const string ChromiumDownloadingMessage = "Downloading Chromium (~240 MB)... Please wait.";
+
+    /// <summary>Message while extracting and configuring the managed Chromium runtime.</summary>
+    public const string ChromiumExtractingMessage = "Extracting and configuring Chromium runtime...";
+
+    /// <summary>Title when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyTitle = "Chromium Runtime Ready";
+
+    /// <summary>Message when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyMessage = "Chromium runtime installed successfully.";
+
+    /// <summary>Title when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedTitle = "Chromium Installation Failed";
+
+    /// <summary>Message when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedMessage = "GenHub could not install its managed Chromium runtime. Check your network connection and try again.";
+
+    /// <summary>
+    /// File pattern for Playwright's staged browser archives in the OS temp directory.
+    /// Playwright streams each download there (never the browsers path) and deletes it
+    /// after extraction, so progress must be measured from these files.
+    /// </summary>
+    public const string PlaywrightStagingDownloadPattern = "playwright-download-*";
+
+    // ===== Managed Playwright Driver =====
+
+    /// <summary>NuGet package id that ships the Playwright driver binaries.</summary>
+    public const string PlaywrightDriverPackageId = "microsoft.playwright";
+
+    /// <summary>Named HttpClient for on-demand Playwright driver downloads.</summary>
+    public const string PlaywrightDriverHttpClientName = "PlaywrightDriverHttpClient";
+
+    /// <summary>
+    /// Exact Playwright driver version to provision on demand.
+    /// Must match the Microsoft.Playwright package version in Directory.Packages.props.
+    /// </summary>
+    public const string PlaywrightDriverVersion = "1.55.0";
+
+    /// <summary>
+    /// Pinned SHA-256 (lowercase hex) of the Playwright driver package archive.
+    /// Verified before extraction so a compromised feed cannot ship code.
+    /// Must be refreshed together with <see cref="PlaywrightDriverVersion"/>.
+    /// </summary>
+    public const string PlaywrightDriverExpectedSha256 = "dd83393186e2beb44772cf883453c44d496e981cbfb8bba1059c5d8b471c063d";
+
+    /// <summary>Expected download size in megabytes for the Playwright driver package.</summary>
+    public const double PlaywrightDriverExpectedSizeMegabytes = 190.0;
+
+    /// <summary>Expected download size in bytes for the Playwright driver package.</summary>
+    public const double PlaywrightDriverExpectedSizeBytes = PlaywrightDriverExpectedSizeMegabytes * 1024.0 * 1024.0;
+
+    /// <summary>Format string for progress reporting during Playwright driver download.</summary>
+    public const string PlaywrightDriverProgressStatusFormat = "{0:F0} MB / ~{1:F0} MB";
+
+    /// <summary>Name for the managed Playwright driver.</summary>
+    public const string PlaywrightDriverRuntimeName = "ModDB Playwright Driver";
+
+    /// <summary>Title for the Playwright driver installation toast.</summary>
+    public const string PlaywrightDriverInstallTitle = "Installing Web Driver";
+
+    /// <summary>Initial message when downloading the managed Playwright driver.</summary>
+    public const string PlaywrightDriverDownloadingMessage = "Downloading Playwright driver (~190 MB)... Please wait.";
+
+    /// <summary>Message while extracting the managed Playwright driver.</summary>
+    public const string PlaywrightDriverExtractingMessage = "Extracting Playwright driver...";
+
+    /// <summary>Title when the Playwright driver installation completes successfully.</summary>
+    public const string PlaywrightDriverReadyTitle = "Web Driver Ready";
+
+    /// <summary>Message when the Playwright driver installation completes successfully.</summary>
+    public const string PlaywrightDriverReadyMessage = "Playwright driver installed successfully.";
+
+    /// <summary>Title when the Playwright driver installation fails.</summary>
+    public const string PlaywrightDriverInstallFailedTitle = "Driver Installation Failed";
+
+    /// <summary>Message when the Playwright driver installation fails.</summary>
+    public const string PlaywrightDriverInstallFailedMessage = "GenHub could not install its managed Playwright driver. Check your network connection and try again.";
+
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = new[] { "ModDB", "Community", "Mods", "Maps" };
+    public static readonly string[] Tags = ["ModDB", "Community", "Mods", "Maps"];
+
+    // ===== Bot Protection Markers =====
+
+    /// <summary>
+    /// Title markers used to detect bot protection / Cloudflare challenge interstitial pages.
+    /// </summary>
+    public static readonly string[] BotProtectionTitleMarkers =
+    [
+        "Just a moment",
+        "Attention Required",
+        "Please wait",
+        "Verify you are human",
+        "Verifying you are human",
+        "Checking your browser",
+        "Cloudflare",
+    ];
+
+    // ===== Helper Methods =====
+
+    /// <summary>
+    /// Checks whether the specified page title indicates an interstitial challenge or verification page.
+    /// </summary>
+    /// <param name="title">The browser page title to evaluate.</param>
+    /// <returns><see langword="true"/> if the title contains known challenge keywords; otherwise <see langword="false"/>.</returns>
+    public static bool IsChallengePageTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return false;
+        }
+
+        return BotProtectionTitleMarkers.Any(keyword => title.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether the specified URI belongs to the ModDB or DBolical network (including CDN download mirrors).
+    /// </summary>
+    /// <param name="uri">The URI to evaluate.</param>
+    /// <returns><see langword="true"/> if the URI uses HTTP/HTTPS and its host belongs to moddb.com, dbolical.com, or their subdomains; otherwise <see langword="false"/>.</returns>
+    public static bool IsModDbOrDbolicalUri(Uri? uri)
+    {
+        if (uri == null || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return false;
+        }
+
+        return IsModDbOrDbolicalHost(uri.Host);
+    }
+
+    /// <summary>
+    /// Checks whether the specified host belongs to the ModDB or DBolical network (including CDN download mirrors).
+    /// </summary>
+    /// <param name="host">The host name to evaluate.</param>
+    /// <returns><see langword="true"/> if the host is moddb.com, dbolical.com, or any of their subdomains; otherwise <see langword="false"/>.</returns>
+    public static bool IsModDbOrDbolicalHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        return host.Equals(Domain, StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith("." + Domain, StringComparison.OrdinalIgnoreCase) ||
+               host.Equals(DBolicalDomain, StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith("." + DBolicalDomain, StringComparison.OrdinalIgnoreCase);
+    }
 }

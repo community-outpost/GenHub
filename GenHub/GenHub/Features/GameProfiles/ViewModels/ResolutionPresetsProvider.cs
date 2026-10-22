@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using GenHub.Core.Constants;
+using System.Collections.Generic;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 

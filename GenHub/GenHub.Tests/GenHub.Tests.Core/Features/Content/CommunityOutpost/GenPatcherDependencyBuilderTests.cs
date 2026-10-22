@@ -1,7 +1,6 @@
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
@@ -158,8 +157,8 @@ public class GenPatcherDependencyBuilderTests
     [Theory]
     [InlineData("hlen")]
     [InlineData("hlde")]
-    [InlineData("ewba")]
-    [InlineData("ewbi")]
+    [InlineData("hleg")]
+    [InlineData("hlei")]
     public void GetDependencies_Hotkeys_RequiresZeroHour104(string contentCode)
     {
         // Arrange
@@ -173,6 +172,45 @@ public class GenPatcherDependencyBuilderTests
         var gameInstallDep = dependencies.Find(d => d.DependencyType == ContentType.GameInstallation);
         Assert.NotNull(gameInstallDep);
         Assert.Equal("1.04", gameInstallDep.MinVersion);
+    }
+
+    /// <summary>
+    /// Verifies that Leikeze's and Legionnaire's hotkeys require the indicators pack (hlen).
+    /// </summary>
+    /// <param name="contentCode">The hotkey content code.</param>
+    [Theory]
+    [InlineData("hlei")]
+    [InlineData("hleg")]
+    public void GetDependencies_Hotkeys_RequiresIndicatorsPack(string contentCode)
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
+
+        // Assert
+        Assert.Contains(dependencies, d => d.Id.Value.EndsWith(".hlen") && d.DependencyType == ContentType.Addon);
+    }
+
+    /// <summary>
+    /// Verifies that Legionnaire's Hotkeys automatically reconciles its GenTool runtime requirement.
+    /// </summary>
+    [Fact]
+    public void GetDependencies_LegionnairesHotkeys_AutoInstallsGenTool()
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata("hleg");
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies("hleg", metadata);
+
+        // Assert
+        Assert.Contains(dependencies, dependency =>
+            dependency.Id.Value.EndsWith(".gent", StringComparison.OrdinalIgnoreCase) &&
+            dependency.DependencyType == ContentType.Addon &&
+            dependency.InstallBehavior == DependencyInstallBehavior.AutoInstall &&
+            !dependency.IsOptional);
     }
 
     /// <summary>
@@ -234,14 +272,11 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_ControlBar_ReturnsOtherControlBars()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbbs");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbpr");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("cbbs", conflicts); // Should not conflict with itself
-        Assert.Contains("cben", conflicts);
-        Assert.Contains("cbpc", conflicts);
-        Assert.Contains("cbpr", conflicts);
+        Assert.DoesNotContain("cbpr", conflicts); // Should not conflict with itself
         Assert.Contains("cbpx", conflicts);
     }
 
@@ -252,13 +287,14 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_Hotkeys_ReturnsOtherHotkeys()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hlen");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hleg");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("hlen", conflicts); // Should not conflict with itself
+        Assert.DoesNotContain("hleg", conflicts); // Should not conflict with itself
         Assert.Contains("hlde", conflicts);
-        Assert.Contains("ewba", conflicts);
+        Assert.Contains("hlei", conflicts);
+        Assert.DoesNotContain("ewba", conflicts);
     }
 
     /// <summary>
@@ -334,7 +370,7 @@ public class GenPatcherDependencyBuilderTests
 
         // Assert
         Assert.Equal(ContentType.Addon, dependency.DependencyType);
-        Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+        Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
         Assert.False(dependency.IsOptional);
 
         // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)

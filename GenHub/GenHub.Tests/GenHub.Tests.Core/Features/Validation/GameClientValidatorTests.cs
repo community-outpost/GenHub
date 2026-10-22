@@ -5,8 +5,8 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
-
 using GenHub.Features.Validation;
+using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -66,7 +66,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithKnownAddonInManifest_DetectsAddonAsWarning()
+    public async Task ValidateAsync_WithKnownAddonInManifest_DetectsAddonAsWarningAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -105,7 +105,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithUnexpectedFile_DetectsUnexpectedFile()
+    public async Task ValidateAsync_WithUnexpectedFile_DetectsUnexpectedFileAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -136,11 +136,40 @@ public class GameClientValidatorTests
     }
 
     /// <summary>
+    /// A variant manifest's host files are expected in the working directory, while a
+    /// file from the variant for another platform is still reported as unexpected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ValidateAsync_VariantManifest_ExpectsHostVariantFilesAsync()
+    {
+        var tempDir = Directory.CreateTempSubdirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "generalszh"), "host");
+            await File.WriteAllTextAsync(Path.Combine(tempDir.FullName, "generalszh.exe"), "foreign");
+            var manifest = VariantManifestFixture.Create(
+                [new ManifestFile { RelativePath = "generalszh" }],
+                [new ManifestFile { RelativePath = "generalszh.exe" }]);
+            _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
+
+            var result = await _validator.ValidateAsync(new GameClient { WorkingDirectory = tempDir.FullName }, null, default);
+
+            var unexpected = result.Issues.Where(i => i.IssueType == ValidationIssueType.UnexpectedFile).Select(i => i.Path).ToList();
+            Assert.Equal(["generalszh.exe"], unexpected);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that a missing manifest results in a <see cref="ValidationIssueType.MissingFile"/> issue.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_ManifestNotFound_AddsIssue()
+    public async Task ValidateAsync_ManifestNotFound_AddsIssueAsync()
     {
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), It.IsAny<CancellationToken>())).ReturnsAsync((ContentManifest?)null);
         var tempDir = Directory.CreateTempSubdirectory();
@@ -163,7 +192,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_MissingFile_AddsMissingFileIssue()
+    public async Task ValidateAsync_MissingFile_AddsMissingFileIssueAsync()
     {
         var manifest = new ContentManifest { Files = new() { new ManifestFile { RelativePath = "missing.txt", Size = 0, Hash = string.Empty } } };
         _manifestProviderMock.Setup(m => m.GetManifestAsync(It.IsAny<GameClient>(), default)).ReturnsAsync(manifest);
@@ -194,7 +223,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledException()
+    public async Task ValidateAsync_Cancellation_ThrowsOperationCanceledExceptionAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         var cts = new CancellationTokenSource();
@@ -209,7 +238,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithMultipleKnownAddons_DetectsAllAddons()
+    public async Task ValidateAsync_WithMultipleKnownAddons_DetectsAllAddonsAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -252,7 +281,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithProgressCallback_ReportsProgress()
+    public async Task ValidateAsync_WithProgressCallback_ReportsProgressAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -273,7 +302,7 @@ public class GameClientValidatorTests
         var progress = new SynchronousProgress<ValidationProgress>(p => progressReports.Add(p));
 
         // Act
-        var result = await _validator.ValidateAsync(client, progress, default);
+        await _validator.ValidateAsync(client, progress, default);
 
         Assert.NotEmpty(progressReports);
         Assert.Contains(progressReports, p => p.PercentComplete == 100);
@@ -285,7 +314,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithHashMismatch_DetectsCorruption()
+    public async Task ValidateAsync_WithHashMismatch_DetectsCorruptionAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();
@@ -325,7 +354,7 @@ public class GameClientValidatorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ValidateAsync_WithEmptyDirectory_HandlesGracefully()
+    public async Task ValidateAsync_WithEmptyDirectory_HandlesGracefullyAsync()
     {
         // Arrange
         var tempDir = Directory.CreateTempSubdirectory();

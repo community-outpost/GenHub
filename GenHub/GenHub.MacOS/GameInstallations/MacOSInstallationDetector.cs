@@ -1,0 +1,380 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.MacOS.GameInstallations;
+
+/// <summary>
+/// Detects retail Generals and Zero Hour data on macOS.
+/// <para>
+/// There is no native macOS distribution of either game, so there is nothing to
+/// detect in the sense Windows and Linux mean it: no Steam library, no EA App, no
+/// registry. What a macOS user has is a copied retail directory tree, either placed
+/// somewhere obvious by hand or sitting inside a Wine or CrossOver bottle. This
+/// detector looks in those places and quietly finds nothing when they are absent.
+/// </para>
+/// <para>
+/// Finding nothing is the expected outcome, not a failure. It returns an empty
+/// success so the orchestrator reports "no installations" rather than an error, and
+/// the user is directed to the manual browse flow. The detector exists so that macOS
+/// <em>has</em> a detector at all: the composition-root test asserts every host
+/// registers one, which is what would otherwise let a missing registration ship as a
+/// silently empty installation list.
+/// </para>
+/// </summary>
+/// <param name="logger">Logger for detection progress.</param>
+public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger) : IGameInstallationDetector
+{
+    /// <summary>
+    /// Directory names a retail Zero Hour tree is known to use, across disc, EA, and
+    /// Steam layouts.
+    /// </summary>
+    private static readonly string[] ZeroHourDirectoryNames =
+    [
+        GameClientConstants.ZeroHourDirectoryName,
+        GameClientConstants.ZeroHourDirectoryNameAmpersandHyphen,
+        GameClientConstants.ZeroHourDirectoryNameColonVariant,
+        GameClientConstants.ZeroHourDirectoryNameAbbreviated,
+        GameClientConstants.ZeroHourRetailDirectoryName,
+    ];
+
+    /// <summary>
+    /// Directory names a retail Generals tree is known to use.
+    /// </summary>
+    private static readonly string[] GeneralsDirectoryNames =
+    [
+        GameClientConstants.GeneralsDirectoryName,
+        GameClientConstants.GeneralsRetailDirectoryName,
+    ];
+
+    /// <inheritdoc/>
+    public string DetectorName => "macOS Installation Detector";
+
+    /// <inheritdoc/>
+    public bool CanDetectOnCurrentPlatform => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+
+    /// <inheritdoc/>
+    public Task<DetectionResult<GameInstallation>> DetectInstallationsAsync(CancellationToken cancellationToken = default)
+    {
+        var sw = Stopwatch.StartNew();
+        var installs = new List<GameInstallation>();
+        var deniedRoots = new List<string>();
+
+        logger.LogInformation("Starting macOS game installation detection");
+
+        try
+        {
+            foreach (var root in GetSearchRoots())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var (installation, accessDenied) = InspectRoot(
+                    root,
+                    cancellationToken,
+                    allowFlatRoot: string.Equals(root, GetNativeDeployRootPath(), StringComparison.Ordinal));
+
+                if (accessDenied)
+                {
+                    deniedRoots.Add(root);
+                }
+
+                if (installation is null)
+                {
+                    continue;
+                }
+
+                installs.Add(installation);
+                logger.LogInformation(
+                    "Detected retail installation under {Root}: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
+                    root,
+                    installation.HasGenerals,
+                    installation.HasZeroHour);
+            }
+
+            if (deniedRoots.Count > 0)
+            {
+                logger.LogWarning(
+                    "Could not read {DeniedCount} location(s) during detection: {DeniedRoots}. " +
+                    "macOS blocks these until access is granted in " +
+                    "System Settings > Privacy & Security > Files and Folders.",
+                    deniedRoots.Count,
+                    string.Join(", ", deniedRoots));
+            }
+
+            logger.LogInformation(
+                "macOS installation detection completed with {ResultCount} installations found",
+                installs.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "macOS installation detection failed");
+            sw.Stop();
+            return Task.FromResult(DetectionResult<GameInstallation>.CreateFailure(ex.Message));
+        }
+
+        sw.Stop();
+        return Task.FromResult(CreateDetectionResult(installs, deniedRoots, sw.Elapsed));
+    }
+
+    /// <summary>
+    /// Creates the final detection result while preserving retry semantics for incomplete scans.
+    /// </summary>
+    /// <param name="installs">The installations found in readable locations.</param>
+    /// <param name="deniedRoots">Locations that could not be searched.</param>
+    /// <param name="elapsed">The elapsed detection time.</param>
+    /// <returns>A successful result only when every candidate location was searchable.</returns>
+    internal static DetectionResult<GameInstallation> CreateDetectionResult(
+        IReadOnlyCollection<GameInstallation> installs,
+        IReadOnlyCollection<string> deniedRoots,
+        TimeSpan elapsed)
+    {
+        // Any denied root makes the result incomplete. Returning success when another
+        // root happened to contain a game would cache that partial result and suppress
+        // the retry needed after the user grants access.
+        if (deniedRoots.Count > 0)
+        {
+            return DetectionResult<GameInstallation>.CreateFailure(
+                $"Could not search {string.Join(", ", deniedRoots)} because macOS denied access, " +
+                "so installation detection is incomplete. Grant access in " +
+                "System Settings > Privacy & Security > Files and Folders, then detect again.");
+        }
+
+        return DetectionResult<GameInstallation>.CreateSuccess(installs, elapsed);
+    }
+
+    /// <summary>
+    /// Inspects one candidate root: first the directory itself, then name-matched children.
+    /// </summary>
+    /// <param name="root">Directory to inspect.</param>
+    /// <param name="cancellationToken">Cancellation for this root and its child scan.</param>
+    /// <param name="allowFlatRoot">Whether this is an explicitly designated flat deployment root.</param>
+    /// <returns>
+    /// The installation found under <paramref name="root"/>, or null, and whether access
+    /// was denied.
+    /// </returns>
+    /// <remarks>
+    /// Named child installations take precedence over loose archives at a scan root.
+    /// For an explicitly designated root, archive classification also supports flat native
+    /// deployments whose directory names do not match a retail layout.
+    /// </remarks>
+    internal static (GameInstallation? Installation, bool AccessDenied) InspectRoot(string root, CancellationToken cancellationToken = default, bool allowFlatRoot = false)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string? generalsPath = null;
+        string? zeroHourPath = null;
+
+        try
+        {
+            (generalsPath, zeroHourPath) = FindGameDirectories(root, cancellationToken);
+            if (allowFlatRoot && generalsPath is null && zeroHourPath is null)
+            {
+                var rootClassification = RetailArchiveClassifier.ClassifyArchives(root);
+
+                // A combined flat directory sets both paths to the same root.
+                generalsPath = rootClassification.HasGeneralsArchives ? root : null;
+                zeroHourPath = rootClassification.HasZeroHourArchives ? root : null;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Reported separately: on macOS this is how a declined TCC prompt surfaces for
+            // a protected location such as ~/Documents. Treating it as "nothing here"
+            // would tell the user they own no games when we were simply not allowed to look.
+            return (null, true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            // A vanished directory is not a detection failure. Other errors reach the
+            // detection boundary, which logs them and returns a retryable failure.
+            return (null, false);
+        }
+
+        if (generalsPath is null && zeroHourPath is null)
+        {
+            return (null, false);
+        }
+
+        var installation = new GameInstallation(root, GameInstallationType.Retail, null);
+        installation.SetPaths(generalsPath, zeroHourPath);
+
+        if (!installation.HasGenerals && !installation.HasZeroHour)
+        {
+            return (null, false);
+        }
+
+        return (installation, false);
+    }
+
+    private static string GetNativeDeployRootPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        GameClientConstants.NativeDeployParentDirectoryName,
+        GameClientConstants.NativeDeployZeroHourDirectoryName);
+
+    /// <summary>
+    /// Builds the list of directories worth scanning for a copied retail tree.
+    /// </summary>
+    /// <returns>Candidate root directories, in rough order of likelihood.</returns>
+    private static IEnumerable<string> GetSearchRoots()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+        {
+            yield break;
+        }
+
+        // The native engine's macOS deploy produces a flat tree here by default: engine
+        // binary, bundled dylibs, source-controlled data directories, and the user's own
+        // retail archives merged into one directory. It is not a name-matched child of
+        // anything, so it must be a candidate root in its own right.
+        yield return GetNativeDeployRootPath();
+
+        var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if (!string.IsNullOrEmpty(documents))
+        {
+            yield return documents;
+        }
+
+        // .NET has no SpecialFolder value for Downloads.
+        yield return Path.Combine(home, "Downloads");
+
+        var applicationSupport = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrEmpty(applicationSupport))
+        {
+            yield return applicationSupport;
+        }
+
+        yield return "/Applications";
+
+        // Wine and CrossOver bottles keep a Windows-shaped tree under drive_c.
+        foreach (var prefix in GetBottleDriveCPaths(home, applicationSupport))
+        {
+            yield return prefix;
+            yield return Path.Combine(prefix, "Program Files", GameClientConstants.EaGamesParentDirectoryName);
+            yield return Path.Combine(prefix, "Program Files (x86)", GameClientConstants.EaGamesParentDirectoryName);
+        }
+    }
+
+    /// <summary>
+    /// Enumerates the <c>drive_c</c> directory of every Wine prefix and CrossOver bottle.
+    /// </summary>
+    /// <param name="home">The current user's home directory.</param>
+    /// <param name="applicationSupport">The platform-resolved application support directory.</param>
+    /// <returns>Existing <c>drive_c</c> paths.</returns>
+    private static IEnumerable<string> GetBottleDriveCPaths(string home, string applicationSupport)
+    {
+        var bottleContainers = new List<string>();
+        if (!string.IsNullOrEmpty(applicationSupport))
+        {
+            bottleContainers.Add(Path.Combine(applicationSupport, "CrossOver", "Bottles"));
+        }
+
+        bottleContainers.Add(Path.Combine(home, "Wine Prefixes"));
+
+        foreach (var container in bottleContainers)
+        {
+            string[] bottles = [];
+            try
+            {
+                bottles = Directory.Exists(container) ? Directory.GetDirectories(container) : [];
+            }
+            catch (IOException)
+            {
+                // An unreadable bottle container is not a detection failure.
+                continue;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // An unreadable bottle container is not a detection failure.
+                continue;
+            }
+
+            foreach (var bottle in bottles)
+            {
+                var driveC = Path.Combine(bottle, "drive_c");
+                if (Directory.Exists(driveC))
+                {
+                    yield return driveC;
+                }
+            }
+        }
+
+        // The default Wine prefix is a directory, not a container of directories.
+        var defaultPrefix = Path.Combine(home, ".wine", "drive_c");
+        if (Directory.Exists(defaultPrefix))
+        {
+            yield return defaultPrefix;
+        }
+    }
+
+    /// <summary>
+    /// Finds immediate children of <paramref name="root"/> whose names match the known
+    /// Generals and Zero Hour directory names.
+    /// </summary>
+    /// <param name="root">Directory to search within.</param>
+    /// <param name="cancellationToken">Cancellation between child directories.</param>
+    /// <returns>
+    /// The matching paths. Matching is case-insensitive because macOS volumes can be
+    /// case-sensitive while retail trees are Windows-cased. Filesystem errors propagate
+    /// to the caller, which distinguishes denied access from a vanished directory.
+    /// </returns>
+    private static (string? GeneralsPath, string? ZeroHourPath) FindGameDirectories(string root, CancellationToken cancellationToken)
+    {
+        string? generalsPath = null;
+        string? zeroHourPath = null;
+        string? fallbackGeneralsPath = null;
+        string? fallbackZeroHourPath = null;
+
+        foreach (var directory in Directory.EnumerateDirectories(root))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var directoryName = Path.GetFileName(directory);
+            var generalsName = GeneralsDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            var zeroHourName = ZeroHourDirectoryNames.Contains(directoryName, StringComparer.OrdinalIgnoreCase);
+            if (!generalsName && !zeroHourName)
+            {
+                continue;
+            }
+
+            var archives = RetailArchiveClassifier.ClassifyArchives(directory);
+            if (archives.HasGeneralsArchives)
+            {
+                fallbackGeneralsPath ??= directory;
+                if (generalsName)
+                {
+                    generalsPath ??= directory;
+                }
+            }
+
+            if (archives.HasZeroHourArchives)
+            {
+                fallbackZeroHourPath ??= directory;
+                if (zeroHourName)
+                {
+                    zeroHourPath ??= directory;
+                }
+            }
+        }
+
+        generalsPath ??= fallbackGeneralsPath;
+        zeroHourPath ??= fallbackZeroHourPath;
+
+        return (generalsPath, zeroHourPath);
+    }
+}

@@ -13,7 +13,7 @@ public class DetectionResultTests
     [Fact]
     public void Succeeded_SetsPropertiesCorrectly()
     {
-        var items = new List<string> { "a", "b" };
+        List<string> items = ["a", "b"];
         var elapsed = TimeSpan.FromSeconds(1);
         var result = DetectionResult<string>.CreateSuccess(items, elapsed);
         Assert.True(result.Success);

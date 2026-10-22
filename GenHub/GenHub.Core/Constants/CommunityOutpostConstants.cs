@@ -1,11 +1,29 @@
+using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results.Content;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for the Community Outpost content provider.
 /// Supports the GenPatcher dl.dat catalog format from legi.cc.
 /// </summary>
+/// <remarks>
+/// Endpoint URLs and timeouts are configured via data-driven configuration.
+/// See <c>Providers/communityoutpost.provider.json</c> for runtime-configurable values.
+/// </remarks>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Default base URL for Community Outpost service")]
 public static class CommunityOutpostConstants
 {
+    /// <summary>
+    /// Base URL for Community Outpost / GenPatcher service.
+    /// </summary>
+    public const string BaseUrl = "https://legi.cc";
+
     /// <summary>
     /// The publisher ID for Community Outpost.
     /// </summary>
@@ -29,19 +47,12 @@ public static class CommunityOutpostConstants
     /// <summary>
     /// Cover image source path for UI display.
     /// </summary>
-    public const string CoverSource = "avares://GenHub/Assets/Covers/generals-cover.png";
+    public const string CoverSource = "/Assets/Covers/gla-cover.jpg";
 
     /// <summary>
-    /// The URL where the patch page is hosted.
+    /// Theme color for Community Outpost content.
     /// </summary>
-    public const string PatchPageUrl = "https://legi.cc/patch";
-
-    /// <summary>
-    /// The URL for the GenPatcher dl.dat catalog file.
-    /// This file contains the list of all available content with mirrors.
-    /// Format: [4-char-code] [file-size] [mirror-name] [download-url].
-    /// </summary>
-    public const string CatalogUrl = "https://legi.cc/gp2/dl.dat";
+    public const string ThemeColor = "#2D5A27";
 
     /// <summary>
     /// Description for the content provider.
@@ -49,29 +60,69 @@ public static class CommunityOutpostConstants
     public const string ProviderDescription = "Official patches, tools, and addons from GenPatcher (Community Outpost)";
 
     /// <summary>
-    /// Default filename for the downloaded patch zip.
-    /// </summary>
-    public const string DefaultPatchFilename = "community-patch.zip";
-
-    /// <summary>
-    /// Publisher website URL.
-    /// </summary>
-    public const string PublisherWebsite = "https://legi.cc";
-
-    /// <summary>
-    /// GenTool website URL (also hosts mirrors).
-    /// </summary>
-    public const string GentoolWebsite = "https://gentool.net";
-
-    /// <summary>
-    /// Template for the content description.
-    /// </summary>
-    public const string DescriptionTemplate = "Community Patch - Weekly Build {0}";
-
-    /// <summary>
     /// The name of the content.
     /// </summary>
     public const string ContentName = "Community Patch";
+
+    /// <summary>
+    /// Tag and content code for Community Patch items.
+    /// </summary>
+    public const string CommunityPatchTag = "community-patch";
+
+    /// <summary>
+    /// Content code alias for the Retail Community Patch build in registry.
+    /// </summary>
+    public const string CommunityPatchRetailCode = "community-patch-retail";
+
+    /// <summary>
+    /// Content code and tag for the Non-Retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetCode = "community-patch-nonret";
+
+    /// <summary>
+    /// Tag for the Non-Retail Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetTag = "community-patch-nonret";
+
+    /// <summary>
+    /// Tag for non-retail game client builds.
+    /// </summary>
+    public const string NonRetailTag = "non-retail";
+
+    /// <summary>
+    /// Tag for retail-compatible game client builds.
+    /// </summary>
+    public const string RetailCompatibleTag = "retail-compatible";
+
+    /// <summary>
+    /// Tag for stream-specific game client builds.
+    /// </summary>
+    public const string StreamTag = "stream";
+
+    /// <summary>
+    /// Display name for the retail-compatible Community Patch build.
+    /// </summary>
+    public const string CommunityPatchRetailDisplayName = "Community Patch (TheSuperHackers Build)";
+
+    /// <summary>
+    /// Display name for the non-retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetDisplayName = "Community Patch (TheSuperHackers Non-Retail Build)";
+
+    /// <summary>
+    /// Description for the retail-compatible Community Patch build.
+    /// </summary>
+    public const string CommunityPatchRetailDescription = "The latest TheSuperHackers patch build for Zero Hour. Compatible with regular C&C Generals Zero Hour retail multiplayer.";
+
+    /// <summary>
+    /// Description for the non-retail (stream) Community Patch build.
+    /// </summary>
+    public const string CommunityPatchNonRetDescription = "The latest TheSuperHackers non-retail patch build for Zero Hour (stream build). Note: This build has a different executable CRC and is not compatible with regular C&C Generals Zero Hour retail multiplayer.";
+
+    /// <summary>
+    /// Tag for addon content items.
+    /// </summary>
+    public const string AddonTag = "addon";
 
     /// <summary>
     /// Description for the discoverer.
@@ -84,6 +135,16 @@ public static class CommunityOutpostConstants
     public const string DelivererDescription = "Delivers Community Outpost content via 7z extraction and CAS storage";
 
     /// <summary>
+    /// Default filename for the downloaded patch zip.
+    /// </summary>
+    public const string DefaultPatchFilename = "community-patch.zip";
+
+    /// <summary>
+    /// Template for the content description.
+    /// </summary>
+    public const string DescriptionTemplate = "Community Patch - Weekly Build {0}";
+
+    /// <summary>
     /// Regex pattern to find the patch zip link (for legacy scraping).
     /// </summary>
     public const string PatchZipLinkPattern = @"href=[""']([^""']*\.zip)[""']";
@@ -94,35 +155,312 @@ public static class CommunityOutpostConstants
     public const string DatFileExtension = ".dat";
 
     /// <summary>
-    /// Timeout in seconds for downloading the catalog file.
+    /// The URL for the patch page (used for relative URL resolution).
     /// </summary>
-    public const int CatalogDownloadTimeoutSeconds = 30;
+    public const string PatchPageUrl = "https://legi.cc/downloads/genpatcher/";
 
     /// <summary>
-    /// Timeout in seconds for downloading content files.
-    /// Set to 5 minutes (300s) to accommodate large content downloads (.dat files can be 100+ MB).
-    /// This is intentionally longer than CatalogDownloadTimeoutSeconds (30s) which only downloads
-    /// the small dl.dat catalog file (~few KB).
+    /// Maximum number of file entries a downloaded Community Outpost archive may contain.
     /// </summary>
-    public const int ContentDownloadTimeoutSeconds = 300;
+    public const int MaxArchiveEntries = 10000;
+
+    /// <summary>
+    /// Maximum number of bytes a single Community Outpost archive entry may expand to (2 GiB),
+    /// sized to accommodate the largest shipped BIG files.
+    /// </summary>
+    public const long MaxEntryUncompressedBytes = 2L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum aggregate uncompressed bytes a Community Outpost archive may expand to (4 GiB).
+    /// </summary>
+    public const long MaxAggregateUncompressedBytes = 4L * 1024 * 1024 * 1024;
+
+    /// <summary>Display name for Game Clients content type.</summary>
+    public const string ContentTypeGameClients = "Game Clients";
+
+    /// <summary>Display name for Addons content type.</summary>
+    public const string ContentTypeAddons = "Addons";
+
+    /// <summary>Display name for Tools content type.</summary>
+    public const string ContentTypeTools = "Tools";
+
+    /// <summary>Display name for Maps content type.</summary>
+    public const string ContentTypeMaps = "Maps";
+
+    /// <summary>Tag for weekly patch builds.</summary>
+    public const string WeeklyTag = "weekly";
+
+    /// <summary>Keyword identifying nonret builds.</summary>
+    public const string NonRetKeyword = "nonret";
+
+    /// <summary>Keyword identifying hyphenated non-ret builds.</summary>
+    public const string NonRetHyphenatedKeyword = "non-ret";
+
+    /// <summary>Keyword identifying nonretail builds.</summary>
+    public const string NonRetailKeyword = "nonretail";
 
     /// <summary>
     /// Tags associated with the patch content.
     /// </summary>
-    public static readonly string[] PatchTags = ["patch", "community", "weekly", "legionnaire"];
+    public static readonly IReadOnlyList<string> PatchTags = ["patch", "community", WeeklyTag, "legionnaire"];
+
+    /// <summary>
+    /// Tags associated with community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchTags = [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic];
+
+    /// <summary>
+    /// Tags associated with the retail-compatible community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchRetailTags =
+        [CommunityPatchTag, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic, RetailCompatibleTag];
+
+    /// <summary>
+    /// Tags associated with the non-retail (stream) community patch content.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CommunityPatchNonRetTags =
+        [CommunityPatchTag, CommunityPatchNonRetCode, PublisherTypeConstants.TheSuperHackers, WeeklyTag, GitHubTopicsConstants.GameClientTopic, NonRetailTag, StreamTag];
 
     /// <summary>
     /// Tags associated with official patches.
     /// </summary>
-    public static readonly string[] OfficialPatchTags = ["patch", "official", "ea"];
+    public static readonly IReadOnlyList<string> OfficialPatchTags = ["patch", "official", "ea"];
 
     /// <summary>
-    /// Tags associated with addons.
+    /// Tags associated with base game content.
     /// </summary>
-    public static readonly string[] AddonTags = ["addon", "community", "genpatcher"];
+    public static readonly IReadOnlyList<string> BaseGameTags = ["base-game", "vanilla"];
+
+    /// <summary>
+    /// Tags associated with control bar addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ControlBarTags = [AddonTag, "control-bar", "ui"];
+
+    /// <summary>
+    /// Tags associated with hotkey addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> HotkeysTags = [AddonTag, "hotkeys", "keyboard"];
+
+    /// <summary>
+    /// Tags associated with camera modifications.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CameraTags = [AddonTag, "camera"];
 
     /// <summary>
     /// Tags associated with tools.
     /// </summary>
-    public static readonly string[] ToolsTags = ["tool", "utility", "genpatcher"];
+    public static readonly IReadOnlyList<string> ToolsTags = ["tool", "utility", "genpatcher"];
+
+    /// <summary>
+    /// Tags associated with maps and missions.
+    /// </summary>
+    public static readonly IReadOnlyList<string> MapsTags = ["maps", "missions"];
+
+    /// <summary>
+    /// Tags associated with visual enhancements.
+    /// </summary>
+    public static readonly IReadOnlyList<string> VisualsTags = [AddonTag, "visuals", "graphics"];
+
+    /// <summary>
+    /// Tags associated with system prerequisites.
+    /// </summary>
+    public static readonly IReadOnlyList<string> PrerequisitesTags = ["prerequisite", "system"];
+
+    /// <summary>
+    /// Tags associated with addons.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AddonTags = [AddonTag, "community", "genpatcher"];
+
+    /// <summary>
+    /// Language subdirectory names used by Generals game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> GeneralsLanguageSubdirectories = ["CCG", "ECG", "GCG", "FCG"];
+
+    /// <summary>
+    /// Language subdirectory names used by Zero Hour game client packages.
+    /// </summary>
+    public static readonly IReadOnlyList<string> ZeroHourLanguageSubdirectories = ["ZH", "EZH", "GZH", "FZH"];
+
+    /// <summary>
+    /// Checks whether an identifier, filename, or display name represents a non-retail (stream) build.
+    /// </summary>
+    /// <param name="name">The name, identifier, or filename to check.</param>
+    /// <returns><c>true</c> if non-retail; otherwise, <c>false</c>.</returns>
+    public static bool IsNonRetailIdentifier(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        return name.Contains(NonRetKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetHyphenatedKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetailKeyword, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(NonRetailTag, System.StringComparison.OrdinalIgnoreCase) ||
+               name.Contains(StreamTag, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether an identifier, tag, or display name represents official base game content (e.g. 10zh, 10gn).
+    /// </summary>
+    /// <param name="value">The string value to check.</param>
+    /// <returns><c>true</c> if base game content; otherwise, <c>false</c>.</returns>
+    public static bool IsBaseGameIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (value.Equals("10zh", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("10gn", System.StringComparison.OrdinalIgnoreCase) ||
+            value.EndsWith(".10zh", System.StringComparison.OrdinalIgnoreCase) ||
+            value.EndsWith(".10gn", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("basegame", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("base-game", System.StringComparison.OrdinalIgnoreCase) ||
+            value.Equals("official", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Version display names only identify base game content when they carry no
+        // Community Patch marker, so releases like "Zero Hour 1.04 (Community Patch)"
+        // are not misclassified as base game content.
+        if (ContainsCommunityPatchMarker(value))
+        {
+            return false;
+        }
+
+        return value.Contains("Zero Hour 1.04", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Zero Hour 1.05", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Generals 1.08", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("Generals 1.09", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks whether an identifier, tag, or display name represents Community Patch content.
+    /// </summary>
+    /// <param name="value">The string value to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatchIdentifier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || IsBaseGameIdentifier(value))
+        {
+            return false;
+        }
+
+        return ContainsCommunityPatchMarker(value);
+    }
+
+    /// <summary>
+    /// Checks whether the specified publisher, ID, or display name represents a Community Outpost or Community Patch identity.
+    /// </summary>
+    /// <param name="publisher">The publisher name or publisher type.</param>
+    /// <param name="id">The client or content identifier.</param>
+    /// <param name="name">The display name or profile name.</param>
+    /// <returns><c>true</c> if the identity belongs to Community Outpost or Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityOutpostIdentity(string? publisher, string? id = null, string? name = null)
+    {
+        if (IsCommunityPatchIdentifier(id) || IsCommunityPatchIdentifier(name))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(publisher) &&
+            (string.Equals(publisher, PublisherType, StringComparison.OrdinalIgnoreCase) ||
+             publisher.Contains(PublisherName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(name) && name.Contains(PublisherName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether a content search result represents Community Patch content.
+    /// </summary>
+    /// <param name="result">The search result to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatch(ContentSearchResult? result)
+    {
+        if (result == null)
+        {
+            return false;
+        }
+
+        if (IsBaseGameIdentifier(result.Id) || IsBaseGameIdentifier(result.Name) ||
+            (result.Tags != null && result.Tags.Any(IsBaseGameIdentifier)))
+        {
+            return false;
+        }
+
+        return IsCommunityPatchIdentifier(result.Id) ||
+               IsCommunityPatchIdentifier(result.Name) ||
+               (result.Tags != null && result.Tags.Any(IsCommunityPatchIdentifier)) ||
+               (result.ResolverMetadata != null && result.ResolverMetadata.TryGetValue("category", out var cat) &&
+                string.Equals(cat, "CommunityPatch", System.StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Checks whether a content manifest represents Community Patch content.
+    /// </summary>
+    /// <param name="manifest">The manifest to check.</param>
+    /// <returns><c>true</c> if Community Patch; otherwise, <c>false</c>.</returns>
+    public static bool IsCommunityPatch(ContentManifest? manifest)
+    {
+        if (manifest == null)
+        {
+            return false;
+        }
+
+        if (IsBaseGameIdentifier(manifest.Id.Value) || IsBaseGameIdentifier(manifest.Name) ||
+            (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsBaseGameIdentifier)))
+        {
+            return false;
+        }
+
+        return IsCommunityPatchIdentifier(manifest.Id.Value) ||
+               IsCommunityPatchIdentifier(manifest.Name) ||
+               (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(IsCommunityPatchIdentifier));
+    }
+
+    private static bool ContainsCommunityPatchMarker(string value)
+    {
+        if (IsGeneralsGamePatch2Marker(value))
+        {
+            return false;
+        }
+
+        return value.Contains(CommunityPatchTag, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(CommunityPatchNonRetCode, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Contains(ContentName, System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("CommunityPatch", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsGeneralsGamePatch2Marker(string value)
+    {
+        if (value.Contains(SuperHackersConstants.GeneralsGamePatch2Repo, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, System.StringComparison.OrdinalIgnoreCase);
+        while (idx >= 0)
+        {
+            var nextCharIdx = idx + SuperHackersConstants.GeneralsGamePatch2DisplayName.Length;
+            if (nextCharIdx >= value.Length || !char.IsDigit(value[nextCharIdx]))
+            {
+                return true;
+            }
+
+            idx = value.IndexOf(SuperHackersConstants.GeneralsGamePatch2DisplayName, nextCharIdx + 1, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
 }

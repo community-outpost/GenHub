@@ -1,6 +1,6 @@
-# Flowchart: Complete User Installation Flow (ModDB Example)
+# Flowchart: Complete User Installation Flow
 
-This flowchart illustrates the end-to-end process when a user installs a mod from ModDB, showing how all architectural layers work together.
+This flowchart illustrates the end-to-end process when a user subscribes to a publisher and installs content, showing how all architectural layers work together with the subscription system.
 
 ```mermaid
 %%{init: {
@@ -23,37 +23,48 @@ This flowchart illustrates the end-to-end process when a user installs a mod fro
 }}%%
 
 flowchart TD
- subgraph P1["🔍 Phase 1: Discovery"]
-        A1@{ label: "👤 User searches<br>'Zero Hour Reborn'<br>in Content Browser\n<br>" }
-        A2["🌐 ModDbDiscoverer<br>scrapes ModDB<br>game listings
+ subgraph P0["🔗 Phase 0: Subscription"]
+        A0["👤 User clicks<br>genhub://subscribe<br>link from website
 <br>"]
-        A3["📦 DiscoveredContent<br>object returned<br>with mod metadata
+        A01["📥 PublisherDefinition<br>Service fetches<br>definition JSON
+<br>"]
+        A02["✅ User confirms<br>subscription in<br>dialog
+<br>"]
+        A03["💾 Publisher saved<br>to subscriptions.json<br>appears in sidebar
+<br>"]
+  end
+ subgraph P1["🔍 Phase 1: Discovery"]
+        A1["👤 User selects<br>publisher from<br>Downloads sidebar
+<br>"]
+        A2["🌐 GenericCatalog<br>Discoverer fetches<br>catalog JSON
+<br>"]
+        A3["📦 ContentSearchResult<br>objects returned<br>with content metadata
 <br>"]
   end
  subgraph P2["🎯 Phase 2: Resolution"]
-        B1["👆 User clicks<br>Install button<br>on mod entry
+        B1["👆 User clicks<br>Install button<br>on content entry
 <br>"]
-        B2["🌐 ModDbResolver<br>scrapes detailed<br>mod page
+        B2["🌐 GenericCatalog<br>Resolver fetches<br>release details
 <br>"]
-        B3["📋 GameManifest<br>created with<br>Package entry
+        B3["📋 ContentManifest<br>created with<br>artifact references
 <br>"]
   end
  subgraph P3["⬇️ Phase 3: Acquisition"]
-        C1["🌐 HttpContentProvider<br>selected based<br>on source type
+        C1["📦 Download artifacts<br>to temp location<br>with progress tracking
 <br>"]
-        C2["📦 Download<br>ZeroHourReborn.zip<br>to temp location
+        C2["📂 Extract archives<br>and verify<br>SHA256 hashes
 <br>"]
-        C3["📂 Extract archive<br>and scan<br>file contents
+        C3["🗄️ Store files in<br>Content-Addressable<br>Storage (CAS)
 <br>"]
-        C4["🔄 Transform manifest<br>Package to Copy<br>operations
+        C4["📋 Manifest updated<br>with CAS file<br>references
 <br>"]
   end
  subgraph P4["🏗️ Phase 4: Assembly"]
-        D1["⚖️ HybridCopySymlink<br>Strategy selected<br>from profile
+        D1["⚖️ Workspace Strategy<br>selected from<br>profile settings
 <br>"]
-        D2["📄 Copy mod.ini<br>to workspace<br>configuration
+        D2["🔗 Symlink/Copy files<br>from CAS to<br>workspace
 <br>"]
-        D3["🔗 Symlink textures<br>from base game<br>installation
+        D3["📝 Write Options.ini<br>with game<br>settings
 <br>"]
         D4["✅ Workspace<br>prepared and<br>validated
 <br>"]
@@ -63,26 +74,30 @@ flowchart TD
 <br>"]
         E2["🎮 GameLauncher starts<br>isolated process<br>from workspace
 <br>"]
-        E3["🎯 Game runs with<br>Zero Hour Reborn<br>mod enabled
+        E3["🎯 Game runs with<br>installed content<br>enabled
 <br>"]
   end
-    A1 -- Search Query --> A2
-    A2 -- Web Scraping --> A3
+    A0 -- Protocol Handler --> A01
+    A01 -- Fetch Definition --> A02
+    A02 -- Confirm --> A03
+    P0 -- Publisher Added --> P1
+    A1 -- Select Publisher --> A2
+    A2 -- Fetch Catalog --> A3
     P1 -- User Selection --> P2
     B1 -- Install Request --> B2
-    B2 -- Page Analysis --> B3
+    B2 -- Fetch Release --> B3
     P2 -- Manifest Ready --> P3
-    C1 -- Provider Selected --> C2
-    C2 -- Download Complete --> C3
-    C3 -- Files Analyzed --> C4
+    C1 -- Download Complete --> C2
+    C2 -- Verified --> C3
+    C3 -- Stored --> C4
     P3 -.-> P4
     D1 -- Strategy Applied --> D2
-    D2 -- Config Copied --> D3
-    D3 -- Assets Linked --> D4
+    D2 -- Files Mapped --> D3
+    D3 -- Config Written --> D4
     P4 -.-> P5
     E1 -- Launch Command --> E2
     E2 -- Process Started --> E3
-    A1@{ shape: rect}
+    style P0 fill:#9f7aea,stroke:#805ad5,stroke-width:2px,color:#ffffff
     style P1 fill:#38a169,stroke:#2f855a,stroke-width:2px,color:#ffffff
     style P2 fill:#e53e3e,stroke:#c53030,stroke-width:2px,color:#ffffff
     style P3 fill:#805ad5,stroke:#6b46c1,stroke-width:2px,color:#ffffff
@@ -94,19 +109,18 @@ flowchart TD
 
 | Phase | Input Data | Processing Method | Output Data | Key Transformation |
 |-------|------------|-------------------|-------------|-------------------|
-| **Discovery** | Search query string | Web scraping + API calls | `DiscoveredContent` collection | Raw search → Structured results |
-| **Resolution** | Source URL + metadata | Page analysis + parsing | `GameManifest` (Package type) | Lightweight data → Installation plan |
-| **Acquisition** | Package manifest | Download + extraction + scan | `GameManifest` (File ops) | Package reference → File operations |
-| **Assembly** | File operations list | Strategy execution + file ops | Ready workspace | Operation list → Functional environment |
+| **Subscription** | genhub:// URL | Protocol handler + definition fetch | Subscribed publisher | URL → Publisher registration |
+| **Discovery** | Publisher selection | Catalog fetch + parsing | `ContentSearchResult` collection | Catalog JSON → Structured results |
+| **Resolution** | Content selection | Release fetch + parsing | `ContentManifest` | Lightweight data → Installation plan |
+| **Acquisition** | Artifact URLs | Download + hash verification + CAS storage | Files in CAS | Remote artifacts → Local deduplicated storage |
+| **Assembly** | File references + strategy | CAS file mapping + workspace creation | Ready workspace | CAS references → Functional environment |
 | **Launch** | Workspace path + config | Process creation + monitoring | Running game process | Static files → Active game session |
 
 **Real-World Implementation Example:**
 
-1. **Discovery**: User search "Zero Hour Reborn" → ModDB scraping → Mod metadata extraction
-2. **Resolution**: Mod page analysis → Download URL identification → Package manifest creation  
-3. **Acquisition**: ZIP download (150MB) → File extraction → Copy operations manifest transformation
-4. **Assembly**: Strategy selection → Essential file copying → Large asset symlinking → Workspace validation
-5. **Launch**: Process execution → Isolated environment → Mod-enabled gameplay experience
-3. **Acquisition**: ZIP download (150MB) → File extraction → Copy operations manifest transformation
-4. **Assembly**: Strategy selection → Essential file copying → Large asset symlinking → Workspace validation
-5. **Launch**: Process execution → Isolated environment → Mod-enabled gameplay experience
+1. **Subscription**: User clicks genhub://subscribe link → Definition fetch → Publisher added to sidebar
+2. **Discovery**: User selects publisher → Catalog fetch → Content list displayed
+3. **Resolution**: User clicks Install → Release details fetched → Manifest with artifact URLs created
+4. **Acquisition**: Artifacts downloaded (150MB) → SHA256 verified → Files stored in CAS by hash
+5. **Assembly**: Strategy selection → Files symlinked/copied from CAS → Workspace validated
+6. **Launch**: Process execution → Isolated environment → Content-enabled gameplay experience

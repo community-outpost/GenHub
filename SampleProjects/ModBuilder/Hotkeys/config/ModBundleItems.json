@@ -1,0 +1,31 @@
+{
+  "BundleItems": [
+    {
+      "Name": "HotkeyIndicators",
+      "Type": "Texture",
+      "SourceFiles": [
+        "GameFilesEdited/**/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "TGA",
+      "Description": "Control bar indicator overlay textures for QWERTY hotkeys"
+    },
+    {
+      "Name": "HotkeyINIs",
+      "Type": "INI",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "Description": "Command button assignments and mapped image coordinates"
+    },
+    {
+      "Name": "HotkeyStrings",
+      "Type": "StringTable",
+      "SourceFiles": [
+        "GameFilesEdited/Data/English/**/*.csf"
+      ],
+      "OutputFormat": "CSF",
+      "Description": "String table with hotkey annotations (&Key)"
+    }
+  ]
+}

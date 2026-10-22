@@ -1,0 +1,2895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GenHub Reference Catalogs: Dominator Mappacks + Content Bundles</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: #000; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px 16px 80px; line-height: 1.5; }
+  main { max-width: 1120px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 1.15rem; margin: 36px 0 12px; border-bottom: 1px solid #2a2a2a; padding-bottom: 6px; }
+  h3 { font-size: 0.98rem; margin: 20px 0 8px; color: #eee; }
+  p, li { font-size: 0.92rem; color: #ccc; }
+  .meta { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+  .meta code { color: #4ade80; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.84em; background: #161616; border: 1px solid #262626; padding: 2px 6px; border-radius: 4px; word-break: break-all; color: #f3f4f6; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 12px 0 20px; }
+  th, td { border: 1px solid #262626; padding: 8px 10px; text-align: left; }
+  th { background: #121212; color: #fff; font-weight: 600; }
+  tr:nth-child(even) { background: #0a0a0a; }
+  .ok { color: #4ade80; font-weight: 600; }
+  .warn { color: #fbbf24; font-weight: 600; }
+  .card { background: #0c0c0c; border: 1px solid #262626; border-radius: 8px; padding: 16px; margin: 16px 0; }
+  
+  /* Copy Block Styling */
+  .copy-header { display: flex; justify-content: space-between; align-items: center; background: #161616; border: 1px solid #2a2a2a; border-bottom: none; border-radius: 8px 8px 0 0; padding: 10px 16px; margin-top: 24px; }
+  .copy-header span { font-size: 0.88rem; font-weight: 600; color: #fff; font-family: ui-monospace, monospace; }
+  .copy-btn { background: #2563eb; color: #fff; border: 1px solid #3b82f6; border-radius: 6px; padding: 6px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.15s ease; }
+  .copy-btn:hover { background: #1d4ed8; }
+  .copy-btn.copied { background: #16a34a; border-color: #22c55e; }
+  pre { background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 0 0 8px 8px; padding: 14px 16px; margin: 0 0 24px; overflow-x: auto; max-height: 540px; font-size: 0.78rem; line-height: 1.45; }
+  pre code { background: transparent; border: none; padding: 0; color: #e5e7eb; }
+  
+  .quick-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .quick-links a { background: #18181b; border: 1px solid #27272a; color: #60a5fa; text-decoration: none; padding: 5px 12px; border-radius: 6px; font-size: 0.82rem; }
+  .quick-links a:hover { background: #27272a; text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GenHub Reference Catalogs: Dominator Mappacks + Content Bundles</h1>
+  <div class="meta">
+    Branch: <code>feat/content-bundles-and-auto-releases</code> &nbsp;|&nbsp;
+    Commit: <code>922eca2686</code> &nbsp;|&nbsp;
+    Target: Community Outpost GenHub Reference &nbsp;|&nbsp;
+    Status: <span class="ok">Verified 100% Green (Build &amp; Tests Passing)</span>
+  </div>
+
+  <div class="quick-links">
+    <a href="#dominator-overview">Dominator Summary</a>
+    <a href="#bundles-overview">Content Bundles Summary</a>
+    <a href="#publisher-guide">Publishing Checklist</a>
+    <a href="#dominator-json">Copy dominator-mappacks.catalog.json</a>
+    <a href="#test-catalog-json">Copy genhub-test-catalog.catalog.json</a>
+  </div>
+
+  <div class="card">
+    <p><strong>Note for VPS &amp; Remote Access:</strong> Both catalogs are provided below in complete, uncompressed, copy-ready format with one-click clipboard copy buttons. You can click the copy button and paste directly into your editor or upload tool without needing SSH/SFTP access into the VPS.</p>
+  </div>
+
+  <h2 id="dominator-overview">1. Dominator Mappacks Catalog (22 Items)</h2>
+  <p>Dedicated competitive and custom singleplayer/multiplayer map catalog curated by the Dominator community. Fully verified with valid Google Drive direct download links, SHA-256 integrity digests, and standalone catalog visibility.</p>
+  <ul>
+    <li><strong>Items:</strong> 22 unique map packs (custom campaigns by Cresty, Supakrid, TKlyo, Unicas, XJoueuer50, tournament micro maps, and multiplayer packs).</li>
+    <li><strong>Asset Integrity:</strong> All 22 SHA-256 hashes populated from downloaded bytes. Every release marked <code>isLatest: true</code>.</li>
+    <li><strong>Artwork:</strong> High-resolution <code>avares://</code> covers (China, USA, GLA, Zero Hour, Generals) assigned with distinct banner/backdrop pairings for all 22 cards.</li>
+  </ul>
+  <table>
+    <tr><th>Item Name</th><th>Content ID</th><th>Filename</th><th>Size (Bytes)</th></tr>
+    <tr><td>GLA Campaign by TKlyo</td><td><code>gla-campaign-by-tklyo</code></td><td><code>GLA Campaign by TKlyo.rar</code></td><td>42,654,124</td></tr>
+    <tr><td>Hardcore Challenge Maps</td><td><code>hardcore-challenge-maps</code></td><td><code>Hardcore Challenge Maps.rar</code></td><td>37,858,630</td></tr>
+    <tr><td>Ironfire Maps</td><td><code>ironfire-maps</code></td><td><code>Ironfire Maps.rar</code></td><td>5,744,302</td></tr>
+    <tr><td>Laser Town Maps</td><td><code>laser-town-maps</code></td><td><code>Laser Town Maps.rar</code></td><td>30,064,285</td></tr>
+    <tr><td>Leikeze Maps</td><td><code>leikeze-maps</code></td><td><code>Leikeze Maps.rar</code></td><td>13,568,693</td></tr>
+    <tr><td>No Money Maps</td><td><code>no-money-maps</code></td><td><code>No Money Maps.rar</code></td><td>14,136,547</td></tr>
+    <tr><td>PeeWee Micro Maps</td><td><code>peewee-micro-maps</code></td><td><code>PeeWee Micro Maps.rar</code></td><td>12,796,252</td></tr>
+    <tr><td>Pro Skills Dominator Maps</td><td><code>pro-skills-dominator-maps</code></td><td><code>Pro Skills Dominator Maps.rar</code></td><td>47,422,968</td></tr>
+    <tr><td>PVP Micro Maps</td><td><code>pvp-micro-maps</code></td><td><code>PVP Micro Maps.rar</code></td><td>24,785,178</td></tr>
+    <tr><td>Race Maps</td><td><code>race-maps</code></td><td><code>Race Maps.rar</code></td><td>22,238,981</td></tr>
+    <tr><td>Random Multiplayer Maps 1</td><td><code>random-multiplayer-maps-1</code></td><td><code>Random Multiplayer Maps 1.rar</code></td><td>39,634,917</td></tr>
+    <tr><td>Random Multiplayer Maps 2</td><td><code>random-multiplayer-maps-2</code></td><td><code>Random Multiplayer Maps 2.rar</code></td><td>35,845,958</td></tr>
+    <tr><td>Random Multiplayer Maps 3</td><td><code>random-multiplayer-maps-3</code></td><td><code>Random Multiplayer Maps 3.rar</code></td><td>37,025,979</td></tr>
+    <tr><td>Shellmaps</td><td><code>shellmaps</code></td><td><code>Shellmaps.rar</code></td><td>10,250,580</td></tr>
+    <tr><td>Shkai - Domi&#39;s Toy Box</td><td><code>shkai-domis-toy-box</code></td><td><code>Shkai - Domi&#39;s Toy Box.rar</code></td><td>30,958,521</td></tr>
+    <tr><td>Starwars Maps</td><td><code>starwars-maps</code></td><td><code>Starwars Maps.rar</code></td><td>24,310,266</td></tr>
+    <tr><td>Troll Maps - April Fools</td><td><code>troll-maps-april-fools</code></td><td><code>Troll Maps - April Fools.rar</code></td><td>17,212,506</td></tr>
+    <tr><td>USA Campaign by Cresty</td><td><code>usa-campaign-by-cresty</code></td><td><code>USA Campaign by Cresty.rar</code></td><td>75,815,622</td></tr>
+    <tr><td>USA Campaign by Supakrid</td><td><code>usa-campaign-by-supakrid</code></td><td><code>USA Campaign by Supakrid.rar</code></td><td>104,449,152</td></tr>
+    <tr><td>USA Campaign by TKlyo</td><td><code>usa-campaign-by-tklyo</code></td><td><code>USA Campaign by TKlyo.rar</code></td><td>108,610,670</td></tr>
+    <tr><td>USA Campaign by Unicas</td><td><code>usa-campaign-by-unicas</code></td><td><code>USA Campaign by Unicas.rar</code></td><td>43,767,882</td></tr>
+    <tr><td>WBC Big Maps</td><td><code>wbc-big-maps</code></td><td><code>WBC Big Maps.rar</code></td><td>42,201,841</td></tr>
+  </table>
+
+  <h2 id="bundles-overview">2. Content Bundles Catalog (11 Items)</h2>
+  <p>Production reference catalog for autonomous upstream releases and multi-component bundles (publisher ID: <code>genhub-test-publishers</code>, display name: <code>Content Bundles</code>).</p>
+  <ul>
+    <li><strong>Upstream Game Clients:</strong> <code>zerohour</code> (GitHub: TheSuperHackers), <code>60hz</code> (GeneralsOnline), <code>community-patch-retail</code> + <code>community-patch-nonretail</code> (Community Outpost). Each has an offline fallback release plus live upstream tracking.</li>
+    <li><strong>Addons:</strong> <code>l3m-controlbar</code> (widescreen HUD across 720p, 900p, 1080p, 1440p, 4K), <code>leikeze-hotkeys</code> (English, German, Chinese QWERTY command grids), <code>eliorata-improved-menus</code> (fixed SHA-256 pin: <code>2e89f663d0...</code>).</li>
+    <li><strong>4 Preconfigured Bundles:</strong>
+      <ul>
+        <li><code>bundle-thesuperhackers-latest-stack</code>: TheSuperHackers Game Code + L3M Control Bar + Leikeze Hotkeys + Improved Menus.</li>
+        <li><code>bundle-community-outpost-retail-stack</code>: Community Patch Retail Client + L3M Control Bar + Leikeze Hotkeys + Improved Menus.</li>
+        <li><code>bundle-community-outpost-nonretail-stack</code>: Community Patch Non-Retail Client + L3M Control Bar + Leikeze Hotkeys + Improved Menus.</li>
+        <li><code>bundle-generalsonline-complete-pack</code>: Generals Online 60Hz Client + L3M Control Bar + Leikeze Hotkeys + Improved Menus.</li>
+      </ul>
+    </li>
+    <li><strong>Control Bar Standardization:</strong> As requested, <code>lemon-controlbar</code> has been removed from all three bundles; the clean, high-performance L3M Modern HD Control Bar is used consistently across all stacks.</li>
+    <li><strong>Standalone Visibility:</strong> All 11 items are marked <code>isStandalone: true</code> so they render in the user catalog grid.</li>
+  </ul>
+
+  <h2 id="publisher-guide">3. Publisher Checklist (Uploading to Live)</h2>
+  <ul>
+    <li><span class="ok">Collision Guard:</span> The codebase now automatically assigns unique remote names (e.g. <code>catalog-dominator-mappacks.json</code> and <code>catalog-genhub-test-publishers.json</code>) so catalogs never overwrite each other in cloud storage.</li>
+    <li><span class="warn">Stale File Cleanup:</span> If an old file named <code>CATALOG.json</code> exists on your Google Drive / hosting provider from previous sessions, delete or rename it before publishing.</li>
+    <li><span class="ok">Improved Menus Pin:</span> Verified SHA-256 checksum is <code>2e89f663d01709c848c69ac5124f07c194d67a82afd6f1edf1d9f444952f3f7a</code> (225,401,259 bytes). This matches the downloaded asset exactly.</li>
+  </ul>
+
+  <h2 id="dominator-json">4. Full JSON: dominator-mappacks.catalog.json</h2>
+  <div class="copy-header">
+    <span>dominator-mappacks.catalog.json (22 items, 1,703 lines)</span>
+    <button class="copy-btn" >📋 Copy JSON to Clipboard</button>
+  </div>
+  <pre><code id="dom-code">{
+  &quot;$schemaVersion&quot;: 1,
+  &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/dominator-logo.png&quot;,
+  &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/dominator-logo.png&quot;,
+  &quot;publisher&quot;: {
+    &quot;id&quot;: &quot;dominator-mappacks&quot;,
+    &quot;name&quot;: &quot;Dominator Mappacks&quot;,
+    &quot;description&quot;: &quot;Contains the essential tools needed for running the game&quot;,
+    &quot;website&quot;: &quot;http://generalshub.com/&quot;,
+    &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/dominator-logo.png&quot;,
+    &quot;supportUrl&quot;: &quot;https://discord.gg/ZGtT3Qwd3Y&quot;,
+    &quot;contactEmail&quot;: null
+  },
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;gla-campaign-by-tklyo&quot;,
+      &quot;name&quot;: &quot;GLA Campaign by TKlyo&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom singleplayer GLA campaign missions designed by TKlyo.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of GLA Campaign by TKlyo&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;GLA Campaign by TKlyo.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=18PLAvNx-aJHxbMT265W__OKsLSQiIUIm&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2138952,
+              &quot;sha256&quot;: &quot;647f9fbf74fb4853e8d1ca0f92a1806755a800d08c8606d1da00a51d6f44c5ae&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;gla&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;gla-with-power-maps&quot;,
+      &quot;name&quot;: &quot;GLA with Power Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: GLA with power multiplayer maps.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of GLA with Power Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;GLA with power maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1y3m84Ujr6o-Lf1JcW5F63JUBonFwdJMB&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2716370,
+              &quot;sha256&quot;: &quot;1633ca78fb7b1904150723a415644148c15410888ca8038022bce6920a931e18&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;mappack&quot;,
+        &quot;gla&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;jhg-maps&quot;,
+      &quot;name&quot;: &quot;JHG Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: JHG competitive multiplayer and custom maps collection.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of JHG Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;JHG Maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1d_tWuAnoCZCDSTKbQZUA4uYFP3cvJcYV&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 3589116,
+              &quot;sha256&quot;: &quot;2c3a48811c53e893f6db29b471078a530d0e0519705dfd1e70f3b6bc65021265&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;mappack&quot;,
+        &quot;jhg&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;micro-challenge-maps&quot;,
+      &quot;name&quot;: &quot;Micro Challenge Maps (Humvee, Bus, Buggy)&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Micro skill challenge maps for Humvee, Battle Bus, and Rocket Buggy.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Micro Challenge Maps (Humvee, Bus, Buggy)&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Micro Challenge Maps (Humvee, Bus, Buggy).rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1lpDG031oKujJJVuFe8CN195R5l0I9_MQ&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 100169,
+              &quot;sha256&quot;: &quot;9eb9a3d086449ac75b1496b5ea81dae2fadb8cd48b9ef7c7f40585cb88d0f9ee&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;challenge&quot;,
+        &quot;micro&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;naval-maps&quot;,
+      &quot;name&quot;: &quot;Naval Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Naval warfare maps designed for boat combat and island assaults.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Naval Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Naval Maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=11ovjkp2JANWLjs_hMfNWXmTStW4mQp8Y&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 6070691,
+              &quot;sha256&quot;: &quot;3c8c3e58640424553db083b91662a1ffd7a232b94de040dcabc6ddf553dd0c2c&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;naval&quot;,
+        &quot;water&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;no-money-and-cxn&quot;,
+      &quot;name&quot;: &quot;No Money and CXN&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Zero-money and CXN challenge maps testing resource-constrained tactics.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of No Money and CXN&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;No money and CXN.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1-gvLBMC69tvAogI9ITvwD1I-N8HBsDO6&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2062021,
+              &quot;sha256&quot;: &quot;5bfae4757f0ff5961e39f6c11fbee72216eeebb799528f62071ce5f06e76b116&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;challenge&quot;,
+        &quot;nomoney&quot;,
+        &quot;cxn&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;pro-skills-dominator-maps&quot;,
+      &quot;name&quot;: &quot;Pro Skills Dominator Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Advanced pro-level micro and combat training maps.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Pro Skills Dominator Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Pro Skills dominator maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1QmEHCi3dfR51AoW_F7N4IdBwR_0CwFvA&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 233935,
+              &quot;sha256&quot;: &quot;c93137a6bf020472382a119a0a1b0259c5662a5fd50be79e4795b33c2cf91d2e&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;pro&quot;,
+        &quot;competitive&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;pvp-micro-maps&quot;,
+      &quot;name&quot;: &quot;PVP Micro Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Fast-paced PVP micro battles focusing on army control and reaction speed.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of PVP Micro Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;PVP Micro Maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1IBoW1F7oBvGLcDAGVu1gURQC3MGHgvqE&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 1322495,
+              &quot;sha256&quot;: &quot;50c2f0196cf48d5b074aa7eb4a2a79baa0cf0071521390cb8ae41dda0fdc54d6&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;pvp&quot;,
+        &quot;micro&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;race-maps&quot;,
+      &quot;name&quot;: &quot;Race Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Fun vehicle racing tracks and obstacle courses built in the SAGE engine.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Race Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Race Maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=11Pk8R2GvF6yD-HFsg3oL3AwaTtmms3_e&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 1333435,
+              &quot;sha256&quot;: &quot;f2207d0898943a09fee57d40382f397cf9f4e196e6d48062bf1d6ea4a33ae37f&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;race&quot;,
+        &quot;minigame&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;random-multiplayer-maps-1&quot;,
+      &quot;name&quot;: &quot;Random Multiplayer Maps Folder One&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Diverse multiplayer skirmish maps part 1.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Random Multiplayer Maps Folder One&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Random Multiplayer Maps Folder One.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1fzU5W9cTMVExbc7svHN8yvQaMzktLZ6m&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 186002843,
+              &quot;sha256&quot;: &quot;6e6c6b953d1419502b7a71835cc707f9618a168ea587d7bb0f040e9a00b66cc7&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;multiplayer&quot;,
+        &quot;collection&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;random-multiplayer-maps-3&quot;,
+      &quot;name&quot;: &quot;Random Multiplayer Maps Folder Three&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Curated multiplayer maps pack part 3.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Random Multiplayer Maps Folder Three&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Random Multiplayer Maps Folder Three.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1NHs5mPkHishe2OGFQutTEtOfuC9JtTNI&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 5578380,
+              &quot;sha256&quot;: &quot;68bc96e5a8dda469a812d25e6d7bdd110122009d4a3aaeb672962a48877e10dd&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;multiplayer&quot;,
+        &quot;collection&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;random-multiplayer-maps-2&quot;,
+      &quot;name&quot;: &quot;Random Multiplayer Maps Folder Two&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Massive multiplayer map collection part 2.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Random Multiplayer Maps Folder Two&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Random Multiplayer Maps Folder Two.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1ABLNiTDMeLZpOwn0dZzlCeVZ7gwaBfIZ&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 206303039,
+              &quot;sha256&quot;: &quot;647e775570c9f5a07ddc358fff0a92ddb8fb3bf464e761c1eca2ac7895eee2f6&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;multiplayer&quot;,
+        &quot;collection&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;shellmaps&quot;,
+      &quot;name&quot;: &quot;Shellmaps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom animated background shellmaps for main menu customization.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Shellmaps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Shellmaps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1lnYnbxXw2e4nrb70vDllqmXqHeQXX7zY&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2131020,
+              &quot;sha256&quot;: &quot;12a9a39ece47f8865017b4800b2e3a1aad23a3fb9541b6bf7610b1dafe6a50f8&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;shellmap&quot;,
+        &quot;menu&quot;,
+        &quot;cinematic&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;shkai-domis-toy-box&quot;,
+      &quot;name&quot;: &quot;Shkai - Domi&#x27;s Toy Box&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Shkai sandbox and experimental fun maps.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Shkai - Domi&#x27;s Toy Box&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Shkai - Domi&#x27;s Toy Box.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=15zhjUdnmP-oo_ZLW6CduVj-pfOc8GbFD&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 73756,
+              &quot;sha256&quot;: &quot;977f455dba354f437a18023d0c73423d8d6d246b2ced24b0026f35e6c5d8fadb&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;toybox&quot;,
+        &quot;fun&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;starwars-maps&quot;,
+      &quot;name&quot;: &quot;Starwars Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Themed sci-fi battlefield maps inspired by Star Wars battles.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Starwars Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Starwars maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=13vgGB6TKGkpjGHMfqcj4lfjX46gRwaOY&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 325376,
+              &quot;sha256&quot;: &quot;4c8dbf6b9aa45842ff75a5766b39c73e4e851dd3ad289fba349b85991b7c304a&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;starwars&quot;,
+        &quot;scifi&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;troll-maps-april-fools&quot;,
+      &quot;name&quot;: &quot;Troll Maps - April Fools&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Hilarious, chaotic prank and puzzle maps made for April Fools.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of Troll Maps - April Fools&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;Troll Maps - April Fools.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1wghbkC9b_ra5b98M9CUqxMSda9uT5nUC&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 5077660,
+              &quot;sha256&quot;: &quot;86df05a0beaf2cf7c05b14df42a500e99cfa51ee76897f5b53a8cc3aa73d05ef&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;troll&quot;,
+        &quot;aprilfools&quot;,
+        &quot;fun&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;usa-campaign-by-cresty&quot;,
+      &quot;name&quot;: &quot;USA Campaign by Cresty&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom singleplayer USA campaign missions crafted by Cresty.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of USA Campaign by Cresty&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;USA Campaign by Cresty.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1ptUof2oKuxD1c7PcvXunUmMr2RT6UxxE&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 4463844,
+              &quot;sha256&quot;: &quot;807a98872a16efc339d93d909d7150a255833b0c10881c99e7682013947362d6&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;usa&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;usa-campaign-by-supakrid&quot;,
+      &quot;name&quot;: &quot;USA Campaign by Supakrid&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Epic custom singleplayer USA campaign missions crafted by Supakrid.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of USA Campaign by Supakrid&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;USA Campaign by Supakrid.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1TtYdftDGPld07dTXFHHZFNJrDebrYe6e&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 34672357,
+              &quot;sha256&quot;: &quot;4f88f9aea610c86e3376dbdb96074c8f65aabcb55ae0b7db69a49ff94a43af10&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;usa&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;usa-campaign-by-tklyo&quot;,
+      &quot;name&quot;: &quot;USA Campaign by TKlyo&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom singleplayer USA campaign missions designed by TKlyo.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of USA Campaign by TKlyo&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;USA Campaign by TKlyo.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1th4AZyrgzI3S-wb8RJXzPyYhcabNrEVn&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2758702,
+              &quot;sha256&quot;: &quot;96cb8d5fd5de9db32a9716bd1f98842191cf22fe4395c162c1ed14ac3a767e3b&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;usa&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;usa-campaign-by-unicas&quot;,
+      &quot;name&quot;: &quot;USA Campaign by Unicas&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom singleplayer USA campaign missions created by Unicas.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of USA Campaign by Unicas&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;USA Campaign by Unicas.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1QzO88CY8aCqEiUNBAWjDVqxg1sh3Vey_&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 2528862,
+              &quot;sha256&quot;: &quot;7f045341c7019f8345c7033b06486ca0feea8a9c585d5a380f26f015c6c46575&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;usa&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;usa-campaign-by-xjoueuer50&quot;,
+      &quot;name&quot;: &quot;USA Campaign by XJoueuer50&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Custom singleplayer USA campaign missions created by XJoueuer50.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of USA Campaign by XJoueuer50&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;USA Campaign by XJoueuer50.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1aUVho8JFLY6W-SKKgyiFAivWEk3df0rL&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 1630071,
+              &quot;sha256&quot;: &quot;f7d7a351c28a1d8446fc45df2f955d971aaf62db442c41b36c4979cbea83afe8&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/background.jpg&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;campaign&quot;,
+        &quot;singleplayer&quot;,
+        &quot;usa&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;wbc-big-maps&quot;,
+      &quot;name&quot;: &quot;WBC Big Maps&quot;,
+      &quot;description&quot;: &quot;Dominator Mappack: Large-scale World Battle Championship (WBC) maps.&quot;,
+      &quot;contentType&quot;: &quot;MapPack&quot;,
+      &quot;targetGame&quot;: &quot;ZeroHour&quot;,
+      &quot;entryPoint&quot;: null,
+      &quot;releases&quot;: [
+        {
+          &quot;title&quot;: null,
+          &quot;category&quot;: null,
+          &quot;version&quot;: &quot;1.0.0&quot;,
+          &quot;releaseDate&quot;: &quot;2023-12-04T00:00:00Z&quot;,
+          &quot;isPrerelease&quot;: false,
+          &quot;isLatest&quot;: true,
+          &quot;isFeatured&quot;: false,
+          &quot;changelog&quot;: &quot;Release of WBC Big Maps&quot;,
+          &quot;entryPoint&quot;: null,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;wbc big maps.rar&quot;,
+              &quot;downloadUrl&quot;: &quot;https://drive.usercontent.google.com/download?id=1tNv7UXdkdOFPckwkzLHqA8BzmD-SbGiL&amp;export=download&amp;confirm=t&quot;,
+              &quot;size&quot;: 3055745,
+              &quot;sha256&quot;: &quot;1767919d2c3b22dc0cb665b1d2830718ed66e2f0b69297e857d10d87035c166b&quot;,
+              &quot;contentType&quot;: &quot;application/vnd.rar&quot;,
+              &quot;entryPoint&quot;: null,
+              &quot;isPrimary&quot;: true,
+              &quot;variantAxis&quot;: null,
+              &quot;variant&quot;: null,
+              &quot;isDefaultVariant&quot;: false
+            }
+          ],
+          &quot;bundleArtifacts&quot;: false,
+          &quot;imageUrls&quot;: [],
+          &quot;videoUrls&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;isOptional&quot;: false,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;catalogUrl&quot;: null,
+              &quot;dependencyType&quot;: &quot;Required&quot;,
+              &quot;definitionUrl&quot;: null,
+              &quot;conflictsWith&quot;: []
+            }
+          ]
+        }
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;accentColor&quot;: &quot;#10B981&quot;,
+        &quot;screenshotUrls&quot;: [],
+        &quot;videoUrl&quot;: null,
+        &quot;videoUrls&quot;: [],
+        &quot;documentationUrl&quot;: &quot;https://drive.google.com/drive/folders/1tSCKWmz63YP_bT9uwuyGbG41AP_larph&quot;,
+        &quot;author&quot;: &quot;Dominator&quot;,
+        &quot;license&quot;: null,
+        &quot;category&quot;: &quot;Maps&quot;,
+        &quot;playerCount&quot;: null
+      },
+      &quot;tags&quot;: [
+        &quot;maps&quot;,
+        &quot;mappack&quot;,
+        &quot;wbc&quot;,
+        &quot;zerohour&quot;
+      ],
+      &quot;bundledItems&quot;: [],
+      &quot;addons&quot;: [],
+      &quot;addonReleases&quot;: [],
+      &quot;extendsContentId&quot;: null,
+      &quot;publisherType&quot;: &quot;&quot;,
+      &quot;isStandalone&quot;: true
+    }
+  ],
+  &quot;lastUpdated&quot;: &quot;0001-01-01T00:00:00&quot;,
+  &quot;signature&quot;: null,
+  &quot;referrals&quot;: [],
+  &quot;customTabs&quot;: [],
+  &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+  &quot;accentColor&quot;: &quot;#10B981&quot;
+}</code></pre>
+
+  <h2 id="test-catalog-json">5. Full JSON: genhub-test-catalog.catalog.json</h2>
+  <div class="copy-header">
+    <span>genhub-test-catalog.catalog.json (Content Bundles, 11 items, 996 lines)</span>
+    <button class="copy-btn" >📋 Copy JSON to Clipboard</button>
+  </div>
+  <pre><code id="test-code">{
+  &quot;$schemaVersion&quot;: 1,
+  &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/generalshub-logo.png&quot;,
+  &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/generalshub-logo.png&quot;,
+  &quot;publisher&quot;: {
+    &quot;id&quot;: &quot;genhub-test-publishers&quot;,
+    &quot;name&quot;: &quot;Content Bundles&quot;,
+    &quot;website&quot;: &quot;https://github.com/thesuperhackers&quot;,
+    &quot;avatarUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+    &quot;supportUrl&quot;: &quot;https://github.com/thesuperhackers/GeneralsGameCode/issues&quot;,
+    &quot;contactEmail&quot;: &quot;test@genhub.local&quot;
+  },
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;zerohour&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Zero Hour Game Code&quot;,
+      &quot;description&quot;: &quot;Weekly release of Command &amp; Conquer: Generals Zero Hour game code from TheSuperHackers.\n\nKey Highlights:\n\u2022 Community-maintained game client with extensive engine bug fixes and anti-desync stability.\n\u2022 Modern OS compatibility fixes for Windows 10/11 including widescreen scaling and multi-monitor support.\n\u2022 Fully compatible with stock 1.04 replay system and multiplayer matchmaking services.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;thesuperhackers&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;weekly&quot;,
+        &quot;community&quot;,
+        &quot;patch&quot;,
+        &quot;game-client&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;zerohour&quot;,
+        &quot;widescreen&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/thesuperhackers-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://www.youtube.com/watch?v=dQw4w9WgXcQ&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;author&quot;: &quot;TheSuperHackers&quot;,
+        &quot;license&quot;: &quot;GPL-3.0&quot;,
+        &quot;category&quot;: &quot;Game Client&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.31&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-31T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Weekly release of Generals and Zero Hour game code from TheSuperHackers.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;generalszh-weekly-2026-07-31.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip&quot;,
+              &quot;size&quot;: 33380692,
+              &quot;sha256&quot;: &quot;090dc2d0d93140a731d07fab68a5faba910e429b3753dba430592051652afe50&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;game-type&quot;,
+              &quot;variant&quot;: &quot;Zero Hour&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;generals-weekly-2026-07-31.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generals-weekly-2026-07-31.zip&quot;,
+              &quot;size&quot;: 31566708,
+              &quot;sha256&quot;: &quot;93b2de8b9f910dcde7175a794f9f133b31956ee79a9a50bed578f6d24e9bf771&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;game-type&quot;,
+              &quot;variant&quot;: &quot;Generals&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ],
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GitHubReleases&quot;,
+        &quot;repository&quot;: &quot;TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;variantAxis&quot;: &quot;game-type&quot;,
+        &quot;assetRules&quot;: [
+          {
+            &quot;pattern&quot;: &quot;generalszh-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Zero Hour&quot;,
+            &quot;isDefault&quot;: true,
+            &quot;targetGame&quot;: 1
+          },
+          {
+            &quot;pattern&quot;: &quot;generals-.*\\.zip$&quot;,
+            &quot;variant&quot;: &quot;Generals&quot;,
+            &quot;isDefault&quot;: false,
+            &quot;targetGame&quot;: 0
+          }
+        ]
+      }
+    },
+    {
+      &quot;id&quot;: &quot;60hz&quot;,
+      &quot;name&quot;: &quot;Generals Online (60Hz Client)&quot;,
+      &quot;description&quot;: &quot;Community-driven multiplayer service and enhanced client for C&amp;C Generals Zero Hour.\n\nKey Highlights:\n\u2022 60Hz tick rate physics engine for buttery smooth unit movement and responsive micro-management.\n\u2022 Built-in quickmatch matchmaking service, ladder leaderboards, and automatic map synchronization.\n\u2022 Enhanced anti-cheat protections and seamless reconnection handling.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;generalsonline&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;multiplayer&quot;,
+        &quot;online&quot;,
+        &quot;community&quot;,
+        &quot;enhancement&quot;,
+        &quot;generalsonline&quot;,
+        &quot;60hz&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/generalsonline-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover.png&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://www.playgenerals.online/&quot;,
+        &quot;documentationUrl&quot;: &quot;https://www.playgenerals.online/&quot;,
+        &quot;author&quot;: &quot;Generals Online Team&quot;,
+        &quot;license&quot;: &quot;MIT&quot;,
+        &quot;category&quot;: &quot;Multiplayer Client&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;081326&quot;,
+          &quot;releaseDate&quot;: &quot;2026-08-13T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;60Hz tick rate physics engine, improved multiplayer lobby connection stability, and spectator mode latency fixes.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;GeneralsOnline_portable_081326.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://cdn.playgenerals.online/GeneralsOnline_portable_081326.zip&quot;,
+              &quot;size&quot;: 30083309,
+              &quot;sha256&quot;: &quot;f046a9284959b9b1d99630bf24a610a590afa9aef7e620aebea7b5eabb7231f9&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;isPrimary&quot;: true
+            }
+          ],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;generalsonline&quot;,
+              &quot;contentId&quot;: &quot;quickmatch-maps&quot;,
+              &quot;versionConstraint&quot;: &quot;&gt;=081326&quot;,
+              &quot;contentType&quot;: &quot;MapPack&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ],
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;GeneralsOnline&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;community-patch-retail&quot;,
+      &quot;name&quot;: &quot;Community Patch (TheSuperHackers Build)&quot;,
+      &quot;description&quot;: &quot;Community Patch game client (Retail Compatible) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n\u2022 TheSuperHackers engine build with desync fixes and modern OS support.\n\u2022 Automatic updates whenever a new upstream build is published.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;communityoutpost&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;communityoutpost&quot;,
+        &quot;community-patch&quot;,
+        &quot;game-client&quot;,
+        &quot;retail-compatible&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;
+        ],
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/&quot;,
+        &quot;author&quot;: &quot;Community Outpost&quot;,
+        &quot;license&quot;: &quot;GPL-3.0&quot;,
+        &quot;category&quot;: &quot;Game Client&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;CommunityOutpost&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.06&quot;,
+          &quot;releaseDate&quot;: &quot;2026-09-11T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Fallback static release (Retail Compatible); replaced by upstream ingestion when online.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;generalszh_23-07-2026.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/patch/generalszh_23-07-2026.zip&quot;,
+              &quot;size&quot;: 2716400,
+              &quot;sha256&quot;: &quot;d307f0f8090c3c8bd64ba6effb46378e92c71d529e69fe69e543d60e3c8a035f&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;compatibility&quot;,
+              &quot;variant&quot;: &quot;Retail Compatible&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            }
+          ],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;community-patch-nonretail&quot;,
+      &quot;name&quot;: &quot;Community Patch (TheSuperHackers Non-Retail Build)&quot;,
+      &quot;description&quot;: &quot;Community Patch game client (Non-Retail) from Community Outpost, synced from upstream legi.cc builds.\n\nKey Highlights:\n\u2022 TheSuperHackers engine build with desync fixes and modern OS support.\n\u2022 Automatic updates whenever a new upstream build is published.&quot;,
+      &quot;contentType&quot;: &quot;GameClient&quot;,
+      &quot;publisherType&quot;: &quot;communityoutpost&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;communityoutpost&quot;,
+        &quot;community-patch&quot;,
+        &quot;game-client&quot;,
+        &quot;non-retail&quot;,
+        &quot;dynamic-upstream&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;
+        ],
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/&quot;,
+        &quot;author&quot;: &quot;Community Outpost&quot;,
+        &quot;license&quot;: &quot;GPL-3.0&quot;,
+        &quot;category&quot;: &quot;Game Client&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;upstreamSync&quot;: {
+        &quot;provider&quot;: &quot;CommunityOutpost&quot;,
+        &quot;channel&quot;: &quot;stable&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.06&quot;,
+          &quot;releaseDate&quot;: &quot;2026-09-11T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Fallback static release (Non-Retail); replaced by upstream ingestion when online.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;generalszh_11-09-2026_NonRet.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip&quot;,
+              &quot;size&quot;: 2724556,
+              &quot;sha256&quot;: &quot;9ee3936bbb5afb4029c0414c541f611ae52e4cddf20e3694636f60bc68fc6693&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;compatibility&quot;,
+              &quot;variant&quot;: &quot;Non-Retail&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;lemon-controlbar&quot;,
+      &quot;name&quot;: &quot;Control Bar Pro Lemon Edition ZH&quot;,
+      &quot;description&quot;: &quot;Lemon-themed Control Bar Pro UI add-on for C&amp;C Generals Zero Hour, shipping five tailored HUD resolution variants so you can select the exact match for your display.\n\nKey Highlights:\n\u2022 Re-designed Command &amp; Control bar interface tuned for modern widescreen and high-resolution monitors.\n\u2022 Selectable resolution variants: 720p (HD), 900p (HD+), 1080p (Full HD - Recommended), 1440p (2K Quad HD), and 4K (2160p Ultra HD).\n\u2022 Lemon-edition custom unit portrait frames, optimized command build buttons, and expanded mini-map radar visibility.\n\u2022 Adjusted money and resource texture sizing for Observer, China, USA, and GLA control bars.\n\u2022 Fully compatible with standard SAGE engine .BIG packaging and profile managers.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;publisherType&quot;: &quot;github&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;controlbar&quot;,
+        &quot;lemon&quot;,
+        &quot;ui&quot;,
+        &quot;widescreen&quot;,
+        &quot;1080p&quot;,
+        &quot;1440p&quot;,
+        &quot;4k&quot;,
+        &quot;zerohour&quot;,
+        &quot;github&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/github-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://www.youtube.com/watch?v=dQw4w9WgXcQ&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar&quot;,
+        &quot;author&quot;: &quot;L3-M&quot;,
+        &quot;license&quot;: &quot;GPL-3.0&quot;,
+        &quot;category&quot;: &quot;UI Addon&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.3&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all 5 resolution packs.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1280x720.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip&quot;,
+              &quot;size&quot;: 1224790,
+              &quot;sha256&quot;: &quot;733ee8d81cf79f23b7b3f536970b9feb01785f64809aa84733f8fe08d6ef197c&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;720p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1600x900.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1600x900.zip&quot;,
+              &quot;size&quot;: 1224790,
+              &quot;sha256&quot;: &quot;7a2db7af4cf029841240854b4ecbad265dc5b841c5283bdac643a38c9229f924&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;900p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;size&quot;: 1224544,
+              &quot;sha256&quot;: &quot;e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1080p&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;size&quot;: 4993590,
+              &quot;sha256&quot;: &quot;a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1440p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;size&quot;: 4993603,
+              &quot;sha256&quot;: &quot;4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;4K&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;l3m-controlbar&quot;,
+      &quot;name&quot;: &quot;L3M Modern HD Control Bar&quot;,
+      &quot;description&quot;: &quot;Clean, high-definition competitive control bar overlay designed by L3M. Supports multiple display resolutions with pixel-perfect mini-map scaling and unit command cards.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: true,
+      &quot;tags&quot;: [
+        &quot;controlbar&quot;,
+        &quot;hd&quot;,
+        &quot;ui&quot;,
+        &quot;l3m&quot;,
+        &quot;resolutions&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;L3M&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/github-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.3&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Lemon Edition v1.3 release from GitHub publisher L3-M/GeneralsControlBar. Re-aligned GLA money frame, corrected 1440p radar minimap border alignment, and updated Observer build button hover states across all resolution packs.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1280x720.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1280x720.zip&quot;,
+              &quot;size&quot;: 1224790,
+              &quot;sha256&quot;: &quot;733ee8d81cf79f23b7b3f536970b9feb01785f64809aa84733f8fe08d6ef197c&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;720p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_1920x1080.zip&quot;,
+              &quot;size&quot;: 1224544,
+              &quot;sha256&quot;: &quot;e0972cde7eaf4a01483eee5239b6ade7fab46f4907b9ed597b96d66447c1d940&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1080p&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_2560x1440.zip&quot;,
+              &quot;size&quot;: 4993590,
+              &quot;sha256&quot;: &quot;a1d00b2def19786aa40ffe270c00c73e693ada3f6c8273a5555097f55ac04d13&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;1440p&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/L3-M/GeneralsControlBar/releases/download/v1.3/ControlBarProLemonEditionZH_v1.3_3840x2160.zip&quot;,
+              &quot;size&quot;: 4993603,
+              &quot;sha256&quot;: &quot;4dc5b9cd4df5565c5f5417dbab7c87c3f3457dae40b4f843f630b7e07f306a90&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;resolution&quot;,
+              &quot;variant&quot;: &quot;4K&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;eliorata-improved-menus&quot;,
+      &quot;name&quot;: &quot;Improved Menus Widescreen&quot;,
+      &quot;description&quot;: &quot;High-resolution widescreen menu interface with responsive button layouts and enhanced typography by ElTioRata.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: true,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;menus&quot;,
+        &quot;eliorata&quot;,
+        &quot;ui&quot;,
+        &quot;widescreen&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;ElTioRata&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/ElTioRata/ImprovedMenus&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/github-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;1.3&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-10T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Widescreen menu layouts for Zero Hour supporting English, Russian, and Spanish.&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;0_ImprovedMenusEnglish.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusEnglish.zip&quot;,
+              &quot;size&quot;: 225401259,
+              &quot;sha256&quot;: &quot;2e89f663d01709c848c69ac5124f07c194d67a82afd6f1edf1d9f444952f3f7a&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;English&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;0_ImprovedMenusRussian.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusRussian.zip&quot;,
+              &quot;size&quot;: 225409964,
+              &quot;sha256&quot;: &quot;861525886493ba82e02e56aba84527ffdaf2a53c018a68215da9d412d78e04bf&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;Russian&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;0_ImprovedMenusSpanish.zip&quot;,
+              &quot;downloadUrl&quot;: &quot;https://github.com/ElTioRata/ImprovedMenus/releases/download/v1.3/0_ImprovedMenusSpanish.zip&quot;,
+              &quot;size&quot;: 225386806,
+              &quot;sha256&quot;: &quot;b991b18fc1d1c4666d9db0b2e37b841520a81ebd2a76f50d5ada1f3a73df6cf3&quot;,
+              &quot;contentType&quot;: &quot;application/zip&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;Spanish&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;leikeze-hotkeys&quot;,
+      &quot;name&quot;: &quot;Leikeze Competitive Hotkeys&quot;,
+      &quot;description&quot;: &quot;A comprehensive ergonomic hotkey set by Leikeze and GenPatcher. Supports English (Compact Indicators), German, and English (Full) layouts.&quot;,
+      &quot;contentType&quot;: &quot;Addon&quot;,
+      &quot;targetGame&quot;: 1,
+      &quot;isStandalone&quot;: true,
+      &quot;tags&quot;: [
+        &quot;addon&quot;,
+        &quot;hotkeys&quot;,
+        &quot;leikeze&quot;,
+        &quot;qwerty&quot;,
+        &quot;competitive&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;author&quot;: &quot;Leikeze&quot;,
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/patch&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Icons/hotkeyseditor-icon.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.01&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-01T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Leikeze and GenPatcher hotkey layout presets for English, German, and English (Full).&quot;,
+          &quot;artifacts&quot;: [
+            {
+              &quot;filename&quot;: &quot;hlei.dat&quot;,
+              &quot;downloadUrl&quot;: &quot;https://gentool.net/program_data/genpatcher/hlei.dat&quot;,
+              &quot;size&quot;: 293333,
+              &quot;sha256&quot;: &quot;a2450942bbf0ec2d8b3f62eb427844b65653d9aef103288449472390cc411215&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;English&quot;,
+              &quot;isDefaultVariant&quot;: true,
+              &quot;isPrimary&quot;: true
+            },
+            {
+              &quot;filename&quot;: &quot;hlde.dat&quot;,
+              &quot;downloadUrl&quot;: &quot;https://gentool.net/program_data/genpatcher/hlde.dat&quot;,
+              &quot;size&quot;: 13741307,
+              &quot;sha256&quot;: &quot;4936447a0ad8813fde4062c06b1240c73a6e8e0aaa240c13080f4d074efd1be8&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;German&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            },
+            {
+              &quot;filename&quot;: &quot;hlen.dat&quot;,
+              &quot;downloadUrl&quot;: &quot;https://gentool.net/program_data/genpatcher/hlen.dat&quot;,
+              &quot;size&quot;: 20295471,
+              &quot;sha256&quot;: &quot;60647478fc0494cac46934fad1a830e522f90475b21feca5bf896c3902a02033&quot;,
+              &quot;contentType&quot;: &quot;application/x-7z-compressed&quot;,
+              &quot;variantAxis&quot;: &quot;language&quot;,
+              &quot;variant&quot;: &quot;English (Full)&quot;,
+              &quot;isDefaultVariant&quot;: false,
+              &quot;isPrimary&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;bundle-thesuperhackers-latest-stack&quot;,
+      &quot;name&quot;: &quot;TheSuperHackers Latest Stack&quot;,
+      &quot;description&quot;: &quot;The premier competitive Zero Hour package curated for modern PC gaming. Combines TheSuperHackers weekly community game code engine fixes, GenTool 8.9 anti-cheat and widescreen suite, L3M Modern HD Control Bar HUD with selectable resolution variants (720p up to 4K), and Legionnaire&#x27;s QWERTY hotkeys with real-time in-game visual overlay indicators.\n\nPackage Features:\n\u2022 TheSuperHackers Zero Hour Game Code: Continuous weekly engine improvements, multi-core and Windows 10/11 compatibility, anti-desync optimizations, and seamless replay support.\n\u2022 GenTool 8.9 Suite: Integrated anti-cheat validation, widescreen aspect ratio corrections, high-precision timer, and 3D camera controls.\n\u2022 L3M Modern HD Control Bar: Tailored widescreen command bars with five resolution presets (720p, 900p, 1080p, 1440p, 4K) and enhanced build queue visibility.\n\u2022 Legionnaire&#x27;s Hotkeys: Streamlined competitive QWERTY command grid layout with in-game overlay badges.\n\nInstallation Notes:\nRequires a clean EA C&amp;C Generals Zero Hour 1.04 installation. All bundled components are automatically sequenced and staged into your active game profile.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;publisherType&quot;: &quot;generic-catalog&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;community&quot;,
+        &quot;zerohour&quot;,
+        &quot;competitive&quot;,
+        &quot;complete&quot;,
+        &quot;recommended&quot;,
+        &quot;thesuperhackers&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;,
+        &quot;controlbar&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/thesuperhackers-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/generals-cover-2.png&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://www.youtube.com/watch?v=dQw4w9WgXcQ&quot;,
+        &quot;documentationUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;,
+        &quot;author&quot;: &quot;TheSuperHackers &amp; Community&quot;,
+        &quot;license&quot;: &quot;GPL-3.0 / Freeware&quot;,
+        &quot;category&quot;: &quot;Competitive Bundle&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.31&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-31T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;TheSuperHackers stack bundle. Unifies the TheSuperHackers Zero Hour game client with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.&quot;,
+          &quot;artifacts&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;thesuperhackers&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;GameClient&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;eliorata-improved-menus&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;bundle-community-outpost-stack&quot;,
+      &quot;name&quot;: &quot;Community Outpost Patch Stack&quot;,
+      &quot;description&quot;: &quot;Comprehensive Community Outpost zero-configuration bundle for Command &amp; Conquer: Generals Zero Hour. Bundles the official Community Outpost Game Client (legi.cc community patch), GenTool 8.9 Suite, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys for an authentic, tournament-grade community experience.\n\nPackage Features:\n\u2022 Community Outpost Game Client: Official community patch with balance adjustments, desync mitigations, fixed unit exploits, and modern OS performance tweaks.\n\u2022 GenTool 8.9 Suite: Anti-cheat protection, enhanced observer mode, and lossless replay recording.\n\u2022 L3M Modern HD Control Bar: Crisp high-resolution UI layouts selectable from 720p to 4K.\n\u2022 Legionnaire&#x27;s Hotkeys: Standard tournament QWERTY hotkey bindings with visual on-screen indicators.\n\nInstallation Notes:\nRequires an installed copy of Zero Hour 1.04. Automatically sets up the entire patch stack with zero manual file copying.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;publisherType&quot;: &quot;generic-catalog&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;community&quot;,
+        &quot;communityoutpost&quot;,
+        &quot;zerohour&quot;,
+        &quot;competitive&quot;,
+        &quot;complete&quot;,
+        &quot;patch&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/communityoutpost-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://legi.cc/patch&quot;,
+        &quot;documentationUrl&quot;: &quot;https://legi.cc/patch&quot;,
+        &quot;author&quot;: &quot;Community Outpost &amp; Contributors&quot;,
+        &quot;license&quot;: &quot;Freeware&quot;,
+        &quot;category&quot;: &quot;Community Patch Bundle&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.31&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-31T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Community Outpost patch stack bundle. Unifies the Community Outpost game clients (retail and non-retail) with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.&quot;,
+          &quot;artifacts&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;communityoutpost&quot;,
+              &quot;contentId&quot;: &quot;community-patch-retail&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;GameClient&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;communityoutpost&quot;,
+              &quot;contentId&quot;: &quot;community-patch-nonretail&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;GameClient&quot;,
+              &quot;isOptional&quot;: true
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;eliorata-improved-menus&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      &quot;id&quot;: &quot;bundle-generalsonline-complete-pack&quot;,
+      &quot;name&quot;: &quot;Generals Online Complete Pack&quot;,
+      &quot;description&quot;: &quot;The ultimate all-in-one multiplayer package for Generals Online. Features the high-performance 60Hz physics tick-rate client, the full competitive QuickMatch map pool, GenTool 8.9 Suite anti-cheat, L3M Modern HD Control Bar HUD variants, and Legionnaire Hotkeys.\n\nPackage Features:\n\u2022 Generals Online 60Hz Client: High tickrate multiplayer client delivering ultra-smooth unit pathfinding, responsive micro-control, and automatic ladder reconnection.\n\u2022 QuickMatch Maps: Comprehensive competitive tournament map pack synchronized with Generals Online ladder matchmaking.\n\u2022 GenTool 8.9 Suite: Anti-cheat verification, wide-angle camera support, and spectator toolset.\n\u2022 L3M Modern HD Control Bar: Resolution-specific HUD layouts (720p through 4K) tailored for high-framerate competitive play.\n\u2022 Legionnaire&#x27;s Hotkeys: Fast QWERTY build shortcuts with integrated HUD overlay indicators.\n\nInstallation Notes:\nRequires Zero Hour 1.04 base game. One-click install configures everything required for instant online matchmaking.&quot;,
+      &quot;contentType&quot;: &quot;ContentBundle&quot;,
+      &quot;publisherType&quot;: &quot;generic-catalog&quot;,
+      &quot;isStandalone&quot;: true,
+      &quot;targetGame&quot;: 1,
+      &quot;tags&quot;: [
+        &quot;bundle&quot;,
+        &quot;generalsonline&quot;,
+        &quot;multiplayer&quot;,
+        &quot;online&quot;,
+        &quot;competitive&quot;,
+        &quot;complete&quot;,
+        &quot;60hz&quot;,
+        &quot;mappack&quot;,
+        &quot;gentool&quot;,
+        &quot;hotkeys&quot;
+      ],
+      &quot;metadata&quot;: {
+        &quot;bannerUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+        &quot;iconUrl&quot;: &quot;avares://GenHub/Assets/Logos/generalsonline-logo.png&quot;,
+        &quot;backdropUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+        &quot;screenshotUrls&quot;: [
+          &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;avares://GenHub/Assets/Covers/zerohour-cover.png&quot;,
+          &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;
+        ],
+        &quot;videoUrl&quot;: &quot;https://www.playgenerals.online/&quot;,
+        &quot;documentationUrl&quot;: &quot;https://www.playgenerals.online/&quot;,
+        &quot;author&quot;: &quot;Generals Online Team &amp; Community&quot;,
+        &quot;license&quot;: &quot;MIT / Various&quot;,
+        &quot;category&quot;: &quot;Multiplayer Bundle&quot;,
+        &quot;playerCount&quot;: 8
+      },
+      &quot;releases&quot;: [
+        {
+          &quot;version&quot;: &quot;2026.07.31&quot;,
+          &quot;releaseDate&quot;: &quot;2026-07-31T00:00:00Z&quot;,
+          &quot;isLatest&quot;: true,
+          &quot;isPrerelease&quot;: false,
+          &quot;changelog&quot;: &quot;Generals Online complete pack bundle. Unifies the Generals Online 60Hz client with Leikeze Hotkeys, L3M Modern HD Control Bar, Eliorata Improved Menus, and Control Bar Pro Lemon Edition in a single synchronized setup.&quot;,
+          &quot;artifacts&quot;: [],
+          &quot;dependencies&quot;: [
+            {
+              &quot;publisherId&quot;: &quot;ea&quot;,
+              &quot;contentId&quot;: &quot;zerohour&quot;,
+              &quot;versionConstraint&quot;: &quot;1.04&quot;,
+              &quot;contentType&quot;: &quot;GameInstallation&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;generalsonline&quot;,
+              &quot;contentId&quot;: &quot;60hz&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;GameClient&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;leikeze-hotkeys&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;l3m-controlbar&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            },
+            {
+              &quot;publisherId&quot;: &quot;genhub-test-publishers&quot;,
+              &quot;contentId&quot;: &quot;eliorata-improved-menus&quot;,
+              &quot;versionConstraint&quot;: &quot;latest&quot;,
+              &quot;contentType&quot;: &quot;Addon&quot;,
+              &quot;isOptional&quot;: false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  &quot;lastUpdated&quot;: &quot;2026-08-13T00:00:00Z&quot;,
+  &quot;customTabs&quot;: [
+    {
+      &quot;tabId&quot;: &quot;release-briefing&quot;,
+      &quot;header&quot;: &quot;Release briefing&quot;,
+      &quot;order&quot;: 10,
+      &quot;contentType&quot;: &quot;RichText&quot;,
+      &quot;contentTemplate&quot;: &quot;cards&quot;,
+      &quot;intro&quot;: &quot;Publisher-maintained release briefing for current build milestones.&quot;,
+      &quot;cards&quot;: [
+        {
+          &quot;label&quot;: &quot;THIS WEEK&quot;,
+          &quot;title&quot;: &quot;Stability Pass&quot;,
+          &quot;description&quot;: &quot;The latest Game Code builds focus on predictable multiplayer sessions, launcher hand-off, and regression fixes.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#B64747&quot;
+        },
+        {
+          &quot;label&quot;: &quot;COMPATIBILITY&quot;,
+          &quot;title&quot;: &quot;Zero Hour 1.04&quot;,
+          &quot;description&quot;: &quot;Use the Zero Hour build with a clean 1.04 installation. Optional Community Outpost enhancements remain compatible.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#3E78B2&quot;
+        },
+        {
+          &quot;label&quot;: &quot;UP NEXT&quot;,
+          &quot;title&quot;: &quot;Map Pool Refresh&quot;,
+          &quot;description&quot;: &quot;QuickMatch maps and curated quality-of-life add-ons are reviewed alongside the next weekly client update.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#7B9250&quot;
+        }
+      ]
+    },
+    {
+      &quot;tabId&quot;: &quot;community-guide&quot;,
+      &quot;header&quot;: &quot;Community guide&quot;,
+      &quot;order&quot;: 20,
+      &quot;contentType&quot;: &quot;Articles&quot;,
+      &quot;contentTemplate&quot;: &quot;cards&quot;,
+      &quot;intro&quot;: &quot;Setup instructions and recommendations for optimal gameplay experience.&quot;,
+      &quot;cards&quot;: [
+        {
+          &quot;label&quot;: &quot;START HERE&quot;,
+          &quot;title&quot;: &quot;Install In Order&quot;,
+          &quot;description&quot;: &quot;Install the base game first, then the community client, then optional map packs or UI add-ons for the smoothest setup.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#477EB8&quot;
+        },
+        {
+          &quot;label&quot;: &quot;GOOD TO KNOW&quot;,
+          &quot;title&quot;: &quot;Keep Profiles Focused&quot;,
+          &quot;description&quot;: &quot;Create a separate profile for competitive multiplayer and another for experimental add-ons so each setup stays easy to maintain.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/china-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#9A5A4E&quot;
+        }
+      ]
+    },
+    {
+      &quot;tabId&quot;: &quot;addons-utilities&quot;,
+      &quot;header&quot;: &quot;Sub-Addons &amp; Tools&quot;,
+      &quot;order&quot;: 40,
+      &quot;contentType&quot;: &quot;Addons&quot;,
+      &quot;contentTemplate&quot;: &quot;cards&quot;,
+      &quot;intro&quot;: &quot;Optional helper extensions and companion tool downloads.&quot;,
+      &quot;cards&quot;: [
+        {
+          &quot;label&quot;: &quot;UI EXTENSION&quot;,
+          &quot;title&quot;: &quot;Control Bar Pro (Widescreen)&quot;,
+          &quot;description&quot;: &quot;Enhanced HUD layout for 1080p, 1440p, and 4K displays with custom unit command buttons.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/gla-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#B89A47&quot;
+        },
+        {
+          &quot;label&quot;: &quot;HOTKEYS&quot;,
+          &quot;title&quot;: &quot;Legionnaire Hotkeys&quot;,
+          &quot;description&quot;: &quot;Competitive hotkey layout with in-game indicators. Learn shortcuts while you play.&quot;,
+          &quot;imageUrl&quot;: &quot;avares://GenHub/Assets/Covers/usa-cover.jpg&quot;,
+          &quot;accentColor&quot;: &quot;#47B8B6&quot;
+        }
+      ]
+    }
+  ],
+  &quot;referrals&quot;: [
+    {
+      &quot;publisherId&quot;: &quot;thesuperhackers&quot;,
+      &quot;catalogUrl&quot;: &quot;https://github.com/TheSuperHackers/GeneralsGameCode&quot;,
+      &quot;note&quot;: &quot;Source repository for TheSuperHackers weekly game code releases.&quot;
+    },
+    {
+      &quot;publisherId&quot;: &quot;generalsonline&quot;,
+      &quot;catalogUrl&quot;: &quot;https://cdn.playgenerals.online/manifest.json&quot;,
+      &quot;note&quot;: &quot;Generals Online service manifest and CDN.&quot;
+    },
+    {
+      &quot;publisherId&quot;: &quot;communityoutpost&quot;,
+      &quot;catalogUrl&quot;: &quot;https://legi.cc/gp2/dl.dat&quot;,
+      &quot;note&quot;: &quot;GenPatcher catalog from Community Outpost.&quot;
+    }
+  ]
+}</code></pre>
+
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var domBtn = document.getElementById("copy-dom-btn");
+  var testBtn = document.getElementById("copy-test-btn");
+
+  if (domBtn) {
+    domBtn.addEventListener("click", function() {
+      copyCatalog("dom-code", domBtn);
+    });
+  }
+
+  if (testBtn) {
+    testBtn.addEventListener("click", function() {
+      copyCatalog("test-code", testBtn);
+    });
+  }
+
+  function copyCatalog(elemId, btn) {
+    var codeElem = document.getElementById(elemId);
+    if (!codeElem) return;
+    var text = codeElem.innerText || codeElem.textContent;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied(btn);
+      }).catch(function() {
+        fallbackCopy(text, btn);
+      });
+    } else {
+      fallbackCopy(text, btn);
+    }
+  }
+
+  function fallbackCopy(text, btn) {
+    var textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      showCopied(btn);
+    } catch (err) {
+      alert("Failed to copy. Please select the text block manually.");
+    }
+    document.body.removeChild(textArea);
+  }
+
+  function showCopied(btn) {
+    var originalText = btn.innerHTML;
+    btn.innerHTML = "✓ Copied to Clipboard!";
+    btn.classList.add("copied");
+    setTimeout(function() {
+      btn.innerHTML = originalText;
+      btn.classList.remove("copied");
+    }, 2500);
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1541 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Security;
+using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Providers;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Security;
+using GenHub.Features.Content.Services.Catalog;
+using GenHub.Infrastructure.Services;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Mail;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Content.ViewModels.Catalog;
+
+/// <summary>
+/// Confirmation dialog for adding or updating a content source from a shared URL.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <b>Current behavior:</b> <paramref name="catalogUrl"/> must be a GenHub-schema
+/// <see cref="PublisherCatalog"/> JSON. On confirm, a <see cref="PublisherSubscription"/> is
+/// written or updated in <c>subscriptions.json</c> and Downloads reloads subscribed publishers.
+/// </para>
+/// <para>
+/// <b>Extensibility:</b> Publisher Studio will share Provider Definition URLs via the same
+/// <c>genhub://subscribe?url=...</c> entry points. This ViewModel should then detect definition
+/// vs catalog payloads, set <see cref="PublisherSubscription.DefinitionUrl"/>, and resolve
+/// catalog endpoint(s) from the definition — without changing the OS protocol or IPC shape.
+/// </para>
+/// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
+public partial class SubscriptionConfirmationViewModel(
+    string catalogUrl,
+    IPublisherSubscriptionStore subscriptionStore,
+    IPublisherCatalogParser catalogParser,
+    HttpClient httpClient,
+    ILogger<SubscriptionConfirmationViewModel> logger,
+    IPublisherDefinitionService? definitionService = null,
+    ILocalizationService? localizationService = null,
+    IPublisherIdentityService? identityService = null,
+    INotificationService? notificationService = null) : ObservableObject
+{
+    private const string DefaultCategoryKey = "All";
+    private const string DefaultPublisherName = "Loading...";
+    private const string FallbackPublisherInitial = "P";
+
+    private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
+
+    private static readonly SemaphoreSlim SaveLock = new(1, 1);
+
+    private readonly List<(string Id, string Name, string Url, PublisherCatalog Catalog)> _definitionCatalogs = [];
+
+    private PublisherCatalog? _parsedCatalog;
+    private PublisherDefinition? _resolvedDefinition;
+
+    private string? _resolvedDefinitionUrl;
+    private string? _resolvedCatalogUrl;
+    private string? _selectedCatalogUrl;
+    private string? _definitionCatalogFetchError;
+    private string _assessedPublisherId = string.Empty;
+    private int _assessmentGeneration;
+    private string? _shownSourceCheckError;
+
+    /// <summary>
+    /// Gets or sets an action that occurs when a request is made to close the dialog.
+    /// The boolean parameter indicates the result (true for Success/Subscribe, false for Cancel).
+    /// </summary>
+    public Action<bool>? RequestClose { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PublisherInitial))]
+    private string _publisherName = localizationService?.GetString("Downloads.Subscription.LoadingPublisher") ?? DefaultPublisherName;
+
+    [ObservableProperty]
+    private string? _publisherAvatarUrl;
+
+    [ObservableProperty]
+    private string? _publisherWebsite;
+
+    [ObservableProperty]
+    private string _publisherSupportUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _publisherContactEmail = string.Empty;
+
+    [ObservableProperty]
+    private IReadOnlyList<CatalogContentItem> _contentItems = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<CatalogContentItem> _filteredContentItems = [];
+
+    [ObservableProperty]
+    private IReadOnlyList<CatalogCategoryFilter> _categoryFilters = [];
+
+    [ObservableProperty]
+    private string _selectedCategoryKey = DefaultCategoryKey;
+
+    [ObservableProperty]
+    private int _contentCount;
+
+    [ObservableProperty]
+    private string _contentSummary = string.Empty;
+
+    [ObservableProperty]
+    private DateTime? _lastUpdated;
+
+    /// <summary>
+    /// Gets the subscribed URL for display (catalog JSON today; may be a definition URL later).
+    /// </summary>
+    public string CatalogUrlDisplay => catalogUrl;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInitialError))]
+    [NotifyPropertyChangedFor(nameof(ShowDetails))]
+    private bool _isLoading = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowInitialError))]
+    [NotifyPropertyChangedFor(nameof(ShowDetails))]
+    [NotifyPropertyChangedFor(nameof(ShowActionError))]
+    private bool _isCatalogLoaded;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowActionError))]
+    private string? _errorMessage;
+
+    [ObservableProperty]
+    private string _errorTitle = localizationService?.GetString("Downloads.Subscription.ErrorTitle.FailedToLoad") ?? "Failed to Load Catalog";
+
+    [ObservableProperty]
+    private bool _canConfirm;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConfirmButtonText))]
+    private bool _isAlreadySubscribed;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCatalogSelector))]
+    [NotifyPropertyChangedFor(nameof(NewSourceBadgeText))]
+    private bool _isDefinitionSubscription;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceExistingCommand))]
+    private bool _isSaving;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequiresSourceDecision))]
+    [NotifyPropertyChangedFor(nameof(IsVerifiedMove))]
+    [NotifyPropertyChangedFor(nameof(ShowSourceChangeNotice))]
+    [NotifyPropertyChangedFor(nameof(SourceChangeTitle))]
+    [NotifyPropertyChangedFor(nameof(SourceChangeMessage))]
+    [NotifyPropertyChangedFor(nameof(ConfirmButtonText))]
+    [NotifyPropertyChangedFor(nameof(CancelButtonText))]
+    private PublisherSourceChange _sourceChange;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowCatalogSelector))]
+    [NotifyPropertyChangedFor(nameof(NewSourceBadgeText))]
+    private IReadOnlyList<CatalogCategoryFilter> _definitionCatalogOptions = [];
+
+    /// <summary>
+    /// Gets the text to display on the confirmation button.
+    /// </summary>
+    public string ConfirmButtonText
+    {
+        get
+        {
+            if (IsVerifiedMove)
+            {
+                return GetLocalizedString("Downloads.Subscription.MoveSubscription", "Move Subscription");
+            }
+
+            return IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.UpdateSubscription", "Update Subscription") : GetLocalizedString("Downloads.Subscription.SubscribeToLibrary", "Subscribe to Library");
+        }
+    }
+
+    /// <summary>
+    /// Gets the text to display on the cancel button. It reads Skip while a publisher ID collision awaits a decision.
+    /// </summary>
+    public string CancelButtonText => RequiresSourceDecision
+        ? GetLocalizedString("Downloads.Subscription.Skip", "Skip")
+        : GetLocalizedString("Downloads.Subscription.Cancel", "Cancel");
+
+    /// <summary>
+    /// Gets a value indicating whether the publisher ID is already subscribed from another source that
+    /// this source cannot prove to be, so the user must replace the existing publisher or skip this one.
+    /// </summary>
+    public bool RequiresSourceDecision => SourceChange is PublisherSourceChange.Collision or PublisherSourceChange.IdentityMismatch;
+
+    /// <summary>
+    /// Gets a value indicating whether the publisher moved to this source and proved it holds the trusted key.
+    /// </summary>
+    public bool IsVerifiedMove => SourceChange == PublisherSourceChange.VerifiedMove;
+
+    /// <summary>
+    /// Gets a value indicating whether a source change notice should be shown.
+    /// </summary>
+    public bool ShowSourceChangeNotice => SourceChange != PublisherSourceChange.None;
+
+    /// <summary>
+    /// Gets the title of the source change notice.
+    /// </summary>
+    public string SourceChangeTitle => SourceChange switch
+    {
+        PublisherSourceChange.VerifiedMove => GetLocalizedString("Downloads.Subscription.SourceChange.VerifiedMoveTitle", "Verified Publisher Move"),
+        PublisherSourceChange.Collision => GetLocalizedString("Downloads.Subscription.SourceChange.CollisionTitle", "Publisher ID Already Subscribed"),
+        PublisherSourceChange.IdentityMismatch => GetLocalizedString("Downloads.Subscription.SourceChange.IdentityMismatchTitle", "Publisher Identity Not Proven"),
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Gets the message of the source change notice.
+    /// </summary>
+    public string SourceChangeMessage => SourceChange switch
+    {
+        PublisherSourceChange.VerifiedMove => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat",
+            "Publisher '{0}' moved to this address and proved it holds the same publisher key. Your subscription will follow the move.",
+            _assessedPublisherId),
+        PublisherSourceChange.Collision => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.CollisionMessageFormat",
+            "You already subscribe to publisher ID '{0}' from a different address. One of them may not be genuine. Replace the existing publisher with this one, or skip this one.",
+            _assessedPublisherId),
+        PublisherSourceChange.IdentityMismatch => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat",
+            "This address uses publisher ID '{0}' but does not prove it holds the key of the publisher you subscribe to. It may be an impersonation. Skip it unless you trust this address and want it to replace the existing publisher.",
+            _assessedPublisherId),
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Gets a value indicating whether the definition catalog selector should be shown.
+    /// </summary>
+    public bool ShowCatalogSelector => IsDefinitionSubscription && DefinitionCatalogOptions.Count > 1;
+
+    /// <summary>
+    /// Gets the "new source" badge text, reflecting a publisher definition when subscribed via one.
+    /// </summary>
+    public string NewSourceBadgeText
+    {
+        get
+        {
+            if (!IsDefinitionSubscription)
+            {
+                return GetLocalizedString("Downloads.Subscription.NewCatalogBadge", "+ New Catalog");
+            }
+
+            if (DefinitionCatalogOptions.Count > 1)
+            {
+                return GetLocalizedString("Downloads.Subscription.NewPublisherBadgeFormat", "+ New Publisher • {0} catalogs", DefinitionCatalogOptions.Count);
+            }
+
+            return GetLocalizedString("Downloads.Subscription.NewPublisherBadge", "+ New Publisher");
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the initial catalog fetch error should be shown.
+    /// </summary>
+    public bool ShowInitialError => !IsLoading && !IsCatalogLoaded;
+
+    /// <summary>
+    /// Gets a value indicating whether the catalog details should be shown.
+    /// </summary>
+    public bool ShowDetails => !IsLoading && IsCatalogLoaded;
+
+    /// <summary>
+    /// Gets a value indicating whether an inline action error (like confirm failure) should be shown when catalog is loaded.
+    /// </summary>
+    public bool ShowActionError => IsCatalogLoaded && !string.IsNullOrEmpty(ErrorMessage);
+
+    /// <summary>
+    /// Gets the single-letter initial for fallback publisher avatar display.
+    /// </summary>
+    public string PublisherInitial => !string.IsNullOrWhiteSpace(PublisherName) && !string.Equals(PublisherName, DefaultPublisherName, StringComparison.Ordinal)
+        ? PublisherName[..1].ToUpperInvariant()
+        : FallbackPublisherInitial;
+
+    /// <summary>
+    /// Fetches and validates the remote catalog so the user can confirm identity before saving.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IsLoading = true;
+            IsCatalogLoaded = false;
+            ErrorMessage = null;
+            CanConfirm = false;
+            IsAlreadySubscribed = false;
+            ResetSourceChange();
+
+            logger.LogInformation("Fetching catalog subscription");
+            var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+
+            var (parsedData, resolvedDefUrl, resolvedCatUrl, definition) = await ResolveCatalogDataAsync(response, cancellationToken);
+            if (parsedData == null)
+            {
+                return;
+            }
+
+            _resolvedDefinitionUrl = resolvedDefUrl;
+            _resolvedCatalogUrl = resolvedCatUrl;
+            _resolvedDefinition = definition;
+            if (definition != null && !string.IsNullOrWhiteSpace(resolvedCatUrl))
+            {
+                await BuildDefinitionCatalogListAsync(definition, parsedData, resolvedCatUrl, cancellationToken);
+            }
+
+            await PopulatePublisherDetailsAsync(parsedData, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error initializing subscription confirmation");
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToFetch", "Failed to Fetch Catalog");
+            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog: {0}", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Selects a category filter and updates the filtered items collection.
+    /// </summary>
+    /// <param name="categoryKey">The category key to filter by.</param>
+    [RelayCommand]
+    public void SelectCategory(string? categoryKey)
+    {
+        var key = string.IsNullOrWhiteSpace(categoryKey) ? DefaultCategoryKey : categoryKey;
+        SelectedCategoryKey = key;
+        BuildCategoryFilters(key);
+    }
+
+    /// <summary>
+    /// Selects a definition catalog and shows its content items.
+    /// </summary>
+    /// <param name="catalogId">The definition catalog entry ID to show.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task SelectDefinitionCatalogAsync(string? catalogId, CancellationToken cancellationToken = default)
+    {
+        if (_definitionCatalogs.Count == 0)
+        {
+            return;
+        }
+
+        var index = _definitionCatalogs.FindIndex(c => string.Equals(c.Id, catalogId, StringComparison.Ordinal));
+        if (index < 0)
+        {
+            index = 0;
+        }
+
+        var selected = _definitionCatalogs[index];
+        if (string.Equals(selected.Url, _selectedCatalogUrl, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        logger.LogDebug("Showing definition catalog {CatalogId} in subscription confirmation", selected.Id);
+        ApplyCatalogSelection(selected.Catalog, selected.Url);
+        await ReassessSourceAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Opens the specified web URL or email link safely in the default system browser or handler.
+    /// </summary>
+    /// <param name="url">The URL or email address to open.</param>
+    [RelayCommand]
+    public void OpenUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                uri.Scheme == Uri.UriSchemeHttps)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = uri.AbsoluteUri,
+                    UseShellExecute = true,
+                });
+            }
+            else if (url.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+            {
+                var rawAddress = url["mailto:".Length..].Split('?')[0];
+                if (MailAddress.TryCreate(rawAddress, out var mailAddress))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = $"mailto:{mailAddress.Address}",
+                        UseShellExecute = true,
+                    });
+                }
+                else
+                {
+                    logger.LogWarning("Rejected invalid mailto address");
+                }
+            }
+            else if (MailAddress.TryCreate(url, out var mailAddress))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = $"mailto:{mailAddress.Address}",
+                    UseShellExecute = true,
+                });
+            }
+            else
+            {
+                logger.LogWarning("Rejected opening unsafe or invalid URL: scheme must be HTTPS or valid email");
+                ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.HttpsOrEmailOnly", "Only secure HTTPS links or valid email addresses can be opened.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to open URL in browser");
+        }
+    }
+
+    /// <summary>
+    /// Dismisses the active error message banner.
+    /// </summary>
+    [RelayCommand]
+    public void DismissError()
+    {
+        ErrorMessage = null;
+    }
+
+    private static bool HasCatalogReference(PublisherDefinition? definition) =>
+        (definition?.Catalogs?.Count > 0) || !string.IsNullOrWhiteSpace(definition?.CatalogUrl);
+
+    private static string ResolveCatalogDisplayName(string? name, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(name) ? fallback : name;
+    }
+
+    private static string? ResolveTargetCatalogUrl(PublisherDefinition? definition)
+    {
+        if (definition == null)
+        {
+            return null;
+        }
+
+        return !string.IsNullOrWhiteSpace(definition.CatalogUrl)
+            ? definition.CatalogUrl
+            : definition.Catalogs?.FirstOrDefault(cat => cat != null && !string.IsNullOrWhiteSpace(cat.Url))?.Url;
+    }
+
+    private static void AddUniqueMirrors(List<string> candidateUrls, IEnumerable<string>? mirrors)
+    {
+        if (mirrors == null)
+        {
+            return;
+        }
+
+        foreach (var mirror in mirrors.Where(m => !string.IsNullOrWhiteSpace(m) && !candidateUrls.Contains(m, StringComparer.OrdinalIgnoreCase)))
+        {
+            candidateUrls.Add(mirror);
+        }
+    }
+
+    private static List<string> CollectCandidateCatalogUrls(PublisherDefinition definition)
+    {
+        var candidateUrls = new List<string>();
+        var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
+        if (!string.IsNullOrWhiteSpace(targetCatalogUrl))
+        {
+            candidateUrls.Add(targetCatalogUrl);
+        }
+
+        var targetEntry = definition.Catalogs?.FirstOrDefault(cat =>
+            cat != null && string.Equals(cat.Url, targetCatalogUrl, StringComparison.OrdinalIgnoreCase))
+            ?? definition.Catalogs?.FirstOrDefault(cat => cat != null);
+
+        AddUniqueMirrors(candidateUrls, targetEntry?.Mirrors);
+        if (targetEntry == null)
+        {
+            AddUniqueMirrors(candidateUrls, definition.CatalogMirrors);
+        }
+
+        return candidateUrls;
+    }
+
+    private static bool MirrorsContainUrl(IEnumerable<string>? mirrors, string? url)
+    {
+        if (mirrors == null || string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        return mirrors.Any(m => !string.IsNullOrWhiteSpace(m) && string.Equals(m, url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool SharesMirror(IEnumerable<string>? mirrorsA, IEnumerable<string>? mirrorsB)
+    {
+        if (mirrorsA == null || mirrorsB == null)
+        {
+            return false;
+        }
+
+        return mirrorsA.Any(mA => !string.IsNullOrWhiteSpace(mA) && MirrorsContainUrl(mirrorsB, mA));
+    }
+
+    private static bool IsDuplicateOrSharedEndpoint(CatalogEntry entry, CatalogEntry? primaryEntry, string primaryCatalogUrl)
+    {
+        if (ReferenceEquals(entry, primaryEntry))
+        {
+            return true;
+        }
+
+        if (string.Equals(entry.Url, primaryCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            (primaryEntry != null && string.Equals(entry.Url, primaryEntry.Url, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (MirrorsContainUrl(entry.Mirrors, primaryCatalogUrl) ||
+            (primaryEntry != null && (MirrorsContainUrl(entry.Mirrors, primaryEntry.Url) || MirrorsContainUrl(primaryEntry.Mirrors, entry.Url))))
+        {
+            return true;
+        }
+
+        return primaryEntry != null && SharesMirror(entry.Mirrors, primaryEntry.Mirrors);
+    }
+
+    private static CatalogEntry? ResolveFirstCatalogEntry(List<CatalogEntry> catalogs, string firstCatalogUrl)
+    {
+        return catalogs.FirstOrDefault(e => e != null && (
+            string.Equals(e.Url, firstCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+            MirrorsContainUrl(e.Mirrors, firstCatalogUrl)))
+            ?? catalogs.FirstOrDefault(e => e != null);
+    }
+
+    private static string? ResolveSelectedCatalogId(
+        string? resolvedSelectedCatalogId,
+        string effectiveCatalogUrl,
+        PublisherSubscription? existingSub)
+    {
+        if (resolvedSelectedCatalogId != null)
+        {
+            return resolvedSelectedCatalogId;
+        }
+
+        if (existingSub != null && string.Equals(effectiveCatalogUrl, existingSub.CatalogUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            return existingSub.SelectedCatalogId;
+        }
+
+        return null;
+    }
+
+    private static DateTimeOffset? LatestProofTime(DateTimeOffset? existing, DateTimeOffset? candidate)
+    {
+        if (existing is null)
+        {
+            return candidate;
+        }
+
+        return candidate is { } value && value > existing ? value : existing;
+    }
+
+    private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
+    {
+        if (_resolvedDefinition?.Catalogs == null || _definitionCatalogs.Count == 0)
+        {
+            return null;
+        }
+
+        var matchingEntry = _resolvedDefinition.Catalogs.FirstOrDefault(c =>
+            c != null && (
+                string.Equals(c.Url, effectiveCatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+                MirrorsContainUrl(c.Mirrors, effectiveCatalogUrl)));
+        if (matchingEntry != null && !string.IsNullOrWhiteSpace(matchingEntry.Id))
+        {
+            return matchingEntry.Id;
+        }
+
+        return null;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private Task ConfirmAsync(CancellationToken cancellationToken = default) =>
+        SaveSubscriptionAsync(replaceExisting: false, cancellationToken);
+
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private Task ReplaceExistingAsync(CancellationToken cancellationToken = default) =>
+        SaveSubscriptionAsync(replaceExisting: true, cancellationToken);
+
+    private bool CanSave() => !IsSaving;
+
+    private async Task SaveSubscriptionAsync(bool replaceExisting, CancellationToken cancellationToken)
+    {
+        if (_parsedCatalog == null || IsSaving) return;
+
+        IsSaving = true;
+        try
+        {
+            // Dialogs share one lock so a replace in one cannot interleave its trust and subscription writes with another.
+            await SaveLock.WaitAsync(cancellationToken);
+            try
+            {
+                await SaveSubscriptionCoreAsync(_parsedCatalog, replaceExisting, cancellationToken);
+            }
+            finally
+            {
+                SaveLock.Release();
+            }
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task SaveSubscriptionCoreAsync(PublisherCatalog parsedCatalog, bool replaceExisting, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ErrorMessage = null;
+            var effectivePublisher = ResolveEffectivePublisher(parsedCatalog);
+            var publisherId = effectivePublisher.Id;
+
+            logger.LogInformation("Confirming subscription for {Publisher} (replaceExisting={ReplaceExisting})", publisherId, replaceExisting);
+
+            var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+            if (!existingResult.Success)
+            {
+                ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+                ErrorMessage = string.Join(Environment.NewLine, existingResult.Errors);
+                return;
+            }
+
+            var existingSub = existingResult.Data;
+            var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
+            var assessment = await AssessSourceAsync(publisherId, existingSub, effectiveCatalogUrl, null, cancellationToken);
+            if (assessment.RequiresDecision && !replaceExisting)
+            {
+                logger.LogWarning("Publisher ID collision for {PublisherId}; waiting for the user to replace or skip", publisherId);
+                return;
+            }
+
+            var replacing = replaceExisting && existingSub != null && assessment.RequiresDecision;
+            var subscription = replacing
+                ? BuildReplacementSubscription(effectivePublisher, effectiveCatalogUrl, assessment)
+                : BuildSubscription(effectivePublisher, effectiveCatalogUrl, existingSub, assessment);
+
+            OperationResult<bool>? result;
+            if (replacing)
+            {
+                result = await SaveReplacementAsync(publisherId, subscription, assessment, cancellationToken);
+            }
+            else
+            {
+                result = existingSub != null
+                    ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
+                    : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
+            }
+
+            if (result == null)
+            {
+                return;
+            }
+
+            if (result.Success)
+            {
+                logger.LogInformation("Subscription saved successfully for publisher {PublisherId}", subscription.PublisherId);
+                if (!replacing && !await RecordTrustAsync(publisherId, assessment, replaceTrust: existingSub == null, cancellationToken))
+                {
+                    notificationService?.ShowWarning(
+                        GetLocalizedString("Downloads.Subscription.TrustNotRecordedTitle", "Publisher Key Not Saved"),
+                        GetLocalizedString("Downloads.Subscription.TrustNotRecordedMessage", "The subscription was saved, but the publisher key could not be stored. If this publisher moves, GenHub will ask you to confirm the move."),
+                        NotificationDurations.Long);
+                }
+
+                WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
+                RequestClose?.Invoke(true);
+            }
+            else
+            {
+                ErrorTitle = IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription") : GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToSubscribe", "Failed to Subscribe");
+                ErrorMessage = string.Join(Environment.NewLine, result.Errors);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error confirming subscription");
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+            ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToSaveFormat", "Failed to save subscription: {0}", ex.Message);
+        }
+    }
+
+    private async Task<OperationResult<bool>?> SaveReplacementAsync(
+        string publisherId,
+        PublisherSubscription subscription,
+        PublisherSourceAssessment assessment,
+        CancellationToken cancellationToken)
+    {
+        if (identityService == null)
+        {
+            return await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+        }
+
+        var previous = await identityService.GetTrustedKeyAsync(publisherId, cancellationToken);
+        if (previous.Failed)
+        {
+            ShowTrustUpdateFailed();
+            return null;
+        }
+
+        OperationResult<bool>? result = null;
+        var committed = false;
+        var trustMayHaveChanged = true;
+        var restoreFailed = false;
+        try
+        {
+            if (await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
+            {
+                result = await UpdateForReplacementAsync(subscription, cancellationToken);
+                committed = result.Success;
+            }
+            else
+            {
+                // A write the key store reports as failed leaves the previous key in place.
+                trustMayHaveChanged = false;
+            }
+        }
+        finally
+        {
+            if (!committed && trustMayHaveChanged)
+            {
+                restoreFailed = !await RestoreTrustAsync(publisherId, previous.Data);
+            }
+        }
+
+        if (restoreFailed)
+        {
+            if (result is { Success: false })
+            {
+                logger.LogWarning("Replacing publisher {PublisherId} failed: {Errors}", publisherId, string.Join("; ", result.Errors));
+            }
+
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+            ErrorMessage = previous.Data != null
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRestoreFailed", "The subscription was not changed, but the previous publisher key could not be restored.")
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRemoveFailed", "The subscription was not changed, but the replacement publisher key could not be removed.");
+            return null;
+        }
+
+        if (result == null)
+        {
+            ShowTrustUpdateFailed();
+        }
+
+        return result;
+    }
+
+    private async Task<OperationResult<bool>> UpdateForReplacementAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogError(ex, "Failed to update subscription {PublisherId} while replacing it", subscription.PublisherId);
+            return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+    }
+
+    private void ShowTrustUpdateFailed()
+    {
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+        ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustUpdateFailed", "The trusted publisher key could not be updated, so the existing publisher was kept.");
+    }
+
+    private async Task<bool> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous)
+    {
+        var restored = await identityService!.RestoreTrustAsync(publisherId, previous, CancellationToken.None);
+        if (restored.Success)
+        {
+            return true;
+        }
+
+        logger.LogError("Failed to restore the trusted key for publisher {PublisherId} after a failed replace: {Errors}", publisherId, string.Join("; ", restored.Errors));
+        if (previous != null)
+        {
+            // Without the previous key nothing can verify a move, so removing the replacement key fails closed.
+            var removed = await identityService.RestoreTrustAsync(publisherId, null, CancellationToken.None);
+            if (removed.Failed)
+            {
+                logger.LogError("Failed to remove the replacement key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", removed.Errors));
+            }
+        }
+
+        return false;
+    }
+
+    private async Task ReassessSourceAsync(CancellationToken cancellationToken)
+    {
+        if (_parsedCatalog == null || !IsAlreadySubscribed)
+        {
+            ResetSourceChange();
+            return;
+        }
+
+        var generation = ++_assessmentGeneration;
+        var publisherId = ResolveEffectivePublisher(_parsedCatalog).Id;
+        try
+        {
+            await ReassessSourceCoreAsync(generation, publisherId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (generation == _assessmentGeneration)
+            {
+                ResetSourceChange();
+            }
+
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Failed to re-check the source for publisher {PublisherId}", publisherId);
+            if (generation == _assessmentGeneration)
+            {
+                ShowSourceCheckFailed();
+            }
+        }
+    }
+
+    private async Task ReassessSourceCoreAsync(int generation, string publisherId, CancellationToken cancellationToken)
+    {
+        var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+        if (generation != _assessmentGeneration)
+        {
+            return;
+        }
+
+        if (!existingResult.Success)
+        {
+            logger.LogWarning("Failed to read the existing subscription for {PublisherId}: {Errors}", publisherId, string.Join("; ", existingResult.Errors));
+            ShowSourceCheckFailed();
+            return;
+        }
+
+        if (existingResult.Data is not { } existingSub)
+        {
+            ResetSourceChange();
+            ClearSourceCheckError();
+            return;
+        }
+
+        ClearSourceCheckError();
+        await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, generation, cancellationToken);
+    }
+
+    private void ResetSourceChange()
+    {
+        _assessmentGeneration++;
+        SourceChange = PublisherSourceChange.None;
+    }
+
+    private void ShowSourceCheckFailed()
+    {
+        ResetSourceChange();
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+        _shownSourceCheckError = GetLocalizedString(
+            "Downloads.Subscription.ErrorMessage.SourceCheckFailed",
+            "GenHub could not compare this source with your existing subscription. It checks again when you save.");
+        ErrorMessage = _shownSourceCheckError;
+    }
+
+    private void ClearSourceCheckError()
+    {
+        if (_shownSourceCheckError != null && string.Equals(ErrorMessage, _shownSourceCheckError, StringComparison.Ordinal))
+        {
+            ErrorMessage = null;
+        }
+
+        _shownSourceCheckError = null;
+    }
+
+    private PublisherSubscription BuildSubscription(
+        PublisherProfile publisher,
+        string effectiveCatalogUrl,
+        PublisherSubscription? existingSub,
+        PublisherSourceAssessment assessment)
+    {
+        var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
+        return new PublisherSubscription
+        {
+            PublisherId = publisher.Id,
+            PublisherName = publisher.Name,
+            CatalogUrl = effectiveCatalogUrl,
+            DefinitionUrl = ResolveDefinitionUrl(existingSub, assessment),
+            SelectedCatalogId = ResolveSelectedCatalogId(resolvedSelectedCatalogId, effectiveCatalogUrl, existingSub),
+            Added = existingSub?.Added ?? DateTime.UtcNow,
+            TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
+            AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisher.AvatarUrl),
+            AutoUpdate = existingSub?.AutoUpdate ?? true,
+            NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
+            CachedCatalogHash = existingSub?.CachedCatalogHash,
+            LastFetched = existingSub?.LastFetched,
+            IdentityProofSignedAt = LatestProofTime(existingSub?.IdentityProofSignedAt, assessment.ProofSignedAt),
+        };
+    }
+
+    private string? ResolveDefinitionUrl(PublisherSubscription? existingSub, PublisherSourceAssessment assessment)
+    {
+        // A definition that only shares a catalog-direct subscription's catalog URL is not attached, so it cannot redirect that subscription later.
+        if (existingSub != null && string.IsNullOrWhiteSpace(existingSub.DefinitionUrl) && assessment.Change != PublisherSourceChange.VerifiedMove)
+        {
+            return existingSub.DefinitionUrl;
+        }
+
+        return _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl;
+    }
+
+    private PublisherSubscription BuildReplacementSubscription(
+        PublisherProfile publisher,
+        string effectiveCatalogUrl,
+        PublisherSourceAssessment assessment)
+    {
+        return new PublisherSubscription
+        {
+            PublisherId = publisher.Id,
+            PublisherName = publisher.Name,
+            CatalogUrl = effectiveCatalogUrl,
+            DefinitionUrl = _resolvedDefinitionUrl,
+            SelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl),
+            Added = DateTime.UtcNow,
+            TrustLevel = TrustLevel.Untrusted,
+            AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisher.AvatarUrl),
+            IdentityProofSignedAt = assessment.ProofSignedAt,
+        };
+    }
+
+    private async Task<PublisherSourceAssessment> AssessSourceAsync(
+        string publisherId,
+        PublisherSubscription? existingSub,
+        string effectiveCatalogUrl,
+        int? ownedGeneration,
+        CancellationToken cancellationToken)
+    {
+        var generation = ownedGeneration ?? ++_assessmentGeneration;
+        var candidate = new PublisherSourceCandidate(publisherId, _resolvedDefinitionUrl, effectiveCatalogUrl, _resolvedDefinition);
+        PublisherSourceAssessment assessment;
+        if (identityService != null)
+        {
+            assessment = await identityService.AssessAsync(existingSub, candidate, cancellationToken);
+        }
+        else
+        {
+            var change = existingSub != null && PublisherSourceComparer.IsDifferentSource(existingSub, candidate)
+                ? PublisherSourceChange.Collision
+                : PublisherSourceChange.None;
+            assessment = new PublisherSourceAssessment(change, null, null);
+        }
+
+        if (generation == _assessmentGeneration)
+        {
+            _assessedPublisherId = publisherId;
+            SourceChange = assessment.Change;
+        }
+
+        return assessment;
+    }
+
+    private async Task<bool> RecordTrustAsync(
+        string publisherId,
+        PublisherSourceAssessment assessment,
+        bool replaceTrust,
+        CancellationToken cancellationToken)
+    {
+        if (identityService == null)
+        {
+            return true;
+        }
+
+        var trustResult = await identityService.RecordTrustAsync(publisherId, assessment, replaceTrust, cancellationToken);
+        if (trustResult.Failed)
+        {
+            logger.LogWarning("Failed to record the trusted key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", trustResult.Errors));
+        }
+
+        return trustResult.Success;
+    }
+
+    [RelayCommand]
+    private void Cancel()
+    {
+        RequestClose?.Invoke(false);
+    }
+
+    private string GetLocalizedString(string key, string fallback) =>
+        localizationService?.GetString(key) ?? fallback;
+
+    private string GetLocalizedString(string key, string fallback, params object[] args)
+    {
+        var format = localizationService?.GetString(key);
+        return string.IsNullOrEmpty(format) || string.Equals(format, key, StringComparison.Ordinal)
+            ? string.Format(System.Globalization.CultureInfo.InvariantCulture, fallback, args)
+            : string.Format(System.Globalization.CultureInfo.InvariantCulture, format, args);
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl, PublisherDefinition? Definition)> ResolveCatalogDataAsync(
+        string response,
+        CancellationToken cancellationToken)
+    {
+        _definitionCatalogFetchError = null;
+        if (definitionService != null)
+        {
+            var defServiceResult = await TryFetchFromDefinitionServiceAsync(cancellationToken);
+            if (defServiceResult.Catalog != null)
+            {
+                return defServiceResult;
+            }
+        }
+
+        var defPayloadResult = await TryResolveDefinitionFromPayloadAsync(response, cancellationToken);
+        if (defPayloadResult.Catalog != null)
+        {
+            return defPayloadResult;
+        }
+
+        if (defPayloadResult.Definition != null)
+        {
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
+            ErrorMessage = !string.IsNullOrWhiteSpace(_definitionCatalogFetchError)
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetchFormat", "Failed to fetch catalog: {0}", _definitionCatalogFetchError)
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToFetch", "Failed to fetch catalog from definition");
+            logger.LogWarning("Failed to resolve catalog from definition: {Errors}", ErrorMessage);
+            return (null, null, null, null);
+        }
+
+        var result = await catalogParser.ParseCatalogAsync(response, cancellationToken);
+        if (result.Success && result.Data != null)
+        {
+            return (result.Data, null, null, null);
+        }
+
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToLoad", "Failed to Load Catalog");
+        ErrorMessage = string.Join(Environment.NewLine, result.Errors);
+        logger.LogWarning("Failed to parse catalog: {Errors}", ErrorMessage);
+        return (null, null, null, null);
+    }
+
+    private string ResolveContentTypeDisplay(ContentType contentType)
+    {
+        var typeKey = $"ContentType.{contentType}";
+        var localizedType = localizationService?.GetString(typeKey);
+        return !string.IsNullOrEmpty(localizedType) && !string.Equals(localizedType, typeKey, StringComparison.Ordinal)
+            ? localizedType
+            : contentType.GetDisplayName();
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl, PublisherDefinition? Definition)> TryFetchFromDefinitionServiceAsync(
+        CancellationToken cancellationToken)
+    {
+        if (definitionService == null)
+        {
+            return (null, null, null, null);
+        }
+
+        var defResult = await definitionService.FetchDefinitionAsync(catalogUrl, cancellationToken);
+        if (!defResult.Success || defResult.Data == null)
+        {
+            return (null, null, null, null);
+        }
+
+        var definition = defResult.Data;
+        if (!HasCatalogReference(definition))
+        {
+            return (null, null, null, null);
+        }
+
+        var catResult = await definitionService.FetchCatalogFromDefinitionAsync(definition, cancellationToken);
+        if (catResult.Success && catResult.Data != null)
+        {
+            var targetCatalogUrl = ResolveTargetCatalogUrl(definition);
+
+            if (string.IsNullOrWhiteSpace(targetCatalogUrl))
+            {
+                return (null, null, null, null);
+            }
+
+            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(targetCatalogUrl, cancellationToken);
+            if (!targetSafe)
+            {
+                if (!string.IsNullOrEmpty(ssrfReason))
+                {
+                    logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
+                }
+
+                return (null, null, null, null);
+            }
+
+            return (catResult.Data, catalogUrl, targetCatalogUrl, definition);
+        }
+
+        return (null, null, null, null);
+    }
+
+    private PublisherDefinition? TryDeserializeDefinition(string response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<PublisherDefinition>(response, DefinitionJsonOptions);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (JsonException jsonEx)
+        {
+            logger.LogDebug(jsonEx, "Payload is not a valid publisher definition; falling back to direct catalog parse");
+            return null;
+        }
+        catch (Exception defEx)
+        {
+            logger.LogDebug(defEx, "Failed to parse publisher definition; falling back to direct catalog parse");
+            return null;
+        }
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? Error)> TryFetchCandidateCatalogAsync(
+        string candidateUrl,
+        CancellationToken cancellationToken)
+    {
+        var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(candidateUrl, cancellationToken);
+        if (!targetSafe)
+        {
+            if (!string.IsNullOrEmpty(ssrfReason))
+            {
+                logger.LogWarning("Blocked unsafe catalog URL in definition payload: {Reason}", ssrfReason);
+            }
+
+            return (null, GetLocalizedString("Downloads.Subscription.ErrorMessage.BlockedUnsafeCatalogUrl", "Blocked unsafe catalog URL."));
+        }
+
+        try
+        {
+            logger.LogInformation("Resolved catalog URL {TargetUrl} from definition at {DefUrl}", candidateUrl, catalogUrl);
+            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, candidateUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+            if (catParseResult.Success && catParseResult.Data != null)
+            {
+                return (catParseResult.Data, null);
+            }
+
+            return (null, string.Join("; ", catParseResult.Errors));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException httpEx)
+        {
+            logger.LogWarning(httpEx, "Transient error resolving catalog from candidate {Url}", candidateUrl);
+            return (null, httpEx.Message);
+        }
+        catch (OperationCanceledException timeoutEx)
+        {
+            logger.LogWarning(timeoutEx, "Timeout fetching candidate catalog from {Url}", candidateUrl);
+            return (null, timeoutEx.Message);
+        }
+        catch (JsonException jsonEx)
+        {
+            logger.LogWarning(jsonEx, "Failed to parse catalog JSON from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, jsonEx.Message);
+        }
+        catch (System.IO.IOException ioEx)
+        {
+            logger.LogWarning(ioEx, "IO error reading catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, ioEx.Message);
+        }
+        catch (ArgumentException argumentEx)
+        {
+            logger.LogWarning(argumentEx, "Invalid candidate catalog URL {Url}", candidateUrl);
+            return (null, argumentEx.Message);
+        }
+        catch (System.IO.InvalidDataException invalidDataEx)
+        {
+            logger.LogWarning(invalidDataEx, "Invalid candidate catalog data from {Url}", candidateUrl);
+            return (null, invalidDataEx.Message);
+        }
+        catch (InvalidOperationException opEx)
+        {
+            logger.LogWarning(opEx, "Invalid operation reading catalog from candidate URL {TargetUrl} in definition", candidateUrl);
+            return (null, opEx.Message);
+        }
+    }
+
+    private async Task<(PublisherCatalog? Catalog, string? DefinitionUrl, string? CatalogUrl, PublisherDefinition? Definition)> TryResolveDefinitionFromPayloadAsync(
+        string response,
+        CancellationToken cancellationToken)
+    {
+        var definition = TryDeserializeDefinition(response, cancellationToken);
+        if (definition == null || !HasCatalogReference(definition))
+        {
+            return (null, null, null, null);
+        }
+
+        var candidateUrls = CollectCandidateCatalogUrls(definition);
+        if (candidateUrls.Count == 0)
+        {
+            _definitionCatalogFetchError = GetLocalizedString("Downloads.Subscription.ErrorMessage.NoValidCatalogUrl", "Definition contains no valid catalog URL.");
+            return (null, null, null, definition);
+        }
+
+        const int maxCandidatesToTry = 5;
+        var candidatesToTry = candidateUrls.Take(maxCandidatesToTry);
+
+        string? lastError = null;
+        foreach (var candidateUrl in candidatesToTry)
+        {
+            var (catalog, error) = await TryFetchCandidateCatalogAsync(candidateUrl, cancellationToken);
+            if (catalog != null)
+            {
+                return (catalog, catalogUrl, candidateUrl, definition);
+            }
+
+            lastError = error;
+        }
+
+        _definitionCatalogFetchError = lastError;
+        return (null, null, null, definition);
+    }
+
+    private PublisherProfile ResolveEffectivePublisher(PublisherCatalog catalog)
+    {
+        var def = _resolvedDefinition?.Publisher;
+        var cat = catalog.Publisher;
+        return new PublisherProfile
+        {
+            Id = !string.IsNullOrWhiteSpace(def?.Id) ? def.Id : cat.Id,
+            Name = !string.IsNullOrWhiteSpace(def?.Name) ? def.Name : cat.Name,
+            Description = !string.IsNullOrWhiteSpace(def?.Description) ? def.Description : cat.Description,
+            AvatarUrl = !string.IsNullOrWhiteSpace(def?.AvatarUrl) ? def.AvatarUrl : cat.AvatarUrl,
+            Website = !string.IsNullOrWhiteSpace(def?.Website) ? def.Website : cat.Website,
+            SupportUrl = !string.IsNullOrWhiteSpace(def?.SupportUrl) ? def.SupportUrl : cat.SupportUrl,
+            ContactEmail = !string.IsNullOrWhiteSpace(def?.ContactEmail) ? def.ContactEmail : cat.ContactEmail,
+        };
+    }
+
+    private async Task PopulatePublisherDetailsAsync(
+        PublisherCatalog catalog,
+        CancellationToken cancellationToken)
+    {
+        var pubProfile = ResolveEffectivePublisher(catalog);
+
+        PublisherName = pubProfile.Name;
+        PublisherAvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(pubProfile.AvatarUrl) ?? PublisherInfoConstants.GetPublisherLogo(pubProfile.Name, pubProfile.Id);
+        PublisherWebsite = pubProfile.Website;
+        PublisherSupportUrl = pubProfile.SupportUrl ?? string.Empty;
+        PublisherContactEmail = pubProfile.ContactEmail ?? string.Empty;
+
+        var publisherId = pubProfile.Id;
+
+        // check if this publisher is already in the subscription store
+        var subCheck = await subscriptionStore.IsSubscribedAsync(publisherId, cancellationToken);
+        IsAlreadySubscribed = subCheck is { Success: true, Data: true };
+        IsDefinitionSubscription = _resolvedDefinitionUrl != null;
+        ApplyCatalogSelection(catalog, _resolvedCatalogUrl);
+        await ReassessSourceAsync(cancellationToken);
+        logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
+    }
+
+    private void AddPrimaryDefinitionCatalog(
+        CatalogEntry? firstEntry,
+        string firstCatalogUrl,
+        PublisherCatalog firstCatalog,
+        IReadOnlyList<CatalogEntry>? declaredCatalogs)
+    {
+        var hasExplicitId = !string.IsNullOrWhiteSpace(firstEntry?.Id);
+        string firstEntryId;
+        if (hasExplicitId)
+        {
+            firstEntryId = firstEntry!.Id;
+        }
+        else
+        {
+            firstEntryId = CatalogConstants.PrimarySyntheticCatalogId;
+            if (IsCatalogIdInUse(firstEntryId, declaredCatalogs))
+            {
+                var index = 0;
+                firstEntryId = GenerateSyntheticCatalogId(declaredCatalogs, ref index);
+            }
+        }
+
+        var localizedDefaultName = GetLocalizedString(
+            "Downloads.Subscription.Catalog.DefaultName",
+            CatalogConstants.DefaultCatalogName);
+        var fallbackName = hasExplicitId ? firstEntry!.Id : localizedDefaultName;
+
+        _definitionCatalogs.Add((
+            firstEntryId,
+            ResolveCatalogDisplayName(firstEntry?.Name, fallbackName),
+            firstCatalogUrl,
+            firstCatalog));
+    }
+
+    private bool IsCatalogIdInUse(string catalogId, IReadOnlyList<CatalogEntry>? declaredCatalogs)
+    {
+        return _definitionCatalogs.Any(existing => string.Equals(existing.Id, catalogId, StringComparison.OrdinalIgnoreCase)) ||
+               (declaredCatalogs != null && declaredCatalogs.Any(entry => entry != null && string.Equals(entry.Id, catalogId, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private string GenerateSyntheticCatalogId(IReadOnlyList<CatalogEntry>? declaredCatalogs, ref int catalogIndex)
+    {
+        string candidateId;
+        do
+        {
+            catalogIndex++;
+            candidateId = $"{CatalogConstants.SyntheticCatalogIdPrefix}{catalogIndex}";
+        }
+        while (IsCatalogIdInUse(candidateId, declaredCatalogs));
+
+        return candidateId;
+    }
+
+    private bool ShouldSkipCatalogEntry(CatalogEntry? entry, CatalogEntry? firstEntry, string firstCatalogUrl)
+    {
+        return entry == null ||
+            string.IsNullOrWhiteSpace(entry.Url) ||
+            IsDuplicateOrSharedEndpoint(entry, firstEntry, firstCatalogUrl) ||
+            _definitionCatalogs.Any(existing => string.Equals(existing.Url, entry.Url, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AddDefinitionCatalogEntry(
+        CatalogEntry entry,
+        PublisherCatalog parsed,
+        IReadOnlyList<CatalogEntry>? declaredCatalogs,
+        ref int catalogIndex)
+    {
+        var hasExplicitId = !string.IsNullOrWhiteSpace(entry.Id);
+        var entryCatalogId = hasExplicitId
+            ? entry.Id
+            : GenerateSyntheticCatalogId(declaredCatalogs, ref catalogIndex);
+
+        var fallbackCatalogName = GetLocalizedString(
+            "Downloads.Subscription.Catalog.FallbackNameFormat",
+            "Catalog {0}",
+            catalogIndex);
+
+        _definitionCatalogs.Add((
+            entryCatalogId,
+            ResolveCatalogDisplayName(entry.Name, hasExplicitId ? entry.Id : fallbackCatalogName),
+            entry.Url,
+            parsed));
+    }
+
+    private async Task BuildDefinitionCatalogListAsync(
+        PublisherDefinition definition,
+        PublisherCatalog firstCatalog,
+        string firstCatalogUrl,
+        CancellationToken cancellationToken)
+    {
+        _definitionCatalogs.Clear();
+        var catalogs = definition.Catalogs ?? [];
+        var firstEntry = ResolveFirstCatalogEntry(catalogs, firstCatalogUrl);
+        AddPrimaryDefinitionCatalog(firstEntry, firstCatalogUrl, firstCatalog, catalogs);
+
+        var catalogIndex = 0;
+        foreach (var entry in catalogs)
+        {
+            if (ShouldSkipCatalogEntry(entry, firstEntry, firstCatalogUrl))
+            {
+                continue;
+            }
+
+            var parsed = await TryFetchDefinitionCatalogEntryAsync(entry, cancellationToken);
+            if (parsed != null)
+            {
+                AddDefinitionCatalogEntry(entry, parsed, catalogs, ref catalogIndex);
+            }
+        }
+    }
+
+    private async Task<PublisherCatalog?> TryFetchDefinitionCatalogEntryAsync(CatalogEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (targetSafe, ssrfReason) = await NetworkSecurityHelper.IsSafeUrlAsync(entry.Url, cancellationToken);
+            if (!targetSafe)
+            {
+                logger.LogWarning("Blocked unsafe catalog URL {Url} in definition: {Reason}", entry.Url, ssrfReason);
+                return null;
+            }
+
+            var catResponse = await CatalogDocumentReader.ReadAsync(httpClient, entry.Url, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
+            var catParseResult = await catalogParser.ParseCatalogAsync(catResponse, cancellationToken);
+            if (catParseResult.Success && catParseResult.Data != null)
+            {
+                return catParseResult.Data;
+            }
+
+            logger.LogWarning("Failed to parse definition catalog {CatalogId}: {Errors}", entry.Id, string.Join("; ", catParseResult.Errors));
+            return null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to fetch definition catalog {CatalogId}; showing remaining catalogs", entry.Id);
+            return null;
+        }
+    }
+
+    private void ApplyCatalogSelection(PublisherCatalog catalog, string? catalogUrl)
+    {
+        _parsedCatalog = catalog;
+        _selectedCatalogUrl = catalogUrl;
+        LastUpdated = catalog.LastUpdated != default ? catalog.LastUpdated : null;
+
+        if (catalog.Content != null)
+        {
+            ContentItems = catalog.Content.AsReadOnly();
+            ContentCount = catalog.Content.Count;
+
+            var typeGroups = catalog.Content
+                .GroupBy(item => item.ContentType)
+                .Select(group => $"{group.Count()} {ResolveContentTypeDisplay(group.Key)}");
+            ContentSummary = string.Join(" • ", typeGroups);
+
+            SelectCategory(null);
+        }
+        else
+        {
+            ContentItems = [];
+            FilteredContentItems = [];
+            CategoryFilters = [];
+            ContentCount = 0;
+            ContentSummary = string.Empty;
+        }
+
+        BuildDefinitionCatalogOptions();
+        IsCatalogLoaded = true;
+        CanConfirm = true;
+    }
+
+    private void BuildDefinitionCatalogOptions()
+    {
+        if (!IsDefinitionSubscription || _definitionCatalogs.Count == 0)
+        {
+            DefinitionCatalogOptions = [];
+            return;
+        }
+
+        var selectedId = _definitionCatalogs.FirstOrDefault(c => string.Equals(c.Url, _selectedCatalogUrl, StringComparison.Ordinal)).Id
+            ?? _definitionCatalogs[0].Id;
+        DefinitionCatalogOptions = _definitionCatalogs
+            .Select(c => new CatalogCategoryFilter(c.Id, c.Name, c.Catalog.Content?.Count ?? 0, string.Equals(c.Id, selectedId, StringComparison.Ordinal)))
+            .ToList()
+            .AsReadOnly();
+    }
+
+    private void BuildCategoryFilters(string activeKey)
+    {
+        if (_parsedCatalog?.Content == null || _parsedCatalog.Content.Count == 0)
+        {
+            CategoryFilters = [];
+            FilteredContentItems = [];
+            return;
+        }
+
+        var totalCount = _parsedCatalog.Content.Count;
+        var filters = new List<CatalogCategoryFilter>
+        {
+            new(DefaultCategoryKey, GetLocalizedString("Downloads.Subscription.Category.All", "All"), totalCount, string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase)),
+        };
+
+        var groups = _parsedCatalog.Content
+            .GroupBy(item => item.ContentType)
+            .OrderBy(g => g.Key.ToString());
+
+        foreach (var group in groups)
+        {
+            var key = group.Key.ToString();
+            var typeDisplay = ResolveContentTypeDisplay(group.Key);
+            var isSelected = string.Equals(activeKey, key, StringComparison.OrdinalIgnoreCase);
+            filters.Add(new CatalogCategoryFilter(key, typeDisplay, group.Count(), isSelected));
+        }
+
+        CategoryFilters = filters.AsReadOnly();
+
+        if (string.Equals(activeKey, DefaultCategoryKey, StringComparison.OrdinalIgnoreCase))
+        {
+            FilteredContentItems = _parsedCatalog.Content.AsReadOnly();
+        }
+        else if (Enum.TryParse<ContentType>(activeKey, true, out var filterType))
+        {
+            FilteredContentItems = _parsedCatalog.Content
+                .Where(item => item.ContentType == filterType)
+                .ToList()
+                .AsReadOnly();
+        }
+        else
+        {
+            FilteredContentItems = _parsedCatalog.Content.AsReadOnly();
+        }
+    }
+}

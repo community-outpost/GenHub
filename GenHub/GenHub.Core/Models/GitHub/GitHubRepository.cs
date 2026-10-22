@@ -1,6 +1,6 @@
-namespace GenHub.Core.Models.GitHub;
-
 using System.Collections.Generic;
+
+namespace GenHub.Core.Models.GitHub;
 
 /// <summary>
 /// Represents a GitHub repository.

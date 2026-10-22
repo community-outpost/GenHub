@@ -1,19 +1,23 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Steam;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Steam;
-using GenHub.Core.Models.Manifest;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Manifest;
 
 /// <summary>
 /// Implementation of <see cref="ISteamManifestPatcher"/>.
 /// </summary>
-public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteamManifestPatcher
+public class SteamManifestPatcher(
+    ILogger<SteamManifestPatcher> logger,
+    IConfigurationProviderService configurationProvider) : ISteamManifestPatcher
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
@@ -25,45 +29,16 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
             logger.LogInformation("Patching manifest {ManifestId} for Steam launch: {UseSteamLaunch}", manifestId, useSteamLaunch);
 
             // Locate the manifest file
-            var manifestsDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppConstants.AppName,
-                FileTypes.ManifestsDirectory);
+            var manifestsDir = configurationProvider.GetManifestsPath();
 
             if (!Directory.Exists(manifestsDir))
             {
-                logger.LogWarning("Manifests directory not found: {Dir}", manifestsDir);
+                logger.LogInformation("Manifests directory not found, creating: {Dir}", manifestsDir);
+                Directory.CreateDirectory(manifestsDir);
                 return;
             }
 
-            // Scan for the manifest file (naive scan since we don't know the exact filename)
-            // Optimization: Assuming file extension is .json
-            var manifestFiles = Directory.EnumerateFiles(manifestsDir, "*.json", SearchOption.AllDirectories);
-            string? targetFile = null;
-            ContentManifest? manifest = null;
-
-            foreach (var file in manifestFiles)
-            {
-                try
-                {
-                    // Quick check: does filename contain ID? (Optimization if naming convention holds)
-                    // If not, we have to read it.
-                    // To be safe and fast, we read all small JSONs. Manifests are small.
-                    await using var stream = File.OpenRead(file);
-                    var candidate = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions);
-
-                    if (candidate != null && candidate.Id == manifestId)
-                    {
-                        targetFile = file;
-                        manifest = candidate;
-                        break;
-                    }
-                }
-                catch
-                {
-                    // Ignore read errors
-                }
-            }
+            var (targetFile, manifest) = await FindManifestAsync(manifestsDir, manifestId);
 
             if (targetFile == null || manifest == null)
             {
@@ -71,38 +46,7 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
                 return;
             }
 
-            // Apply changes
-            var generalsExe = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
-            var gameDat = manifest.Files.FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
-
-            if (generalsExe == null || gameDat == null)
-            {
-                logger.LogWarning("Manifest {ManifestId} does not contain required files (generals.exe and game.dat)", manifestId);
-                return;
-            }
-
-            bool changed = false;
-
-            if (useSteamLaunch)
-            {
-                // Steam Mode: generals.exe = true, game.dat = false
-                if (!generalsExe.IsExecutable || gameDat.IsExecutable)
-                {
-                    generalsExe.IsExecutable = true;
-                    gameDat.IsExecutable = false;
-                    changed = true;
-                }
-            }
-            else
-            {
-                // Standalone Mode: generals.exe = false, game.dat = true
-                if (generalsExe.IsExecutable || !gameDat.IsExecutable)
-                {
-                    generalsExe.IsExecutable = false;
-                    gameDat.IsExecutable = true;
-                    changed = true;
-                }
-            }
+            var changed = ApplyLaunchMode(manifest, useSteamLaunch, manifestId, logger);
 
             if (changed)
             {
@@ -121,5 +65,187 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
             logger.LogError(ex, "Error patching manifest {ManifestId}", manifestId);
             throw;
         }
+    }
+
+    private static async Task<(string? TargetFile, ContentManifest? Manifest)> FindManifestAsync(string manifestsDir, string manifestId)
+    {
+        var manifestFiles = Directory.EnumerateFiles(manifestsDir, "*.json", SearchOption.AllDirectories);
+
+        foreach (var file in manifestFiles)
+        {
+            try
+            {
+                // Read small JSON manifests safely
+                await using var stream = File.OpenRead(file);
+                var candidate = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions);
+
+                if (candidate?.Id == manifestId)
+                {
+                    return (file, candidate);
+                }
+            }
+            catch (IOException)
+            {
+                // Ignore read errors for invalid or inaccessible files
+            }
+            catch (JsonException)
+            {
+                // Ignore JSON deserialization errors for non-manifest files
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore access permission errors
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static bool ApplyLaunchMode(ContentManifest manifest, bool useSteamLaunch, string manifestId, ILogger logger)
+    {
+        var generalsExe = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase));
+        var gameDat = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(f => f.RelativePath.Equals(GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase));
+
+        if (generalsExe == null && gameDat == null)
+        {
+            logger.LogDebug("Manifest {ManifestId} does not contain generals.exe or game.dat, skipping patch", manifestId);
+            return false;
+        }
+
+        return useSteamLaunch
+            ? ApplySteamMode(manifest, generalsExe, gameDat)
+            : ApplyStandaloneMode(manifest, generalsExe, gameDat);
+    }
+
+    private static bool ApplySteamMode(ContentManifest manifest, ManifestFile? generalsExe, ManifestFile? gameDat)
+    {
+        var changed = false;
+
+        // Steam Mode: generals.exe = true, game.dat = false (if it exists)
+        if (generalsExe is { IsExecutable: false })
+        {
+            generalsExe.IsExecutable = true;
+            changed = true;
+        }
+
+        if (gameDat is { IsExecutable: true })
+        {
+            gameDat.IsExecutable = false;
+            changed = true;
+        }
+
+        if (generalsExe != null)
+        {
+            changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
+        }
+
+        var supportsLaunch = manifest.ContentType is ContentType.GameClient or ContentType.Executable;
+        if (gameDat != null && supportsLaunch)
+        {
+            if (!string.Equals(GetLaunchRelationship(manifest)?.ProcessName, GameClientConstants.GameProcessName, StringComparison.OrdinalIgnoreCase)
+                || HasStaleRootLaunchRelationship(manifest))
+            {
+                SetLaunchRelationship(manifest, new LaunchRelationship { ProcessName = GameClientConstants.GameProcessName });
+                changed = true;
+            }
+        }
+        else if (GetLaunchRelationship(manifest) is not null || HasStaleRootLaunchRelationship(manifest))
+        {
+            SetLaunchRelationship(manifest, null);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static bool ApplyStandaloneMode(ContentManifest manifest, ManifestFile? generalsExe, ManifestFile? gameDat)
+    {
+        var changed = false;
+
+        // Standalone Mode: generals.exe = false (if game.dat exists), game.dat = true
+        if (gameDat != null)
+        {
+            if (!gameDat.IsExecutable)
+            {
+                gameDat.IsExecutable = true;
+                changed = true;
+            }
+
+            if (generalsExe is { IsExecutable: true })
+            {
+                generalsExe.IsExecutable = false;
+                changed = true;
+            }
+
+            changed |= UpdateEntryPoint(manifest, gameDat.RelativePath);
+        }
+        else if (generalsExe is { IsExecutable: false })
+        {
+            // If no game.dat, generals.exe must be the executable
+            generalsExe.IsExecutable = true;
+            changed = true;
+
+            changed |= UpdateEntryPoint(manifest, generalsExe.RelativePath);
+        }
+
+        if (GetLaunchRelationship(manifest) is not null || HasStaleRootLaunchRelationship(manifest))
+        {
+            SetLaunchRelationship(manifest, null);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Gets the launch relationship the launcher uses: the host variant's when the manifest
+    /// declares variants, otherwise the manifest's own.
+    /// </summary>
+    private static LaunchRelationship? GetLaunchRelationship(ContentManifest manifest)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        return variant is null ? manifest.LaunchRelationship : variant.LaunchRelationship;
+    }
+
+    /// <summary>
+    /// Determines whether a variant manifest still carries a root relationship from earlier
+    /// patching. The launcher ignores it once variants exist, so patching clears it.
+    /// </summary>
+    private static bool HasStaleRootLaunchRelationship(ContentManifest manifest) =>
+        manifest.LaunchRelationship is not null && ManifestVariantResolver.ResolveVariant(manifest) is not null;
+
+    private static void SetLaunchRelationship(ContentManifest manifest, LaunchRelationship? relationship)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        if (variant is not null)
+        {
+            variant.LaunchRelationship = relationship;
+            manifest.LaunchRelationship = null;
+        }
+        else
+        {
+            manifest.LaunchRelationship = relationship;
+        }
+    }
+
+    private static bool UpdateEntryPoint(ContentManifest manifest, string path)
+    {
+        var variant = ManifestVariantResolver.ResolveVariant(manifest);
+        var current = variant is null ? manifest.EntryPoint : variant.EntryPoint;
+        if (current is null || string.Equals(current, path, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (variant is not null)
+        {
+            variant.EntryPoint = path;
+        }
+        else
+        {
+            manifest.EntryPoint = path;
+        }
+
+        return true;
     }
 }

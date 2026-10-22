@@ -6,6 +6,21 @@ namespace GenHub.Core.Constants;
 public static class TimeIntervals
 {
     /// <summary>
+    /// Delay before the Game Profiles header automatically collapses.
+    /// </summary>
+    public const int HeaderCollapseDelayMs = 500;
+
+    /// <summary>
+    /// Delay before the Game Profiles header automatically expands (grace period).
+    /// </summary>
+    public const int HeaderExpansionDelayMs = 500;
+
+    /// <summary>
+    /// Delay in milliseconds between retry attempts when forwarding arguments to the primary instance.
+    /// </summary>
+    public const int SingleInstanceForwardRetryDelayMs = 250;
+
+    /// <summary>
     /// Default timeout for updater operations.
     /// </summary>
     public static readonly TimeSpan UpdaterTimeout = TimeSpan.FromMinutes(10);
@@ -19,4 +34,9 @@ public static class TimeIntervals
     /// Delay for hiding UI notifications.
     /// </summary>
     public static readonly TimeSpan NotificationHideDelay = TimeSpan.FromMilliseconds(3000);
+
+    /// <summary>
+    /// Delay for hiding error UI notifications.
+    /// </summary>
+    public static readonly TimeSpan ErrorNotificationHideDelay = TimeSpan.FromMilliseconds(6000);
 }

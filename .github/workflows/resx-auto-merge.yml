@@ -1,0 +1,96 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+#
+# Resx Auto Merge
+#
+# Automatically merges development into open pull requests that conflict ONLY on
+# Localization/*.resx files.
+#
+# How it works:
+# 1. Triggers when pushes to development touch Strings*.resx, the merge driver,
+#    or this workflow itself (plus manual workflow_dispatch).
+# 2. Uses scripts/auto_merge_development.py to:
+#    - Discover open PRs targeting development.
+#    - Use git merge-tree to detect if conflicts are confined to *.resx.
+#    - For qualifying PRs, merge development using scripts/git_merge_resx.py.
+#    - Verify the merged resx files pass scripts/validate_resx.py.
+#    - Push the merge commit directly to the PR branch.
+#
+# Security:
+# - Fork PRs are skipped (only same-repo branches can be updated).
+# - Pull requests labeled 'no-automerge' or marked as draft are skipped.
+# - The merge driver and validator are copied to a temporary location outside the
+#   worktree before checkout so a PR cannot execute arbitrary code.
+# - Validation must pass before any push.
+
+name: Resx Auto Merge
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resx-auto-merge
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    name: Detect File Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      resx: ${{ steps.filter.outputs.resx }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Detect Changed Paths
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: filter
+        with:
+          filters: |
+            resx:
+              - '.gitattributes'
+              - '**/*.resx'
+              - 'scripts/git_merge_resx.py'
+              - 'scripts/validate_resx.py'
+              - 'scripts/auto_merge_development.py'
+              - '.github/workflows/resx-auto-merge.yml'
+
+  auto-merge:
+    name: Merge conflicted pull requests
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.resx == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # Fetch full history of the target branch so git merge-tree can
+          # find merge bases back to root.
+          fetch-depth: 0
+          # We push merge commits back through the repo token or a PAT.
+          # Note: Pushes that change workflow files (.github/workflows/*) require an
+          # AUTO_MERGE_PAT with 'contents: write' and 'workflows: write'; the default
+          # GITHUB_TOKEN cannot perform those pushes. An AUTO_MERGE_PAT also ensures
+          # downstream CI runs trigger on the merged branch.
+          token: ${{ secrets.AUTO_MERGE_PAT || github.token }}
+
+      - name: Run Auto Merge
+        env:
+          GH_TOKEN: ${{ secrets.AUTO_MERGE_PAT || github.token }}
+          AUTO_MERGE_USING_PAT: ${{ secrets.AUTO_MERGE_PAT != '' }}
+        run: |
+          python3 scripts/auto_merge_development.py --base development

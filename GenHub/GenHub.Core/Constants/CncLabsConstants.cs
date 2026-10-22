@@ -1,10 +1,15 @@
-﻿namespace GenHub.Core.Constants;
+namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants specific to CNC Labs and its content pipeline components.
 /// </summary>
 public static class CNCLabsConstants
 {
+    /// <summary>
+    /// Host name for CNC Labs.
+    /// </summary>
+    public const string Host = "cnclabs.com";
+
     /// <summary>
     /// CSS selector for search result containers on CNC Labs.
     /// </summary>
@@ -23,7 +28,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Path marker for details pages on CNC Labs.
     /// </summary>
-    public const string DetailsPathMarker = "details.aspx";
+    public const string DetailsPathMarker = "details";
 
     /// <summary>
     /// Path marker for Generals maps on CNC Labs.
@@ -68,7 +73,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Resolver ID for CNC Labs maps.
     /// </summary>
-    public const string ResolverId = "CNCLabsMap";
+    public const string ResolverId = ContentSourceNames.CNCLabsResolverId;
 
     /// <summary>
     /// Metadata key for map ID.
@@ -117,27 +122,52 @@ public static class CNCLabsConstants
     public const string QueryStringIdParameter = "id";
 
     /// <summary>
-    /// CSS selector for a single downloadable item container on list pages.
+    /// CSS selector for a single downloadable item container on list pages (2026 Bootstrap redesign).
     /// </summary>
-    public const string ListItemSelector = "div.DownloadItem";
+    public const string ListItemSelector = "div.list-group-item";
 
     /// <summary>
-    /// CSS selector for the hidden input that carries the map's numeric File Id.
+    /// CSS selector for the anchor with the display name of the map (2026 Bootstrap redesign).
     /// </summary>
-    public const string FileIdHiddenSelector = "input[type='hidden'][id$='FileIdField']";
+    public const string DisplayNameAnchorSelector = "h5 a[href*='/downloads/details/']";
 
     /// <summary>
-    /// CSS selector for the anchor with the display name of the map.
+    /// CSS selector for the element that contains the short description (2026 Bootstrap redesign).
     /// </summary>
-    public const string DisplayNameAnchorSelector = "a.DisplayName";
+    public const string DescriptionSelector = "div.mb-1.text-muted.small";
 
     /// <summary>
-    /// CSS selector for the element that contains the short description.
+    /// CSS selector for author person icon (2026 Bootstrap redesign).
     /// </summary>
-    public const string DescriptionSelector = "span[id$='DescriptionLabel']";
+    public const string PersonIconSelector = "i.bi-person";
 
     /// <summary>
-    /// CSS selector for bold labels inside the item description cell (used to locate the "Author:" label).
+    /// CSS selector for download icon (2026 Bootstrap redesign).
+    /// </summary>
+    public const string DownloadIconSelector = "i.bi-download";
+
+    /// <summary>
+    /// CSS selector for file size container (2026 Bootstrap redesign).
+    /// </summary>
+    public const string FileSizeSelector = "div.ms-3 div.small";
+
+    /// <summary>
+    /// CSS selector for thumbnail image (2026 Bootstrap redesign).
+    /// </summary>
+    public const string ThumbnailSelector = "img.download-list-thumbnail";
+
+    /// <summary>
+    /// CSS selector for badge elements (2026 Bootstrap redesign).
+    /// </summary>
+    public const string BadgeSelector = "span.badge";
+
+    /// <summary>
+    /// CSS selector for pagination page links (2026 Bootstrap redesign).
+    /// </summary>
+    public const string PaginationLinkSelector = "ul.pagination a.page-link";
+
+    /// <summary>
+    /// CSS selector for bold labels inside the item description cell (used to locate the \"Author:\" label).
     /// </summary>
     public const string DescriptionCellStrongSelector = ".DescriptionCell strong";
 
@@ -149,7 +179,7 @@ public static class CNCLabsConstants
     /// <summary>
     /// Default author name used when an author cannot be parsed from the page.
     /// </summary>
-    public const string DefaultAuthorName = "Unknown";
+    public const string DefaultAuthorName = GameClientConstants.UnknownVersion;
 
     /// <summary>
     /// Error message used when <c>ContentSearchQuery.SearchTerm</c> is null, empty, or whitespace.
@@ -214,22 +244,27 @@ public static class CNCLabsConstants
     public const string BreadcrumbHeaderSelector = "h1";
 
     /// <summary>
+    /// CSS selector for modern breadcrumb navigation items on CNC Labs pages.
+    /// </summary>
+    public const string BreadcrumbItemsSelector = ".breadcrumb-item, .breadcrumb li, nav[aria-label='breadcrumb'] li";
+
+    /// <summary>
     /// The character used by the site to separate parts of the breadcrumb trail in the
     /// <see cref="BreadcrumbHeaderSelector"/> (we take the last segment as the map name).
     /// </summary>
     public const char BreadcrumbSeparator = '»';
 
     /// <summary>
-    /// CSS selector for the description span whose id ends with <c>_DescriptionLabel</c>.
+    /// CSS selector for the description span whose id ends with <c>_DescriptionLabel</c> or container.
     /// This is the raw HTML we pass to <c>CNCLabsHelper.FormatDescription</c> to normalize.
     /// </summary>
-    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel']";
+    public const string DetailsPageDescriptionSelector = ".DownloadItem span[id$='DescriptionLabel'], #description";
 
     /// <summary>
-    /// CSS selector that finds all <c>&lt;strong&gt;</c> nodes within the description cell.
+    /// CSS selector that finds all <c>&lt;strong&gt;</c> nodes within the description cell or page.
     /// We search these for a node whose text is equal to <see cref="AuthorLabelText"/>.
     /// </summary>
-    public const string AuthorLabelContainerSelector = ".DownloadItem .DescriptionCell strong";
+    public const string AuthorLabelContainerSelector = ".DownloadItem .DescriptionCell strong, strong";
 
     /// <summary>
     /// Error message thrown when the caller provides a null/empty details page URL.
@@ -255,6 +290,11 @@ public static class CNCLabsConstants
     public const string PublisherType = "cnclabs";
 
     /// <summary>
+    /// Publisher ID for the CNC Labs service.
+    /// </summary>
+    public const string PublisherId = PublisherPrefix;
+
+    /// <summary>
     /// Official CNC Labs website URL.
     /// </summary>
     public const string PublisherWebsite = "https://www.cnclabs.com";
@@ -269,10 +309,18 @@ public static class CNCLabsConstants
     /// </summary>
     public const string LogoSource = "/Assets/Logos/cnclabs-logo.png";
 
-    /// <summary>
-    /// Short description for publisher card display.
-    /// </summary>
+    /// <summary>Short description for publisher card display.</summary>
     public const string ShortDescription = "Maps, mods, and community content from CNC Labs";
+
+    /// <summary>
+    /// Default filename for downloads when parsing fails.
+    /// </summary>
+    public const string DefaultDownloadFilename = "download.zip";
+
+    /// <summary>
+    /// Default name for CNC Labs content when title is missing.
+    /// </summary>
+    public const string DefaultContentName = "untitled";
 
     /// <summary>
     /// Manifest version for CNC Labs content. Always 0 per specification.
@@ -309,8 +357,106 @@ public static class CNCLabsConstants
     /// </summary>
     public const string VideosPagePath = "videos.aspx";
 
-    /// <summary>
-    /// Relative path for the Zero Hour replays list page.
-    /// </summary>
+    /// <summary>Relative path for the Zero Hour replays list page.</summary>
     public const string ZeroHourReplaysPagePath = "zerohour-replays.aspx";
+
+    /// <summary>Version string used when version information is missing.</summary>
+    public const string UnknownVersion = "unknown";
+
+    /// <summary>Display name for the 'Any' player option.</summary>
+    public const string PlayerOptionAny = "Any";
+
+    /// <summary>Display name for the '1 Player' option.</summary>
+    public const string PlayerOption1Player = "1 Player";
+
+    /// <summary>Display name for the '2 Players' option.</summary>
+    public const string PlayerOption2Players = "2 Players";
+
+    /// <summary>Display name for the '3 Players' option.</summary>
+    public const string PlayerOption3Players = "3 Players";
+
+    /// <summary>Display name for the '4 Players' option.</summary>
+    public const string PlayerOption4Players = "4 Players";
+
+    /// <summary>Display name for the '5 Players' option.</summary>
+    public const string PlayerOption5Players = "5 Players";
+
+    /// <summary>Display name for the '6 Players' option.</summary>
+    public const string PlayerOption6Players = "6 Players";
+
+    /// <summary>Display name for Maps content type.</summary>
+    public const string ContentTypeMaps = "Maps";
+
+    /// <summary>Display name for Missions content type.</summary>
+    public const string ContentTypeMissions = "Missions";
+
+    /// <summary>Display name for Patches content type.</summary>
+    public const string ContentTypePatches = "Patches";
+
+    /// <summary>Display name for Tools content type.</summary>
+    public const string ContentTypeTools = "Tools";
+
+    /// <summary>Map tag: Cramped.</summary>
+    public const string TagCramped = "Cramped";
+
+    /// <summary>Map tag: Spacious.</summary>
+    public const string TagSpacious = "Spacious";
+
+    /// <summary>Map tag: Well-balanced.</summary>
+    public const string TagWellBalanced = "Well-balanced";
+
+    /// <summary>Map tag: Money Map.</summary>
+    public const string TagMoneyMap = "Money Map";
+
+    /// <summary>Map tag: Detailed.</summary>
+    public const string TagDetailed = "Detailed";
+
+    /// <summary>Map tag: Custom Scripted.</summary>
+    public const string TagCustomScripted = "Custom Scripted";
+
+    /// <summary>Map tag: Symmetric.</summary>
+    public const string TagSymmetric = "Symmetric";
+
+    /// <summary>Map tag: Art of Defense.</summary>
+    public const string TagArtOfDefense = "Art of Defense";
+
+    /// <summary>Map tag: Multiplayer-only.</summary>
+    public const string TagMultiplayerOnly = "Multiplayer-only";
+
+    /// <summary>Map tag: Asymmetric.</summary>
+    public const string TagAsymmetric = "Asymmetric";
+
+    /// <summary>Map tag: Noob-Friendly.</summary>
+    public const string TagNoobFriendly = "Noob-Friendly";
+
+    /// <summary>Map tag: Veteran Suitable.</summary>
+    public const string TagVeteranSuitable = "Veteran Suitable";
+
+    /// <summary>Map tag: Fun Map.</summary>
+    public const string TagFunMap = "Fun Map";
+
+    /// <summary>Map tag: Art of Attack.</summary>
+    public const string TagArtOfAttack = "Art of Attack";
+
+    /// <summary>Map tag: ShellMap.</summary>
+    public const string TagShellMap = "ShellMap";
+
+    /// <summary>Map tag: Ported-Mission To ZH.</summary>
+    public const string TagPortedMissionToZH = "Ported-Mission To ZH";
+
+    /// <summary>Map tag: Custom Coded.</summary>
+    public const string TagCustomCoded = "Custom Coded";
+
+    /// <summary>Map tag: Coop Mission.</summary>
+    public const string TagCoopMission = "Coop Mission";
+
+    /// <summary>
+    /// Format for parsing release dates for CNC Labs (M/d/yyyy).
+    /// </summary>
+    public const string ReleaseDateFormat = "M/d/yyyy";
+
+    /// <summary>
+    /// Default tags for CNC Labs manifests.
+    /// </summary>
+    public static readonly string[] DefaultTags = ["cnclabs"];
 }

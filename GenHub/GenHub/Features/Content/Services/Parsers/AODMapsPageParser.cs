@@ -1,0 +1,299 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Parsers;
+using GenHub.Core.Models.Parsers;
+using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using IDocument = AngleSharp.Dom.IDocument;
+
+namespace GenHub.Features.Content.Services.Parsers;
+
+/// <summary>
+/// Parser for AODMaps pages that extracts map items from gallery pages.
+/// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
+public partial class AODMapsPageParser(
+    IHttpClientFactory httpClientFactory,
+    ILogger<AODMapsPageParser> logger) : IWebPageParser
+{
+    /// <summary>
+    /// Regex to extract download count from script content.
+    /// </summary>
+    [GeneratedRegex(@"(\d+(?:,\d{3})*)\s*times\s*downloaded", RegexOptions.IgnoreCase)]
+    private static partial Regex DownloadCountRegex();
+
+    /// <summary>
+    /// Extracts global context from the page header.
+    /// </summary>
+    private static GlobalContext ExtractGlobalContext(IDocument document)
+    {
+        var headerEl = document.QuerySelector("header#header h1");
+        var title = headerEl?.TextContent?.Trim() ?? "AODMaps";
+
+        // Try to find author from map maker page context
+        string? author = null;
+        if (title.Contains("'s AOD Maps", StringComparison.OrdinalIgnoreCase))
+        {
+            author = title.Replace("'s AOD Maps", string.Empty).Trim();
+        }
+
+        return new GlobalContext(
+            Title: title,
+            Developer: author ?? "AODMaps Community",
+            ReleaseDate: null);
+    }
+
+    private static int? ExtractDownloadCount(IElement item)
+    {
+        var spans = item.QuerySelectorAll("span");
+        foreach (var span in spans)
+        {
+            var text = span.TextContent?.Trim();
+            if (!string.IsNullOrEmpty(text))
+            {
+                var match = DownloadCountRegex().Match(text);
+                if (match.Success)
+                {
+                    var countStr = match.Groups[1].Value.Replace(",", string.Empty);
+                    if (int.TryParse(countStr, out var count))
+                    {
+                        return count;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private string MakeAbsoluteUrl(string? url, string? pageUrl = null)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return string.Empty;
+        }
+
+        // Fix for PashaCNC links - they are dead, replace with current domain
+        if (url.Contains("pashacnc.com", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("Detected dead pashacnc.com link, replacing with aodmaps.com: {Url}", url);
+            url = url.Replace("pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+            url = url.Replace("www.pashacnc.com", "aodmaps.com", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        if (!string.IsNullOrEmpty(pageUrl)
+            && Uri.TryCreate(pageUrl, UriKind.Absolute, out var baseUri)
+            && Uri.TryCreate(baseUri, url, out var combinedUri))
+        {
+            return combinedUri.ToString();
+        }
+
+        return $"{AODMapsConstants.BaseUrl.TrimEnd('/')}/{url.TrimStart('/')}";
+    }
+
+    /// <summary>
+    /// Extracts content sections (maps) from the document.
+    /// </summary>
+    private List<ContentSection> ExtractSections(IDocument document, string pageUrl)
+    {
+        var sections = new List<ContentSection>();
+        ExtractGallerySections(document, pageUrl, sections);
+        ExtractMapMakerSections(document, pageUrl, sections);
+        return sections;
+    }
+
+    private void ExtractGallerySections(IDocument document, string pageUrl, List<ContentSection> sections)
+    {
+        var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
+        foreach (var item in galleryItems)
+        {
+            var file = ExtractFileFromGalleryItem(item, pageUrl);
+            if (file != null)
+            {
+                sections.Add(file);
+            }
+        }
+    }
+
+    private void ExtractMapMakerSections(IDocument document, string pageUrl, List<ContentSection> sections)
+    {
+        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
+        foreach (var item in mmItems)
+        {
+            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
+            if (contentDiv == null)
+            {
+                continue;
+            }
+
+            var file = ExtractFileFromMapMakerItem(contentDiv, pageUrl);
+            if (file != null)
+            {
+                sections.Add(file);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts a file from a gallery item element.
+    /// </summary>
+    private DownloadableFile? ExtractFileFromGalleryItem(IElement item, string pageUrl)
+    {
+        var linkEl = item.QuerySelector(AODMapsConstants.GalleryDownloadLinkSelector);
+        if (linkEl == null)
+        {
+            return null;
+        }
+
+        var downloadUrl = linkEl.GetAttribute(AODMapsConstants.HrefAttribute);
+        if (string.IsNullOrEmpty(downloadUrl))
+        {
+            return null;
+        }
+
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, pageUrl);
+
+        var nameEl = item.QuerySelector(AODMapsConstants.GalleryMapNameSelector);
+        var name = nameEl?.TextContent?.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        var thumbEl = item.QuerySelector(AODMapsConstants.GalleryThumbnailSelector);
+        var thumbSrc = thumbEl?.GetAttribute("src");
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc, pageUrl) : null;
+
+        var downloadCount = ExtractDownloadCount(item);
+        var author = AODMapsHelper.ExtractAuthor(name, pageUrl) ?? AODMapsConstants.DefaultAuthorName;
+
+        return new DownloadableFile(
+            Name: name,
+            Version: "0",
+            SizeBytes: null,
+            SizeDisplay: null,
+            UploadDate: null,
+            Category: "Map",
+            Uploader: author,
+            DownloadUrl: downloadUrl,
+            Md5Hash: null,
+            CommentCount: downloadCount,
+            ThumbnailUrl: thumbUrl);
+    }
+
+    /// <summary>
+    /// Extracts a file from a map maker item element.
+    /// </summary>
+    private DownloadableFile? ExtractFileFromMapMakerItem(IElement item, string pageUrl)
+    {
+        // Download URL
+        var downloadEl = item.QuerySelector(AODMapsConstants.MapMakerDownloadSelector) ?? item.QuerySelector("a[href*='ccount/click.php']");
+        var downloadUrl = downloadEl?.GetAttribute(AODMapsConstants.HrefAttribute);
+        if (string.IsNullOrEmpty(downloadUrl))
+        {
+            return null;
+        }
+
+        downloadUrl = MakeAbsoluteUrl(downloadUrl, pageUrl);
+
+        // Name
+        var titleEl = item.QuerySelector(AODMapsConstants.MapMakerTitleSelector);
+        var name = titleEl?.TextContent?.Trim().TrimStart('-').Trim() ?? "Unknown Map";
+
+        // Description & Author
+        var author = AODMapsHelper.ExtractAuthor(name, pageUrl) ?? AODMapsConstants.DefaultAuthorName;
+        var description = AODMapsHelper.ExtractMapMakerDescription(item, null, null, author);
+
+        var imgEl = item.QuerySelector(AODMapsConstants.MapMakerImageSelector);
+        var thumbSrc = imgEl?.GetAttribute("src");
+        var thumbUrl = !string.IsNullOrEmpty(thumbSrc) ? MakeAbsoluteUrl(thumbSrc, pageUrl) : null;
+
+        return new DownloadableFile(
+             Name: name,
+             Version: "0",
+             SizeBytes: null,
+             SizeDisplay: null,
+             UploadDate: null,
+             Category: "Map",
+             Uploader: author,
+             DownloadUrl: downloadUrl,
+             Md5Hash: null,
+             CommentCount: null,
+             ThumbnailUrl: thumbUrl,
+             Description: description);
+    }
+
+    /// <inheritdoc />
+    public string ParserId => "AODMaps";
+
+    /// <inheritdoc />
+    public bool CanParse(string url) =>
+        url.Contains("aodmaps.com", StringComparison.OrdinalIgnoreCase) &&
+        !url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) &&
+        !url.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) &&
+        !url.Contains("ccount/click.php", StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc />
+    public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Parsing AODMaps page: {Url}", url);
+
+        using var client = httpClientFactory.CreateClient(AODMapsConstants.PublisherType);
+        if (client.DefaultRequestHeaders.UserAgent.Count == 0)
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+        }
+
+        var html = await client.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+        var browsingContext = BrowsingContext.New(Configuration.Default);
+        using var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+        return ParseInternal(url, document);
+    }
+
+    /// <inheritdoc />
+    public async Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
+    {
+        var browsingContext = BrowsingContext.New(Configuration.Default);
+        var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken).ConfigureAwait(false);
+        return ParseInternal(url, document);
+    }
+
+    /// <summary>
+    /// Internal parsing logic that works with a parsed AngleSharp document.
+    /// </summary>
+    private ParsedWebPage ParseInternal(string url, IDocument document)
+    {
+        var context = ExtractGlobalContext(document);
+        var pageType = PageType.List; // AODMaps pages are lists/galleries
+
+        logger.LogDebug("Detected page type: {PageType}", pageType);
+
+        var sections = ExtractSections(document, url);
+
+        logger.LogInformation(
+            "Parsed AODMaps page: {Url}, Sections={SectionCount}",
+            url,
+            sections.Count);
+
+        return new ParsedWebPage(
+            Url: new Uri(url),
+            Context: context,
+            Sections: sections,
+            PageType: pageType);
+    }
+}

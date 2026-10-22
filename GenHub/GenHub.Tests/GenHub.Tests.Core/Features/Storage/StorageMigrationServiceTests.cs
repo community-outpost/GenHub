@@ -1,0 +1,1208 @@
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Workspace;
+using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Tests.Core.Collections;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.Storage;
+
+/// <summary>
+/// Unit tests for <see cref="StorageMigrationService"/>.
+/// </summary>
+[Collection(StorageMigrationStaticStateCollection.Name)]
+public class StorageMigrationServiceTests : IDisposable
+{
+    private readonly string _tempRoot;
+    private readonly string _appDataDir;
+    private readonly string _casDir;
+    private readonly string _workspaceDir;
+    private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
+    private readonly Mock<IUserSettingsService> _mockUserSettingsService;
+    private readonly Mock<ICasPoolManager> _mockCasPoolManager;
+    private readonly Mock<IStorageWritabilityProbe> _mockWritabilityProbe;
+    private readonly Mock<ILaunchRegistry> _mockLaunchRegistry;
+    private readonly Mock<IGameProcessManager> _mockGameProcessManager;
+    private readonly UserSettings _userSettings;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StorageMigrationServiceTests"/> class.
+    /// </summary>
+    public StorageMigrationServiceTests()
+    {
+        _tempRoot = Path.Combine(Path.GetTempPath(), "GenHubMigrationTests_" + Guid.NewGuid().ToString("N"));
+        _appDataDir = Path.Combine(_tempRoot, "AppData");
+        _casDir = Path.Combine(_appDataDir, "cas-pool");
+        _workspaceDir = Path.Combine(_appDataDir, "workspaces");
+
+        Directory.CreateDirectory(_appDataDir);
+        Directory.CreateDirectory(_casDir);
+        Directory.CreateDirectory(_workspaceDir);
+
+        // Seed some sample data
+        File.WriteAllText(Path.Combine(_casDir, "sample_cas.bin"), "dummy cas content");
+        File.WriteAllText(Path.Combine(_workspaceDir, "sample_ws.bin"), "dummy ws content");
+
+        _mockConfigProvider = new Mock<IConfigurationProviderService>();
+        _mockConfigProvider.Setup(x => x.GetRootAppDataPath()).Returns(_appDataDir);
+        _mockConfigProvider.Setup(x => x.GetApplicationDataPath()).Returns(_appDataDir);
+        _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = _casDir });
+
+        _userSettings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration { CasRootPath = _casDir },
+            WorkspacePath = _workspaceDir,
+        };
+        _mockUserSettingsService = new Mock<IUserSettingsService>();
+        _mockUserSettingsService.Setup(x => x.Get()).Returns(() => _userSettings);
+        _mockUserSettingsService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(_userSettings));
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(func => func(_userSettings))
+            .ReturnsAsync(true);
+
+        _mockCasPoolManager = new Mock<ICasPoolManager>();
+
+        _mockWritabilityProbe = new Mock<IStorageWritabilityProbe>();
+        _mockWritabilityProbe.Setup(x => x.CanCreateStorageAt(It.IsAny<string>())).Returns(true);
+
+        _mockLaunchRegistry = new Mock<ILaunchRegistry>();
+        _mockLaunchRegistry
+            .Setup(x => x.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([]);
+
+        _mockGameProcessManager = new Mock<IGameProcessManager>();
+        _mockGameProcessManager
+            .Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess([]));
+    }
+
+    /// <summary>
+    /// Cleans up temporary test files and directories.
+    /// </summary>
+    public void Dispose()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(null);
+        StorageMigrationService.SetDefaultDataRootOverrideForTesting(null);
+        StorageMigrationService.SetConfiguredDataPathResolver(null);
+        StorageMigrationService.WasEarlyAdopted = false;
+        try
+        {
+            if (Directory.Exists(_tempRoot))
+            {
+                Directory.Delete(_tempRoot, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+            // Best effort cleanup
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync returns invalid when target path is null or whitespace.
+    /// </summary>
+    /// <param name="invalidPath">The invalid path to test.</param>
+    /// <returns>A task representing the test execution.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ValidatePreflightAsync_ReturnsInvalid_WhenTargetPathIsNullOrWhitespaceAsync(string? invalidPath)
+    {
+        var service = CreateService();
+
+        var result = await service.ValidatePreflightAsync(invalidPath!, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.NotNull(result.Data.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory is inside application directory.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenTargetPathIsInsideApplicationDirectoryAsync()
+    {
+        var service = CreateService();
+        var currentAppDir = AppContext.BaseDirectory;
+        var subDirInsideApp = Path.Combine(currentAppDir, "subfolder");
+
+        var result = await service.ValidatePreflightAsync(subDirInsideApp, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.True(result.Data.IsTargetInsideApplicationDirectory);
+        Assert.NotNull(result.Data.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory is not writable.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotWritableAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+
+        _mockWritabilityProbe.Setup(x => x.CanCreateStorageAt(targetPath)).Returns(false);
+
+        var result = await service.ValidatePreflightAsync(targetPath, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.False(result.Data.HasWritePermission);
+        Assert.Contains("writable", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when active launches exist.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenActiveLaunchesExistAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+
+        _mockLaunchRegistry
+            .Setup(x => x.GetAllActiveLaunchesAsync())
+            .ReturnsAsync([
+                new GameLaunchInfo
+                {
+                    LaunchId = "launch-1",
+                    ProfileId = "profile-1",
+                    WorkspaceId = "ws-1",
+                    ProcessInfo = new GameProcessInfo { ProcessId = 1234, ExecutablePath = "game.dat" },
+                },
+            ]);
+
+        var result = await service.ValidatePreflightAsync(targetPath, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.True(result.Data.HasActiveProcesses);
+        Assert.Contains("active game", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when game processes are active.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenGameProcessesAreActiveAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+
+        _mockGameProcessManager
+            .Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess([
+                new GameProcessInfo { ProcessId = 5678, ExecutablePath = "game.dat" },
+            ]));
+
+        var result = await service.ValidatePreflightAsync(targetPath, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.True(result.Data.HasActiveProcesses);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync succeeds when target is valid.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Succeeds_WhenTargetIsValidAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+
+        var result = await service.ValidatePreflightAsync(targetPath, relocateCasAndWorkspace: true);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.True(result.Data.IsValid);
+        Assert.True(result.Data.HasWritePermission);
+        Assert.False(result.Data.HasActiveProcesses);
+        Assert.False(result.Data.IsTargetInsideApplicationDirectory);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync throws ArgumentNullException when request is null.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_ThrowsArgumentNullException_WhenRequestIsNullAsync()
+    {
+        var service = CreateService();
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            service.MigrateAsync(null!));
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync fails when preflight validation fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_Fails_WhenPreflightValidationFailsAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+
+        _mockWritabilityProbe.Setup(x => x.CanCreateStorageAt(targetPath)).Returns(false);
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = false,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+        Assert.NotNull(result.FirstError);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync relocates CAS and workspaces when requested.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RelocatesCasAndWorkspaces_WhenRequestedAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
+        Directory.CreateDirectory(targetPath);
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.True(result.Success);
+
+        var expectedNewCas = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.CasPool);
+        var expectedNewWs = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.Workspaces);
+
+        Assert.True(Directory.Exists(expectedNewCas));
+        Assert.True(File.Exists(Path.Combine(expectedNewCas, "sample_cas.bin")));
+
+        Assert.True(Directory.Exists(expectedNewWs));
+        Assert.True(File.Exists(Path.Combine(expectedNewWs, "sample_ws.bin")));
+
+        _mockUserSettingsService.Verify(
+            x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()),
+            Times.Once);
+        _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync rolls back CAS and workspaces and restores in-memory settings when persisting settings fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RollsBackCasAndRestoresSettings_WhenSettingsSaveFailsAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirFail");
+        Directory.CreateDirectory(targetPath);
+
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Callback<Func<UserSettings, bool>>(func => func(_userSettings))
+            .ReturnsAsync(false);
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        // Verify data exists back at original locations
+        Assert.True(Directory.Exists(_casDir));
+        Assert.True(File.Exists(Path.Combine(_casDir, "sample_cas.bin")));
+        Assert.True(Directory.Exists(_workspaceDir));
+        Assert.True(File.Exists(Path.Combine(_workspaceDir, "sample_ws.bin")));
+
+        // Verify in-memory settings are restored to original paths
+        var liveSettings = _mockUserSettingsService.Object.Get();
+        Assert.Equal(_casDir, liveSettings.CasConfiguration.CasRootPath);
+        Assert.Equal(_workspaceDir, liveSettings.WorkspacePath);
+
+        // Verify TryUpdateAndSaveAsync was invoked both for migration and for rollback persistence
+        _mockUserSettingsService.Verify(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()), Times.AtLeast(2));
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync preserves relative path when storage is configured inside the source root.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_PreservesRelativePath_WhenStorageInsideSourceRootAsync()
+    {
+        var sourceRoot = StorageMigrationService.GetSourceRootDirectory();
+        var nestedCas = Path.Combine(sourceRoot, "TestNestedCas_" + Guid.NewGuid().ToString("N"));
+        var nestedWs = Path.Combine(sourceRoot, "TestNestedWs_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(nestedCas);
+        Directory.CreateDirectory(nestedWs);
+
+        try
+        {
+            _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = nestedCas });
+            _userSettings.CasConfiguration.CasRootPath = nestedCas;
+            _userSettings.WorkspacePath = nestedWs;
+
+            var service = CreateService();
+            var targetPath = Path.Combine(_tempRoot, "NewInstallDirNested");
+            Directory.CreateDirectory(targetPath);
+
+            var request = new StorageMigrationRequest
+            {
+                TargetPath = targetPath,
+                RelocateCasAndWorkspace = true,
+                ExitApplicationOnSuccess = false,
+                LaunchHelperProcess = false,
+            };
+
+            var result = await service.MigrateAsync(request);
+
+            Assert.True(result.Success);
+
+            var expectedRelativeCas = Path.GetRelativePath(sourceRoot, nestedCas);
+            var expectedRelativeWs = Path.GetRelativePath(sourceRoot, nestedWs);
+
+            var expectedNewCas = Path.Combine(targetPath, expectedRelativeCas);
+            var expectedNewWs = Path.Combine(targetPath, expectedRelativeWs);
+
+            Assert.Equal(expectedNewCas, _userSettings.CasConfiguration.CasRootPath);
+            Assert.Equal(expectedNewWs, _userSettings.WorkspacePath);
+        }
+        finally
+        {
+            if (Directory.Exists(nestedCas))
+            {
+                Directory.Delete(nestedCas, recursive: true);
+            }
+
+            if (Directory.Exists(nestedWs))
+            {
+                Directory.Delete(nestedWs, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync rolls back CAS when moving the workspace directory fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RollsBackCas_WhenWorkspaceMoveFailsAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirWsFail");
+        Directory.CreateDirectory(targetPath);
+
+        // Create a blocking file where target workspace directory should go to trigger IOException
+        var targetDataDir = Path.Combine(targetPath, DirectoryNames.Data);
+        Directory.CreateDirectory(targetDataDir);
+        var blockingFile = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
+        await File.WriteAllTextAsync(blockingFile, "blocker");
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        // Verify CAS was rolled back to original location
+        Assert.True(Directory.Exists(_casDir));
+        Assert.True(File.Exists(Path.Combine(_casDir, "sample_cas.bin")));
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync adopts the new CAS path, updates settings, and reinitializes the CAS pool when CAS rollback fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_ReinitializesCasPool_WhenCasRollbackFailsAndTargetAdoptedAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirCasRollbackFail");
+        Directory.CreateDirectory(targetPath);
+
+        var callCount = 0;
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(func =>
+            {
+                func(_userSettings);
+                callCount++;
+                if (callCount == 1)
+                {
+                    // Block CAS rollback by placing a file at the original CAS location after it was moved
+                    File.WriteAllText(_casDir, "blocker");
+                    return Task.FromResult(false);
+                }
+
+                return Task.FromResult(true);
+            });
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.False(result.Success);
+
+        var expectedNewCas = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.CasPool);
+        var liveSettings = _mockUserSettingsService.Object.Get();
+
+        // CAS was adopted at target path because rollback failed
+        Assert.Equal(expectedNewCas, liveSettings.CasConfiguration.CasRootPath);
+
+        // Workspace was rolled back to original location
+        Assert.Equal(_workspaceDir, liveSettings.WorkspacePath);
+
+        // Verify ICasPoolManager was reinitialized since target CAS was adopted
+        _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory exists and is not empty.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotEmptyAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NonEmptyTargetDir");
+        Directory.CreateDirectory(targetPath);
+        File.WriteAllText(Path.Combine(targetPath, "existing_file.txt"), "hello");
+
+        var result = await service.ValidatePreflightAsync(targetPath, false);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.Contains("not empty", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Tests that MigrateAsync rewrites workspace metadata paths when workspaces are relocated.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
+    [Fact]
+    public async Task MigrateAsync_RewritesWorkspaceMetadata_WhenWorkspacesRelocatedAsync()
+    {
+        var service = CreateService();
+        var targetPath = Path.Combine(_tempRoot, "NewInstallDirMetadata");
+        Directory.CreateDirectory(targetPath);
+
+        var wsItemDir = Path.Combine(_workspaceDir, "ws1");
+        Directory.CreateDirectory(wsItemDir);
+        var originalExe = Path.Combine(wsItemDir, "game.exe");
+        File.WriteAllText(originalExe, "binary");
+
+        var siblingDir = _workspaceDir + "Backup";
+        var siblingExe = Path.Combine(siblingDir, "game.exe");
+
+        var metadataPath = Path.Combine(_appDataDir, FileTypes.WorkspaceMetadataFileName);
+        var workspaces = new List<WorkspaceInfo>
+        {
+            new()
+            {
+                Id = "ws1",
+                WorkspacePath = wsItemDir,
+                ExecutablePath = originalExe,
+                WorkingDirectory = wsItemDir,
+            },
+            new()
+            {
+                Id = "ws-sibling",
+                WorkspacePath = siblingDir,
+                ExecutablePath = siblingExe,
+                WorkingDirectory = siblingDir,
+            },
+        };
+        await File.WriteAllTextAsync(metadataPath, JsonSerializer.Serialize(workspaces));
+
+        var request = new StorageMigrationRequest
+        {
+            TargetPath = targetPath,
+            RelocateCasAndWorkspace = true,
+            ExitApplicationOnSuccess = false,
+            LaunchHelperProcess = false,
+        };
+
+        var result = await service.MigrateAsync(request);
+
+        Assert.True(result.Success);
+
+        var expectedNewWs = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.Workspaces);
+        var expectedNewItemDir = Path.Combine(expectedNewWs, "ws1");
+        var expectedNewExe = Path.Combine(expectedNewItemDir, "game.exe");
+
+        var updatedJson = await File.ReadAllTextAsync(metadataPath);
+        var updatedList = JsonSerializer.Deserialize<List<WorkspaceInfo>>(updatedJson);
+        Assert.NotNull(updatedList);
+        Assert.Equal(2, updatedList.Count);
+        Assert.Equal(expectedNewItemDir, updatedList[0].WorkspacePath);
+        Assert.Equal(expectedNewExe, updatedList[0].ExecutablePath);
+        Assert.Equal(expectedNewItemDir, updatedList[0].WorkingDirectory);
+
+        // Sibling path sharing prefix must remain unaffected
+        Assert.Equal(siblingDir, updatedList[1].WorkspacePath);
+        Assert.Equal(siblingExe, updatedList[1].ExecutablePath);
+        Assert.Equal(siblingDir, updatedList[1].WorkingDirectory);
+    }
+
+    /// <summary>
+    /// Tests that IsVelopackRoot correctly detects Velopack markers.
+    /// </summary>
+    /// <param name="markerName">The marker file or directory name.</param>
+    /// <param name="isDirectory">Whether the marker is a directory.</param>
+    [Theory]
+    [InlineData("Update.exe", false)]
+    [InlineData("Update", false)]
+    [InlineData("packages", true)]
+    [InlineData("app-1.0.0", true)]
+    public void IsVelopackRoot_DetectsVelopackMarkers(string markerName, bool isDirectory)
+    {
+        var testDir = Path.Combine(_tempRoot, $"VelopackTestDir_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(testDir);
+
+        Assert.False(StorageMigrationService.IsVelopackRoot(testDir));
+
+        var markerPath = Path.Combine(testDir, markerName);
+        if (isDirectory)
+        {
+            Directory.CreateDirectory(markerPath);
+        }
+        else
+        {
+            File.WriteAllText(markerPath, "stub");
+        }
+
+        Assert.True(StorageMigrationService.IsVelopackRoot(testDir));
+    }
+
+    /// <summary>
+    /// Tests that IsVelopackRoot returns false for non-existent or empty path.
+    /// </summary>
+    /// <param name="path">The path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(@"C:\NonExistent_Dir_98234729384729384729384")]
+    public void IsVelopackRoot_ReturnsFalseForInvalidPaths(string? path)
+    {
+        Assert.False(StorageMigrationService.IsVelopackRoot(path));
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when the current instance is already running from a custom root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenRunningInCustomRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+        try
+        {
+            var candidate = Path.Combine(_tempRoot, "AnotherCustomRoot");
+            Directory.CreateDirectory(candidate);
+            File.WriteAllText(Path.Combine(candidate, "Update.exe"), "stub");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(candidate, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when candidate is null or empty.
+    /// </summary>
+    /// <param name="candidate">Candidate path.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenCandidateEmpty(string? candidate)
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(candidate, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict detects valid custom installation when running from default.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_DetectsCustomInstallation_WhenRunningFromDefault()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+        try
+        {
+            var customInstall = Path.Combine(_tempRoot, "CustomInstallRoot");
+            Directory.CreateDirectory(customInstall);
+            File.WriteAllText(Path.Combine(customInstall, "Update.exe"), "stub");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(customInstall, out var detected);
+            Assert.True(hasConflict);
+            Assert.NotNull(detected);
+            Assert.Equal(Path.TrimEndingDirectorySeparator(Path.GetFullPath(customInstall)), detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasExistingUserData detects settings.json, profiles, and returns false for empty directory.
+    /// </summary>
+    [Fact]
+    public void HasExistingUserData_DetectsSettingsAndProfiles()
+    {
+        var emptyDir = Path.Combine(_tempRoot, "EmptyDir");
+        Directory.CreateDirectory(emptyDir);
+        Assert.False(StorageMigrationService.HasExistingUserData(emptyDir));
+
+        var settingsDir = Path.Combine(_tempRoot, "SettingsDir");
+        Directory.CreateDirectory(settingsDir);
+        File.WriteAllText(Path.Combine(settingsDir, FileTypes.SettingsFileName), "{}");
+        Assert.True(StorageMigrationService.HasExistingUserData(settingsDir));
+
+        var profilesDir = Path.Combine(_tempRoot, "ProfilesDir");
+        Directory.CreateDirectory(Path.Combine(profilesDir, DirectoryNames.Profiles));
+        File.WriteAllText(Path.Combine(profilesDir, DirectoryNames.Profiles, "profile.json"), "{}");
+        Assert.True(StorageMigrationService.HasExistingUserData(profilesDir));
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when candidate exists but is not a Velopack root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_ReturnsFalse_WhenCandidateNotVelopackRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var notVelopack = Path.Combine(_tempRoot, "DirectoryWithoutVelopack");
+            Directory.CreateDirectory(notVelopack);
+            File.WriteAllText(Path.Combine(notVelopack, "readme.txt"), "some content");
+
+            var hasConflict = StorageMigrationService.HasDuplicateInstallationConflict(notVelopack, out var detected);
+            Assert.False(hasConflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that GetDefaultInstallRoot returns a valid path ending with AppName.
+    /// </summary>
+    [Fact]
+    public void GetDefaultInstallRoot_ReturnsValidPathEndingWithAppName()
+    {
+        var root = StorageMigrationService.GetDefaultInstallRoot();
+        Assert.False(string.IsNullOrWhiteSpace(root));
+        Assert.True(Path.IsPathRooted(root));
+        if (OperatingSystem.IsMacOS())
+        {
+            Assert.True(
+                root.EndsWith($"{AppConstants.AppName}.app", StringComparison.OrdinalIgnoreCase) ||
+                root.EndsWith(AppConstants.AppName, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            Assert.EndsWith(AppConstants.AppName, root, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Tests that TryImportUserDataFromCustomInstall imports settings and profiles without overwriting existing files,
+    /// and explicitly excludes derived state like Workspaces.
+    /// </summary>
+    [Fact]
+    public void TryImportUserDataFromCustomInstall_ImportsUserData_WithoutOverwritingExisting()
+    {
+        var customDir = Path.Combine(_tempRoot, "ImportSourceCustom");
+        var defaultDir = Path.Combine(_tempRoot, "ImportDestDefault");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{\"custom\": true}");
+        var customProfiles = Path.Combine(customDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(customProfiles);
+        File.WriteAllText(Path.Combine(customProfiles, "mod.json"), "profile-data");
+
+        // Workspaces should NOT be copied (derived hardlinks to CAS pool)
+        var customWorkspaces = Path.Combine(customDir, DirectoryNames.Workspaces);
+        Directory.CreateDirectory(customWorkspaces);
+        File.WriteAllText(Path.Combine(customWorkspaces, "workspace.dat"), "derived-content");
+
+        var imported = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);
+        Assert.True(imported);
+
+        Assert.True(File.Exists(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
+        Assert.Equal("{\"custom\": true}", File.ReadAllText(Path.Combine(defaultDir, FileTypes.SettingsFileName)));
+        Assert.True(File.Exists(Path.Combine(defaultDir, DirectoryNames.Profiles, "mod.json")));
+        Assert.False(Directory.Exists(Path.Combine(defaultDir, DirectoryNames.Workspaces)));
+
+        // Calling again should not throw or overwrite if default now exists
+        var importedSecondTime = StorageMigrationService.TryImportUserDataFromCustomInstall(customDir, defaultDir);
+        Assert.False(importedSecondTime);
+    }
+
+    /// <summary>
+    /// Tests that HasUnadoptedUserData detects pending settings and directory data,
+    /// and returns false once all eligible items are present in the target.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_DetectsPendingDataAndCompletion()
+    {
+        var customDir = Path.Combine(_tempRoot, "HasUnadoptedSource");
+        var defaultDir = Path.Combine(_tempRoot, "HasUnadoptedDest");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add settings to source
+        File.WriteAllText(Path.Combine(customDir, FileTypes.SettingsFileName), "{}");
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Copy settings to target
+        File.WriteAllText(Path.Combine(defaultDir, FileTypes.SettingsFileName), "{}");
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add profiles to source
+        var customProfiles = Path.Combine(customDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(customProfiles);
+        File.WriteAllText(Path.Combine(customProfiles, "p1.json"), "{}");
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Create empty profiles directory in target (should still count as unadopted since source has entries)
+        var defaultProfiles = Path.Combine(defaultDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(defaultProfiles);
+        Assert.True(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+
+        // Add file to target profiles
+        File.WriteAllText(Path.Combine(defaultProfiles, "p1.json"), "{}");
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir));
+    }
+
+    /// <summary>
+    /// Tests that HasUnadoptedUserData returns false when given invalid or non-existent paths.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_WhenPathsInvalidOrMissing_ReturnsFalse()
+    {
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(null!, null!));
+        Assert.False(StorageMigrationService.HasUnadoptedUserData(string.Empty, string.Empty));
+        Assert.False(StorageMigrationService.HasUnadoptedUserData("/non/existent/path/1", "/non/existent/path/2"));
+    }
+
+    /// <summary>
+    /// Verifies that EarlyAdoptIfConflict returns false when GenHub is running as a custom install root.
+    /// </summary>
+    [Fact]
+    public void EarlyAdoptIfConflict_WhenCustomInstallRoot_ReturnsFalse()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+        try
+        {
+            var result = StorageMigrationService.EarlyAdoptIfConflict(@"C:\CustomInstall");
+            Assert.False(result);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that EarlyAdoptIfConflict returns false when candidate path is null or whitespace.
+    /// </summary>
+    /// <param name="candidate">The candidate path to test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void EarlyAdoptIfConflict_WhenCandidateInvalid_ReturnsFalse(string? candidate)
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        try
+        {
+            var result = StorageMigrationService.EarlyAdoptIfConflict(candidate);
+            Assert.False(result);
+        }
+        finally
+        {
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasUnadoptedUserData returns null when an inaccessible directory prevents reading files.
+    /// </summary>
+    [Fact]
+    public void HasUnadoptedUserData_WhenDirectoryInaccessible_ReturnsNull()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var customDir = Path.Combine(_tempRoot, "InaccessibleSource");
+        var defaultDir = Path.Combine(_tempRoot, "InaccessibleDest");
+        Directory.CreateDirectory(customDir);
+        Directory.CreateDirectory(defaultDir);
+
+        // Ensure target Profiles directory exists so HasUnadoptedDirectoryData enumerates files and descends into subdirectories
+        var defaultProfiles = Path.Combine(defaultDir, DirectoryNames.Profiles);
+        Directory.CreateDirectory(defaultProfiles);
+
+        var subDir = Path.Combine(customDir, DirectoryNames.Profiles, "LockedDir");
+        Directory.CreateDirectory(subDir);
+        File.WriteAllText(Path.Combine(subDir, "locked.json"), "content");
+
+        try
+        {
+            File.SetUnixFileMode(subDir, UnixFileMode.None);
+
+            var isActuallyDenied = false;
+            try
+            {
+                _ = Directory.GetFiles(subDir);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                isActuallyDenied = true;
+            }
+
+            if (isActuallyDenied)
+            {
+                var result = StorageMigrationService.HasUnadoptedUserData(customDir, defaultDir);
+                Assert.Null(result);
+            }
+        }
+        finally
+        {
+            File.SetUnixFileMode(subDir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    /// <summary>
+    /// Tests that IsMarkerMatchingPath correctly validates marker content and deletes torn markers.
+    /// </summary>
+    [Fact]
+    public void IsMarkerMatchingPath_ValidatesContentAndDeletesTornMarkers()
+    {
+        var markerPath = Path.Combine(_tempRoot, StorageMigrationConstants.AdoptionPendingMarkerFileName);
+        var targetPath = Path.Combine(_tempRoot, "TargetCustomDir");
+
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        File.WriteAllText(markerPath, targetPath);
+        Assert.True(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        File.WriteAllText(markerPath, "DifferentPath");
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+
+        // Torn/blank marker should be cleaned up and return false
+        File.WriteAllText(markerPath, "   ");
+        Assert.False(StorageMigrationService.IsMarkerMatchingPath(markerPath, targetPath));
+        Assert.False(File.Exists(markerPath));
+    }
+
+    /// <summary>
+    /// Tests that IsDefaultInstallRoot honors testing overrides.
+    /// </summary>
+    [Fact]
+    public void IsDefaultInstallRoot_HonorsOverrides()
+    {
+        try
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
+            Assert.False(StorageMigrationService.IsDefaultInstallRoot());
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that IsDefaultInstallRoot returns true when the default install root matches
+    /// either the source root itself or its parent directory (widening for Velopack app-* version folders).
+    /// </summary>
+    [Fact]
+    public void IsDefaultInstallRoot_WhenParentMatchesDefaultInstallRoot_ReturnsTrue()
+    {
+        try
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            var sourceRoot = StorageMigrationService.GetSourceRootDirectory();
+            var parentDir = Directory.GetParent(sourceRoot)?.FullName;
+            Assert.NotNull(parentDir);
+
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(parentDir);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(sourceRoot);
+            Assert.True(StorageMigrationService.IsDefaultInstallRoot());
+
+            var unrelated = Path.Combine(_tempRoot, "UnrelatedDirectory");
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(unrelated);
+            Assert.False(StorageMigrationService.IsDefaultInstallRoot());
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootPathOverrideForTesting(null);
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that HasDuplicateInstallationConflict returns false when not running from default install root.
+    /// </summary>
+    [Fact]
+    public void HasDuplicateInstallationConflict_WhenNotDefaultInstallRoot_ReturnsFalse()
+    {
+        var customDir = Path.Combine(_tempRoot, "CustomConflictDir");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(false);
+
+        try
+        {
+            var conflict = StorageMigrationService.HasDuplicateInstallationConflict(customDir, out var detected);
+            Assert.False(conflict);
+            Assert.Null(detected);
+        }
+        finally
+        {
+            StorageMigrationService.SetDefaultInstallRootOverrideForTesting(null);
+            StorageMigrationService.SetCustomInstallRootOverrideForTesting(null);
+        }
+    }
+
+    /// <summary>
+    /// Tests that InitializeConfiguredDataPathResolver sets the configured data path resolver
+    /// so that GetDefaultDataRoot respects AppDataPath from configuration.
+    /// </summary>
+    [Fact]
+    public void InitializeConfiguredDataPathResolver_SetsResolverForDefaultDataRoot()
+    {
+        var customDataDir = Path.Combine(_tempRoot, "ConfiguredDataRoot");
+        Directory.CreateDirectory(customDataDir);
+
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            [ConfigurationKeys.AppDataPath] = customDataDir,
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        try
+        {
+            ConfigurationModule.InitializeConfiguredDataPathResolver(configuration);
+            var resolvedRoot = StorageMigrationService.GetDefaultDataRoot();
+            Assert.True(PathHelper.AreSamePath(customDataDir, resolvedRoot));
+        }
+        finally
+        {
+            StorageMigrationService.SetConfiguredDataPathResolver(null);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the link root resolves to the registered custom installation when a
+    /// duplicate installation conflict is active.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenDuplicateConflictActive_ReturnsCustomRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+        StorageMigrationService.SetDefaultInstallRootOverrideForTesting(true);
+
+        var customDir = Path.Combine(_tempRoot, "LinkCustomInstall");
+        Directory.CreateDirectory(customDir);
+        File.WriteAllText(Path.Combine(customDir, StorageMigrationConstants.VelopackUpdateExe), "stub");
+
+        Assert.True(PathHelper.AreSamePath(customDir, StorageMigrationService.ResolveLinkInstallRoot(customDir)));
+    }
+
+    /// <summary>
+    /// Verifies that the link root falls back to the running installation root when no
+    /// custom installation is registered.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenNoRegisteredPath_ReturnsRunningRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(false);
+
+        Assert.Equal(StorageMigrationService.GetSourceRootDirectory(), StorageMigrationService.ResolveLinkInstallRoot(null));
+    }
+
+    /// <summary>
+    /// Verifies that the link root stays on the running installation when running from a
+    /// custom install root, even if a custom path is registered.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkInstallRoot_WhenRunningFromCustomRoot_ReturnsRunningRoot()
+    {
+        StorageMigrationService.SetCustomInstallRootOverrideForTesting(true);
+
+        var customDir = Path.Combine(_tempRoot, "LinkCustomRunning");
+        Directory.CreateDirectory(customDir);
+
+        Assert.Equal(StorageMigrationService.GetSourceRootDirectory(), StorageMigrationService.ResolveLinkInstallRoot(customDir));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable prefers the root-level launcher matching the
+    /// current executable file name so links stay stable across updates.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkExecutablePath_WhenRootLauncherExists_ReturnsRootLauncher()
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRoot");
+        Directory.CreateDirectory(linkRoot);
+        var rootLauncher = Path.Combine(linkRoot, "GenHub.Windows.exe");
+        File.WriteAllText(rootLauncher, "stub");
+        var versionedExe = Path.Combine(linkRoot, "app-0.0.1", "GenHub.Windows.exe");
+
+        Assert.Equal(rootLauncher, StorageMigrationService.ResolveLinkExecutablePath(linkRoot, versionedExe));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable falls back to the current path when the root
+    /// does not contain a matching launcher.
+    /// </summary>
+    [Fact]
+    public void ResolveLinkExecutablePath_WhenRootLauncherMissing_FallsBackToCurrent()
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRootEmpty");
+        Directory.CreateDirectory(linkRoot);
+        var currentExe = Path.Combine(_tempRoot, "Other", "GenHub.Windows.exe");
+
+        Assert.Equal(currentExe, StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExe));
+    }
+
+    /// <summary>
+    /// Verifies that the link executable resolves to null when the current path is missing.
+    /// </summary>
+    /// <param name="currentExePath">The current executable path under test.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void ResolveLinkExecutablePath_WhenCurrentPathMissing_ReturnsNull(string? currentExePath)
+    {
+        var linkRoot = Path.Combine(_tempRoot, "LinkRootNull");
+        Directory.CreateDirectory(linkRoot);
+
+        Assert.Null(StorageMigrationService.ResolveLinkExecutablePath(linkRoot, currentExePath));
+    }
+
+    private StorageMigrationService CreateService()
+    {
+        return new StorageMigrationService(
+            _mockConfigProvider.Object,
+            _mockUserSettingsService.Object,
+            _mockCasPoolManager.Object,
+            _mockLaunchRegistry.Object,
+            _mockGameProcessManager.Object,
+            _mockWritabilityProbe.Object,
+            NullLogger<StorageMigrationService>.Instance);
+    }
+}

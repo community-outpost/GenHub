@@ -1,8 +1,8 @@
-using System.Collections.Generic;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Services.Dependencies;
+using System.Collections.Generic;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -19,17 +19,9 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>A content dependency for Zero Hour 1.04 installation.</returns>
     public static ContentDependency CreateZeroHourDependencyForSuperHackers()
     {
-        return new ContentDependency
-        {
-            Id = ManifestId.Create("1.104.genhub.gameinstallation.zerohour"),
-            Name = GameClientConstants.ZeroHourInstallationDependencyName,
-            DependencyType = ContentType.GameInstallation,
-            MinVersion = ManifestConstants.ZeroHourManifestVersion, // "1.04"
-            InstallBehavior = DependencyInstallBehavior.RequireExisting,
-            IsOptional = false,
-            StrictPublisher = false, // Any publisher's ZH installation will work
-            CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
-        };
+        // This is a type-only foundation requirement. The profile service supplies the
+        // concrete installation manifest that matches the user's installed game.
+        return CreateZeroHour104Dependency();
     }
 
     /// <summary>
@@ -38,17 +30,9 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>A content dependency for Generals 1.08 installation.</returns>
     public static ContentDependency CreateGeneralsDependencyForSuperHackers()
     {
-        return new ContentDependency
-        {
-            Id = ManifestId.Create("1.108.genhub.gameinstallation.generals"),
-            Name = "Generals 1.08 (Required)",
-            DependencyType = ContentType.GameInstallation,
-            MinVersion = ManifestConstants.GeneralsManifestVersion, // "1.08"
-            InstallBehavior = DependencyInstallBehavior.RequireExisting,
-            IsOptional = false,
-            StrictPublisher = false, // Any publisher's Generals installation will work
-            CompatibleGameTypes = new List<GameType> { GameType.Generals },
-        };
+        // This is a type-only foundation requirement. The profile service supplies the
+        // concrete installation manifest that matches the user's installed game.
+        return CreateGenerals108Dependency();
     }
 
     /// <summary>
@@ -57,10 +41,10 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>List of dependencies for Zero Hour variant.</returns>
     public static List<ContentDependency> GetDependenciesForZeroHour()
     {
-        return new List<ContentDependency>
-        {
+        return
+        [
             CreateZeroHourDependencyForSuperHackers(),
-        };
+        ];
     }
 
     /// <summary>
@@ -69,10 +53,10 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
     /// <returns>List of dependencies for Generals variant.</returns>
     public static List<ContentDependency> GetDependenciesForGenerals()
     {
-        return new List<ContentDependency>
-        {
+        return
+        [
             CreateGeneralsDependencyForSuperHackers(),
-        };
+        ];
     }
 
     /// <summary>
@@ -86,7 +70,7 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
         {
             GameType.ZeroHour => GetDependenciesForZeroHour(),
             GameType.Generals => GetDependenciesForGenerals(),
-            _ => new List<ContentDependency>(),
+            _ => [],
         };
     }
 
@@ -103,6 +87,6 @@ public class SuperHackersDependencyBuilder : BaseDependencyBuilder
             return GetDependenciesForGameType(manifest.TargetGame);
         }
 
-        return new List<ContentDependency>();
+        return [];
     }
 }

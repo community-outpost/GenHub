@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -9,10 +5,16 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace GenHub.Features.Content.Services.ContentResolvers;
+namespace GenHub.Features.Content.Services.GitHub;
 
 /// <summary>
 /// Resolves GitHub workflow artifacts into ContentManifest objects.
@@ -85,9 +87,9 @@ public class GitHubArtifactResolver(
                     publisherType: "github")
                     .WithMetadata(
                         $"Artifact: {artifactName}, Run #{runNumber}",
-                        tags: new List<string> { "workflow", "artifact" },
+                        tags: ["workflow", "artifact"],
                         changelogUrl: string.Empty)
-                    .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                    .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
                 // Add artifact as remote file - use ArchiveDownloadUrl for authenticated downloads
                 var downloadUrl = !string.IsNullOrEmpty(artifact.ArchiveDownloadUrl)
@@ -132,9 +134,9 @@ public class GitHubArtifactResolver(
                     publisherType: "github")
                 .WithMetadata(
                     $"Workflow: {workflowRun.Name}, Run #{workflowRun.RunNumber}",
-                    tags: new List<string> { "workflow", "artifact", workflowRun.Status ?? "unknown" },
+                    tags: ["workflow", "artifact", workflowRun.Status ?? "unknown"],
                     changelogUrl: workflowRun.HtmlUrl ?? string.Empty)
-                .WithInstallationInstructions(WorkspaceStrategy.HybridCopySymlink);
+                .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Add artifact as remote file - use ArchiveDownloadUrl for authenticated downloads
             var downloadUrlFinal = !string.IsNullOrEmpty(artifact.ArchiveDownloadUrl)

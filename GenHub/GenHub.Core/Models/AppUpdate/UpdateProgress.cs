@@ -5,6 +5,8 @@ namespace GenHub.Core.Models.AppUpdate;
 /// </summary>
 public class UpdateProgress
 {
+    private int _percentComplete;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateProgress"/> class.
     /// </summary>
@@ -35,9 +37,13 @@ public class UpdateProgress
     public string Message { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the percentage completed as an integer (0-100).
+    /// Gets or sets the percentage completed as an integer, clamped to 0-100.
     /// </summary>
-    public int PercentComplete { get; set; }
+    public int PercentComplete
+    {
+        get => _percentComplete;
+        set => _percentComplete = Math.Clamp(value, 0, 100);
+    }
 
     /// <summary>
     /// Gets or sets the number of bytes downloaded.

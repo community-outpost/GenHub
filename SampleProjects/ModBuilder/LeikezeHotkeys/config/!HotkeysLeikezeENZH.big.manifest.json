@@ -1,0 +1,9 @@
+{
+  "bigFileName": "!HotkeysLeikezeENZH.big",
+  "trailerHex": "0000000000000000",
+  "headerSizeOverride": null,
+  "sha256": "b06677d18c83c108aaa482d571c99a5aad3365c8a492067ef6eaf09364d3ab88",
+  "entryOrder": [
+    "Data\\English\\generals.csf"
+  ]
+}

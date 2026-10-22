@@ -1,8 +1,9 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 
@@ -17,6 +18,11 @@ public static class SourceTypeToBadgeConverters
     /// </summary>
     public class SourceTypeToBadgeBackgroundConverter : IValueConverter
     {
+        private static readonly SolidColorBrush GameClientBrush = new(Color.Parse(UiConstants.SourceTypeGameClientBadgeColor)); // amber for CAS
+        private static readonly SolidColorBrush ModBrush = new(Color.Parse(UiConstants.SourceTypeModBadgeColor));
+        private static readonly SolidColorBrush LocalBrush = new(Color.Parse(UiConstants.SourceTypeDefaultBadgeColor));
+        private static readonly SolidColorBrush DefaultBrush = new(Color.Parse(UiConstants.SourceTypeFallbackBadgeColor));
+
         /// <summary>
         /// Converts the supplied <see cref="ContentType"/> into a <see cref="SolidColorBrush"/>.
         /// </summary>
@@ -32,13 +38,13 @@ public static class SourceTypeToBadgeConverters
             {
                 return ct switch
                 {
-                    ContentType.GameClient => new SolidColorBrush(Color.Parse("#FFF9A825")), // amber for CAS
-                    ContentType.Mod => new SolidColorBrush(Color.Parse("#FF90CAF9")),
-                    _ => new SolidColorBrush(Color.Parse("#FFB2FF59")),
+                    ContentType.GameClient => GameClientBrush,
+                    ContentType.Mod => ModBrush,
+                    _ => LocalBrush,
                 };
             }
 
-            return new SolidColorBrush(Color.Parse("#FFBDBDBD"));
+            return DefaultBrush;
         }
 
         /// <summary>
@@ -68,7 +74,7 @@ public static class SourceTypeToBadgeConverters
         /// <param name="targetType">The type of the binding target property.</param>
         /// <param name="parameter">An optional parameter to be used in the converter logic.</param>
         /// <param name="culture">The culture to use in the converter.</param>
-        /// <returns>A short label string such as "CAS", "Mod", or "Local". Returns "Unknown" if input is not a <see cref="ContentType"/>.</returns>
+        /// <returns>A short label string such as "CAS", "Mod", or "Local". Returns GameClientConstants.UnknownVersion if input is not a <see cref="ContentType"/>.</returns>
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is ContentType ct)
@@ -81,7 +87,7 @@ public static class SourceTypeToBadgeConverters
                 };
             }
 
-            return "Unknown";
+            return GameClientConstants.UnknownVersion;
         }
 
         /// <summary>

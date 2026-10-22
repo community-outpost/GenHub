@@ -1,10 +1,11 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GitHub;
+using GenHub.Core.Utilities;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.GitHub;
 
 namespace GenHub.Features.Content.Services.Helpers;
 
@@ -15,6 +16,81 @@ namespace GenHub.Features.Content.Services.Helpers;
 public static class GitHubInferenceHelper
 {
     /// <summary>
+    /// Topic to ContentType mapping for explicit type detection.
+    /// </summary>
+    private static readonly Dictionary<string, ContentType> TopicToContentTypeMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [GitHubTopicsConstants.GameClientTopic] = ContentType.GameClient,
+        [GitHubTopicsConstants.ModTopic] = ContentType.Mod,
+        [GitHubTopicsConstants.GeneralsModTopic] = ContentType.Mod,
+        [GitHubTopicsConstants.ZeroHourModTopic] = ContentType.Mod,
+        [GitHubTopicsConstants.MapPackTopic] = ContentType.MapPack,
+        [GitHubTopicsConstants.AddonTopic] = ContentType.Addon,
+        [GitHubTopicsConstants.PatchTopic] = ContentType.Patch,
+        [GitHubTopicsConstants.LanguagePackTopic] = ContentType.LanguagePack,
+        [GitHubTopicsConstants.MissionTopic] = ContentType.Mission,
+        [GitHubTopicsConstants.MapTopic] = ContentType.Map,
+        [GitHubTopicsConstants.ModdingToolTopic] = ContentType.ModdingTool,
+    };
+
+    /// <summary>
+    /// Infers ContentType from repository topics.
+    /// </summary>
+    /// <param name="topics">List of repository topics.</param>
+    /// <returns>A tuple of the inferred ContentType and a boolean indicating if it was inferred (true) or explicit (false).</returns>
+    public static (ContentType Type, bool IsInferred) InferContentTypeFromTopics(IEnumerable<string> topics)
+    {
+        foreach (var topic in topics)
+        {
+            if (TopicToContentTypeMap.TryGetValue(topic, out var contentType))
+            {
+                return (contentType, false);
+            }
+        }
+
+        // No explicit type found, will need inference
+        return (ContentType.Addon, true);
+    }
+
+    /// <summary>
+    /// Infers GameType from repository topics.
+    /// </summary>
+    /// <param name="topics">List of repository topics.</param>
+    /// <returns>A tuple of the inferred GameType and a boolean indicating if it was inferred (true) or explicit (false).</returns>
+    public static (GameType Type, bool IsInferred) InferGameTypeFromTopics(IEnumerable<string> topics)
+    {
+        var topicList = topics.ToList();
+
+        // Check for game-specific topics
+        if (topicList.Contains(GitHubTopicsConstants.ZeroHourModTopic, StringComparer.OrdinalIgnoreCase))
+        {
+            return (GameType.ZeroHour, false);
+        }
+
+        if (topicList.Contains(GitHubTopicsConstants.GeneralsModTopic, StringComparer.OrdinalIgnoreCase))
+        {
+            // Check if also has ZH topic - use exact matching instead of substring matching
+            if (topicList.Any(t => t.Equals("zh", StringComparison.OrdinalIgnoreCase) ||
+                               t.Equals("zerohour", StringComparison.OrdinalIgnoreCase) ||
+                               t.Equals("zero-hour", StringComparison.OrdinalIgnoreCase)))
+            {
+                return (GameType.ZeroHour, false);
+            }
+
+            return (GameType.Generals, false);
+        }
+
+        // Generals Online content is typically for Zero Hour
+        if (topicList.Contains(GitHubTopicsConstants.GeneralsOnlineTopic, StringComparer.OrdinalIgnoreCase))
+        {
+            return (GameType.ZeroHour, false);
+        }
+
+        // Default to ZeroHour (most common) with inference flag
+        return (GameType.ZeroHour, true);
+    }
+
+    /// <summary>
     /// Infer a likely <see cref="ContentType"/> from repository and release name text.
     /// </summary>
     /// <param name="repo">Repository name or owner/repo segment used for inference.</param>
@@ -23,6 +99,10 @@ public static class GitHubInferenceHelper
     public static (ContentType Type, bool IsInferred) InferContentType(string repo, string? releaseName)
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}";
+
+        // Explicit check for TheSuperHackers GeneralsGameCode repository
+        if (searchText.Contains(SuperHackersConstants.GeneralsGameCodeRepo, StringComparison.OrdinalIgnoreCase))
+            return (ContentType.GameClient, false); // Not inferred, explicit detection
 
         if (searchText.Contains("patch", StringComparison.OrdinalIgnoreCase) || searchText.Contains("fix", StringComparison.OrdinalIgnoreCase))
             return (ContentType.Patch, true);
@@ -50,12 +130,13 @@ public static class GitHubInferenceHelper
     {
         var searchText = $"{repo} {releaseName ?? string.Empty}";
 
-        if (searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase) || searchText.Contains("zh", StringComparison.OrdinalIgnoreCase))
+        // Check for explicit Zero Hour indicators first (highest priority)
+        if (searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase) ||
+            searchText.Contains("zh", StringComparison.OrdinalIgnoreCase) ||
+            searchText.Contains("zerohour", StringComparison.OrdinalIgnoreCase))
             return (Type: GameType.ZeroHour, IsInferred: true);
 
-        if (searchText.Contains("generals", StringComparison.OrdinalIgnoreCase) && !searchText.Contains("zero hour", StringComparison.OrdinalIgnoreCase))
-            return (Type: GameType.Generals, IsInferred: true);
-
+        // Check for Generals indicators
         return (Type: GameType.ZeroHour, IsInferred: true);
     }
 
@@ -114,12 +195,39 @@ public static class GitHubInferenceHelper
     /// <returns>True when the extension matches a known executable type.</returns>
     public static bool IsExecutableFile(string fileName)
     {
-        var ext = Path.GetExtension(fileName);
-        return ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".dll", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".sh", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".bat", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".so", StringComparison.OrdinalIgnoreCase);
+        return ExecutableFileClassifier.RequiresExecutePermissionFromName(fileName);
+    }
+
+    /// <summary>
+    /// Applies per-asset typing as a downgrade only: a release typed
+    /// <see cref="ContentType.GameClient"/> drops to <see cref="ContentType.Patch"/> or
+    /// <see cref="ContentType.Mod"/> when the asset name carries a strong patch/mod signal.
+    /// Every other type passes through unchanged, so an asset name can never promote a
+    /// patch or mod into a game client.
+    /// </summary>
+    /// <param name="releaseType">The release-level content type.</param>
+    /// <param name="assetName">The individual asset file name.</param>
+    /// <returns>The asset-level content type.</returns>
+    public static ContentType DowngradeClientTypeForAsset(ContentType releaseType, string? assetName)
+    {
+        if (releaseType != ContentType.GameClient || string.IsNullOrWhiteSpace(assetName))
+        {
+            return releaseType;
+        }
+
+        if (ContainsPatchToken(assetName)
+            || ContainsFixSignal(assetName))
+        {
+            return ContentType.Patch;
+        }
+
+        if (ContainsModToken(assetName)
+            || assetName.Contains("addon", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Mod;
+        }
+
+        return releaseType;
     }
 
     /// <summary>
@@ -138,8 +246,7 @@ public static class GitHubInferenceHelper
             return GameType.ZeroHour;
 
         // Check for GeneralsOnline executables
-        if (assetName.Contains(GameClientConstants.GeneralsOnline30HzExecutable, StringComparison.OrdinalIgnoreCase) ||
-            assetName.Contains(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase) ||
+        if (assetName.Contains(GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase) ||
             assetName.Contains(GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase))
             return GameType.ZeroHour;
 
@@ -178,5 +285,50 @@ public static class GitHubInferenceHelper
 
         // Multi-game release if we detected both Generals and Zero Hour
         return detectedGames.Contains(GameType.Generals) && detectedGames.Contains(GameType.ZeroHour);
+    }
+
+    private static bool ContainsPatchToken(string assetName)
+    {
+        // Assets named client, engine, or patcher are client/tool artifacts rather than standalone patches,
+        // and words like "dispatch" must not trigger a patch downgrade.
+        if (assetName.Contains("client", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("engine", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("patcher", StringComparison.OrdinalIgnoreCase)
+            || assetName.Contains("dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var tokens = assetName.Split(
+            ['.', '-', '_', ' ', '+'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token =>
+            token.Equals("patch", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("patches", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ContainsFixSignal(string assetName)
+    {
+        // "fix" as a compound suffix (hotfix, bugfix) signals a patch, but common words
+        // ending in "fix" (prefix, suffix, affix, infix) do not.
+        var scrubbed = assetName
+            .Replace("prefix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("suffix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("affix", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("infix", string.Empty, StringComparison.OrdinalIgnoreCase);
+        return scrubbed.Contains("fix", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsModToken(string assetName)
+    {
+        // "mod" only as a delimited token: "modern" and "model" must not match.
+        var tokens = assetName.Split(
+            ['.', '-', '_', ' ', '+'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Any(token =>
+            token.Equals("mod", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("mods", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("modpack", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("modpacks", StringComparison.OrdinalIgnoreCase));
     }
 }

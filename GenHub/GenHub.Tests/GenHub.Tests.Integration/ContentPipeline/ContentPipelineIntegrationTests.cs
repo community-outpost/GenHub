@@ -1,189 +1,113 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Tests.Integration.Infrastructure;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Models.Content;
-using GenHub.Core.Models.Enums;
-using GenHub.Features.Content.Services.GeneralsOnline;
-using GenHub.Features.Content.Services.Publishers;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace GenHub.Tests.Integration.ContentPipeline;
 
 /// <summary>
-/// Integration tests for the three main content pipeline features:
-/// 1. GeneralsOnline manifest.json endpoint
-/// 2. TheSuperHackers GitHub weekly releases
-/// 3. GitHub Manager with L3-M/GeneralsControlBar addon
+/// Searches and acquires real content from live providers through the application's content orchestrator.
 /// </summary>
-public class ContentPipelineIntegrationTests
+[Trait("Category", "LiveNetwork")]
+public sealed class ContentPipelineIntegrationTests : IDisposable
 {
-    [Fact]
-    public async Task GeneralsOnline_ManifestEndpoint_ShouldReturnValidManifests()
+    private const string GenLauncherCursorPackName = "ShockWave Cursor Pack HD";
+
+    private static readonly TimeSpan TestTimeout = TimeSpan.FromMinutes(3);
+
+    private readonly LiveContentHost _host = new();
+    private readonly CancellationTokenSource _timeout = new(TestTimeout);
+
+    /// <inheritdoc/>
+    public void Dispose()
     {
-        // Arrange
-        var discoverer = new GeneralsOnlineDiscoverer(
-            NullLogger<GeneralsOnlineDiscoverer>.Instance);
-
-        // Act
-        var query = new ContentSearchQuery
-        {
-            SearchTerm = "generalsonline",
-            Take = 10
-        };
-
-        var result = await discoverer.DiscoverAsync(query, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.Success, $"Discovery failed: {result.FirstError}");
-        Assert.NotNull(result.Data);
-        Assert.NotEmpty(result.Data);
-
-        var firstResult = result.Data.First();
-
-        // Verify it has the release data
-        Assert.NotNull(firstResult.Data);
-        Assert.Equal("GeneralsOnline", firstResult.ProviderName);
+        _timeout.Dispose();
+        _host.Dispose();
     }
 
+    /// <summary>
+    /// The GeneralsOnline provider returns its current release.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GeneralsOnline_CreateDualManifests_ShouldGenerate30HzAnd60Hz()
+    public async Task GeneralsOnline_Search_ReturnsCurrentReleaseAsync()
     {
-        // Arrange
-        var discoverer = new GeneralsOnlineDiscoverer(
-            NullLogger<GeneralsOnlineDiscoverer>.Instance);
+        var results = await _host.SearchAsync(PublisherTypeConstants.GeneralsOnline, cancellationToken: _timeout.Token);
 
-        // Act - Get latest release
-        var query = new ContentSearchQuery { SearchTerm = "generalsonline", Take = 1 };
-        var searchResult = await discoverer.DiscoverAsync(query, CancellationToken.None);
-
-        Assert.True(searchResult.Success);
-        var release = searchResult.Data.First().GetData<Core.Models.GeneralsOnline.GeneralsOnlineRelease>();
-        Assert.NotNull(release);
-
-        // Create manifests using factory
-        var manifests = GeneralsOnlineManifestFactory.CreateManifests(release);
-
-        // Assert
-        Assert.Equal(2, manifests.Count);
-
-        var hz30 = manifests[0];
-        var hz60 = manifests[1];
-
-        // Verify manifest IDs follow 5-segment format
-        Assert.Contains("generalsonline", hz30.Id.Value);
-        Assert.Contains("30hz", hz30.Id.Value);
-        Assert.Contains("generalsonline", hz60.Id.Value);
-        Assert.Contains("60hz", hz60.Id.Value);
-
-        // Verify both have same version but different names
-        Assert.Equal(release.Version, hz30.Version);
-        Assert.Equal(release.Version, hz60.Version);
-        Assert.Contains("30Hz", hz30.Name);
-        Assert.Contains("60Hz", hz60.Name);
+        Assert.Contains(results, r => !string.IsNullOrWhiteSpace(r.Version));
     }
 
-    [Fact(Skip = "Requires GitHub API client setup - manual verification at https://github.com/TheSuperHackers/GeneralsGameCode/releases")]
-    public async Task TheSuperHackers_GitHubReleases_ShouldFindWeeklyReleases()
+    /// <summary>
+    /// A small GenLauncher addon is acquired into the CAS pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GenLauncher_AcquireSmallAddon_StoresFilesInCasAsync()
     {
-        // This test requires actual GitHub API access with authentication
-        // Skipped until proper test infrastructure is in place
-        await Task.CompletedTask;
+        var results = await _host.SearchAsync(PublisherTypeConstants.GenLauncher, cancellationToken: _timeout.Token);
+        var item = results.FirstOrDefault(r => r.Name == GenLauncherCursorPackName);
+        Assert.True(item is not null, $"GenLauncher catalog no longer lists '{GenLauncherCursorPackName}'.");
+
+        var manifest = await _host.AcquireAsync(item, _timeout.Token);
+
+        await _host.AssertStoredInCasAsync(manifest, _timeout.Token);
     }
 
+    /// <summary>
+    /// A map from AODMaps is acquired into the CAS pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task TheSuperHackers_ManifestFactory_ShouldCreateGeneralsAndZeroHourManifests()
+    public async Task AODMaps_AcquireMap_StoresFilesInCasAsync()
     {
-        // Arrange
-        var factory = new SuperHackersManifestFactory(
-            NullLogger<SuperHackersManifestFactory>.Instance,
-            null!); // IFileHashProvider
+        var results = await _host.SearchAsync(AODMapsConstants.DiscovererSourceName, cancellationToken: _timeout.Token);
 
-        // Create a mock manifest
-        var baseManifest = new Core.Models.Manifest.ContentManifest
-        {
-            Id = Core.Models.Manifest.ManifestId.Create("1.20251118.github.gameclient.thesuperhackers-generalsgamecode"),
-            Name = "TheSuperHackers Weekly Release",
-            Version = "weekly-2025-11-18",
-            ContentType = ContentType.GameClient,
-            Publisher = new Core.Models.Manifest.PublisherInfo
+        var manifest = await _host.AcquireAsync(results[0], _timeout.Token);
+
+        await _host.AssertStoredInCasAsync(manifest, _timeout.Token);
+    }
+
+    /// <summary>
+    /// A map from CNC Labs is acquired into the CAS pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CNCLabs_AcquireMap_StoresFilesInCasAsync()
+    {
+        var results = await _host.SearchAsync(
+            CNCLabsConstants.SourceName,
+            query =>
             {
-                PublisherType = PublisherTypeConstants.TheSuperHackers,
-                Name = "TheSuperHackers"
-            }
-        };
+                query.TargetGame = GameType.ZeroHour;
+                query.ContentType = ContentType.Map;
+            },
+            _timeout.Token);
 
-        // Act
-        var canHandle = factory.CanHandle(baseManifest);
+        var manifest = await _host.AcquireAsync(results[0], _timeout.Token);
 
-        // Assert - Factory should handle TheSuperHackers manifests
-        // Full test requires extracted directory with genlauncher.exe and zhLauncher.exe
-        Assert.True(canHandle, "Factory should handle TheSuperHackers manifests");
-
-        await Task.CompletedTask;
+        await _host.AssertStoredInCasAsync(manifest, _timeout.Token);
     }
 
+    /// <summary>
+    /// GeneralsGamePatch2 from TheSuperHackers is acquired as the single published archive file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public void PublisherInference_TheSuperHackers_ShouldRouteToCustomFactory()
+    public async Task TheSuperHackers_AcquireGeneralsGamePatch2_StoresVerifiedArchiveInCasAsync()
     {
-        // Arrange
-        var owner = "thesuperhackers";
-        var repo = "GeneralsGameCode";
+        var results = await _host.SearchAsync(PublisherTypeConstants.TheSuperHackers, cancellationToken: _timeout.Token);
+        var idSuffix = "." + SuperHackersConstants.GeneralsGamePatch2Repo;
+        var item = results.FirstOrDefault(r => r.Id.EndsWith(idSuffix, StringComparison.OrdinalIgnoreCase));
+        Assert.True(item is not null, $"TheSuperHackers search returned no id ending in '{idSuffix}'.");
 
-        // Act
-        var publisherType = DeterminePublisherType(owner, repo);
+        var manifest = await _host.AcquireAsync(item, _timeout.Token);
 
-        // Assert - This will route to SuperHackersManifestFactory
-        Assert.Equal(PublisherTypeConstants.TheSuperHackers, publisherType);
-    }
-
-    [Fact]
-    public void PublisherInference_GenericRepo_ShouldUseGenericPublisherType()
-    {
-        // Arrange
-        var testCases = new[]
-        {
-            ("someuser", "somemod"),
-            ("L3-M", "GeneralsControlBar"),
-            ("random", "repository")
-        };
-
-        foreach (var (owner, repo) in testCases)
-        {
-            // Act
-            var publisherType = DeterminePublisherType(owner, repo);
-
-            // Assert
-            Assert.Equal("github", publisherType);
-        }
-    }
-
-    [Fact]
-    public void ManifestId_Uniqueness_ShouldPreventCollisions()
-    {
-        // Arrange - Simulate manifest IDs from different sources
-        var ids = new[]
-        {
-            "1.101525.generalsonline.gameclient.30hz",
-            "1.101525.generalsonline.gameclient.60hz",
-            "1.20251118.thesuperhackers.gameclient.generals",
-            "1.20251118.thesuperhackers.gameclient.zerohour"
-        };
-
-        // Assert - All IDs should be unique
-        var uniqueIds = ids.Distinct().ToList();
-        Assert.Equal(ids.Length, uniqueIds.Count);
-    }
-
-    // Helper method that matches GitHubResolver.DeterminePublisherType
-    private static string DeterminePublisherType(string owner, string repo)
-    {
-        if (owner.Equals("thesuperhackers", StringComparison.OrdinalIgnoreCase))
-        {
-            return "thesuperhackers";
-        }
-
-        return "github";
+        var file = Assert.Single(manifest.Files);
+        Assert.Equal(ModBuilderConstants.SampleProjects.GeneralsGamePatch2Sha256, file.Hash, ignoreCase: true);
+        await _host.AssertStoredInCasAsync(manifest, _timeout.Token);
     }
 }

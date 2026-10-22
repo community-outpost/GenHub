@@ -1,0 +1,72 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup">
+    <Design.PreviewWith>
+        <Border Padding="20" Background="#08080C" Width="300">
+            <StackPanel Spacing="10">
+                <NumericUpDown Value="100" Minimum="0" Maximum="500" Increment="1" />
+                <NumericUpDown Value="50" Minimum="0" Maximum="100" Increment="0.1" FormatString="F1" />
+            </StackPanel>
+        </Border>
+    </Design.PreviewWith>
+
+    <!-- Global NumericUpDown style with Blender-style click-and-drag scrubbing enabled -->
+    <Style Selector="NumericUpDown">
+        <Setter Property="controls:NumericScrubber.EnableScrubber" Value="True" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="ToolTip.Tip" Value="{localization:Localize Common.Tooltip.NumericScrubber}" />
+    </Style>
+
+    <Style Selector="NumericUpDown:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <Style Selector="NumericUpDown:focus-within">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <!-- Unified styling for ButtonSpinner within NumericUpDown -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <!-- Compact spin buttons -->
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton">
+        <Setter Property="Width" Value="20" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="Padding" Value="2" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.1" />
+                <BrushTransition Property="Foreground" Duration="0:0:0.1" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pressed">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <!-- TextBox inside NumericUpDown -->
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+</Styles>

@@ -5,7 +5,7 @@ The goal is to ensure consistency, readability, and maintainability across the c
 These conventions are based on the [Microsoft C# Coding Conventions](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions),
 with selected practices from the [CoreFX C#](https://github.com/dotnet/runtime/blob/main/docs/coding-guidelines/coding-style.md)
 and [Google C#](https://google.github.io/styleguide/csharp-style.html) style guides,
-and additional project-specific preferences.
+and additional project-specific preferences aligned with StyleCop, DeepSource, and SonarCloud.
 
 ---
 
@@ -14,6 +14,7 @@ and additional project-specific preferences.
 - **Consistency**: Follow these conventions throughout the codebase.
 - **Readability**: Prioritize code clarity and maintainability.
 - **Common Sense**: Use good judgment; code reviews will enforce readability and style.
+- **Pre-Emptive Hygiene**: Fix analyzer warnings and naming conventions locally before opening a pull request.
 
 ---
 
@@ -31,8 +32,8 @@ and additional project-specific preferences.
 - **Comments**:
   - Use `//` for single-line comments.
   - Avoid the use of `/**/` block comments.
-  - Place comments on their own line above the code they describe, not at the end of a line.	 
-	
+  - Place comments on their own line above the code they describe, not at the end of a line.
+
 ---
 
 ## 3. Naming Conventions
@@ -40,10 +41,11 @@ and additional project-specific preferences.
 - **Namespaces**: PascalCase (e.g., `GenHub.Core`).
 - **Classes, Structs, Enums, Delegates**: PascalCase.
 - **Methods, Properties, Events**: PascalCase.
+- **Async Methods**: Methods returning `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>` must have the `Async` suffix (e.g., `DownloadFileAsync`, `ComputeHashAsync`).
 - **Interfaces**: Prefix with `I`, PascalCase (e.g., `IService`).
 - **Fields**:
-- `private` and `internal`: `_camelCase` (prefix with underscore).
-- `public` and `protected`: PascalCase.
+  - `private` and `internal`: `_camelCase` (prefix with underscore).
+  - `public` and `protected`: PascalCase.
 - **Local Variables and Parameters**: camelCase.
 - **Constants**: PascalCase.
 
@@ -52,21 +54,21 @@ and additional project-specific preferences.
 ## 4. Ordering
 
 - **Class Member Order** (strict, as per Google/CoreFX/StyleCop):
-1. Nested types
-2. Static fields
-3. Instance fields
-4. Constructors
-5. Finalizers
-6. Properties
-7. Indexers
-8. Events
-9. Methods
-	1. Static methods go first, then instance methods.
-	2. Methods should be ordered by visibility: `public`, `protected`, `internal`, `private`. 
+  1. Nested types
+  2. Static fields
+  3. Instance fields
+  4. Constructors
+  5. Finalizers
+  6. Properties
+  7. Indexers
+  8. Events
+  9. Methods
+     1. Static methods go first, then instance methods.
+     2. Methods should be ordered by visibility: `public`, `protected`, `internal`, `private`.
 
 - **Using Directives**:
-- Alphabetical order (no special treatment for `System` namespaces).
-- Place outside the namespace declaration.
+  - Alphabetical order (no special treatment for `System` namespaces).
+  - Place outside the namespace declaration.
 
 ---
 
@@ -74,6 +76,10 @@ and additional project-specific preferences.
 
 - **LINQ**: Prefer the fluent (method chain) syntax over query expressions.
 - **Primary Constructors**: Use primary constructors and access parameters directly when possible.
+- **Simple Using Declarations**: Prefer `using var x = ...;` statements over nested `using (var x = ...) { ... }` blocks to prevent excessive indentation.
+- **Expression-Bodied Lambdas**: Write single-expression lambdas concisely (`x => x.Value`) rather than block bodies (`x => { return x.Value; }`).
+- **Conditional Expressions**: Avoid deeply nested or multi-level ternary expressions (`? :`). Use `if / else` blocks, switch expressions, or pattern matching.
+- **Nested Conditionals**: Merge adjacent nested `if` statements without `else` blocks (`if (a && b)`).
 - **Nullable Reference Types**: Enable and use explicit nullable annotations.
 
 ---
@@ -82,15 +88,33 @@ and additional project-specific preferences.
 
 - **Comments**: Use XML documentation comments for all public and protected classes, interfaces, properties and methods.
 - **File Structure**: One top-level type per file.
-- **Error Handling**: Use exceptions appropriately; avoid empty catch blocks.
+- **Error Handling**:
+  - Use exceptions appropriately; avoid empty catch blocks.
+  - Catch specific domain exceptions (`IOException`, `HttpRequestException`, `JsonException`) instead of generic `System.Exception`.
+  - For predictable domain failures, prefer `OperationResult<T>` over throwing exceptions for control flow.
+- **Localization**:
+  - All user-facing UI text (labels, buttons, tooltips, placeholders, headers, dialog messages) must be defined in `GenHub/GenHub/Resources/Localization/Strings.resx`.
+  - In XAML: Declare `xmlns:localization="clr-namespace:GenHub.Common.Markup"` and bind using `{localization:Localize Key}`.
+  - In C#: Inject `ILocalizationService` and call `_localizationService.GetString("Key")` or `_localizationService.GetString("Key", args)`.
+  - Never hardcode user-facing English strings in XAML views or ViewModels.
+  - Resource keys must follow dot-separated hierarchical naming (`<Feature>.<Context>.<Element>`), e.g. `Settings.Appearance.Language.Label`.
+  - Do not localize developer-facing technical strings (log templates, protocol values, regexes, CLI arguments).
+- **Time and Dates**: Always use `DateTime.UtcNow` or `DateTimeOffset.UtcNow` for timestamps, file manifests, and metrics. Never use local `DateTime.Now`.
+- **Concurrency & Locking**: Never lock on `this`, `typeof(...)`, or string literals. Use a dedicated `private readonly object _syncLock = new();` or asynchronous synchronization primitives like `SemaphoreSlim`.
+- **Cancellation**: Long-running or asynchronous operations must accept and propagate a `CancellationToken`.
+- **No Unicode Emojis**: Never use emojis in code, comments, log messages, UI strings, dialogs, or documentation. Use clean semantic text or vector icons.
+- **User Notifications & Feedback**:
+  - Always inject `INotificationService` and dispatch toast notifications (`ShowSuccess`, `ShowInfo`, `ShowWarning`, `ShowError`) for user actions, operation outcomes, warnings, and errors.
+  - Never introduce one-off status labels, status textblocks, or `StatusMessage` / `StatusText` UI properties to display action results. Status labels are an anti-pattern.
+  - Use `NotificationDurations` constants (`Short`, `Medium`, `Long`, `VeryLong`, `Critical`) for timeout durations.
 
 ---
 
 ## 7. Tooling
 
-- Use Visual Studio's default formatting (__Edit > Advanced > Format Document__).
-- StyleCop and similar analyzers are used to enforce ordering and style.
-- Enable nullable reference types in project settings.
+- Enforced locally via [`.editorconfig`](.editorconfig) and [`stylecop.json`](stylecop.json) in the repository root.
+- Use Visual Studio's default formatting (__Edit > Advanced > Format Document__) or `dotnet format`.
+- Adhering to these conventions ensures that local builds stay clean and cloud bots (DeepSource, SonarCloud, CodeRabbit) pass without review delays.
 
 ---
 

@@ -29,6 +29,12 @@ and provides discovery, resolution, and delivery pipelines.
 
 ---
 
+### [Downloads Browser](./downloads)
+
+Unified downloads browser for discovering, previewing, and acquiring game content across built-in publishers (Generals Online, TheSuperHackers, Community Outpost, GitHub) and subscribed community creator catalogs. Features rich detail views, responsive variant selection, live download tracking via `ContentDownloadCoordinator`, state detection via `ContentStateService`, and seamless one-click addition to game profiles.
+
+---
+
 ### [Game Installations](./game-installations)
 
 Automatic detection and management of game installations across multiple platforms.
@@ -48,29 +54,31 @@ installable content packages and their dependencies.
 ### [Storage & CAS](./storage)
 
 Multi-pool Content Addressable Storage (CAS) system for efficient file storage,
-deduplication, and integrity verification. Features separate pools for user content
-(Primary) and game installations (Installation) to support cross-drive scenarios
-and hard-link optimization. Provides atomic operations, garbage collection, and
-concurrent access safety.
+deduplication, and integrity verification. Automatically manages disk space and
+prevents duplicate downloads.
+
+---
+
+### [Content Reconciliation](./reconciliation)
+
+Intelligent delta calculator that determines exactly which files need to be
+added, updated, or removed when switching between game configurations. Minimizes
+disk operations and ensures fast profile switching.
 
 ---
 
 ### [Game Settings](./game-settings)
 
-Comprehensive game configuration management supporting all Options.ini settings
-including video, audio, network, and gameplay options. Features profile-specific
-settings, validation, and seamless integration with game launches.
+Comprehensive game settings management with profile-specific configuration
+storage. Manage display settings, audio options, network configurations, and
+gameplay preferences independently for each game profile.
 
 ---
 
 ### [Validation System](./validation)
 
-Multi-level validation system for:
-
-- Game installation integrity  
-- Content compatibility  
-- Workspace consistency  
-
+Multi-level validation framework that verifies file integrity, detects missing
+dependencies, checks version compatibility, and validates configurations.
 Automatically detects and resolves conflicts to ensure stable gameplay.
 
 ---

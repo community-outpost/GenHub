@@ -11,6 +11,21 @@ public static class NotificationConstants
     public const int DefaultAutoDismissMs = 5000;
 
     /// <summary>
+    /// Maximum number of notifications to keep in history.
+    /// </summary>
+    public const int MaxHistorySize = 100;
+
+    /// <summary>
+    /// Maximum numeric value shown in the badge; above this, <see cref="MaxBadgeDisplayText"/> is shown.
+    /// </summary>
+    public const int MaxBadgeCount = 99;
+
+    /// <summary>
+    /// Text displayed in the notification badge when the count exceeds <see cref="MaxBadgeCount"/>.
+    /// </summary>
+    public const string MaxBadgeDisplayText = "99+";
+
+    /// <summary>
     /// Animation duration for fade-in in seconds.
     /// </summary>
     public const double FadeInDurationSeconds = 0.3;

@@ -1,0 +1,120 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ViewModels.Dialogs"
+             xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="260"
+             DragDrop.AllowDrop="True"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.RenameCatalogDialogView"
+             x:DataType="vm:RenameCatalogDialogViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Button.glass-btn">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.glass-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto, *, Auto" Margin="20,14,20,14">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.EditCatalog.Title}"
+                       FontSize="16" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimary}"/>
+            <Button Grid.Column="1"
+                    Command="{Binding CancelCommand}"
+                    Background="Transparent"
+                    Padding="6"
+                    CornerRadius="6"
+                    BorderThickness="0"
+                    VerticalAlignment="Top">
+                <PathIcon Data="{StaticResource CloseIcon}"
+                          Width="12" Height="12"
+                          Foreground="{DynamicResource TextMuted}"/>
+            </Button>
+        </Grid>
+
+        <!-- Form Body -->
+        <StackPanel Grid.Row="1" Spacing="10">
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Name}"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       FontSize="13"/>
+            <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
+                     Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"
+                     FontSize="13"
+                     Padding="10,8"/>
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Description}"
+                       FontSize="11"
+                       Foreground="{DynamicResource TextMuted}"
+                       TextWrapping="Wrap"/>
+
+            <!-- Catalog Icon / Logo URL -->
+            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.AvatarUrl}"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}"
+                       FontSize="13"
+                       Margin="0,4,0,0"/>
+            <commonControls:ImageInputBox Text="{Binding IconUrl, Mode=TwoWay}"
+                                         Watermark="{localization:Localize Tools.PublisherStudio.Profile.AvatarPlaceholder}"
+                                         FallbackIconData="{StaticResource ContentIcon}"
+                                         PreviewCornerRadius="6"
+                                         PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
+                                         DropHandler="{Binding HandleIconDropAsync}"/>
+
+            <TextBlock Text="{Binding ValidationError}"
+                       Foreground="{DynamicResource StatusErrorBrush}"
+                       FontSize="12"
+                       IsVisible="{Binding !IsValid}"
+                       TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,14,0,0">
+            <!-- Delete Button (Only when CanDelete is true) -->
+            <Button Grid.Column="0"
+                    Command="{Binding DeleteCommand}"
+                    IsVisible="{Binding CanDelete}"
+                    Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
+                    BorderBrush="{DynamicResource StatusErrorBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14,8"
+                    Cursor="Hand">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <PathIcon Data="{StaticResource DeleteIcon}" Width="12" Height="12" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
+                               Foreground="{DynamicResource StatusErrorBrush}"
+                               FontWeight="SemiBold"
+                               FontSize="12"/>
+                </StackPanel>
+            </Button>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Cancel}"
+                        Command="{Binding CancelCommand}"
+                        Classes="glass-btn"
+                        Padding="16,8"/>
+                <Button Content="{localization:Localize Tools.PublisherStudio.RenameCatalog.Save}"
+                        Command="{Binding SaveCommand}"
+                        Background="{DynamicResource PrimaryGradientBrush}"
+                        Foreground="{DynamicResource TextPrimary}"
+                        CornerRadius="8"
+                        Padding="20,8"
+                        FontWeight="Bold"
+                        BorderThickness="0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

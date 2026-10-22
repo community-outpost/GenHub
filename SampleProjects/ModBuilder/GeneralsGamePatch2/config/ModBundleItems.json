@@ -1,0 +1,14 @@
+{
+  "BundleItems": [
+    {
+      "Name": "PatchINI",
+      "Type": "INI",
+      "SourceFiles": [
+        "GameFilesEdited/Data/INI/**/*.ini"
+      ],
+      "OutputFormat": "INI",
+      "ManifestFile": "config/500_900_CommunityPatch_CoreINI.big.manifest.json",
+      "Description": "Generals community bugfix and balance INI rules"
+    }
+  ]
+}

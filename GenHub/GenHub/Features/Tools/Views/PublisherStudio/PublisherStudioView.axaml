@@ -1,0 +1,388 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels"
+             xmlns:views="using:GenHub.Features.Tools.Views.PublisherStudio"
+             mc:Ignorable="d"
+             d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="GenHub.Features.Tools.Views.PublisherStudio.PublisherStudioView"
+             x:DataType="vm:PublisherStudioViewModel"
+             DragDrop.AllowDrop="True"
+             x:Name="RootView">
+
+    <UserControl.Styles>
+        <!-- ==================== SURFACE & PANEL STYLES ==================== -->
+        <Style Selector="Border.studio-header-panel">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+        </Style>
+
+        <!-- ==================== NAVIGATION PILL STYLES ==================== -->
+        <Style Selector="Button.nav-pill">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.nav-pill:pointerover">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+        </Style>
+
+        <Style Selector="Button.nav-pill.active">
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+
+        <!-- Glass Action Button (Header Top Right) -->
+        <Style Selector="Button.glass-btn-icon">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.glass-btn-icon:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
+        </Style>
+
+        <Style Selector="Button.glass-btn-icon.upload-pending">
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+        </Style>
+        <Style Selector="Button.glass-btn-icon.upload-pending:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
+        </Style>
+
+        <!-- Primary Gradient Button -->
+        <Style Selector="Button.primary-btn">
+            <Setter Property="Background" Value="{DynamicResource PSPrimaryGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.primary-btn:pointerover">
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <Style Selector="Button.primary-btn:disabled">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+
+        <!-- Status Badges -->
+        <Style Selector="Border.status-badge-warning">
+            <Setter Property="Background" Value="{DynamicResource StatusWarningBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningHighlightBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+
+        <Style Selector="Border.status-badge-saved">
+            <Setter Property="Background" Value="{DynamicResource StatusSuccessBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,3"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <!-- Background radial glow overlay -->
+        <Canvas IsHitTestVisible="False">
+            <Ellipse Width="600" Height="600" Canvas.Left="-100" Canvas.Top="-100" Opacity="0.04"
+                     Fill="{DynamicResource AccentBrush}"/>
+        </Canvas>
+
+        <!-- Main Studio Shell: 2-row layout (Header, Content View Host) -->
+        <Grid RowDefinitions="Auto,*" Margin="24,16,24,16">
+
+            <!-- ==================== TOP NAVIGATION HEADER ==================== -->
+            <Border Grid.Row="0" Classes="studio-header-panel" Padding="14,10" Margin="0,0,0,16">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Left: Studio Branding & Title -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <Image Source="avares://GenHub/Assets/Icons/publisherstudio-icon.png"
+                               Width="34" Height="34"
+                               Stretch="Uniform"
+                               VerticalAlignment="Center"
+                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Subtitle}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Center: Navigation Pills (wraps to a second row on narrow widths instead of overlapping neighbors) -->
+                    <Border Grid.Column="1"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center"
+                            Margin="12,0"
+                            Background="{DynamicResource GlassFillSubtleBrush}"
+                            BorderBrush="{DynamicResource GlassBorderSubtleBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="4">
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <!-- Publisher Profile (always accessible) -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="0"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabProfileTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabProfile}"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Content Library -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=1}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="1"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabLibraryTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource ContentIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabLibrary}"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Hosting & Storage (cloud-first entry point - always visible and enabled) -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=2}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="2"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabHostingTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabHosting}"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Referrals (temporarily disabled) -->
+                            <Button Classes="nav-pill"
+                                    IsVisible="False"
+                                    IsEnabled="False"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=3}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="3"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabReferralsTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource LinkIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabReferrals}"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Publish & Share -->
+                            <Button Classes="nav-pill"
+                                    Classes.active="{Binding SelectedTabIndex, Converter={StaticResource EqualityConverter}, ConverterParameter=4}"
+                                    Command="{Binding SelectTabCommand}"
+                                    CommandParameter="4"
+                                    IsEnabled="{Binding IsSetupComplete}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabPublishTooltip}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource PublishIcon}" Width="13" Height="13"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabPublish}"/>
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+                    </Border>
+
+                    <!-- Right: Catalog Selector + Project Actions -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <!-- Unsaved Changes Badge -->
+                        <Border IsVisible="{Binding HasUnsavedChanges}"
+                                Classes="status-badge-warning"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                <Ellipse Width="6" Height="6" Fill="{DynamicResource WarningHighlightBrush}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.Unsaved}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource WarningHighlightBrush}"/>
+                            </StackPanel>
+                        </Border>
+
+
+
+                        <!-- New Project Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding CreateNewProjectCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.NewProjectTooltip}">
+                            <PathIcon Data="{StaticResource AddIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="{DynamicResource TextSecondary}"/>
+                        </Button>
+
+                        <!-- Load Project Button -->
+                        <Button Classes="glass-btn-icon"
+                                Command="{Binding LoadProjectCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.LoadProjectTooltip}">
+                            <PathIcon Data="{StaticResource FolderOpenIcon}"
+                                      Width="14" Height="14"
+                                      Foreground="{DynamicResource TextSecondary}"/>
+                        </Button>
+
+                        <!-- Upload Definition Button (saves silently, then uploads when changes are pending) -->
+                        <Button Classes="glass-btn-icon"
+                                Classes.upload-pending="{Binding HasDefinitionChanges}"
+                                Command="{Binding UploadDefinitionCommand}"
+                                IsEnabled="{Binding HasDefinitionChanges}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.UploadDefinitionTooltip}">
+                            <Panel>
+                                <PathIcon Data="{StaticResource PublishIcon}"
+                                          Width="14" Height="14"
+                                          Foreground="{DynamicResource TextMuted}"
+                                          IsVisible="{Binding !HasDefinitionChanges}"/>
+                                <Grid IsVisible="{Binding HasDefinitionChanges}">
+                                    <PathIcon Data="{StaticResource PublishIcon}"
+                                              Width="14" Height="14"
+                                              Foreground="#F59E0B"/>
+                                    <Ellipse Width="6" Height="6"
+                                             Fill="#F59E0B"
+                                             Stroke="#1E1E2E"
+                                             StrokeThickness="1"
+                                             HorizontalAlignment="Right"
+                                             VerticalAlignment="Top"
+                                             Margin="0,-2,-2,0"/>
+                                </Grid>
+                            </Panel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ==================== MAIN CONTENT VIEW HOST ==================== -->
+            <Grid Grid.Row="1">
+                <!-- TabControl with hidden headers (controlled via top unified header pills) -->
+                <TabControl Classes="studio-main-tabs"
+                            SelectedIndex="{Binding SelectedTabIndex}"
+                            Padding="0"
+                            Margin="0">
+                    <TabControl.Styles>
+                        <Style Selector="TabControl.studio-main-tabs /template/ ItemsPresenter#PART_ItemsPresenter">
+                            <Setter Property="IsVisible" Value="False"/>
+                        </Style>
+                    </TabControl.Styles>
+                    <!-- Tab 0: Profile -->
+                    <TabItem>
+                        <views:PublisherProfileView DataContext="{Binding PublisherProfileViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 1: Content Library -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:ContentLibraryView DataContext="{Binding ContentLibraryViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 2: Hosting & Storage (cloud-first entry point - always enabled) -->
+                    <TabItem>
+                        <views:HostingStorageView DataContext="{Binding PublishShareViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 3: Referrals (temporarily disabled) -->
+                    <TabItem IsEnabled="False" IsVisible="False">
+                        <views:ReferralsView DataContext="{Binding ReferralsViewModel}"/>
+                    </TabItem>
+                    <!-- Tab 4: Publish & Share -->
+                    <TabItem IsEnabled="{Binding IsSetupComplete}">
+                        <views:PublishShareView DataContext="{Binding PublishShareViewModel}"/>
+                    </TabItem>
+                </TabControl>
+
+                <!-- Setup Required Overlay (when navigating to other tabs before profile is saved) -->
+                <Border IsVisible="{Binding ShouldShowSetupOverlay}"
+                        Background="{DynamicResource OverlayScrimBrush}"
+                        IsHitTestVisible="{Binding ShouldShowSetupOverlay}">
+                    <Border Classes="studio-header-panel"
+                            Padding="36"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            MaxWidth="480">
+                        <StackPanel Spacing="20" HorizontalAlignment="Center">
+                            <Border Width="64" Height="64"
+                                    CornerRadius="16"
+                                    Background="{DynamicResource PrimaryGradientBrush}"
+                                    HorizontalAlignment="Center">
+                                <PathIcon Data="{StaticResource PersonIcon}"
+                                          Width="32" Height="32"
+                                          Foreground="White"/>
+                            </Border>
+
+                            <StackPanel Spacing="6" HorizontalAlignment="Center">
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.SetupRequired}"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.SetupRequiredDescription}"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           MaxWidth="340"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                                <Button Classes="primary-btn"
+                                        Command="{Binding GoToHostingTabCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource CloudStorageIcon}"
+                                                  Width="14" Height="14"
+                                                  Foreground="White"/>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabHosting}" FontWeight="SemiBold" FontSize="13"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="glass-btn"
+                                        Command="{Binding GoToProfileTabCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource PersonIcon}"
+                                                  Width="14" Height="14"
+                                                  Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.ConfigureProfile}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </Grid>
+
+        </Grid>
+    </Grid>
+</UserControl>

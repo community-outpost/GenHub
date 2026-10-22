@@ -61,6 +61,33 @@ These converters handle game profile-specific data transformations, including co
 
 ---
 
+## `ProfileSelectionConverter`
+
+- **Namespace**: `GenHub.Infrastructure.Converters`
+- **Implements**: `IMultiValueConverter`
+- **Purpose**: Combines a target content item (`ContentItemViewModel` or `ContentManifest`) with a target `GameProfile` into a two-element object array parameter for profile assignment commands (such as `AddToProfileCommand`).
+- **Input Bindings**:
+  1. `values[0]`: `ContentItemViewModel` or `ContentManifest` (from parent or dialog `DataContext`)
+  2. `values[1]`: `GameProfile` (from current row or `ItemsControl` item)
+- **Return Type**: `object[] { content, profile }` or `null`
+- **Singleton**: `ProfileSelectionConverter.Instance`
+
+### Usage in Profile Selection List
+
+```xml
+<Button Command="{Binding #RootView.DataContext.AddToProfileCommand}">
+    <Button.CommandParameter>
+        <MultiBinding Converter="{x:Static converters:ProfileSelectionConverter.Instance}">
+            <Binding Path="#RootView.DataContext.SelectedContent" />
+            <Binding Path="." />
+        </MultiBinding>
+    </Button.CommandParameter>
+    <TextBlock Text="Add to This Profile" />
+</Button>
+```
+
+---
+
 ## Usage Patterns
 
 ### Profile Card Layout
@@ -80,41 +107,11 @@ These converters handle game profile-specific data transformations, including co
 ### Profile Selection Grid
 
 ```xml
-<ItemsControl Items="{Binding GameProfiles}">
+<ItemsControl ItemsSource="{Binding GameProfiles}">
     <ItemsControl.ItemTemplate>
         <DataTemplate>
             <Border Background="{Binding Color, Converter={StaticResource ColorToBrushConverter}}"
                     CornerRadius="8" Margin="4">
-                <StackPanel>
-                    <Image Source="{Binding CoverUri, Converter={StaticResource ProfileCoverConverter}}" />
-                    <TextBlock Text="{Binding Name}" 
-                               Foreground="{Binding Color, Converter={StaticResource ContrastTextColorConverter}}" />
-                </StackPanel>
-            </Border>
-        </DataTemplate>
-    </ItemsControl.ItemTemplate>
-</ItemsControl>
-```
-
-### Real Usage in GameProfileCardView.axaml
-
-```xml
-<!-- Profile cover image display -->
-<Image Source="{Binding CoverImagePath, Converter={StaticResource ProfileCoverConverter}}" />
-
-<!-- Profile card background with opacity -->
-<Border Background="{Binding ColorValue, Converter={StaticResource ProfileColorToOpacityConverter}, ConverterParameter=0.6}" />
-```
-
-### Real Usage Patterns
-
-```xml
-<!-- Profile selection UI -->
-<ItemsControl Items="{Binding GameProfiles}">
-    <ItemsControl.ItemTemplate>
-        <DataTemplate>
-            <Border Background="{Binding Color, Converter={StaticResource ColorToBrushConverter}}"
-                    Opacity="{Binding Color, Converter={StaticResource ProfileColorToOpacityConverter}}">
                 <StackPanel>
                     <Image Source="{Binding CoverUri, Converter={StaticResource ProfileCoverConverter}}" />
                     <TextBlock Text="{Binding Name}" 

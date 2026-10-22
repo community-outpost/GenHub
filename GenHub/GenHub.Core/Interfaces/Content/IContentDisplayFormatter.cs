@@ -85,11 +85,11 @@ public interface IContentDisplayFormatter
     /// NormalizeVersion("1.08")      // "1.08"
     /// NormalizeVersion(null)        // ""
     /// NormalizeVersion("")          // ""
-    /// NormalizeVersion("Unknown")   // ""
+    /// NormalizeVersion(GameClientConstants.UnknownVersion)   // ""
     /// </code>
     /// </example>
     /// <remarks>
-    /// Returns an empty string if the version is null, empty, whitespace, "Unknown", or "Auto-Updated".
+    /// Returns an empty string if the version is null, empty, whitespace, GameClientConstants.UnknownVersion, or "Auto-Updated".
     /// This ensures consistent display behavior and prevents null reference exceptions.
     /// </remarks>
     string NormalizeVersion(string? version);

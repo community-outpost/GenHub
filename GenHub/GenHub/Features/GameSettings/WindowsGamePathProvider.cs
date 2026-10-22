@@ -1,23 +1,20 @@
 using System;
-using System.IO;
-using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.GameSettings;
-using GenHub.Core.Models.Enums;
 
 namespace GenHub.Features.GameSettings;
 
 /// <summary>
-/// Windows-specific implementation of game path provider.
+/// Windows implementation of <see cref="Core.Interfaces.GameSettings.IGamePathProvider"/>.
+/// <para>
+/// Resolves to <c>Documents/Command and Conquer Generals Zero Hour Data</c>, matching
+/// <c>GlobalData::BuildUserDataPathFromRegistry</c> in the game engine, which uses
+/// <c>SHGetKnownFolderPath(FOLDERID_Documents)</c> so that OneDrive and Group Policy
+/// folder redirection are honoured. <c>SpecialFolder.MyDocuments</c> resolves through
+/// the same known-folder mechanism.
+/// </para>
 /// </summary>
-public class WindowsGamePathProvider : IGamePathProvider
+public sealed class WindowsGamePathProvider : GamePathProviderBase
 {
     /// <inheritdoc/>
-    public string GetOptionsDirectory(GameType gameType)
-    {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var folderName = gameType == GameType.ZeroHour
-            ? GameSettingsConstants.FolderNames.ZeroHour
-            : GameSettingsConstants.FolderNames.Generals;
-        return Path.Combine(documentsPath, folderName);
-    }
+    protected override string GetUserDataBaseDirectory() =>
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 }
