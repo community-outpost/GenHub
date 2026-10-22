@@ -69,7 +69,7 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     /// <summary>
     /// A game started through a CAS symlink is discovered with the identities the launcher resolves.
     /// </summary>
-    [SymlinkFact]
+    [SymlinkProcessExecutionFact]
     public void ProcessStartedThroughACasSymlink_IsDiscoveredWithTheResolvedIdentities()
     {
         var store = Directory.CreateDirectory(Path.Combine(_root, "objects", "ab")).FullName;

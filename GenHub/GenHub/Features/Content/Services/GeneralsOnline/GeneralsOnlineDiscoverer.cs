@@ -1,5 +1,6 @@
 using AngleSharp;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
@@ -58,7 +59,11 @@ public class GeneralsOnlineDiscoverer(
     public string Description => "Discovers Generals Online releases from official CDN";
 
     /// <inheritdoc />
-    public bool IsEnabled => true;
+    /// <remarks>
+    /// False when the provider definition is disabled or does not list this host, so the release
+    /// is not offered.
+    /// </remarks>
+    public bool IsEnabled => providerLoader.GetProvider(GeneralsOnlineConstants.PublisherType)?.IsAvailableOnHost() ?? true;
 
     /// <inheritdoc />
     public ContentSourceCapabilities Capabilities =>
@@ -103,6 +108,19 @@ public class GeneralsOnlineDiscoverer(
                 logger.LogError("Provider definition not found for {ProviderId}", GeneralsOnlineConstants.PublisherType);
                 return OperationResult<ContentDiscoveryResult>.CreateFailure(
                     $"Provider definition '{GeneralsOnlineConstants.PublisherType}' not found. Ensure generalsonline.provider.json exists.");
+            }
+
+            if (!provider.IsAvailableOnHost())
+            {
+                logger.LogInformation(
+                    "Skipping Generals Online discovery: the provider is disabled or does not support {Platform}",
+                    HostPlatform.Current);
+                return OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+                {
+                    Items = [],
+                    TotalItems = 0,
+                    HasMoreItems = false,
+                });
             }
 
             logger.LogInformation(

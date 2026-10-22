@@ -24,10 +24,8 @@
       <!-- Testing and driver artifacts: never shipped in release publish output. -->
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').StartsWith('.playwright'))" />
 
-      <!-- Non-target architecture natives and headers for LibVLC: GenHub Windows runs strictly on win-x64. -->
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').Replace('\', '/').StartsWith('libvlc/win-x86/'))" />
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').Replace('\', '/').StartsWith('libvlc/win-arm64/'))" />
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').Replace('\', '/').StartsWith('libvlc/win-x64/include/'))" />
+      <!-- Native LibVLC binaries: decoupled across all platforms and acquired on demand at runtime. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(RelativePath)').Replace('\', '/').StartsWith('libvlc/'))" />
     </ItemGroup>
   </Target>
 </Project>

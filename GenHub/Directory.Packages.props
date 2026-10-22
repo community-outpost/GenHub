@@ -19,6 +19,8 @@
     <PackageVersion Include="Google.Apis.Auth" Version="1.73.0" />
     <PackageVersion Include="Google.Apis.Drive.v3" Version="1.73.0.3996" />
     <PackageVersion Include="Magick.NET-Q16-AnyCPU" Version="14.17.1" />
+    <!-- Matches the version Avalonia.Skia resolves. ImageCacheService reads image headers with SKCodec. -->
+    <PackageVersion Include="SkiaSharp" Version="2.88.9" />
     <PackageVersion Include="Markdig" Version="0.44.0" />
     <PackageVersion Include="Markdown.Avalonia" Version="11.0.3" />
     <PackageVersion Include="Material.Icons.Avalonia" Version="2.4.1" />
@@ -60,13 +62,8 @@
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <PackageVersion Include="SharpCompress" Version="0.48.0" />
     <PackageVersion Include="System.Management" Version="10.0.2" />
-    <!-- Image processing for AVIF to TGA conversion (GenPatcher content) -->
-    <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageVersion Include="HeyRed.ImageSharp.Heif" Version="2.1.3" />
-    <PackageVersion Include="LibHeif.Native" Version="1.15.1" />
-    <!-- In-app video playback (LibVLCSharp Avalonia VideoView with Windows natives) -->
+    <!-- In-app video playback (LibVLCSharp Avalonia VideoView with on-demand / system LibVLC) -->
     <PackageVersion Include="LibVLCSharp" Version="3.8.5" />
     <PackageVersion Include="LibVLCSharp.Avalonia" Version="3.8.5" />
-    <PackageVersion Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
   </ItemGroup>
 </Project>

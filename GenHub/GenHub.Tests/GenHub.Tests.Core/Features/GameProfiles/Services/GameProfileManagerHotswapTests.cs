@@ -35,6 +35,7 @@ public class GameProfileManagerHotswapTests
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
     private readonly Mock<ILaunchRegistry> _launchRegistryMock = new();
+    private readonly Mock<IProfileContentLinker> _linkerMock = new();
     private readonly Mock<ILogger<GameProfileManager>> _loggerMock = new();
     private readonly GameProfileManager _profileManager;
 
@@ -43,13 +44,19 @@ public class GameProfileManagerHotswapTests
     /// </summary>
     public GameProfileManagerHotswapTests()
     {
+        _linkerMock.Setup(l => l.UpdateProfileUserDataAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<ContentManifest>>(),
+                It.IsAny<GameType>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _profileManager = new GameProfileManager(
             _profileRepositoryMock.Object,
             _installationServiceMock.Object,
             _manifestPoolMock.Object,
             _gameSettingsServiceMock.Object,
             Mock.Of<IWorkspaceManager>(),
-            Mock.Of<IProfileContentLinker>(),
+            _linkerMock.Object,
             _loggerMock.Object,
             _launchRegistryMock.Object);
     }
@@ -109,6 +116,12 @@ public class GameProfileManagerHotswapTests
             Name = "Running Profile",
             ActiveWorkspaceId = "workspace-live-123",
             EnabledContentIds = [oldMapId],
+            GameClient = new GameClient
+            {
+                Id = "client-zh",
+                Name = "Zero Hour",
+                GameType = GameType.ZeroHour,
+            },
         };
 
         var oldMapManifest = new ContentManifest
@@ -150,6 +163,13 @@ public class GameProfileManagerHotswapTests
         Assert.True(result.Success);
         Assert.Equal("workspace-live-123", existingProfile.ActiveWorkspaceId);
         Assert.Contains(newMapId, existingProfile.EnabledContentIds);
+        _linkerMock.Verify(
+            l => l.UpdateProfileUserDataAsync(
+                profileId,
+                It.Is<IEnumerable<ContentManifest>>(m => m.Any(x => x.Id.Value == newMapId)),
+                GameType.ZeroHour,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

@@ -48,7 +48,8 @@ public sealed class ReplayDirectoryService(
     IServiceScopeFactory scopeFactory,
     ILogger<ReplayDirectoryService> logger,
     IGameCrcCalculatorService? crcCalculator = null,
-    IGamePathProvider? pathProvider = null) : IReplayDirectoryService
+    IGamePathProvider? pathProvider = null,
+    IReplayMapLookupService? mapLookupService = null) : IReplayDirectoryService
 {
     private sealed record ReplayContentResolutionContext(
         IContentManifestPool ManifestPool,
@@ -236,6 +237,26 @@ public sealed class ReplayDirectoryService(
             });
 
         return replayFiles.OrderByDescending(r => r.LastModified).ToList().AsReadOnly();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ReplayMapAvailability>> ResolveMapAvailabilityAsync(GameType version, IReadOnlyList<ReplayFile> replays, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(replays);
+        if (mapLookupService == null)
+        {
+            return new ReplayMapAvailability[replays.Count];
+        }
+
+        try
+        {
+            return await mapLookupService.ResolveMapAvailabilityAsync(version, replays, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to resolve replay map availability for {GameType}", version);
+            return new ReplayMapAvailability[replays.Count];
+        }
     }
 
     /// <inheritdoc />
@@ -1028,7 +1049,7 @@ public sealed class ReplayDirectoryService(
             return ReplayCompatibilityStatus.Downloadable;
         }
 
-        return ReplayCompatibilityStatus.Orphaned;
+        return isRetail ? ReplayCompatibilityStatus.RequiresRetailInstallation : ReplayCompatibilityStatus.Orphaned;
     }
 
     /// <summary>

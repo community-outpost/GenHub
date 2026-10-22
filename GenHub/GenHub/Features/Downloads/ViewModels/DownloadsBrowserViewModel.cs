@@ -347,7 +347,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 _localizationService.PropertyChanged += OnLocalizationChanged;
             }
 
-            Publishers = CreateBuiltInPublishers(ResolveDownloadedContentLabel());
+            Publishers = [.. CreateBuiltInPublishers(ResolveDownloadedContentLabel()).Where(IsPublisherAvailableOnHost)];
             InitializeFilterViewModels();
             contentStateService.ContentStateChanged += OnContentStateChanged;
             WeakReferenceMessenger.Default.Register<ContentLibraryClearedMessage>(
@@ -1607,7 +1607,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             var catalogs = definitionResult.Success
-                ? definitionResult.Data?.Catalogs.Where(c => !string.IsNullOrWhiteSpace(c.Url)).ToList()
+                ? definitionResult.Data?.Catalogs.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Url)).ToList()
                 : null;
             if (cancellationToken.IsCancellationRequested
                 || _activeCatalogLoadId != loadId
@@ -3744,6 +3744,17 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    /// <summary>
+    /// Keeps a built-in publisher out of the sidebar when its discoverer is disabled on this host,
+    /// such as Windows-only content on macOS or Linux.
+    /// </summary>
+    /// <param name="publisher">The built-in publisher entry.</param>
+    /// <returns><c>false</c> only when the publisher's discoverer reports it is disabled.</returns>
+    private bool IsPublisherAvailableOnHost(PublisherItemViewModel publisher)
+    {
+        return GetDiscovererForPublisher(publisher.PublisherId)?.IsEnabled != false;
+    }
+
     /// <returns>The discoverer for the specified publisher, or null if not found.</returns>
     private IContentDiscoverer? GetDiscovererForPublisher(string publisherId)
     {
@@ -3810,6 +3821,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 gitHubApiClient: serviceProvider.GetService(typeof(IGitHubApiClient)) as IGitHubApiClient,
                 workspaceManager: serviceProvider.GetService<IWorkspaceManager>(),
                 patchNotesService: serviceProvider.GetService(typeof(IGeneralsOnlinePatchNotesService)) as IGeneralsOnlinePatchNotesService,
+                userSettingsService: serviceProvider.GetService<IUserSettingsService>(),
                 onDescriptionEnriched: (version, desc) =>
                 {
                     if (GeneralsOnlinePatchNotesHelper.VersionsMatch(item.SearchResult.Version, version))
@@ -4579,7 +4591,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 profileContentService,
                 manifestPool,
                 notificationService,
-                localizationService ?? _localizationService);
+                localizationService ?? _localizationService,
+                serviceProvider.GetService<IUserSettingsService>());
 
             // Load profiles for the target game
             await profileSelectionVm.LoadProfilesAsync(

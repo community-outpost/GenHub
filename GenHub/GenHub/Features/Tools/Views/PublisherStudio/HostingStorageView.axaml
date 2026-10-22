@@ -53,6 +53,71 @@
             <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
         </Style>
+        <Style Selector="Button.column-header-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.column-header-btn:pointerover">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Opacity" Value="0.75"/>
+        </Style>
+        <Style Selector="ToggleButton.chevron-toggle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              HorizontalContentAlignment="Center"
+                                              VerticalContentAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="ToggleButton.chevron-toggle:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.chevron-toggle:checked">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.chevron-toggle:checked:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Border.asset-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
+        </Style>
+        <Style Selector="Button.child-link-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+        <Style Selector="Button.child-link-btn:pointerover">
+            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
@@ -299,15 +364,21 @@
                 <Border Grid.Column="2" Classes="metric-box" Margin="5,0,5,0">
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AssetBreakdown}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,2,0,0">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,2,0,0">
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.CatalogsPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding HostedCatalogsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
 
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ReleaseBinariesPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding HostedArtifactsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.MediaScreenshotsPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding HostedScreenshotsCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.MediaVideosPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding HostedVideosCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ExternalCdnPrefix}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ExternalCdnCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -581,11 +652,12 @@
                     <!-- Filter and Search Toolbar -->
                     <Grid ColumnDefinitions="*,Auto">
                         <!-- Category Filter Tabs -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button Classes="small-glass-btn"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="All"
-                                    Padding="10,5">
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterAll}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
@@ -597,7 +669,8 @@
                             <Button Classes="small-glass-btn"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Definition"
-                                    Padding="10,5">
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterDefinitions}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
@@ -609,7 +682,8 @@
                             <Button Classes="small-glass-btn"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Catalog"
-                                    Padding="10,5">
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterCatalogs}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
@@ -621,7 +695,8 @@
                             <Button Classes="small-glass-btn"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Artifact"
-                                    Padding="10,5">
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterArtifacts}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
@@ -632,8 +707,35 @@
 
                             <Button Classes="small-glass-btn"
                                     Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Screenshot"
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterScreenshots}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedScreenshotsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
+                                    CommandParameter="Video"
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterVideos}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
+                                        <TextBlock Text="{Binding HostedVideosCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <Button Classes="small-glass-btn"
+                                    Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="ExternalCdn"
-                                    Padding="10,5">
+                                    Padding="10,5"
+                                    Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterExternalCdn}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
@@ -641,7 +743,7 @@
                                     </Border>
                                 </StackPanel>
                             </Button>
-                        </StackPanel>
+                        </WrapPanel>
 
                         <!-- Search Filter -->
                         <TextBox Grid.Column="1"
@@ -655,13 +757,33 @@
 
                     <!-- Table Header -->
                     <Border Background="{DynamicResource GlassFillBrush}" BorderBrush="{DynamicResource GlassBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
-                        <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
-                            <TextBlock Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="4" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="220" TextAlignment="Right"/>
+                        <Grid ColumnDefinitions="28,2*,1.2*,1.5*,0.8*,0.9*,1.2*,Auto">
+                            <Border Grid.Column="0" Width="28"/>
+                            <Button Grid.Column="1" Classes="column-header-btn"
+                                    Command="{Binding SetInventorySortCommand}"
+                                    CommandParameter="Name"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.SortByNameTip}"
+                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.SortByNameTip}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ColFileName}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Text="{Binding NameSortGlyph}" FontSize="10" Foreground="{DynamicResource AccentColorBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColCategory}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLinkedTo}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="4" Classes="column-header-btn"
+                                    Command="{Binding SetInventorySortCommand}"
+                                    CommandParameter="Size"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.SortBySizeTip}"
+                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.SortBySizeTip}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ColSize}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Text="{Binding SizeSortGlyph}" FontSize="10" Foreground="{DynamicResource AccentColorBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <TextBlock Grid.Column="5" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColStatus}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="6" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColLocation}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="7" Text="{localization:Localize Tools.PublisherStudio.Hosting.ColActions}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Width="260" TextAlignment="Right" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
 
@@ -672,23 +794,41 @@
                                 <Border Background="{DynamicResource GlassFillSubtleBrush}"
                                         BorderBrush="{DynamicResource GlassFillBrush}"
                                         BorderThickness="0,0,0,1"
-                                        Padding="12,12">
-                                    <Grid ColumnDefinitions="2*,1.5*,1*,1*,1.5*,Auto">
-                                        <!-- Column 0: File Name & SHA256 -->
-                                        <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        Padding="12,12"
+                                        Classes="asset-row"
+                                        PointerPressed="OnAssetRowPointerPressed">
+                                    <StackPanel Spacing="0">
+                                    <Grid ColumnDefinitions="28,2*,1.2*,1.5*,0.8*,0.9*,1.2*,Auto">
+                                        <!-- Column 0: Expand linked items -->
+                                        <ToggleButton Grid.Column="0" Classes="chevron-toggle"
+                                                      IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                                      IsVisible="{Binding IsExpandable}"
+                                                      ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ExpandChildrenTip}"
+                                                      AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.ExpandChildrenTip}">
+                                            <Panel>
+                                                <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}"/>
+                                                <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}" IsVisible="{Binding IsExpanded}"/>
+                                            </Panel>
+                                        </ToggleButton>
+
+                                        <!-- Column 1: File Name & URL -->
+                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding Url}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
                                                        IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
 
-                                        <!-- Column 1: Category -->
-                                        <TextBlock Grid.Column="1" Text="{Binding Category}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <!-- Column 2: Category -->
+                                        <TextBlock Grid.Column="2" Text="{Binding Category}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
-                                        <!-- Column 2: File Size -->
-                                        <TextBlock Grid.Column="2" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                                        <!-- Column 3: Linked To -->
+                                        <TextBlock Grid.Column="3" Text="{Binding LinkedToText}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LinkedToTooltip}"/>
 
-                                        <!-- Column 3: Status Badge -->
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <!-- Column 4: File Size -->
+                                        <TextBlock Grid.Column="4" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+
+                                        <!-- Column 5: Status Badge -->
+                                        <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
                                             <Border Classes="status-badge-active" IsVisible="{Binding IsOnline}">
                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StatusLiveOnline}" FontSize="10" Foreground="{DynamicResource StatusSuccessBrush}" FontWeight="SemiBold"/>
                                             </Border>
@@ -700,11 +840,11 @@
                                             </Border>
                                         </StackPanel>
 
-                                        <!-- Column 4: Location -->
-                                        <TextBlock Grid.Column="4" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <!-- Column 6: Location -->
+                                        <TextBlock Grid.Column="6" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
-                                        <!-- Column 5: Action Buttons -->
-                                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="220">
+                                        <!-- Column 7: Action Buttons -->
+                                        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="260">
                                             <!-- Load to Project (for Cloud Definitions or Catalogs) -->
                                             <Button Classes="small-glass-btn"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).LoadAssetToProjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -765,8 +905,70 @@
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">
                                                 <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
                                             </Button>
+
+                                            <Button Classes="small-glass-btn"
+                                                    Command="{Binding ((vm:PublishShareViewModel)DataContext).DeleteHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding CanDelete}"
+                                                    IsEnabled="{Binding !IsDeleting}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.DeleteAction}"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.DeleteTip}">
+                                                <PathIcon Data="{StaticResource DeleteIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                            </Button>
                                         </StackPanel>
                                     </Grid>
+
+                                    <!-- Expanded linked items -->
+                                    <Border Classes="expanded-panel"
+                                            IsVisible="{Binding IsExpanded}"
+                                            Background="{DynamicResource GlassFillBrush}"
+                                            BorderBrush="{DynamicResource GlassBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Padding="10,8"
+                                            Margin="28,8,0,0">
+                                        <StackPanel Spacing="3">
+                                            <TextBlock Text="{Binding ChildrenSummary}"
+                                                       IsVisible="{Binding HasChildren}"
+                                                       FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextMuted}"/>
+                                            <ItemsControl ItemsSource="{Binding Children}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="vm:HostedAssetChildViewModel">
+                                                        <Button Classes="child-link-btn"
+                                                                Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding CopyUrl}"
+                                                                IsEnabled="{Binding CopyUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                AutomationProperties.Name="{Binding Name}">
+                                                            <ToolTip.Tip>
+                                                                <StackPanel Spacing="2">
+                                                                    <TextBlock Text="{Binding CopyUrl}" FontSize="10" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ChildCopyLinkAction}" FontSize="10" FontStyle="Italic" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                                                </StackPanel>
+                                                            </ToolTip.Tip>
+                                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                <PathIcon Grid.Column="0" Data="{StaticResource ToolIcon.ChevronRight}" Width="10" Height="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                                <PathIcon Grid.Column="2" Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                            </Grid>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="{Binding EmptyStateText}"
+                                                       IsVisible="{Binding IsEmpty}"
+                                                       FontSize="11" FontStyle="Italic" Foreground="{DynamicResource TextMuted}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PreviewLoadingText}"
+                                                       IsVisible="{Binding IsLoadingChildren}"
+                                                       FontSize="11" FontStyle="Italic" Foreground="{DynamicResource StatusInfoBrush}"/>
+                                            <TextBlock Text="{Binding ChildrenLoadError}"
+                                                       IsVisible="{Binding ChildrenLoadError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                       FontSize="11" Foreground="{DynamicResource StatusErrorBrush}" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                    </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

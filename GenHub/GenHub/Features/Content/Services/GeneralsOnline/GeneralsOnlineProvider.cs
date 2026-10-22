@@ -43,9 +43,6 @@ public class GeneralsOnlineProvider(
     public override string Description => GeneralsOnlineConstants.Description;
 
     /// <inheritdoc />
-    public override bool IsEnabled => true;
-
-    /// <inheritdoc />
     /// <remarks>
     /// Capabilities:
     /// - RequiresDiscovery: Provider queries CDN API to find available releases

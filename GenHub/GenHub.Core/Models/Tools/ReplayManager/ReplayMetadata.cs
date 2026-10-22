@@ -14,6 +14,16 @@ public sealed class ReplayMetadata
     public string? MapName { get; init; }
 
     /// <summary>
+    /// Gets the CRC of the map file the replay was recorded on.
+    /// </summary>
+    public uint? MapCrc { get; init; }
+
+    /// <summary>
+    /// Gets the size in bytes of the map file the replay was recorded on.
+    /// </summary>
+    public uint? MapSize { get; init; }
+
+    /// <summary>
     /// Gets the replay title or description embedded in the header.
     /// </summary>
     public string? Title { get; init; }
@@ -82,4 +92,9 @@ public sealed class ReplayMetadata
     /// Gets the formatted INI CRC as a hex string (e.g., "0x76B251A3").
     /// </summary>
     public string? FormattedIniCrc => IniCrc.HasValue ? $"0x{IniCrc.Value:X8}" : null;
+
+    /// <summary>
+    /// Gets the formatted map CRC as a hex string (e.g., "0x6314F5FD").
+    /// </summary>
+    public string? FormattedMapCrc => MapCrc.HasValue ? $"0x{MapCrc.Value:X8}" : null;
 }

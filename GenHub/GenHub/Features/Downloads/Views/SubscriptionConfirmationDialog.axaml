@@ -100,7 +100,7 @@
             </ExperimentalAcrylicBorder>
 
             <!-- Main Layout Grid -->
-            <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="22,16,22,18">
+            <Grid RowDefinitions="Auto, *, Auto, Auto, Auto" Margin="22,16,22,18">
                 <!-- Row 0: Header Bar -->
                 <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12"
                       Background="Transparent"
@@ -523,8 +523,27 @@
                     </Grid>
                 </Panel>
 
-                <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
+                <!-- Row 2: Publisher ID collision or verified move notice -->
                 <Border Grid.Row="2"
+                        IsVisible="{Binding ShowSourceChangeNotice}"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="14,10"
+                        Margin="0,10,0,0">
+                    <Grid ColumnDefinitions="Auto, *">
+                        <PathIcon Grid.Column="0" Data="{StaticResource ToolIcon.AlertTriangle}" Width="18" Height="18" Foreground="{DynamicResource WarningBrush}" Margin="0,0,10,0" VerticalAlignment="Center" IsVisible="{Binding RequiresSourceDecision}" />
+                        <PathIcon Grid.Column="0" Data="{StaticResource ToolIcon.Check}" Width="18" Height="18" Foreground="{DynamicResource SuccessBrush}" Margin="0,0,10,0" VerticalAlignment="Center" IsVisible="{Binding IsVerifiedMove}" />
+                        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding SourceChangeTitle}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" FontSize="12" />
+                            <TextBlock Text="{Binding SourceChangeMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Row 3: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
+                <Border Grid.Row="3"
                         IsVisible="{Binding ShowActionError}"
                         Background="{DynamicResource CardBackground}"
                         BorderBrush="{DynamicResource ErrorBrush}"
@@ -552,10 +571,10 @@
                     </Grid>
                 </Border>
 
-                <!-- Row 3: Footer Action Buttons -->
-                <Grid Grid.Row="3" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
+                <!-- Row 4: Footer Action Buttons -->
+                <Grid Grid.Row="4" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
                     <Button Grid.Column="0"
-                            Content="{localization:Localize Downloads.Subscription.Cancel}"
+                            Content="{Binding CancelButtonText}"
                             Command="{Binding CancelCommand}"
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             Foreground="{DynamicResource TextPrimary}"
@@ -566,9 +585,21 @@
                             CornerRadius="8" />
 
                     <Button Grid.Column="1"
+                            Content="{localization:Localize Downloads.Subscription.ReplaceExisting}"
+                            Command="{Binding ReplaceExistingCommand}"
+                            IsEnabled="{Binding CanConfirm}"
+                            IsVisible="{Binding RequiresSourceDecision}"
+                            Background="{DynamicResource WarningBrush}"
+                            Foreground="{DynamicResource TextPrimary}"
+                            FontWeight="Bold"
+                            Padding="28,9"
+                            CornerRadius="8" />
+
+                    <Button Grid.Column="1"
                             Content="{Binding ConfirmButtonText}"
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
+                            IsVisible="{Binding !RequiresSourceDecision}"
                             Background="{DynamicResource AccentBrush}"
                             Foreground="{DynamicResource TextPrimary}"
                             FontWeight="Bold"

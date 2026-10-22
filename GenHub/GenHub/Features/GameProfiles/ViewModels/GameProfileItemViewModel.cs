@@ -731,6 +731,14 @@ public partial class GameProfileItemViewModel : ViewModelBase
         });
     }
 
+    private static bool IsDefaultUsaCover(string coverPath)
+    {
+        var normalized = NormalizeCoverPath(coverPath).Replace('\\', '/').TrimStart('/');
+        var relativeSentinel = $"{UriConstants.CoversDirectoryPath.Trim('/')}/{UriConstants.UsaCoverFilename}";
+        return string.Equals(normalized, relativeSentinel, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, UriConstants.UsaCoverUri, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string MapPublisherName(string publisherSegment, string fallback) =>
         publisherSegment switch
         {
@@ -1021,6 +1029,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             !string.Equals(CoverPath, UriConstants.DefaultIconUri, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, SuperHackersConstants.ZeroHourCoverSource, StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(CoverPath, GeneralsOnlineConstants.CoverSource, StringComparison.OrdinalIgnoreCase) &&
+            !IsDefaultUsaCover(CoverPath) &&
             !string.Equals(CoverPath, CommunityOutpostConstants.CoverSource, StringComparison.OrdinalIgnoreCase);
 
         if (publisherSegment == PublisherTypeConstants.TheSuperHackers)

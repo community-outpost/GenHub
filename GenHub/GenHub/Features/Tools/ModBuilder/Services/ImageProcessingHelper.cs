@@ -1,12 +1,7 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Bmp;
-using SixLabors.ImageSharp.Formats.Tga;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Processing.Processors.Transforms;
+using GenHub.Infrastructure.Imaging;
+using ImageMagick;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -68,17 +63,17 @@ internal static class ImageProcessingHelper
     /// </summary>
     /// <param name="sizeObj">The size parameter object (int, double, array, or list).</param>
     /// <param name="currentSize">The fallback size if parsing fails.</param>
-    /// <returns>The parsed <see cref="Size"/>.</returns>
-    public static Size ParseSizeParameter(object sizeObj, Size currentSize)
+    /// <returns>The parsed width and height.</returns>
+    public static (int Width, int Height) ParseSizeParameter(object sizeObj, (int Width, int Height) currentSize)
     {
         return sizeObj switch
         {
-            int singleValue => new Size(singleValue, singleValue),
-            double singleDouble => new Size((int)singleDouble, (int)singleDouble),
-            int[] array when array.Length == 1 => new Size(array[0], array[0]),
-            int[] array when array.Length >= 2 => new Size(array[0], array[1]),
-            List<int> list when list.Count == 1 => new Size(list[0], list[0]),
-            List<int> list when list.Count >= 2 => new Size(list[0], list[1]),
+            int singleValue => (singleValue, singleValue),
+            double singleDouble => ((int)singleDouble, (int)singleDouble),
+            int[] array when array.Length == 1 => (array[0], array[0]),
+            int[] array when array.Length >= 2 => (array[0], array[1]),
+            List<int> list when list.Count == 1 => (list[0], list[0]),
+            List<int> list when list.Count >= 2 => (list[0], list[1]),
             _ => currentSize,
         };
     }
@@ -103,157 +98,79 @@ internal static class ImageProcessingHelper
     }
 
     /// <summary>
-    /// Detects if an ImageSharp image has non-opaque alpha pixels.
+    /// Detects if an image has non-opaque alpha pixels.
     /// </summary>
     /// <param name="image">The image to inspect.</param>
     /// <returns><c>true</c> if the image contains alpha channels with transparency; otherwise, <c>false</c>.</returns>
-    public static bool DetectAlpha(Image image)
+    public static bool DetectAlpha(IMagickImage<ushort> image)
     {
-        if (image.PixelType.AlphaRepresentation == PixelAlphaRepresentation.None ||
-            image.PixelType.BitsPerPixel == 24 ||
-            image.PixelType.BitsPerPixel == 48)
+        if (!image.HasAlpha)
         {
             return false;
         }
 
-        if (image is Image<Rgba32> rgbaImage)
-        {
-            return DetectAlphaInRgba32(rgbaImage);
-        }
-
-        return true;
-    }
-
-    private static bool DetectAlphaInRgba32(Image<Rgba32> rgbaImage)
-    {
-        if (rgbaImage.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
-        {
-            var span = memory.Span;
-            for (var i = 0; i < span.Length; i++)
-            {
-                if (span[i].A < 255)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        var hasAlpha = false;
-        rgbaImage.ProcessPixelRows(accessor =>
-        {
-            for (var y = 0; y < accessor.Height; y++)
-            {
-                var pixelRow = accessor.GetRowSpan(y);
-                for (var x = 0; x < pixelRow.Length; x++)
-                {
-                    if (pixelRow[x].A < 255)
-                    {
-                        hasAlpha = true;
-                        return;
-                    }
-                }
-            }
-        });
-
-        return hasAlpha;
+        var alpha = image.Statistics().GetChannel(PixelChannel.Alpha);
+        return alpha != null && alpha.Minimum < Quantum.Max;
     }
 
     /// <summary>
     /// Resizes RGBA channels independently to preserve color information where alpha is black.
     /// </summary>
     /// <param name="image">The source image.</param>
-    /// <param name="size">The target size.</param>
+    /// <param name="width">The target width.</param>
+    /// <param name="height">The target height.</param>
     /// <param name="resamplingMode">The resampling algorithm.</param>
-    /// <returns>A new resized <see cref="Image"/>.</returns>
-    public static Image ResizeRgbaChannelsSeparately(Image image, Size size, ResamplingMode resamplingMode)
+    /// <returns>A new resized image. The caller owns it.</returns>
+    public static IMagickImage<ushort> ResizeRgbaChannelsSeparately(IMagickImage<ushort> image, int width, int height, ResamplingMode resamplingMode)
     {
-        var resampler = GetResampler(resamplingMode);
-
-        using var rgba32Image = image.CloneAs<Rgba32>();
-        using var rChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var gChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var bChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var aChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-
-        rgba32Image.ProcessPixelRows(accessor =>
+        using var rgba = image.Clone();
+        rgba.ColorSpace = ColorSpace.sRGB;
+        rgba.ColorType = ColorType.TrueColorAlpha;
+        using var channels = new MagickImageCollection(rgba.Separate(Channels.RGBA));
+        foreach (var channel in channels)
         {
-            for (var y = 0; y < accessor.Height; y++)
-            {
-                var pixelRow = accessor.GetRowSpan(y);
-                for (var x = 0; x < pixelRow.Length; x++)
-                {
-                    var p = pixelRow[x];
-                    rChannel[x, y] = new L8(p.R);
-                    gChannel[x, y] = new L8(p.G);
-                    bChannel[x, y] = new L8(p.B);
-                    aChannel[x, y] = new L8(p.A);
-                }
-            }
-        });
+            Resize(channel, width, height, resamplingMode);
+        }
 
-        var resizeOptions = new ResizeOptions
-        {
-            Size = size,
-            Mode = ResizeMode.Stretch,
-            Sampler = resampler,
-        };
-
-        rChannel.Mutate(x => x.Resize(resizeOptions));
-        gChannel.Mutate(x => x.Resize(resizeOptions));
-        bChannel.Mutate(x => x.Resize(resizeOptions));
-        aChannel.Mutate(x => x.Resize(resizeOptions));
-
-        var result = new Image<Rgba32>(size.Width, size.Height);
-        result.ProcessPixelRows(accessor =>
-        {
-            for (var y = 0; y < accessor.Height; y++)
-            {
-                var pixelRow = accessor.GetRowSpan(y);
-                for (var x = 0; x < pixelRow.Length; x++)
-                {
-                    pixelRow[x] = new Rgba32(rChannel[x, y].PackedValue, gChannel[x, y].PackedValue, bChannel[x, y].PackedValue, aChannel[x, y].PackedValue);
-                }
-            }
-        });
-
+        var result = channels.Combine(ColorSpace.sRGB);
+        result.Alpha(AlphaOption.On);
         return result;
     }
 
     /// <summary>
-    /// Gets the ImageSharp IResampler corresponding to a ResamplingMode.
+    /// Gets the ImageMagick filter corresponding to a ResamplingMode.
     /// </summary>
     /// <param name="mode">The resampling mode.</param>
-    /// <returns>The corresponding <see cref="IResampler"/>.</returns>
-    public static IResampler GetResampler(ResamplingMode mode)
+    /// <returns>The corresponding <see cref="FilterType"/>.</returns>
+    public static FilterType GetFilter(ResamplingMode mode)
     {
         return mode switch
         {
-            ResamplingMode.NearestNeighbor => KnownResamplers.NearestNeighbor,
-            ResamplingMode.Box => KnownResamplers.Box,
-            ResamplingMode.Bilinear => KnownResamplers.Triangle,
-            ResamplingMode.Hamming => KnownResamplers.Hermite,
-            ResamplingMode.Bicubic => KnownResamplers.Bicubic,
-            ResamplingMode.Lanczos => KnownResamplers.Lanczos3,
-            _ => KnownResamplers.Triangle,
+            ResamplingMode.NearestNeighbor => FilterType.Point,
+            ResamplingMode.Box => FilterType.Box,
+            ResamplingMode.Bilinear => FilterType.Triangle,
+            ResamplingMode.Hamming => FilterType.Hermite,
+            ResamplingMode.Bicubic => FilterType.Catrom,
+            ResamplingMode.Lanczos => FilterType.Lanczos,
+            _ => FilterType.Triangle,
         };
     }
 
     /// <summary>
-    /// Applies resize and rescale parameters to an Image.
+    /// Applies resize and rescale parameters to an image.
     /// </summary>
     /// <param name="image">The image to resize.</param>
     /// <param name="parameters">The conversion parameters.</param>
-    /// <returns>The resized or original <see cref="Image"/>.</returns>
-    public static Image ApplyResizeParameters(Image image, IDictionary<string, object>? parameters)
+    /// <returns>The resized image, which is either <paramref name="image"/> resized in place or a new image the caller owns.</returns>
+    public static IMagickImage<ushort> ApplyResizeParameters(IMagickImage<ushort> image, IDictionary<string, object>? parameters)
     {
         if (parameters == null || parameters.Count == 0)
         {
             return image;
         }
 
-        var size = image.Size;
+        (int Width, int Height) originalSize = ((int)image.Width, (int)image.Height);
+        var size = originalSize;
         var hasResize = false;
 
         if (parameters.TryGetValue("resize", out var resizeObj))
@@ -265,13 +182,18 @@ internal static class ImageProcessingHelper
         if (parameters.TryGetValue("rescale", out var rescaleObj))
         {
             var scale = ParseScaleParameter(rescaleObj);
-            size = new Size((int)(size.Width * scale.Width), (int)(size.Height * scale.Height));
+            size = ((int)(size.Width * scale.Width), (int)(size.Height * scale.Height));
             hasResize = true;
         }
 
-        if (!hasResize || size == image.Size)
+        if (!hasResize || size == originalSize)
         {
             return image;
+        }
+
+        if (size.Width <= 0 || size.Height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(parameters), $"Resize target {size.Width}x{size.Height} must be positive.");
         }
 
         var resamplingMode = ResamplingMode.Bilinear;
@@ -284,48 +206,52 @@ internal static class ImageProcessingHelper
 
         if (DetectAlpha(image))
         {
-            return ResizeRgbaChannelsSeparately(image, size, resamplingMode);
+            return ResizeRgbaChannelsSeparately(image, size.Width, size.Height, resamplingMode);
         }
 
-        var resampler = GetResampler(resamplingMode);
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Size = size,
-            Mode = ResizeMode.Stretch,
-            Sampler = resampler,
-        }));
-
+        Resize(image, size.Width, size.Height, resamplingMode);
         return image;
     }
 
     /// <summary>
-    /// Saves an ImageSharp image to target path with proper format encoders.
+    /// Saves an image to target path with the encoder settings the game expects.
+    /// TGA is written as uncompressed 32-bit. BMP is written as 24-bit truecolor, except that a BMP
+    /// source with an alpha channel that was not resized stays 32-bit, as with the old ImageSharp encoder.
     /// </summary>
-    /// <param name="image">The image to save.</param>
+    /// <param name="image">The image to save. TGA and BMP output modify it in place.</param>
     /// <param name="targetPath">The destination file path.</param>
     /// <param name="targetExt">The file extension.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous save operation.</returns>
-    public static async Task SaveImageToTargetAsync(Image image, string targetPath, string targetExt, CancellationToken cancellationToken = default)
+    public static async Task SaveImageToTargetAsync(IMagickImage<ushort> image, string targetPath, string targetExt, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         switch (targetExt)
         {
             case ".bmp":
-                await image.SaveAsBmpAsync(targetPath, new BmpEncoder(), cancellationToken).ConfigureAwait(false);
+                var keepAlpha = image.HasAlpha && image.Format is MagickFormat.Bmp or MagickFormat.Bmp2 or MagickFormat.Bmp3;
+                image.ColorSpace = ColorSpace.sRGB;
+                image.ColorType = keepAlpha ? ColorType.TrueColorAlpha : ColorType.TrueColor;
+                if (!keepAlpha)
+                {
+                    image.Alpha(AlphaOption.Off);
+                }
+
+                await image.WriteAsync(targetPath, keepAlpha ? MagickFormat.Bmp : MagickFormat.Bmp3, cancellationToken).ConfigureAwait(false);
                 break;
             case ".tga":
-                await image.SaveAsTgaAsync(
-                    targetPath,
-                    new TgaEncoder
-                    {
-                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                        Compression = TgaCompression.None,
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                TgaWriter.Write32BitUncompressed(image, targetPath);
                 break;
             default:
-                await image.SaveAsync(targetPath, cancellationToken).ConfigureAwait(false);
+                await image.WriteAsync(targetPath, cancellationToken).ConfigureAwait(false);
                 break;
         }
+    }
+
+    private static void Resize(IMagickImage<ushort> image, int width, int height, ResamplingMode resamplingMode)
+    {
+        image.FilterType = GetFilter(resamplingMode);
+        image.Resize(new MagickGeometry((uint)width, (uint)height) { IgnoreAspectRatio = true });
     }
 }

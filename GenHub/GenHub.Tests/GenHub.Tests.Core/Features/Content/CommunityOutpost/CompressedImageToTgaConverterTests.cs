@@ -1,18 +1,17 @@
 using GenHub.Features.Content.Services.CommunityOutpost;
+using ImageMagick;
+using ImageMagick.Drawing;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
 
 /// <summary>
-/// Tests for <see cref="CompressedImageToTgaConverter"/>, focused on how it behaves
-/// when the libheif native library is unavailable for the current runtime.
+/// Tests for <see cref="CompressedImageToTgaConverter"/>.
 /// </summary>
 public class CompressedImageToTgaConverterTests : IDisposable
 {
@@ -28,9 +27,13 @@ public class CompressedImageToTgaConverterTests : IDisposable
         + "bmNseAABAA0ABgAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACdtZGF0EgAKCBgIv2CAhoMCMhEXwAkk"
         + "kkQAALATVO0wKFrK0A==";
 
+    private const int TgaHeaderLength = 18;
+    private const byte TgaUncompressedTrueColor = 2;
+    private const byte TgaBottomLeftWith8AlphaBits = 0x08;
+
     private readonly string _tempDir = Path.Combine(
         Path.GetTempPath(),
-        $"genhub-avif-{Guid.NewGuid():N}");
+        $"genhub-tga-{Guid.NewGuid():N}");
 
     private readonly CompressedImageToTgaConverter _converter =
         new(NullLogger<CompressedImageToTgaConverter>.Instance);
@@ -41,78 +44,102 @@ public class CompressedImageToTgaConverterTests : IDisposable
     public CompressedImageToTgaConverterTests()
     {
         Directory.CreateDirectory(_tempDir);
-        typeof(CompressedImageToTgaConverter)
-            .GetField("_avifCapabilityState", BindingFlags.NonPublic | BindingFlags.Static)!
-            .SetValue(null, 0);
     }
 
     /// <summary>
-    /// Converting a single AVIF must either succeed, or fail with a
-    /// <see cref="PlatformNotSupportedException"/> naming the runtime.
-    /// <para>
-    /// It must never surface the raw <see cref="DllNotFoundException"/>. That exception
-    /// says "Unable to load shared library 'libheif'", which tells a user nothing about
-    /// what they did or what to do. This is the failure that would otherwise reach the
-    /// content pipeline on any runtime LibHeif.Native does not ship assets for.
-    /// </para>
+    /// AVIF converts on every platform and produces the uncompressed 32-bit TGA the game reads.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertFileAsync_AvifOnUnsupportedRuntime_ThrowsPlatformNotSupportedAsync()
+    public async Task ConvertFileAsync_Avif_WritesUncompressed32BitTgaAsync()
     {
         var source = Path.Combine(_tempDir, "texture.avif");
         await File.WriteAllBytesAsync(source, Convert.FromBase64String(TinyAvifBase64));
         var destination = Path.Combine(_tempDir, "texture.tga");
 
-        var thrown = await Record.ExceptionAsync(
-            () => _converter.ConvertFileAsync(source, destination));
+        await _converter.ConvertFileAsync(source, destination);
 
-        if (NativeAvifAssetsExpected)
-        {
-            Assert.Null(thrown);
-            Assert.True(File.Exists(destination), "The native AVIF package produced no TGA.");
-            return;
-        }
-
-        if (thrown is null)
-        {
-            // libheif is present on this machine, so conversion is expected to work.
-            Assert.True(File.Exists(destination), "Conversion reported success but wrote no TGA.");
-            return;
-        }
-
-        Assert.IsType<PlatformNotSupportedException>(thrown);
-        Assert.Contains("libheif", thrown.Message, StringComparison.OrdinalIgnoreCase);
+        var bytes = await File.ReadAllBytesAsync(destination);
+        AssertUncompressed32BitTga(bytes, width: 8, height: 8);
     }
 
     /// <summary>
-    /// A directory containing an undecodable AVIF must not lose the AVIF. Deleting it
-    /// would destroy content the user could still convert on a runtime that has libheif.
+    /// WebP keeps its alpha and stays upright. The TGA is stored bottom-up, so the first
+    /// pixel in the file is the bottom-left pixel of the source image.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertDirectoryAsync_UnconvertibleAvif_IsLeftOnDiskAsync()
+    public async Task ConvertFileAsync_WebpWithAlpha_PreservesAlphaAndOrientationAsync()
     {
-        var source = Path.Combine(_tempDir, "texture.avif");
+        var source = Path.Combine(_tempDir, "texture.webp");
+        using (var image = new MagickImage(MagickColors.Red, 4, 2))
+        {
+            image.Draw(new Drawables().FillColor(MagickColors.Blue).Rectangle(0, 1, 3, 1));
+            image.Alpha(AlphaOption.Set);
+            using (var pixels = image.GetPixels())
+            {
+                pixels.SetPixel(3, 0, [0, 0, 0, 0]);
+            }
+
+            image.Settings.SetDefine(MagickFormat.WebP, "lossless", true);
+            await image.WriteAsync(source, MagickFormat.WebP);
+        }
+
+        var destination = Path.Combine(_tempDir, "texture.tga");
+
+        await _converter.ConvertFileAsync(source, destination);
+
+        var bytes = await File.ReadAllBytesAsync(destination);
+        AssertUncompressed32BitTga(bytes, width: 4, height: 2);
+
+        // BGRA. The bottom row is blue and opaque.
+        Assert.Equal(new byte[] { 255, 0, 0, 255 }, bytes[TgaHeaderLength..(TgaHeaderLength + 4)]);
+
+        // The top-right pixel is the last pixel in the file and is transparent.
+        Assert.Equal(0, bytes[^1]);
+    }
+
+    /// <summary>
+    /// Converting a directory replaces each source with a TGA of the same base name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ConvertDirectoryAsync_Avif_ReplacesSourceWithTgaAsync()
+    {
+        var nested = Path.Combine(_tempDir, "Art", "Textures");
+        Directory.CreateDirectory(nested);
+        var source = Path.Combine(nested, "texture.AVIF");
         await File.WriteAllBytesAsync(source, Convert.FromBase64String(TinyAvifBase64));
 
-        await _converter.ConvertDirectoryAsync(_tempDir);
+        var converted = await _converter.ConvertDirectoryAsync(_tempDir);
 
-        var tga = Path.Combine(_tempDir, "texture.tga");
-        var convertedSuccessfully = File.Exists(tga);
-
-        Assert.True(
-            convertedSuccessfully || File.Exists(source),
-            "The AVIF was neither converted nor preserved, so the source content was lost.");
+        Assert.Equal(1, converted);
+        Assert.False(File.Exists(source));
+        Assert.True(File.Exists(Path.Combine(nested, "texture.tga")));
     }
 
     /// <summary>
-    /// Concurrent first-use probes must agree on AVIF availability without exposing
-    /// native loader failures to callers.
+    /// A file that fails to decode is kept on disk and not counted as converted.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertFileAsync_ConcurrentAvifProbes_DoNotExposeNativeLoaderFailureAsync()
+    public async Task ConvertDirectoryAsync_CorruptAvif_IsLeftOnDiskAsync()
+    {
+        var source = Path.Combine(_tempDir, "texture.avif");
+        await File.WriteAllBytesAsync(source, [0x00, 0x01, 0x02, 0x03]);
+
+        var converted = await _converter.ConvertDirectoryAsync(_tempDir);
+
+        Assert.Equal(0, converted);
+        Assert.True(File.Exists(source));
+    }
+
+    /// <summary>
+    /// Concurrent conversions all produce a complete 8x8 uncompressed 32-bit TGA.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ConvertFileAsync_ConcurrentAvif_AllSucceedAsync()
     {
         var tasks = Enumerable.Range(0, 8)
             .Select(
@@ -121,16 +148,13 @@ public class CompressedImageToTgaConverterTests : IDisposable
                     var source = Path.Combine(_tempDir, $"texture-{index}.avif");
                     var destination = Path.Combine(_tempDir, $"texture-{index}.tga");
                     await File.WriteAllBytesAsync(source, Convert.FromBase64String(TinyAvifBase64));
-                    return await Record.ExceptionAsync(
-                        () => _converter.ConvertFileAsync(source, destination));
+                    await _converter.ConvertFileAsync(source, destination);
+                    return destination;
                 });
 
-        var exceptions = await Task.WhenAll(tasks);
+        var destinations = await Task.WhenAll(tasks);
 
-        Assert.DoesNotContain(exceptions, exception => exception is DllNotFoundException);
-        Assert.All(
-            exceptions.Where(exception => exception is not null),
-            exception => Assert.IsType<PlatformNotSupportedException>(exception));
+        Assert.All(destinations, destination => AssertUncompressed32BitTga(File.ReadAllBytes(destination), width: 8, height: 8));
     }
 
     /// <summary>
@@ -152,7 +176,13 @@ public class CompressedImageToTgaConverterTests : IDisposable
         }
     }
 
-    private static bool NativeAvifAssetsExpected =>
-        RuntimeInformation.ProcessArchitecture == Architecture.X64
-        && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux());
+    private static void AssertUncompressed32BitTga(byte[] bytes, int width, int height)
+    {
+        Assert.Equal(TgaUncompressedTrueColor, bytes[2]);
+        Assert.Equal(width, BitConverter.ToUInt16(bytes, 12));
+        Assert.Equal(height, BitConverter.ToUInt16(bytes, 14));
+        Assert.Equal(32, bytes[16]);
+        Assert.Equal(TgaBottomLeftWith8AlphaBits, bytes[17]);
+        Assert.Equal(TgaHeaderLength + (width * height * 4), bytes.Length);
+    }
 }

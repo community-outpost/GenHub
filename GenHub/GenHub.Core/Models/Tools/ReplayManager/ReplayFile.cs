@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 
@@ -10,10 +11,11 @@ namespace GenHub.Core.Models.Tools.ReplayManager;
 /// <summary>
 /// Represents a replay file on disk.
 /// </summary>
-public sealed class ReplayFile : IExportableFile
+public sealed class ReplayFile : IExportableFile, INotifyPropertyChanged
 {
     private const string UnknownValue = "Unknown";
     private bool _supportsCheckpoints;
+    private ReplayMapAvailability _mapAvailability = ReplayMapAvailability.Unknown;
 
     /// <summary>
     /// Gets or sets the full path to the replay file.
@@ -80,23 +82,43 @@ public sealed class ReplayFile : IExportableFile
 
     /// <summary>
     /// Gets a comma-separated list of player names in the replay match, or null when unknown.
+    /// Lists one entry per slot so it agrees with <see cref="PlayerCount"/>.
     /// Null suppresses the tooltip instead of rendering an empty box.
     /// </summary>
     public string? PlayerNamesDisplay
     {
         get
         {
-            if (Metadata?.Players is { Count: > 0 } players)
-            {
-                return string.Join(", ", players);
-            }
-
             if (Metadata?.Slots is { Count: > 0 } slots)
             {
                 return string.Join(", ", slots.Select(s => s.PlayerName));
             }
 
+            if (Metadata?.Players is { Count: > 0 } players)
+            {
+                return string.Join(", ", players);
+            }
+
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether the replay map is available locally, matched by map CRC and size.
+    /// Setting it raises <see cref="PropertyChanged"/>, so once the replay is bound to a view it must be set on the UI thread.
+    /// </summary>
+    public ReplayMapAvailability MapAvailability
+    {
+        get => _mapAvailability;
+        set
+        {
+            if (_mapAvailability == value)
+            {
+                return;
+            }
+
+            _mapAvailability = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MapAvailability)));
         }
     }
 
@@ -233,6 +255,7 @@ public sealed class ReplayFile : IExportableFile
         ReplayCompatibilityStatus.RequiresProfile => "Profile Needed",
         ReplayCompatibilityStatus.Downloadable => "Download Required",
         ReplayCompatibilityStatus.Orphaned => "Custom / Unmapped",
+        ReplayCompatibilityStatus.RequiresRetailInstallation => "Retail Install Needed",
         _ => UnknownValue,
     };
 
@@ -244,6 +267,9 @@ public sealed class ReplayFile : IExportableFile
         get => _supportsCheckpoints || MatchedClient?.SupportsCheckpoints == true;
         set => _supportsCheckpoints = value;
     }
+
+    /// <inheritdoc />
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     private static string FormatFileSize(long bytes) => bytes switch
     {

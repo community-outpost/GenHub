@@ -54,6 +54,7 @@ public static class CompositionRootAssertions
         typeof(IInstallationConflictService),
         typeof(IInstallationLocationTracker),
         typeof(IInstallationSearchPathProvider),
+        typeof(IPublisherIdentityService),
         typeof(IPublisherKeyStore),
         typeof(IShortcutService),
         typeof(IStorageMigrationService),

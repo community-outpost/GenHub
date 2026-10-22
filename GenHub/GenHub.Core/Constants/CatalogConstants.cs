@@ -65,9 +65,24 @@ public static class CatalogConstants
     public const string CurrentCatalogEntryId = "current";
 
     /// <summary>
+    /// Synthetic catalog entry ID used for the primary/first catalog entry when no catalog ID is declared.
+    /// </summary>
+    public const string PrimarySyntheticCatalogId = "__primary";
+
+    /// <summary>
+    /// Prefix used for synthetic catalog entry IDs when multiple blank-Id catalogs are present.
+    /// </summary>
+    public const string SyntheticCatalogIdPrefix = "__catalog_";
+
+    /// <summary>
     /// Default catalog identifier used when no specific catalog ID is selected.
     /// </summary>
     public const string DefaultCatalogId = "default";
+
+    /// <summary>
+    /// Default display name for the synthesized primary catalog entry.
+    /// </summary>
+    public const string DefaultCatalogName = "Content";
 
     /// <summary>
     /// Resolver / pipeline ID for the generic catalog pipeline (any GenHub-schema catalog).

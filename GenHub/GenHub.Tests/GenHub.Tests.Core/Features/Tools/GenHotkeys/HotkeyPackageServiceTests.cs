@@ -9,12 +9,11 @@ using GenHub.Core.Models.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.GenHotkeys;
 using GenHub.Core.Services.Tools.TextureEditor;
 using GenHub.Features.Tools.GenHotkeys.Services;
+using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -335,10 +334,8 @@ public class HotkeyPackageServiceTests
         _mockTechTree.Setup(t => t.LoadTechTreeAsync(GameType.ZeroHour, It.IsAny<CancellationToken>()))
             .ReturnsAsync(factions);
 
-        using var testImg = new Image<Rgba32>(60, 48);
-        using var ms = new MemoryStream();
-        await testImg.SaveAsPngAsync(ms);
-        var iconBytes = ms.ToArray();
+        using var testImg = new MagickImage(MagickColors.Transparent, 60, 48);
+        var iconBytes = testImg.ToByteArray(MagickFormat.Png);
 
         _mockTechTree.Setup(t => t.GetIconBytesAsync(It.IsAny<string>(), GameType.ZeroHour, It.IsAny<CancellationToken>()))
             .ReturnsAsync(iconBytes);

@@ -292,6 +292,21 @@ public static class ReplayManagerConstants
     public const string ReplayHeaderMagic = "GENREP";
 
     /// <summary>
+    /// Init string token prefix for the map CRC, written by the engine as unprefixed hexadecimal.
+    /// </summary>
+    public const string MapCrcTokenPrefix = "MC=";
+
+    /// <summary>
+    /// Init string token prefix for the map file size in bytes, written by the engine as decimal.
+    /// </summary>
+    public const string MapSizeTokenPrefix = "MS=";
+
+    /// <summary>
+    /// Optional prefix accepted in front of a hexadecimal CRC value.
+    /// </summary>
+    public const string HexPrefix = "0x";
+
+    /// <summary>
     /// Initial buffer size in bytes for reading replay headers (16 KB).
     /// </summary>
     public const int ReplayHeaderBufferSize = 16384;

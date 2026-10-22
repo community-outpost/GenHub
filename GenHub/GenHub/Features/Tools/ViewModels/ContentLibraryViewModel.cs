@@ -145,6 +145,45 @@ public partial class ContentLibraryViewModel(
     private CatalogContentItem? _selectedContent;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedScreenshot))]
+    private string? _selectedScreenshotUrl;
+
+    [ObservableProperty]
+    private string _selectedScreenshotTitle = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether a screenshot is selected for naming.
+    /// </summary>
+    public bool HasSelectedScreenshot => !string.IsNullOrWhiteSpace(SelectedScreenshotUrl);
+
+    /// <summary>
+    /// Selects a screenshot so the publisher can view or edit its display name.
+    /// </summary>
+    /// <param name="url">The screenshot URL or path to select.</param>
+    [RelayCommand]
+    private void SelectScreenshot(string? url)
+    {
+        SelectedScreenshotUrl = url;
+        SelectedScreenshotTitle = SelectedContent?.Metadata?.GetScreenshotTitle(url) ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Saves the display name for the selected screenshot. A blank name clears it.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplyScreenshotTitleAsync()
+    {
+        if (SelectedContent?.Metadata == null || string.IsNullOrWhiteSpace(SelectedScreenshotUrl)) return;
+
+        SelectedContent.Metadata.SetScreenshotTitle(SelectedScreenshotUrl, SelectedScreenshotTitle);
+        MarkProjectAndCatalogDirty();
+        if (parentViewModel != null)
+        {
+            await parentViewModel.SaveProjectAsync();
+        }
+    }
+
+    [ObservableProperty]
     private string _searchText = string.Empty;
 
     [ObservableProperty]
@@ -1133,6 +1172,16 @@ public partial class ContentLibraryViewModel(
         if (SelectedContent?.Metadata == null || string.IsNullOrWhiteSpace(url)) return;
 
         var removedShots = SelectedContent.Metadata.ScreenshotUrls.RemoveAll(u => u.Equals(url, StringComparison.OrdinalIgnoreCase));
+        if (removedShots > 0)
+        {
+            SelectedContent.Metadata.RemoveScreenshotTitle(url);
+            if (string.Equals(SelectedScreenshotUrl, url, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedScreenshotUrl = null;
+                SelectedScreenshotTitle = string.Empty;
+            }
+        }
+
         var removedVideos = SelectedContent.Metadata.VideoUrls.RemoveAll(u => u.Equals(url, StringComparison.OrdinalIgnoreCase));
         var removedLegacy = 0;
         if (string.Equals(SelectedContent.Metadata.VideoUrl, url, StringComparison.OrdinalIgnoreCase))
@@ -1576,6 +1625,10 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        // Genuine content switch: drop any unapplied screenshot-name draft.
+        // Same-item refreshes set _suppressUpstreamPreviewReload and keep it.
+        SelectedScreenshotUrl = null;
+        SelectedScreenshotTitle = string.Empty;
         BeginUpstreamPreviewLoad(value);
     }
 

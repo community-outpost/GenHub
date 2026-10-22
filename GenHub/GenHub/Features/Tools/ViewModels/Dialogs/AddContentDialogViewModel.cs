@@ -331,6 +331,53 @@ public partial class AddContentDialogViewModel(
     /// </summary>
     public ObservableCollection<string> Screenshots { get; } = [];
 
+    private readonly Dictionary<string, string> _screenshotTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly HashSet<string> _clearedScreenshotTitles = new(StringComparer.OrdinalIgnoreCase);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedScreenshot))]
+    private string? _selectedScreenshot;
+
+    [ObservableProperty]
+    private string _selectedScreenshotTitle = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether a screenshot is selected for naming.
+    /// </summary>
+    public bool HasSelectedScreenshot => !string.IsNullOrWhiteSpace(SelectedScreenshot);
+
+    /// <summary>
+    /// Selects a screenshot so the publisher can view or edit its display name.
+    /// </summary>
+    /// <param name="url">The screenshot URL or path to select.</param>
+    [RelayCommand]
+    private void SelectScreenshot(string? url)
+    {
+        SelectedScreenshot = url;
+        SelectedScreenshotTitle = url != null && _screenshotTitles.TryGetValue(url, out var title) ? title : string.Empty;
+    }
+
+    /// <summary>
+    /// Applies the edited display name to the selected screenshot. A blank name clears it.
+    /// </summary>
+    [RelayCommand]
+    private void ApplyScreenshotTitle()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedScreenshot)) return;
+
+        if (string.IsNullOrWhiteSpace(SelectedScreenshotTitle))
+        {
+            _screenshotTitles.Remove(SelectedScreenshot);
+            _clearedScreenshotTitles.Add(SelectedScreenshot);
+        }
+        else
+        {
+            _screenshotTitles[SelectedScreenshot] = SelectedScreenshotTitle.Trim();
+            _clearedScreenshotTitles.Remove(SelectedScreenshot);
+        }
+    }
+
     /// <summary>
     /// Gets the list of video URLs for the content item.
     /// </summary>
@@ -445,6 +492,11 @@ public partial class AddContentDialogViewModel(
             foreach (var shot in existing.Metadata.ScreenshotUrls.Where(shot => !string.IsNullOrWhiteSpace(shot)))
             {
                 Screenshots.Add(shot);
+                var existingTitle = existing.Metadata.GetScreenshotTitle(shot);
+                if (existingTitle != null)
+                {
+                    _screenshotTitles[shot] = existingTitle;
+                }
             }
         }
 
@@ -744,6 +796,14 @@ public partial class AddContentDialogViewModel(
                 "{0} files will be uploaded separately and installed together as one package."),
             StagedFiles.Count)
         : null;
+
+    /// <summary>
+    /// Gets the publisher-provided display name for a screenshot, if one was set.
+    /// </summary>
+    /// <param name="url">The screenshot URL or path.</param>
+    /// <returns>The display name, or null when unnamed.</returns>
+    public string? GetScreenshotTitle(string? url) =>
+        url != null && _screenshotTitles.TryGetValue(url, out var title) && !string.IsNullOrWhiteSpace(title) ? title : null;
 
     /// <summary>
     /// Populates content item fields from a local directory or file path.
@@ -1704,6 +1764,14 @@ public partial class AddContentDialogViewModel(
         if (!string.IsNullOrWhiteSpace(url))
         {
             Screenshots.Remove(url);
+            _screenshotTitles.Remove(url);
+            _clearedScreenshotTitles.Remove(url);
+            if (string.Equals(SelectedScreenshot, url, StringComparison.OrdinalIgnoreCase))
+            {
+                SelectedScreenshot = null;
+                SelectedScreenshotTitle = string.Empty;
+            }
+
             ScreenshotUrlsInput = string.Join(Environment.NewLine, Screenshots);
         }
     }
@@ -2247,6 +2315,7 @@ public partial class AddContentDialogViewModel(
             BackdropUrl = effectiveBackdrop,
             AccentColor = effectiveAccent,
             ScreenshotUrls = effectiveScreenshots,
+            ScreenshotTitles = BuildEffectiveScreenshotTitles(effectiveScreenshots, source),
             VideoUrl = effectiveVideo,
             VideoUrls = effectiveVideos,
             DocumentationUrl = source?.DocumentationUrl,
@@ -2277,6 +2346,22 @@ public partial class AddContentDialogViewModel(
         }
 
         return allVideos;
+    }
+
+    private Dictionary<string, string> BuildEffectiveScreenshotTitles(List<string> effectiveScreenshots, ContentRichMetadata? source)
+    {
+        var titles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var shot in effectiveScreenshots)
+        {
+            var title = GetScreenshotTitle(shot)
+                ?? (_clearedScreenshotTitles.Contains(shot) ? null : source?.GetScreenshotTitle(shot));
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                titles[shot] = title;
+            }
+        }
+
+        return titles;
     }
 
     private List<string> ResolveEffectiveScreenshots(List<string> allScreenshots, ContentRichMetadata? source)

@@ -17,8 +17,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" />
-    <ProjectReference Include="..\..\GenHub\GenHub.csproj" />
+    <ProjectReference Include="..\..\GenHub.Core\GenHub.Core.csproj" BuildInParallel="false" />
+    <ProjectReference Include="..\..\GenHub\GenHub.csproj" BuildInParallel="false" />
   </ItemGroup>
 
   <ItemGroup>

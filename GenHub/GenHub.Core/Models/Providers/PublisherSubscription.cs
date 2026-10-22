@@ -115,4 +115,12 @@ public class PublisherSubscription : ObservableObject
     /// </summary>
     [JsonPropertyName("avatarUrl")]
     public string? AvatarUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the signing time of the newest identity proof accepted for this subscription.
+    /// A move must carry a newer proof, so an old proof replayed from a former URL is rejected.
+    /// </summary>
+    [JsonPropertyName("identityProofSignedAt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DateTimeOffset? IdentityProofSignedAt { get; set; }
 }

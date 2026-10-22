@@ -80,4 +80,15 @@ public static class PublisherKeyConstants
     /// OID of the NIST P-521 (secp521r1) named curve.
     /// </summary>
     public const string NistP521Oid = "1.3.132.0.35";
+
+    /// <summary>
+    /// First line of the payload a publisher identity proof signs. Changing it invalidates every published proof.
+    /// </summary>
+    public const string IdentityProofDomain = "genhub-publisher-identity-v1";
+
+    /// <summary>
+    /// How far in the future a publisher identity proof's signing time may be. A later time is rejected,
+    /// so a future-dated proof cannot become a freshness floor that blocks later moves.
+    /// </summary>
+    public static readonly TimeSpan IdentityProofMaxClockSkew = TimeSpan.FromDays(1);
 }

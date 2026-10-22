@@ -4273,6 +4273,12 @@
   <data name="Downloads.Subscription.NewPublisherBadgeFormat" xml:space="preserve">
     <value>+ ناشر جديد • {0} كتالوجات</value>
   </data>
+  <data name="Downloads.Subscription.Catalog.DefaultName" xml:space="preserve">
+    <value>المحتوى</value>
+  </data>
+  <data name="Downloads.Subscription.Catalog.FallbackNameFormat" xml:space="preserve">
+    <value>كتالوج {0}</value>
+  </data>
   <data name="Profiles.AddLocalContent.AddContentButton" xml:space="preserve">
     <value>إضافة محتوى</value>
   </data>
@@ -5403,6 +5409,9 @@
   </data>
   <data name="Tools.ReplayManager.Badge.CustomUnmapped" xml:space="preserve">
     <value>مخصص / غير معروف</value>
+  </data>
+  <data name="Tools.ReplayManager.Badge.RetailInstallNeeded" xml:space="preserve">
+    <value>مطلوب تثبيت نسخة التجزئة</value>
   </data>
   <data name="Tools.ReplayManager.Badge.Unknown" xml:space="preserve">
     <value>مجهول</value>
@@ -6696,8 +6705,53 @@
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>تحديث الاشتراك</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>حُفظ الاشتراك، لكن تعذّر تخزين مفتاح الناشر. إذا انتقل هذا الناشر، سيطلب منك GenHub تأكيد الانتقال.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>لم يُحفظ مفتاح الناشر</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>تم التحديث {0:yyyy-MM-dd}</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.SourceCheckFailed" xml:space="preserve">
+    <value>تعذّر على GenHub مقارنة هذا المصدر باشتراكك الحالي. سيتحقق مجددًا عند الحفظ.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRemoveFailed" xml:space="preserve">
+    <value>لم يتغير الاشتراك، لكن تعذّرت إزالة مفتاح الناشر البديل.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
+    <value>لم يتغير الاشتراك، لكن تعذّرت استعادة مفتاح الناشر السابق.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
+    <value>تعذّر تحديث مفتاح الناشر الموثوق، لذلك أُبقي على الناشر الحالي.</value>
+  </data>
+  <data name="Downloads.Subscription.MoveSubscription" xml:space="preserve">
+    <value>نقل الاشتراك</value>
+  </data>
+  <data name="Downloads.Subscription.ReplaceExisting" xml:space="preserve">
+    <value>استبدال الحالي</value>
+  </data>
+  <data name="Downloads.Subscription.Skip" xml:space="preserve">
+    <value>تخطي</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionMessageFormat" xml:space="preserve">
+    <value>أنت مشترك بالفعل في معرّف الناشر '{0}' من عنوان مختلف. قد يكون أحدهما غير أصلي. استبدل الناشر الحالي بهذا الناشر، أو تخطَّ هذا الناشر.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionTitle" xml:space="preserve">
+    <value>معرّف الناشر مشترك فيه بالفعل</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat" xml:space="preserve">
+    <value>يستخدم هذا العنوان معرّف الناشر '{0}' لكنه لا يثبت امتلاكه مفتاح الناشر الذي تشترك فيه. قد يكون انتحالًا. تخطَّه ما لم تكن تثق بهذا العنوان وتريد أن يحل محل الناشر الحالي.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchTitle" xml:space="preserve">
+    <value>هوية الناشر غير مثبتة</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat" xml:space="preserve">
+    <value>انتقل الناشر '{0}' إلى هذا العنوان وأثبت امتلاكه مفتاح الناشر نفسه. سينتقل اشتراكك معه.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveTitle" xml:space="preserve">
+    <value>انتقال ناشر موثّق</value>
   </data>
   <data name="Settings.Section.CloudUploads" xml:space="preserve">
     <value>التخزين السحابي والملفات المرفوعة</value>
@@ -8462,6 +8516,18 @@
   </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
     <value>رمز التحقق الدوري Exe CRC {0} / INI CRC {1} غير موجود في الكتالوج الرسمي. انقر فوق 'ملف تعريفي' للتهيئة باستخدام التثبيت الأساسي.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation" xml:space="preserve">
+    <value>تم تسجيل هذه الإعادة باستخدام عميل نسخة التجزئة '{0}'. أضف تثبيتًا لنسخة التجزئة من اللعبة، ثم أنشئ ملفًا تعريفيًا لمشاهدتها.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Available" xml:space="preserve">
+    <value>تم العثور على الخريطة. تمت المطابقة برمز CRC {0} والحجم {1} بايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.NotFound" xml:space="preserve">
+    <value>لم يتم العثور على الخريطة. لا توجد خريطة مستخدم أو خريطة أصلية مثبتة تطابق رمز CRC {0} والحجم {1} بايت.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Unknown" xml:space="preserve">
+    <value>تعذر التحقق من توفر الخريطة. رمز CRC للخريطة {0}، الحجم {1} بايت.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
     <value>بيانات رأس الإعادة غير متوفرة أو تعذر تحليلها.</value>
@@ -13830,6 +13896,18 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Downloads.ContentDetail.VideoPlayer.OpenInBrowser" xml:space="preserve">
     <value>فتح في المتصفح</value>
   </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptTitle" xml:space="preserve">
+    <value>مكون مشغل الوسائط مطلوب</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadPromptMessage" xml:space="preserve">
+    <value>لتشغيل مقاطع الفيديو داخل GenHub، يلزم تنزيل مكتبة الوسائط لمرة واحدة (~140 ميجابايت). هل ترغب في تنزيلها الآن؟</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadAction" xml:space="preserve">
+    <value>تنزيل وتفعيل</value>
+  </data>
+  <data name="Downloads.ContentDetail.VideoPlayer.DownloadingProgress" xml:space="preserve">
+    <value>جارٍ تنزيل مكونات مشغل الوسائط... {0}%</value>
+  </data>
   <data name="Tools.PublisherStudio.Release.VariantsMode" xml:space="preserve">
     <value>إصدارات بديلة (مثل اللغات والدقات)</value>
   </data>
@@ -16854,6 +16932,12 @@ https://example.com/screenshot2.png</value>
   <data name="Downloads.Notification.AddedToProfile.Message" xml:space="preserve">
     <value>تمت إضافة '{0}' إلى الملف الشخصي '{1}'.</value>
   </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Title" xml:space="preserve">
+    <value>تمت الإضافة إلى الملف الشخصي (مباشر)</value>
+  </data>
+  <data name="Downloads.Notification.AddedToProfileLive.Message" xml:space="preserve">
+    <value>تمت إضافة '{0}' إلى الملف الشخصي '{1}'، وتم تطبيق هذا المحتوى على اللعبة قيد التشغيل.</value>
+  </data>
   <data name="GameProfiles.Settings.Notification.ContentLocked.Title" xml:space="preserve">
     <value>المحتوى مقفل</value>
   </data>
@@ -16946,17 +17030,20 @@ https://example.com/screenshot2.png</value>
   <data name="GameProfiles.Settings.Notification.LiveUpdateFailed.Message" xml:space="preserve">
     <value>فشلت مزامنة المحتوى المباشرة: {0}. لم يتم حفظ تغييرات الملف الشخصي.</value>
   </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Title" xml:space="preserve">
-    <value>تحذير التراجع المباشر</value>
-  </data>
-  <data name="GameProfiles.Settings.Notification.LiveRollbackWarning.Message" xml:space="preserve">
-    <value>فشل حفظ الملف الشخصي ({0})، وتعذّر حل المحتوى الأصلي بالكامل للتراجع: {1}. تُرك المحتوى المباشر كما تمت مزامنته وقد لا يطابق الملف الشخصي المحفوظ.</value>
-  </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Title" xml:space="preserve">
     <value>فشل التراجع المباشر</value>
   </data>
   <data name="GameProfiles.Settings.Notification.LiveRollbackFailed.Message" xml:space="preserve">
     <value>فشل حفظ الملف الشخصي ({0})، وأبلغ التراجع عن المحتوى المباشر: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveSyncFailed" xml:space="preserve">
+    <value>فشلت المزامنة المباشرة: {0}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackFailed" xml:space="preserve">
+    <value>فشل تحديث الملف الشخصي: {0}. فشل التراجع المباشر: {1}</value>
+  </data>
+  <data name="GameProfiles.Settings.Status.LiveRollbackSucceeded" xml:space="preserve">
+    <value>فشل تحديث الملف الشخصي: {0}. تمت استعادة المحتوى المباشر.</value>
   </data>
   <data name="GameProfiles.Settings.Notification.ContentUpdated.Message" xml:space="preserve">
     <value>تم تحديث '{0}'.</value>
@@ -17827,6 +17914,306 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ManualReleasesExpander" xml:space="preserve">
     <value>إصدارات احتياطية يدوية (تجاوزات)</value>
   </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaScreenshotsPrefix" xml:space="preserve">
+    <value>لقطات الشاشة: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaVideosPrefix" xml:space="preserve">
+    <value>الفيديو: </value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterScreenshots" xml:space="preserve">
+    <value>لقطات الشاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.FilterVideos" xml:space="preserve">
+    <value>الفيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ColLinkedTo" xml:space="preserve">
+    <value>مرتبط بـ</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortByNameTip" xml:space="preserve">
+    <value>فرز حسب اسم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.SortBySizeTip" xml:space="preserve">
+    <value>فرز حسب حجم الملف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ExpandChildrenTip" xml:space="preserve">
+    <value>إظهار العناصر المرتبطة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteAction" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteTip" xml:space="preserve">
+    <value>حذف من التخزين السحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryScreenshotFormat" xml:space="preserve">
+    <value>لقطة شاشة ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryVideoFormat" xml:space="preserve">
+    <value>فيديو ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshot" xml:space="preserve">
+    <value>لقطة شاشة سحابية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideo" xml:space="preserve">
+    <value>فيديو سحابي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudScreenshotFormat" xml:space="preserve">
+    <value>لقطة شاشة سحابية ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudVideoFormat" xml:space="preserve">
+    <value>فيديو سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFormat" xml:space="preserve">
+    <value>ملف سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.AssetCategoryCloudArtifactFileFormat" xml:space="preserve">
+    <value>ملف سحابي ({0})</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotArtifact" xml:space="preserve">
+    <value>ملف الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotScreenshot" xml:space="preserve">
+    <value>لقطة شاشة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotVideo" xml:space="preserve">
+    <value>فيديو</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotIcon" xml:space="preserve">
+    <value>أيقونة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotAvatar" xml:space="preserve">
+    <value>الصورة الرمزية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBanner" xml:space="preserve">
+    <value>بانر</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotBackdrop" xml:space="preserve">
+    <value>خلفية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseImage" xml:space="preserve">
+    <value>صورة الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.MediaSlotReleaseVideo" xml:space="preserve">
+    <value>فيديو الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefWithVersionFormat" xml:space="preserve">
+    <value>{0} › {1} v{2}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToRefFormat" xml:space="preserve">
+    <value>{0} › {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreFormat" xml:space="preserve">
+    <value>{0} (+{1} أخرى)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionLineFormat" xml:space="preserve">
+    <value>التعريف: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToMoreRefsFormat" xml:space="preserve">
+    <value>+{0} أخرى</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinked" xml:space="preserve">
+    <value>غير مرتبط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotLinkedTip" xml:space="preserve">
+    <value>هذا الملف غير مستخدم في أي فهرس بالمشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToNotInProjectTip" xml:space="preserve">
+    <value>هذا الملف ليس جزءاً من المشروع الحالي. قم بتوسيع الصف لمعاينة محتوياته.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogFormat" xml:space="preserve">
+    <value>الفهرس: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToCatalogTipFormat" xml:space="preserve">
+    <value>مذكور في {0} · عدد العناصر: {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionFormat" xml:space="preserve">
+    <value>عدد الفهارس: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.LinkedToDefinitionTipFormat" xml:space="preserve">
+    <value>تعريف الناشر الذي يسرد {0} من الفهارس</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenCatalogsFormat" xml:space="preserve">
+    <value>عدد الفهارس: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenContentsFormat" xml:space="preserve">
+    <value>عدد العناصر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildrenReferencesFormat" xml:space="preserve">
+    <value>عدد المراجع: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCatalogDetailFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildContentDetailFormat" xml:space="preserve">
+    <value>{0} · الإصدارات: {1} · الملفات: {2} · الوسائط: {3}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyCatalogText" xml:space="preserve">
+    <value>فهرس فارغ — لا يوجد محتوى مرتبط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.EmptyDefinitionText" xml:space="preserve">
+    <value>لا توجد فهارس مرتبطة بهذا التعريف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedTitle" xml:space="preserve">
+    <value>لا يوجد ما يُحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteNotHostedMessageFormat" xml:space="preserve">
+    <value>«{0}» غير مستضاف بعد، لذا لا يوجد ما يُحذف من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyTitle" xml:space="preserve">
+    <value>عملية جارية</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteBusyMessage" xml:space="preserve">
+    <value>يرجى الانتظار حتى انتهاء التحميل أو الفحص الحالي قبل الحذف.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredTitle" xml:space="preserve">
+    <value>المزود غير متصل</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteProviderRequiredMessage" xml:space="preserve">
+    <value>اتصل بمزود الاستضافة قبل حذف الملفات السحابية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionTitle" xml:space="preserve">
+    <value>حذف التعريف المستضاف؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteActiveDefinitionMessageFormat" xml:space="preserve">
+    <value>«{0}» هو تعريف المزود المنشور الخاص بك. يستخدمه المشتركون لاكتشاف تحديثات الفهارس، لذا سيؤدي حذفه إلى تعطيل التحقق من التحديثات حتى تعيد النشر. هل تريد حذف «{0}» من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟ إنه غير مستخدم في المشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionRepublishNote" xml:space="preserve">
+    <value>أعد نشر تعريف المزود لاستعادة تحديثات المشتركين.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedDefinitionMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedTitle" xml:space="preserve">
+    <value>فشل الحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteFailedMessageFormat" xml:space="preserve">
+    <value>تعذر حذف «{0}» من التخزين السحابي. تعذر العثور على الملف البعيد أو رفض المزود الطلب. لم يتم إجراء أي تغييرات محلية.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogTitle" xml:space="preserve">
+    <value>تعذر حذف الفهرس الأخير</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteLastCatalogMessage" xml:space="preserve">
+    <value>يحتاج المشروع إلى فهرس واحد على الأقل. احذف محتوياته بدلاً من ذلك، أو أنشئ فهرساً بديلاً أولاً.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogTitleFormat" xml:space="preserve">
+    <value>حذف الفهرس «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogCloudOnlyMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟ إنه ليس جزءاً من المشروع الحالي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogContentsLineFormat" xml:space="preserve">
+    <value>ستتم إزالة {0} من العناصر و{1} من الإصدارات و{2} من الملفات و{3} من روابط الوسائط من المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogDefinitionLine" xml:space="preserve">
+    <value>سيتم تحديث تعريف المزود وإعادة تحميله بدون هذا الفهرس.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogOrphansLineFormat" xml:space="preserve">
+    <value>{0} من الملفات في التخزين السحابي تُستخدم فقط في هذا الفهرس وستصبح غير مرتبطة (ستبقى في التخزين السحابي): {1}.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogPartialFormat" xml:space="preserve">
+    <value>تمت إزالة الفهرس «{0}» محلياً، لكن تعذر حذف بعض الملفات البعيدة. أعد الفحص وحاول مجدداً من المخزون.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedCatalogMessageFormat" xml:space="preserve">
+    <value>تم حذف الفهرس «{0}».</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteOrphansKeptNoteFormat" xml:space="preserve">
+    <value>تم الاحتفاظ بـ {0} من الملفات اليتيمة في التخزين السحابي ويمكن حذفها كلاً على حدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteStateSaveFailedNote" xml:space="preserve">
+    <value>تعذّر حفظ حالة الاستضافة، وقد تظهر الملفات المحذوفة مجددًا بعد إعادة التشغيل.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteCatalogRemoteFailedFormat" xml:space="preserve">
+    <value>تم الاحتفاظ بالكتالوج '{0}' لتعذر حذف بعض الملفات البعيدة. تحقق من الاتصال وأعد المحاولة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteDefinitionStaleNote" xml:space="preserve">
+    <value>تعذر إعادة تحميل تعريف المزود وتم وضع علامة عليه للنشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSuccessTitle" xml:space="preserve">
+    <value>تم الحذف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalTitleFormat" xml:space="preserve">
+    <value>إزالة الرابط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactTitleFormat" xml:space="preserve">
+    <value>حذف «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMessageFormat" xml:space="preserve">
+    <value>«{0}» مستضاف على CDN خارجي، لذا لا يوجد ملف بعيد لحذفه. هل تريد إزالة رابطه من {1} من الإصدارات؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» ({1}) من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactConsequenceLineFormat" xml:space="preserve">
+    <value>ستتم إزالة الملف من {0} من الإصدارات؛ وسيتم تحديث الفهارس المتأثرة وإعادة تحميلها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactUsedByLine" xml:space="preserve">
+    <value>مُستخدم في:</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteArtifactEmptiedLineFormat" xml:space="preserve">
+    <value>تحذير: الإصدار v{0} من «{1}» سيبقى بدون ملفات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedArtifactMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» وإزالته من {1} من الإصدارات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMessageFormat" xml:space="preserve">
+    <value>تم فك ارتباط «{0}» من {1} من الإصدارات.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteEmptiedReleaseNoteFormat" xml:space="preserve">
+    <value>الإصدار v{0} من «{1}» أصبح الآن بدون ملفات. أضف بديلاً أو احذف الإصدار.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishFailedNoteFormat" xml:space="preserve">
+    <value>تعذر إعادة تحميل {0} من الفهارس وتم وضع علامة عليها للنشر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRepublishedNoteFormat" xml:space="preserve">
+    <value>تمت إعادة تحميل {0} من الفهارس مع الإصلاح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaTitleFormat" xml:space="preserve">
+    <value>حذف الوسائط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaMessageFormat" xml:space="preserve">
+    <value>حذف «{0}» من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteMediaConsequenceLineFormat" xml:space="preserve">
+    <value>ستتم إزالة الرابط من {0} من المواضع؛ وسيتم تحديث الفهارس المتأثرة وإعادة تحميلها.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedMediaMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» وفك ارتباطه من {1} من المواضع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedTitleFormat" xml:space="preserve">
+    <value>حذف الملف غير المرتبط «{0}»؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteUnlinkedMessageFormat" xml:space="preserve">
+    <value>«{0}» ({1}) غير مستخدم في أي فهرس. هل تريد حذفه من التخزين السحابي؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedUnlinkedMessageFormat" xml:space="preserve">
+    <value>تم حذف «{0}» من التخزين السحابي.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteExternalMediaMessageFormat" xml:space="preserve">
+    <value>«{0}» مستضاف على CDN خارجي، لذا لا يوجد ملف بعيد لحذفه. هل تريد إزالة رابطه من {1} من المواضع؟</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeletedExternalMediaMessageFormat" xml:space="preserve">
+    <value>تم فك ارتباط «{0}» من {1} من المواضع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadingText" xml:space="preserve">
+    <value>جارٍ تحميل المعاينة...</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewLoadFailedFormat" xml:space="preserve">
+    <value>المعاينة غير متاحة: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.PreviewDownloadFailedText" xml:space="preserve">
+    <value>تعذر تنزيل الملف.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.ChildCopyLinkAction" xml:space="preserve">
+    <value>انقر لنسخ الرابط</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteSharedUrlWarningLine" xml:space="preserve">
+    <value>هذا الملف مستخدم أيضاً بطريقة أخرى؛ سيتم الاحتفاظ بالملف البعيد وإزالة الروابط المحددة فقط.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Hosting.DeleteRemoteKeptSharedNote" xml:space="preserve">
+    <value>تم الاحتفاظ بالملف البعيد لأن مراجع أخرى لا تزال تستخدمه.</value>
+  </data>
   <data name="Launch.ExitCode.LauncherExitExplained" xml:space="preserve">
     <value>خرج برنامج التشغيل برمز الخروج {0} قبل بدء {1}. {2}</value>
   </data>
@@ -17868,6 +18255,33 @@ Error: فشل: {3}
   </data>
   <data name="GameProfiles.Share.Error.ReferencedManifestMissing" xml:space="preserve">
     <value>تعذر العثور على بيان المحتوى '{0}' المشار إليه في الملف الشخصي ضمن مجموعة البيانات المحلية.</value>
+  </data>
+  <data name="Downloads.ContentDetail.PreviousImage" xml:space="preserve">
+    <value>الصورة السابقة</value>
+  </data>
+  <data name="Downloads.ContentDetail.NextImage" xml:space="preserve">
+    <value>الصورة التالية</value>
+  </data>
+  <data name="Downloads.ContentDetail.CopyImageUrl" xml:space="preserve">
+    <value>نسخ رابط الصورة</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopied" xml:space="preserve">
+    <value>تم نسخ رابط الصورة إلى الحافظة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageUrlCopyFailed" xml:space="preserve">
+    <value>فشل نسخ رابط الصورة.</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedTitle" xml:space="preserve">
+    <value>لا يمكن فتح الصورة</value>
+  </data>
+  <data name="Downloads.ContentDetail.ImageOpenFailedMessage" xml:space="preserve">
+    <value>لا يمكن فتح رابط الصورة في المتصفح.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameTooltip" xml:space="preserve">
+    <value>تسمية لقطة الشاشة هذه</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
+    <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
   <data name="Navigation.Online" xml:space="preserve">
     <value>عبر الإنترنت</value>

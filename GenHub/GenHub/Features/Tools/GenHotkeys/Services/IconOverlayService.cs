@@ -1,9 +1,8 @@
 using GenHub.Core.Interfaces.Tools.GenHotkeys;
 using GenHub.Core.Models.Tools.GenHotkeys;
+using GenHub.Infrastructure.Imaging;
+using ImageMagick;
 using Microsoft.Extensions.Logging;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Tga;
-using SixLabors.ImageSharp.PixelFormats;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,10 +16,10 @@ namespace GenHub.Features.Tools.GenHotkeys.Services;
 /// </summary>
 public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverlayService
 {
-    private static readonly Rgba32 BadgeBackground = new(14, 18, 24, 245);
-    private static readonly Rgba32 BadgeBorder = new(245, 175, 35, 255); // Generals Gold
-    private static readonly Rgba32 TextColor = new(255, 255, 255, 255);
-    private static readonly Rgba32 ShadowColor = new(0, 0, 0, 180);
+    private static readonly ushort[] BadgeBackground = ToQuantum(MagickColor.FromRgba(14, 18, 24, 245));
+    private static readonly ushort[] BadgeBorder = ToQuantum(MagickColor.FromRgba(245, 175, 35, 255)); // Generals Gold
+    private static readonly ushort[] TextColor = ToQuantum(MagickColor.FromRgba(255, 255, 255, 255));
+    private static readonly ushort[] ShadowColor = ToQuantum(MagickColor.FromRgba(0, 0, 0, 180));
 
     // 5x7 bitmap font definitions for letters A-Z and digits 0-9
     private static readonly Dictionary<char, byte[]> Font5X7 = new()
@@ -79,25 +78,24 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
-                using var image = Image.Load<Rgba32>(sourceIconBytes);
+                using var image = new MagickImage(sourceIconBytes);
+                image.ColorSpace = ColorSpace.sRGB;
+                image.ColorType = ColorType.TrueColorAlpha;
 
                 var badgeChar = char.ToUpperInvariant(hotkey);
-                StampBadge(image, badgeChar, corner);
+                using (var pixels = image.GetPixelsUnsafe())
+                {
+                    StampBadge(new Canvas(pixels, (int)image.Width, (int)image.Height), badgeChar, corner);
+                }
 
                 using var ms = new MemoryStream();
-                var tgaEncoder = new TgaEncoder
-                {
-                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                    Compression = TgaCompression.None,
-                };
-
-                image.Save(ms, tgaEncoder);
+                TgaWriter.Write32BitUncompressed(image, ms);
                 return ms.ToArray();
             },
             cancellationToken);
     }
 
-    private static void StampBadge(Image<Rgba32> image, char character, OverlayCorner corner)
+    private static void StampBadge(Canvas image, char character, OverlayCorner corner)
     {
         const int scale = 2; // 2x crisp scale for 5x7 font -> 10x14 solid character
         const int paddingX = 3;
@@ -119,7 +117,7 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         DrawGlyph(image, character, badgeX + paddingX, badgeY + paddingY, scale);
     }
 
-    private static void DrawGlyph(Image<Rgba32> image, char character, int textStartX, int textStartY, int scale)
+    private static void DrawGlyph(Canvas image, char character, int textStartX, int textStartY, int scale)
     {
         if (!Font5X7.TryGetValue(character, out var glyphRows))
         {
@@ -140,7 +138,7 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         }
     }
 
-    private static void DrawScaledPixel(Image<Rgba32> image, int px, int py, int scale)
+    private static void DrawScaledPixel(Canvas image, int px, int py, int scale)
     {
         for (var dy = 0; dy < scale; dy++)
         {
@@ -169,13 +167,13 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
     }
 
     private static void DrawBadgeBox(
-        Image<Rgba32> image,
+        Canvas image,
         int startX,
         int startY,
         int width,
         int height,
-        Rgba32 fill,
-        Rgba32 border)
+        ushort[] fill,
+        ushort[] border)
     {
         for (var y = 0; y < height; y++)
         {
@@ -188,11 +186,15 @@ public class IconOverlayService(ILogger<IconOverlayService> logger) : IIconOverl
         }
     }
 
-    private static void SetPixelSafe(Image<Rgba32> image, int x, int y, Rgba32 color)
+    private static void SetPixelSafe(Canvas image, int x, int y, ushort[] color)
     {
         if (x >= 0 && x < image.Width && y >= 0 && y < image.Height)
         {
-            image[x, y] = color;
+            image.Pixels.SetPixel(x, y, color);
         }
     }
+
+    private static ushort[] ToQuantum(MagickColor color) => [color.R, color.G, color.B, color.A];
+
+    private readonly record struct Canvas(IPixelCollection<ushort> Pixels, int Width, int Height);
 }

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -119,6 +120,39 @@ public class ProviderDefinition
     /// </summary>
     [JsonPropertyName("timeouts")]
     public ProviderTimeouts Timeouts { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the host platforms this provider's content can run on.
+    /// <para>
+    /// An empty list means the content is not tied to a platform. A provider whose content
+    /// only runs on Windows, such as Generals Online behind Easy Anti-Cheat, lists
+    /// <see cref="ExecutablePlatform.Windows"/> so it is not offered on macOS or Linux.
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("supportedPlatforms")]
+    public List<ExecutablePlatform> SupportedPlatforms { get; set; } = [];
+
+    /// <summary>
+    /// Determines whether this provider's content can run on <paramref name="platform"/>.
+    /// </summary>
+    /// <param name="platform">The host platform to test.</param>
+    /// <returns><c>true</c> when no platforms are declared or <paramref name="platform"/> is one of them.</returns>
+    public bool SupportsPlatform(ExecutablePlatform platform)
+    {
+        return SupportedPlatforms is not { Count: > 0 } || SupportedPlatforms.Contains(platform);
+    }
+
+    /// <summary>
+    /// Determines whether this provider's content can run on the current host.
+    /// </summary>
+    /// <returns><c>true</c> when the current host is supported.</returns>
+    public bool SupportsHostPlatform() => SupportsPlatform(HostPlatform.Current);
+
+    /// <summary>
+    /// Determines whether this provider is enabled and its content can run on the current host.
+    /// </summary>
+    /// <returns><c>true</c> when <see cref="Enabled"/> is set and the current host is supported.</returns>
+    public bool IsAvailableOnHost() => Enabled && SupportsHostPlatform();
 }
 
 /// <summary>

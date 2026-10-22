@@ -73,6 +73,11 @@ public static class MapManagerConstants
     public const string MapStrFileName = "map.str";
 
     /// <summary>
+    /// Standard per-map water and wave animation filename.
+    /// </summary>
+    public const string MapWakFileName = "map.wak";
+
+    /// <summary>
     /// Maximum directory nesting depth for maps (1 level).
     /// </summary>
     public const int MaxDirectoryDepth = 1;
@@ -101,6 +106,11 @@ public static class MapManagerConstants
     /// File pattern for map files.
     /// </summary>
     public const string MapFilePattern = "*.map";
+
+    /// <summary>
+    /// File extension of a map file.
+    /// </summary>
+    public const string MapFileExtension = ".map";
 
     /// <summary>
     /// File pattern for ZIP files.

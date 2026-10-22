@@ -8,6 +8,7 @@ using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.Services.Hosting;
 using GenHub.Features.Tools.ViewModels;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -25,6 +26,7 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// Regression tests for cloud sync restoring a publisher definition and its catalogs
 /// into an empty project (wipe-and-reconnect scenario).
 /// </summary>
+[Collection(PublishShareStaticStateCollection.Name)]
 public sealed class PublishShareSyncRestoreTests : IDisposable
 {
     private const string DefinitionUrl = "https://example.com/publisher.json";

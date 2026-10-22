@@ -860,6 +860,10 @@ public sealed class ProfileContentService(
 
         await NotifyNewlyAddedDependenciesAsync(enabledContentIds, previousIds, contentName, primaryManifestId, cancellationToken);
 
+        // The profile manager live-synchronizes content changes into an active game session
+        // through its single live-sync pipeline; surface that so callers can confirm it.
+        var wasAppliedLive = updateResult.WasAppliedLive;
+
         if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
         {
             notificationService.ShowInfo(
@@ -872,13 +876,15 @@ public sealed class ProfileContentService(
                 primaryManifestId,
                 profileId);
 
-            return AddToProfileResult.CreateSuccessWithSwap(
+            var swappedResult = AddToProfileResult.CreateSuccessWithSwap(
                 primaryManifestId,
                 contentName,
                 swapResult.SwappedContentId,
                 swapResult.SwappedContentName,
                 swapResult.SwappedContentType,
                 sw.Elapsed);
+            swappedResult.WasAppliedLive = wasAppliedLive;
+            return swappedResult;
         }
 
         logger.LogInformation(
@@ -886,7 +892,9 @@ public sealed class ProfileContentService(
             primaryManifestId,
             profileId);
 
-        return AddToProfileResult.CreateSuccess(primaryManifestId, contentName, sw.Elapsed);
+        var addedResult = AddToProfileResult.CreateSuccess(primaryManifestId, contentName, sw.Elapsed);
+        addedResult.WasAppliedLive = wasAppliedLive;
+        return addedResult;
     }
 
     private async Task<(string? SwappedContentId, string? SwappedContentName, ContentType SwappedContentType)> ResolveContentSwapsAsync(

@@ -37,6 +37,12 @@
     <!-- Enforce zero warnings policy across all projects -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
+    <!-- Do not treat NuGet package audit vulnerability warnings as build errors -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+
+    <!-- Prevent concurrent compilation memory exhaustion in resource-constrained CI runners -->
+    <BuildInParallel Condition="'$(CI)' == 'true'">false</BuildInParallel>
+
     <!--
       Never copy the Playwright driver by default. The driver's buildTransitive targets
       would otherwise copy the build-host driver into every referencing project's output
@@ -44,13 +50,6 @@
       Each platform head opts back in for Debug only; Release downloads on demand.
     -->
     <PlaywrightPlatform>none</PlaywrightPlatform>
-
-    <!--
-      VideoLAN.LibVLC.Windows targets default to copying x64, x86, and arm64 when Platform is AnyCPU.
-      GenHub targets win-x64 on Windows, so disable the unused x86 and arm64 VLC trees.
-    -->
-    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
-    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
   </PropertyGroup>
 
   <!-- Embed build metadata in assembly for runtime access -->

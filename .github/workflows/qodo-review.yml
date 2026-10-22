@@ -15,6 +15,7 @@ jobs:
     # Fork PRs: run under pull_request_target to access secrets safely
     # Internal PRs: run under pull_request
     # Bot comments: ignored to prevent unnecessary runs and cancellations
+    # Issue comments: only repository owners, members, and collaborators can invoke review commands
     if: >-
       ${{
         github.event.sender.type != 'Bot' &&
@@ -23,7 +24,8 @@ jobs:
           (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
           (
             github.event_name == 'issue_comment' &&
-            github.event.issue.pull_request
+            github.event.issue.pull_request &&
+            contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
           )
         )
       }}
@@ -44,8 +46,11 @@ jobs:
           if os.environ["GITHUB_EVENT_NAME"] == "issue_comment":
               with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as event_file:
                   event = json.load(event_file)
+              author_association = event.get("comment", {}).get("author_association", "NONE")
+              is_authorized = author_association in ["OWNER", "MEMBER", "COLLABORATOR"]
               body = (event.get("comment", {}).get("body") or "").strip()
-              run_review = re.match(r"/review(?:[ \t\r\n]|$)", body, re.IGNORECASE) is not None
+              is_command = re.match(r"/review(?:[ \t\r\n]|$)", body, re.IGNORECASE) is not None
+              run_review = is_authorized and is_command
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
               output_file.write(f"run_review={str(run_review).lower()}\n")
 

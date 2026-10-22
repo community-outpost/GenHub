@@ -95,6 +95,9 @@ public class LocalizedReplayTooltipConverter : IValueConverter
             ReplayCompatibilityStatus.Orphaned =>
                 loc?.GetString("Tools.ReplayManager.Tooltip.Compatibility.Orphaned", replay.Metadata?.FormattedExeCrc ?? "N/A", replay.Metadata?.FormattedIniCrc ?? "N/A")
                 ?? $"Exe CRC {replay.Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {replay.Metadata?.FormattedIniCrc ?? "N/A"} is not in the official catalog. Click 'Profile' to configure using your base installation.",
+            ReplayCompatibilityStatus.RequiresRetailInstallation =>
+                loc?.GetString("Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation", targetName)
+                ?? $"This replay was recorded with the retail client '{targetName}'. Add a retail game installation, then create a profile to watch it.",
             _ => loc?.GetString("Tools.ReplayManager.Tooltip.Compatibility.Unknown")
                 ?? "Replay header metadata is not available or could not be parsed.",
         };
