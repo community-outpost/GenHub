@@ -482,7 +482,7 @@ public partial class AddContentDialogViewModel(
 
         foreach (var tab in existing.CustomTabs.Where(tab => tab != null))
         {
-            CustomTabs.Add(new CustomTabEditorItem(tab));
+            TrackCustomTab(new CustomTabEditorItem(tab));
         }
     }
 
@@ -1755,29 +1755,61 @@ public partial class AddContentDialogViewModel(
     [RelayCommand]
     private void AddCustomTab()
     {
-        var number = CustomTabs.Count + 1;
-        while (CustomTabs.Any(tab => tab.TabId.Equals($"tab-{number}", StringComparison.OrdinalIgnoreCase)))
-        {
-            number++;
-        }
-
-        CustomTabs.Add(new CustomTabEditorItem
-        {
-            TabId = $"tab-{number}",
-            Order = (CustomTabs.Count + 1) * 10,
-        });
+        TrackCustomTab(new CustomTabEditorItem { Order = (CustomTabs.Count + 1) * 10 });
     }
 
     /// <summary>
-    /// Removes a publisher-defined tab from the content item.
+    /// Removes a publisher-defined tab from the content item after the author confirms.
     /// </summary>
     /// <param name="tab">The tab to remove.</param>
+    /// <returns>A task that completes when the tab is removed or the author cancels.</returns>
     [RelayCommand]
-    private void RemoveCustomTab(CustomTabEditorItem? tab)
+    private async Task RemoveCustomTabAsync(CustomTabEditorItem? tab)
     {
-        if (tab != null)
+        if (tab == null || dialogService == null)
         {
-            CustomTabs.Remove(tab);
+            return;
+        }
+
+        var name = !string.IsNullOrWhiteSpace(tab.Header) ? tab.Header.Trim() : tab.ToDefinition().TabId;
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.RemoveTitle", "Remove Custom Tab"),
+            string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat",
+                    "Remove the custom tab '{0}'? Its intro, body and cards are removed from this item."),
+                name));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        tab.PropertyChanged -= OnCustomTabPropertyChanged;
+        CustomTabs.Remove(tab);
+        RefreshSuggestedTabIds();
+    }
+
+    private void TrackCustomTab(CustomTabEditorItem tab)
+    {
+        tab.PropertyChanged += OnCustomTabPropertyChanged;
+        CustomTabs.Add(tab);
+        RefreshSuggestedTabIds();
+    }
+
+    private void OnCustomTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CustomTabEditorItem.TabId) or nameof(CustomTabEditorItem.Header))
+        {
+            RefreshSuggestedTabIds();
+        }
+    }
+
+    private void RefreshSuggestedTabIds()
+    {
+        var suggestions = CustomTabIdGenerator.Suggest([.. CustomTabs.Select(tab => ((string?)tab.TabId, (string?)tab.Header))]);
+        for (var i = 0; i < CustomTabs.Count; i++)
+        {
+            CustomTabs[i].SuggestedTabId = suggestions[i];
         }
     }
 
@@ -2226,7 +2258,8 @@ public partial class AddContentDialogViewModel(
 
     private string? FindCustomTabError()
     {
-        var issue = CatalogTabValidator.Inspect([.. CustomTabs.Select(tab => tab.ToDefinition())]).FirstOrDefault();
+        var issues = CatalogTabValidator.Inspect([.. CustomTabs.Select(tab => tab.ToDefinition())]);
+        var issue = issues.FirstOrDefault(i => i.Kind == CustomTabIssueKind.MissingHeader) ?? issues.FirstOrDefault();
         if (issue == null)
         {
             return null;

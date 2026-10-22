@@ -13609,9 +13609,6 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>Tab ID</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder" xml:space="preserve">
-    <value>release-notes</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
     <value>Header</value>
   </data>
@@ -13620,6 +13617,12 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
     <value>Order</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>Remove Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>Remove the custom tab '{0}'? Its intro, body and cards are removed from this item.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
     <value>Remove tab</value>

@@ -13548,9 +13548,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>ID вкладки</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder" xml:space="preserve">
-    <value>release-notes</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
     <value>Заголовок</value>
   </data>
@@ -13559,6 +13556,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
     <value>Порядок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>Удалить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>Удалить пользовательскую вкладку '{0}'? Её вступление, содержимое и карточки будут удалены из этого элемента.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
     <value>Удалить вкладку</value>

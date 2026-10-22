@@ -13548,9 +13548,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>معرّف علامة التبويب</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder" xml:space="preserve">
-    <value>release-notes</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
     <value>العنوان</value>
   </data>
@@ -13559,6 +13556,12 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
     <value>الترتيب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>إزالة علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>هل تريد إزالة علامة التبويب المخصصة '{0}'؟ تُزال مقدمتها ومحتواها وبطاقاتها من هذا العنصر.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
     <value>إزالة علامة التبويب</value>

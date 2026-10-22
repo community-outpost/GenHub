@@ -12,7 +12,8 @@ namespace GenHub.Features.Content.Services.Catalog;
 public static class CatalogTabValidator
 {
     /// <summary>
-    /// Replaces null tab collections with empty ones and removes null tab and card entries.
+    /// Replaces null tab collections with empty ones, removes null tab and card entries, and gives a tab
+    /// without an ID one generated from its header.
     /// </summary>
     /// <param name="tabs">The tabs to normalize, or null.</param>
     /// <returns>The normalized tab list.</returns>
@@ -30,6 +31,15 @@ public static class CatalogTabValidator
             tab.Cards.RemoveAll(card => card == null);
             tab.AppliesTo ??= [];
             tab.Metadata ??= [];
+        }
+
+        var suggestions = CustomTabIdGenerator.Suggest([.. tabs.Select(tab => (tab.TabId, tab.Header))]);
+        for (var i = 0; i < tabs.Count; i++)
+        {
+            if (suggestions[i] != null)
+            {
+                tabs[i].TabId = suggestions[i]!;
+            }
         }
 
         return tabs;

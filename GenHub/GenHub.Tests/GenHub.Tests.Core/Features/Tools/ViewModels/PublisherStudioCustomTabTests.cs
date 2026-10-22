@@ -116,7 +116,7 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     [Theory]
     [InlineData("NOTES", "More notes")]
     [InlineData("faq", " ")]
-    [InlineData(" ", "FAQ")]
+    [InlineData(" ", " ")]
     public void EditContentDialog_InvalidTab_ShowsErrorAndDoesNotSave(string secondTabId, string secondHeader)
     {
         var existing = CreateItem();
@@ -213,10 +213,15 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
-    /// Removing a tab in the dialog drops it from the saved item.
+    /// Removing a tab asks for confirmation. A confirmed removal drops the tab from the saved item, and a
+    /// cancelled one keeps it.
     /// </summary>
-    [Fact]
-    public void EditContentDialog_RemoveTab_DropsTabFromSavedItem()
+    /// <param name="confirm">The author's answer to the confirmation prompt.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EditContentDialog_RemoveTab_AsksForConfirmationAsync(bool confirm)
     {
         var existing = CreateItem();
         existing.CustomTabs =
@@ -224,14 +229,50 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             new CatalogTabDefinition { TabId = "notes", Header = "Notes" },
             new CatalogTabDefinition { TabId = "faq", Header = "FAQ" },
         ];
+        var dialogService = new Mock<IPublisherStudioDialogService>();
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.Is<string>(m => m.Contains("Notes")), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(confirm);
         CatalogContentItem? edited = null;
-        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
+        using var dialog = new AddContentDialogViewModel(existing, item => edited = item, dialogService.Object);
 
-        dialog.RemoveCustomTabCommand.Execute(dialog.CustomTabs[0]);
+        await dialog.RemoveCustomTabCommand.ExecuteAsync(dialog.CustomTabs[0]);
         dialog.CreateContentCommand.Execute(null);
 
         Assert.NotNull(edited);
-        Assert.Equal("faq", Assert.Single(edited.CustomTabs).TabId);
+        Assert.Equal(confirm ? ["faq"] : ["notes", "faq"], edited.CustomTabs.Select(t => t.TabId));
+        dialogService.Verify(
+            d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A tab without a typed ID shows an ID generated from its header as the placeholder and saves with it.
+    /// A typed ID wins, and generated IDs stay unique within the item.
+    /// </summary>
+    [Fact]
+    public void EditContentDialog_EmptyTabId_UsesIdGeneratedFromHeader()
+    {
+        var existing = CreateItem();
+        existing.CustomTabs = [new CatalogTabDefinition { TabId = "how-to-play", Header = "Rules" }];
+        CatalogContentItem? edited = null;
+        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
+
+        dialog.AddCustomTabCommand.Execute(null);
+        var added = dialog.CustomTabs[1];
+        Assert.Null(added.SuggestedTabId);
+        added.Header = "How to Play";
+        Assert.Equal("how-to-play-2", added.SuggestedTabId);
+        Assert.Null(dialog.CustomTabs[0].SuggestedTabId);
+
+        dialog.AddCustomTabCommand.Execute(null);
+        dialog.CustomTabs[2].Header = "Credits";
+        dialog.CustomTabs[2].TabId = "thanks";
+
+        dialog.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(edited);
+        Assert.Equal(["how-to-play", "how-to-play-2", "thanks"], edited.CustomTabs.Select(t => t.TabId));
     }
 
     /// <summary>

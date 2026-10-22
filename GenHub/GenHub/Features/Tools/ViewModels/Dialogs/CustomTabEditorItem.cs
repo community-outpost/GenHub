@@ -41,6 +41,9 @@ public partial class CustomTabEditorItem : ObservableObject
     [ObservableProperty]
     private bool _isPreviewVisible;
 
+    [ObservableProperty]
+    private string? _suggestedTabId;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CustomTabEditorItem"/> class.
     /// </summary>
@@ -74,7 +77,7 @@ public partial class CustomTabEditorItem : ObservableObject
     public CatalogTabDefinition ToDefinition()
     {
         var definition = Clone(_source);
-        definition.TabId = TabId.Trim();
+        definition.TabId = string.IsNullOrWhiteSpace(TabId) ? SuggestedTabId ?? string.Empty : TabId.Trim();
         definition.Header = Header.Trim();
         definition.Order = Order;
         definition.Intro = string.IsNullOrWhiteSpace(Intro) ? null : Intro.Trim();
@@ -88,7 +91,7 @@ public partial class CustomTabEditorItem : ObservableObject
     {
         base.OnPropertyChanged(e);
         if (e.PropertyName == nameof(IsPreviewVisible) ||
-            (IsPreviewVisible && e.PropertyName is nameof(TabId) or nameof(Header) or nameof(Order) or nameof(Intro) or nameof(Body)))
+            (IsPreviewVisible && e.PropertyName is nameof(TabId) or nameof(SuggestedTabId) or nameof(Header) or nameof(Order) or nameof(Intro) or nameof(Body)))
         {
             base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(Preview)));
         }

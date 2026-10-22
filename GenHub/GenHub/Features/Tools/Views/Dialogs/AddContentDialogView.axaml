@@ -581,10 +581,10 @@
                                             Padding="12"
                                             Margin="0,0,0,8">
                                         <StackPanel Spacing="8">
-                                            <Grid ColumnDefinitions="*,8,*,8,90,Auto">
+                                            <Grid ColumnDefinitions="*,8,*,8,140,Auto">
                                                 <StackPanel Grid.Column="0" Spacing="4">
                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabId}" Classes="label"/>
-                                                    <TextBox Text="{Binding TabId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabIdPlaceholder}"/>
+                                                    <TextBox Text="{Binding TabId}" Watermark="{Binding SuggestedTabId}"/>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="2" Spacing="4">
                                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Header}" Classes="label"/>

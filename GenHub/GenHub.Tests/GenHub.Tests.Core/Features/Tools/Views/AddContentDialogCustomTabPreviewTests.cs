@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
@@ -65,6 +66,45 @@ public class AddContentDialogCustomTabPreviewTests
             form.Offset = new Avalonia.Vector(0, form.Extent.Height - form.Viewport.Height);
             window.UpdateLayout();
             Assert.Equal(form.Extent.Height - form.Viewport.Height, form.Offset.Y, 1);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// The tab order input is wide enough to show a four digit value without clipping.
+    /// </summary>
+    [AvaloniaFact]
+    public void OrderInput_FitsFourDigits()
+    {
+        var item = new CatalogContentItem
+        {
+            Id = "mod-a",
+            Name = "Mod A",
+            Description = "A mod with a publisher tab.",
+            CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 1000 }],
+        };
+        using var viewModel = new AddContentDialogViewModel(item, _ => { });
+        var view = new AddContentDialogView { DataContext = viewModel };
+        var window = new Window { Content = view, Width = 680, Height = 720 };
+        window.Show();
+        try
+        {
+            foreach (var expander in view.GetVisualDescendants().OfType<Expander>())
+            {
+                expander.IsExpanded = true;
+            }
+
+            window.UpdateLayout();
+
+            var order = Assert.Single(view.GetVisualDescendants().OfType<NumericUpDown>(), n => n.Value == 1000);
+            var textBox = order.GetVisualDescendants().OfType<TextBox>().First();
+            var sample = new TextBlock { Text = "1000", FontSize = textBox.FontSize, FontFamily = textBox.FontFamily, FontWeight = textBox.FontWeight };
+            sample.Measure(Size.Infinity);
+            var available = textBox.Bounds.Width - textBox.Padding.Left - textBox.Padding.Right - textBox.BorderThickness.Left - textBox.BorderThickness.Right;
+            Assert.True(available >= sample.DesiredSize.Width, $"Order text area {available} is narrower than four digits {sample.DesiredSize.Width}");
         }
         finally
         {
