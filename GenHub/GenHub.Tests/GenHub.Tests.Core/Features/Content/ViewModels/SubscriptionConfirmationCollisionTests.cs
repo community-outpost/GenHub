@@ -1,8 +1,11 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Security;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Tests.Core.Collections;
@@ -490,6 +493,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
     [InlineData("io-exception", true)]
     [InlineData("json-exception", true)]
     [InlineData("failed-read", true)]
+    [InlineData("stray-cancel", true)]
     [InlineData("removed", false)]
     public async Task SelectDefinitionCatalog_StoreOutcome_ResetsDecisionAsync(string outcome, bool expectError)
     {
@@ -503,6 +507,9 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
                 break;
             case "json-exception":
                 read.ThrowsAsync(new JsonException("corrupt"));
+                break;
+            case "stray-cancel":
+                read.ThrowsAsync(new OperationCanceledException("timeout"));
                 break;
             case "failed-read":
                 read.ReturnsAsync(OperationResult<PublisherSubscription?>.CreateFailure("corrupt"));
@@ -536,6 +543,71 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         await vm.SelectDefinitionCatalogAsync("maps");
 
         Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+        Assert.Null(vm.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Cancelling a re-check while the identity check is pending clears the notice left by the previous catalog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_CancelledDuringAssessment_ClearsPreviousNoticeAsync()
+    {
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var pending = new TaskCompletionSource<PublisherSourceAssessment>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var identity = new Mock<IPublisherIdentityService>();
+        identity
+            .Setup(i => i.AssessAsync(It.IsAny<PublisherSubscription?>(), It.IsAny<PublisherSourceCandidate>(), It.IsAny<CancellationToken>()))
+            .Returns<PublisherSubscription?, PublisherSourceCandidate, CancellationToken>((_, candidate, ct) =>
+            {
+                if (candidate.CatalogUrl == OldCatalogUrl)
+                {
+                    return Task.FromResult(new PublisherSourceAssessment(PublisherSourceChange.Collision, null, null));
+                }
+
+                return ct.CanBeCanceled
+                    ? pending.Task.WaitAsync(ct)
+                    : Task.FromResult(new PublisherSourceAssessment(PublisherSourceChange.None, null, null));
+            });
+        var vm = CreateViewModel(TwoCatalogDefinition(), identity.Object);
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+        Assert.Equal(PublisherSourceChange.Collision, vm.SourceChange);
+
+        using var cts = new CancellationTokenSource();
+        var check = vm.SelectDefinitionCatalogAsync("main", cts.Token);
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => check);
+        Assert.Equal(PublisherSourceChange.None, vm.SourceChange);
+    }
+
+    /// <summary>
+    /// The source check error is cleared after a language change, because clearing compares against the text that was shown.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SelectDefinitionCatalog_LanguageChangedAfterFailure_StillClearsSourceCheckErrorAsync()
+    {
+        var localization = new Mock<ILocalizationService>();
+        localization
+            .SetupSequence(l => l.GetString("Downloads.Subscription.ErrorMessage.SourceCheckFailed"))
+            .Returns("Erreur de verification")
+            .Returns("Check failed");
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        var vm = CreateViewModel(TwoCatalogDefinition(), localizationService: localization.Object);
+        await vm.InitializeAsync();
+        await vm.SelectDefinitionCatalogAsync("maps");
+
+        _subscriptionStore
+            .Setup(s => s.GetSubscriptionAsync(PublisherId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("locked"));
+        await vm.SelectDefinitionCatalogAsync("main");
+        Assert.Equal("Erreur de verification", vm.ErrorMessage);
+
+        SetExisting(CatalogDirectSubscription(NewCatalogUrl));
+        await vm.SelectDefinitionCatalogAsync("maps");
+
         Assert.Null(vm.ErrorMessage);
     }
 
@@ -605,9 +677,12 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         finally
         {
             // Release the shared save lock even when an assertion fails, so later tests cannot hang on it.
+            // WhenAny waits without throwing, so a failed assertion above is not replaced by a save fault.
             release.TrySetResult(OperationResult<bool>.CreateSuccess(true));
-            await Task.WhenAll(firstSave, secondSave);
+            await Task.WhenAny(Task.WhenAll(firstSave, secondSave));
         }
+
+        await Task.WhenAll(firstSave, secondSave);
 
         Assert.Equal(2, updateCalls);
     }
@@ -692,8 +767,10 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         finally
         {
             release.TrySetResult(OperationResult<bool>.CreateSuccess(true));
-            await confirm;
+            await Task.WhenAny(confirm);
         }
+
+        await confirm;
 
         _subscriptionStore.Verify(s => s.UpdateSubscriptionAsync(It.IsAny<PublisherSubscription>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.True(vm.ConfirmCommand.CanExecute(null));
@@ -799,7 +876,10 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         return vm;
     }
 
-    private SubscriptionConfirmationViewModel CreateViewModel(PublisherDefinition definition)
+    private SubscriptionConfirmationViewModel CreateViewModel(
+        PublisherDefinition definition,
+        IPublisherIdentityService? identityService = null,
+        ILocalizationService? localizationService = null)
     {
         var responses = new Dictionary<string, string>
         {
@@ -813,7 +893,8 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
             _catalogParser.Object,
             new HttpClient(new MappedHttpMessageHandler(responses)),
             _logger,
-            identityService: PublisherIdentityTestData.CreateService(_keyStore),
+            localizationService: localizationService,
+            identityService: identityService ?? PublisherIdentityTestData.CreateService(_keyStore),
             notificationService: _notifications.Object);
     }
 

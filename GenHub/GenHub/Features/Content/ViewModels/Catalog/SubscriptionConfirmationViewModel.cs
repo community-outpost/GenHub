@@ -77,6 +77,7 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _definitionCatalogFetchError;
     private string _assessedPublisherId = string.Empty;
     private int _assessmentGeneration;
+    private string? _shownSourceCheckError;
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -663,7 +664,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
-            var assessment = await AssessSourceAsync(publisherId, existingSub, effectiveCatalogUrl, cancellationToken);
+            var assessment = await AssessSourceAsync(publisherId, existingSub, effectiveCatalogUrl, null, cancellationToken);
             if (assessment.RequiresDecision && !replaceExisting)
             {
                 logger.LogWarning("Publisher ID collision for {PublisherId}; waiting for the user to replace or skip", publisherId);
@@ -853,7 +854,7 @@ public partial class SubscriptionConfirmationViewModel(
 
             throw;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(ex, "Failed to re-check the source for publisher {PublisherId}", publisherId);
             if (generation == _assessmentGeneration)
@@ -886,7 +887,7 @@ public partial class SubscriptionConfirmationViewModel(
         }
 
         ClearSourceCheckError();
-        await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, cancellationToken);
+        await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, generation, cancellationToken);
     }
 
     private void ResetSourceChange()
@@ -899,19 +900,20 @@ public partial class SubscriptionConfirmationViewModel(
     {
         ResetSourceChange();
         ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
-        ErrorMessage = GetSourceCheckFailedMessage();
+        _shownSourceCheckError = GetLocalizedString(
+            "Downloads.Subscription.ErrorMessage.SourceCheckFailed",
+            "GenHub could not compare this source with your existing subscription. It checks again when you save.");
+        ErrorMessage = _shownSourceCheckError;
     }
-
-    private string GetSourceCheckFailedMessage() => GetLocalizedString(
-        "Downloads.Subscription.ErrorMessage.SourceCheckFailed",
-        "GenHub could not compare this source with your existing subscription. It checks again when you save.");
 
     private void ClearSourceCheckError()
     {
-        if (string.Equals(ErrorMessage, GetSourceCheckFailedMessage(), StringComparison.Ordinal))
+        if (_shownSourceCheckError != null && string.Equals(ErrorMessage, _shownSourceCheckError, StringComparison.Ordinal))
         {
             ErrorMessage = null;
         }
+
+        _shownSourceCheckError = null;
     }
 
     private PublisherSubscription BuildSubscription(
@@ -973,9 +975,10 @@ public partial class SubscriptionConfirmationViewModel(
         string publisherId,
         PublisherSubscription? existingSub,
         string effectiveCatalogUrl,
+        int? ownedGeneration,
         CancellationToken cancellationToken)
     {
-        var generation = ++_assessmentGeneration;
+        var generation = ownedGeneration ?? ++_assessmentGeneration;
         var candidate = new PublisherSourceCandidate(publisherId, _resolvedDefinitionUrl, effectiveCatalogUrl, _resolvedDefinition);
         PublisherSourceAssessment assessment;
         if (identityService != null)
