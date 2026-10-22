@@ -70,23 +70,42 @@
                 <DataTemplate DataType="content:CustomTabCardDefinition">
                     <Border Width="250" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,12,12">
                         <StackPanel Spacing="10">
-                            <Button Command="{Binding #CustomTabRoot.ImageCommand}"
-                                    CommandParameter="{Binding}"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="0"
-                                    Cursor="Hand"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}"
-                                    IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <ContentPresenter Content="{TemplateBinding Content}" />
-                                    </ControlTemplate>
-                                </Button.Template>
-                                <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
-                                    <Image controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
-                                </Border>
-                            </Button>
+                            <Panel IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <Button Command="{Binding #CustomTabRoot.ImageCommand}"
+                                        CommandParameter="{Binding}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0"
+                                        Cursor="Hand"
+                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}"
+                                        IsVisible="{Binding !#CardImage.(controls:ImageLoader.LoadFailed)}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <ContentPresenter Content="{TemplateBinding Content}" />
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
+                                        <Image x:Name="CardImage" controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
+                                    </Border>
+                                </Button>
+                                <Button x:Name="CardImageLink"
+                                        Command="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                        CommandParameter="{Binding ImageUrl}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="0"
+                                        Cursor="Hand"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CardImageLinkTooltip}"
+                                        IsVisible="{Binding #CardImage.(controls:ImageLoader.LoadFailed)}">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.CardImageUnavailable}"
+                                                   Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                                        <TextBlock Text="{Binding ImageUrl}" Foreground="{DynamicResource AccentBrush}" FontSize="12"
+                                                   TextDecorations="Underline" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Button>
+                            </Panel>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{Binding Label}" Foreground="{DynamicResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
                                            IsVisible="{Binding Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
