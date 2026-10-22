@@ -373,6 +373,7 @@ public sealed class ReplayMapLookupServiceTests : IDisposable
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => CreateService().ResolveMapAvailabilityAsync(GameType.ZeroHour, [replay], cts.Token));
+        _mapDirectoryService.Verify(m => m.GetMapDirectory(It.IsAny<GameType>()), Times.Never);
     }
 
     /// <summary>

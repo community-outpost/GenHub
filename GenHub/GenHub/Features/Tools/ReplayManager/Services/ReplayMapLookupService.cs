@@ -109,6 +109,7 @@ public sealed class ReplayMapLookupService(
             async () =>
             {
                 var stockRoots = await GetStockRootsAsync(version, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 var userMapDirectory = GetUserMapDirectory(version);
                 return ScanSources(scan, userMapDirectory, stockRoots, cancellationToken);
             },
