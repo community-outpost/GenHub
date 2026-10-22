@@ -97,6 +97,16 @@ public class CatalogTabProvider(
             var resultId = searchResult.Id;
 
             var itemTabs = ReadItemTabs(searchResult);
+            if (itemTabs != null)
+            {
+                itemTabs = CatalogTabValidator.Normalize(itemTabs);
+                CatalogTabValidator.Sanitize(
+                    itemTabs,
+                    issue => logger.LogWarning(
+                        "Dropped publisher tab content: {Issue}",
+                        CatalogTabValidator.Describe($"Content item '{contentId}'", issue)));
+            }
+
             var publisherId = ResolvePublisherId(searchResult);
             var catalog = await GetOrFetchCatalogAsync(publisherId, cancellationToken);
 

@@ -281,11 +281,11 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
-    /// Studio catalog validation reports runtime parser errors for invalid item tabs.
+    /// Studio catalog validation still blocks card issues that the runtime parser only drops.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateCatalogAsync_InvalidItemTab_ReportsParserErrorAsync()
+    public async Task ValidateCatalogAsync_InvalidItemCard_StillBlocksAsync()
     {
         var item = CreateItem();
         item.CustomTabs =

@@ -243,6 +243,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     {
         catalog.Content ??= [];
         catalog.CustomTabs = CatalogTabValidator.Normalize(catalog.CustomTabs);
+        SanitizeTabs("Catalog", catalog.CustomTabs, logger);
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var itemsById = catalog.Content
             .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
@@ -344,6 +345,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
         NormalizeReleases(content.Releases);
         content.CustomTabs = CatalogTabValidator.Normalize(content.CustomTabs);
+        SanitizeTabs($"Content item '{content.Id}'", content.CustomTabs, logger);
     }
 
     private static void NormalizeReleases(IList<ContentRelease>? releases)
@@ -358,6 +360,15 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             release.Artifacts ??= [];
             release.Dependencies ??= [];
         }
+    }
+
+    private static void SanitizeTabs(string scope, List<CatalogTabDefinition> tabs, ILogger logger)
+    {
+        CatalogTabValidator.Sanitize(
+            tabs,
+            issue => logger.LogWarning(
+                "Dropped publisher tab content: {Issue}",
+                CatalogTabValidator.Describe(scope, issue)));
     }
 
     private static void ValidateBasicProperties(CatalogContentItem content, int index, List<string> errors)
@@ -453,7 +464,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
     private void ValidateCatalogTabs(PublisherCatalog catalog, List<string> errors)
     {
-        CatalogTabValidator.Validate("Catalog", catalog.CustomTabs, errors);
+        CatalogTabValidator.ValidateStructure("Catalog", catalog.CustomTabs, errors);
         WarnUnsupportedTabContentTypes("catalog", catalog.CustomTabs);
 
         if (catalog.CustomTabs == null || catalog.CustomTabs.Count == 0)
@@ -543,7 +554,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         ValidateBundleItem(content, itemsById, hostPublisherId, errors);
         ValidateUpstreamItem(content, errors);
         ValidateItemReleases(content, itemsById, hostPublisherId, errors);
-        CatalogTabValidator.Validate($"Content item '{content.Id}'", content.CustomTabs, errors);
+        CatalogTabValidator.ValidateStructure($"Content item '{content.Id}'", content.CustomTabs, errors);
         WarnUnsupportedTabContentTypes($"content item '{content.Id}'", content.CustomTabs);
     }
 
