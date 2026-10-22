@@ -8,6 +8,7 @@
     <Color x:Key="SurfaceCardDark">#111118</Color>
     <Color x:Key="SurfaceElevatedDark">#181822</Color>
     <Color x:Key="SurfaceHoverDark">#222230</Color>
+    <Color x:Key="SurfaceSubtleDark">#1C1C28</Color>
 
     <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="{StaticResource SurfaceBackgroundDark}" />
     <SolidColorBrush x:Key="SurfaceBackgroundDarkBrush" Color="{StaticResource SurfaceBackgroundDark}" />
@@ -17,6 +18,8 @@
     <SolidColorBrush x:Key="SurfaceElevatedDarkBrush" Color="{StaticResource SurfaceElevatedDark}" />
     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverDark}" />
     <SolidColorBrush x:Key="SurfaceHoverDarkBrush" Color="{StaticResource SurfaceHoverDark}" />
+    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="{StaticResource SurfaceSubtleDark}" />
+    <SolidColorBrush x:Key="SurfaceSubtleDarkBrush" Color="{StaticResource SurfaceSubtleDark}" />
 
     <!-- Surface Semantic Brushes -->
     <SolidColorBrush x:Key="WindowBackground" Color="{DynamicResource SurfaceBackgroundDark}" />

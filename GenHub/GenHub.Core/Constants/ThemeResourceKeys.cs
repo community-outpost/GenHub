@@ -199,4 +199,24 @@ public static class ThemeResourceKeys
     /// Fluent Expander chevron foreground pressed brush resource key.
     /// </summary>
     public const string ExpanderChevronForegroundPressed = "ExpanderChevronForegroundPressed";
+
+    /// <summary>
+    /// Text primary brush resource key.
+    /// </summary>
+    public const string TextPrimary = "TextPrimary";
+
+    /// <summary>
+    /// Text secondary brush resource key.
+    /// </summary>
+    public const string TextSecondary = "TextSecondary";
+
+    /// <summary>
+    /// Success brush resource key.
+    /// </summary>
+    public const string SuccessBrush = "SuccessBrush";
+
+    /// <summary>
+    /// Warning brush resource key.
+    /// </summary>
+    public const string WarningBrush = "WarningBrush";
 }

@@ -1,3 +1,5 @@
+using GenHub.Core.Helpers;
+
 namespace GenHub.Core.Models.Tools.IniEditor;
 
 /// <summary>
@@ -8,4 +10,10 @@ namespace GenHub.Core.Models.Tools.IniEditor;
 /// <param name="Source">The origin of the entry.</param>
 /// <param name="SourceLabel">The display label of the origin.</param>
 /// <param name="FilePath">The source file path, when the entry comes from a file.</param>
-public sealed record IniReferenceEntry(string BlockType, string Name, IniReferenceSource Source, string SourceLabel, string? FilePath);
+public sealed record IniReferenceEntry(string BlockType, string Name, IniReferenceSource Source, string SourceLabel, string? FilePath)
+{
+    /// <summary>
+    /// Gets the icon kind representing this block type.
+    /// </summary>
+    public string IconKind => IniBlockIconHelper.GetIconKind(BlockType);
+}

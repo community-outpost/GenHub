@@ -11,7 +11,10 @@ namespace GenHub.Core.Interfaces.Tools.IniEditor;
 public interface IIniDocumentService
 {
     /// <summary>
-    /// Parses document text into an in-memory document.
+    /// Parses document text into an in-memory document, recovering from content
+    /// errors (missing or unexpected <c>End</c> markers, fields without keys) so
+    /// editors can open and repair real-world files. Recovered errors are recorded
+    /// on <see cref="IniDocument.ParseErrors"/> and surfaced by validation.
     /// </summary>
     /// <param name="content">The raw file content.</param>
     /// <param name="sourcePath">The optional source path recorded on the document.</param>
@@ -19,7 +22,9 @@ public interface IIniDocumentService
     OperationResult<IniDocument> ParseText(string content, string? sourcePath = null);
 
     /// <summary>
-    /// Parses an INI file into an in-memory document.
+    /// Parses an INI file into an in-memory document with the same recovery behavior
+    /// as <see cref="ParseText"/>. Only I/O failures (missing file, access denied)
+    /// produce a failed result.
     /// </summary>
     /// <param name="filePath">Path to the .ini file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -35,6 +40,9 @@ public interface IIniDocumentService
 
     /// <summary>
     /// Rewrites an INI file in canonical form, atomically.
+    /// Refuses to overwrite when parsing discarded source lines
+    /// (<see cref="IniDocument.HasDiscardedContent"/>); missing <c>End</c>
+    /// repairs only add markers and are still formatted.
     /// </summary>
     /// <param name="filePath">Path to the .ini file.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
