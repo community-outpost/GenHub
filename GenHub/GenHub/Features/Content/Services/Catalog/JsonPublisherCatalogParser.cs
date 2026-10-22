@@ -475,7 +475,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                 continue;
             }
 
-            foreach (var contentId in tab.AppliesTo.Where(id => !knownIds.Contains(id)))
+            foreach (var contentId in tab.AppliesTo.Where(id => id != null && !knownIds.Contains(id)))
             {
                 logger.LogWarning(
                     "Catalog-level custom tab '{TabId}' applies to unknown content ID '{ContentId}'",

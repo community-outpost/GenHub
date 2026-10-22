@@ -1,6 +1,8 @@
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Providers;
+using GenHub.Features.Content.Services.Catalog;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace GenHub.Features.Content.Services;
@@ -58,12 +60,12 @@ public static class CatalogTabMapper
                 {
                     Title = card.Title,
                     Description = card.Description,
-                    ImageUrl = card.ImageUrl,
+                    ImageUrl = !string.IsNullOrWhiteSpace(card.ImageUrl) && CatalogTabValidator.IsAllowedImageUrl(card.ImageUrl) ? card.ImageUrl : null,
                     Label = card.Label,
                     AccentColor = card.AccentColor,
                 })
                 .ToList() ?? [],
-            Metadata = catalogTab.Metadata ?? [],
+            Metadata = catalogTab.Metadata != null ? new Dictionary<string, object>(catalogTab.Metadata) : [],
             IsVisible = catalogTab.IsVisible,
             LazyLoad = catalogTab.LazyLoad,
         };

@@ -8378,9 +8378,16 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            var restoredIndex = previousTabId == null
-                ? -1
-                : CustomTabs.ToList().FindIndex(tab => tab.TabId.Equals(previousTabId, StringComparison.OrdinalIgnoreCase));
+            var restoredIndex = -1;
+            for (var i = 0; previousTabId != null && i < CustomTabs.Count; i++)
+            {
+                if (CustomTabs[i].TabId.Equals(previousTabId, StringComparison.OrdinalIgnoreCase))
+                {
+                    restoredIndex = i;
+                    break;
+                }
+            }
+
             SelectedTabIndex = restoredIndex >= 0 ? BuiltInTabCount + restoredIndex : 0;
         }
         finally

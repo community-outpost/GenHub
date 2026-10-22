@@ -168,7 +168,7 @@ public class CatalogTabProvider(
 
         try
         {
-            return JsonSerializer.Deserialize<CatalogItemTabs>(itemJson, CatalogTabJsonOptions)?.CustomTabs ?? [];
+            return JsonSerializer.Deserialize<CatalogItemTabs>(itemJson, CatalogTabJsonOptions)?.CustomTabs;
         }
         catch (JsonException)
         {
