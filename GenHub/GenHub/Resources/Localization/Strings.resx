@@ -5410,6 +5410,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Tools.ReplayManager.Badge.CustomUnmapped" xml:space="preserve">
     <value>Custom / Unmapped</value>
   </data>
+  <data name="Tools.ReplayManager.Badge.RetailInstallNeeded" xml:space="preserve">
+    <value>Retail Install Needed</value>
+  </data>
   <data name="Tools.ReplayManager.Badge.Unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
@@ -8571,6 +8574,18 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Orphaned" xml:space="preserve">
     <value>Exe CRC {0} / INI CRC {1} is not in the official catalog. Click 'Profile' to configure using your base installation.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Compatibility.RequiresRetailInstallation" xml:space="preserve">
+    <value>This replay was recorded with the retail client '{0}'. Add a retail game installation, then create a profile to watch it.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Available" xml:space="preserve">
+    <value>Map found. Matched by CRC {0} and size {1} bytes.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.NotFound" xml:space="preserve">
+    <value>Map not found. No user map or installed stock map matches CRC {0} and size {1} bytes.</value>
+  </data>
+  <data name="Tools.ReplayManager.Tooltip.Map.Unknown" xml:space="preserve">
+    <value>Map availability could not be checked. Map CRC {0}, size {1} bytes.</value>
   </data>
   <data name="Tools.ReplayManager.Tooltip.Compatibility.Unknown" xml:space="preserve">
     <value>Replay header metadata is not available or could not be parsed.</value>

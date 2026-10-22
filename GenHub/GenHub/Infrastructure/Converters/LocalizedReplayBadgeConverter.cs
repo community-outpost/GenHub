@@ -34,6 +34,7 @@ public class LocalizedReplayBadgeConverter : IValueConverter
                     ReplayCompatibilityStatus.RequiresProfile => loc.GetString("Tools.ReplayManager.Badge.ProfileNeeded") ?? "Profile Needed",
                     ReplayCompatibilityStatus.Downloadable => loc.GetString("Tools.ReplayManager.Badge.DownloadRequired") ?? "Download Required",
                     ReplayCompatibilityStatus.Orphaned => loc.GetString("Tools.ReplayManager.Badge.CustomUnmapped") ?? "Custom / Unmapped",
+                    ReplayCompatibilityStatus.RequiresRetailInstallation => loc.GetString("Tools.ReplayManager.Badge.RetailInstallNeeded") ?? "Retail Install Needed",
                     _ => loc.GetString("Tools.ReplayManager.Badge.Unknown") ?? "Unknown",
                 };
             }
@@ -45,6 +46,7 @@ public class LocalizedReplayBadgeConverter : IValueConverter
                 "Profile Needed" => loc.GetString("Tools.ReplayManager.Badge.ProfileNeeded") ?? text,
                 "Download Required" => loc.GetString("Tools.ReplayManager.Badge.DownloadRequired") ?? text,
                 "Custom / Unmapped" => loc.GetString("Tools.ReplayManager.Badge.CustomUnmapped") ?? text,
+                "Retail Install Needed" => loc.GetString("Tools.ReplayManager.Badge.RetailInstallNeeded") ?? text,
                 "Unknown" => loc.GetString("Tools.ReplayManager.Badge.Unknown") ?? text,
                 _ => text,
             };

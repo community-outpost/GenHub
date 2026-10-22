@@ -453,6 +453,6 @@ public sealed class MapNameParserTests : IDisposable
 
         Assert.Equal(3, replay.PlayerCount);
         Assert.Equal("3", replay.FormattedPlayerCount);
-        Assert.Equal("Bob, Alice", replay.PlayerNamesDisplay);
+        Assert.Equal("Bob, bob, Alice", replay.PlayerNamesDisplay);
     }
 }

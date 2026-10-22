@@ -29,4 +29,9 @@ public enum ReplayCompatibilityStatus
     /// The replay has valid CRC metadata, but no matching game client or INI configuration is known in the catalog (CRC mismatch risk).
     /// </summary>
     Orphaned = 4,
+
+    /// <summary>
+    /// A matching retail game client is known in the catalog, but no retail installation is registered to provide it.
+    /// </summary>
+    RequiresRetailInstallation = 5,
 }

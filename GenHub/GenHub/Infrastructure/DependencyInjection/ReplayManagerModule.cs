@@ -73,6 +73,7 @@ public static class ReplayManagerModule
         services.AddHostedService<CrcCatalogUpdateService>(sp => sp.GetRequiredService<CrcCatalogUpdateService>());
 
         // Services
+        services.AddSingleton<IReplayMapLookupService, ReplayMapLookupService>();
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
         services.AddSingleton<IPinnedManifestProvider, ReplayPinnedManifestProvider>();
         services.AddSingleton<IReplayCheckpointService, ReplayCheckpointService>();

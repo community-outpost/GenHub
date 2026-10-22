@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
@@ -602,6 +604,92 @@ public sealed class ReplayHeaderParserTests
         Assert.Equal(TimeSpan.FromSeconds(5), result.Data.Duration);
     }
 
+    /// <summary>
+    /// Verifies that duplicate AI slots of the same difficulty appear once per slot in the player names,
+    /// so the names tooltip agrees with the player count.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ParseHeaderAsync_DuplicateAiSlots_PlayerNamesAgreeWithPlayerCountAsync()
+    {
+        using var stream = new MemoryStream();
+        WriteHeaderWithInitString(stream, "M=maps/test/test.map;S=Hbabai,0,0,0,1,2:HILnur,0,0,0,3,4:CH,5,6,0,1:CH,7,8,0,1:X:X:X:X;");
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var replay = new ReplayFile
+        {
+            FullPath = "test.rep",
+            FileName = "test.rep",
+            SizeInBytes = stream.Length,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = result.Data,
+        };
+
+        Assert.Equal(4, replay.PlayerCount);
+        Assert.Equal("babai, ILnur, AI (Hard), AI (Hard)", replay.PlayerNamesDisplay);
+    }
+
+    /// <summary>
+    /// Verifies that the map CRC is read as hexadecimal and the map size as decimal from the init string.
+    /// </summary>
+    /// <param name="initString">The replay init string.</param>
+    /// <param name="expectedCrc">The expected map CRC.</param>
+    /// <param name="expectedSize">The expected map size in bytes.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("M=00maps/tansooo;MC=6314F5FD;MS=106110;SD=1;C=100;", 1662318077u, 106110u)]
+    [InlineData("M=03maps/[rank] arctic arena zh v1;MC=43396DD8;MS=162490;SD=1;", 1127837144u, 162490u)]
+    [InlineData("M=03maps/[aod] the persian gulf;MC=C33D1C4;MS=111694;", 0x0C33D1C4u, 111694u)]
+    [InlineData("M=maps/x/x.map;mc=6314f5fd;ms=106110;", 1662318077u, 106110u)]
+    [InlineData("M=maps/x/x.map;MC=0x6314F5FD;MS=106110;", 1662318077u, 106110u)]
+    [InlineData("MS=106110;MC=6314F5FD;M=maps/x/x.map;", 1662318077u, 106110u)]
+    public async Task ParseHeaderAsync_MapCrcAndSizeTokens_ParsesHexCrcAndDecimalSizeAsync(string initString, uint expectedCrc, uint expectedSize)
+    {
+        using var stream = new MemoryStream();
+        WriteHeaderWithInitString(stream, initString);
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Equal(expectedCrc, result.Data.MapCrc);
+        Assert.Equal(expectedSize, result.Data.MapSize);
+        Assert.Equal($"0x{expectedCrc:X8}", result.Data.FormattedMapCrc);
+    }
+
+    /// <summary>
+    /// Verifies that missing, empty, malformed, negative, or overflowing map CRC and size tokens leave the values unset
+    /// without failing the header parse.
+    /// </summary>
+    /// <param name="initString">The replay init string.</param>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("M=maps/x/x.map;S=HPlayer,0,0,0,1,2:X;")]
+    [InlineData("M=maps/x/x.map;MC=;MS=;")]
+    [InlineData("M=maps/x/x.map;MC=XYZ;MS=12ab;")]
+    [InlineData("M=maps/x/x.map;MC=1FFFFFFFF;MS=-5;")]
+    [InlineData("M=maps/x/x.map;MC=0x;MS=99999999999;")]
+    public async Task ParseHeaderAsync_MissingOrMalformedMapCrcAndSize_LeavesValuesUnsetAsync(string initString)
+    {
+        using var stream = new MemoryStream();
+        WriteHeaderWithInitString(stream, initString);
+        stream.Position = 0;
+
+        var result = await _parser.ParseHeaderAsync(stream);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data.MapCrc);
+        Assert.Null(result.Data.MapSize);
+        Assert.Null(result.Data.FormattedMapCrc);
+        Assert.Equal("x", result.Data.MapName);
+    }
+
     private static void WriteMinimalValidHeader(Stream stream)
     {
         using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
@@ -620,6 +708,22 @@ public sealed class ReplayHeaderParserTests
         writer.Write(0x27533BB0u);
         writer.Write(0x76B251A3u);
         writer.Write(Encoding.ASCII.GetBytes("M=maps/defcon6/defcon6.map;S=HPlayerOne,127.0.0.1,8086,0,1,2:X:X;" + char.MinValue));
+        writer.Flush();
+    }
+
+    private static void WriteHeaderWithInitString(Stream stream, string initString)
+    {
+        using var writer = new BinaryWriter(stream, Encoding.ASCII, leaveOpen: true);
+        writer.Write(Encoding.ASCII.GetBytes("GENREP"));
+        writer.Write(new byte[22]);
+        writer.Write(Encoding.Unicode.GetBytes("Init String Test" + char.MinValue));
+        writer.Write(new byte[16]);
+        writer.Write(Encoding.Unicode.GetBytes("1.04" + char.MinValue));
+        writer.Write(Encoding.Unicode.GetBytes("Aug 21 2026" + char.MinValue));
+        writer.Write(20260821u);
+        writer.Write(0x27533BB0u);
+        writer.Write(0x76B251A3u);
+        writer.Write(Encoding.ASCII.GetBytes(initString + char.MinValue));
         writer.Flush();
     }
 
