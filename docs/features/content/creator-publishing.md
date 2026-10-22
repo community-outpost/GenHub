@@ -257,12 +257,12 @@ When an item tab and a catalog-level tab share a `tabId`, the item tab is shown.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `tabId` | string | Yes | Tab ID, unique within its scope (case-insensitive, up to 64 characters) |
+| `tabId` | string | No | Tab ID, unique within its scope (case-insensitive, up to 64 characters). When omitted, GenHub generates one from the header, such as `how-to-play` for "How to Play", adding `-2`, `-3` and so on to keep it unique. A header with no Latin letters or digits gets a stable `tab-` ID. |
 | `header` | string | Yes | Tab header text (up to 40 characters) |
 | `order` | int | No | Sort order among publisher tabs (default `100`) |
 | `intro` | string | No | Plain-text intro (up to 2000 characters) |
 | `body` | string | No | Markdown documentation (up to 50000 characters) |
-| `cards` | CatalogTabCardDefinition[] | No | Card grid (up to 24 cards). Each card needs a `title`. `imageUrl` must use `https` or `avares` |
+| `cards` | CatalogTabCardDefinition[] | No | Card grid (up to 24 cards). Each card needs a `title`. `imageUrl` must use `https` or `avares`. A Google Drive share link (`drive.google.com/file/d/ID/view`) is rewritten to Drive's direct image link. Discord attachment links expire after about a day, so host card images somewhere permanent. When an image cannot load, the card shows its link instead. |
 | `isVisible` | bool | No | Set to `false` to hide the tab (default `true`) |
 | `appliesTo` | string[] | No | Content IDs for a catalog-level tab. Ignored on item tabs |
 | `contentType` | string | No | Rendering hint. Unsupported values render as `custom` |
