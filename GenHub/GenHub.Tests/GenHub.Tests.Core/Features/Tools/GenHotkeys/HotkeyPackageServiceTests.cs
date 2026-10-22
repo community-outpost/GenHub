@@ -17,6 +17,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -51,6 +52,11 @@ public class HotkeyPackageServiceTests
         mockServiceProvider.Setup(sp => sp.GetService(typeof(ILocalContentService)))
             .Returns(_mockLocalContent.Object);
         mockScope.Setup(s => s.ServiceProvider).Returns(mockServiceProvider.Object);
+
+        _mockOverlay.Setup(o => o.GenerateOverlayTgaAsync(It.IsAny<byte[]>(), It.IsAny<char>(), It.IsAny<OverlayCorner>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[32]);
+        _mockOverlay.Setup(o => o.ConvertToTgaAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[32]);
 
         _mockScopeFactory = new Mock<IServiceScopeFactory>();
         _mockScopeFactory.Setup(f => f.CreateScope()).Returns(mockScope.Object);
@@ -425,37 +431,9 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>()))
             .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
-                var bigFiles = Directory.GetFiles(packageDir, "*.big");
-                if (bigFiles.Length > 0)
-                {
-                    using var fs = File.OpenRead(bigFiles[0]);
-                    using var br = new BinaryReader(fs);
-                    br.ReadBytes(8); // Signature + TotalSize
-                    var numFiles = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                    br.ReadBytes(4); // HeaderSize
-
-                    for (int i = 0; i < numFiles; i++)
-                    {
-                        var offset = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                        var size = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                        var nameBytes = new List<byte>();
-                        byte b = 0;
-                        while ((b = br.ReadByte()) != 0)
-                        {
-                            nameBytes.Add(b);
-                        }
-
-                        var name = System.Text.Encoding.ASCII.GetString(nameBytes.ToArray());
-                        if (name.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var pos = fs.Position;
-                            fs.Seek(offset, SeekOrigin.Begin);
-                            csfBytes = br.ReadBytes(size);
-                            fs.Seek(pos, SeekOrigin.Begin);
-                            break;
-                        }
-                    }
-                }
+                var entries = ReadBigEntries(packageDir);
+                var csfEntry = entries.FirstOrDefault(kvp => kvp.Key.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase));
+                csfBytes = csfEntry.Value;
             })
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
@@ -529,37 +507,9 @@ public class HotkeyPackageServiceTests
                 It.IsAny<string?>()))
             .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
             {
-                var bigFiles = Directory.GetFiles(packageDir, "*.big");
-                if (bigFiles.Length > 0)
-                {
-                    using var fs = File.OpenRead(bigFiles[0]);
-                    using var br = new BinaryReader(fs);
-                    br.ReadBytes(8);
-                    var numFiles = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                    br.ReadBytes(4);
-
-                    for (int i = 0; i < numFiles; i++)
-                    {
-                        var offset = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                        var size = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
-                        var nameBytes = new List<byte>();
-                        byte b = 0;
-                        while ((b = br.ReadByte()) != 0)
-                        {
-                            nameBytes.Add(b);
-                        }
-
-                        var name = System.Text.Encoding.ASCII.GetString(nameBytes.ToArray());
-                        if (name.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var pos = fs.Position;
-                            fs.Seek(offset, SeekOrigin.Begin);
-                            csfBytes = br.ReadBytes(size);
-                            fs.Seek(pos, SeekOrigin.Begin);
-                            break;
-                        }
-                    }
-                }
+                var entries = ReadBigEntries(packageDir);
+                var csfEntry = entries.FirstOrDefault(kvp => kvp.Key.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase));
+                csfBytes = csfEntry.Value;
             })
             .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
             {
@@ -585,5 +535,393 @@ public class HotkeyPackageServiceTests
         Assert.Equal("OPTIONS", options);
         Assert.DoesNotContain("ИНДИВИДУАЛЬНАЯ", singlePlayer);
         Assert.DoesNotContain("ОПЦИИ", options);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile has custom cameo mappings, loose TGA textures are generated
+    /// in Art/Textures for both the icon name and retail button aliases, and mapped images INI entries are written.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithCustomCameoMappings_GeneratesOverriddenTgasAndMappedImagesAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_cameo_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new MagickImage(MagickColors.Red, 60, 48))
+            {
+                testImg.Write(tempImageFile, MagickFormat.Png);
+            }
+
+            var dozerAction = new HotkeyAction
+            {
+                DisplayName = "Construction Dozer",
+                HotkeyString = "CONTROLBAR:ConstructAmericaVehicleDozer",
+                DefaultHotkey = 'D',
+                IconName = "GLAWorker",
+            };
+            var commandCenter = new HotkeyGameObject
+            {
+                Name = "AmericaCommandCenter",
+                DisplayName = "Command Center",
+                IconName = "GLAWorker",
+                KeyboardLayouts = [[dozerAction]],
+            };
+            var usaFaction = new HotkeyFaction
+            {
+                ShortName = "USA",
+                DisplayName = "USA",
+                GameObjects = [commandCenter],
+            };
+
+            _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync([usaFaction]);
+
+            var profile = new HotkeyProfile
+            {
+                Name = "Custom Cameo Profile",
+                TargetGame = GameType.ZeroHour,
+                OverlayEnabled = true,
+            };
+            profile.CustomCameoMappings["GLAWorker"] = tempImageFile;
+
+            var bigEntries = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+
+            _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    ContentType.Addon,
+                    GameType.ZeroHour,
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<ContentStorageProgress>?>(),
+                    It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
+                {
+                    bigEntries = ReadBigEntries(packageDir);
+                })
+                .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+                {
+                    Id = ManifestId.Create("1.0.local.addon.hotkeys-cameo"),
+                    Name = "Custom Hotkeys: Cameos",
+                    ContentType = ContentType.Addon,
+                    TargetGame = GameType.ZeroHour,
+                }));
+
+            var result = await _service.CreateHotkeysAddonAsync(profile);
+
+            Assert.True(result.Success);
+            _mockOverlay.Verify(o => o.GenerateOverlayTgaAsync(It.IsAny<byte[]>(), 'D', It.IsAny<OverlayCorner>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.True(bigEntries.ContainsKey("Art/Textures/GLAWorker.tga"), "Should contain primary icon Art/Textures/GLAWorker.tga");
+            Assert.True(bigEntries.ContainsKey("Art/Textures/SUWorker.tga"), "Should contain retail alias Art/Textures/SUWorker.tga");
+
+            Assert.True(bigEntries.ContainsKey("Data/INI/MappedImages/HandCreated/Hotkeys.ini"));
+            Assert.True(bigEntries.ContainsKey("Data/INI/MappedImages/TextureSize_512/zzHotkeys.ini"));
+
+            var hotkeysIni = System.Text.Encoding.ASCII.GetString(bigEntries["Data/INI/MappedImages/HandCreated/Hotkeys.ini"]);
+            Assert.Contains("MappedImage SUWorker", hotkeysIni);
+            Assert.Contains("MappedImage GLAWorker", hotkeysIni);
+            Assert.Contains("Texture = GLAWorker.tga", hotkeysIni);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that standalone custom cameos (mapped in profile but not present in any keyboard layout)
+    /// are still exported to loose TGA and mapped image definitions.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithStandaloneCustomCameo_GeneratesTexturesEvenIfNotInLayoutAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_standalone_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new MagickImage(MagickColors.Red, 60, 48))
+            {
+                testImg.Write(tempImageFile, MagickFormat.Png);
+            }
+
+            _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync([]);
+
+            var profile = new HotkeyProfile
+            {
+                Name = "Standalone Cameo Profile",
+                TargetGame = GameType.ZeroHour,
+                OverlayEnabled = false,
+            };
+            profile.CustomCameoMappings["CustomStandaloneIcon"] = tempImageFile;
+
+            var bigEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    ContentType.Addon,
+                    GameType.ZeroHour,
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<ContentStorageProgress>?>(),
+                    It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
+                {
+                    bigEntries = new HashSet<string>(ReadBigEntries(packageDir).Keys, StringComparer.OrdinalIgnoreCase);
+                })
+                .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+                {
+                    Id = ManifestId.Create("1.0.local.addon.hotkeys-standalone"),
+                    Name = "Custom Hotkeys: Standalone",
+                    ContentType = ContentType.Addon,
+                    TargetGame = GameType.ZeroHour,
+                }));
+
+            var result = await _service.CreateHotkeysAddonAsync(profile);
+
+            Assert.True(result.Success);
+            Assert.Contains("Art/Textures/CustomStandaloneIcon.tga", bigEntries);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that standalone custom cameos resolve the hotkey character from profile KeyMappings via the action's CSF label.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithStandaloneCustomCameo_ResolvesHotkeyViaCsfActionMappingAsync()
+    {
+        var tempImageFile = Path.Combine(Path.GetTempPath(), $"genhub_test_action_hk_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var testImg = new MagickImage(MagickColors.Red, 60, 48))
+            {
+                testImg.Write(tempImageFile, MagickFormat.Png);
+            }
+
+            var dozerAction = new HotkeyAction
+            {
+                IconName = "StandaloneDozerIcon",
+                HotkeyString = "CONTROLBAR:ConstructAmericaDozer",
+            };
+            var commandCenter = new HotkeyGameObject
+            {
+                Name = "AmericaCommandCenter",
+                DisplayName = "Command Center",
+                KeyboardLayouts = [[dozerAction]],
+            };
+            var usaFaction = new HotkeyFaction
+            {
+                ShortName = "USA",
+                DisplayName = "USA",
+                GameObjects = [commandCenter],
+            };
+
+            _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync([usaFaction]);
+
+            var profile = new HotkeyProfile
+            {
+                Name = "Standalone Cameo With Mapped Key",
+                TargetGame = GameType.ZeroHour,
+                OverlayEnabled = true,
+            };
+            profile.CustomCameoMappings["StandaloneDozerIcon"] = tempImageFile;
+            profile.KeyMappings["CONTROLBAR:ConstructAmericaDozer"] = 'Z';
+
+            _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    ContentType.Addon,
+                    GameType.ZeroHour,
+                    It.IsAny<string?>(),
+                    It.IsAny<IProgress<ContentStorageProgress>?>(),
+                    It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<string?>()))
+                .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+                {
+                    Id = ManifestId.Create("1.0.local.addon.hotkeys-standalone-hk"),
+                    Name = "Custom Hotkeys: Standalone Mapped",
+                    ContentType = ContentType.Addon,
+                    TargetGame = GameType.ZeroHour,
+                }));
+
+            var result = await _service.CreateHotkeysAddonAsync(profile);
+
+            Assert.True(result.Success);
+            _mockOverlay.Verify(o => o.GenerateOverlayTgaAsync(It.IsAny<byte[]>(), 'Z', It.IsAny<OverlayCorner>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(tempImageFile))
+            {
+                File.Delete(tempImageFile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when a custom cameo points to a non-existent or corrupted file path,
+    /// the export completes gracefully without throwing an exception.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithMissingCustomCameoFile_FallsBackGracefullyWithoutCrashingAsync()
+    {
+        _mockTechTree.Setup(t => t.LoadTechTreeAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var profile = new HotkeyProfile
+        {
+            Name = "Missing File Profile",
+            TargetGame = GameType.ZeroHour,
+            OverlayEnabled = true,
+        };
+        profile.CustomCameoMappings["MissingCameo"] = "C:/fake/path/does_not_exist_cameo.png";
+
+        _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                ContentType.Addon,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-missing"),
+                Name = "Custom Hotkeys: Missing",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var result = await _service.CreateHotkeysAddonAsync(profile);
+
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that custom tooltips, including explicit empty strings, are applied to the CSF file.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateHotkeysAddonAsync_WithCustomTooltips_AppliesTooltipsAndPreservesEmptyStringsAsync()
+    {
+        var profile = new HotkeyProfile
+        {
+            Name = "Tooltip Test Profile",
+            TargetGame = GameType.ZeroHour,
+            OverlayEnabled = false,
+        };
+
+        // Custom tooltip mapped via RetailActionToTooltipMap
+        profile.TooltipMappings["CONTROLBAR:ConstructAmericaDozer"] = "Custom Dozer Tooltip";
+
+        // Custom tooltip cleared to empty string mapped via RetailActionToTooltipMap
+        profile.TooltipMappings["CONTROLBAR:ConstructAmericaTankHumvee"] = string.Empty;
+
+        // Custom direct tooltip label
+        profile.TooltipMappings["CUSTOM:DirectTooltip"] = string.Empty;
+
+        byte[]? csfBytes = null;
+
+        _mockLocalContent.Setup(l => l.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                ContentType.Addon,
+                GameType.ZeroHour,
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
+            {
+                var entries = ReadBigEntries(packageDir);
+                var csfEntry = entries.FirstOrDefault(kvp => kvp.Key.EndsWith("generals.csf", StringComparison.OrdinalIgnoreCase));
+                csfBytes = csfEntry.Value;
+            })
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.addon.hotkeys-tooltips"),
+                Name = "Custom Hotkeys: Tooltips",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var result = await _service.CreateHotkeysAddonAsync(profile);
+
+        Assert.True(result.Success);
+        Assert.NotNull(csfBytes);
+
+        using var ms = new MemoryStream(csfBytes);
+        var csf = CsfFile.Load(ms);
+
+        Assert.Equal("Custom Dozer Tooltip", csf.GetString("CONTROLBAR:ToolTipUSABuildDozer"));
+        Assert.Equal(string.Empty, csf.GetString("CONTROLBAR:ToolTipUSABuildHumvee"));
+        Assert.True(csf.Strings.ContainsKey("CUSTOM:DirectTooltip"));
+        Assert.Equal(string.Empty, csf.GetString("CUSTOM:DirectTooltip"));
+    }
+
+    private static Dictionary<string, byte[]> ReadBigEntries(string packageDir)
+    {
+        var bigEntries = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        var bigFiles = Directory.GetFiles(packageDir, "*.big");
+        if (bigFiles.Length == 0)
+        {
+            return bigEntries;
+        }
+
+        using var fs = File.OpenRead(bigFiles[0]);
+        using var br = new BinaryReader(fs);
+        br.ReadBytes(8);
+        var numFiles = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+        br.ReadBytes(4);
+
+        var fileHeaders = new List<(string Name, int Offset, int Size)>();
+        for (int i = 0; i < numFiles; i++)
+        {
+            var offset = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+            var size = (br.ReadByte() << 24) | (br.ReadByte() << 16) | (br.ReadByte() << 8) | br.ReadByte();
+            var nameBytes = new List<byte>();
+            byte b = 0;
+            while ((b = br.ReadByte()) != 0)
+            {
+                nameBytes.Add(b);
+            }
+
+            var name = System.Text.Encoding.ASCII.GetString(nameBytes.ToArray()).Replace('\\', '/');
+            fileHeaders.Add((name, offset, size));
+        }
+
+        foreach (var header in fileHeaders)
+        {
+            fs.Seek(header.Offset, SeekOrigin.Begin);
+            bigEntries[header.Name] = br.ReadBytes(header.Size);
+        }
+
+        return bigEntries;
     }
 }
