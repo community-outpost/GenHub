@@ -2,7 +2,10 @@ using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.Catalog;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -15,6 +18,24 @@ namespace GenHub.Tests.Core.Features.Content.Services;
 /// </summary>
 public sealed class JsonPublisherCatalogParserCustomTabTests
 {
+    private sealed class CapturingLogger : ILogger<JsonPublisherCatalogParser>
+    {
+        public List<string> Warnings { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning)
+            {
+                Warnings.Add(formatter(state, exception));
+            }
+        }
+    }
+
     private readonly JsonPublisherCatalogParser _parser = new(NullLogger<JsonPublisherCatalogParser>.Instance);
 
     /// <summary>
@@ -132,44 +153,155 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
-    /// A tab without a header fails validation with an error naming the content item and tab.
+    /// A catalog with one bad card still parses. Only that card is dropped, and the other items and tabs survive.
     /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public void ValidateCatalog_ItemTabMissingHeader_FailsWithItemAndTabContext()
+    public async Task ParseCatalogAsync_OneBadCard_DropsOnlyThatCardAsync()
     {
-        var catalog = CreateCatalog(new CatalogTabDefinition { TabId = "notes", Header = " " });
+        const string json = """
+            {
+              "$schemaVersion": 1,
+              "publisher": { "id": "tabs-pub", "name": "Tabs Publisher" },
+              "content": [
+                {
+                  "id": "mod-a",
+                  "name": "Mod A",
+                  "releases": [ { "version": "1.0.0", "artifacts": [ { "filename": "a.zip", "downloadUrl": "https://example.com/a.zip" } ] } ],
+                  "customTabs": [
+                    {
+                      "tabId": "gallery",
+                      "header": "Gallery",
+                      "cards": [
+                        { "title": "Good card", "imageUrl": "https://example.com/good.png" },
+                        { "title": "Bad card", "imageUrl": "http://example.com/bad.png" }
+                      ]
+                    },
+                    { "tabId": "notes", "header": "Notes", "body": "Notes body" }
+                  ]
+                },
+                {
+                  "id": "mod-b",
+                  "name": "Mod B",
+                  "releases": [ { "version": "1.0.0", "artifacts": [ { "filename": "b.zip", "downloadUrl": "https://example.com/b.zip" } ] } ],
+                  "customTabs": [ { "tabId": "guide", "header": "Guide" } ]
+                }
+              ]
+            }
+            """;
 
-        var result = _parser.ValidateCatalog(catalog);
+        var result = await _parser.ParseCatalogAsync(json);
 
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("'mod-a'") && e.Contains("'notes'") && e.Contains("missing header"));
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var modA = Assert.Single(result.Data!.Content, c => c.Id == "mod-a");
+        Assert.Equal(["gallery", "notes"], modA.CustomTabs.Select(t => t.TabId));
+        Assert.Equal("Good card", Assert.Single(modA.CustomTabs[0].Cards).Title);
+        Assert.Equal("guide", Assert.Single(Assert.Single(result.Data.Content, c => c.Id == "mod-b").CustomTabs).TabId);
     }
 
     /// <summary>
-    /// A tab without an ID fails validation.
+    /// A dropped card logs a warning that names the item, tab and card.
     /// </summary>
     [Fact]
-    public void ValidateCatalog_ItemTabMissingTabId_Fails()
+    public void NormalizeCatalog_DroppedCard_LogsWarning()
     {
-        var catalog = CreateCatalog(new CatalogTabDefinition { TabId = string.Empty, Header = "Notes" });
+        var logger = new CapturingLogger();
+        var parser = new JsonPublisherCatalogParser(logger);
+        var catalog = CreateCatalog(new CatalogTabDefinition
+        {
+            TabId = "gallery",
+            Header = "Gallery",
+            Cards = [new CatalogTabCardDefinition { Title = string.Empty }],
+        });
 
-        var result = _parser.ValidateCatalog(catalog);
+        parser.NormalizeCatalog(catalog);
 
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("'mod-a'") && e.Contains("missing tabId"));
+        Assert.Empty(Assert.Single(catalog.Content).CustomTabs[0].Cards);
+        Assert.Contains(logger.Warnings, w => w.Contains("Content item 'mod-a' custom tab 'gallery' card 0 is missing title"));
     }
 
     /// <summary>
-    /// Tab IDs must be unique within an item regardless of case.
+    /// Tab content issues drop the tab that cannot render, log a warning, and leave the catalog valid.
+    /// </summary>
+    /// <param name="issue">The tab content issue to introduce.</param>
+    [Theory]
+    [InlineData("missing-header")]
+    [InlineData("missing-id")]
+    [InlineData("long-header")]
+    [InlineData("long-intro")]
+    [InlineData("long-body")]
+    public void NormalizeCatalog_TabThatCannotRender_DropsTabAndStaysValid(string issue)
+    {
+        var bad = new CatalogTabDefinition { TabId = "bad", Header = "Bad" };
+        switch (issue)
+        {
+            case "missing-header":
+                bad.Header = " ";
+                break;
+            case "missing-id":
+                bad.TabId = string.Empty;
+                break;
+            case "long-header":
+                bad.Header = new string('h', CustomTabConstants.MaxHeaderLength + 1);
+                break;
+            case "long-intro":
+                bad.Intro = new string('i', CustomTabConstants.MaxIntroLength + 1);
+                break;
+            default:
+                bad.Body = new string('b', CustomTabConstants.MaxBodyLength + 1);
+                break;
+        }
+
+        var logger = new CapturingLogger();
+        var parser = new JsonPublisherCatalogParser(logger);
+        var catalog = CreateCatalog(new CatalogTabDefinition { TabId = "good", Header = "Good" }, bad);
+
+        parser.NormalizeCatalog(catalog);
+        var result = parser.ValidateCatalog(catalog);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Equal("good", Assert.Single(Assert.Single(catalog.Content).CustomTabs).TabId);
+        Assert.Single(logger.Warnings, w => w.Contains("Dropped publisher tab content"));
+    }
+
+    /// <summary>
+    /// Card issues drop only the offending card: bad image schemes, missing titles, over-long text,
+    /// and cards past the per-tab limit.
     /// </summary>
     [Fact]
-    public void ValidateCatalog_DuplicateTabIdIgnoringCase_Fails()
+    public void NormalizeCatalog_BadCards_DropsCardsAndTrimsToLimit()
+    {
+        var cards = Enumerable.Range(0, CustomTabConstants.MaxCardsPerTab + 2)
+            .Select(i => new CatalogTabCardDefinition { Title = $"Card {i}" })
+            .ToList();
+        cards[0].ImageUrl = "file:///etc/passwd";
+        cards[1].Title = string.Empty;
+        cards[2].Description = new string('d', CustomTabConstants.MaxCardDescriptionLength + 1);
+        cards[3].Label = new string('l', CustomTabConstants.MaxCardTitleLength + 1);
+        cards[4].ImageUrl = "avares://GenHub/Assets/Covers/usa-cover.jpg";
+        var catalog = CreateCatalog(new CatalogTabDefinition { TabId = "gallery", Header = "Gallery", Cards = cards });
+
+        _parser.NormalizeCatalog(catalog);
+        var result = _parser.ValidateCatalog(catalog);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        var kept = Assert.Single(Assert.Single(catalog.Content).CustomTabs).Cards;
+        Assert.Equal(CustomTabConstants.MaxCardsPerTab - 2, kept.Count);
+        Assert.Equal("Card 4", kept[0].Title);
+    }
+
+    /// <summary>
+    /// Tab IDs must be unique within an item regardless of case. This stays a catalog error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_DuplicateTabIdIgnoringCase_FailsAsync()
     {
         var catalog = CreateCatalog(
             new CatalogTabDefinition { TabId = "notes", Header = "Notes" },
             new CatalogTabDefinition { TabId = "NOTES", Header = "More notes" });
 
-        var result = _parser.ValidateCatalog(catalog);
+        var result = await _parser.ParseCatalogAsync(System.Text.Json.JsonSerializer.Serialize(catalog));
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("duplicate custom tab ID 'NOTES'"));
@@ -192,126 +324,32 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
-    /// Card images must use HTTPS or a bundled avares resource.
+    /// More tabs than the per-scope limit stays a catalog error, for items and the catalog root.
     /// </summary>
-    /// <param name="imageUrl">The card image URL.</param>
-    /// <param name="expectedValid">Whether the URL is allowed.</param>
+    /// <param name="atRoot">Whether the tabs are declared at the catalog root.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Theory]
-    [InlineData("https://example.com/card.png", true)]
-    [InlineData("avares://GenHub/Assets/Covers/usa-cover.jpg", true)]
-    [InlineData("http://example.com/card.png", false)]
-    [InlineData("file:///etc/passwd", false)]
-    [InlineData("relative/card.png", false)]
-    public void ValidateCatalog_CardImageUrl_AllowsOnlyHttpsAndAvares(string imageUrl, bool expectedValid)
-    {
-        var catalog = CreateCatalog(new CatalogTabDefinition
-        {
-            TabId = "gallery",
-            Header = "Gallery",
-            Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = imageUrl }],
-        });
-
-        var result = _parser.ValidateCatalog(catalog);
-
-        Assert.Equal(expectedValid, result.Success);
-        if (!expectedValid)
-        {
-            Assert.Contains(result.Errors, e => e.Contains("invalid image URL"));
-        }
-    }
-
-    /// <summary>
-    /// Cards must have a title.
-    /// </summary>
-    [Fact]
-    public void ValidateCatalog_CardMissingTitle_Fails()
-    {
-        var catalog = CreateCatalog(new CatalogTabDefinition
-        {
-            TabId = "gallery",
-            Header = "Gallery",
-            Cards = [new CatalogTabCardDefinition { Title = string.Empty }],
-        });
-
-        var result = _parser.ValidateCatalog(catalog);
-
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("card 0 is missing title"));
-    }
-
-    /// <summary>
-    /// Card text longer than the limits fails validation.
-    /// </summary>
-    [Fact]
-    public void ValidateCatalog_CardTextTooLong_Fails()
-    {
-        var catalog = CreateCatalog(new CatalogTabDefinition
-        {
-            TabId = "gallery",
-            Header = "Gallery",
-            Cards =
-            [
-                new CatalogTabCardDefinition { Title = new string('t', CustomTabConstants.MaxCardTitleLength + 1) },
-                new CatalogTabCardDefinition { Title = "Card", Description = new string('d', CustomTabConstants.MaxCardDescriptionLength + 1) },
-            ],
-        });
-
-        var result = _parser.ValidateCatalog(catalog);
-
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("card 0 has a title or label longer than"));
-        Assert.Contains(result.Errors, e => e.Contains("card 1 has a description longer than"));
-    }
-
-    /// <summary>
-    /// An item that declares more tabs than the limit fails validation.
-    /// </summary>
-    [Fact]
-    public void ValidateCatalog_TooManyTabs_Fails()
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ParseCatalogAsync_TooManyTabs_FailsAsync(bool atRoot)
     {
         var tabs = Enumerable.Range(0, CustomTabConstants.MaxTabsPerScope + 1)
-            .Select(i => new CatalogTabDefinition { TabId = $"tab-{i}", Header = $"Tab {i}" })
-            .ToArray();
-        var catalog = CreateCatalog(tabs);
+            .Select(i => new CatalogTabDefinition { TabId = $"tab-{i}", Header = $"Tab {i}", AppliesTo = ["mod-a"] })
+            .ToList();
+        var catalog = CreateCatalog();
+        if (atRoot)
+        {
+            catalog.CustomTabs = tabs;
+        }
+        else
+        {
+            catalog.Content[0].CustomTabs = tabs;
+        }
 
-        var result = _parser.ValidateCatalog(catalog);
+        var result = await _parser.ParseCatalogAsync(System.Text.Json.JsonSerializer.Serialize(catalog));
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains($"The maximum is {CustomTabConstants.MaxTabsPerScope}"));
-    }
-
-    /// <summary>
-    /// A body longer than the limit fails validation.
-    /// </summary>
-    [Fact]
-    public void ValidateCatalog_BodyTooLong_Fails()
-    {
-        var catalog = CreateCatalog(new CatalogTabDefinition
-        {
-            TabId = "notes",
-            Header = "Notes",
-            Body = new string('x', CustomTabConstants.MaxBodyLength + 1),
-        });
-
-        var result = _parser.ValidateCatalog(catalog);
-
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.Contains("body longer than"));
-    }
-
-    /// <summary>
-    /// Catalog-level tabs are validated with the same rules as item tabs.
-    /// </summary>
-    [Fact]
-    public void ValidateCatalog_InvalidRootTab_Fails()
-    {
-        var catalog = CreateCatalog();
-        catalog.CustomTabs = [new CatalogTabDefinition { TabId = "shared", Header = string.Empty, AppliesTo = ["mod-a"] }];
-
-        var result = _parser.ValidateCatalog(catalog);
-
-        Assert.False(result.Success);
-        Assert.Contains(result.Errors, e => e.StartsWith("Catalog custom tab 'shared'") && e.Contains("missing header"));
     }
 
     /// <summary>
