@@ -6702,8 +6702,53 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>Обновить подписку</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>Подписка сохранена, но ключ издателя сохранить не удалось. Если этот издатель переедет, GenHub попросит вас подтвердить переезд.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>Ключ издателя не сохранён</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Обновлено {0:yyyy-MM-dd}</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.SourceCheckFailed" xml:space="preserve">
+    <value>GenHub не удалось сравнить этот источник с вашей текущей подпиской. Проверка повторится при сохранении.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRemoveFailed" xml:space="preserve">
+    <value>Подписка не изменена, но ключ нового издателя удалить не удалось.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
+    <value>Подписка не изменена, но предыдущий ключ издателя восстановить не удалось.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
+    <value>Не удалось обновить доверенный ключ издателя, поэтому текущий издатель сохранён.</value>
+  </data>
+  <data name="Downloads.Subscription.MoveSubscription" xml:space="preserve">
+    <value>Перенести подписку</value>
+  </data>
+  <data name="Downloads.Subscription.ReplaceExisting" xml:space="preserve">
+    <value>Заменить текущего</value>
+  </data>
+  <data name="Downloads.Subscription.Skip" xml:space="preserve">
+    <value>Пропустить</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionMessageFormat" xml:space="preserve">
+    <value>Вы уже подписаны на издателя с ID '{0}' по другому адресу. Один из них может быть не настоящим. Замените текущего издателя этим или пропустите этого.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionTitle" xml:space="preserve">
+    <value>ID издателя уже используется</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat" xml:space="preserve">
+    <value>Этот адрес использует ID издателя '{0}', но не подтверждает владение ключом издателя, на которого вы подписаны. Возможно, это подделка. Пропустите его, если не доверяете этому адресу и не хотите заменить им текущего издателя.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchTitle" xml:space="preserve">
+    <value>Подлинность издателя не подтверждена</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat" xml:space="preserve">
+    <value>Издатель '{0}' переехал на этот адрес и подтвердил владение тем же ключом издателя. Ваша подписка перейдёт на новый адрес.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveTitle" xml:space="preserve">
+    <value>Подтверждённый переезд издателя</value>
   </data>
   <data name="Settings.Section.CloudUploads" xml:space="preserve">
     <value>Облачное хранилище и выгрузки</value>

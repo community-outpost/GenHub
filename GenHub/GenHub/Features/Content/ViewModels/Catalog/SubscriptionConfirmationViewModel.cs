@@ -5,18 +5,22 @@ using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
+using GenHub.Core.Interfaces.Security;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Security;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Mail;
@@ -50,13 +54,17 @@ public partial class SubscriptionConfirmationViewModel(
     HttpClient httpClient,
     ILogger<SubscriptionConfirmationViewModel> logger,
     IPublisherDefinitionService? definitionService = null,
-    ILocalizationService? localizationService = null) : ObservableObject
+    ILocalizationService? localizationService = null,
+    IPublisherIdentityService? identityService = null,
+    INotificationService? notificationService = null) : ObservableObject
 {
     private const string DefaultCategoryKey = "All";
     private const string DefaultPublisherName = "Loading...";
     private const string FallbackPublisherInitial = "P";
 
     private static readonly JsonSerializerOptions DefinitionJsonOptions = PublisherJsonOptions.Definition;
+
+    private static readonly SemaphoreSlim SaveLock = new(1, 1);
 
     private readonly List<(string Id, string Name, string Url, PublisherCatalog Catalog)> _definitionCatalogs = [];
 
@@ -67,6 +75,9 @@ public partial class SubscriptionConfirmationViewModel(
     private string? _resolvedCatalogUrl;
     private string? _selectedCatalogUrl;
     private string? _definitionCatalogFetchError;
+    private string _assessedPublisherId = string.Empty;
+    private int _assessmentGeneration;
+    private string? _shownSourceCheckError;
 
     /// <summary>
     /// Gets or sets an action that occurs when a request is made to close the dialog.
@@ -147,6 +158,21 @@ public partial class SubscriptionConfirmationViewModel(
     private bool _isDefinitionSubscription;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReplaceExistingCommand))]
+    private bool _isSaving;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RequiresSourceDecision))]
+    [NotifyPropertyChangedFor(nameof(IsVerifiedMove))]
+    [NotifyPropertyChangedFor(nameof(ShowSourceChangeNotice))]
+    [NotifyPropertyChangedFor(nameof(SourceChangeTitle))]
+    [NotifyPropertyChangedFor(nameof(SourceChangeMessage))]
+    [NotifyPropertyChangedFor(nameof(ConfirmButtonText))]
+    [NotifyPropertyChangedFor(nameof(CancelButtonText))]
+    private PublisherSourceChange _sourceChange;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowCatalogSelector))]
     [NotifyPropertyChangedFor(nameof(NewSourceBadgeText))]
     private IReadOnlyList<CatalogCategoryFilter> _definitionCatalogOptions = [];
@@ -154,7 +180,72 @@ public partial class SubscriptionConfirmationViewModel(
     /// <summary>
     /// Gets the text to display on the confirmation button.
     /// </summary>
-    public string ConfirmButtonText => IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.UpdateSubscription", "Update Subscription") : GetLocalizedString("Downloads.Subscription.SubscribeToLibrary", "Subscribe to Library");
+    public string ConfirmButtonText
+    {
+        get
+        {
+            if (IsVerifiedMove)
+            {
+                return GetLocalizedString("Downloads.Subscription.MoveSubscription", "Move Subscription");
+            }
+
+            return IsAlreadySubscribed ? GetLocalizedString("Downloads.Subscription.UpdateSubscription", "Update Subscription") : GetLocalizedString("Downloads.Subscription.SubscribeToLibrary", "Subscribe to Library");
+        }
+    }
+
+    /// <summary>
+    /// Gets the text to display on the cancel button. It reads Skip while a publisher ID collision awaits a decision.
+    /// </summary>
+    public string CancelButtonText => RequiresSourceDecision
+        ? GetLocalizedString("Downloads.Subscription.Skip", "Skip")
+        : GetLocalizedString("Downloads.Subscription.Cancel", "Cancel");
+
+    /// <summary>
+    /// Gets a value indicating whether the publisher ID is already subscribed from another source that
+    /// this source cannot prove to be, so the user must replace the existing publisher or skip this one.
+    /// </summary>
+    public bool RequiresSourceDecision => SourceChange is PublisherSourceChange.Collision or PublisherSourceChange.IdentityMismatch;
+
+    /// <summary>
+    /// Gets a value indicating whether the publisher moved to this source and proved it holds the trusted key.
+    /// </summary>
+    public bool IsVerifiedMove => SourceChange == PublisherSourceChange.VerifiedMove;
+
+    /// <summary>
+    /// Gets a value indicating whether a source change notice should be shown.
+    /// </summary>
+    public bool ShowSourceChangeNotice => SourceChange != PublisherSourceChange.None;
+
+    /// <summary>
+    /// Gets the title of the source change notice.
+    /// </summary>
+    public string SourceChangeTitle => SourceChange switch
+    {
+        PublisherSourceChange.VerifiedMove => GetLocalizedString("Downloads.Subscription.SourceChange.VerifiedMoveTitle", "Verified Publisher Move"),
+        PublisherSourceChange.Collision => GetLocalizedString("Downloads.Subscription.SourceChange.CollisionTitle", "Publisher ID Already Subscribed"),
+        PublisherSourceChange.IdentityMismatch => GetLocalizedString("Downloads.Subscription.SourceChange.IdentityMismatchTitle", "Publisher Identity Not Proven"),
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Gets the message of the source change notice.
+    /// </summary>
+    public string SourceChangeMessage => SourceChange switch
+    {
+        PublisherSourceChange.VerifiedMove => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat",
+            "Publisher '{0}' moved to this address and proved it holds the same publisher key. Your subscription will follow the move.",
+            _assessedPublisherId),
+        PublisherSourceChange.Collision => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.CollisionMessageFormat",
+            "You already subscribe to publisher ID '{0}' from a different address. One of them may not be genuine. Replace the existing publisher with this one, or skip this one.",
+            _assessedPublisherId),
+        PublisherSourceChange.IdentityMismatch => GetLocalizedString(
+            "Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat",
+            "This address uses publisher ID '{0}' but does not prove it holds the key of the publisher you subscribe to. It may be an impersonation. Skip it unless you trust this address and want it to replace the existing publisher.",
+            _assessedPublisherId),
+        _ => string.Empty,
+    };
 
     /// <summary>
     /// Gets a value indicating whether the definition catalog selector should be shown.
@@ -219,6 +310,7 @@ public partial class SubscriptionConfirmationViewModel(
             ErrorMessage = null;
             CanConfirm = false;
             IsAlreadySubscribed = false;
+            ResetSourceChange();
 
             logger.LogInformation("Fetching catalog subscription");
             var response = await CatalogDocumentReader.ReadAsync(httpClient, catalogUrl, CatalogConstants.MaxCatalogSizeBytes, cancellationToken);
@@ -271,8 +363,10 @@ public partial class SubscriptionConfirmationViewModel(
     /// Selects a definition catalog and shows its content items.
     /// </summary>
     /// <param name="catalogId">The definition catalog entry ID to show.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    public void SelectDefinitionCatalog(string? catalogId)
+    public async Task SelectDefinitionCatalogAsync(string? catalogId, CancellationToken cancellationToken = default)
     {
         if (_definitionCatalogs.Count == 0)
         {
@@ -293,6 +387,7 @@ public partial class SubscriptionConfirmationViewModel(
 
         logger.LogDebug("Showing definition catalog {CatalogId} in subscription confirmation", selected.Id);
         ApplyCatalogSelection(selected.Catalog, selected.Url);
+        await ReassessSourceAsync(cancellationToken);
     }
 
     /// <summary>
@@ -486,6 +581,16 @@ public partial class SubscriptionConfirmationViewModel(
         return null;
     }
 
+    private static DateTimeOffset? LatestProofTime(DateTimeOffset? existing, DateTimeOffset? candidate)
+    {
+        if (existing is null)
+        {
+            return candidate;
+        }
+
+        return candidate is { } value && value > existing ? value : existing;
+    }
+
     private string? TryResolveSelectedCatalogId(string effectiveCatalogUrl)
     {
         if (_resolvedDefinition?.Catalogs == null || _definitionCatalogs.Count == 0)
@@ -505,20 +610,49 @@ public partial class SubscriptionConfirmationViewModel(
         return null;
     }
 
-    [RelayCommand]
-    private async Task ConfirmAsync(CancellationToken cancellationToken = default)
-    {
-        if (_parsedCatalog == null) return;
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private Task ConfirmAsync(CancellationToken cancellationToken = default) =>
+        SaveSubscriptionAsync(replaceExisting: false, cancellationToken);
 
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private Task ReplaceExistingAsync(CancellationToken cancellationToken = default) =>
+        SaveSubscriptionAsync(replaceExisting: true, cancellationToken);
+
+    private bool CanSave() => !IsSaving;
+
+    private async Task SaveSubscriptionAsync(bool replaceExisting, CancellationToken cancellationToken)
+    {
+        if (_parsedCatalog == null || IsSaving) return;
+
+        IsSaving = true;
+        try
+        {
+            // Dialogs share one lock so a replace in one cannot interleave its trust and subscription writes with another.
+            await SaveLock.WaitAsync(cancellationToken);
+            try
+            {
+                await SaveSubscriptionCoreAsync(_parsedCatalog, replaceExisting, cancellationToken);
+            }
+            finally
+            {
+                SaveLock.Release();
+            }
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task SaveSubscriptionCoreAsync(PublisherCatalog parsedCatalog, bool replaceExisting, CancellationToken cancellationToken)
+    {
         try
         {
             ErrorMessage = null;
-            var effectivePublisher = ResolveEffectivePublisher(_parsedCatalog);
+            var effectivePublisher = ResolveEffectivePublisher(parsedCatalog);
             var publisherId = effectivePublisher.Id;
-            var publisherName = effectivePublisher.Name;
-            var publisherAvatar = effectivePublisher.AvatarUrl;
 
-            logger.LogInformation("Confirming subscription for {Publisher}", publisherId);
+            logger.LogInformation("Confirming subscription for {Publisher} (replaceExisting={ReplaceExisting})", publisherId, replaceExisting);
 
             var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
             if (!existingResult.Success)
@@ -530,32 +664,46 @@ public partial class SubscriptionConfirmationViewModel(
 
             var existingSub = existingResult.Data;
             var effectiveCatalogUrl = _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl;
-            var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
-            var selectedCatalogId = ResolveSelectedCatalogId(resolvedSelectedCatalogId, effectiveCatalogUrl, existingSub);
-
-            var subscription = new PublisherSubscription
+            var assessment = await AssessSourceAsync(publisherId, existingSub, effectiveCatalogUrl, null, cancellationToken);
+            if (assessment.RequiresDecision && !replaceExisting)
             {
-                PublisherId = publisherId,
-                PublisherName = publisherName,
-                CatalogUrl = effectiveCatalogUrl,
-                DefinitionUrl = _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl, // preserve definition URL if already set
-                SelectedCatalogId = selectedCatalogId,
-                Added = existingSub?.Added ?? DateTime.UtcNow,
-                TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
-                AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisherAvatar),
-                AutoUpdate = existingSub?.AutoUpdate ?? true,
-                NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
-                CachedCatalogHash = existingSub?.CachedCatalogHash,
-                LastFetched = existingSub?.LastFetched,
-            };
+                logger.LogWarning("Publisher ID collision for {PublisherId}; waiting for the user to replace or skip", publisherId);
+                return;
+            }
 
-            var result = (IsAlreadySubscribed || existingSub != null)
-                ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
-                : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
+            var replacing = replaceExisting && existingSub != null && assessment.RequiresDecision;
+            var subscription = replacing
+                ? BuildReplacementSubscription(effectivePublisher, effectiveCatalogUrl, assessment)
+                : BuildSubscription(effectivePublisher, effectiveCatalogUrl, existingSub, assessment);
+
+            OperationResult<bool>? result;
+            if (replacing)
+            {
+                result = await SaveReplacementAsync(publisherId, subscription, assessment, cancellationToken);
+            }
+            else
+            {
+                result = existingSub != null
+                    ? await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken)
+                    : await subscriptionStore.AddSubscriptionAsync(subscription, cancellationToken);
+            }
+
+            if (result == null)
+            {
+                return;
+            }
 
             if (result.Success)
             {
                 logger.LogInformation("Subscription saved successfully for publisher {PublisherId}", subscription.PublisherId);
+                if (!replacing && !await RecordTrustAsync(publisherId, assessment, replaceTrust: existingSub == null, cancellationToken))
+                {
+                    notificationService?.ShowWarning(
+                        GetLocalizedString("Downloads.Subscription.TrustNotRecordedTitle", "Publisher Key Not Saved"),
+                        GetLocalizedString("Downloads.Subscription.TrustNotRecordedMessage", "The subscription was saved, but the publisher key could not be stored. If this publisher moves, GenHub will ask you to confirm the move."),
+                        NotificationDurations.Long);
+                }
+
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 RequestClose?.Invoke(true);
             }
@@ -575,6 +723,303 @@ public partial class SubscriptionConfirmationViewModel(
             ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
             ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.FailedToSaveFormat", "Failed to save subscription: {0}", ex.Message);
         }
+    }
+
+    private async Task<OperationResult<bool>?> SaveReplacementAsync(
+        string publisherId,
+        PublisherSubscription subscription,
+        PublisherSourceAssessment assessment,
+        CancellationToken cancellationToken)
+    {
+        if (identityService == null)
+        {
+            return await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+        }
+
+        var previous = await identityService.GetTrustedKeyAsync(publisherId, cancellationToken);
+        if (previous.Failed)
+        {
+            ShowTrustUpdateFailed();
+            return null;
+        }
+
+        OperationResult<bool>? result = null;
+        var committed = false;
+        var trustMayHaveChanged = true;
+        var restoreFailed = false;
+        try
+        {
+            if (await RecordTrustAsync(publisherId, assessment, replaceTrust: true, cancellationToken))
+            {
+                result = await UpdateForReplacementAsync(subscription, cancellationToken);
+                committed = result.Success;
+            }
+            else
+            {
+                // A write the key store reports as failed leaves the previous key in place.
+                trustMayHaveChanged = false;
+            }
+        }
+        finally
+        {
+            if (!committed && trustMayHaveChanged)
+            {
+                restoreFailed = !await RestoreTrustAsync(publisherId, previous.Data);
+            }
+        }
+
+        if (restoreFailed)
+        {
+            if (result is { Success: false })
+            {
+                logger.LogWarning("Replacing publisher {PublisherId} failed: {Errors}", publisherId, string.Join("; ", result.Errors));
+            }
+
+            ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+            ErrorMessage = previous.Data != null
+                ? GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRestoreFailed", "The subscription was not changed, but the previous publisher key could not be restored.")
+                : GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustRemoveFailed", "The subscription was not changed, but the replacement publisher key could not be removed.");
+            return null;
+        }
+
+        if (result == null)
+        {
+            ShowTrustUpdateFailed();
+        }
+
+        return result;
+    }
+
+    private async Task<OperationResult<bool>> UpdateForReplacementAsync(PublisherSubscription subscription, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await subscriptionStore.UpdateSubscriptionAsync(subscription, cancellationToken);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            logger.LogError(ex, "Failed to update subscription {PublisherId} while replacing it", subscription.PublisherId);
+            return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+    }
+
+    private void ShowTrustUpdateFailed()
+    {
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.FailedToUpdate", "Failed to Update Subscription");
+        ErrorMessage = GetLocalizedString("Downloads.Subscription.ErrorMessage.TrustUpdateFailed", "The trusted publisher key could not be updated, so the existing publisher was kept.");
+    }
+
+    private async Task<bool> RestoreTrustAsync(string publisherId, TrustedPublisherKey? previous)
+    {
+        var restored = await identityService!.RestoreTrustAsync(publisherId, previous, CancellationToken.None);
+        if (restored.Success)
+        {
+            return true;
+        }
+
+        logger.LogError("Failed to restore the trusted key for publisher {PublisherId} after a failed replace: {Errors}", publisherId, string.Join("; ", restored.Errors));
+        if (previous != null)
+        {
+            // Without the previous key nothing can verify a move, so removing the replacement key fails closed.
+            var removed = await identityService.RestoreTrustAsync(publisherId, null, CancellationToken.None);
+            if (removed.Failed)
+            {
+                logger.LogError("Failed to remove the replacement key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", removed.Errors));
+            }
+        }
+
+        return false;
+    }
+
+    private async Task ReassessSourceAsync(CancellationToken cancellationToken)
+    {
+        if (_parsedCatalog == null || !IsAlreadySubscribed)
+        {
+            ResetSourceChange();
+            return;
+        }
+
+        var generation = ++_assessmentGeneration;
+        var publisherId = ResolveEffectivePublisher(_parsedCatalog).Id;
+        try
+        {
+            await ReassessSourceCoreAsync(generation, publisherId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (generation == _assessmentGeneration)
+            {
+                ResetSourceChange();
+            }
+
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Failed to re-check the source for publisher {PublisherId}", publisherId);
+            if (generation == _assessmentGeneration)
+            {
+                ShowSourceCheckFailed();
+            }
+        }
+    }
+
+    private async Task ReassessSourceCoreAsync(int generation, string publisherId, CancellationToken cancellationToken)
+    {
+        var existingResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken);
+        if (generation != _assessmentGeneration)
+        {
+            return;
+        }
+
+        if (!existingResult.Success)
+        {
+            logger.LogWarning("Failed to read the existing subscription for {PublisherId}: {Errors}", publisherId, string.Join("; ", existingResult.Errors));
+            ShowSourceCheckFailed();
+            return;
+        }
+
+        if (existingResult.Data is not { } existingSub)
+        {
+            ResetSourceChange();
+            ClearSourceCheckError();
+            return;
+        }
+
+        ClearSourceCheckError();
+        await AssessSourceAsync(publisherId, existingSub, _selectedCatalogUrl ?? _resolvedCatalogUrl ?? catalogUrl, generation, cancellationToken);
+    }
+
+    private void ResetSourceChange()
+    {
+        _assessmentGeneration++;
+        SourceChange = PublisherSourceChange.None;
+    }
+
+    private void ShowSourceCheckFailed()
+    {
+        ResetSourceChange();
+        ErrorTitle = GetLocalizedString("Downloads.Subscription.ErrorTitle.SubscriptionError", "Subscription Error");
+        _shownSourceCheckError = GetLocalizedString(
+            "Downloads.Subscription.ErrorMessage.SourceCheckFailed",
+            "GenHub could not compare this source with your existing subscription. It checks again when you save.");
+        ErrorMessage = _shownSourceCheckError;
+    }
+
+    private void ClearSourceCheckError()
+    {
+        if (_shownSourceCheckError != null && string.Equals(ErrorMessage, _shownSourceCheckError, StringComparison.Ordinal))
+        {
+            ErrorMessage = null;
+        }
+
+        _shownSourceCheckError = null;
+    }
+
+    private PublisherSubscription BuildSubscription(
+        PublisherProfile publisher,
+        string effectiveCatalogUrl,
+        PublisherSubscription? existingSub,
+        PublisherSourceAssessment assessment)
+    {
+        var resolvedSelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl);
+        return new PublisherSubscription
+        {
+            PublisherId = publisher.Id,
+            PublisherName = publisher.Name,
+            CatalogUrl = effectiveCatalogUrl,
+            DefinitionUrl = ResolveDefinitionUrl(existingSub, assessment),
+            SelectedCatalogId = ResolveSelectedCatalogId(resolvedSelectedCatalogId, effectiveCatalogUrl, existingSub),
+            Added = existingSub?.Added ?? DateTime.UtcNow,
+            TrustLevel = existingSub?.TrustLevel ?? TrustLevel.Untrusted, // community sources start untrusted
+            AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisher.AvatarUrl),
+            AutoUpdate = existingSub?.AutoUpdate ?? true,
+            NotifyNewReleases = existingSub?.NotifyNewReleases ?? true,
+            CachedCatalogHash = existingSub?.CachedCatalogHash,
+            LastFetched = existingSub?.LastFetched,
+            IdentityProofSignedAt = LatestProofTime(existingSub?.IdentityProofSignedAt, assessment.ProofSignedAt),
+        };
+    }
+
+    private string? ResolveDefinitionUrl(PublisherSubscription? existingSub, PublisherSourceAssessment assessment)
+    {
+        // A definition that only shares a catalog-direct subscription's catalog URL is not attached, so it cannot redirect that subscription later.
+        if (existingSub != null && string.IsNullOrWhiteSpace(existingSub.DefinitionUrl) && assessment.Change != PublisherSourceChange.VerifiedMove)
+        {
+            return existingSub.DefinitionUrl;
+        }
+
+        return _resolvedDefinitionUrl ?? existingSub?.DefinitionUrl;
+    }
+
+    private PublisherSubscription BuildReplacementSubscription(
+        PublisherProfile publisher,
+        string effectiveCatalogUrl,
+        PublisherSourceAssessment assessment)
+    {
+        return new PublisherSubscription
+        {
+            PublisherId = publisher.Id,
+            PublisherName = publisher.Name,
+            CatalogUrl = effectiveCatalogUrl,
+            DefinitionUrl = _resolvedDefinitionUrl,
+            SelectedCatalogId = TryResolveSelectedCatalogId(effectiveCatalogUrl),
+            Added = DateTime.UtcNow,
+            TrustLevel = TrustLevel.Untrusted,
+            AvatarUrl = ImageCacheService.SanitizeRemoteImageUrl(publisher.AvatarUrl),
+            IdentityProofSignedAt = assessment.ProofSignedAt,
+        };
+    }
+
+    private async Task<PublisherSourceAssessment> AssessSourceAsync(
+        string publisherId,
+        PublisherSubscription? existingSub,
+        string effectiveCatalogUrl,
+        int? ownedGeneration,
+        CancellationToken cancellationToken)
+    {
+        var generation = ownedGeneration ?? ++_assessmentGeneration;
+        var candidate = new PublisherSourceCandidate(publisherId, _resolvedDefinitionUrl, effectiveCatalogUrl, _resolvedDefinition);
+        PublisherSourceAssessment assessment;
+        if (identityService != null)
+        {
+            assessment = await identityService.AssessAsync(existingSub, candidate, cancellationToken);
+        }
+        else
+        {
+            var change = existingSub != null && PublisherSourceComparer.IsDifferentSource(existingSub, candidate)
+                ? PublisherSourceChange.Collision
+                : PublisherSourceChange.None;
+            assessment = new PublisherSourceAssessment(change, null, null);
+        }
+
+        if (generation == _assessmentGeneration)
+        {
+            _assessedPublisherId = publisherId;
+            SourceChange = assessment.Change;
+        }
+
+        return assessment;
+    }
+
+    private async Task<bool> RecordTrustAsync(
+        string publisherId,
+        PublisherSourceAssessment assessment,
+        bool replaceTrust,
+        CancellationToken cancellationToken)
+    {
+        if (identityService == null)
+        {
+            return true;
+        }
+
+        var trustResult = await identityService.RecordTrustAsync(publisherId, assessment, replaceTrust, cancellationToken);
+        if (trustResult.Failed)
+        {
+            logger.LogWarning("Failed to record the trusted key for publisher {PublisherId}: {Errors}", publisherId, string.Join("; ", trustResult.Errors));
+        }
+
+        return trustResult.Success;
     }
 
     [RelayCommand]
@@ -852,8 +1297,8 @@ public partial class SubscriptionConfirmationViewModel(
         var subCheck = await subscriptionStore.IsSubscribedAsync(publisherId, cancellationToken);
         IsAlreadySubscribed = subCheck is { Success: true, Data: true };
         IsDefinitionSubscription = _resolvedDefinitionUrl != null;
-
         ApplyCatalogSelection(catalog, _resolvedCatalogUrl);
+        await ReassessSourceAsync(cancellationToken);
         logger.LogInformation("Successfully loaded catalog for {Publisher} with {Count} items (alreadySubscribed={IsAlreadySubscribed})", PublisherName, ContentCount, IsAlreadySubscribed);
     }
 

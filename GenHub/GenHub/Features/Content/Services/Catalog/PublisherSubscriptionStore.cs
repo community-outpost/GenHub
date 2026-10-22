@@ -308,6 +308,7 @@ public class PublisherSubscriptionStore(
             CachedCatalogHash = source.CachedCatalogHash,
             LastFetched = source.LastFetched,
             AvatarUrl = source.AvatarUrl,
+            IdentityProofSignedAt = source.IdentityProofSignedAt,
         };
     }
 

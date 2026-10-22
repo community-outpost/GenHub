@@ -228,6 +228,7 @@ public static class ContentPipelineModule
         services.AddSingleton<IPublicKeyVerifier, RsaPublicKeyVerifier>();
         services.AddSingleton<IPublicKeyVerifier, EcdsaPublicKeyVerifier>();
         services.AddSingleton<IPublisherKeyStore, PublisherKeyStore>();
+        services.AddSingleton<IPublisherIdentityService, PublisherIdentityService>();
 
         // Register publisher definition service (fetches via the shared catalog HTTP client)
         services.AddSingleton<IPublisherDefinitionService, PublisherDefinitionService>();

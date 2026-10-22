@@ -6760,8 +6760,53 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Downloads.Subscription.UpdateSubscription" xml:space="preserve">
     <value>Update Subscription</value>
   </data>
+  <data name="Downloads.Subscription.TrustNotRecordedMessage" xml:space="preserve">
+    <value>The subscription was saved, but the publisher key could not be stored. If this publisher moves, GenHub will ask you to confirm the move.</value>
+  </data>
+  <data name="Downloads.Subscription.TrustNotRecordedTitle" xml:space="preserve">
+    <value>Publisher Key Not Saved</value>
+  </data>
   <data name="Downloads.Subscription.UpdatedDateFormat" xml:space="preserve">
     <value>Updated {0:yyyy-MM-dd}</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.SourceCheckFailed" xml:space="preserve">
+    <value>GenHub could not compare this source with your existing subscription. It checks again when you save.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRemoveFailed" xml:space="preserve">
+    <value>The subscription was not changed, but the replacement publisher key could not be removed.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustRestoreFailed" xml:space="preserve">
+    <value>The subscription was not changed, but the previous publisher key could not be restored.</value>
+  </data>
+  <data name="Downloads.Subscription.ErrorMessage.TrustUpdateFailed" xml:space="preserve">
+    <value>The trusted publisher key could not be updated, so the existing publisher was kept.</value>
+  </data>
+  <data name="Downloads.Subscription.MoveSubscription" xml:space="preserve">
+    <value>Move Subscription</value>
+  </data>
+  <data name="Downloads.Subscription.ReplaceExisting" xml:space="preserve">
+    <value>Replace Existing</value>
+  </data>
+  <data name="Downloads.Subscription.Skip" xml:space="preserve">
+    <value>Skip</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionMessageFormat" xml:space="preserve">
+    <value>You already subscribe to publisher ID '{0}' from a different address. One of them may not be genuine. Replace the existing publisher with this one, or skip this one.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.CollisionTitle" xml:space="preserve">
+    <value>Publisher ID Already Subscribed</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchMessageFormat" xml:space="preserve">
+    <value>This address uses publisher ID '{0}' but does not prove it holds the key of the publisher you subscribe to. It may be an impersonation. Skip it unless you trust this address and want it to replace the existing publisher.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.IdentityMismatchTitle" xml:space="preserve">
+    <value>Publisher Identity Not Proven</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveMessageFormat" xml:space="preserve">
+    <value>Publisher '{0}' moved to this address and proved it holds the same publisher key. Your subscription will follow the move.</value>
+  </data>
+  <data name="Downloads.Subscription.SourceChange.VerifiedMoveTitle" xml:space="preserve">
+    <value>Verified Publisher Move</value>
   </data>
   <data name="Settings.Section.CloudUploads" xml:space="preserve">
     <value>Cloud Storage &amp; Uploads</value>

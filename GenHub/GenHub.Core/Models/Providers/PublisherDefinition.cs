@@ -91,6 +91,15 @@ public class PublisherDefinition : IJsonOnDeserialized
     public string? DefinitionUrl { get; set; }
 
     /// <summary>
+    /// Gets or sets the publisher's public key and the proof that the holder of its private key
+    /// published this definition at <see cref="DefinitionUrl"/>. Lets a publisher move to a new URL
+    /// without subscribers seeing a publisher ID collision.
+    /// </summary>
+    [JsonPropertyName("identity")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PublisherIdentityProof? Identity { get; set; }
+
+    /// <summary>
     /// Gets or sets when this definition was last updated.
     /// </summary>
     [JsonPropertyName("lastUpdated")]

@@ -71,6 +71,11 @@ The **Entry Point**. This file contains the publisher's identity, branding, and 
   ],
   "definitionUrl": "https://drive.google.com/uc?export=download&id=DEF_789",
   "previousDefinitionUrls": [],
+  "identity": {
+    "publicKey": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----",
+    "signedAt": "2026-01-24T00:00:00Z",
+    "signature": "base64..."
+  },
   "referrals": [],
   "tags": ["mods", "maps", "zero-hour"],
   "lastUpdated": "2026-01-24T00:00:00Z"
@@ -86,7 +91,38 @@ The **Entry Point**. This file contains the publisher's identity, branding, and 
 | `catalogs` | Array of catalog entries (id, name, url, mirrors) |
 | `definitionUrl` | Self-reference for migration support |
 | `previousDefinitionUrls` | URL migration trail for self-healing |
+| `identity` | Optional public key and signed proof that lets the publisher move to a new `definitionUrl` without a collision warning |
 | `catalogUrl` | Convenience property (maps to `catalogs[0].url`) |
+
+### Publisher ID Collisions and Identity Proofs
+
+GenHub keys subscriptions by publisher ID. Subscribing to a publisher ID that is already subscribed from a different source (a different definition URL, or a different catalog URL for a catalog-direct subscription) is a collision. GenHub warns that one of the two may not be genuine and asks the user to replace the existing publisher or skip the new one.
+
+A publisher that must move can avoid the warning with `identity`. The `signature` is a SHA-256 signature, RSA PKCS#1 v1.5 or ECDSA DER, over the UTF-8 bytes of these four lines joined by `\n` with no trailing newline:
+
+```text
+genhub-publisher-identity-v1
+<publisher.id>
+<definitionUrl>
+<identity.signedAt>
+```
+
+Each value is used exactly as written in the definition. With OpenSSL:
+
+```bash
+printf 'genhub-publisher-identity-v1\n%s\n%s\n%s' "$ID" "$DEFINITION_URL" "$SIGNED_AT" \
+  | openssl dgst -sha256 -sign private.pem | openssl base64 -A
+```
+
+Trust is established on first use. The first subscription whose proof verifies stores the key for that publisher ID. A later subscription from a new URL is a verified move only when:
+
+- `definitionUrl` matches the URL the definition was fetched from,
+- the signature verifies with the key already trusted for the publisher ID, and
+- `signedAt` is later than the last proof accepted for the subscription, so an old proof replayed from a former URL is rejected.
+
+A `signedAt` more than a day in the future is rejected.
+
+Otherwise the user sees the collision prompt. Replacing the publisher trusts the new source's key, or forgets the old key when the new source has none. Keep the private key offline; losing it means subscribers see the collision prompt on the next move.
 
 ---
 
