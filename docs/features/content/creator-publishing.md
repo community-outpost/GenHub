@@ -268,7 +268,7 @@ When an item tab and a catalog-level tab share a `tabId`, the item tab is shown.
 | `contentType` | string | No | Rendering hint. Unsupported values render as `custom` |
 
 An item or the catalog root can declare up to 10 tabs. More than 10 tabs in one scope, or two tabs with the same `tabId` in one scope, fails catalog validation with an error that names the content ID and tab ID.
-Other tab problems do not fail the catalog. GenHub drops the offending card or tab and logs a warning: a tab without an ID or header, or with an over-long ID, header, intro or body, is dropped; a card without a title, with over-long text, or with a disallowed image URL is dropped; cards past the 24-card limit are cut. Publisher Studio still blocks saving on all of these so authors see them.
+Other tab problems do not fail the catalog. GenHub drops the offending card or tab and logs a warning: a tab without an ID or header, or with an over-long ID, header, intro or body, is dropped; a card without a title, with over-long text, or with a disallowed image URL is dropped; cards past the 24-card limit are cut. In Publisher Studio, the content dialog will not save an item with any of these problems, and Publish validation reports them and blocks uploading the catalog. Saving the project and exporting the JSON locally are not blocked.
 Tab content renders as plain text, safe Markdown, and images only. Markdown links open only for HTTP and HTTPS URLs, and Markdown images load only from safe remote HTTP and HTTPS URLs.
 
 ### ContentRelease

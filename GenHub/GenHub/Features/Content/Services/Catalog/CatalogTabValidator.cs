@@ -75,10 +75,11 @@ public static class CatalogTabValidator
                 continue;
             }
 
+            var declaredCards = tab.Cards.Count;
             tab.Cards = [.. tab.Cards.Where((_, cardIndex) => !droppedCards.Contains((tabIndex, cardIndex)))];
             if (tab.Cards.Count > CustomTabConstants.MaxCardsPerTab)
             {
-                onDropped(new CustomTabIssue(CustomTabIssueKind.TooManyCards, tabIndex, tab.TabId, Count: tab.Cards.Count));
+                onDropped(new CustomTabIssue(CustomTabIssueKind.TooManyCards, tabIndex, tab.TabId, Count: declaredCards));
                 tab.Cards = [.. tab.Cards.Take(CustomTabConstants.MaxCardsPerTab)];
             }
         }

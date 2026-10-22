@@ -20,6 +20,7 @@ public sealed class CatalogTabMapperTests
     [InlineData("avares://GenHub/Assets/Covers/usa-cover.jpg", "avares://GenHub/Assets/Covers/usa-cover.jpg")]
     [InlineData("file:///etc/passwd", null)]
     [InlineData("/Users/someone/secret.png", null)]
+    [InlineData("relative/card.png", null)]
     [InlineData("http://example.com/card.png", null)]
     public void Map_CardImageUrl_KeepsOnlyAllowedSchemes(string imageUrl, string? expected)
     {

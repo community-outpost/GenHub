@@ -292,6 +292,52 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     }
 
     /// <summary>
+    /// The card limit warning reports the number of cards the tab declared, not the number left after bad cards were dropped.
+    /// </summary>
+    [Fact]
+    public void NormalizeCatalog_TooManyCards_WarnsWithDeclaredCount()
+    {
+        var declared = CustomTabConstants.MaxCardsPerTab + 6;
+        var cards = Enumerable.Range(0, declared)
+            .Select(i => new CatalogTabCardDefinition { Title = $"Card {i}" })
+            .ToList();
+        cards[0].Title = string.Empty;
+        var logger = new CapturingLogger();
+        var parser = new JsonPublisherCatalogParser(logger);
+        var catalog = CreateCatalog(new CatalogTabDefinition { TabId = "gallery", Header = "Gallery", Cards = cards });
+
+        parser.NormalizeCatalog(catalog);
+
+        Assert.Contains(logger.Warnings, w => w.Contains($"custom tab 'gallery' declares {declared} cards. The maximum is {CustomTabConstants.MaxCardsPerTab}."));
+    }
+
+    /// <summary>
+    /// Card images must use HTTPS or a bundled avares resource. Other images drop only their card.
+    /// </summary>
+    /// <param name="imageUrl">The card image URL.</param>
+    /// <param name="expectedKept">Whether the card is kept.</param>
+    [Theory]
+    [InlineData("https://example.com/card.png", true)]
+    [InlineData("avares://GenHub/Assets/Covers/usa-cover.jpg", true)]
+    [InlineData("http://example.com/card.png", false)]
+    [InlineData("file:///etc/passwd", false)]
+    [InlineData("relative/card.png", false)]
+    public void NormalizeCatalog_CardImageUrl_KeepsOnlyHttpsAndAvares(string imageUrl, bool expectedKept)
+    {
+        var catalog = CreateCatalog(new CatalogTabDefinition
+        {
+            TabId = "gallery",
+            Header = "Gallery",
+            Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = imageUrl }],
+        });
+
+        _parser.NormalizeCatalog(catalog);
+
+        Assert.Equal(expectedKept ? 1 : 0, Assert.Single(Assert.Single(catalog.Content).CustomTabs).Cards.Count);
+        Assert.True(_parser.ValidateCatalog(catalog).Success);
+    }
+
+    /// <summary>
     /// Tab IDs must be unique within an item regardless of case. This stays a catalog error.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
