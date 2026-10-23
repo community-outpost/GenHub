@@ -64,7 +64,7 @@
         </StackPanel>
 
         <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Body, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <md:MarkdownScrollViewer Markdown="{Binding Body}">
+            <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding Body}">
                 <md:MarkdownScrollViewer.Plugins>
                     <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                     PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -98,7 +98,7 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="content:CustomTabCardDefinition">
                     <Border Width="250" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,12,12">
-                        <Panel>
+                        <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="10">
                                 <Panel IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                     <Button Command="{Binding #CustomTabRoot.ImageCommand}"
@@ -149,6 +149,8 @@
                                 </StackPanel>
                             </StackPanel>
                             <Button x:Name="CardEditButton"
+                                    Grid.Column="1"
+                                    Margin="6,0,0,0"
                                     Classes="custom-tab-edit"
                                     Command="{Binding #CustomTabRoot.EditCommand}"
                                     CommandParameter="{Binding #CustomTabRoot.DataContext}"
@@ -156,7 +158,7 @@
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.EditTab}">
                                 <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentBrush}" />
                             </Button>
-                        </Panel>
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

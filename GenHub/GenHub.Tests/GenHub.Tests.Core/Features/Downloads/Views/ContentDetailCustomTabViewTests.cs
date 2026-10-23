@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using GenHub.Core.Models.Content;
@@ -179,6 +180,85 @@ public class ContentDetailCustomTabViewTests
             Assert.Equal(500, scroller.Offset.Y);
             return Task.CompletedTask;
         });
+    }
+
+    /// <summary>
+    /// The mouse wheel over a publisher tab's Markdown body scrolls the tab, instead of stopping at the Markdown viewer.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentDetailView_WheelOverMarkdownBody_ScrollsTheTabAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a", new CustomTabDefinition
+        {
+            TabId = "guide",
+            Header = "Guide",
+            Body = string.Join("\n\n", Enumerable.Range(1, 80).Select(i => $"Paragraph {i} of the publisher guide.")),
+        });
+        using var viewModel = CreateViewModel(CreateSearchResult("mod-a"), registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var view = new ContentDetailView { DataContext = viewModel };
+        await InWindowAsync(view, tabControl =>
+        {
+            var window = (Window)view.Parent!;
+            window.Width = 1000;
+            window.Height = 700;
+            tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount;
+            window.UpdateLayout();
+
+            var scroller = Assert.IsType<ScrollViewer>(((TabItem)tabControl.Items[ContentDetailViewModel.BuiltInTabCount]!).Content);
+            AssertWheelScrolls(window, scroller);
+            return Task.CompletedTask;
+        });
+    }
+
+    /// <summary>
+    /// The mouse wheel over the Summary description scrolls the Summary tab.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentDetailView_WheelOverSummaryDescription_ScrollsTheSummaryAsync()
+    {
+        var registry = new ScriptedTabRegistry();
+        registry.Complete("mod-a");
+        var searchResult = CreateSearchResult("mod-a");
+        searchResult.Description = string.Join("\n\n", Enumerable.Range(1, 80).Select(i => $"Description paragraph {i}."));
+        using var viewModel = CreateViewModel(searchResult, registry);
+        viewModel.Initialize();
+        await viewModel.WaitForInitializationAsync();
+        var view = new ContentDetailView { DataContext = viewModel };
+        await InWindowAsync(view, tabControl =>
+        {
+            var window = (Window)view.Parent!;
+            window.Width = 1000;
+            window.Height = 700;
+            tabControl.SelectedIndex = 0;
+            window.UpdateLayout();
+
+            var scroller = Assert.IsType<ScrollViewer>(((TabItem)tabControl.Items[0]!).Content);
+            AssertWheelScrolls(window, scroller);
+            return Task.CompletedTask;
+        });
+    }
+
+    private static void AssertWheelScrolls(Window window, ScrollViewer scroller)
+    {
+        var markdown = scroller.GetVisualDescendants().OfType<Markdown.Avalonia.MarkdownScrollViewer>().First(m => m.IsEffectivelyVisible);
+
+        // Fractional layout on high-DPI screens can leave the inner viewer a sliver taller than its viewport, so it must
+        // not scroll vertically at all or it takes the wheel.
+        Assert.All(
+            markdown.GetVisualDescendants().OfType<ScrollViewer>(),
+            inner => Assert.Equal(Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, inner.VerticalScrollBarVisibility));
+        var target = markdown.TranslatePoint(new Point(40, Math.Min(40, markdown.Bounds.Height / 2)), window)!.Value;
+        Assert.Equal(0, scroller.Offset.Y);
+
+        window.MouseWheel(target, new Vector(0, -3));
+        window.UpdateLayout();
+
+        Assert.True(scroller.Offset.Y > 0, "The wheel over the Markdown viewer should scroll the outer scroller.");
     }
 
     private static async Task InWindowAsync(ContentDetailView view, Func<TabControl, Task> body)

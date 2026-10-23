@@ -402,7 +402,7 @@
                                 <!-- Description -->
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.About}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedDescription}">
+                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedDescription}">
                                         <md:MarkdownScrollViewer.Plugins>
                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -421,7 +421,7 @@
                                 <!-- Repository README (GitHub items) -->
                                 <StackPanel Spacing="12" IsVisible="{Binding HasReadme}">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Readme}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedReadme}">
+                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedReadme}">
                                         <md:MarkdownScrollViewer.Plugins>
                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -791,7 +791,7 @@
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.ReadmeReleaseNotes}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedFullDescription}">
                                                                         <md:MarkdownScrollViewer.Plugins>
                                                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -1197,7 +1197,7 @@
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.ReadmeReleaseNotes}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedFullDescription}">
                                                                         <md:MarkdownScrollViewer.Plugins>
                                                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
