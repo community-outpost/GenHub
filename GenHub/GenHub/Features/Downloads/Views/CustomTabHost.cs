@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using GenHub.Common.Markup;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -66,7 +67,11 @@ public static class CustomTabHost
             tabs.AttachedToVisualTree += OnAttachedToVisualTree;
             tabs.DetachedFromVisualTree += OnDetachedFromVisualTree;
 
-            Subscribe(tabs);
+            if (tabs.GetVisualRoot() != null)
+            {
+                Subscribe(tabs);
+            }
+
             Refresh(tabs);
         });
         BuiltInCountProperty.Changed.AddClassHandler<TabControl>((tabs, _) => Refresh(tabs));

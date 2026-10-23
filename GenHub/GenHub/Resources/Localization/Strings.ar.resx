@@ -13548,6 +13548,21 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>معرّف علامة التبويب</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>يُنشأ من العنوان</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>علامات التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>تمت إضافة علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>تم حفظ علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>تمت إزالة علامة التبويب المخصصة '{0}'.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
     <value>العنوان</value>
   </data>

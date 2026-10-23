@@ -46,10 +46,45 @@ public class CustomTabCardImageFallbackTests
 
             var link = view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardImageLink");
             Assert.True(link.IsVisible);
+            Assert.True(link.IsEnabled);
+            Assert.True(link.Command!.CanExecute(link.CommandParameter));
             Assert.False(image.FindLogicalAncestorOfType<Button>()!.IsVisible);
             Assert.IsType<SafeMarkdownHyperlinkCommand>(link.Command);
             Assert.Equal(url, link.CommandParameter);
             Assert.Contains(link.GetLogicalDescendants().OfType<TextBlock>(), t => t.Text == url);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// A bundled image that fails to load shows no link, because a browser cannot open it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CardImage_BundledImageFails_ShowsNoDeadLinkAsync()
+    {
+        var view = new CustomTabContentView
+        {
+            DataContext = new CustomTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CustomTabCardDefinition { Title = "Card", ImageUrl = "avares://GenHub/Assets/Covers/missing-cover.jpg" }],
+            },
+        };
+        var window = new Window { Content = view, Width = 800, Height = 600 };
+        window.Show();
+        try
+        {
+            var image = view.GetLogicalDescendants().OfType<Image>().Single(i => i.Name == "CardImage");
+            await WaitUntilAsync(() => ImageLoader.GetLoadFailed(image));
+            window.UpdateLayout();
+
+            Assert.False(view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardImageLink").IsVisible);
+            Assert.False(image.FindLogicalAncestorOfType<Button>()!.IsVisible);
         }
         finally
         {

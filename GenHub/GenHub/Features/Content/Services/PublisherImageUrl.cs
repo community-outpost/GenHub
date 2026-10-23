@@ -24,9 +24,16 @@ public static partial class PublisherImageUrl
     /// <returns>The direct image URL.</returns>
     public static string? Normalize(string? url)
     {
-        return TryGetGoogleDriveFileId(url, out var fileId)
-            ? string.Format(GoogleDriveDirectFormat, Uri.EscapeDataString(fileId))
-            : url;
+        if (!TryGetGoogleDriveFileId(url, out var fileId))
+        {
+            return url;
+        }
+
+        var direct = string.Format(GoogleDriveDirectFormat, Uri.EscapeDataString(fileId));
+        var resourceKey = HttpUtility.ParseQueryString(new Uri(url!).Query)["resourcekey"];
+        return resourceKey != null && ResourceKeyRegex().IsMatch(resourceKey)
+            ? $"{direct}&resourcekey={Uri.EscapeDataString(resourceKey)}"
+            : direct;
     }
 
     /// <summary>
@@ -40,6 +47,8 @@ public static partial class PublisherImageUrl
         fileId = string.Empty;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
+            !uri.IsDefaultPort ||
+            uri.UserInfo.Length > 0 ||
             !uri.Host.Equals(GoogleDriveHost, StringComparison.OrdinalIgnoreCase))
         {
             return false;
@@ -87,9 +96,12 @@ public static partial class PublisherImageUrl
         return query["ex"] != null || query["hm"] != null;
     }
 
-    [GeneratedRegex(@"^/file/d/(?<id>[A-Za-z0-9_-]{10,})(?:/[^/]*)?$")]
+    [GeneratedRegex(@"^(?:/u/\d+)?/file/d/(?<id>[A-Za-z0-9_-]{10,})(?:/(?:view|preview|edit)?)?/?$", RegexOptions.IgnoreCase)]
     private static partial Regex DriveFilePathRegex();
 
     [GeneratedRegex(@"^[A-Za-z0-9_-]{10,}$")]
     private static partial Regex DriveFileIdRegex();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_-]+$")]
+    private static partial Regex ResourceKeyRegex();
 }

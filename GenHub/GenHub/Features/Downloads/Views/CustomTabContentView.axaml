@@ -126,8 +126,13 @@
                                             Padding="0"
                                             Cursor="Hand"
                                             HorizontalAlignment="Stretch"
-                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CardImageLinkTooltip}"
-                                            IsVisible="{Binding #CardImage.(controls:ImageLoader.LoadFailed)}">
+                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CardImageLinkTooltip}">
+                                        <Button.IsVisible>
+                                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                <Binding Path="#CardImage.(controls:ImageLoader.LoadFailed)" />
+                                                <Binding Path="HasRemoteImage" />
+                                            </MultiBinding>
+                                        </Button.IsVisible>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{localization:Localize Downloads.ContentDetail.CardImageUnavailable}"
                                                        Foreground="{DynamicResource TextSecondary}" FontSize="11" />

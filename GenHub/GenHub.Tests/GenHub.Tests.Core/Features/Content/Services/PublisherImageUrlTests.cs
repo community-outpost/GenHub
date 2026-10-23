@@ -22,9 +22,42 @@ public sealed class PublisherImageUrlTests
     [InlineData("https://drive.google.com/file/d/" + DriveId)]
     [InlineData("https://drive.google.com/open?id=" + DriveId)]
     [InlineData("https://drive.google.com/uc?export=view&id=" + DriveId)]
+    [InlineData("https://drive.google.com/file/d/" + DriveId + "/")]
+    [InlineData("https://drive.google.com/file/d/" + DriveId + "/view/")]
+    [InlineData("https://drive.google.com/u/0/file/d/" + DriveId + "/view?usp=drive_link")]
+    [InlineData("https://DRIVE.GOOGLE.COM/file/d/" + DriveId + "/VIEW")]
     public void Normalize_DriveViewerLink_RewritesToDirectImage(string url)
     {
         Assert.Equal(DriveDirect, PublisherImageUrl.Normalize(url));
+    }
+
+    /// <summary>
+    /// A Drive resource key, needed for some older shared links, is carried over to the direct link.
+    /// </summary>
+    [Fact]
+    public void Normalize_DriveLinkWithResourceKey_KeepsResourceKey()
+    {
+        Assert.Equal(
+            DriveDirect + "&resourcekey=0-AbC_dEf",
+            PublisherImageUrl.Normalize("https://drive.google.com/file/d/" + DriveId + "/view?usp=sharing&resourcekey=0-AbC_dEf"));
+    }
+
+    /// <summary>
+    /// Links that only look like Drive links are never rewritten: other hosts, plain HTTP, user info, or another port.
+    /// </summary>
+    /// <param name="url">The adversarial link.</param>
+    [Theory]
+    [InlineData("https://drive.google.com.evil.com/file/d/" + DriveId + "/view")]
+    [InlineData("https://evil.com/drive.google.com/file/d/" + DriveId + "/view")]
+    [InlineData("https://evildrive.google.com/file/d/" + DriveId + "/view")]
+    [InlineData("http://drive.google.com/file/d/" + DriveId + "/view")]
+    [InlineData("https://user:pass@drive.google.com/file/d/" + DriveId + "/view")]
+    [InlineData("https://drive.google.com:8443/file/d/" + DriveId + "/view")]
+    [InlineData("https://drive.google.com/file/d/short/view")]
+    [InlineData("https://drive.google.com/file/d/" + DriveId + "/view/extra")]
+    public void Normalize_LookalikeDriveLink_IsUnchanged(string url)
+    {
+        Assert.Equal(url, PublisherImageUrl.Normalize(url));
     }
 
     /// <summary>

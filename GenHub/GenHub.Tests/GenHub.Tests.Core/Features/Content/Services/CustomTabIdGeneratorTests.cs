@@ -20,6 +20,8 @@ public sealed class CustomTabIdGeneratorTests
     [InlineData("  Release Notes: v2.0!  ", "release-notes-v2-0")]
     [InlineData("Café Déjà Vu", "cafe-deja-vu")]
     [InlineData("FAQ", "faq")]
+    [InlineData("2024", "2024")]
+    [InlineData("Level 2 Как", "level-2")]
     [InlineData("", "")]
     [InlineData("   ", "")]
     public void Slugify_LatinHeader_ReturnsSlug(string header, string expected)
@@ -35,6 +37,8 @@ public sealed class CustomTabIdGeneratorTests
     [InlineData("!!! ???")]
     [InlineData("كيف تلعب")]
     [InlineData("Как играть")]
+    [InlineData("Как играть 2")]
+    [InlineData("الجزء 3")]
     public void Slugify_HeaderWithoutAsciiLetters_ReturnsStableFallback(string header)
     {
         var slug = CustomTabIdGenerator.Slugify(header);
