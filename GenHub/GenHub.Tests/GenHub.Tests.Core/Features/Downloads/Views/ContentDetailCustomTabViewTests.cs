@@ -245,17 +245,19 @@ public class ContentDetailCustomTabViewTests
 
     private static void AssertWheelScrolls(Window window, ScrollViewer scroller)
     {
-        var markdown = scroller.GetVisualDescendants().OfType<Markdown.Avalonia.MarkdownScrollViewer>().First(m => m.IsEffectivelyVisible);
+        var markdown = scroller.GetVisualDescendants().OfType<Markdown.Avalonia.MarkdownScrollViewer>().FirstOrDefault(m => m.IsEffectivelyVisible);
+        Assert.NotNull(markdown);
 
         // Fractional layout on high-DPI screens can leave the inner viewer a sliver taller than its viewport, so it must
         // not scroll vertically at all or it takes the wheel.
-        Assert.All(
-            markdown.GetVisualDescendants().OfType<ScrollViewer>(),
-            inner => Assert.Equal(Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, inner.VerticalScrollBarVisibility));
-        var target = markdown.TranslatePoint(new Point(40, Math.Min(40, markdown.Bounds.Height / 2)), window)!.Value;
+        var inners = markdown.GetVisualDescendants().OfType<ScrollViewer>().ToList();
+        Assert.NotEmpty(inners);
+        Assert.All(inners, inner => Assert.Equal(Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled, inner.VerticalScrollBarVisibility));
+        var target = markdown.TranslatePoint(new Point(40, Math.Min(40, markdown.Bounds.Height / 2)), window);
+        Assert.NotNull(target);
         Assert.Equal(0, scroller.Offset.Y);
 
-        window.MouseWheel(target, new Vector(0, -3));
+        window.MouseWheel(target.Value, new Vector(0, -3));
         window.UpdateLayout();
 
         Assert.True(scroller.Offset.Y > 0, "The wheel over the Markdown viewer should scroll the outer scroller.");
