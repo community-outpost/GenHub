@@ -119,12 +119,16 @@ public static class NumericScrubber
         if (sender is NumericUpDown control)
         {
             control.AttachedToVisualTree -= OnAttachedRetryTip;
-            AttachLocalizedTip(control);
+            if (GetEnableScrubber(control))
+            {
+                AttachLocalizedTip(control);
+            }
         }
     }
 
     private static void Detach(NumericUpDown control)
     {
+        control.AttachedToVisualTree -= OnAttachedRetryTip;
         var state = control.GetValue(StateProperty);
         if (state != null)
         {

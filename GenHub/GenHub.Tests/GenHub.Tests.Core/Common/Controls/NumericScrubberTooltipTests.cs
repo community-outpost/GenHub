@@ -90,4 +90,43 @@ public class NumericScrubberTooltipTests
             }
         }
     }
+
+    /// <summary>
+    /// A scrubber disabled before the control is attached does not pick up the scrubber tooltip later.
+    /// </summary>
+    [AvaloniaFact]
+    public void NumericUpDown_ScrubberDisabledBeforeAttach_GetsNoTooltip()
+    {
+        var resources = Avalonia.Application.Current!.Resources;
+        var hadPrevious = resources.TryGetValue(LocalizationConstants.ResourceServiceKey, out var previous);
+        resources.Remove(LocalizationConstants.ResourceServiceKey);
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLocalizationServices();
+        var localization = services.BuildServiceProvider().GetRequiredService<ILocalizationService>();
+        var control = new NumericUpDown();
+        NumericScrubber.SetEnableScrubber(control, true);
+        var window = new Window();
+        try
+        {
+            resources[LocalizationConstants.ResourceServiceKey] = localization;
+            NumericScrubber.SetEnableScrubber(control, false);
+            window.Content = control;
+            window.Show();
+
+            Assert.Null(ToolTip.GetTip(control));
+        }
+        finally
+        {
+            window.Close();
+            if (hadPrevious)
+            {
+                resources[LocalizationConstants.ResourceServiceKey] = previous;
+            }
+            else
+            {
+                resources.Remove(LocalizationConstants.ResourceServiceKey);
+            }
+        }
+    }
 }

@@ -865,6 +865,10 @@ public partial class ContentLibraryViewModel(
         if (parentViewModel != null)
         {
             await parentViewModel.SaveProjectAsync();
+            if (parentViewModel.HasUnsavedChanges)
+            {
+                return;
+            }
         }
 
         notificationService?.ShowSuccess(
