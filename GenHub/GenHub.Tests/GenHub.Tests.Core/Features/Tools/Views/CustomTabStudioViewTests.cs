@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
 using GenHub.Core.Interfaces.Publishers;
@@ -16,6 +17,7 @@ using GenHub.Features.Tools.Views.PublisherStudio;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -168,6 +170,115 @@ public class CustomTabStudioViewTests
             sample.Measure(Size.Infinity);
             var available = textBox.Bounds.Width - textBox.Padding.Left - textBox.Padding.Right - textBox.BorderThickness.Left - textBox.BorderThickness.Right;
             Assert.True(available >= sample.DesiredSize.Width, $"Order text area {available} is narrower than four digits {sample.DesiredSize.Width}");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// A long image URL does not widen the tab editor. The editor keeps a fixed width.
+    /// </summary>
+    [AvaloniaFact]
+    public void EditCustomTabDialog_LongImageUrl_KeepsWidth()
+    {
+        var viewModel = new EditCustomTabDialogViewModel(
+            new CatalogTabDefinition { TabId = "gallery", Header = "Gallery", Cards = [new CatalogTabCardDefinition { Title = "Card" }] },
+            [],
+            _ => { });
+        var view = new EditCustomTabDialogView { DataContext = viewModel };
+        var window = new Window { Content = view, Width = 2000, Height = 900 };
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+            view.Measure(Size.Infinity);
+            var before = view.DesiredSize.Width;
+
+            viewModel.Tab.Cards[0].ImageUrl = "https://example.com/" + new string('a', 600) + ".png";
+            window.UpdateLayout();
+            view.Measure(Size.Infinity);
+
+            Assert.Equal(before, view.DesiredSize.Width);
+            Assert.True(before <= 800, $"Editor width {before} should stay bounded");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// The editor's actions sit below the form, so they never cover the end of the preview, and the order
+    /// input matches the text inputs beside it.
+    /// </summary>
+    [AvaloniaFact]
+    public void EditCustomTabDialog_FooterBelowFormAndOrderMatchesInputs()
+    {
+        var viewModel = new EditCustomTabDialogViewModel(new CatalogTabDefinition { TabId = "notes", Header = "Notes" }, [], _ => { });
+        var view = new EditCustomTabDialogView { DataContext = viewModel };
+        var window = new Window { Content = view, Width = 800, Height = 720 };
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+
+            var form = view.GetVisualDescendants().OfType<ScrollViewer>().First();
+            var save = view.GetVisualDescendants().OfType<Button>().Single(b => b.Command == viewModel.SaveCommand);
+            var formBottom = form.TranslatePoint(new Point(0, form.Bounds.Height), view)!.Value.Y;
+            var saveTop = save.TranslatePoint(new Point(0, 0), view)!.Value.Y;
+            Assert.True(saveTop >= formBottom, $"Save button top {saveTop} should be below the form bottom {formBottom}");
+
+            var header = view.GetVisualDescendants().OfType<TextBox>().First(t => t.Text == "Notes");
+            var order = view.GetVisualDescendants().OfType<NumericUpDown>().Single();
+            var orderText = order.GetVisualDescendants().OfType<TextBox>().First();
+            Assert.Equal(header.FontSize, orderText.FontSize);
+            Assert.Equal(VerticalAlignment.Center, orderText.VerticalContentAlignment);
+            Assert.Same(header.Background, order.Background);
+            Assert.Equal(header.Bounds.Height, order.Bounds.Height, 1);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// On a card whose image failed, the card edit pencil sits beside the fallback text instead of over it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CustomTabContentView_CardEditButton_DoesNotOverlapFallbackTextAsync()
+    {
+        var view = new CustomTabContentView
+        {
+            EditCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<object?>(_ => { }),
+            DataContext = new GenHub.Core.Models.Content.CustomTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new GenHub.Core.Models.Content.CustomTabCardDefinition { Title = "Card", ImageUrl = "https://127.0.0.1/blocked.png" }],
+            },
+        };
+        var window = new Window { Content = view, Width = 800, Height = 600 };
+        window.Show();
+        try
+        {
+            var image = view.GetLogicalDescendants().OfType<Image>().Single(i => i.Name == "CardImage");
+            for (var i = 0; i < 500 && !GenHub.Infrastructure.Controls.ImageLoader.GetLoadFailed(image); i++)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                await Task.Delay(10);
+            }
+
+            window.UpdateLayout();
+            var link = view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardImageLink");
+            var pencil = view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardEditButton");
+            Assert.True(link.IsVisible);
+            var linkRight = link.TranslatePoint(new Point(link.Bounds.Width, 0), view)!.Value.X;
+            var pencilLeft = pencil.TranslatePoint(new Point(0, 0), view)!.Value.X;
+            Assert.True(pencilLeft >= linkRight, $"Pencil left {pencilLeft} should be right of the link {linkRight}");
         }
         finally
         {
