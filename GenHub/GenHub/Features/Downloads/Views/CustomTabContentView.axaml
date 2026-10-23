@@ -26,6 +26,14 @@
             <Setter Property="Stretch" Value="Uniform" />
             <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
+        <Style Selector="Button.custom-tab-edit">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Spacing="16" Margin="4,24,4,0">
@@ -39,26 +47,47 @@
         </Border>
 
         <StackPanel Spacing="6">
-            <TextBlock Text="{Binding Header}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding Header}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+                <Button Grid.Column="1"
+                        x:Name="HeaderEditButton"
+                        Classes="custom-tab-edit"
+                        Command="{Binding #CustomTabRoot.EditCommand}"
+                        CommandParameter="{Binding #CustomTabRoot.DataContext}"
+                        IsVisible="{Binding #CustomTabRoot.EditCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.EditTab}">
+                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}" />
+                </Button>
+            </Grid>
             <TextBlock Text="{Binding Intro}" Foreground="{DynamicResource TextSecondary}" FontSize="14" LineHeight="21" TextWrapping="Wrap"
                        IsVisible="{Binding Intro, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
 
-        <md:MarkdownScrollViewer Markdown="{Binding Body}"
-                                 IsVisible="{Binding Body, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <md:MarkdownScrollViewer.Plugins>
-                <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
-                                PathResolver="{StaticResource SafeMarkdownPathResolver}" />
-            </md:MarkdownScrollViewer.Plugins>
-            <md:MarkdownScrollViewer.Styles>
-                <Style Selector="TextBlock">
-                    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-                    <Setter Property="FontSize" Value="15"/>
-                    <Setter Property="LineHeight" Value="24"/>
-                    <Setter Property="TextWrapping" Value="Wrap"/>
-                </Style>
-            </md:MarkdownScrollViewer.Styles>
-        </md:MarkdownScrollViewer>
+        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding Body, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <md:MarkdownScrollViewer Markdown="{Binding Body}">
+                <md:MarkdownScrollViewer.Plugins>
+                    <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                    PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                </md:MarkdownScrollViewer.Plugins>
+                <md:MarkdownScrollViewer.Styles>
+                    <Style Selector="TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+                        <Setter Property="FontSize" Value="15"/>
+                        <Setter Property="LineHeight" Value="24"/>
+                        <Setter Property="TextWrapping" Value="Wrap"/>
+                    </Style>
+                </md:MarkdownScrollViewer.Styles>
+            </md:MarkdownScrollViewer>
+            <Button Grid.Column="1"
+                    x:Name="BodyEditButton"
+                    Classes="custom-tab-edit"
+                    Command="{Binding #CustomTabRoot.EditCommand}"
+                    CommandParameter="{Binding #CustomTabRoot.DataContext}"
+                    IsVisible="{Binding #CustomTabRoot.EditCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.EditTab}">
+                <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}" />
+            </Button>
+        </Grid>
 
         <ItemsControl ItemsSource="{Binding Cards}" IsVisible="{Binding !!Cards.Count}">
             <ItemsControl.ItemsPanel>
@@ -69,50 +98,60 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="content:CustomTabCardDefinition">
                     <Border Width="250" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,12,12">
-                        <StackPanel Spacing="10">
-                            <Panel IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <Button Command="{Binding #CustomTabRoot.ImageCommand}"
-                                        CommandParameter="{Binding}"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Padding="0"
-                                        Cursor="Hand"
-                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}"
-                                        IsVisible="{Binding !#CardImage.(controls:ImageLoader.LoadFailed)}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <ContentPresenter Content="{TemplateBinding Content}" />
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                    <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
-                                        <Image x:Name="CardImage" controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
-                                    </Border>
-                                </Button>
-                                <Button x:Name="CardImageLink"
-                                        Command="{StaticResource SafeMarkdownHyperlinkCommand}"
-                                        CommandParameter="{Binding ImageUrl}"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Padding="0"
-                                        Cursor="Hand"
-                                        HorizontalAlignment="Stretch"
-                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CardImageLinkTooltip}"
-                                        IsVisible="{Binding #CardImage.(controls:ImageLoader.LoadFailed)}">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.CardImageUnavailable}"
-                                                   Foreground="{DynamicResource TextSecondary}" FontSize="11" />
-                                        <TextBlock Text="{Binding ImageUrl}" Foreground="{DynamicResource AccentBrush}" FontSize="12"
-                                                   TextDecorations="Underline" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </Button>
-                            </Panel>
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
-                                           IsVisible="{Binding Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="19" TextWrapping="Wrap" />
+                        <Panel>
+                            <StackPanel Spacing="10">
+                                <Panel IsVisible="{Binding ImageUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <Button Command="{Binding #CustomTabRoot.ImageCommand}"
+                                            CommandParameter="{Binding}"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            Cursor="Hand"
+                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ExpandImageTooltip}"
+                                            IsVisible="{Binding !#CardImage.(controls:ImageLoader.LoadFailed)}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <ContentPresenter Content="{TemplateBinding Content}" />
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Border Height="96" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" ClipToBounds="True">
+                                            <Image x:Name="CardImage" controls:ImageLoader.Source="{Binding ImageUrl}" Stretch="UniformToFill" />
+                                        </Border>
+                                    </Button>
+                                    <Button x:Name="CardImageLink"
+                                            Command="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                            CommandParameter="{Binding ImageUrl}"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Padding="0"
+                                            Cursor="Hand"
+                                            HorizontalAlignment="Stretch"
+                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CardImageLinkTooltip}"
+                                            IsVisible="{Binding #CardImage.(controls:ImageLoader.LoadFailed)}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.CardImageUnavailable}"
+                                                       Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                                            <TextBlock Text="{Binding ImageUrl}" Foreground="{DynamicResource AccentBrush}" FontSize="12"
+                                                       TextDecorations="Underline" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Button>
+                                </Panel>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Label}" Foreground="{DynamicResource AccentBrush}" FontSize="11" FontWeight="SemiBold"
+                                               IsVisible="{Binding Label, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                    <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="19" TextWrapping="Wrap" />
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
+                            <Button x:Name="CardEditButton"
+                                    Classes="custom-tab-edit"
+                                    Command="{Binding #CustomTabRoot.EditCommand}"
+                                    CommandParameter="{Binding #CustomTabRoot.DataContext}"
+                                    IsVisible="{Binding #CustomTabRoot.EditCommand, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.EditTab}">
+                                <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentBrush}" />
+                            </Button>
+                        </Panel>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

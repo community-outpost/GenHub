@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -38,45 +39,41 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
-    /// Tabs authored in the content dialog survive a project save and load, export, and the runtime parser,
-    /// and cards written by hand in the catalog are kept.
+    /// Tabs authored in the tab editor survive a project save and load, export, and the runtime parser,
+    /// including edited and added cards.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EditContentDialog_AuthoredTabs_SurviveSaveLoadExportAndRuntimeParseAsync()
+    public async Task EditCustomTabDialog_AuthoredTabs_SurviveSaveLoadExportAndRuntimeParseAsync()
     {
-        var existing = CreateItem();
-        existing.CustomTabs =
-        [
-            new CatalogTabDefinition
-            {
-                TabId = "gallery",
-                Header = "Gallery",
-                Order = 20,
-                Cards = [new CatalogTabCardDefinition { Title = "Hand-written card", ImageUrl = "https://example.com/card.png" }],
-            },
-        ];
-
-        CatalogContentItem? edited = null;
-        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
-        Assert.Equal("gallery", Assert.Single(dialog.CustomTabs).TabId);
-        Assert.Equal(1, dialog.CustomTabs[0].CardCount);
-
-        dialog.CustomTabs[0].Header = "Screenshots";
-        dialog.AddCustomTabCommand.Execute(null);
-        var added = dialog.CustomTabs[1];
-        added.TabId = "install-guide";
-        added.Header = "Install guide";
-        added.Order = 5;
-        added.Intro = "Read this first.";
-        added.Body = "## Steps\n\n1. Install the base game.";
-        Assert.Null(added.Preview);
-        added.IsPreviewVisible = true;
-        Assert.Equal("## Steps\n\n1. Install the base game.", added.Preview!.Body);
-
-        dialog.CreateContentCommand.Execute(null);
-
+        var existing = new CatalogTabDefinition
+        {
+            TabId = "gallery",
+            Header = "Gallery",
+            Order = 20,
+            Cards = [new CatalogTabCardDefinition { Title = "First card", ImageUrl = "https://example.com/card.png" }],
+        };
+        CatalogTabDefinition? edited = null;
+        var editor = new EditCustomTabDialogViewModel(existing, [], tab => edited = tab);
+        Assert.Equal("First card", Assert.Single(editor.Tab.Cards).Title);
+        editor.Tab.Header = "Screenshots";
+        editor.AddCardCommand.Execute(null);
+        editor.Tab.Cards[1].Title = "Second card";
+        editor.Tab.Cards[1].Description = "Added in Studio.";
+        editor.SaveCommand.Execute(null);
         Assert.NotNull(edited);
+
+        CatalogTabDefinition? added = null;
+        var adder = new EditCustomTabDialogViewModel(null, [edited], tab => added = tab);
+        adder.Tab.Header = "Install guide";
+        adder.Tab.Intro = "Read this first.";
+        adder.Tab.Body = "## Steps\n\n1. Install the base game.";
+        Assert.Equal("## Steps\n\n1. Install the base game.", adder.Tab.Preview!.Body);
+        adder.SaveCommand.Execute(null);
+        Assert.NotNull(added);
+
+        var item = CreateItem();
+        item.CustomTabs = [edited, added];
         var service = new PublisherStudioService(NullLogger<PublisherStudioService>.Instance, CreateParser());
         var project = new PublisherStudioProject
         {
@@ -85,7 +82,7 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             {
                 SchemaVersion = 1,
                 Publisher = new PublisherProfile { Id = "tabs-pub", Name = "Tabs Publisher" },
-                Content = [edited],
+                Content = [item],
             },
         };
 
@@ -99,39 +96,107 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         Assert.True(parsed.Success, string.Join("; ", parsed.Errors));
         var tabs = Assert.Single(parsed.Data!.Content).CustomTabs;
         Assert.Equal(["gallery", "install-guide"], tabs.Select(t => t.TabId));
-        var gallery = tabs[0];
-        Assert.Equal("Screenshots", gallery.Header);
-        Assert.Equal("Hand-written card", Assert.Single(gallery.Cards).Title);
-        var guide = tabs[1];
-        Assert.Equal(5, guide.Order);
-        Assert.Equal("Read this first.", guide.Intro);
-        Assert.Equal("## Steps\n\n1. Install the base game.", guide.Body);
+        Assert.Equal("Screenshots", tabs[0].Header);
+        Assert.Equal(["First card", "Second card"], tabs[0].Cards.Select(c => c.Title));
+        Assert.Equal(30, tabs[1].Order);
+        Assert.Equal("Read this first.", tabs[1].Intro);
+        Assert.Equal("## Steps\n\n1. Install the base game.", tabs[1].Body);
     }
 
     /// <summary>
-    /// The content dialog rejects tabs with duplicate IDs or a missing header and keeps the dialog open.
+    /// The tab editor rejects a duplicate ID, a missing header, or a tab with neither, and keeps the editor open.
     /// </summary>
-    /// <param name="secondTabId">The ID of the second tab.</param>
-    /// <param name="secondHeader">The header of the second tab.</param>
+    /// <param name="tabId">The ID typed into the editor.</param>
+    /// <param name="header">The header typed into the editor.</param>
     [Theory]
     [InlineData("NOTES", "More notes")]
     [InlineData("faq", " ")]
     [InlineData(" ", " ")]
-    public void EditContentDialog_InvalidTab_ShowsErrorAndDoesNotSave(string secondTabId, string secondHeader)
+    public void EditCustomTabDialog_InvalidTab_ShowsErrorAndDoesNotSave(string tabId, string header)
     {
-        var existing = CreateItem();
-        existing.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
         var saved = false;
-        using var dialog = new AddContentDialogViewModel(existing, _ => saved = true);
-        dialog.AddCustomTabCommand.Execute(null);
-        dialog.CustomTabs[1].TabId = secondTabId;
-        dialog.CustomTabs[1].Header = secondHeader;
+        var editor = new EditCustomTabDialogViewModel(null, [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }], _ => saved = true);
+        editor.Tab.TabId = tabId;
+        editor.Tab.Header = header;
 
-        dialog.CreateContentCommand.Execute(null);
+        editor.SaveCommand.Execute(null);
 
         Assert.False(saved);
-        Assert.False(dialog.IsValid);
-        Assert.False(string.IsNullOrWhiteSpace(dialog.ValidationError));
+        Assert.False(string.IsNullOrWhiteSpace(editor.ValidationError));
+    }
+
+    /// <summary>
+    /// Card problems in the tab editor are reported with the card number, so the author can fix them in place.
+    /// </summary>
+    [Fact]
+    public void EditCustomTabDialog_InvalidCard_ShowsCardErrorAndDoesNotSave()
+    {
+        var saved = false;
+        var editor = new EditCustomTabDialogViewModel(
+            new CatalogTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = "http://example.com/card.png" }],
+            },
+            [],
+            _ => saved = true);
+
+        editor.SaveCommand.Execute(null);
+
+        Assert.False(saved);
+        Assert.Equal("Card 1 on custom tab 'gallery' needs an image link that starts with https://.", editor.ValidationError);
+
+        editor.Tab.Cards[0].ImageUrl = "https://example.com/card.png";
+        editor.SaveCommand.Execute(null);
+        Assert.True(saved);
+    }
+
+    /// <summary>
+    /// Null card entries kept from a hand-written catalog are dropped like the parser does, and removed cards are not saved.
+    /// </summary>
+    [Fact]
+    public void EditCustomTabDialog_NullAndRemovedCards_AreNotSaved()
+    {
+        CatalogTabDefinition? saved = null;
+        var editor = new EditCustomTabDialogViewModel(
+            new CatalogTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CatalogTabCardDefinition { Title = "Keep" }, null!, new CatalogTabCardDefinition { Title = "Remove" }],
+            },
+            [],
+            tab => saved = tab);
+
+        editor.RemoveCardCommand.Execute(editor.Tab.Cards[1]);
+        editor.SaveCommand.Execute(null);
+
+        Assert.NotNull(saved);
+        Assert.Equal("Keep", Assert.Single(saved.Cards).Title);
+    }
+
+    /// <summary>
+    /// A tab without a typed ID shows an ID generated from its header as the placeholder and saves with it,
+    /// unique among the item's other tabs. A typed ID wins.
+    /// </summary>
+    [Fact]
+    public void EditCustomTabDialog_EmptyTabId_UsesIdGeneratedFromHeader()
+    {
+        CatalogTabDefinition? saved = null;
+        var editor = new EditCustomTabDialogViewModel(null, [new CatalogTabDefinition { TabId = "how-to-play", Header = "Rules" }], tab => saved = tab);
+        Assert.Null(editor.Tab.SuggestedTabId);
+
+        editor.Tab.Header = "How to Play";
+        Assert.Equal("how-to-play-2", editor.Tab.SuggestedTabId);
+        editor.SaveCommand.Execute(null);
+        Assert.Equal("how-to-play-2", saved!.TabId);
+
+        var typed = new EditCustomTabDialogViewModel(null, [], tab => saved = tab);
+        typed.Tab.Header = "Credits";
+        typed.Tab.TabId = "thanks";
+        typed.SaveCommand.Execute(null);
+        Assert.Equal("thanks", saved.TabId);
     }
 
     /// <summary>
@@ -185,162 +250,90 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
-    /// The content dialog applies the shared catalog tab rules, including card rules for cards kept from the catalog file.
+    /// The content library adds a tab through the tab editor, shows it after the built-in tabs, selects it and saves the project.
+    /// Editing passes the other tabs as siblings and replaces the tab in place.
     /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public void EditContentDialog_InvalidKeptCard_ShowsCardErrorAndDoesNotSave()
+    public async Task ContentLibrary_AddAndEditCustomTab_StoresTabsOnItemAsync()
     {
-        var existing = CreateItem();
-        existing.CustomTabs =
-        [
-            new CatalogTabDefinition
-            {
-                TabId = "gallery",
-                Header = "Gallery",
-                Cards = [new CatalogTabCardDefinition { Title = "Card", ImageUrl = "http://example.com/card.png" }],
-            },
-        ];
-        var saved = false;
-        using var dialog = new AddContentDialogViewModel(existing, _ => saved = true);
+        var target = CreateItem();
+        target.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 }];
+        var (library, dialogService, studioService) = CreateLibrary(target);
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(null, It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "guide", Header = "Guide", Order = 20 });
+        IReadOnlyList<CatalogTabDefinition>? editSiblings = null;
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => t != null && t.TabId == "notes"), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .Callback<CatalogTabDefinition?, IReadOnlyList<CatalogTabDefinition>>((_, siblings) => editSiblings = siblings)
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "notes", Header = "Patch notes", Order = 10 });
 
-        dialog.CreateContentCommand.Execute(null);
+        Assert.Equal(["notes"], library.SelectedContentCustomTabs.Select(t => t.TabId));
+        await library.AddCustomTabCommand.ExecuteAsync(null);
 
-        Assert.False(saved);
-        Assert.Equal("Custom tab 'gallery' has cards that break the catalog rules. Fix them in the catalog file.", dialog.ValidationError);
+        Assert.Equal(["notes", "guide"], target.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(["notes", "guide"], library.SelectedContentCustomTabs.Select(t => t.TabId));
+        Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, library.SelectedDetailTabIndex);
+
+        await library.EditCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+
+        Assert.Equal(["guide"], editSiblings!.Select(t => t.TabId));
+        Assert.Equal(["Patch notes", "Guide"], target.CustomTabs.Select(t => t.Header));
+        Assert.Equal("Patch notes", library.SelectedContentCustomTabs[0].Header);
+        studioService.Verify(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     /// <summary>
-    /// Null card entries kept from a hand-written catalog are dropped like the parser does, instead of blocking the save.
-    /// </summary>
-    [Fact]
-    public void EditContentDialog_NullKeptCard_IsDroppedAndSaves()
-    {
-        var existing = CreateItem();
-        existing.CustomTabs =
-        [
-            new CatalogTabDefinition
-            {
-                TabId = "gallery",
-                Header = "Gallery",
-                Cards = [new CatalogTabCardDefinition { Title = "Card" }, null!],
-            },
-        ];
-        CatalogContentItem? edited = null;
-        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
-
-        dialog.CreateContentCommand.Execute(null);
-
-        Assert.NotNull(edited);
-        Assert.Equal("Card", Assert.Single(Assert.Single(edited.CustomTabs).Cards).Title);
-    }
-
-    /// <summary>
-    /// Removing a tab asks for confirmation. A confirmed removal drops the tab from the saved item, and a
-    /// cancelled one keeps it.
+    /// Deleting a tab in the content library asks for confirmation. A confirmed delete removes the tab, and a cancel keeps it.
     /// </summary>
     /// <param name="confirm">The author's answer to the confirmation prompt.</param>
     /// <returns>A task representing the asynchronous test.</returns>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task EditContentDialog_RemoveTab_AsksForConfirmationAsync(bool confirm)
+    public async Task ContentLibrary_DeleteCustomTab_AsksForConfirmationAsync(bool confirm)
     {
-        var existing = CreateItem();
-        existing.CustomTabs =
+        var target = CreateItem();
+        target.CustomTabs =
         [
             new CatalogTabDefinition { TabId = "notes", Header = "Notes" },
             new CatalogTabDefinition { TabId = "faq", Header = "FAQ" },
         ];
-        var dialogService = new Mock<IPublisherStudioDialogService>();
+        var (library, dialogService, _) = CreateLibrary(target);
         dialogService
             .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.Is<string>(m => m.Contains("Notes")), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(confirm);
-        CatalogContentItem? edited = null;
-        using var dialog = new AddContentDialogViewModel(existing, item => edited = item, dialogService.Object);
 
-        await dialog.RemoveCustomTabCommand.ExecuteAsync(dialog.CustomTabs[0]);
-        dialog.CreateContentCommand.Execute(null);
+        await library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
 
-        Assert.NotNull(edited);
-        Assert.Equal(confirm ? ["faq"] : ["notes", "faq"], edited.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(confirm ? ["faq"] : ["notes", "faq"], target.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(confirm ? ["faq"] : ["notes", "faq"], library.SelectedContentCustomTabs.Select(t => t.TabId));
         dialogService.Verify(
             d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()),
             Times.Once);
     }
 
     /// <summary>
-    /// A tab without a typed ID shows an ID generated from its header as the placeholder and saves with it.
-    /// A typed ID wins, and generated IDs stay unique within the item.
-    /// </summary>
-    [Fact]
-    public void EditContentDialog_EmptyTabId_UsesIdGeneratedFromHeader()
-    {
-        var existing = CreateItem();
-        existing.CustomTabs = [new CatalogTabDefinition { TabId = "how-to-play", Header = "Rules" }];
-        CatalogContentItem? edited = null;
-        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
-
-        dialog.AddCustomTabCommand.Execute(null);
-        var added = dialog.CustomTabs[1];
-        Assert.Null(added.SuggestedTabId);
-        added.Header = "How to Play";
-        Assert.Equal("how-to-play-2", added.SuggestedTabId);
-        Assert.Null(dialog.CustomTabs[0].SuggestedTabId);
-
-        dialog.AddCustomTabCommand.Execute(null);
-        dialog.CustomTabs[2].Header = "Credits";
-        dialog.CustomTabs[2].TabId = "thanks";
-
-        dialog.CreateContentCommand.Execute(null);
-
-        Assert.NotNull(edited);
-        Assert.Equal(["how-to-play", "how-to-play-2", "thanks"], edited.CustomTabs.Select(t => t.TabId));
-    }
-
-    /// <summary>
-    /// Editing an item in the content library stores the edited tabs on the catalog item.
+    /// Editing an item's other fields in the content dialog keeps its custom tabs.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ContentLibrary_EditContent_StoresEditedTabsOnItemAsync()
+    public async Task ContentLibrary_EditContent_KeepsCustomTabsAsync()
     {
         var target = CreateItem();
         target.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
-        var project = new PublisherStudioProject();
-        project.Catalogs.Add(new NamedCatalog
-        {
-            Id = "default",
-            Name = "Content",
-            FileName = "catalog.json",
-            Catalog = new PublisherCatalog { Content = [target] },
-        });
-
+        var (library, dialogService, _) = CreateLibrary(target);
         var edited = CreateItem();
-        edited.CustomTabs = [new CatalogTabDefinition { TabId = "guide", Header = "Guide", Body = "Body" }];
-        var dialogService = new Mock<IPublisherStudioDialogService>();
+        edited.Name = "Renamed";
         dialogService
             .Setup(d => d.ShowEditContentDialogAsync(target, It.IsAny<PublisherCatalog?>(), It.IsAny<Func<CatalogContentItem, Task>?>()))
             .ReturnsAsync(edited);
-        var studioService = new Mock<IPublisherStudioService>();
-        studioService
-            .Setup(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-        var parent = new PublisherStudioViewModel(
-            new Mock<ILogger<PublisherStudioViewModel>>().Object,
-            studioService.Object,
-            dialogService.Object);
-        var library = new ContentLibraryViewModel(
-            project,
-            project.Catalogs[0],
-            parent,
-            new Mock<ILogger<ContentLibraryViewModel>>().Object,
-            dialogService.Object);
 
         await library.EditContentCommand.ExecuteAsync(target);
 
-        var tab = Assert.Single(target.CustomTabs);
-        Assert.Equal("guide", tab.TabId);
-        Assert.Equal("Body", tab.Body);
+        Assert.Equal("Renamed", target.Name);
+        Assert.Equal("notes", Assert.Single(target.CustomTabs).TabId);
     }
 
     /// <summary>
@@ -372,6 +365,36 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Contains(result.Errors, e => e.Contains("'mod-a'") && e.Contains("'gallery'") && e.Contains("invalid image URL"));
+    }
+
+    private static (ContentLibraryViewModel Library, Mock<IPublisherStudioDialogService> DialogService, Mock<IPublisherStudioService> StudioService) CreateLibrary(CatalogContentItem target)
+    {
+        var project = new PublisherStudioProject();
+        project.Catalogs.Add(new NamedCatalog
+        {
+            Id = "default",
+            Name = "Content",
+            FileName = "catalog.json",
+            Catalog = new PublisherCatalog { Content = [target] },
+        });
+        var dialogService = new Mock<IPublisherStudioDialogService>();
+        var studioService = new Mock<IPublisherStudioService>();
+        studioService
+            .Setup(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var parent = new PublisherStudioViewModel(
+            new Mock<ILogger<PublisherStudioViewModel>>().Object,
+            studioService.Object,
+            dialogService.Object);
+        parent.CurrentProject = project;
+        var library = new ContentLibraryViewModel(
+            project,
+            project.Catalogs[0],
+            parent,
+            new Mock<ILogger<ContentLibraryViewModel>>().Object,
+            dialogService.Object);
+        library.SelectedContent = target;
+        return (library, dialogService, studioService);
     }
 
     private static JsonPublisherCatalogParser CreateParser() => new(NullLogger<JsonPublisherCatalogParser>.Instance);
