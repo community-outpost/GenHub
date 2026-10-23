@@ -220,6 +220,7 @@ This automatically:
 | `lastUpdated` | DateTime | Yes | Catalog last modified date |
 | `signature` | string | No | SHA256 signature (future) |
 | `referrals` | PublisherReferral[] | No | Links to other publishers |
+| `customTabs` | CatalogTabDefinition[] | No | Catalog-level detail tabs. Each applies only to the IDs in its `appliesTo` |
 
 Multi-catalog publishers declare a `PublisherDefinition` whose `catalogs` array points at one catalog file per entry; each catalog file keeps the single-catalog shape above.
 
@@ -246,6 +247,29 @@ Multi-catalog publishers declare a `PublisherDefinition` whose `catalogs` array 
 | `releases` | ContentRelease[] | Yes | Version releases |
 | `metadata` | ContentRichMetadata | No | Banners, screenshots, videos |
 | `tags` | string[] | No | Search tags |
+| `customTabs` | CatalogTabDefinition[] | No | Detail tabs shown only for this item |
+
+### CatalogTabDefinition
+
+Publisher tabs appear on the item's detail page after the built-in tabs. Declare them on the item in `customTabs`.
+A catalog-level tab in the root `customTabs` applies only to the content IDs in its `appliesTo` list. An empty list applies to no item.
+When an item tab and a catalog-level tab share a `tabId`, the item tab is shown.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tabId` | string | No | Tab ID, unique within its scope (case-insensitive, up to 64 characters). When omitted, GenHub generates one from the header, such as `how-to-play` for "How to Play", adding `-2`, `-3` and so on to keep it unique. A header with no Latin letters or digits gets a stable `tab-` ID. |
+| `header` | string | Yes | Tab header text (up to 40 characters) |
+| `order` | int | No | Sort order among publisher tabs (default `100`) |
+| `intro` | string | No | Plain-text intro (up to 2000 characters) |
+| `body` | string | No | Markdown documentation (up to 50000 characters) |
+| `cards` | CatalogTabCardDefinition[] | No | Card grid (up to 24 cards). Each card needs a `title`. `imageUrl` must use `https` or `avares`. A Google Drive share link (`drive.google.com/file/d/ID/view`) is rewritten to Drive's direct image link. Discord attachment links expire after about a day, so host card images somewhere permanent. When an image cannot load, the card shows its link instead. |
+| `isVisible` | bool | No | Set to `false` to hide the tab (default `true`) |
+| `appliesTo` | string[] | No | Content IDs for a catalog-level tab. Ignored on item tabs |
+| `contentType` | string | No | Rendering hint. Unsupported values render as `custom` |
+
+An item or the catalog root can declare up to 10 tabs. More than 10 tabs in one scope, or two tabs with the same `tabId` in one scope, fails catalog validation with an error that names the content ID and tab ID.
+Other tab problems do not fail the catalog. GenHub drops the offending card or tab and logs a warning: a tab without a header, or with an over-long ID, header, intro or body, is dropped (a tab without an ID gets one generated from its header); a card without a title, with over-long text, or with a disallowed image URL is dropped; cards past the 24-card limit are cut. In Publisher Studio, the tab editor will not save a tab with any of these problems, and Publish validation reports them and blocks uploading the catalog. Saving the project and exporting the JSON locally are not blocked.
+Tab content renders as plain text, safe Markdown, and images only. Markdown links open only for HTTP and HTTPS URLs, and Markdown images load only from safe remote HTTP and HTTPS URLs.
 
 ### ContentRelease
 

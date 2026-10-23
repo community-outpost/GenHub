@@ -4846,6 +4846,12 @@ Would you like to update and replace it in the profile as part of this bundle in
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>Publisher</value>
   </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>Image could not be loaded. Open the link:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>Open the image link in your browser</value>
+  </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Content provided by third-party publishers. GenHub does not guarantee compatibility.</value>
   </data>
@@ -13659,6 +13665,123 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>Paste an image URL or pick a local file. Local files are uploaded to your hosting provider when you publish the catalog.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>Tab ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>Generated from the header</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>Custom Tabs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>Added the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>Saved the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>Removed the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>Header</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>Release notes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>Remove Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>Remove the custom tab '{0}'? Its intro, body and cards are removed from this item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>Intro</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>Body (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>Links open only for HTTP and HTTPS URLs. Images load only from remote HTTP and HTTPS URLs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>Visible</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>A content item can have at most {0} custom tabs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>Each custom tab needs an ID of 1 to {0} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>Custom tab ID '{0}' is used more than once.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>Custom tab '{0}' has a card that breaks the catalog rules.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>Discord attachment links expire after about a day and then stop loading. Host the image somewhere permanent.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>Edit Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>Add Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>Cards</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>Card title</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>Image URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>Add card</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>Remove card</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>Edit tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>Delete tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>Add custom tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>Custom tab '{0}' can have at most {1} cards.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' needs a title.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' has a title or label longer than {2} characters or a description longer than {3} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' needs an image link that starts with https:// or avares://.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>Icon</value>

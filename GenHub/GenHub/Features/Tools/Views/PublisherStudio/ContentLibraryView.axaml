@@ -11,6 +11,7 @@
              mc:Ignorable="d"
              d:DesignWidth="800" d:DesignHeight="500"
              x:Class="GenHub.Features.Tools.Views.PublisherStudio.ContentLibraryView"
+             xmlns:downloadViews="using:GenHub.Features.Downloads.Views"
              x:DataType="vm:ContentLibraryViewModel"
              DragDrop.AllowDrop="True"
              x:Name="RootView">
@@ -489,7 +490,25 @@
 
                             <Rectangle Height="1" Fill="{DynamicResource GlassFillBrush}"/>
 
-                            <TabControl SelectedIndex="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedDetailTabIndex, Mode=TwoWay}">
+                            <!-- Publisher-defined tabs render after the built-in tabs with the same view players see. -->
+                            <Button HorizontalAlignment="Right"
+                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddCustomTabCommand}"
+                                    Background="{DynamicResource GlassStrongBrush}"
+                                    Padding="12,6"
+                                    CornerRadius="6"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.AddTab}" FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+
+                            <TabControl x:Name="DetailTabs"
+                                        SelectedIndex="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedDetailTabIndex, Mode=TwoWay}"
+                                        downloadViews:CustomTabHost.BuiltInCount="{x:Static vm:ContentLibraryViewModel.BuiltInDetailTabCount}"
+                                        downloadViews:CustomTabHost.EditCommand="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditCustomTabCommand}"
+                                        downloadViews:CustomTabHost.DeleteCommand="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).DeleteCustomTabCommand}"
+                                        downloadViews:CustomTabHost.Tabs="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedContentCustomTabs}">
                                 <TabControl.Styles>
                                 <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
                                     <Setter Property="IsVisible" Value="True"/>

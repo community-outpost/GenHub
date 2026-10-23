@@ -4846,6 +4846,12 @@
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>الناشر</value>
   </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>تعذّر تحميل الصورة. افتح الرابط:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>افتح رابط الصورة في المتصفح</value>
+  </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>المحتوى مقدم من ناشرين خارجيين. GenHub لا يضمن التوافق.</value>
   </data>
@@ -13598,6 +13604,123 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   </data>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>الصق رابط صورة أو اختر ملفًا محليًا. تُرفع الملفات المحلية إلى مزود الاستضافة عند نشر الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>معرّف علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>يُنشأ من العنوان</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>علامات التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>تمت إضافة علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>تم حفظ علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>تمت إزالة علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>العنوان</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>ملاحظات الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>الترتيب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>إزالة علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>هل تريد إزالة علامة التبويب المخصصة '{0}'؟ تُزال مقدمتها ومحتواها وبطاقاتها من هذا العنصر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>المقدمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>المحتوى (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>تُفتح الروابط فقط لعناوين HTTP و HTTPS. تُحمَّل الصور فقط من عناوين HTTP و HTTPS البعيدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>مرئي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>معاينة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>يمكن أن يحتوي عنصر المحتوى على {0} علامات تبويب مخصصة كحد أقصى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>تحتاج كل علامة تبويب مخصصة إلى معرّف من 1 إلى {0} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>معرّف علامة التبويب المخصصة '{0}' مستخدم أكثر من مرة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقة تخالف قواعد الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>تنتهي صلاحية روابط مرفقات Discord بعد يوم تقريبًا ثم تتوقف عن التحميل. استضف الصورة في مكان دائم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>تعديل علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>البطاقات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>عنوان البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>الوسم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>رابط الصورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>إضافة بطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>إزالة البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>تعديل علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>حذف علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>يمكن أن تحتوي علامة التبويب المخصصة '{0}' على {1} بطاقة كحد أقصى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى عنوان.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>البطاقة {0} في علامة التبويب المخصصة '{1}' تحتوي على عنوان أو وسم أطول من {2} حرفًا أو وصف أطول من {3} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى رابط صورة يبدأ بـ https:// أو avares://.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>علامة التبويب المخصصة '{0}' تحتوي على مقدمة أطول من {1} حرفًا أو محتوى أطول من {2} حرفًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>أيقونة</value>

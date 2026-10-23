@@ -5,6 +5,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -250,6 +251,18 @@ public class PublisherStudioService(
             if (!contentResult.Success)
             {
                 return contentResult;
+            }
+
+            var tabErrors = new List<string>();
+            CatalogTabValidator.Validate("Catalog", catalog.CustomTabs, tabErrors);
+            foreach (var item in catalog.Content?.Where(item => item != null) ?? [])
+            {
+                CatalogTabValidator.Validate($"Content item '{item.Id}'", item.CustomTabs, tabErrors);
+            }
+
+            if (tabErrors.Count > 0)
+            {
+                return OperationResult<bool>.CreateFailure(tabErrors);
             }
 
             // Validate content references (ExtendsContentId)

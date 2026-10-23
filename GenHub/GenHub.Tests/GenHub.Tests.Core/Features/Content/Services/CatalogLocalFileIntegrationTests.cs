@@ -172,6 +172,7 @@ public sealed class CatalogLocalFileIntegrationTests
                 {
                     TabId = "release-briefing",
                     Header = "Release briefing",
+                    AppliesTo = ["1.0.local-publisher.addon.test"],
                     Cards =
                     [
                         new CatalogTabCardDefinition
