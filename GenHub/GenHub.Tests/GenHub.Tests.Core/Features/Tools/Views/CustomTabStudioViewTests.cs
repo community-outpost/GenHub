@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
+using Avalonia.Media.Imaging;
 using Avalonia.VisualTree;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
@@ -14,9 +15,11 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Features.Tools.Views.Dialogs;
 using GenHub.Features.Tools.Views.PublisherStudio;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
@@ -189,6 +192,10 @@ public class CustomTabStudioViewTests
             _ => { });
         var view = new EditCustomTabDialogView { DataContext = viewModel };
         var window = new Window { Content = view, Width = 2000, Height = 900 };
+        var previousCache = ImageCacheService.Instance;
+        var cache = new Mock<IImageCacheService>();
+        cache.Setup(c => c.GetBitmapAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync((Bitmap?)null);
+        ImageCacheService.Instance = cache.Object;
         window.Show();
         try
         {
@@ -202,10 +209,12 @@ public class CustomTabStudioViewTests
 
             Assert.Equal(before, view.DesiredSize.Width);
             Assert.True(before <= 800, $"Editor width {before} should stay bounded");
+            cache.Verify(c => c.GetBitmapAsync(viewModel.Tab.Cards[0].ImageUrl, It.IsAny<CancellationToken>()), Times.AtLeastOnce());
         }
         finally
         {
             window.Close();
+            ImageCacheService.Instance = previousCache;
         }
     }
 
@@ -272,6 +281,7 @@ public class CustomTabStudioViewTests
                 await Task.Delay(10);
             }
 
+            Assert.True(GenHub.Infrastructure.Controls.ImageLoader.GetLoadFailed(image), "The card image load did not fail within the wait.");
             window.UpdateLayout();
             var link = view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardImageLink");
             var pencil = view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardEditButton");

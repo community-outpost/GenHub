@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
+using System.Collections.Generic;
 using System.Linq;
 using MarkdownScrollViewer = global::Markdown.Avalonia.MarkdownScrollViewer;
 
@@ -23,6 +24,9 @@ public static class MarkdownWheelPassthrough
     public static readonly AttachedProperty<bool> IsEnabledProperty =
         AvaloniaProperty.RegisterAttached<MarkdownScrollViewer, bool>("IsEnabled", typeof(MarkdownWheelPassthrough));
 
+    private static readonly AttachedProperty<ScrollBarVisibility?> OriginalVisibilityProperty =
+        AvaloniaProperty.RegisterAttached<ScrollViewer, ScrollBarVisibility?>("OriginalVerticalScrollBarVisibility", typeof(MarkdownWheelPassthrough));
+
     static MarkdownWheelPassthrough()
     {
         IsEnabledProperty.Changed.AddClassHandler<MarkdownScrollViewer>((viewer, args) =>
@@ -32,6 +36,10 @@ public static class MarkdownWheelPassthrough
             {
                 viewer.AttachedToVisualTree += OnAttachedToVisualTree;
                 DisableInnerScrolling(viewer);
+            }
+            else
+            {
+                RestoreInnerScrolling(viewer);
             }
         });
     }
@@ -56,9 +64,29 @@ public static class MarkdownWheelPassthrough
 
     private static void DisableInnerScrolling(MarkdownScrollViewer viewer)
     {
-        foreach (var inner in viewer.GetVisualDescendants().OfType<ScrollViewer>().Where(s => s.FindAncestorOfType<MarkdownScrollViewer>() == viewer))
+        foreach (var inner in InnerScrollViewers(viewer))
         {
+            if (inner.GetValue(OriginalVisibilityProperty) is null)
+            {
+                inner.SetValue(OriginalVisibilityProperty, inner.VerticalScrollBarVisibility);
+            }
+
             inner.VerticalScrollBarVisibility = ScrollBarVisibility.Disabled;
         }
     }
+
+    private static void RestoreInnerScrolling(MarkdownScrollViewer viewer)
+    {
+        foreach (var inner in InnerScrollViewers(viewer))
+        {
+            if (inner.GetValue(OriginalVisibilityProperty) is { } original)
+            {
+                inner.VerticalScrollBarVisibility = original;
+                inner.ClearValue(OriginalVisibilityProperty);
+            }
+        }
+    }
+
+    private static IEnumerable<ScrollViewer> InnerScrollViewers(MarkdownScrollViewer viewer) =>
+        viewer.GetVisualDescendants().OfType<ScrollViewer>().Where(s => s.FindAncestorOfType<MarkdownScrollViewer>() == viewer);
 }
