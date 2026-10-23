@@ -13654,7 +13654,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>У карточки {0} на пользовательской вкладке '{1}' заголовок или метка длиннее {2} символов или описание длиннее {3} символов.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
-    <value>Карточке {0} на пользовательской вкладке '{1}' нужна ссылка на изображение, начинающаяся с https://.</value>
+    <value>Карточке {0} на пользовательской вкладке '{1}' нужна ссылка на изображение, начинающаяся с https:// или avares://.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Пользовательской вкладке '{0}' нужен заголовок длиной от 1 до {1} символов.</value>

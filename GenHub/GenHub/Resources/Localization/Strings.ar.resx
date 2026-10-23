@@ -13654,7 +13654,7 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>البطاقة {0} في علامة التبويب المخصصة '{1}' تحتوي على عنوان أو وسم أطول من {2} حرفًا أو وصف أطول من {3} حرفًا.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
-    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى رابط صورة يبدأ بـ https://.</value>
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى رابط صورة يبدأ بـ https:// أو avares://.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>

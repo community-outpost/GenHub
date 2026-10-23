@@ -13715,7 +13715,7 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
     <value>Card {0} on custom tab '{1}' has a title or label longer than {2} characters or a description longer than {3} characters.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
-    <value>Card {0} on custom tab '{1}' needs an image link that starts with https://.</value>
+    <value>Card {0} on custom tab '{1}' needs an image link that starts with https:// or avares://.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>

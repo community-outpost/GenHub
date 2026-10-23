@@ -129,4 +129,42 @@ public class NumericScrubberTooltipTests
             }
         }
     }
+
+    /// <summary>
+    /// Disabling the scrubber after it was enabled removes the scrubber tooltip.
+    /// </summary>
+    [AvaloniaFact]
+    public void NumericUpDown_ScrubberDisabledAfterAttach_RemovesTooltip()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLocalizationServices();
+        var localization = services.BuildServiceProvider().GetRequiredService<ILocalizationService>();
+        var resources = Avalonia.Application.Current!.Resources;
+        var hadPrevious = resources.TryGetValue(LocalizationConstants.ResourceServiceKey, out var previous);
+        resources[LocalizationConstants.ResourceServiceKey] = localization;
+        var control = new NumericUpDown();
+        var window = new Window { Content = control };
+        window.Show();
+        try
+        {
+            Assert.NotNull(ToolTip.GetTip(control));
+
+            NumericScrubber.SetEnableScrubber(control, false);
+
+            Assert.Null(ToolTip.GetTip(control));
+        }
+        finally
+        {
+            window.Close();
+            if (hadPrevious)
+            {
+                resources[LocalizationConstants.ResourceServiceKey] = previous;
+            }
+            else
+            {
+                resources.Remove(LocalizationConstants.ResourceServiceKey);
+            }
+        }
+    }
 }

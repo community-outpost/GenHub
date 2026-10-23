@@ -30,6 +30,12 @@ public static class NumericScrubber
     private const double DragThresholdPixels = 4.0;
     private const double PixelsPerStep = 6.0;
 
+    private static readonly AttachedProperty<IDisposable?> TipBindingProperty =
+        AvaloniaProperty.RegisterAttached<NumericUpDown, IDisposable?>(
+            "TipBinding",
+            typeof(NumericScrubber),
+            defaultValue: null);
+
     private static readonly AttachedProperty<ScrubberState?> StateProperty =
         AvaloniaProperty.RegisterAttached<NumericUpDown, ScrubberState?>(
             "State",
@@ -111,7 +117,7 @@ public static class NumericScrubber
 
         var binding = new LocalizeExtension(ScrubberTipKey).CreateBinding(localizationService);
         binding.Priority = BindingPriority.Style;
-        control.Bind(ToolTip.TipProperty, binding);
+        control.SetValue(TipBindingProperty, control.Bind(ToolTip.TipProperty, binding));
     }
 
     private static void OnAttachedRetryTip(object? sender, VisualTreeAttachmentEventArgs e)
@@ -129,6 +135,8 @@ public static class NumericScrubber
     private static void Detach(NumericUpDown control)
     {
         control.AttachedToVisualTree -= OnAttachedRetryTip;
+        control.GetValue(TipBindingProperty)?.Dispose();
+        control.ClearValue(TipBindingProperty);
         var state = control.GetValue(StateProperty);
         if (state != null)
         {

@@ -842,6 +842,8 @@ public partial class ContentLibraryViewModel(
         return shown < 0 || SelectedContent == null ? -1 : SelectedContent.CustomTabs.IndexOf(_selectedContentTabSources[shown]);
     }
 
+    private bool IsInActiveCatalog(CatalogContentItem item) => activeCatalog.Catalog.Content.Contains(item);
+
     private CatalogTabDefinition? GetSelectedCustomTabSource()
     {
         var shown = SelectedDetailTabIndex - BuiltInDetailTabCount;
@@ -883,20 +885,21 @@ public partial class ContentLibraryViewModel(
     [RelayCommand]
     private async Task AddCustomTabAsync()
     {
-        if (SelectedContent == null)
+        var item = SelectedContent;
+        if (item == null)
         {
             return;
         }
 
-        var added = await dialogService.ShowEditCustomTabDialogAsync(null, [.. SelectedContent.CustomTabs.Where(tab => tab != null)]);
-        if (added == null)
+        var added = await dialogService.ShowEditCustomTabDialogAsync(null, [.. item.CustomTabs.Where(tab => tab != null)]);
+        if (added == null || !IsInActiveCatalog(item))
         {
             return;
         }
 
-        SelectedContent.CustomTabs.Add(added);
+        item.CustomTabs.Add(added);
         await SaveCustomTabChangeAsync(added, "Tools.PublisherStudio.Content.CustomTabs.AddedFormat", "Added the custom tab '{0}'.", added.Header);
-        logger.LogInformation("Added custom tab {TabId} to content item {ContentId}", added.TabId, SelectedContent.Id);
+        logger.LogInformation("Added custom tab {TabId} to content item {ContentId}", added.TabId, item.Id);
     }
 
     /// <summary>
@@ -913,17 +916,19 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        var tabs = SelectedContent!.CustomTabs;
-        var siblings = tabs.Where((candidate, i) => i != index && candidate != null).ToList();
-        var edited = await dialogService.ShowEditCustomTabDialogAsync(tabs[index], siblings);
-        if (edited == null)
+        var item = SelectedContent!;
+        var source = item.CustomTabs[index];
+        var siblings = item.CustomTabs.Where((candidate, i) => i != index && candidate != null).ToList();
+        var edited = await dialogService.ShowEditCustomTabDialogAsync(source, siblings);
+        var current = item.CustomTabs.IndexOf(source);
+        if (edited == null || current < 0 || !IsInActiveCatalog(item))
         {
             return;
         }
 
-        tabs[index] = edited;
+        item.CustomTabs[current] = edited;
         await SaveCustomTabChangeAsync(edited, "Tools.PublisherStudio.Content.CustomTabs.SavedFormat", "Saved the custom tab '{0}'.", edited.Header);
-        logger.LogInformation("Updated custom tab {TabId} on content item {ContentId}", edited.TabId, SelectedContent.Id);
+        logger.LogInformation("Updated custom tab {TabId} on content item {ContentId}", edited.TabId, item.Id);
     }
 
     /// <summary>
@@ -940,6 +945,9 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        var item = SelectedContent!;
+        var removed = item.CustomTabs[index];
+        var selected = GetSelectedCustomTabSource();
         var confirmed = await dialogService.ShowConfirmationAsync(
             GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.RemoveTitle", "Remove Custom Tab"),
             string.Format(
@@ -947,20 +955,17 @@ public partial class ContentLibraryViewModel(
                     "Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat",
                     "Remove the custom tab '{0}'? Its intro, body and cards are removed from this item."),
                 tab!.Header));
-        if (!confirmed)
+        if (!confirmed || !IsInActiveCatalog(item) || !item.CustomTabs.Remove(removed))
         {
             return;
         }
 
-        var selected = GetSelectedCustomTabSource();
-        var removed = SelectedContent!.CustomTabs[index];
-        SelectedContent.CustomTabs.RemoveAt(index);
         await SaveCustomTabChangeAsync(
             ReferenceEquals(selected, removed) ? null : selected,
             "Tools.PublisherStudio.Content.CustomTabs.RemovedFormat",
             "Removed the custom tab '{0}'.",
             tab.Header);
-        logger.LogInformation("Deleted custom tab {TabId} from content item {ContentId}", tab.TabId, SelectedContent.Id);
+        logger.LogInformation("Deleted custom tab {TabId} from content item {ContentId}", tab.TabId, item.Id);
     }
 
     private void MarkProjectAndCatalogDirty()
