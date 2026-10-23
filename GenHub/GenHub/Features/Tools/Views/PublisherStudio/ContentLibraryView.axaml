@@ -492,7 +492,6 @@
 
                             <!-- Publisher-defined tabs render after the built-in tabs with the same view players see. -->
                             <Button HorizontalAlignment="Right"
-                                    Margin="0,0,0,-12"
                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddCustomTabCommand}"
                                     Background="{DynamicResource GlassStrongBrush}"
                                     Padding="12,6"

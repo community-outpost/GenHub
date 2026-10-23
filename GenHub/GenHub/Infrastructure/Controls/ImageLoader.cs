@@ -210,9 +210,16 @@ public static class ImageLoader
             System.Diagnostics.Debug.WriteLine($"[ImageLoader] Failed to load image from {url}: {ex}");
             Dispatcher.UIThread.Post(() =>
             {
-                if (!cancellationToken.IsCancellationRequested && GetSource(image) == url)
+                if (cancellationToken.IsCancellationRequested || GetSource(image) != url)
                 {
-                    image.SetValue(LoadFailedProperty, true);
+                    return;
+                }
+
+                image.SetValue(LoadFailedProperty, true);
+                if (image.GetValue(CurrentCtsProperty) is { } currentCts && currentCts.Token == cancellationToken)
+                {
+                    image.ClearValue(CurrentCtsProperty);
+                    currentCts.Dispose();
                 }
             });
         }

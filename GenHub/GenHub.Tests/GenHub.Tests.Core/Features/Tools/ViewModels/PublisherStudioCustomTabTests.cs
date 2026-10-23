@@ -457,8 +457,12 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
 
         var adding = library.AddCustomTabCommand.ExecuteAsync(null);
         library.SelectedContent = second;
+        library.SelectedDetailTabIndex = ContentLibraryViewModel.BuiltInDetailTabCount;
         editor.SetResult(new CatalogTabDefinition { TabId = "guide", Header = "Guide" });
         await adding;
+
+        Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount, library.SelectedDetailTabIndex);
+        Assert.Equal(["faq"], library.SelectedContentCustomTabs.Select(t => t.TabId));
 
         Assert.Equal(["notes", "guide"], first.CustomTabs.Select(t => t.TabId));
         Assert.Equal(["faq"], second.CustomTabs.Select(t => t.TabId));
@@ -471,6 +475,85 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
 
         Assert.Equal(["guide"], first.CustomTabs.Select(t => t.TabId));
         Assert.Equal(["faq"], second.CustomTabs.Select(t => t.TabId));
+    }
+
+    /// <summary>
+    /// Editing a tab from another tab's view keeps the author on the tab they are viewing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_EditOtherTab_KeepsViewedTabSelectedAsync()
+    {
+        var target = CreateItem();
+        target.CustomTabs =
+        [
+            new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
+            new CatalogTabDefinition { TabId = "faq", Header = "FAQ", Order = 20 },
+        ];
+        var (library, dialogService, _) = CreateLibrary(target);
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => t != null && t.TabId == "notes"), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "notes", Header = "Patch notes", Order = 10 });
+        library.SelectedDetailTabIndex = ContentLibraryViewModel.BuiltInDetailTabCount + 1;
+
+        await library.EditCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+
+        Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, library.SelectedDetailTabIndex);
+        Assert.Equal("FAQ", library.SelectedContentCustomTabs[1].Header);
+    }
+
+    /// <summary>
+    /// Cancelling the tab editor when adding or editing changes nothing, saves nothing and shows no toast.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_CancelledEditor_ChangesNothingAsync()
+    {
+        var target = CreateItem();
+        var original = new CatalogTabDefinition { TabId = "notes", Header = "Notes" };
+        target.CustomTabs = [original];
+        var notifications = new Mock<INotificationService>();
+        var (library, dialogService, studioService) = CreateLibrary(target, notifications.Object);
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.IsAny<CatalogTabDefinition?>(), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync((CatalogTabDefinition?)null);
+
+        await library.AddCustomTabCommand.ExecuteAsync(null);
+        await library.EditCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+
+        Assert.Same(original, Assert.Single(target.CustomTabs));
+        studioService.Verify(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()), Times.Never);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Without a parent Studio view model nothing is saved, so no success toast is shown.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_WithoutParent_ShowsNoSuccessToastAsync()
+    {
+        var target = CreateItem();
+        var project = new PublisherStudioProject();
+        project.Catalogs.Add(new NamedCatalog { Id = "default", Name = "Content", FileName = "catalog.json", Catalog = new PublisherCatalog { Content = [target] } });
+        var dialogService = new Mock<IPublisherStudioDialogService>();
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(null, It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "guide", Header = "Guide" });
+        var notifications = new Mock<INotificationService>();
+        var library = new ContentLibraryViewModel(
+            project,
+            project.Catalogs[0],
+            null!,
+            new Mock<ILogger<ContentLibraryViewModel>>().Object,
+            dialogService.Object,
+            notifications.Object);
+        library.SelectedContent = target;
+
+        await library.AddCustomTabCommand.ExecuteAsync(null);
+
+        Assert.Equal("guide", Assert.Single(target.CustomTabs).TabId);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
     }
 
     /// <summary>

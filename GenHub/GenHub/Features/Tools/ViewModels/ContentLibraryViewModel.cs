@@ -50,6 +50,7 @@ public partial class ContentLibraryViewModel(
     /// </summary>
     public const int BuiltInDetailTabCount = 4;
 
+    private const int DetailTabSummary = 0;
     private const int DetailTabReleases = 1;
     private const int DetailTabAddons = 2;
     private const int DetailTabMedia = 3;
@@ -839,7 +840,9 @@ public partial class ContentLibraryViewModel(
     private int FindCustomTabIndex(CustomTabDefinition? tab)
     {
         var shown = tab == null ? -1 : SelectedContentCustomTabs.IndexOf(tab);
-        return shown < 0 || SelectedContent == null ? -1 : SelectedContent.CustomTabs.IndexOf(_selectedContentTabSources[shown]);
+        return shown < 0 || shown >= _selectedContentTabSources.Count || SelectedContent == null
+            ? -1
+            : SelectedContent.CustomTabs.IndexOf(_selectedContentTabSources[shown]);
     }
 
     private bool IsInActiveCatalog(CatalogContentItem item) => activeCatalog.Catalog.Content.Contains(item);
@@ -850,27 +853,37 @@ public partial class ContentLibraryViewModel(
         return shown >= 0 && shown < _selectedContentTabSources.Count ? _selectedContentTabSources[shown] : null;
     }
 
-    private async Task SaveCustomTabChangeAsync(CatalogTabDefinition? select, string successMessageKey, string successMessageFallback, string header)
+    private async Task SaveCustomTabChangeAsync(
+        CatalogContentItem item,
+        CatalogTabDefinition? select,
+        string successMessageKey,
+        string successMessageFallback,
+        string header)
     {
         MarkProjectAndCatalogDirty();
-        RefreshSelectedContentCustomTabs();
-        var index = select == null ? -1 : _selectedContentTabSources.IndexOf(select);
-        if (index >= 0)
+        if (ReferenceEquals(SelectedContent, item))
         {
-            SelectedDetailTabIndex = BuiltInDetailTabCount + index;
-        }
-        else if (SelectedDetailTabIndex >= BuiltInDetailTabCount)
-        {
-            SelectedDetailTabIndex = 0;
+            RefreshSelectedContentCustomTabs();
+            var index = select == null ? -1 : _selectedContentTabSources.IndexOf(select);
+            if (index >= 0)
+            {
+                SelectedDetailTabIndex = BuiltInDetailTabCount + index;
+            }
+            else if (SelectedDetailTabIndex >= BuiltInDetailTabCount)
+            {
+                SelectedDetailTabIndex = DetailTabSummary;
+            }
         }
 
-        if (parentViewModel != null)
+        if (parentViewModel == null)
         {
-            await parentViewModel.SaveProjectAsync();
-            if (parentViewModel.HasUnsavedChanges)
-            {
-                return;
-            }
+            return;
+        }
+
+        await parentViewModel.SaveProjectAsync();
+        if (parentViewModel.HasUnsavedChanges)
+        {
+            return;
         }
 
         notificationService?.ShowSuccess(
@@ -898,7 +911,7 @@ public partial class ContentLibraryViewModel(
         }
 
         item.CustomTabs.Add(added);
-        await SaveCustomTabChangeAsync(added, "Tools.PublisherStudio.Content.CustomTabs.AddedFormat", "Added the custom tab '{0}'.", added.Header);
+        await SaveCustomTabChangeAsync(item, added, "Tools.PublisherStudio.Content.CustomTabs.AddedFormat", "Added the custom tab '{0}'.", added.Header);
         logger.LogInformation("Added custom tab {TabId} to content item {ContentId}", added.TabId, item.Id);
     }
 
@@ -918,6 +931,7 @@ public partial class ContentLibraryViewModel(
 
         var item = SelectedContent!;
         var source = item.CustomTabs[index];
+        var selected = GetSelectedCustomTabSource();
         var siblings = item.CustomTabs.Where((candidate, i) => i != index && candidate != null).ToList();
         var edited = await dialogService.ShowEditCustomTabDialogAsync(source, siblings);
         var current = item.CustomTabs.IndexOf(source);
@@ -927,7 +941,7 @@ public partial class ContentLibraryViewModel(
         }
 
         item.CustomTabs[current] = edited;
-        await SaveCustomTabChangeAsync(edited, "Tools.PublisherStudio.Content.CustomTabs.SavedFormat", "Saved the custom tab '{0}'.", edited.Header);
+        await SaveCustomTabChangeAsync(item, ReferenceEquals(selected, source) ? edited : selected, "Tools.PublisherStudio.Content.CustomTabs.SavedFormat", "Saved the custom tab '{0}'.", edited.Header);
         logger.LogInformation("Updated custom tab {TabId} on content item {ContentId}", edited.TabId, item.Id);
     }
 
@@ -961,6 +975,7 @@ public partial class ContentLibraryViewModel(
         }
 
         await SaveCustomTabChangeAsync(
+            item,
             ReferenceEquals(selected, removed) ? null : selected,
             "Tools.PublisherStudio.Content.CustomTabs.RemovedFormat",
             "Removed the custom tab '{0}'.",

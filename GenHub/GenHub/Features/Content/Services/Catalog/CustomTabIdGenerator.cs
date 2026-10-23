@@ -35,21 +35,20 @@ public static class CustomTabIdGenerator
 
         var builder = new StringBuilder();
         var droppedLetters = false;
-        foreach (var character in header.Trim().Normalize(NormalizationForm.FormD))
+        foreach (var rune in header.Trim().Normalize(NormalizationForm.FormD).EnumerateRunes())
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.NonSpacingMark)
             {
                 continue;
             }
 
-            var lower = char.ToLowerInvariant(character);
-            if (lower is (>= 'a' and <= 'z') or (>= '0' and <= '9'))
+            if (rune.IsAscii && char.IsAsciiLetterOrDigit((char)rune.Value))
             {
-                builder.Append(lower);
+                builder.Append(char.ToLowerInvariant((char)rune.Value));
                 continue;
             }
 
-            droppedLetters |= char.IsLetter(character);
+            droppedLetters |= Rune.IsLetter(rune);
             if (builder.Length > 0 && builder[^1] != '-')
             {
                 builder.Append('-');
