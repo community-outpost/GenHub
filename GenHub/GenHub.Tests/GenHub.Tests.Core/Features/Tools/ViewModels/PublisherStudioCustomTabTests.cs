@@ -360,6 +360,51 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
+    /// With duplicate tab IDs and a catalog order that differs from the display order, delete removes the clicked tab.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_DuplicateTabIds_DeleteRemovesClickedTabAsync()
+    {
+        var target = CreateItem();
+        var shownSecond = new CatalogTabDefinition { TabId = "notes", Header = "Shown second", Order = 20 };
+        var shownFirst = new CatalogTabDefinition { TabId = "notes", Header = "Shown first", Order = 10 };
+        target.CustomTabs = [shownSecond, shownFirst];
+        var (library, dialogService, _) = CreateLibrary(target);
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        Assert.Equal("Shown second", library.SelectedContentCustomTabs[1].Header);
+
+        await library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[1]);
+
+        Assert.Same(shownFirst, Assert.Single(target.CustomTabs));
+    }
+
+    /// <summary>
+    /// When the project save fails, the custom tab success toast is not shown.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_SaveFails_ShowsNoTabSuccessToastAsync()
+    {
+        var target = CreateItem();
+        target.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
+        var notifications = new Mock<INotificationService>();
+        var (library, dialogService, studioService) = CreateLibrary(target, notifications.Object);
+        studioService
+            .Setup(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("disk full"));
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        await library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("Notes")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
     /// Deleting a tab before the selected one keeps the selected tab selected, and the author gets a success toast.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

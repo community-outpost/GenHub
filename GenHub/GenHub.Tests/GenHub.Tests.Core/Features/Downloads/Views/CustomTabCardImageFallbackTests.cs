@@ -6,9 +6,12 @@ using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.Views;
 using GenHub.Infrastructure.Controls;
 using GenHub.Infrastructure.Markdown;
+using GenHub.Infrastructure.Services;
+using Moq;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -89,6 +92,44 @@ public class CustomTabCardImageFallbackTests
         finally
         {
             window.Close();
+        }
+    }
+
+    /// <summary>
+    /// An image load that throws marks the image as failed, so the card shows its link.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task CardImage_LoadThrows_ShowsLinkAsync()
+    {
+        const string url = "https://example.com/throws.png";
+        var previous = ImageCacheService.Instance;
+        var cache = new Mock<IImageCacheService>();
+        cache.Setup(c => c.GetBitmapAsync(url, It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("decoder failure"));
+        ImageCacheService.Instance = cache.Object;
+        var view = new CustomTabContentView
+        {
+            DataContext = new CustomTabDefinition
+            {
+                TabId = "gallery",
+                Header = "Gallery",
+                Cards = [new CustomTabCardDefinition { Title = "Card", ImageUrl = url }],
+            },
+        };
+        var window = new Window { Content = view, Width = 800, Height = 600 };
+        window.Show();
+        try
+        {
+            var image = view.GetLogicalDescendants().OfType<Image>().Single(i => i.Name == "CardImage");
+            await WaitUntilAsync(() => ImageLoader.GetLoadFailed(image));
+            window.UpdateLayout();
+
+            Assert.True(view.GetLogicalDescendants().OfType<Button>().Single(b => b.Name == "CardImageLink").IsVisible);
+        }
+        finally
+        {
+            window.Close();
+            ImageCacheService.Instance = previous;
         }
     }
 
