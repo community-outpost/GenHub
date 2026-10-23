@@ -129,7 +129,7 @@ public partial class EditCustomTabDialogViewModel : ObservableObject
                 CustomTabConstants.MaxCardTitleLength,
                 CustomTabConstants.MaxCardDescriptionLength),
             CustomTabIssueKind.InvalidCardImageUrl => string.Format(
-                getString("Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid", "Card {0} on custom tab '{1}' needs an image link that starts with https://."),
+                getString("Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid", "Card {0} on custom tab '{1}' needs an image link that starts with https:// or avares://."),
                 card,
                 tabId),
             _ => string.Format(

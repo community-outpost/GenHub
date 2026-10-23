@@ -146,7 +146,7 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         editor.SaveCommand.Execute(null);
 
         Assert.False(saved);
-        Assert.Equal("Card 1 on custom tab 'gallery' needs an image link that starts with https://.", editor.ValidationError);
+        Assert.Equal("Card 1 on custom tab 'gallery' needs an image link that starts with https:// or avares://.", editor.ValidationError);
 
         editor.Tab.Cards[0].ImageUrl = "https://example.com/card.png";
         editor.SaveCommand.Execute(null);
@@ -429,6 +429,48 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         Assert.Equal(["faq"], library.SelectedContentCustomTabs.Select(t => t.TabId));
         Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount, library.SelectedDetailTabIndex);
         notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("Notes")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// When the selection moves to another item while the tab editor or the delete confirmation is open,
+    /// the change applies to the item that opened it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_SelectionChangesWhileDialogOpen_ChangesOriginalItemAsync()
+    {
+        var first = CreateItem();
+        first.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
+        var second = CreateItem();
+        second.Id = "mod-b";
+        second.CustomTabs = [new CatalogTabDefinition { TabId = "faq", Header = "FAQ" }];
+        var (library, dialogService, _) = CreateLibrary(first);
+        library.Project.Catalogs[0].Catalog.Content.Add(second);
+        var editor = new TaskCompletionSource<CatalogTabDefinition?>();
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(null, It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .Returns(editor.Task);
+        var confirmation = new TaskCompletionSource<bool>();
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(confirmation.Task);
+
+        var adding = library.AddCustomTabCommand.ExecuteAsync(null);
+        library.SelectedContent = second;
+        editor.SetResult(new CatalogTabDefinition { TabId = "guide", Header = "Guide" });
+        await adding;
+
+        Assert.Equal(["notes", "guide"], first.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(["faq"], second.CustomTabs.Select(t => t.TabId));
+
+        library.SelectedContent = first;
+        var deleting = library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+        library.SelectedContent = second;
+        confirmation.SetResult(true);
+        await deleting;
+
+        Assert.Equal(["guide"], first.CustomTabs.Select(t => t.TabId));
+        Assert.Equal(["faq"], second.CustomTabs.Select(t => t.TabId));
     }
 
     /// <summary>
