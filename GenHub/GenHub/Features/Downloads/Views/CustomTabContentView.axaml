@@ -135,7 +135,7 @@
                                         </Button.IsVisible>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{localization:Localize Downloads.ContentDetail.CardImageUnavailable}"
-                                                       Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+                                                       Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" />
                                             <TextBlock Text="{Binding ImageUrl}" Foreground="{DynamicResource AccentBrush}" FontSize="12"
                                                        TextDecorations="Underline" TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
