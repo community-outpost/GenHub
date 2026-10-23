@@ -216,10 +216,20 @@ public static class ImageLoader
                 }
 
                 image.SetValue(LoadFailedProperty, true);
-                if (image.GetValue(CurrentCtsProperty) is { } currentCts && currentCts.Token == cancellationToken)
+                if (image.GetValue(CurrentCtsProperty) is { } currentCts)
                 {
-                    image.ClearValue(CurrentCtsProperty);
-                    currentCts.Dispose();
+                    try
+                    {
+                        if (currentCts.Token == cancellationToken)
+                        {
+                            image.ClearValue(CurrentCtsProperty);
+                            currentCts.Dispose();
+                        }
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Ignore if already disposed concurrently.
+                    }
                 }
             });
         }

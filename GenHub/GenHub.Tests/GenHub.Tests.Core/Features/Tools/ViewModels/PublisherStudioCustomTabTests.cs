@@ -432,6 +432,31 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
+    /// Deleting the custom tab the author is viewing falls back to the Summary tab.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_DeleteViewedTab_FallsBackToSummaryAsync()
+    {
+        var target = CreateItem();
+        target.CustomTabs =
+        [
+            new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
+            new CatalogTabDefinition { TabId = "faq", Header = "FAQ", Order = 20 },
+        ];
+        var (library, dialogService, _) = CreateLibrary(target);
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        library.SelectedDetailTabIndex = ContentLibraryViewModel.BuiltInDetailTabCount + 1;
+
+        await library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[1]);
+
+        Assert.Equal(["notes"], library.SelectedContentCustomTabs.Select(t => t.TabId));
+        Assert.Equal(0, library.SelectedDetailTabIndex);
+    }
+
+    /// <summary>
     /// When the selection moves to another item while the tab editor or the delete confirmation is open,
     /// the change applies to the item that opened it.
     /// </summary>
