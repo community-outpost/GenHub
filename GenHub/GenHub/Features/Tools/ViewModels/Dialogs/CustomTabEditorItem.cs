@@ -4,6 +4,7 @@ using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
@@ -15,7 +16,7 @@ namespace GenHub.Features.Tools.ViewModels.Dialogs;
 /// An editable publisher-defined custom tab on a content item in Publisher Studio.
 /// </summary>
 /// <remarks>
-/// Fields that Studio does not edit, such as cards and metadata, are kept from the source tab
+/// Fields that Studio does not edit, such as metadata and the data source, are kept from the source tab
 /// so authoring a tab in Studio never drops data written by hand in the catalog.
 /// </remarks>
 public partial class CustomTabEditorItem : ObservableObject
@@ -61,19 +62,25 @@ public partial class CustomTabEditorItem : ObservableObject
         Intro = _source.Intro;
         Body = _source.Body;
         IsVisible = _source.IsVisible;
+        foreach (var card in _source.Cards)
+        {
+            AddCard(new CustomTabCardEditorItem(card));
+        }
+
+        Cards.CollectionChanged += (_, _) => OnCardsChanged();
     }
 
     /// <summary>
-    /// Gets the number of cards kept from the source tab.
+    /// Gets the editable cards of the tab.
     /// </summary>
-    public int CardCount => _source.Cards?.Count ?? 0;
+    public ObservableCollection<CustomTabCardEditorItem> Cards { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether a card image or a link in the body is a signed Discord attachment
     /// link, which stops working when Discord's signature expires.
     /// </summary>
     public bool HasExpiringImageLinks =>
-        (_source.Cards?.Any(card => PublisherImageUrl.IsExpiringDiscordAttachment(card?.ImageUrl)) ?? false) ||
+        Cards.Any(card => PublisherImageUrl.IsExpiringDiscordAttachment(card.ImageUrl)) ||
         (!string.IsNullOrEmpty(Body) && UrlRegex().Matches(Body).Any(match => PublisherImageUrl.IsExpiringDiscordAttachment(match.Value)));
 
     /// <summary>
@@ -94,7 +101,30 @@ public partial class CustomTabEditorItem : ObservableObject
         definition.Intro = string.IsNullOrWhiteSpace(Intro) ? null : Intro.Trim();
         definition.Body = string.IsNullOrWhiteSpace(Body) ? null : Body;
         definition.IsVisible = IsVisible;
+        definition.Cards = [.. Cards.Select(card => card.ToDefinition())];
         return definition;
+    }
+
+    /// <summary>
+    /// Adds a card to the tab and tracks its edits.
+    /// </summary>
+    /// <param name="card">The card to add.</param>
+    public void AddCard(CustomTabCardEditorItem card)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        card.PropertyChanged += OnCardPropertyChanged;
+        Cards.Add(card);
+    }
+
+    /// <summary>
+    /// Removes a card from the tab.
+    /// </summary>
+    /// <param name="card">The card to remove.</param>
+    public void RemoveCard(CustomTabCardEditorItem card)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        card.PropertyChanged -= OnCardPropertyChanged;
+        Cards.Remove(card);
     }
 
     /// <inheritdoc />
@@ -115,5 +145,16 @@ public partial class CustomTabEditorItem : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(source);
         return JsonSerializer.Deserialize<CatalogTabDefinition>(JsonSerializer.Serialize(source)) ?? new CatalogTabDefinition();
+    }
+
+    private void OnCardPropertyChanged(object? sender, PropertyChangedEventArgs e) => OnCardsChanged();
+
+    private void OnCardsChanged()
+    {
+        OnPropertyChanged(nameof(HasExpiringImageLinks));
+        if (IsPreviewVisible)
+        {
+            OnPropertyChanged(nameof(Preview));
+        }
     }
 }

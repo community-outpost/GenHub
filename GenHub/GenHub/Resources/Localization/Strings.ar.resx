@@ -13545,12 +13545,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>الصق رابط صورة أو اختر ملفًا محليًا. تُرفع الملفات المحلية إلى مزود الاستضافة عند نشر الكتالوج.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Title" xml:space="preserve">
-    <value>علامات تبويب مخصصة</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Hint" xml:space="preserve">
-    <value>علامات تبويب تظهر بعد علامات التبويب المضمنة في صفحة تفاصيل هذا العنصر في متصفح التنزيلات.</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>معرّف علامة التبويب</value>
   </data>
@@ -13569,9 +13563,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
     <value>هل تريد إزالة علامة التبويب المخصصة '{0}'؟ تُزال مقدمتها ومحتواها وبطاقاتها من هذا العنصر.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
-    <value>إزالة علامة التبويب</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
     <value>المقدمة</value>
   </data>
@@ -13581,17 +13572,11 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
     <value>تُفتح الروابط فقط لعناوين HTTP و HTTPS. تُحمَّل الصور فقط من عناوين HTTP و HTTPS البعيدة.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.CardCountFormat" xml:space="preserve">
-    <value>يتم الاحتفاظ بـ {0} بطاقة من ملف الكتالوج.</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
     <value>مرئي</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
     <value>معاينة</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Add" xml:space="preserve">
-    <value>إضافة علامة تبويب</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
     <value>يمكن أن يحتوي عنصر المحتوى على {0} علامات تبويب مخصصة كحد أقصى.</value>
@@ -13603,10 +13588,58 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>معرّف علامة التبويب المخصصة '{0}' مستخدم أكثر من مرة.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
-    <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقات تخالف قواعد الكتالوج. أصلحها في ملف الكتالوج.</value>
+    <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقة تخالف قواعد الكتالوج.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
     <value>تنتهي صلاحية روابط مرفقات Discord بعد يوم تقريبًا ثم تتوقف عن التحميل. استضف الصورة في مكان دائم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>تعديل علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>البطاقات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>عنوان البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>الوسم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>رابط الصورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>إضافة بطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>إزالة البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>تعديل علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>حذف علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>يمكن أن تحتوي علامة التبويب المخصصة '{0}' على {1} بطاقة كحد أقصى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى عنوان.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>البطاقة {0} في علامة التبويب المخصصة '{1}' تحتوي على عنوان أو وسم أطول من {2} حرفًا أو وصف أطول من {3} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى رابط صورة يبدأ بـ https://.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>

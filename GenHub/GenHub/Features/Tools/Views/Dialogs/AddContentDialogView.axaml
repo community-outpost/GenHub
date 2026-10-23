@@ -8,7 +8,6 @@
              xmlns:converters="using:GenHub.Infrastructure.Converters"
              xmlns:controls="using:GenHub.Infrastructure.Controls"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
-             xmlns:downloadViews="using:GenHub.Features.Downloads.Views"
              mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="720"
              x:Class="GenHub.Features.Tools.Views.Dialogs.AddContentDialogView"
              x:DataType="vm:AddContentDialogViewModel"
@@ -22,43 +21,7 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
-
-        <Style Selector="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-        </Style>
-
-        <Style Selector="TextBlock.label">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-        <Style Selector="TextBlock.hint">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
+        <StyleInclude Source="avares://GenHub/Features/Tools/Views/Dialogs/StudioDialogFormStyles.axaml"/>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*" Margin="20,14,20,14">
@@ -552,103 +515,6 @@
                                         CornerRadius="6"/>
                             </Grid>
                         </StackPanel>
-                    </StackPanel>
-                </Expander>
-
-                <!-- ==================== CUSTOM TABS (Content detail view) ==================== -->
-                <Expander Background="{DynamicResource GlassFillSubtleBrush}"
-                          BorderBrush="{DynamicResource GlassStrongBrush}"
-                          BorderThickness="1"
-                          CornerRadius="8"
-                          Padding="16"
-                          IsExpanded="False"
-                          HorizontalAlignment="Stretch"
-                          HorizontalContentAlignment="Stretch">
-                    <Expander.Header>
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Title}" Classes="label"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Hint}" Classes="hint" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </Expander.Header>
-                    <StackPanel Spacing="12">
-                        <ItemsControl ItemsSource="{Binding CustomTabs}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:CustomTabEditorItem">
-                                    <Border Background="{DynamicResource GlassFillSubtleBrush}"
-                                            BorderBrush="{DynamicResource GlassBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="6"
-                                            Padding="12"
-                                            Margin="0,0,0,8">
-                                        <StackPanel Spacing="8">
-                                            <Grid ColumnDefinitions="*,8,*,8,140,Auto">
-                                                <StackPanel Grid.Column="0" Spacing="4">
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabId}" Classes="label"/>
-                                                    <TextBox Text="{Binding TabId}" Watermark="{Binding SuggestedTabId}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2" Spacing="4">
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Header}" Classes="label"/>
-                                                    <TextBox Text="{Binding Header}" Watermark="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder}"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="4" Spacing="4">
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Order}" Classes="label"/>
-                                                    <NumericUpDown Value="{Binding Order}" Minimum="0" Maximum="10000" Increment="10" FormatString="F0"/>
-                                                </StackPanel>
-                                                <Button Grid.Column="5"
-                                                        VerticalAlignment="Top"
-                                                        Margin="6,0,0,0"
-                                                        Command="{Binding #RootView.((vm:AddContentDialogViewModel)DataContext).RemoveCustomTabCommand}"
-                                                        CommandParameter="{Binding}"
-                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Remove}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="4"
-                                                        Cursor="Hand">
-                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
-                                                </Button>
-                                            </Grid>
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Intro}" Classes="label"/>
-                                                <TextBox Text="{Binding Intro}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="50"/>
-                                            </StackPanel>
-                                            <StackPanel Spacing="4">
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Body}" Classes="label"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.BodyHint}" Classes="hint" TextWrapping="Wrap"/>
-                                                <TextBox Text="{Binding Body}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="120" FontFamily="Consolas,Menlo,monospace"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks}"
-                                                       Foreground="{DynamicResource WarningBrush}"
-                                                       FontSize="11"
-                                                       TextWrapping="Wrap"
-                                                       IsVisible="{Binding HasExpiringImageLinks}"/>
-                                            <TextBlock Text="{Binding CardCount, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.PublisherStudio.Content.CustomTabs.CardCountFormat'}"
-                                                       Classes="hint"
-                                                       IsVisible="{Binding CardCount}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="16">
-                                                <CheckBox IsChecked="{Binding IsVisible}" Content="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Visible}"/>
-                                                <ToggleButton IsChecked="{Binding IsPreviewVisible}"
-                                                              Content="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Preview}"
-                                                              Background="{DynamicResource GlassStrongBrush}"
-                                                              Padding="12,6"
-                                                              CornerRadius="6"/>
-                                            </StackPanel>
-                                            <Border IsVisible="{Binding IsPreviewVisible}"
-                                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                                    BorderThickness="1"
-                                                    CornerRadius="6"
-                                                    Padding="8">
-                                                <downloadViews:CustomTabContentView DataContext="{Binding Preview}"/>
-                                            </Border>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                        <Button Content="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Add}"
-                                Command="{Binding AddCustomTabCommand}"
-                                Background="{DynamicResource GlassStrongBrush}"
-                                Padding="12,6"
-                                CornerRadius="6"/>
                     </StackPanel>
                 </Expander>
 

@@ -139,6 +139,14 @@ public interface IPublisherStudioDialogService
     Task<PublisherReferral?> ShowAddReferralDialogAsync();
 
     /// <summary>
+    /// Shows the dialog that adds or edits a publisher-defined custom tab of a content item.
+    /// </summary>
+    /// <param name="existing">The tab to edit, or null to add a new tab.</param>
+    /// <param name="siblings">The other tabs on the same content item.</param>
+    /// <returns>The saved tab, or null if cancelled.</returns>
+    Task<CatalogTabDefinition?> ShowEditCustomTabDialogAsync(CatalogTabDefinition? existing, IReadOnlyList<CatalogTabDefinition> siblings);
+
+    /// <summary>
     /// Shows an open file prompt for loading a project file.
     /// </summary>
     /// <param name="title">Title of the prompt.</param>

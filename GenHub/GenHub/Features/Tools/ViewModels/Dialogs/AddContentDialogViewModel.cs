@@ -10,7 +10,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Utilities;
-using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Infrastructure.Services;
 using System;
@@ -479,11 +478,6 @@ public partial class AddContentDialogViewModel(
         {
             RefreshBundleComponentOptions();
         }
-
-        foreach (var tab in existing.CustomTabs.Where(tab => tab != null))
-        {
-            TrackCustomTab(new CustomTabEditorItem(tab));
-        }
     }
 
     private void RefreshBundleComponentOptions()
@@ -724,11 +718,6 @@ public partial class AddContentDialogViewModel(
     /// Each entry becomes one release artifact uploaded separately.
     /// </summary>
     public ObservableCollection<StagedContentFile> StagedFiles { get; } = [];
-
-    /// <summary>
-    /// Gets the publisher-defined tabs authored for this content item.
-    /// </summary>
-    public ObservableCollection<CustomTabEditorItem> CustomTabs { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether any local files are staged.
@@ -1750,70 +1739,6 @@ public partial class AddContentDialogViewModel(
     }
 
     /// <summary>
-    /// Adds a new publisher-defined tab to the content item.
-    /// </summary>
-    [RelayCommand]
-    private void AddCustomTab()
-    {
-        TrackCustomTab(new CustomTabEditorItem { Order = (CustomTabs.Count + 1) * 10 });
-    }
-
-    /// <summary>
-    /// Removes a publisher-defined tab from the content item after the author confirms.
-    /// </summary>
-    /// <param name="tab">The tab to remove.</param>
-    /// <returns>A task that completes when the tab is removed or the author cancels.</returns>
-    [RelayCommand]
-    private async Task RemoveCustomTabAsync(CustomTabEditorItem? tab)
-    {
-        if (tab == null || dialogService == null)
-        {
-            return;
-        }
-
-        var name = !string.IsNullOrWhiteSpace(tab.Header) ? tab.Header.Trim() : tab.ToDefinition().TabId;
-        var confirmed = await dialogService.ShowConfirmationAsync(
-            GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.RemoveTitle", "Remove Custom Tab"),
-            string.Format(
-                GetLocalizedString(
-                    "Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat",
-                    "Remove the custom tab '{0}'? Its intro, body and cards are removed from this item."),
-                name));
-        if (!confirmed)
-        {
-            return;
-        }
-
-        tab.PropertyChanged -= OnCustomTabPropertyChanged;
-        CustomTabs.Remove(tab);
-        RefreshSuggestedTabIds();
-    }
-
-    private void TrackCustomTab(CustomTabEditorItem tab)
-    {
-        tab.PropertyChanged += OnCustomTabPropertyChanged;
-        CustomTabs.Add(tab);
-        RefreshSuggestedTabIds();
-    }
-
-    private void OnCustomTabPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(CustomTabEditorItem.TabId) or nameof(CustomTabEditorItem.Header))
-        {
-            RefreshSuggestedTabIds();
-        }
-    }
-
-    private void RefreshSuggestedTabIds()
-    {
-        var suggestions = CustomTabIdGenerator.Suggest([.. CustomTabs.Select(tab => ((string?)tab.TabId, (string?)tab.Header))]);
-        for (var i = 0; i < CustomTabs.Count; i++)
-        {
-            CustomTabs[i].SuggestedTabId = suggestions[i];
-        }
-    }
-
-    /// <summary>
     /// Opens the artifact creation dialog to add an artifact to the initial release.
     /// </summary>
     [RelayCommand]
@@ -1984,7 +1909,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        if (!ValidateArtwork() || !ValidateCustomTabs())
+        if (!ValidateArtwork())
         {
             return;
         }
@@ -2001,7 +1926,6 @@ public partial class AddContentDialogViewModel(
             Tags = [.. tags],
             ExtendsContentId = SelectedContentType == ContentType.Addon ? ExtendsContentId : null,
             Metadata = MergeArtworkMetadata(),
-            CustomTabs = [.. CustomTabs.Select(tab => tab.ToDefinition())],
         };
 
         contentItem.IsFeatured = IsFeatured;
@@ -2240,55 +2164,6 @@ public partial class AddContentDialogViewModel(
             GameType.Generals => GetLocalizedString("GameProfiles.GameType.Generals", "C&C Generals"),
             GameType.ZeroHour => GetLocalizedString("GameProfiles.GameType.ZeroHour", "C&C Generals: Zero Hour"),
             _ => game.ToString(),
-        };
-    }
-
-    private bool ValidateCustomTabs()
-    {
-        var error = FindCustomTabError();
-        if (error == null)
-        {
-            return true;
-        }
-
-        ValidationError = error;
-        IsValid = false;
-        return false;
-    }
-
-    private string? FindCustomTabError()
-    {
-        var issues = CatalogTabValidator.Inspect([.. CustomTabs.Select(tab => tab.ToDefinition())]);
-        var issue = issues.FirstOrDefault(i => i.Kind == CustomTabIssueKind.MissingHeader) ?? issues.FirstOrDefault();
-        if (issue == null)
-        {
-            return null;
-        }
-
-        var tabId = issue.TabId?.Trim() ?? string.Empty;
-        return issue.Kind switch
-        {
-            CustomTabIssueKind.TooManyTabs => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.TooManyTabs", "A content item can have at most {0} custom tabs."),
-                CustomTabConstants.MaxTabsPerScope),
-            CustomTabIssueKind.MissingTabId or CustomTabIssueKind.TabIdTooLong or CustomTabIssueKind.NullTab => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidTabId", "Each custom tab needs an ID of 1 to {0} characters."),
-                CustomTabConstants.MaxTabIdLength),
-            CustomTabIssueKind.DuplicateTabId => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId", "Custom tab ID '{0}' is used more than once."),
-                tabId),
-            CustomTabIssueKind.MissingHeader or CustomTabIssueKind.HeaderTooLong => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidHeader", "Custom tab '{0}' needs a header of 1 to {1} characters."),
-                tabId,
-                CustomTabConstants.MaxHeaderLength),
-            CustomTabIssueKind.IntroTooLong or CustomTabIssueKind.BodyTooLong => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.ContentTooLong", "Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters."),
-                tabId,
-                CustomTabConstants.MaxIntroLength,
-                CustomTabConstants.MaxBodyLength),
-            _ => string.Format(
-                GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.InvalidCards", "Custom tab '{0}' has cards that break the catalog rules. Fix them in the catalog file."),
-                tabId),
         };
     }
 

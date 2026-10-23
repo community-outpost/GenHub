@@ -13545,12 +13545,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>Вставьте ссылку на изображение или выберите локальный файл. Локальные файлы загружаются к хостинг-провайдеру при публикации каталога.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Title" xml:space="preserve">
-    <value>Пользовательские вкладки</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Hint" xml:space="preserve">
-    <value>Вкладки, которые показываются после встроенных вкладок на странице этого элемента в браузере загрузок.</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
     <value>ID вкладки</value>
   </data>
@@ -13569,9 +13563,6 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
     <value>Удалить пользовательскую вкладку '{0}'? Её вступление, содержимое и карточки будут удалены из этого элемента.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Remove" xml:space="preserve">
-    <value>Удалить вкладку</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
     <value>Вступление</value>
   </data>
@@ -13581,17 +13572,11 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
     <value>Ссылки открываются только для адресов HTTP и HTTPS. Изображения загружаются только с удалённых адресов HTTP и HTTPS.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.CardCountFormat" xml:space="preserve">
-    <value>Карточек из файла каталога сохранено: {0}.</value>
-  </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
     <value>Видимая</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
     <value>Предпросмотр</value>
-  </data>
-  <data name="Tools.PublisherStudio.Content.CustomTabs.Add" xml:space="preserve">
-    <value>Добавить вкладку</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
     <value>У элемента контента может быть не более {0} пользовательских вкладок.</value>
@@ -13603,10 +13588,58 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>ID пользовательской вкладки '{0}' используется несколько раз.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
-    <value>У пользовательской вкладки '{0}' есть карточки, нарушающие правила каталога. Исправьте их в файле каталога.</value>
+    <value>У пользовательской вкладки '{0}' есть карточка, нарушающая правила каталога.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
     <value>Ссылки на вложения Discord истекают примерно через сутки и перестают загружаться. Разместите изображение на постоянном хостинге.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>Изменить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>Добавить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>Карточки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>Заголовок карточки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>Метка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>Ссылка на изображение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>Добавить карточку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>Удалить карточку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>Изменить вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>Удалить вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>Добавить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>У пользовательской вкладки '{0}' может быть не более {1} карточек.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>Карточке {0} на пользовательской вкладке '{1}' нужен заголовок.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>У карточки {0} на пользовательской вкладке '{1}' заголовок или метка длиннее {2} символов или описание длиннее {3} символов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>Карточке {0} на пользовательской вкладке '{1}' нужна ссылка на изображение, начинающаяся с https://.</value>
   </data>
   <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
     <value>Пользовательской вкладке '{0}' нужен заголовок длиной от 1 до {1} символов.</value>

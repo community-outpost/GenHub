@@ -1,13 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Content;
 using GenHub.Features.Downloads.ViewModels;
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Windows.Input;
 using ParsedImage = GenHub.Core.Models.Parsers.Image;
@@ -97,25 +95,6 @@ public partial class ContentDetailView : UserControl
         }
     }
 
-    private static bool GeneratedTabsMatch(ItemCollection items, IList<CustomTabDefinition> tabs)
-    {
-        if (items.Count - ContentDetailViewModel.BuiltInTabCount != tabs.Count)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < tabs.Count; i++)
-        {
-            if (items[ContentDetailViewModel.BuiltInTabCount + i] is not TabItem { Content: ScrollViewer { Content: CustomTabContentView view } } ||
-                !ReferenceEquals(view.DataContext, tabs[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     private void OnResizeGripPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is ContentDetailViewModel vm && !vm.IsVideoPlayerFullscreen)
@@ -195,39 +174,15 @@ public partial class ContentDetailView : UserControl
             return;
         }
 
-        var items = _detailTabs.Items;
-        IList<CustomTabDefinition> tabs = _customTabsViewModel?.CustomTabs ?? [];
-        if (GeneratedTabsMatch(items, tabs))
-        {
-            return;
-        }
-
-        while (items.Count > ContentDetailViewModel.BuiltInTabCount)
-        {
-            items.RemoveAt(items.Count - 1);
-        }
-
-        foreach (var tab in tabs)
-        {
-            items.Add(new TabItem
+        CustomTabHost.Sync(
+            _detailTabs,
+            ContentDetailViewModel.BuiltInTabCount,
+            _customTabsViewModel?.CustomTabs ?? [],
+            tab => new TabItem
             {
                 Header = tab.Header,
-                Content = new ScrollViewer
-                {
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                    Content = new CustomTabContentView
-                    {
-                        DataContext = tab,
-                        ImageCommand = _openCardImageCommand,
-                    },
-                },
+                Content = CustomTabHost.CreateContent(tab, _openCardImageCommand, editCommand: null),
             });
-        }
-
-        if (_detailTabs.SelectedIndex < 0 || _detailTabs.SelectedIndex >= items.Count)
-        {
-            _detailTabs.SelectedIndex = 0;
-        }
     }
 
     private void OpenCardImage(CustomTabCardDefinition? card)
