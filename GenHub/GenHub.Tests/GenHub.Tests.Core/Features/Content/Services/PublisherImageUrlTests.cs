@@ -43,6 +43,17 @@ public sealed class PublisherImageUrlTests
     }
 
     /// <summary>
+    /// A resource key with characters outside the Drive key format is dropped from the direct link.
+    /// </summary>
+    [Fact]
+    public void Normalize_DriveLinkWithInvalidResourceKey_DropsResourceKey()
+    {
+        Assert.Equal(
+            DriveDirect,
+            PublisherImageUrl.Normalize("https://drive.google.com/file/d/" + DriveId + "/view?resourcekey=a%26export%3Ddownload"));
+    }
+
+    /// <summary>
     /// Links that only look like Drive links are never rewritten: other hosts, plain HTTP, user info, or another port.
     /// </summary>
     /// <param name="url">The adversarial link.</param>

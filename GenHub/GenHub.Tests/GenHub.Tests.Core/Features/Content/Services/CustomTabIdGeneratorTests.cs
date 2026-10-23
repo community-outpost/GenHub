@@ -39,6 +39,7 @@ public sealed class CustomTabIdGeneratorTests
     [InlineData("Как играть")]
     [InlineData("Как играть 2")]
     [InlineData("الجزء 3")]
+    [InlineData("𐌰𐌱 2")]
     public void Slugify_HeaderWithoutAsciiLetters_ReturnsStableFallback(string header)
     {
         var slug = CustomTabIdGenerator.Slugify(header);
