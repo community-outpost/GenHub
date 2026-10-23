@@ -69,6 +69,12 @@ public partial class EditCustomTabDialogViewModel : ObservableObject
     public bool IsEditMode { get; }
 
     /// <summary>
+    /// Gets the placeholder of the tab ID input: the ID generated from the header, or a hint while there is no header.
+    /// </summary>
+    public string TabIdWatermark => Tab.SuggestedTabId
+        ?? GetString("Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader", "Generated from the header");
+
+    /// <summary>
     /// Gets the dialog title.
     /// </summary>
     public string DialogTitle => IsEditMode
@@ -183,6 +189,7 @@ public partial class EditCustomTabDialogViewModel : ObservableObject
         var suggestions = CustomTabIdGenerator.Suggest(
             [.. _siblings.Select(tab => ((string?)tab.TabId, (string?)tab.Header)), ((string?)Tab.TabId, (string?)Tab.Header)]);
         Tab.SuggestedTabId = suggestions[^1];
+        OnPropertyChanged(nameof(TabIdWatermark));
     }
 
     private string GetString(string key, string fallback) => _localizationService?.GetString(key) ?? fallback;

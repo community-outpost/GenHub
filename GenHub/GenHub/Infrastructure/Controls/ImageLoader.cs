@@ -208,6 +208,13 @@ public static class ImageLoader
         {
             // Suppress unexpected background load failures to prevent unhandled task exceptions.
             System.Diagnostics.Debug.WriteLine($"[ImageLoader] Failed to load image from {url}: {ex}");
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!cancellationToken.IsCancellationRequested && GetSource(image) == url)
+                {
+                    image.SetValue(LoadFailedProperty, true);
+                }
+            });
         }
     }
 

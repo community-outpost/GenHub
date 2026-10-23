@@ -17,7 +17,15 @@ public static class CatalogTabValidator
     /// </summary>
     /// <param name="tabs">The tabs to normalize, or null.</param>
     /// <returns>The normalized tab list.</returns>
-    public static List<CatalogTabDefinition> Normalize(List<CatalogTabDefinition>? tabs)
+    public static List<CatalogTabDefinition> Normalize(List<CatalogTabDefinition>? tabs) => Normalize(tabs, assignMissingIds: true);
+
+    /// <summary>
+    /// Replaces null tab collections with empty ones and removes null tab and card entries.
+    /// </summary>
+    /// <param name="tabs">The tabs to normalize, or null.</param>
+    /// <param name="assignMissingIds">Whether a tab without an ID gets one generated from its header, unique within <paramref name="tabs"/>.</param>
+    /// <returns>The normalized tab list.</returns>
+    public static List<CatalogTabDefinition> Normalize(List<CatalogTabDefinition>? tabs, bool assignMissingIds)
     {
         if (tabs == null)
         {
@@ -31,6 +39,11 @@ public static class CatalogTabValidator
             tab.Cards.RemoveAll(card => card == null);
             tab.AppliesTo ??= [];
             tab.Metadata ??= [];
+        }
+
+        if (!assignMissingIds)
+        {
+            return tabs;
         }
 
         var suggestions = CustomTabIdGenerator.Suggest([.. tabs.Select(tab => (tab.TabId, tab.Header))]);

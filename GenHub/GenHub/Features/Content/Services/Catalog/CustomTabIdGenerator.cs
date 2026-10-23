@@ -21,7 +21,8 @@ public static class CustomTabIdGenerator
     /// </summary>
     /// <remarks>
     /// Accents are folded to their base letters. A header with no ASCII letters or digits, such as Arabic
-    /// or Cyrillic text, gets a stable <c>tab-</c> ID derived from a hash of the header.
+    /// or Cyrillic text, or one whose only Latin characters are digits beside non-Latin letters, gets a
+    /// stable <c>tab-</c> ID derived from a hash of the header.
     /// </remarks>
     /// <param name="header">The tab header.</param>
     /// <returns>The slug, or an empty string for a blank header.</returns>
@@ -33,6 +34,7 @@ public static class CustomTabIdGenerator
         }
 
         var builder = new StringBuilder();
+        var droppedLetters = false;
         foreach (var character in header.Trim().Normalize(NormalizationForm.FormD))
         {
             if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
@@ -44,15 +46,18 @@ public static class CustomTabIdGenerator
             if (lower is (>= 'a' and <= 'z') or (>= '0' and <= '9'))
             {
                 builder.Append(lower);
+                continue;
             }
-            else if (builder.Length > 0 && builder[^1] != '-')
+
+            droppedLetters |= char.IsLetter(character);
+            if (builder.Length > 0 && builder[^1] != '-')
             {
                 builder.Append('-');
             }
         }
 
         var slug = Truncate(builder.ToString().Trim('-'), CustomTabConstants.MaxTabIdLength);
-        if (slug.Length > 0)
+        if (slug.Length > 0 && !(droppedLetters && !slug.Any(char.IsAsciiLetter)))
         {
             return slug;
         }

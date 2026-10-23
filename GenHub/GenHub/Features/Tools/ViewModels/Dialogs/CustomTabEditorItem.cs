@@ -55,7 +55,7 @@ public partial class CustomTabEditorItem : ObservableObject
     public CustomTabEditorItem(CatalogTabDefinition? source = null)
     {
         _source = source != null ? Clone(source) : new CatalogTabDefinition();
-        CatalogTabValidator.Normalize([_source]);
+        CatalogTabValidator.Normalize([_source], assignMissingIds: false);
         TabId = _source.TabId ?? string.Empty;
         Header = _source.Header ?? string.Empty;
         Order = _source.Order;

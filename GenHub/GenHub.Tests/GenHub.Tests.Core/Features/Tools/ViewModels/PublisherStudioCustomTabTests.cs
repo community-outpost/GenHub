@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -315,6 +316,121 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
     }
 
     /// <summary>
+    /// A tab without an ID keeps the field empty in the editor and gets an ID unique among its siblings,
+    /// and the ID placeholder explains that the ID comes from the header until there is one.
+    /// </summary>
+    [Fact]
+    public void EditCustomTabDialog_IdLessTab_GetsIdUniqueAmongSiblings()
+    {
+        CatalogTabDefinition? saved = null;
+        var editor = new EditCustomTabDialogViewModel(
+            new CatalogTabDefinition { TabId = string.Empty, Header = "Notes" },
+            [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }],
+            tab => saved = tab);
+
+        Assert.Equal(string.Empty, editor.Tab.TabId);
+        Assert.Equal("notes-2", editor.TabIdWatermark);
+        editor.SaveCommand.Execute(null);
+        Assert.Equal("notes-2", saved!.TabId);
+
+        var blank = new EditCustomTabDialogViewModel(null, [], _ => { });
+        Assert.Equal("Generated from the header", blank.TabIdWatermark);
+    }
+
+    /// <summary>
+    /// With duplicate tab IDs in a hand-written catalog, edit and delete act on the tab that was clicked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_DuplicateTabIds_ActOnClickedTabAsync()
+    {
+        var target = CreateItem();
+        var first = new CatalogTabDefinition { TabId = "notes", Header = "First", Order = 10 };
+        var second = new CatalogTabDefinition { TabId = "notes", Header = "Second", Order = 20 };
+        target.CustomTabs = [first, second];
+        var (library, dialogService, _) = CreateLibrary(target);
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(second, It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "notes-2", Header = "Second edited", Order = 20 });
+
+        await library.EditCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[1]);
+
+        Assert.Same(first, target.CustomTabs[0]);
+        Assert.Equal("Second edited", target.CustomTabs[1].Header);
+    }
+
+    /// <summary>
+    /// Deleting a tab before the selected one keeps the selected tab selected, and the author gets a success toast.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_DeleteEarlierTab_KeepsSelectionAndNotifiesAsync()
+    {
+        var target = CreateItem();
+        target.CustomTabs =
+        [
+            new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
+            new CatalogTabDefinition { TabId = "faq", Header = "FAQ", Order = 20 },
+        ];
+        var notifications = new Mock<INotificationService>();
+        var (library, dialogService, _) = CreateLibrary(target, notifications.Object);
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        library.SelectedDetailTabIndex = ContentLibraryViewModel.BuiltInDetailTabCount + 1;
+
+        await library.DeleteCustomTabCommand.ExecuteAsync(library.SelectedContentCustomTabs[0]);
+
+        Assert.Equal(["faq"], library.SelectedContentCustomTabs.Select(t => t.TabId));
+        Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount, library.SelectedDetailTabIndex);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("Notes")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// A second delete cannot start while the first is waiting for the author's confirmation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_DeleteCustomTab_IsNotReentrantAsync()
+    {
+        var target = CreateItem();
+        target.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
+        var (library, dialogService, _) = CreateLibrary(target);
+        var confirmation = new TaskCompletionSource<bool>();
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(confirmation.Task);
+        var tab = library.SelectedContentCustomTabs[0];
+
+        var pending = library.DeleteCustomTabCommand.ExecuteAsync(tab);
+        Assert.False(library.DeleteCustomTabCommand.CanExecute(tab));
+        confirmation.SetResult(false);
+        await pending;
+
+        Assert.True(library.DeleteCustomTabCommand.CanExecute(tab));
+        dialogService.Verify(
+            d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// The content dialog returns the item's custom tabs with the edited item, so no caller can drop them.
+    /// </summary>
+    [Fact]
+    public void EditContentDialog_Save_KeepsCustomTabs()
+    {
+        var existing = CreateItem();
+        existing.CustomTabs = [new CatalogTabDefinition { TabId = "notes", Header = "Notes" }];
+        CatalogContentItem? edited = null;
+        using var dialog = new AddContentDialogViewModel(existing, item => edited = item);
+
+        dialog.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(edited);
+        Assert.Equal("notes", Assert.Single(edited.CustomTabs).TabId);
+    }
+
+    /// <summary>
     /// Editing an item's other fields in the content dialog keeps its custom tabs.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
@@ -367,7 +483,9 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         Assert.Contains(result.Errors, e => e.Contains("'mod-a'") && e.Contains("'gallery'") && e.Contains("invalid image URL"));
     }
 
-    private static (ContentLibraryViewModel Library, Mock<IPublisherStudioDialogService> DialogService, Mock<IPublisherStudioService> StudioService) CreateLibrary(CatalogContentItem target)
+    private static (ContentLibraryViewModel Library, Mock<IPublisherStudioDialogService> DialogService, Mock<IPublisherStudioService> StudioService) CreateLibrary(
+        CatalogContentItem target,
+        INotificationService? notifications = null)
     {
         var project = new PublisherStudioProject();
         project.Catalogs.Add(new NamedCatalog
@@ -392,7 +510,8 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             project.Catalogs[0],
             parent,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
-            dialogService.Object);
+            dialogService.Object,
+            notifications);
         library.SelectedContent = target;
         return (library, dialogService, studioService);
     }

@@ -39,7 +39,7 @@
                 <Grid ColumnDefinitions="*,8,*,8,140">
                     <StackPanel Grid.Column="0" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.TabId}" Classes="label"/>
-                        <TextBox Text="{Binding Tab.TabId}" Watermark="{Binding Tab.SuggestedTabId}"/>
+                        <TextBox Text="{Binding Tab.TabId}" Watermark="{Binding TabIdWatermark}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.CustomTabs.Header}" Classes="label"/>

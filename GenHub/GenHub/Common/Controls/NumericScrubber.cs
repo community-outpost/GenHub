@@ -93,16 +93,34 @@ public static class NumericScrubber
     {
         // Application styles load before the localization service is in the application resources,
         // so a Localize setter in the global style resolves to the raw key. Bind it per control instead.
-        if (control.IsSet(ToolTip.TipProperty) ||
-            Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) != true ||
-            resource is not ILocalizationService localizationService)
+        if (control.IsSet(ToolTip.TipProperty))
         {
             return;
         }
 
+        if (Application.Current?.TryGetResource(LocalizationConstants.ResourceServiceKey, theme: null, out var resource) != true ||
+            resource is not ILocalizationService localizationService)
+        {
+            // Retry once the control joins a visual tree, when the application resources are complete.
+            control.AttachedToVisualTree -= OnAttachedRetryTip;
+            control.AttachedToVisualTree += OnAttachedRetryTip;
+            return;
+        }
+
+        control.AttachedToVisualTree -= OnAttachedRetryTip;
+
         var binding = new LocalizeExtension(ScrubberTipKey).CreateBinding(localizationService);
         binding.Priority = BindingPriority.Style;
         control.Bind(ToolTip.TipProperty, binding);
+    }
+
+    private static void OnAttachedRetryTip(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is NumericUpDown control)
+        {
+            control.AttachedToVisualTree -= OnAttachedRetryTip;
+            AttachLocalizedTip(control);
+        }
     }
 
     private static void Detach(NumericUpDown control)
