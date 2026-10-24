@@ -1308,7 +1308,16 @@ public partial class AddContentDialogViewModel(
             return false;
         }
 
-        var path = Path.GetFullPath(trimmed);
+        string path;
+        try
+        {
+            path = Path.GetFullPath(trimmed);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
+
         if (!File.Exists(path) && !Directory.Exists(path))
         {
             return false;

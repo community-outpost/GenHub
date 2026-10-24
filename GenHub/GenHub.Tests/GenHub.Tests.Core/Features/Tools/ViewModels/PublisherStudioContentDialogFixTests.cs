@@ -110,6 +110,19 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
     }
 
     /// <summary>
+    /// A path the OS cannot resolve is ignored instead of throwing.
+    /// </summary>
+    [Fact]
+    public void PopulateFromPath_UnresolvablePath_IsIgnored()
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        vm.PopulateFromPath("bad\0path.zip");
+
+        Assert.Empty(vm.StagedFiles);
+    }
+
+    /// <summary>
     /// The library footer uses the singular string for one item and the plural string otherwise.
     /// </summary>
     /// <param name="count">The number of catalog items.</param>
