@@ -926,7 +926,7 @@
                                                                                         </Border>
                                                                                     </StackPanel>
                                                                                     <TextBlock Text="{Binding DownloadUrl}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                                                                    <TextBlock Text="{Binding LocalFilePath}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextTrimming="CharacterEllipsis" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.PendingUploadHint}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LocalFilePath}" IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                                                 </StackPanel>
                                                                                 <TextBlock Grid.Column="2" Text="{Binding Size, Converter={StaticResource FileSizeConverter}}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                                                             </Grid>

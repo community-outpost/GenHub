@@ -12889,6 +12889,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
     <value>{0} items</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>{0} Catalogs</value>
   </data>
@@ -13248,6 +13251,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
     <value>{0} items in catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
+    <value>{0} item in catalog</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Parsed: {0}</value>
@@ -13746,9 +13752,6 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>At least one bundle component is required.</value>
-  </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>A release item is required. Please provide a valid download URL or local file.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>Download URL must be a valid HTTP or HTTPS link.</value>

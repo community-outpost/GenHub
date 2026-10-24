@@ -266,6 +266,64 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// Verifies that ExportCatalogAsync refuses an item that subscribers would reject for having no releases.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_ItemWithoutReleases_ReturnsFailureAsync()
+    {
+        var project = CreateExportProject(new CatalogContentItem
+        {
+            Id = "draft-mod",
+            Name = "Draft Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.False(result.Success);
+        Assert.Contains("Draft Mod", result.FirstError);
+        Assert.Contains("no releases", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that ExportCatalogAsync still exports bundles and upstream-tracked items, which need no releases.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_BundleAndUpstreamWithoutReleases_ReturnsJsonAsync()
+    {
+        var project = CreateExportProject(
+            new CatalogContentItem
+            {
+                Id = "tracked-client",
+                Name = "Tracked Client",
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                UpstreamSync = new CatalogUpstreamSync
+                {
+                    Provider = "TheSuperHackers",
+                    Repository = "TheSuperHackers/GeneralsGameCode",
+                },
+            },
+            new CatalogContentItem
+            {
+                Id = "starter-bundle",
+                Name = "Starter Bundle",
+                ContentType = ContentType.ContentBundle,
+                TargetGame = GameType.ZeroHour,
+                BundledItems = [new CatalogDependency { ContentId = "tracked-client" }],
+            });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Contains("tracked-client", result.Data);
+        Assert.Contains("starter-bundle", result.Data);
+    }
+
+    /// <summary>
     /// Verifies that ValidateCatalogAsync validates required fields.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -803,4 +861,18 @@ public class PublisherStudioServiceTests
     {
         return Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
     }
+
+    private static PublisherStudioProject CreateExportProject(params CatalogContentItem[] items) => new()
+    {
+        ProjectName = "Test Project",
+        Catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content = [.. items],
+        },
+    };
 }
