@@ -1241,7 +1241,8 @@ public partial class AddContentDialogViewModel(
     partial void OnDownloadUrlChanged(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
             var name = Path.GetFileName(uri.LocalPath);
             if (!string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(PackageFilename))
@@ -2167,18 +2168,15 @@ public partial class AddContentDialogViewModel(
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(LocalFilePath))
+        if (!string.IsNullOrWhiteSpace(LocalFilePath) && !File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
         {
-            if (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
-            {
-                ValidationError = string.Format(
-                    GetLocalizedString(
-                        "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
-                        "Local path does not exist: {0}"),
-                    LocalFilePath);
-                IsValid = false;
-                return false;
-            }
+            ValidationError = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                    "Local path does not exist: {0}"),
+                LocalFilePath);
+            IsValid = false;
+            return false;
         }
 
         return true;
@@ -2212,6 +2210,16 @@ public partial class AddContentDialogViewModel(
 
         if (!ValidateStagedOrLocalFiles())
         {
+            return false;
+        }
+
+        if (!HasInitialReleaseSource() &&
+            (!string.IsNullOrWhiteSpace(ReleaseChangelog) || ReleaseDependencies.Count > 0))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource",
+                "Add a file or download URL for the initial release, or clear its changelog and dependencies.");
+            IsValid = false;
             return false;
         }
 
@@ -2791,7 +2799,10 @@ public partial class AddContentDialogViewModel(
             }
         }
 
-        TryStagePath(path, autofill: false);
+        if (TryStagePath(path, autofill: false))
+        {
+            UseDirectUrl = false;
+        }
     }
 
     private string GetLocalizedString(string key, string fallback)

@@ -87,9 +87,10 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
         {
             var isOne = ContentItemCount == 1;
             var key = isOne ? "Tools.PublisherStudio.Publish.ContentItemsFormatOne" : "Tools.PublisherStudio.Publish.ContentItemsFormat";
+            var fallback = isOne ? "{0} item" : "{0} items";
             var format = _localizationService != null && _localizationService.TryGetString(key, out var localized)
                 ? localized
-                : isOne ? "{0} item" : "{0} items";
+                : fallback;
             return string.Format(format, ContentItemCount);
         }
     }

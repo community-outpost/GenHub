@@ -13692,6 +13692,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>Требуется хотя бы один компонент пакета.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>Добавьте файл или URL-адрес загрузки для первого выпуска либо очистите его список изменений и зависимости.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>URL-адрес загрузки должен быть допустимой ссылкой HTTP или HTTPS.</value>
   </data>

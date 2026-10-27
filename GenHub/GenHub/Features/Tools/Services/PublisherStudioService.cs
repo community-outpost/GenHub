@@ -224,7 +224,7 @@ public class PublisherStudioService(
             if (itemWithoutReleases != null)
             {
                 return Task.FromResult(OperationResult<string>.CreateFailure(
-                    $"Content item '{itemWithoutReleases.Name}' has no releases"));
+                    $"Content item '{(string.IsNullOrWhiteSpace(itemWithoutReleases.Name) ? itemWithoutReleases.Id : itemWithoutReleases.Name)}' has no releases"));
             }
 
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);

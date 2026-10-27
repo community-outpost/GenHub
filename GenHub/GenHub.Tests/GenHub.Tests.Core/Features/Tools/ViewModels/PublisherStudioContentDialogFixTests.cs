@@ -58,7 +58,7 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             Description = "A description that meets the length requirements",
         };
         vm.UseDirectUrl = true;
-        vm.DownloadUrl = "ftp://example.com/mod.zip";
+        vm.DownloadUrl = "ftp://example.invalid/mod.zip";
 
         vm.CreateContentCommand.Execute(null);
 
@@ -80,14 +80,64 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             Description = "A description that meets the length requirements",
         };
         vm.UseDirectUrl = true;
-        vm.DownloadUrl = "https://example.com/hosted-mod.zip";
+        vm.DownloadUrl = "https://example.invalid/hosted-mod.zip";
 
         vm.CreateContentCommand.Execute(null);
 
         Assert.NotNull(created);
         var release = Assert.Single(created.Releases);
         var artifact = Assert.Single(release.Artifacts);
-        Assert.Equal("https://example.com/hosted-mod.zip", artifact.DownloadUrl);
+        Assert.Equal("https://example.invalid/hosted-mod.zip", artifact.DownloadUrl);
+    }
+
+    /// <summary>
+    /// A changelog with no file or URL blocks the save instead of being dropped.
+    /// </summary>
+    [Fact]
+    public void CreateContent_ChangelogWithoutSource_IsRejected()
+    {
+        CatalogContentItem? created = null;
+        using var vm = new AddContentDialogViewModel(item => created = item)
+        {
+            ContentName = "Notes Mod",
+            ContentId = "notes-mod",
+            Description = "A description that meets the length requirements",
+            ReleaseChangelog = "First release",
+        };
+
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.Null(created);
+        Assert.False(string.IsNullOrEmpty(vm.ValidationError));
+    }
+
+    /// <summary>
+    /// A file dropped on the initial release zone in Direct URL mode switches to local mode and becomes the artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddReleaseArtifactsFromPaths_InDirectUrlMode_StagesLocalArtifactAsync()
+    {
+        Directory.CreateDirectory(_tempDir);
+        var file = Path.Combine(_tempDir, "dropped-mod.zip");
+        File.WriteAllText(file, "payload");
+        CatalogContentItem? created = null;
+        using var vm = new AddContentDialogViewModel(item => created = item)
+        {
+            ContentName = "Dropped Mod",
+            ContentId = "dropped-mod",
+            Description = "A description that meets the length requirements",
+        };
+        vm.UseDirectUrl = true;
+
+        await vm.AddReleaseArtifactsFromPathsAsync([file]);
+        await WaitForComputeAsync(vm);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.False(vm.UseDirectUrl);
+        Assert.NotNull(created);
+        var artifact = Assert.Single(Assert.Single(created.Releases).Artifacts);
+        Assert.Equal(Path.GetFullPath(file), artifact.LocalFilePath);
     }
 
     /// <summary>
@@ -197,6 +247,15 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
         if (Directory.Exists(_tempDir))
         {
             Directory.Delete(_tempDir, recursive: true);
+        }
+    }
+
+    private static async Task WaitForComputeAsync(AddContentDialogViewModel vm)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (vm.IsComputingHash && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20);
         }
     }
 

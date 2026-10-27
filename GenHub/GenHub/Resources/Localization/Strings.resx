@@ -13753,6 +13753,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>At least one bundle component is required.</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>Add a file or download URL for the initial release, or clear its changelog and dependencies.</value>
+  </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>Download URL must be a valid HTTP or HTTPS link.</value>
   </data>

@@ -288,6 +288,27 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// Verifies that the export error names the item ID when the item has no name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_UnnamedItemWithoutReleases_NamesItemIdAsync()
+    {
+        var project = CreateExportProject(new CatalogContentItem
+        {
+            Id = "unnamed-mod",
+            Name = string.Empty,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.False(result.Success);
+        Assert.Contains("'unnamed-mod'", result.FirstError);
+    }
+
+    /// <summary>
     /// Verifies that ExportCatalogAsync still exports bundles and upstream-tracked items, which need no releases.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
