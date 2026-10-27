@@ -81,10 +81,19 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
     /// <summary>
     /// Gets the localized content-items count display text.
     /// </summary>
-    public string ContentItemsCountText =>
-        _localizationService != null && _localizationService.TryGetString("Tools.PublisherStudio.Publish.ContentItemsFormat", out var format)
-            ? string.Format(format, ContentItemCount)
-            : $"{ContentItemCount} items";
+    public string ContentItemsCountText
+    {
+        get
+        {
+            var isOne = ContentItemCount == 1;
+            var key = isOne ? "Tools.PublisherStudio.Publish.ContentItemsFormatOne" : "Tools.PublisherStudio.Publish.ContentItemsFormat";
+            var fallback = isOne ? "{0} item" : "{0} items";
+            var format = _localizationService != null && _localizationService.TryGetString(key, out var localized)
+                ? localized
+                : fallback;
+            return string.Format(format, ContentItemCount);
+        }
+    }
 
     /// <summary>
     /// Gets the content items contained within this catalog.

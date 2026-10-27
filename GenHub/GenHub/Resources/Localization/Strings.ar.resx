@@ -12826,7 +12826,10 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>يرجى الانتظار حتى انتهاء الرفع أو المزامنة الحالية قبل الفحص.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
-    <value>{0} من العناصر</value>
+    <value>عدد العناصر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} عنصر</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>{0} من الفهارس</value>
@@ -13186,6 +13189,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>استوديو النشر GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>عدد العناصر في الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
     <value>{0} عنصر في الكتالوج</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
@@ -13686,8 +13692,8 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>مطلوب مكون حزمة واحد على الأقل.</value>
   </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>عنصر الإصدار مطلوب. يرجى توفير عنوان URL صالح للتنزيل أو ملف محلي.</value>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>أضف ملفًا أو عنوان URL للتنزيل للإصدار الأولي، أو امسح سجل التغييرات والتبعيات.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>يجب أن يكون رابط التنزيل رابط HTTP أو HTTPS صالحًا.</value>

@@ -80,6 +80,15 @@ public class PublisherStudioIntegrationTests : IDisposable
             Id = "awesome-mod",
             Name = "Awesome Mod",
             Description = "A test mod",
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    IsLatest = true,
+                    Artifacts = [new ReleaseArtifact { Filename = "awesome-mod.zip", DownloadUrl = "https://example.com/awesome-mod.zip", IsPrimary = true }],
+                },
+            ],
         };
         project.Catalog.Content.Add(content);
 

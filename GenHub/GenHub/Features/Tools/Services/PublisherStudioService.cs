@@ -220,6 +220,13 @@ public class PublisherStudioService(
                 catalogToExport.AvatarUrl = catalog.IconUrl;
             }
 
+            var itemWithoutReleases = catalogToExport.Content.FirstOrDefault(RequiresReleaseButHasNone);
+            if (itemWithoutReleases != null)
+            {
+                return Task.FromResult(OperationResult<string>.CreateFailure(
+                    $"Content item '{(string.IsNullOrWhiteSpace(itemWithoutReleases.Name) ? itemWithoutReleases.Id : itemWithoutReleases.Name)}' has no releases"));
+            }
+
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);
 
             logger.LogInformation("Exported catalog '{CatalogName}' for project: {ProjectName}", catalogName, project.ProjectName);
@@ -450,6 +457,11 @@ public class PublisherStudioService(
 
         return OperationResult<bool>.CreateSuccess(true);
     }
+
+    private static bool RequiresReleaseButHasNone(CatalogContentItem content) =>
+        (content.Releases == null || content.Releases.Count == 0) &&
+        content.ContentType != ContentType.ContentBundle &&
+        !CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
 
     private static OperationResult<bool> ValidateContentReleases(
         PublisherCatalog catalog,

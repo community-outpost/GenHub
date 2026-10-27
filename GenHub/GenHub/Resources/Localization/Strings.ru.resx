@@ -12828,6 +12828,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
     <value>Элементов: {0}</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} элемент</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>Каталогов: {0}</value>
   </data>
@@ -13186,7 +13189,10 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>Студия издателя GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
-    <value>{0} элементов в каталоге</value>
+    <value>Элементов в каталоге: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
+    <value>{0} элемент в каталоге</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Распознано: {0}</value>
@@ -13686,8 +13692,8 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>Требуется хотя бы один компонент пакета.</value>
   </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>Требуется элемент выпуска. Пожалуйста, укажите действительный URL-адрес для загрузки или локальный файл.</value>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>Добавьте файл или URL-адрес загрузки для первого выпуска либо очистите его список изменений и зависимости.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>URL-адрес загрузки должен быть допустимой ссылкой HTTP или HTTPS.</value>
