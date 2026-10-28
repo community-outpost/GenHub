@@ -835,14 +835,14 @@ jobs:
           echo "### GenHub CI Results" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && 'Passed' || needs.build-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && 'Passed' || needs.build-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && 'Passed' || needs.build-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && 'Passed' || needs.test-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && 'Passed' || needs.test-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && 'Passed' || needs.test-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && 'Passed' || needs.engine-launch-smoke.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Localization | ${{ needs.validate-localization.result == 'success' && 'Passed' || needs.validate-localization.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && 'Passed' || needs.build-windows.result == 'skipped' && 'Skipped' || needs.build-windows.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && 'Passed' || needs.build-linux.result == 'skipped' && 'Skipped' || needs.build-linux.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && 'Passed' || needs.build-macos.result == 'skipped' && 'Skipped' || needs.build-macos.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && 'Passed' || needs.test-windows.result == 'skipped' && 'Skipped' || needs.test-windows.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && 'Passed' || needs.test-linux.result == 'skipped' && 'Skipped' || needs.test-linux.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && 'Passed' || needs.test-macos.result == 'skipped' && 'Skipped' || needs.test-macos.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && 'Passed' || needs.engine-launch-smoke.result == 'skipped' && 'Skipped' || needs.engine-launch-smoke.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Localization | ${{ needs.validate-localization.result == 'success' && 'Passed' || needs.validate-localization.result == 'skipped' && 'Skipped' || needs.validate-localization.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
       # Turns the summary into a real gate: branch protection can require this one
       # check and a failed or cancelled job anywhere in `needs` blocks the merge.
