@@ -847,6 +847,8 @@ jobs:
       # Turns the summary into a real gate: branch protection can require this one
       # check and a failed or cancelled job anywhere in `needs` blocks the merge.
       # Skipped jobs pass — being gated off by detect-changes is not a failure.
+      # A cancelled push run is not a failure. The pull request run for the same branch
+      # shares its concurrency group and cancels it by design, and push runs gate no merge.
       - name: Fail when a required job failed
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        if: ${{ contains(needs.*.result, 'failure') || (github.event_name != 'push' && contains(needs.*.result, 'cancelled')) }}
         run: exit 1
