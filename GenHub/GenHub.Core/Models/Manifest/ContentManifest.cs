@@ -42,6 +42,7 @@ public class ContentManifest
         OriginalProviderName = other.OriginalProviderName;
         OriginalContentId = other.OriginalContentId;
         SourcePath = other.SourcePath;
+        SourceMode = other.SourceMode;
         Dependencies = other.Dependencies != null ? [.. other.Dependencies] : [];
         ContentReferences = other.ContentReferences != null ? [.. other.ContentReferences] : [];
         KnownAddons = other.KnownAddons != null ? [.. other.KnownAddons] : [];
@@ -109,6 +110,13 @@ public class ContentManifest
     /// <summary>Gets or sets the original source path for local content.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SourcePath { get; set; }
+
+    /// <summary>
+    /// Gets or sets how this content's files are sourced. Snapshot content lives in CAS;
+    /// live content stays in <see cref="SourcePath"/> and is linked into workspaces.
+    /// </summary>
+    [JsonPropertyName("sourceMode")]
+    public ContentSourceMode SourceMode { get; set; } = ContentSourceMode.Snapshot;
 
     /// <summary>Gets or sets the dependencies required for this content to function.</summary>
     public List<ContentDependency> Dependencies { get; set; } = [];

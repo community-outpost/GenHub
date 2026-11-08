@@ -1,0 +1,1445 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="App.Name" xml:space="preserve">
+    <value>GenHub</value>
+  </data>
+  <data name="App.Subtitle" xml:space="preserve">
+    <value>命令与征服：将军 启动器</value>
+  </data>
+  <data name="Common.Action.Clear" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="Common.Action.Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+  <data name="Common.Action.Cut" xml:space="preserve">
+    <value>剪切</value>
+  </data>
+  <data name="Common.Action.Export" xml:space="preserve">
+    <value>导出</value>
+  </data>
+  <data name="Common.Action.Import" xml:space="preserve">
+    <value>导入</value>
+  </data>
+  <data name="Common.Action.Paste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="Common.Action.Reset" xml:space="preserve">
+    <value>重置</value>
+  </data>
+  <data name="Common.Action.Select" xml:space="preserve">
+    <value>选择</value>
+  </data>
+  <data name="Common.Button.Add" xml:space="preserve">
+    <value>添加</value>
+  </data>
+  <data name="Common.Button.AddItem" xml:space="preserve">
+    <value>+ 添加</value>
+  </data>
+  <data name="Common.Button.Apply" xml:space="preserve">
+    <value>应用</value>
+  </data>
+  <data name="Common.Button.Back" xml:space="preserve">
+    <value>返回</value>
+  </data>
+  <data name="Common.Button.Browse" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="Common.Button.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Common.Button.Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Common.Button.Delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="Common.Button.Edit" xml:space="preserve">
+    <value>编辑</value>
+  </data>
+  <data name="Common.Button.Launch" xml:space="preserve">
+    <value>启动</value>
+  </data>
+  <data name="Common.Button.New" xml:space="preserve">
+    <value>新建</value>
+  </data>
+  <data name="Common.Button.Next" xml:space="preserve">
+    <value>下一步</value>
+  </data>
+  <data name="Common.Button.OK" xml:space="preserve">
+    <value>确定</value>
+  </data>
+  <data name="Common.Button.Prepare" xml:space="preserve">
+    <value>准备</value>
+  </data>
+  <data name="Common.Button.Refresh" xml:space="preserve">
+    <value>刷新</value>
+  </data>
+  <data name="Common.Button.Remove" xml:space="preserve">
+    <value>移除</value>
+  </data>
+  <data name="Common.Button.RemoveItem" xml:space="preserve">
+    <value>✕ 移除</value>
+  </data>
+  <data name="Common.Button.Save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="Common.Button.Scan" xml:space="preserve">
+    <value>扫描</value>
+  </data>
+  <data name="Common.Button.Search" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="Common.Button.Stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="Common.Checkbox.DontAskAgain" xml:space="preserve">
+    <value>不再询问</value>
+  </data>
+  <data name="Common.Checkbox.DontAskAgain.Tooltip" xml:space="preserve">
+    <value>记住此选择，用于未来的更新</value>
+  </data>
+  <data name="Common.Checkbox.DontShowAgain" xml:space="preserve">
+    <value>不再显示此内容</value>
+  </data>
+  <data name="Common.Label.By" xml:space="preserve">
+    <value>由</value>
+  </data>
+  <data name="Common.Label.Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
+  <data name="Common.State.Disabled" xml:space="preserve">
+    <value>已禁用</value>
+  </data>
+  <data name="Common.State.Enabled" xml:space="preserve">
+    <value>已启用</value>
+  </data>
+  <data name="Common.Status.Complete" xml:space="preserve">
+    <value>完成</value>
+  </data>
+  <data name="Common.Status.Error" xml:space="preserve">
+    <value>错误</value>
+  </data>
+  <data name="Common.Status.Failed" xml:space="preserve">
+    <value>失败</value>
+  </data>
+  <data name="Common.Status.Info" xml:space="preserve">
+    <value>信息</value>
+  </data>
+  <data name="Common.Status.Initializing" xml:space="preserve">
+    <value>初始化中...</value>
+  </data>
+  <data name="Common.Status.Loading" xml:space="preserve">
+    <value>加载中...</value>
+  </data>
+  <data name="Common.Status.LoadingContent" xml:space="preserve">
+    <value>正在加载内容...</value>
+  </data>
+  <data name="Common.Status.PleaseWait" xml:space="preserve">
+    <value>请稍候...</value>
+  </data>
+  <data name="Common.Status.Processing" xml:space="preserve">
+    <value>处理中...</value>
+  </data>
+  <data name="Common.Status.Ready" xml:space="preserve">
+    <value>就绪</value>
+  </data>
+  <data name="Common.Status.Saving" xml:space="preserve">
+    <value>保存中...</value>
+  </data>
+  <data name="Common.Status.Success" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="Common.Status.Warning" xml:space="preserve">
+    <value>警告</value>
+  </data>
+  <data name="Common.Tooltip.CloseSidebar" xml:space="preserve">
+    <value>关闭侧边栏</value>
+  </data>
+  <data name="Common.Tooltip.CloseWindow" xml:space="preserve">
+    <value>关闭窗口</value>
+  </data>
+  <data name="Common.Tooltip.ExpandSidebar" xml:space="preserve">
+    <value>展开侧边栏</value>
+  </data>
+  <data name="Common.Tooltip.MaximizeRestore" xml:space="preserve">
+    <value>最大化 / 还原</value>
+  </data>
+  <data name="Common.Tooltip.NumericScrubber" xml:space="preserve">
+    <value>点击编辑，水平拖动调整数值 (Shift: 精细调整, Ctrl: 粗略调整)</value>
+  </data>
+  <data name="Common.Tooltip.Clear" xml:space="preserve">
+    <value>清除输入</value>
+  </data>
+  <data name="Common.Tooltip.PickBuiltInAsset" xml:space="preserve">
+    <value>选择内置的 GenHub 资源 (封面或徽标)</value>
+  </data>
+  <data name="Common.AssetPicker.Title" xml:space="preserve">
+    <value>内置 GenHub 资源</value>
+  </data>
+  <data name="Common.AssetPicker.CoversAndBanners" xml:space="preserve">
+    <value>封面 &amp; 横幅</value>
+  </data>
+  <data name="Common.AssetPicker.LogosAndIcons" xml:space="preserve">
+    <value>徽标 &amp; 图标</value>
+  </data>
+  <data name="Common.Tooltip.PasteClipboard" xml:space="preserve">
+    <value>从剪贴板粘贴图片或文件 (Ctrl+V)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Button.Update" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Dialog.UpdateOption.Checkbox.DeleteOldVersions" xml:space="preserve">
+    <value>从存储中删除被取代的版本文件</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.CreateNewProfile" xml:space="preserve">
+    <value>为新版本创建一个新的伴随配置，同时保持您当前的版本、文件和配置不变。</value>
+  </data>
+  <data name="Dialog.UpdateOption.Description.Replace" xml:space="preserve">
+    <value>更新现有配置中的当前版本。被取代的版本文件（旧版游戏客户端、地图包、数据补丁）将被删除以节省磁盘空间。</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.CreateNewProfile" xml:space="preserve">
+    <value>创建新配置</value>
+  </data>
+  <data name="Dialog.UpdateOption.Radio.Replace" xml:space="preserve">
+    <value>替换 (更新当前版本)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.Cancel" xml:space="preserve">
+    <value>取消此次更新 (不会下载或修改任何文件)</value>
+  </data>
+  <data name="Dialog.UpdateOption.Tooltip.DeleteOldVersions" xml:space="preserve">
+    <value>从本地存储中移除以前的版本文件，以防止积累未使用的版本</value>
+  </data>
+  <data name="Downloads.Category.GitHubBuilds" xml:space="preserve">
+    <value>GitHub 构建版本</value>
+  </data>
+  <data name="Downloads.Category.Maps" xml:space="preserve">
+    <value>地图</value>
+  </data>
+  <data name="Downloads.Category.ModDownloads" xml:space="preserve">
+    <value>Mod 下载</value>
+  </data>
+  <data name="Downloads.Category.OfficialReleases" xml:space="preserve">
+    <value>官方发布版</value>
+  </data>
+  <data name="Downloads.Category.PatchesAndFixes" xml:space="preserve">
+    <value>补丁 &amp; 修复</value>
+  </data>
+  <data name="Downloads.Category.ToolsAndUtilities" xml:space="preserve">
+    <value>工具 &amp; 实用程序</value>
+  </data>
+  <data name="Downloads.Label.ComingSoon" xml:space="preserve">
+    <value>(即将推出)</value>
+  </data>
+  <data name="Downloads.Notification.Canceled.Message" xml:space="preserve">
+    <value>已取消下载 {0}。</value>
+  </data>
+  <data name="Downloads.Notification.Canceled.Title" xml:space="preserve">
+    <value>下载已取消</value>
+  </data>
+  <data name="Downloads.Notification.Complete.Message" xml:space="preserve">
+    <value>已下载 {0}</value>
+  </data>
+  <data name="Downloads.Notification.Complete.Title" xml:space="preserve">
+    <value>下载完成</value>
+  </data>
+  <data name="Downloads.Notification.Starting.Message" xml:space="preserve">
+    <value>开始中...</value>
+  </data>
+  <data name="Downloads.Notification.Connecting.Message" xml:space="preserve">
+    <value>连接中...</value>
+  </data>
+  <data name="Downloads.Notification.Downloading.Title" xml:space="preserve">
+    <value>正在下载 {0}</value>
+  </data>
+  <data name="Downloads.Notification.Failed.Title" xml:space="preserve">
+    <value>下载失败: {0}</value>
+  </data>
+  <data name="Downloads.Notification.Progress.Message" xml:space="preserve">
+    <value>{0}% - {1}</value>
+  </data>
+  <data name="Downloads.Notification.UnknownError" xml:space="preserve">
+    <value>下载过程中发生未知错误。</value>
+  </data>
+  <data name="Downloads.Section.AdditionalContent" xml:space="preserve">
+    <value>附加内容</value>
+  </data>
+  <data name="Downloads.Section.PrimaryDownloads" xml:space="preserve">
+    <value>主要下载</value>
+  </data>
+  <data name="Downloads.Status.ComingSoon" xml:space="preserve">
+    <value>即将推出</value>
+  </data>
+  <data name="Downloads.Status.DownloadComplete" xml:space="preserve">
+    <value>下载完成</value>
+  </data>
+  <data name="Downloads.Status.DownloadFailed" xml:space="preserve">
+    <value>下载失败</value>
+  </data>
+  <data name="Downloads.Status.Downloading" xml:space="preserve">
+    <value>正在下载...</value>
+  </data>
+  <data name="Downloads.Status.Installing" xml:space="preserve">
+    <value>正在安装...</value>
+  </data>
+  <data name="Downloads.Status.Paused" xml:space="preserve">
+    <value>已暂停</value>
+  </data>
+  <data name="Downloads.Status.Queued" xml:space="preserve">
+    <value>队列中</value>
+  </data>
+  <data name="Downloads.Subtitle.Downloads" xml:space="preserve">
+    <value>管理您的下载和安装</value>
+  </data>
+  <data name="Downloads.Title.Downloads" xml:space="preserve">
+    <value>下载</value>
+  </data>
+
+
+  <data name="Navigation.Downloads" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Navigation.GameProfiles" xml:space="preserve">
+    <value>游戏配置</value>
+  </data>
+  <data name="Navigation.Info" xml:space="preserve">
+    <value>信息</value>
+  </data>
+  <data name="Navigation.Notifications" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="Navigation.Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Navigation.Tab.About" xml:space="preserve">
+    <value>关于</value>
+  </data>
+  <data name="Navigation.Tab.Content" xml:space="preserve">
+    <value>内容</value>
+  </data>
+  <data name="Navigation.Tab.Downloads" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Navigation.Tab.GameProfiles" xml:space="preserve">
+    <value>游戏配置</value>
+  </data>
+  <data name="Navigation.Tab.Home" xml:space="preserve">
+    <value>主页</value>
+  </data>
+  <data name="Navigation.Tab.Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Navigation.Tab.Tools" xml:space="preserve">
+    <value>工具</value>
+  </data>
+  <data name="Navigation.Tab.Updates" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Navigation.Tools" xml:space="preserve">
+    <value>工具</value>
+  </data>
+  <data name="GameProfiles.Title.GameProfiles" xml:space="preserve">
+    <value>游戏配置</value>
+  </data>
+  <data name="GameProfiles.Subtitle.GameProfiles" xml:space="preserve">
+    <value>选择一个配置启动游戏，或创建一个新的配置</value>
+  </data>
+  <data name="GameProfiles.Button.AddNewProfile" xml:space="preserve">
+    <value>添加新配置</value>
+  </data>
+  <data name="GameProfiles.Button.Scan" xml:space="preserve">
+    <value>扫描</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
+    <value>启动</value>
+  </data>
+  <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="GameProfiles.Card.Status.Running" xml:space="preserve">
+    <value>运行中</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CopyProfile" xml:space="preserve">
+    <value>复制配置</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.CreateShortcut" xml:space="preserve">
+    <value>创建快捷方式</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.DeleteProfile" xml:space="preserve">
+    <value>删除配置</value>
+  </data>
+  <data name="GameProfiles.Card.Menu.EditProfile" xml:space="preserve">
+    <value>编辑配置</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CopyProfile" xml:space="preserve">
+    <value>复制配置</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.CreateShortcut" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.DeleteProfile" xml:space="preserve">
+    <value>删除配置</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfile" xml:space="preserve">
+    <value>编辑配置</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
+    <value>编辑配置 (热切换内容)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
+    <value>切换 Steam 集成</value>
+  </data>
+  <data name="GameProfiles.GameType.Generals" xml:space="preserve">
+    <value>命令与征服：将军</value>
+  </data>
+  <data name="GameProfiles.GameType.ZeroHour" xml:space="preserve">
+    <value>命令与征服：绝命时刻</value>
+  </data>
+  <data name="GameProfiles.InstallationType.CdIso" xml:space="preserve">
+    <value>光盘/ISO</value>
+  </data>
+  <data name="GameProfiles.InstallationType.EaApp" xml:space="preserve">
+    <value>EA App</value>
+  </data>
+  <data name="GameProfiles.InstallationType.FirstDecade" xml:space="preserve">
+    <value>十年纪念版</value>
+  </data>
+  <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
+    <value>PC 游戏</value>
+  </data>
+  <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
+    <value>零售版</value>
+  </data>
+  <data name="GameProfiles.InstallationType.Steam" xml:space="preserve">
+    <value>Steam</value>
+  </data>
+  <data name="GameProfiles.InstallationType.Wine" xml:space="preserve">
+    <value>Wine</value>
+  </data>
+  <data name="GameProfiles.Badge.Admin" xml:space="preserve">
+    <value>管理员</value>
+  </data>
+  <data name="GameProfiles.Badge.RetailCompatible" xml:space="preserve">
+    <value>兼容零售版</value>
+  </data>
+  <data name="GameProfiles.Badge.NonRetailCompatible" xml:space="preserve">
+    <value>不兼容零售版</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Copied" xml:space="preserve">
+    <value>已复制</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.HardLinked" xml:space="preserve">
+    <value>硬链接</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Hybrid" xml:space="preserve">
+    <value>混合模式</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.NotPrepared" xml:space="preserve">
+    <value>未准备</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Prepared" xml:space="preserve">
+    <value>已准备</value>
+  </data>
+  <data name="GameProfiles.WorkspaceStatus.Symlinked" xml:space="preserve">
+    <value>符号链接</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Title" xml:space="preserve">
+    <value>游戏已启动</value>
+  </data>
+  <data name="GameProfiles.Notification.GameLaunched.Message" xml:space="preserve">
+    <value>配置 '{0}' 启动成功</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Title" xml:space="preserve">
+    <value>游戏已停止</value>
+  </data>
+  <data name="GameProfiles.Notification.GameStopped.Message" xml:space="preserve">
+    <value>配置 '{0}' 已停止</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Title" xml:space="preserve">
+    <value>快捷方式已创建</value>
+  </data>
+  <data name="GameProfiles.Notification.ShortcutCreated.Message" xml:space="preserve">
+    <value>已为配置 '{0}' 创建桌面快捷方式</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Title" xml:space="preserve">
+    <value>配置已复制</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileCopied.Message" xml:space="preserve">
+    <value>配置已复制为 '{0}'</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Title" xml:space="preserve">
+    <value>配置已删除</value>
+  </data>
+  <data name="GameProfiles.Notification.ProfileDeleted.Message" xml:space="preserve">
+    <value>配置 '{0}' 已成功删除</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteProfile" xml:space="preserve">
+    <value>您确定要删除此配置吗？</value>
+  </data>
+  <data name="GameProfiles.Notification.DeleteProfileWithName" xml:space="preserve">
+    <value>您确定要删除配置 '{0}' 吗？</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Title" xml:space="preserve">
+    <value>Steam 集成已启用</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamEnabled.Message" xml:space="preserve">
+    <value>已为配置 '{0}' 启用 Steam 集成</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Title" xml:space="preserve">
+    <value>Steam 集成已禁用</value>
+  </data>
+  <data name="GameProfiles.Notification.SteamDisabled.Message" xml:space="preserve">
+    <value>已为配置 '{0}' 禁用 Steam 集成</value>
+  </data>
+  <data name="GameProfiles.Window.Title" xml:space="preserve">
+    <value>配置设置</value>
+  </data>
+  <data name="GameProfiles.Window.Subtitle" xml:space="preserve">
+    <value>配置设置</value>
+  </data>
+  <data name="GameProfiles.Window.HotswapMode" xml:space="preserve">
+    <value>热切换模式</value>
+  </data>
+  <data name="GameProfiles.Window.RandomizeColor" xml:space="preserve">
+    <value>随机颜色</value>
+  </data>
+  <data name="GameProfiles.Window.ToggleFullscreen" xml:space="preserve">
+    <value>切换全屏</value>
+  </data>
+  <data name="GameProfiles.Window.SaveTooltip" xml:space="preserve">
+    <value>保存更改并关闭</value>
+  </data>
+  <data name="GameProfiles.General.TabIdentity" xml:space="preserve">
+    <value>身份</value>
+  </data>
+  <data name="GameProfiles.General.TabAppearance" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="GameProfiles.General.TabLaunch" xml:space="preserve">
+    <value>启动</value>
+  </data>
+  <data name="GameProfiles.General.TabTheme" xml:space="preserve">
+    <value>主题</value>
+  </data>
+  <data name="GameProfiles.General.BasicInformation" xml:space="preserve">
+    <value>基本信息</value>
+  </data>
+  <data name="GameProfiles.General.ProfileName" xml:space="preserve">
+    <value>配置名称</value>
+  </data>
+  <data name="GameProfiles.General.ProfileNameWatermark" xml:space="preserve">
+    <value>输入配置名称</value>
+  </data>
+  <data name="GameProfiles.General.Description" xml:space="preserve">
+    <value>描述</value>
+  </data>
+  <data name="GameProfiles.General.DescriptionWatermark" xml:space="preserve">
+    <value>可选描述</value>
+  </data>
+  <data name="GameProfiles.General.IconAndCover" xml:space="preserve">
+    <value>图标 &amp; 封面</value>
+  </data>
+  <data name="GameProfiles.General.ProfileIcon" xml:space="preserve">
+    <value>配置图标</value>
+  </data>
+  <data name="GameProfiles.General.ProfileCover" xml:space="preserve">
+    <value>配置封面</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfiguration" xml:space="preserve">
+    <value>启动配置</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategy" xml:space="preserve">
+    <value>工作区策略</value>
+  </data>
+  <data name="GameProfiles.General.WorkspaceStrategyDescription" xml:space="preserve">
+    <value>决定内容文件如何映射到游戏文件夹中。</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArguments" xml:space="preserve">
+    <value>命令行参数</value>
+  </data>
+  <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
+    <value>-win -quickstart</value>
+  </data>
+  <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
+    <value>主题自定义</value>
+  </data>
+  <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
+    <value>界面主色调</value>
+  </data>
+  <data name="GameProfiles.Content.EnabledContentTitle" xml:space="preserve">
+    <value>已启用内容</value>
+  </data>
+  <data name="GameProfiles.Content.AvailableContent" xml:space="preserve">
+    <value>可用内容</value>
+  </data>
+  <data name="GameProfiles.Content.LiveBadge" xml:space="preserve">
+    <value>实时</value>
+  </data>
+  <data name="GameProfiles.Content.TabEnabled" xml:space="preserve">
+    <value>已启用</value>
+  </data>
+  <data name="GameProfiles.Content.TabAvailable" xml:space="preserve">
+    <value>可用</value>
+  </data>
+  <data name="GameProfiles.Content.AddContentTitle" xml:space="preserve">
+    <value>添加内容</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalButton" xml:space="preserve">
+    <value>添加本地文件夹</value>
+  </data>
+  <data name="GameProfiles.Content.AddLocalTooltip" xml:space="preserve">
+    <value>从磁盘导入内容</value>
+  </data>
+  <data name="GameProfiles.Content.FilterGameLabel" xml:space="preserve">
+    <value>过滤:</value>
+  </data>
+  <data name="Settings.Title.Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="Settings.Subtitle.Settings" xml:space="preserve">
+    <value>配置您的 GenHub 首选项和应用程序行为</value>
+  </data>
+  <data name="Settings.Section.Appearance" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="Settings.Section.Downloads" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Settings.Section.GameConfiguration" xml:space="preserve">
+    <value>游戏配置</value>
+  </data>
+  <data name="Settings.Section.Logs" xml:space="preserve">
+    <value>日志</value>
+  </data>
+  <data name="Settings.Section.Storage" xml:space="preserve">
+    <value>🗄️ 存储</value>
+  </data>
+  <data name="Settings.Section.Updates" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Settings.Section.DangerZone" xml:space="preserve">
+    <value>危险区域</value>
+  </data>
+  <data name="Settings.Appearance.Language.Label" xml:space="preserve">
+    <value>语言</value>
+  </data>
+  <data name="Settings.Appearance.Language.Description" xml:space="preserve">
+    <value>选择用户界面显示语言。</value>
+  </data>
+  <data name="Settings.Appearance.Theme.Label" xml:space="preserve">
+    <value>强调色主题</value>
+  </data>
+  <data name="Settings.Appearance.Theme.Description" xml:space="preserve">
+    <value>为 GenHub 中的按钮、标签、高亮、发光和滚动条选择强调色主题。</value>
+  </data>
+  <data name="Settings.Appearance.Theme.ActiveTheme" xml:space="preserve">
+    <value>当前主题:</value>
+  </data>
+  <data name="Settings.Button.SaveSettings" xml:space="preserve">
+    <value>保存设置</value>
+  </data>
+  <data name="Settings.Button.Saving" xml:space="preserve">
+    <value>保存中...</value>
+  </data>
+  <data name="Settings.Button.ResetToDefaults" xml:space="preserve">
+    <value>恢复默认设置</value>
+  </data>
+  <data name="Settings.Notification.SettingsSaved" xml:space="preserve">
+    <value>✓ 设置保存成功！</value>
+  </data>
+  <data name="Settings.Hint.SettingsAutoSave" xml:space="preserve">
+    <value>设置会自动保存，并根据需要立即生效或在下次重启时生效。</value>
+  </data>
+  <data name="Settings.Theme.Dark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="Settings.Theme.Light" xml:space="preserve">
+    <value>浅色</value>
+  </data>
+  <data name="Updates.Status.CheckingForUpdates" xml:space="preserve">
+    <value>正在检查更新...</value>
+  </data>
+  <data name="Updates.Status.NoUpdatesAvailable" xml:space="preserve">
+    <value>没有可用更新</value>
+  </data>
+  <data name="Updates.Status.UpToDate" xml:space="preserve">
+    <value>您已是最新版本！</value>
+  </data>
+  <data name="Updates.Button.CheckForUpdates" xml:space="preserve">
+    <value>检查更新</value>
+  </data>
+  <data name="Updates.Button.InstallUpdate" xml:space="preserve">
+    <value>安装更新</value>
+  </data>
+  <data name="Updates.Progress.PreparingDownload" xml:space="preserve">
+    <value>准备下载...</value>
+  </data>
+  <data name="Common.UnknownError" xml:space="preserve">
+    <value>未知错误</value>
+  </data>
+  <data name="Common.LoadingEllipsis" xml:space="preserve">
+    <value>加载中...</value>
+  </data>
+  <data name="Common.SavingEllipsis" xml:space="preserve">
+    <value>保存中...</value>
+  </data>
+
+
+  <data name="GameSettings.Category.Video" xml:space="preserve">
+    <value>视频</value>
+  </data>
+  <data name="GameSettings.Category.Audio" xml:space="preserve">
+    <value>音频</value>
+  </data>
+  <data name="GameSettings.Category.Controls" xml:space="preserve">
+    <value>控制</value>
+  </data>
+  <data name="GameSettings.Category.TheSuperHackers" xml:space="preserve">
+    <value>TheSuperHackers 增强</value>
+  </data>
+  <data name="GameSettings.Category.GeneralsOnline" xml:space="preserve">
+    <value>Generals Online 联机</value>
+  </data>
+  <data name="GameSettings.Video.Title" xml:space="preserve">
+    <value>视频设置</value>
+  </data>
+  <data name="GameSettings.Video.Resolution" xml:space="preserve">
+    <value>分辨率</value>
+  </data>
+  <data name="GameSettings.Video.DetailLevel" xml:space="preserve">
+    <value>细节等级 (LOD)</value>
+  </data>
+  <data name="GameSettings.Video.TextureQuality" xml:space="preserve">
+    <value>纹理质量</value>
+  </data>
+  <data name="GameSettings.Video.Brightness" xml:space="preserve">
+    <value>亮度</value>
+  </data>
+  <data name="GameSettings.Video.AntiAliasing" xml:space="preserve">
+    <value>抗锯齿</value>
+  </data>
+  <data name="GameSettings.Video.MaxParticleCount" xml:space="preserve">
+    <value>最大粒子数量</value>
+  </data>
+  <data name="GameSettings.Video.WindowedMode" xml:space="preserve">
+    <value>窗口化模式</value>
+  </data>
+  <data name="GameSettings.Video.DynamicLod" xml:space="preserve">
+    <value>动态细节等级 (LOD)</value>
+  </data>
+  <data name="GameSettings.Video.AdvancedDisplayOptions" xml:space="preserve">
+    <value>高级显示选项</value>
+  </data>
+  <data name="GameSettings.Video.3DShadows" xml:space="preserve">
+    <value>3D 阴影</value>
+  </data>
+  <data name="GameSettings.Video.2DShadows" xml:space="preserve">
+    <value>2D 阴影</value>
+  </data>
+  <data name="GameSettings.Video.CloudShadows" xml:space="preserve">
+    <value>云层阴影</value>
+  </data>
+  <data name="GameSettings.Video.ExtraGroundLighting" xml:space="preserve">
+    <value>额外地面光照</value>
+  </data>
+  <data name="GameSettings.Video.SmoothWaterBorders" xml:space="preserve">
+    <value>平滑水面边界</value>
+  </data>
+  <data name="GameSettings.Video.BehindBuildings" xml:space="preserve">
+    <value>建筑后方轮廓显示</value>
+  </data>
+  <data name="GameSettings.Video.HeatEffects" xml:space="preserve">
+    <value>热浪扭曲效果</value>
+  </data>
+  <data name="GameSettings.Video.BuildingAnimations" xml:space="preserve">
+    <value>建筑动画</value>
+  </data>
+  <data name="GameSettings.Video.ExtraAnimations" xml:space="preserve">
+    <value>额外环境动画</value>
+  </data>
+  <data name="GameSettings.Video.ParticleEffects" xml:space="preserve">
+    <value>粒子效果</value>
+  </data>
+  <data name="GameSettings.Video.ShowProps" xml:space="preserve">
+    <value>显示装饰物</value>
+  </data>
+  <data name="GameSettings.Video.ShowTrees" xml:space="preserve">
+    <value>显示树木</value>
+  </data>
+  <data name="GameSettings.Video.SkipIntro" xml:space="preserve">
+    <value>跳过开场动画 (EA Logo)</value>
+  </data>
+  <data name="GameSettings.Audio.Title" xml:space="preserve">
+    <value>音频设置</value>
+  </data>
+  <data name="GameSettings.Audio.AudioEnabled" xml:space="preserve">
+    <value>启用音频</value>
+  </data>
+  <data name="GameSettings.Audio.SoundVolume" xml:space="preserve">
+    <value>音效音量</value>
+  </data>
+  <data name="GameSettings.Audio.ThreeDSoundVolume" xml:space="preserve">
+    <value>3D 音效音量</value>
+  </data>
+  <data name="GameSettings.Audio.MusicVolume" xml:space="preserve">
+    <value>音乐音量</value>
+  </data>
+  <data name="GameSettings.Audio.SpeechVolume" xml:space="preserve">
+    <value>语音音量</value>
+  </data>
+  <data name="GameSettings.Audio.AudioChannels" xml:space="preserve">
+    <value>音频通道数</value>
+  </data>
+  <data name="GameSettings.Controls.Title" xml:space="preserve">
+    <value>控制 &amp; 游戏性</value>
+  </data>
+  <data name="GameSettings.Controls.ScrollSpeed" xml:space="preserve">
+    <value>滚动速度</value>
+  </data>
+  <data name="GameSettings.Controls.AlternateMouseSetup" xml:space="preserve">
+    <value>备用鼠标设置 (右键移动)</value>
+  </data>
+  <data name="GameSettings.Controls.DoubleClickAttack" xml:space="preserve">
+    <value>双击攻击移动</value>
+  </data>
+  <data name="GameSettings.Controls.AutoRetaliation" xml:space="preserve">
+    <value>自动反击</value>
+  </data>
+  <data name="GameSettings.Controls.FastSendDelay" xml:space="preserve">
+    <value>指令发送延迟 (毫秒)</value>
+  </data>
+  <data name="GameSettings.Controls.DrawScrollAnchor" xml:space="preserve">
+    <value>显示滚动锚点</value>
+  </data>
+  <data name="GameSettings.Controls.MoveScrollAnchor" xml:space="preserve">
+    <value>移动滚动锚点</value>
+  </data>
+  <data name="GameSettings.Controls.LanguageFilter" xml:space="preserve">
+    <value>脏话过滤器</value>
+  </data>
+  <data name="GameSettings.Controls.GameTimeFontSize" xml:space="preserve">
+    <value>游戏内时钟字体大小</value>
+  </data>
+  <data name="GameSettings.Camera.Title" xml:space="preserve">
+    <value>摄像机设置</value>
+  </data>
+  <data name="GameSettings.Camera.Height" xml:space="preserve">
+    <value>默认摄像机高度</value>
+  </data>
+  <data name="GameSettings.Camera.MaxHeight" xml:space="preserve">
+    <value>最大摄像机高度 (缩放)</value>
+  </data>
+  <data name="GameSettings.Camera.MinHeight" xml:space="preserve">
+    <value>最小摄像机高度 (放大)</value>
+  </data>
+  <data name="GameSettings.Camera.Pitch" xml:space="preserve">
+    <value>摄像机俯仰角</value>
+  </data>
+  <data name="GameSettings.Camera.ResetDefaults" xml:space="preserve">
+    <value>恢复默认设置</value>
+  </data>
+  <data name="GameSettings.Tsh.Title" xml:space="preserve">
+    <value>TheSuperHackers 引擎设置</value>
+  </data>
+  <data name="GameSettings.Tsh.GeneralFeatures" xml:space="preserve">
+    <value>常规功能</value>
+  </data>
+  <data name="GameSettings.Tsh.ArchiveReplays" xml:space="preserve">
+    <value>自动归档录像</value>
+  </data>
+  <data name="GameSettings.Tsh.ShowMoneyPerMin" xml:space="preserve">
+    <value>显示每分钟收入 (金钱/分)</value>
+  </data>
+  <data name="GameSettings.Tsh.ObserverMode" xml:space="preserve">
+    <value>观战者模式</value>
+  </data>
+  <data name="GameSettings.Tsh.CursorCapture" xml:space="preserve">
+    <value>锁定鼠标指针</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenGame" xml:space="preserve">
+    <value>游戏内全屏</value>
+  </data>
+  <data name="GameSettings.Tsh.FullscreenMenu" xml:space="preserve">
+    <value>菜单全屏</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedGame" xml:space="preserve">
+    <value>游戏内窗口化</value>
+  </data>
+  <data name="GameSettings.Tsh.WindowedMenu" xml:space="preserve">
+    <value>菜单窗口化</value>
+  </data>
+  <data name="GameSettings.Tsh.ScreenEdgeScroll" xml:space="preserve">
+    <value>屏幕边缘滚动</value>
+  </data>
+  <data name="GameSettings.Tsh.InterfaceFontSizes" xml:space="preserve">
+    <value>界面 &amp; 字体大小</value>
+  </data>
+  <data name="GameSettings.Tsh.SystemTime" xml:space="preserve">
+    <value>系统时间字体大小</value>
+  </data>
+  <data name="GameSettings.Tsh.PingDisplay" xml:space="preserve">
+    <value>Ping 值字体大小</value>
+  </data>
+  <data name="GameSettings.Tsh.FpsDisplay" xml:space="preserve">
+    <value>FPS 字体大小</value>
+  </data>
+  <data name="GameSettings.Tsh.ResolutionFontOffset" xml:space="preserve">
+    <value>分辨率字体偏移</value>
+  </data>
+  <data name="GameSettings.Tsh.TransactionVolume" xml:space="preserve">
+    <value>交易音效音量</value>
+  </data>
+  <data name="GameSettings.Tsh.TransitionSpeed" xml:space="preserve">
+    <value>过渡动画速度</value>
+  </data>
+  <data name="GameSettings.Go.Title" xml:space="preserve">
+    <value>Generals Online 设置</value>
+  </data>
+  <data name="GameSettings.Go.IdentityAndLogin" xml:space="preserve">
+    <value>身份 &amp; 登录</value>
+  </data>
+  <data name="GameSettings.Go.AutoLogin" xml:space="preserve">
+    <value>自动登录</value>
+  </data>
+  <data name="GameSettings.Go.RememberMe" xml:space="preserve">
+    <value>记住我</value>
+  </data>
+  <data name="GameSettings.Go.ShowRanks" xml:space="preserve">
+    <value>显示段位/排名</value>
+  </data>
+  <data name="GameSettings.Go.PerformanceAndVisuals" xml:space="preserve">
+    <value>性能 &amp; 视觉效果</value>
+  </data>
+  <data name="GameSettings.Go.FpsCap" xml:space="preserve">
+    <value>FPS 上限</value>
+  </data>
+  <data name="GameSettings.Go.StatsOverlay" xml:space="preserve">
+    <value>性能统计浮层</value>
+  </data>
+  <data name="GameSettings.Go.ShowPing" xml:space="preserve">
+    <value>显示 Ping</value>
+  </data>
+  <data name="GameSettings.Go.ShowFps" xml:space="preserve">
+    <value>显示 FPS</value>
+  </data>
+  <data name="GameSettings.Go.VerboseLogging" xml:space="preserve">
+    <value>详细日志</value>
+  </data>
+  <data name="GameSettings.Go.EngineFpsLimit" xml:space="preserve">
+    <value>引擎 FPS 限制</value>
+  </data>
+  <data name="GameSettings.Go.CameraSettings" xml:space="preserve">
+    <value>摄像机设置</value>
+  </data>
+  <data name="GameSettings.Go.MinCameraHeight" xml:space="preserve">
+    <value>最小摄像机高度</value>
+  </data>
+  <data name="GameSettings.Go.MaxCameraHeight" xml:space="preserve">
+    <value>最大摄像机高度</value>
+  </data>
+  <data name="GameSettings.Go.CameraMoveSpeed" xml:space="preserve">
+    <value>摄像机移动速度</value>
+  </data>
+  <data name="GameSettings.Go.SocialAndNotifications" xml:space="preserve">
+    <value>社交 &amp; 通知</value>
+  </data>
+  <data name="GameSettings.Go.GlobalNotifications" xml:space="preserve">
+    <value>全局通知</value>
+  </data>
+  <data name="GameSettings.Go.SoundNotifications" xml:space="preserve">
+    <value>声音通知</value>
+  </data>
+  <data name="GameSettings.Go.ChatFontSize" xml:space="preserve">
+    <value>聊天字体大小</value>
+  </data>
+  <data name="GameSettings.Go.ChatFadeout" xml:space="preserve">
+    <value>聊天淡出时间 (秒)</value>
+  </data>
+  <data name="Tools.Title.Tools" xml:space="preserve">
+    <value>工具</value>
+  </data>
+  <data name="Tools.Subtitle.Tools" xml:space="preserve">
+    <value>管理和使用工具插件以扩展 GenHub 功能</value>
+  </data>
+  <data name="Tools.Button.AddTool" xml:space="preserve">
+    <value>➕ 添加工具</value>
+  </data>
+  <data name="Tools.Button.AddToolAction" xml:space="preserve">
+    <value>添加工具</value>
+  </data>
+  <data name="Tools.Button.RefreshTools" xml:space="preserve">
+    <value>🔄 刷新</value>
+  </data>
+  <data name="Tools.Button.RefreshToolsAction" xml:space="preserve">
+    <value>刷新工具列表</value>
+  </data>
+  <data name="Tools.Label.InstalledTools" xml:space="preserve">
+    <value>已安装工具</value>
+  </data>
+  <data name="Tools.EmptyState.NoTools" xml:space="preserve">
+    <value>尚未安装任何工具</value>
+  </data>
+  <data name="Tools.EmptyState.NoToolsDescription" xml:space="preserve">
+    <value>点击“添加工具”来安装您的第一个工具插件</value>
+  </data>
+  <data name="Tools.EmptyState.SelectTool" xml:space="preserve">
+    <value>从列表中选择一个工具</value>
+  </data>
+  <data name="Tools.Plugin.genpatcher.Name" xml:space="preserve">
+    <value>GenPatcher</value>
+  </data>
+  <data name="Tools.Plugin.map-manager.Name" xml:space="preserve">
+    <value>地图管理器</value>
+  </data>
+  <data name="Tools.Plugin.replay-manager.Name" xml:space="preserve">
+    <value>录像管理器</value>
+  </data>
+  <data name="Tools.GenPatcher.Subtitle" xml:space="preserve">
+    <value>《命令与征服》必备的修复和增强补丁</value>
+  </data>
+  <data name="Tools.GenPatcher.TargetInstallation" xml:space="preserve">
+    <value>目标安装目录:</value>
+  </data>
+  <data name="Tools.GenPatcher.ApplyAllRecommended" xml:space="preserve">
+    <value>应用所有推荐修复</value>
+  </data>
+  <data name="Tools.GenPatcher.CancelBatch" xml:space="preserve">
+    <value>取消批量操作</value>
+  </data>
+  <data name="Tools.GenPatcher.SearchWatermark" xml:space="preserve">
+    <value>搜索修复项...</value>
+  </data>
+  <data name="Tools.GenPatcher.ForceReapply" xml:space="preserve">
+    <value>强制重新应用 (测试)</value>
+  </data>
+  <data name="Tools.GenPatcher.WhyNeeded" xml:space="preserve">
+    <value>为何需要此修复 &amp; 它的作用:</value>
+  </data>
+  <data name="Tools.GenPatcher.LastExecutionResult" xml:space="preserve">
+    <value>上次执行结果:</value>
+  </data>
+  <data name="Tools.GenPatcher.Apply" xml:space="preserve">
+    <value>应用</value>
+  </data>
+  <data name="Tools.GenPatcher.Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.Applied" xml:space="preserve">
+    <value>已应用</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplied" xml:space="preserve">
+    <value>未应用</value>
+  </data>
+  <data name="Tools.GenPatcher.Status.NotApplicable" xml:space="preserve">
+    <value>不适用</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.AllCount" xml:space="preserve">
+    <value>全部 ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CoreCount" xml:space="preserve">
+    <value>核心 &amp; 稳定性 ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.CompatibilityCount" xml:space="preserve">
+    <value>兼容性 ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.MultiplayerCount" xml:space="preserve">
+    <value>多人联机 ({0})</value>
+  </data>
+  <data name="Tools.GenPatcher.Category.QolCount" xml:space="preserve">
+    <value>体验优化 ({0})</value>
+  </data>
+
+
+  <data name="Downloads.Browser.Publishers" xml:space="preserve">
+    <value>发布者</value>
+  </data>
+  <data name="Downloads.Browser.SearchWatermark" xml:space="preserve">
+    <value>搜索内容...</value>
+  </data>
+  <data name="Downloads.Browser.Search" xml:space="preserve">
+    <value>搜索</value>
+  </data>
+  <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
+    <value>我的下载</value>
+  </data>
+  <data name="Downloads.Browser.Catalog" xml:space="preserve">
+    <value>目录</value>
+  </data>
+  <data name="Downloads.Browser.ImportSubscription" xml:space="preserve">
+    <value>导入目录 / 提供商</value>
+  </data>
+  <data name="Downloads.Card.Includes" xml:space="preserve">
+    <value>包含</value>
+  </data>
+  <data name="Downloads.Card.Download" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Downloads.Card.UpdateAvailable" xml:space="preserve">
+    <value>有可用更新</value>
+  </data>
+  <data name="Downloads.Card.AddToProfile" xml:space="preserve">
+    <value>添加到配置</value>
+  </data>
+  <data name="Downloads.Filter.Category" xml:space="preserve">
+    <value>类别</value>
+  </data>
+  <data name="Downloads.Filter.Mods" xml:space="preserve">
+    <value>Mods</value>
+  </data>
+  <data name="Downloads.Filter.Tags" xml:space="preserve">
+    <value>标签</value>
+  </data>
+  <data name="Downloads.Filter.Sort" xml:space="preserve">
+    <value>排序</value>
+  </data>
+  <data name="Downloads.Filter.ContentType" xml:space="preserve">
+    <value>内容类型</value>
+  </data>
+  <data name="Downloads.Filter.Game" xml:space="preserve">
+    <value>游戏</value>
+  </data>
+  <data name="Downloads.Filter.PlayerCount" xml:space="preserve">
+    <value>玩家数量</value>
+  </data>
+  <data name="Downloads.Filter.Any" xml:space="preserve">
+    <value>任何</value>
+  </data>
+  <data name="Downloads.Filter.All" xml:space="preserve">
+    <value>全部</value>
+  </data>
+  <data name="Downloads.Filter.ApplyFilters" xml:space="preserve">
+    <value>应用过滤器</value>
+  </data>
+  <data name="Downloads.Filter.ClearFilters" xml:space="preserve">
+    <value>清除过滤器</value>
+  </data>
+  <data name="Downloads.ContentDetail.About" xml:space="preserve">
+    <value>关于</value>
+  </data>
+  <data name="Downloads.ContentDetail.AddToProfile" xml:space="preserve">
+    <value>添加到配置</value>
+  </data>
+  <data name="Downloads.ContentDetail.Addons" xml:space="preserve">
+    <value>附加组件</value>
+  </data>
+  <data name="Downloads.ContentDetail.Author" xml:space="preserve">
+    <value>作者 / 上传者</value>
+  </data>
+  <data name="Downloads.ContentDetail.AvailableAddons" xml:space="preserve">
+    <value>可用的附加组件</value>
+  </data>
+  <data name="Downloads.ContentDetail.AvailableAddonsDesc" xml:space="preserve">
+    <value>可以添加到此 Mod 的附加内容</value>
+  </data>
+  <data name="Downloads.ContentDetail.BundleContents" xml:space="preserve">
+    <value>捆绑包内容</value>
+  </data>
+  <data name="Downloads.ContentDetail.Category" xml:space="preserve">
+    <value>类别</value>
+  </data>
+  <data name="Downloads.ContentDetail.Comments" xml:space="preserve">
+    <value>评论</value>
+  </data>
+  <data name="Downloads.ContentDetail.CopyLink" xml:space="preserve">
+    <value>复制链接</value>
+  </data>
+  <data name="Downloads.ContentDetail.Creator" xml:space="preserve">
+    <value>创建者</value>
+  </data>
+  <data name="Downloads.ContentDetail.Download" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="Downloads.ContentDetail.DownloadNow" xml:space="preserve">
+    <value>立即下载</value>
+  </data>
+  <data name="Downloads.ContentDetail.Downloaded" xml:space="preserve">
+    <value>已下载</value>
+  </data>
+  <data name="Downloads.ContentDetail.Files" xml:space="preserve">
+    <value>文件</value>
+  </data>
+  <data name="Downloads.ContentDetail.Images" xml:space="preserve">
+    <value>图片</value>
+  </data>
+  <data name="Downloads.ContentDetail.Media" xml:space="preserve">
+    <value>媒体</value>
+  </data>
+  <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
+    <value>发布者</value>
+  </data>
+  <data name="Downloads.ContentDetail.Readme" xml:space="preserve">
+    <value>自述文件 (Readme)</value>
+  </data>
+  <data name="Downloads.ContentDetail.ReleaseDate" xml:space="preserve">
+    <value>发布日期</value>
+  </data>
+  <data name="Downloads.ContentDetail.Releases" xml:space="preserve">
+    <value>发布版本</value>
+  </data>
+  <data name="Downloads.ContentDetail.Requires" xml:space="preserve">
+    <value>前置需求</value>
+  </data>
+  <data name="Downloads.ContentDetail.Reviews" xml:space="preserve">
+    <value>评测</value>
+  </data>
+  <data name="Downloads.ContentDetail.Select" xml:space="preserve">
+    <value>选择</value>
+  </data>
+  <data name="Downloads.ContentDetail.Selected" xml:space="preserve">
+    <value>已选择</value>
+  </data>
+  <data name="Downloads.ContentDetail.Size" xml:space="preserve">
+    <value>大小</value>
+  </data>
+  <data name="Downloads.ContentDetail.Summary" xml:space="preserve">
+    <value>摘要</value>
+  </data>
+  <data name="Downloads.ContentDetail.Tags" xml:space="preserve">
+    <value>标签</value>
+  </data>
+  <data name="Downloads.ContentDetail.TargetGame" xml:space="preserve">
+    <value>目标游戏</value>
+  </data>
+  <data name="Downloads.ContentDetail.TotalDownloads" xml:space="preserve">
+    <value>总下载量</value>
+  </data>
+  <data name="Downloads.ContentDetail.Type" xml:space="preserve">
+    <value>类型</value>
+  </data>
+  <data name="Downloads.ContentDetail.UpdateAvailable" xml:space="preserve">
+    <value>有可用更新</value>
+  </data>
+  <data name="Downloads.ContentDetail.Updated" xml:space="preserve">
+    <value>已更新</value>
+  </data>
+  <data name="Downloads.ContentDetail.Version" xml:space="preserve">
+    <value>版本</value>
+  </data>
+  <data name="Downloads.ContentDetail.Videos" xml:space="preserve">
+    <value>视频</value>
+  </data>
+  <data name="Downloads.DependencyPreview.DependenciesToAdd" xml:space="preserve">
+    <value>要添加的依赖项</value>
+  </data>
+  <data name="Downloads.DependencyPreview.DependenciesToAddDesc" xml:space="preserve">
+    <value>以下必需的依赖项将被下载并添加到您的配置中:</value>
+  </data>
+  <data name="Downloads.DependencyPreview.MissingDependencies" xml:space="preserve">
+    <value>缺少依赖项</value>
+  </data>
+  <data name="Downloads.DependencyPreview.MissingDesc" xml:space="preserve">
+    <value>如果没有安装这些依赖项，内容可能无法正常运行。</value>
+  </data>
+  <data name="Downloads.DependencyPreview.Proceed" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="Downloads.DependencyPreview.ReviewDependencies" xml:space="preserve">
+    <value>查看依赖项</value>
+  </data>
+  <data name="Downloads.ProfileSelection.Title" xml:space="preserve">
+    <value>选择配置</value>
+  </data>
+  <data name="Downloads.ProfileSelection.Subtitle" xml:space="preserve">
+    <value>选择一个配置以添加此内容</value>
+  </data>
+  <data name="Downloads.ProfileSelection.CompatibleProfiles" xml:space="preserve">
+    <value>兼容的配置</value>
+  </data>
+  <data name="Downloads.ProfileSelection.CreateNewProfile" xml:space="preserve">
+    <value>创建新配置</value>
+  </data>
+  <data name="Downloads.ProfileSelection.CreateNewProfileDesc" xml:space="preserve">
+    <value>创建一个安装了此内容的新配置</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Title" xml:space="preserve">
+    <value>有可用的 {0} 更新</value>
+  </data>
+  <data name="Downloads.UpdateDialog.Message" xml:space="preserve">
+    <value>{0} 有可用的更新。
+
+您想如何应用此更新？</value>
+  </data>
+  <data name="Updates.Button.Subscribe" xml:space="preserve">
+    <value>订阅</value>
+  </data>
+  <data name="Updates.Button.Subscribed" xml:space="preserve">
+    <value>已订阅</value>
+  </data>
+  <data name="Updates.Button.Unsubscribe" xml:space="preserve">
+    <value>取消订阅</value>
+  </data>
+  <data name="Updates.Button.ViewReleaseNotes" xml:space="preserve">
+    <value>查看发布说明</value>
+  </data>
+  <data name="Updates.Tab.Update" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="Updates.Tab.BrowseBuilds" xml:space="preserve">
+    <value>浏览构建版本</value>
+  </data>
+  <data name="Updates.Label.CurrentVersionColon" xml:space="preserve">
+    <value>当前版本:</value>
+  </data>
+  <data name="Updates.Label.WhatsNew" xml:space="preserve">
+    <value>新功能:</value>
+  </data>
+  <data name="Updates.Status.UpdateAvailableExclaim" xml:space="preserve">
+    <value>有可用更新！</value>
+  </data>
+  <data name="Updates.Progress.UpdatePreparedSuccessfully" xml:space="preserve">
+    <value>更新准备成功！应用程序将自动重启。</value>
+  </data>
+  <data name="Errors.Operations.OperationFailed" xml:space="preserve">
+    <value>操作失败</value>
+  </data>
+  <data name="Errors.Operations.UnexpectedError" xml:space="preserve">
+    <value>发生意外错误</value>
+  </data>
+  <data name="Errors.Operations.UnexpectedErrorWithDetails" xml:space="preserve">
+    <value>发生意外错误: {0}</value>
+  </data>
+  <data name="Errors.Operations.MissingTranslation" xml:space="preserve">
+    <value>缺少 '{1}' 语言中键 '{0}' 的翻译</value>
+  </data>
+  <data name="Errors.Validation.InvalidFormat" xml:space="preserve">
+    <value>格式无效</value>
+  </data>
+  <data name="Errors.Validation.InvalidPath" xml:space="preserve">
+    <value>路径无效</value>
+  </data>
+  <data name="Errors.Validation.RequiredField" xml:space="preserve">
+    <value>此字段为必填项</value>
+  </data>
+  <data name="Errors.Validation.SelectGameInstallation" xml:space="preserve">
+    <value>请选择一个游戏安装目录</value>
+  </data>
+  <data name="Launch.ExitCode.ImmediateExitExplained" xml:space="preserve">
+    <value>进程立即退出，代码为 {0} (0x{1})。{2}</value>
+  </data>
+  <data name="Launch.ExitCode.DllNotFound" xml:space="preserve">
+    <value>找不到必需的 DLL 文件。请确保可执行文件附带的每个 DLL 都在其所在文件夹中。</value>
+  </data>
+  <data name="Launch.ExitCode.InvalidImageFormat" xml:space="preserve">
+    <value>该程序或其某个 DLL 对此系统无效，通常是因为混合了 32 位和 64 位文件。</value>
+  </data>
+  <data name="Launch.ExitCode.DllInitFailed" xml:space="preserve">
+    <value>必需的 DLL 初始化失败。</value>
+  </data>
+  <data name="Launch.ExitCode.AccessViolation" xml:space="preserve">
+    <value>进程因内存访问冲突而崩溃（0xC0000005）。这通常是 Mod 不兼容或内存溢出导致的。</value>
+  </data>
+  <data name="Launch.ExitCode.StackBufferOverrun" xml:space="preserve">
+    <value>进程在发生严重错误（栈缓冲区溢出或快速失败）后自行停止。</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Title" xml:space="preserve">
+    <value>游戏意外退出</value>
+  </data>
+  <data name="GameProfiles.Notification.UnexpectedExit.Message" xml:space="preserve">
+    <value>游戏意外退出 (代码 {0})。请查看日志了解详细信息。</value>
+  </data>
+  <data name="GameProfiles.Notification.EarlyExit.WithCode" xml:space="preserve">
+    <value>进程在启动完成前退出 (退出代码 {0})。请查看日志了解详细信息。</value>
+  </data>
+  <data name="Launch.Compatibility.MacOSOnWindows" xml:space="preserve">
+    <value>无法在 Windows 上启动 macOS 游戏客户端。</value>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnWindows" xml:space="preserve">
+    <value>无法在 Windows 上启动 Linux 游戏客户端。</value>
+  </data>
+  <data name="Launch.Compatibility.MacOSOnLinux" xml:space="preserve">
+    <value>无法在 Linux 上启动 macOS 游戏客户端。</value>
+  </data>
+  <data name="Launch.Compatibility.LinuxOnMacOS" xml:space="preserve">
+    <value>无法在 macOS 上启动 Linux 游戏客户端。</value>
+  </data>
+  <data name="Launch.Steam.NonWindowsExecutable" xml:space="preserve">
+    <value>Steam 代理启动器无法运行非 Windows 格式的可执行文件 '{0}'。Steam 集成需要 Windows 可执行文件。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveUnsupportedType" xml:space="preserve">
+    <value>内容类型“{0}”不能注册为实时内容。支持的类型：Mod、Addon、Patch。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveFolderMissing" xml:space="preserve">
+    <value>找不到实时内容文件夹：{0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveReparsePoint" xml:space="preserve">
+    <value>实时内容文件夹不能是符号链接或目录联接。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveInsideStorage" xml:space="preserve">
+    <value>实时内容文件夹不能位于内容存储目录内。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveNetworkDrive" xml:space="preserve">
+    <value>实时内容必须位于本地磁盘，不支持网络文件夹。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveSymlinkUnavailable" xml:space="preserve">
+    <value>当前 Windows 会话无法创建符号链接。请启用开发者模式或以管理员身份运行 GenHub，然后重新注册该文件夹。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveEntryPointInvalid" xml:space="preserve">
+    <value>入口点“{0}”无效。它必须是相对路径，且不能包含父目录遍历（“..”）。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveEntryPointMissing" xml:space="preserve">
+    <value>入口点“{0}”未在目录中的文件里找到。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveRegistrationFailed" xml:space="preserve">
+    <value>注册实时内容失败：{0}</value>
+  </data>
+  <data name="Workspace.Live.Error.SymlinkCreate" xml:space="preserve">
+    <value>无法在“{0}”创建符号链接。请启用开发者模式或以管理员身份运行 GenHub。</value>
+  </data>
+  <data name="Workspace.Live.Error.SymlinkCreateDetail" xml:space="preserve">
+    <value>无法在“{0}”创建符号链接：{1}。请启用开发者模式或以管理员身份运行 GenHub。</value>
+  </data>
+  <data name="Workspace.Live.Error.Copy" xml:space="preserve">
+    <value>无法将“{0}”复制到“{1}”：{2}</value>
+  </data>
+  <data name="Workspace.Live.Error.MissingSource" xml:space="preserve">
+    <value>找不到“{0}”的实时内容文件夹：{1}</value>
+  </data>
+  <data name="Workspace.Live.Error.Clear" xml:space="preserve">
+    <value>无法清除实时条目：{0}</value>
+  </data>
+  <data name="Workspace.Live.Error.Hole" xml:space="preserve">
+    <value>移除实时条目“{0}”会让 Snapshot 路径留下空洞，需要全量重建工作区。</value>
+  </data>
+  <data name="Workspace.Live.Error.Resync" xml:space="preserve">
+    <value>实时内容重新同步失败：{0}</value>
+  </data>
+  <data name="Workspace.Live.Error.Watch" xml:space="preserve">
+    <value>监视实时内容失败：{0}</value>
+  </data>
+  <data name="Workspace.Live.Error.Mount" xml:space="preserve">
+    <value>挂载实时内容失败：{0}</value>
+  </data>
+  <data name="Workspace.Live.Error.NoWorkspace" xml:space="preserve">
+    <value>工作区路径为空，无法挂载实时内容。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveFolderOnly" xml:space="preserve">
+    <value>开发者模式只支持未打包的文件夹。请选择包含 Data/ 或 Art/ 的目录。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveModeLabel" xml:space="preserve">
+    <value>开发者模式：实时链接此文件夹</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveModeWarning" xml:space="preserve">
+    <value>该文件夹会被链接进工作区，而不是复制。GenHub 不拥有它：移动或删除它会破坏所有使用它的配置。在 Windows 上请开启开发者模式或以管理员身份运行 GenHub，否则无法创建链接。</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressLiveAnalyzing" xml:space="preserve">
+    <value>正在索引实时内容...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressLiveIndexing" xml:space="preserve">
+    <value>已索引 {0}/{1} 个文件{2}</value>
+  </data>
+  <data name="GameProfiles.Share.Error.LiveContent" xml:space="preserve">
+    <value>此配置包含本地实时（Live）链接内容，无法导出或分享给他人。</value>
+  </data>
+</root>

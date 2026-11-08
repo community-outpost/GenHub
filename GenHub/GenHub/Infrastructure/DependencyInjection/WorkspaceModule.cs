@@ -1,5 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Workspace;
+using GenHub.Features.Workspace.Live;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -25,6 +26,13 @@ public static class WorkspaceModule
         services.AddScoped<WorkspaceReconciler>();
         services.AddScoped<IFileOperationsService, FileOperationsService>();
         services.AddScoped<FileOperationsService>();
+
+        // Live content overlay and watcher. Both are stateless with respect to scoped
+        // services, so they outlive an individual workspace preparation.
+        services.AddSingleton<ILiveWorkspaceLinker, LiveWorkspaceLinker>();
+        services.AddSingleton<ILiveWorkspaceStateStore, LiveWorkspaceStateStore>();
+        services.AddSingleton<LiveWorkspaceMaterializer>();
+        services.AddSingleton<ILiveWorkspaceSyncService, LiveWorkspaceSyncService>();
 
         // Strategy implementations
         services.AddScoped<IWorkspaceStrategy, FullCopyStrategy>();

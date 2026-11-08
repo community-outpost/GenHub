@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.CommunityOutpost;
@@ -6,11 +7,15 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,7 +29,8 @@ public class LocalContentService(
     IContentStorageService contentStorageService,
     IContentReconciliationService reconciliationService,
     ILogger<LocalContentService> logger,
-    IArchivePayloadProcessor? archivePayloadProcessor = null) : ILocalContentService
+    IArchivePayloadProcessor? archivePayloadProcessor = null,
+    ILocalizationService? localizationService = null) : ILocalContentService
 {
     /// <summary>
     /// The publisher name for locally-generated content.
@@ -112,12 +118,7 @@ public class LocalContentService(
             var entryPoint = options?.EntryPoint;
             var normalizeInactiveArchives = options?.NormalizeInactiveArchives ?? true;
 
-            var sanitizedName = SanitizeForManifestId(name);
-            if (string.IsNullOrEmpty(sanitizedName))
-            {
-                sanitizedName = "generated-" + Guid.NewGuid().ToString("N")[..8];
-                logger.LogWarning("Sanitized name for '{Name}' resulted in empty string. Using fallback: {Fallback}", name, sanitizedName);
-            }
+            var identityName = ResolveIdentityName(name);
 
             logger.LogInformation(
                 "Creating local content manifest for '{Name}' from '{Path}' as {ContentType}",
@@ -138,14 +139,15 @@ public class LocalContentService(
             // Use the existing manifest generation service
             var builder = await manifestGenerationService.CreateContentManifestAsync(
                 contentDirectory: directoryPath,
-                publisherId: options?.PublisherId ?? LocalPublisherType,
-                contentName: name,
+                publisherId: ResolvePublisherId(options),
+                contentName: identityName,
                 manifestVersion: options?.ManifestVersion,
                 contentType: contentType,
                 targetGame: targetGame,
                 progress: progress);
 
             var manifest = builder.Build();
+            manifest.Name = name;
             manifest.SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : directoryPath;
 
             if (!string.IsNullOrWhiteSpace(entryPoint))
@@ -188,9 +190,9 @@ public class LocalContentService(
 
                 // Check if this looks like a GenPatcher official client (10zh, 10gn)
                 // If so, we can link to the files directly if they are already in a game-like structure
-                if (GenPatcherContentRegistry.IsKnownCode(name) || GenPatcherContentRegistry.IsKnownCode(sanitizedName))
+                if (GenPatcherContentRegistry.IsKnownCode(name) || GenPatcherContentRegistry.IsKnownCode(identityName))
                 {
-                    var code = GenPatcherContentRegistry.IsKnownCode(name) ? name : sanitizedName;
+                    var code = GenPatcherContentRegistry.IsKnownCode(name) ? name : identityName;
                     var metadata = GenPatcherContentRegistry.GetMetadata(code);
 
                     logger.LogInformation("Detected GenPatcher content code '{Code}' (Category: {Category})", code, metadata.Category);
@@ -222,6 +224,170 @@ public class LocalContentService(
         {
             logger.LogError(ex, "Error creating local content manifest for '{Name}'", name);
             return OperationResult<ContentManifest>.CreateFailure($"Failed to create content manifest: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult<ContentManifest>> RegisterLiveSourceAsync(
+        string sourceRoot,
+        string name,
+        ContentType contentType,
+        GameType targetGame,
+        LocalContentOptions? options,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sourceRoot);
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+            if (contentType is not (ContentType.Mod or ContentType.Addon or ContentType.Patch))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveUnsupportedType",
+                        "Content type '{0}' cannot be registered as live content. Supported types: Mod, Addon, Patch.",
+                        contentType));
+            }
+
+            if (!Path.IsPathFullyQualified(sourceRoot) || !Directory.Exists(sourceRoot))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveFolderMissing",
+                        "Live content folder was not found: {0}",
+                        sourceRoot));
+            }
+
+            var sourceInfo = new DirectoryInfo(sourceRoot);
+            if (sourceInfo.LinkTarget != null ||
+                (sourceInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveReparsePoint",
+                        "A live content folder cannot be a symbolic link or junction."));
+            }
+
+            var storageRoot = Path.GetFullPath(contentStorageService.GetContentStorageRoot());
+            var fullSource = Path.GetFullPath(sourceRoot);
+            if (IsUnder(fullSource, storageRoot))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveInsideStorage",
+                        "A live content folder cannot be inside the content storage directory."));
+            }
+
+            var driveRoot = Path.GetPathRoot(fullSource);
+            if (!string.IsNullOrEmpty(driveRoot) &&
+                new DriveInfo(driveRoot).DriveType == DriveType.Network)
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveNetworkDrive",
+                        "Live content must be on a local drive. Network folders are not supported."));
+            }
+
+            if (OperatingSystem.IsWindows() && !SymbolicLinkCreator.CanCreateFileLink())
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveSymlinkUnavailable",
+                        "Windows cannot create symbolic links in this session. Enable Developer Mode or run GenHub as an administrator, then register the folder again."));
+            }
+
+            var progress = options?.Progress;
+            var token = options?.CancellationToken ?? cancellationToken;
+
+            var identityName = ResolveIdentityName(name);
+
+            logger.LogInformation(
+                "Registering live content '{Name}' from '{Path}' as {ContentType}",
+                name,
+                fullSource,
+                contentType);
+
+            // Live mode never rewrites the source folder: no archive normalization,
+            // no relocation, no hashing. The folder belongs to the developer.
+            var builder = await manifestGenerationService.CreateLiveContentManifestAsync(
+                contentDirectory: fullSource,
+                publisherId: ResolvePublisherId(options),
+                contentName: identityName,
+                contentType: contentType,
+                targetGame: targetGame,
+                progress: progress,
+                cancellationToken: token);
+
+            var manifest = builder.Build();
+            manifest.Name = name;
+            manifest.SourceMode = ContentSourceMode.Live;
+            manifest.SourcePath = fullSource;
+
+            if (!string.IsNullOrWhiteSpace(options?.EntryPoint))
+            {
+                var entryPoint = options.EntryPoint;
+                var normalizedEntryPoint = entryPoint.Replace('\\', '/').TrimStart('/');
+                var segments = normalizedEntryPoint.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (Path.IsPathRooted(entryPoint) || segments.Any(segment => segment == ".."))
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        GetLiveError(
+                            "Profiles.AddLocalContent.Error.LiveEntryPointInvalid",
+                            "Entry point '{0}' is invalid. It must be a relative path without parent directory traversal ('..').",
+                            entryPoint));
+                }
+
+                var matchedFile = ManifestVariantResolver.ResolveFiles(manifest).FirstOrDefault(file =>
+                    ManifestVariantResolver.PathsMatch(file.RelativePath, normalizedEntryPoint));
+
+                if (matchedFile == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        GetLiveError(
+                            "Profiles.AddLocalContent.Error.LiveEntryPointMissing",
+                            "Entry point '{0}' was not found among the files in the directory.",
+                            entryPoint));
+                }
+
+                manifest.EntryPoint = matchedFile.RelativePath.Replace('\\', '/');
+            }
+
+            var storageResult = await contentStorageService.RegisterExternalContentAsync(
+                manifest,
+                fullSource,
+                token);
+
+            if (!storageResult.Success)
+            {
+                logger.LogError("Failed to register live content: {Error}", storageResult.FirstError);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    GetLiveError(
+                        "Profiles.AddLocalContent.Error.LiveRegistrationFailed",
+                        "Failed to register live content: {0}",
+                        storageResult.FirstError));
+            }
+
+            logger.LogInformation(
+                "Registered live content '{Name}' (ID: {Id}) at {Path}",
+                name,
+                manifest.Id,
+                fullSource);
+
+            return OperationResult<ContentManifest>.CreateSuccess(manifest);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error registering live content '{Name}'", name);
+            return OperationResult<ContentManifest>.CreateFailure(
+                GetLiveError(
+                    "Profiles.AddLocalContent.Error.LiveRegistrationFailed",
+                    "Failed to register live content: {0}",
+                    ex.Message));
         }
     }
 
@@ -279,7 +445,9 @@ public class LocalContentService(
 
             // 1. Create the new manifest/content
             // We do this FIRST to ensure the new content is valid before deleting the old one
-            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, options);
+            var createResult = options?.SourceMode == ContentSourceMode.Live
+                ? await RegisterLiveSourceAsync(directoryPath, name, contentType, targetGame, options, cancellationToken)
+                : await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, options);
 
             if (!createResult.Success)
             {
@@ -364,5 +532,55 @@ public class LocalContentService(
         }
 
         return sanitized.Trim('-');
+    }
+
+    private static string ResolvePublisherId(LocalContentOptions? options) =>
+        string.IsNullOrWhiteSpace(options?.PublisherId) ? LocalPublisherType : options!.PublisherId!;
+
+    /// <summary>
+    /// Produces a deterministic ASCII identity segment for a user-supplied display name.
+    /// Manifest IDs only accept ASCII alphanumerics, so a Chinese or punctuation-only name
+    /// would otherwise normalize to an empty string and throw.
+    /// </summary>
+    /// <param name="name">The user-supplied display name.</param>
+    /// <returns>A non-empty, deterministic identity segment.</returns>
+    private static string ResolveIdentityName(string name)
+    {
+        var sanitized = SanitizeForManifestId(name);
+        var hasNonAscii = name.Any(character => character > 127);
+
+        if (!hasNonAscii && !string.IsNullOrEmpty(sanitized))
+        {
+            return sanitized;
+        }
+
+        var suffix = StableSuffix(name);
+        return string.IsNullOrEmpty(sanitized) ? "content-" + suffix : sanitized + "-" + suffix;
+    }
+
+    private static string StableSuffix(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash)[..8].ToLowerInvariant();
+    }
+
+    private static bool IsUnder(string path, string root)
+    {
+        var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        return path.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetLiveError(string key, string fallback, params object?[] arguments)
+    {
+        if (localizationService == null)
+        {
+            return string.Format(CultureInfo.InvariantCulture, fallback, arguments);
+        }
+
+        var message = localizationService.GetString(key, arguments);
+        return string.IsNullOrWhiteSpace(message) || string.Equals(message, key, StringComparison.Ordinal)
+            ? string.Format(CultureInfo.InvariantCulture, fallback, arguments)
+            : message;
     }
 }

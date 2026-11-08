@@ -378,6 +378,48 @@ public class ContentStorageService : IContentStorageService
         Path.Combine(_storageRoot, FileTypes.ManifestsDirectory, $"{manifestId}{FileTypes.ManifestFileExtension}");
 
     /// <inheritdoc/>
+    public async Task<OperationResult<ContentManifest>> RegisterExternalContentAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+
+        if (manifest.SourceMode != ContentSourceMode.Live)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "Only live content can be registered without content-addressable storage.");
+        }
+
+        if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Live content source directory was not found: {sourceDirectory}");
+        }
+
+        var fullSource = Path.GetFullPath(sourceDirectory);
+        var fullStorageRoot = Path.GetFullPath(_storageRoot);
+
+        var relativeToStorage = Path.GetRelativePath(fullStorageRoot, fullSource);
+        if (!relativeToStorage.StartsWith("..", StringComparison.Ordinal) &&
+            !Path.IsPathRooted(relativeToStorage))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "A live content folder cannot be inside the content storage directory.");
+        }
+
+        if (ManifestVariantResolver.ResolveFiles(manifest)
+            .Any(file => file.SourceType == ContentSourceType.ContentAddressable))
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "A live manifest cannot contain content-addressable file entries.");
+        }
+
+        manifest.SourcePath = fullSource;
+        return await StoreManifestOnlyAsync(manifest, fullSource, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
     public async Task<OperationResult<ContentManifest>> StoreContentAsync(
         ContentManifest manifest,
         string sourceDirectory,

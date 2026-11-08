@@ -103,7 +103,10 @@ public class ProfileEditorFacade(
                     Manifests = [],
                     GameClient = profile.GameClient,
                     Strategy = profile.WorkspaceStrategy ?? _config.GetDefaultWorkspaceStrategy(),
-                    ForceRecreate = true, // Force recreate since content changed
+
+                    // Let WorkspaceManager decide: live-only changes are reconciled
+                    // incrementally; snapshot changes fall back to a full rebuild.
+                    ForceRecreate = false,
                     ValidateAfterPreparation = true,
                 };
 

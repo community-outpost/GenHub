@@ -38,6 +38,19 @@ public interface IContentStorageService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Registers live content whose files stay in an external folder. Only the manifest and
+    /// the source-path mapping are written; no file is copied and no hash is required.
+    /// </summary>
+    /// <param name="manifest">The live manifest to register.</param>
+    /// <param name="sourceDirectory">The folder that remains the source of truth.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>The registered manifest or a failure result.</returns>
+    Task<OperationResult<ContentManifest>> RegisterExternalContentAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves stored content to a target directory.
     /// </summary>
     /// <param name="manifestId">The unique identifier of the manifest.</param>

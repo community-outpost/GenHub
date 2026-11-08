@@ -218,6 +218,9 @@ public interface IContentManifestBuilder
     /// <param name="isExecutable">Whether files should be marked as executable.</param>
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="computeHash">Whether to hash each file. Live content sets this to false.</param>
+    /// <param name="useRelativeSourcePaths">Whether to store a path relative to the source directory
+    /// instead of the absolute directory. Live content sets this to true.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
@@ -225,7 +228,9 @@ public interface IContentManifestBuilder
         string fileFilter = "*",
         bool isExecutable = false,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        bool computeHash = true,
+        bool useRelativeSourcePaths = false);
 
     /// <summary>
     /// Adds a local file from the filesystem.

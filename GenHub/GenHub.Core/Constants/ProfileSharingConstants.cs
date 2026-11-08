@@ -178,6 +178,18 @@ public static class ProfileSharingConstants
     public const string LocalContentHasNoFilesToShareErrorKey = "GameProfiles.Share.Error.LocalContentHasNoFiles";
 
     /// <summary>
+    /// Resource key for the error shown when a profile contains live-linked content and cannot
+    /// be exported or shared.
+    /// </summary>
+    public const string LiveContentCannotBeSharedErrorKey = "GameProfiles.Share.Error.LiveContent";
+
+    /// <summary>
+    /// English fallback for <see cref="LiveContentCannotBeSharedErrorKey"/>.
+    /// </summary>
+    public const string LiveContentCannotBeSharedFallback =
+        "This profile contains local live-linked content and cannot be exported or shared.";
+
+    /// <summary>
     /// Parent directory segment in file paths.
     /// </summary>
     public const string ParentDirectorySegment = "..";

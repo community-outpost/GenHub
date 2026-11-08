@@ -21,6 +21,29 @@ public class WorkspaceInfo
     public WorkspaceStrategy Strategy { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether this workspace contains live content
+    /// linked directly to one or more local source folders.
+    /// </summary>
+    public bool IsLive { get; set; }
+
+    /// <summary>
+    /// Gets or sets the live source folders mounted into this workspace.
+    /// </summary>
+    public List<LiveSourceBinding> LiveSources { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the number of workspace entries contributed by live content. Used to keep
+    /// file counts stable when a live workspace is rescanned.
+    /// </summary>
+    public int LiveFileCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the bytes contributed by live content. Used to keep size totals stable
+    /// when a live workspace is rescanned.
+    /// </summary>
+    public long LiveSizeBytes { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether the workspace preparation was successful.
     /// </summary>
     public bool IsPrepared { get; set; }

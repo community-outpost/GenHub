@@ -137,6 +137,11 @@ public partial class ContentDisplayItem : ObservableObject
     public bool IsEditable { get; set; }
 
     /// <summary>
+    /// Gets a value indicating whether this package is live content linked to its source folder.
+    /// </summary>
+    public bool IsLive => Manifest?.SourceMode == ContentSourceMode.Live;
+
+    /// <summary>
     /// Gets or sets the underlying content manifest if available.
     /// </summary>
     public ContentManifest? Manifest { get; set; }

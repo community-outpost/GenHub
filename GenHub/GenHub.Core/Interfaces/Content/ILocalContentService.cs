@@ -64,6 +64,25 @@ public interface ILocalContentService
         LocalContentOptions? options);
 
     /// <summary>
+    /// Registers a local folder as live content. The folder is indexed but not hashed or
+    /// copied into content-addressable storage; workspaces link to it directly.
+    /// </summary>
+    /// <param name="sourceRoot">The absolute folder that remains the source of truth.</param>
+    /// <param name="name">The display name of the content.</param>
+    /// <param name="contentType">The type of content (Mod, Addon or Patch).</param>
+    /// <param name="targetGame">The target game for the content.</param>
+    /// <param name="options">Optional configuration options for the operation.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The registered ContentManifest or an error result.</returns>
+    Task<OperationResult<ContentManifest>> RegisterLiveSourceAsync(
+        string sourceRoot,
+        string name,
+        ContentType contentType,
+        GameType targetGame,
+        LocalContentOptions? options,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Convenience method to create and store local content.
     /// </summary>
     /// <param name="name">The display name of the content.</param>

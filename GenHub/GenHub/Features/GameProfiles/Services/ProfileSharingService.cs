@@ -2278,6 +2278,13 @@ public class ProfileSharingService(
 
     private string? GetManifestExportError(ContentManifest manifest, bool allowCloudUpload)
     {
+        // Live content points at the author's local folder and carries absolute paths. It is
+        // not reproducible for a recipient, so the whole profile is refused before packaging.
+        if (manifest.SourceMode == ContentSourceMode.Live)
+        {
+            return GetLiveContentCannotBeSharedMessage();
+        }
+
         if (!ManifestVariantResolver.SupportsRuntime(manifest))
         {
             return GetCannotExportNoHostVariantErrorMessage(manifest);
@@ -2289,6 +2296,18 @@ public class ProfileSharingService(
         }
 
         return null;
+    }
+
+    private string GetLiveContentCannotBeSharedMessage()
+    {
+        var message = LaunchExitMessages.GetString(
+            ProfileSharingConstants.LiveContentCannotBeSharedErrorKey,
+            localizationService);
+
+        return string.IsNullOrWhiteSpace(message) ||
+               string.Equals(message, ProfileSharingConstants.LiveContentCannotBeSharedErrorKey, StringComparison.Ordinal)
+            ? ProfileSharingConstants.LiveContentCannotBeSharedFallback
+            : message;
     }
 
     private string GetCannotExportNoHostVariantErrorMessage(ContentManifest manifest)
