@@ -1,6 +1,6 @@
 # Live Symlink Mode (Developer Mode) — Technical Design
 
-Status: proposal for issue #683.
+Status: implemented in this fork (P0 + safety pass).
 Scope: local loose-file content only (Mod / Addon / Patch folders). Remote and
 archive content stay on the existing CAS snapshot pipeline.
 
