@@ -41,6 +41,16 @@ This fork focuses on Live mode rather than replacing the upstream workspace/reco
 
 **This fork also adds Simplified Chinese localization**, located in `GenHub/GenHub/Resources/Localization/Strings.zh-Hans.resx`. It currently covers the new Live import toggle, `LIVE` badge, share/export errors and runtime link errors; untranslated keys fall back to English through the existing mechanism. Junction/hardlink fallback, legacy strategy fallback and UI drag ordering are intentionally out of scope for this fork.
 
+## 致谢 / Acknowledgements
+
+本分叉的 Live 模式与简体中文本地化工作使用了 **DeepSeek Agent** 辅助开发。
+
+感谢 GenHub 上游作者、Community Outpost 与所有前人和社区贡献者打下的基础；也感谢 DeepSeek 提供的模型与工具支持。
+
+The Live mode and Simplified Chinese localization work in this fork was developed with the assistance of **DeepSeek Agent**.
+
+Thanks to the GenHub upstream authors, Community Outpost, and all the people and community contributors who came before us for the foundation; and thanks to DeepSeek for the model and tooling support.
+
 ## 开发日志 / Development Log
 
 完整开发日志（设计、实现、验证与范围边界）见 [docs/dev/live-symlink-mode.md](docs/dev/live-symlink-mode.md)。
