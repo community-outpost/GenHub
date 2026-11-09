@@ -385,14 +385,25 @@ public class LocalContentService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            logger.LogError(ex, "Error registering live content '{Name}'", name);
-            return OperationResult<ContentManifest>.CreateFailure(
-                GetLiveError(
-                    "Profiles.AddLocalContent.Error.LiveRegistrationFailed",
-                    "Failed to register live content: {0}",
-                    ex.Message));
+            return CreateLiveRegistrationFailure(name, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CreateLiveRegistrationFailure(name, ex);
+        }
+        catch (ArgumentException ex)
+        {
+            return CreateLiveRegistrationFailure(name, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return CreateLiveRegistrationFailure(name, ex);
+        }
+        catch (NotSupportedException ex)
+        {
+            return CreateLiveRegistrationFailure(name, ex);
         }
     }
 
@@ -574,6 +585,16 @@ public class LocalContentService(
         var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
         return path.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private OperationResult<ContentManifest> CreateLiveRegistrationFailure(string name, Exception ex)
+    {
+        logger.LogError(ex, "Error registering live content '{Name}'", name);
+        return OperationResult<ContentManifest>.CreateFailure(
+            GetLiveError(
+                "Profiles.AddLocalContent.Error.LiveRegistrationFailed",
+                "Failed to register live content: {0}",
+                ex.Message));
     }
 
     private string GetLiveError(string key, string fallback, params object?[] arguments)

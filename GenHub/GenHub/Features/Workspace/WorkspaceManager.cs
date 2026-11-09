@@ -503,7 +503,12 @@ public class WorkspaceManager(
             return null;
         }
 
-        var workspaceRoot = Path.GetFullPath(configuration.WorkspaceRootPath);
+        var workspaceRoot = TryGetFullPath(configuration.WorkspaceRootPath);
+        if (workspaceRoot == null)
+        {
+            return "The workspace root path is invalid.";
+        }
+
         foreach (var manifest in (configuration.Manifests ?? [])
                      .Where(manifest => manifest.SourceMode == ContentSourceMode.Live))
         {
@@ -533,7 +538,12 @@ public class WorkspaceManager(
                     root);
             }
 
-            var liveRoot = Path.GetFullPath(root);
+            var liveRoot = TryGetFullPath(root);
+            if (liveRoot == null)
+            {
+                return $"Live content path is invalid: {root}";
+            }
+
             if (IsUnder(liveRoot, workspaceRoot) || IsUnder(workspaceRoot, liveRoot))
             {
                 return GetLiveError(
@@ -548,11 +558,44 @@ public class WorkspaceManager(
         return null;
     }
 
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return null;
+        }
+    }
+
     private static bool IsUnder(string path, string root)
     {
-        var fullPath = Path.GetFullPath(path);
-        var fullRoot = Path.GetFullPath(root)
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var fullPath = TryGetFullPath(path);
+        var fullRoot = TryGetFullPath(root);
+        if (fullPath == null || fullRoot == null)
+        {
+            return false;
+        }
+
+        fullRoot = fullRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         return string.Equals(fullPath, fullRoot, StringComparison.OrdinalIgnoreCase) ||
                fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||

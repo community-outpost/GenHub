@@ -383,7 +383,22 @@ public class ManifestGenerationService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (NotSupportedException ex)
         {
             logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
             throw;
