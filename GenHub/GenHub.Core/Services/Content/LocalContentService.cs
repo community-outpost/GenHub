@@ -605,7 +605,13 @@ public class LocalContentService(
 
     private static string ResolveSourceAwareIdentityName(string name, string sourcePath)
     {
-        var sanitized = SanitizeForManifestId(name);
+        // Manifest IDs reject non-ASCII characters. Strip them here instead of relying on
+        // the generator path, because ReplaceIdentity bypasses ManifestIdGenerator.
+        var sanitized = new string(
+                SanitizeForManifestId(name)
+                    .Where(character => character < 128)
+                    .ToArray())
+            .Trim('-');
         var normalizedSource = Path.GetFullPath(sourcePath)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var suffix = StableSuffix(name + "|" + normalizedSource.ToLowerInvariant());
