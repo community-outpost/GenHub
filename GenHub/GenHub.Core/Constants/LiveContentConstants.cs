@@ -10,6 +10,16 @@ namespace GenHub.Core.Constants;
 public static class LiveContentConstants
 {
     /// <summary>
+    /// Debounce interval applied after a live folder event before a rescan starts.
+    /// </summary>
+    public const int DebounceMilliseconds = 500;
+
+    /// <summary>
+    /// FileSystemWatcher internal buffer size for each live root.
+    /// </summary>
+    public const int WatcherBufferSize = 64 * 1024;
+
+    /// <summary>
     /// Extensions the game or its tools commonly write. These entries are copied into the
     /// workspace instead of linked so a write cannot reach the developer's source folder.
     /// </summary>

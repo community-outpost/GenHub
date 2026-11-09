@@ -271,6 +271,7 @@
                                                 Classes="icon-btn"
                                                 Padding="6,3"
                                                 Margin="6,0,0,0"
+                                                IsVisible="{Binding !((vm:AddLocalContentViewModel)DataContext).IsLiveSource, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.RemoveItemTip}">
                                             <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
                                         </Button>

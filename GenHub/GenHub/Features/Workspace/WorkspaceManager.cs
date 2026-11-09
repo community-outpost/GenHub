@@ -64,10 +64,10 @@ public class WorkspaceManager(
         var (snapshotManifests, liveManifests) = SplitManifests(configuration.Manifests ?? []);
         var hasLiveSources = liveManifests.Count > 0;
 
-        if (snapshotManifests.Count == 0)
+        var overlapError = ValidateLiveRootsDoNotOverlapWorkspace(configuration);
+        if (overlapError != null)
         {
-            return OperationResult<WorkspaceInfo>.CreateFailure(
-                "A workspace needs at least one snapshot content manifest, such as the base game.");
+            return OperationResult<WorkspaceInfo>.CreateFailure(overlapError);
         }
 
         var strategyConfiguration = hasLiveSources
@@ -274,7 +274,10 @@ public class WorkspaceManager(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            liveSyncService?.Detach(workspaceId);
+            if (liveSyncService != null)
+            {
+                await liveSyncService.DetachAsync(workspaceId).ConfigureAwait(false);
+            }
 
             // Keep recorded paths even when their directories are already gone. The listing API
             // filters these entries, which would lose the evidence needed to release their refs.
@@ -287,6 +290,18 @@ public class WorkspaceManager(
             if (workspace == null)
             {
                 return CleanupUnrecordedWorkspace(workspaceId);
+            }
+
+            var overlappingLiveSource = workspace.LiveSources.FirstOrDefault(
+                source => !string.IsNullOrWhiteSpace(source.SourceRoot) &&
+                          (IsUnder(source.SourceRoot, workspace.WorkspacePath) ||
+                           IsUnder(workspace.WorkspacePath, source.SourceRoot)));
+
+            if (overlappingLiveSource != null)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Refusing to clean workspace '{workspaceId}': live source " +
+                    $"'{overlappingLiveSource.SourceRoot}' overlaps '{workspace.WorkspacePath}'.");
             }
 
             // Keep references until deletion succeeds: retained files may still depend on CAS.
@@ -458,6 +473,50 @@ public class WorkspaceManager(
         }
 
         return (snapshot, live);
+    }
+
+    private static string? ValidateLiveRootsDoNotOverlapWorkspace(WorkspaceConfiguration configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath))
+        {
+            return null;
+        }
+
+        var workspaceRoot = Path.GetFullPath(configuration.WorkspaceRootPath);
+        foreach (var manifest in (configuration.Manifests ?? [])
+                     .Where(manifest => manifest.SourceMode == ContentSourceMode.Live))
+        {
+            var root = !string.IsNullOrWhiteSpace(manifest.Id.Value) &&
+                       configuration.ManifestSourcePaths.TryGetValue(manifest.Id.Value, out var mapped) &&
+                       !string.IsNullOrWhiteSpace(mapped)
+                ? mapped
+                : manifest.SourcePath;
+
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
+
+            var liveRoot = Path.GetFullPath(root);
+            if (IsUnder(liveRoot, workspaceRoot) || IsUnder(workspaceRoot, liveRoot))
+            {
+                return $"Live content folder '{liveRoot}' overlaps the workspace root '{workspaceRoot}'. " +
+                       "Move the live content outside the workspace storage before preparing the profile.";
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsUnder(string path, string root)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var fullRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        return string.Equals(fullPath, fullRoot, StringComparison.OrdinalIgnoreCase) ||
+               fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+               fullPath.StartsWith(fullRoot + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool SnapshotContentMatches(
@@ -661,6 +720,15 @@ public class WorkspaceManager(
 
         if (!workspace.IsLive)
         {
+            if (liveManifests.Count > 0)
+            {
+                logger.LogInformation(
+                    "[Workspace] Converting non-live workspace {Id} to live content; a full rebuild is required",
+                    configuration.Id);
+                configuration.ForceRecreate = true;
+                strategyConfiguration.ForceRecreate = true;
+            }
+
             return null;
         }
 
@@ -701,7 +769,10 @@ public class WorkspaceManager(
             return null;
         }
 
-        liveSyncService?.Detach(workspace.Id);
+        if (liveSyncService != null)
+        {
+            await liveSyncService.DetachAsync(workspace.Id).ConfigureAwait(false);
+        }
 
         if (liveManifests.Count == 0)
         {
@@ -739,9 +810,20 @@ public class WorkspaceManager(
             return await ValidateAndFinalizeWorkspaceAsync(workspace, configuration, cancellationToken);
         }
 
-        var canApply = await liveMaterializer
-            .CanApplyIncrementallyAsync(workspace, configuration, strategyConfiguration, cancellationToken)
-            .ConfigureAwait(false);
+        bool canApply;
+        try
+        {
+            canApply = await liveMaterializer
+                .CanApplyIncrementallyAsync(workspace, configuration, strategyConfiguration, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            logger.LogWarning(ex, "[Workspace] Live incremental check failed; a full rebuild is required");
+            configuration.ForceRecreate = true;
+            strategyConfiguration.ForceRecreate = true;
+            return null;
+        }
 
         if (!canApply)
         {
@@ -752,13 +834,24 @@ public class WorkspaceManager(
             return null;
         }
 
-        var overlayResult = await liveMaterializer.ApplyAsync(
-            workspace,
-            configuration,
-            strategyConfiguration,
-            progress,
-            cancellationToken,
-            replaceSnapshotTargets: false).ConfigureAwait(false);
+        OperationResult<WorkspaceInfo> overlayResult;
+        try
+        {
+            overlayResult = await liveMaterializer.ApplyAsync(
+                workspace,
+                configuration,
+                strategyConfiguration,
+                progress,
+                cancellationToken,
+                replaceSnapshotTargets: false).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        {
+            logger.LogWarning(ex, "[Workspace] Live incremental apply failed; a full rebuild is required");
+            configuration.ForceRecreate = true;
+            strategyConfiguration.ForceRecreate = true;
+            return null;
+        }
 
         if (!overlayResult.Success || overlayResult.Data == null)
         {

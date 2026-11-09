@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Describes how a content manifest's files are sourced.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ContentSourceMode
 {
     /// <summary>

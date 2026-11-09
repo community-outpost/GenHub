@@ -998,6 +998,14 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
+        if (IsLiveSource)
+        {
+            // Live items point at the developer's source folder. Removing them from the
+            // preview must never delete source files.
+            logger?.LogWarning("DeleteItemAsync: Refusing to delete live source '{Path}'.", item.FullPath);
+            return;
+        }
+
         try
         {
             IsBusy = true;
@@ -1597,7 +1605,7 @@ public partial class AddLocalContentViewModel(
             {
                 try
                 {
-                    _pendingEntryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                    _pendingEntryPoint = Path.GetRelativePath(CurrentTreeRoot, SelectedExecutableItem.FullPath).Replace('\\', '/');
                 }
                 catch
                 {

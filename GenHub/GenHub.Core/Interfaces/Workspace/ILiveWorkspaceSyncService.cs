@@ -18,10 +18,11 @@ public interface ILiveWorkspaceSyncService : IDisposable
     OperationResult Attach(WorkspaceInfo workspace, WorkspaceConfiguration configuration);
 
     /// <summary>
-    /// Stops watching a workspace.
+    /// Stops watching a workspace and waits for the current rescan to finish.
     /// </summary>
     /// <param name="workspaceId">The workspace identifier.</param>
-    void Detach(string workspaceId);
+    /// <returns>A task that completes when the watcher worker has stopped.</returns>
+    Task DetachAsync(string workspaceId);
 
     /// <summary>
     /// Determines whether a workspace is currently watched.

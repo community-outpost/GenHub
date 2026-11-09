@@ -236,6 +236,8 @@ public class LocalContentService(
         LocalContentOptions? options,
         CancellationToken cancellationToken = default)
     {
+        var effectiveToken = options?.CancellationToken ?? cancellationToken;
+
         try
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(sourceRoot);
@@ -271,7 +273,7 @@ public class LocalContentService(
 
             var storageRoot = Path.GetFullPath(contentStorageService.GetContentStorageRoot());
             var fullSource = Path.GetFullPath(sourceRoot);
-            if (IsUnder(fullSource, storageRoot))
+            if (IsUnder(fullSource, storageRoot) || IsUnder(storageRoot, fullSource))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
                     GetLiveError(
@@ -298,7 +300,7 @@ public class LocalContentService(
             }
 
             var progress = options?.Progress;
-            var token = options?.CancellationToken ?? cancellationToken;
+            var token = effectiveToken;
 
             var identityName = ResolveIdentityName(name);
 
@@ -376,7 +378,7 @@ public class LocalContentService(
 
             return OperationResult<ContentManifest>.CreateSuccess(manifest);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (effectiveToken.IsCancellationRequested)
         {
             throw;
         }

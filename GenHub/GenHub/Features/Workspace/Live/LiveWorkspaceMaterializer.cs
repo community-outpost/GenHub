@@ -71,6 +71,7 @@ public sealed class LiveWorkspaceMaterializer(
         }
 
         var snapshotPaths = BuildReservationPaths(snapshotConfiguration);
+        var snapshotSizes = BuildSnapshotSizes(snapshotConfiguration);
         var liveRoots = new List<LiveRootBinding>();
         var plan = new Dictionary<string, LivePlanEntry>(StringComparer.OrdinalIgnoreCase);
         var overriddenSnapshotPaths = 0;
@@ -130,10 +131,11 @@ public sealed class LiveWorkspaceMaterializer(
 
         var entries = plan.Values.ToList();
         var previousState = stateStore.Load(workspaceInfo.Id);
-        var previousCopyPaths = previousState.Entries
-            .Where(entry => entry.IsCopy)
-            .Select(entry => Normalize(entry.RelativePath))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var previousCopySources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in previousState.Entries.Where(entry => entry.IsCopy))
+        {
+            previousCopySources[Normalize(entry.RelativePath)] = entry.SourcePath;
+        }
 
         if (!replaceSnapshotTargets)
         {
@@ -167,7 +169,7 @@ public sealed class LiveWorkspaceMaterializer(
         RemoveForeignTargetsForCopies(
             workspaceInfo.WorkspacePath,
             entries,
-            previousCopyPaths,
+            previousCopySources,
             replaceSnapshotTargets);
         await LinkEntriesAsync(workspaceInfo.WorkspacePath, entries, progress, cancellationToken).ConfigureAwait(false);
 
@@ -189,11 +191,20 @@ public sealed class LiveWorkspaceMaterializer(
         var liveBytes = entries.Sum(entry => entry.IsCopy
             ? SafeLength(entry.SourcePath)
             : LiveWorkspaceLinker.LinkOverheadBytes);
+        var replacedSnapshotEntries = entries
+            .Where(entry => snapshotPaths.Contains(entry.RelativePath))
+            .ToList();
+        var replacedSnapshotBytes = replacedSnapshotEntries
+            .Sum(entry => snapshotSizes.GetValueOrDefault(entry.RelativePath));
 
         workspaceInfo.IsLive = true;
         workspaceInfo.LiveSources = [.. liveRoots.Select(root => new LiveSourceBinding(root.ManifestId, root.Root))];
-        workspaceInfo.FileCount = Math.Max(0, workspaceInfo.FileCount - workspaceInfo.LiveFileCount) + entries.Count;
-        workspaceInfo.TotalSizeBytes = Math.Max(0, workspaceInfo.TotalSizeBytes - workspaceInfo.LiveSizeBytes) + liveBytes;
+        workspaceInfo.FileCount = Math.Max(0, workspaceInfo.FileCount - workspaceInfo.LiveFileCount)
+            + entries.Count
+            - replacedSnapshotEntries.Count;
+        workspaceInfo.TotalSizeBytes = Math.Max(
+            0,
+            workspaceInfo.TotalSizeBytes - workspaceInfo.LiveSizeBytes + liveBytes - replacedSnapshotBytes);
         workspaceInfo.LiveFileCount = entries.Count;
         workspaceInfo.LiveSizeBytes = liveBytes;
 
@@ -430,6 +441,21 @@ public sealed class LiveWorkspaceMaterializer(
         return manifest.SourcePath;
     }
 
+    private static Dictionary<string, long> BuildSnapshotSizes(WorkspaceConfiguration snapshotConfiguration)
+    {
+        var sizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        foreach (var manifest in snapshotConfiguration.Manifests)
+        {
+            foreach (var file in ManifestVariantResolver.ResolveFiles(manifest)
+                         .Where(file => file.InstallTarget == ContentInstallTarget.Workspace))
+            {
+                sizes[Normalize(file.RelativePath)] = file.Size;
+            }
+        }
+
+        return sizes;
+    }
+
     private static HashSet<string> BuildReservationPaths(WorkspaceConfiguration snapshotConfiguration)
     {
         var reservations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -502,14 +528,24 @@ public sealed class LiveWorkspaceMaterializer(
     private void RemoveForeignTargetsForCopies(
         string workspacePath,
         IReadOnlyList<LivePlanEntry> entries,
-        IReadOnlySet<string> previousCopyPaths,
+        IReadOnlyDictionary<string, string> previousCopySources,
         bool replaceSnapshotTargets)
     {
         foreach (var entry in entries)
         {
-            if (!entry.IsCopy ||
-                (!replaceSnapshotTargets && previousCopyPaths.Contains(entry.RelativePath)))
+            if (!entry.IsCopy)
             {
+                continue;
+            }
+
+            if (!replaceSnapshotTargets &&
+                previousCopySources.TryGetValue(entry.RelativePath, out var previousSource) &&
+                string.Equals(
+                    Path.GetFullPath(previousSource),
+                    Path.GetFullPath(entry.SourcePath),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                // The same live source still owns this copy; keep a possible game write.
                 continue;
             }
 

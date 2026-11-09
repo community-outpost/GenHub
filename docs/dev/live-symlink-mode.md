@@ -4,6 +4,79 @@ Status: implemented in this fork (P0 + safety pass).
 Scope: local loose-file content only (Mod / Addon / Patch folders). Remote and
 archive content stay on the existing CAS snapshot pipeline.
 
+## 0. Fork notes / 分叉说明
+
+> This section is the fork-specific context that used to live in the repository
+> README. Keep the upstream README unchanged in the pull request; the feature
+> documentation lives here.
+
+### 中文
+
+本分叉基于 [Community Outpost GenHub](https://github.com/community-outpost/GenHub)
+的 `development` 分支，重点增加 Live 模式与简体中文本地化，不是上游官方版本。
+
+新增能力：
+
+- 实时符号链接模式：把未打包的 Mod 文件夹直接链接进工作区，跳过 CAS 哈希与复制，
+  源目录的新增、修改、删除会实时反映。
+- 按包启停 Live：每个内容包单独开关，可与基础游戏、普通 CAS Mod 混合使用。
+- 增量工作区：只启停一个 Live 包时只增删该包的链接/副本；只有会破坏 Snapshot
+  路径时才回退全量重建。
+- 写入保护：`.ini`、`.cfg` 等配置复制到工作区，游戏写入不污染源文件；链接型
+  资产仍有写穿风险。
+- 分享/导出拦截：包含 Live 内容的配置不能导出或分享，避免泄露本地绝对路径。
+- 简体中文本地化：新增 `Strings.zh-Hans.resx`，覆盖 Live 模式新增的导入界面、
+  `LIVE` 徽章、分享错误和运行期链接错误；未覆盖的键回退英文。
+
+开发范围：`WorkspaceReconciler`、四种原工作区策略以及旧的 `SymlinkOnly` /
+`Hybrid` 回退行为保持原样。Junction/hardlink 回退、旧策略静默回退和 UI 拖拽
+排序不在本分叉范围内。
+
+### English
+
+This fork is based on the `development` branch of
+[Community Outpost GenHub](https://github.com/community-outpost/GenHub). It focuses
+on Live mode and Simplified Chinese localization and is not an official upstream
+release.
+
+Added capabilities:
+
+- Live Symlink Mode: link an unpacked mod folder directly into the workspace,
+  skipping CAS hashing and copying. Additions, edits and deletions in the source
+  are reflected live.
+- Per-package Live toggle: enable Live mode for individual packages and mix them
+  with the base game and regular CAS content.
+- Incremental workspace: enabling or disabling one Live package only adds or
+  removes that package's links/copies; a full rebuild happens only when a Snapshot
+  path would be left empty.
+- Write protection: config files such as `.ini` and `.cfg` are copied into the
+  workspace so game writes do not touch the source. Linked assets still carry the
+  documented write-through risk.
+- Export/share guard: profiles containing Live content cannot be exported or
+  shared, so local absolute paths are never sent to another user.
+- Simplified Chinese localization: added `Strings.zh-Hans.resx` covering the new
+  Live import UI, the `LIVE` badge, share errors and runtime link errors; missing
+  keys fall back to English.
+
+Scope: `WorkspaceReconciler`, the four existing workspace strategies and the
+legacy `SymlinkOnly` / `Hybrid` fallback behavior are unchanged. Junction/hardlink
+fallback, legacy strategy fallback and UI drag ordering are intentionally out of
+scope for this fork.
+
+### 致谢 / Acknowledgements
+
+本分叉的 Live 模式与简体中文本地化工作使用了 **DeepSeek Agent** 辅助开发。
+
+感谢 GenHub 上游作者、Community Outpost 与所有前人和社区贡献者打下的基础；
+也感谢 DeepSeek 提供的模型与工具支持。
+
+The Live mode and Simplified Chinese localization work in this fork was developed
+with the assistance of **DeepSeek Agent**.
+
+Thanks to the GenHub upstream authors, Community Outpost, and all the people and
+community contributors who came before us for the foundation; and thanks to
+DeepSeek for the model and tooling support.
+
 ## 1. Problem
 
 GenHub treats every imported file as an immutable content-addressed blob:
@@ -91,8 +164,7 @@ Reasons:
 - The watcher is an accelerator, never the source of truth. A buffer overflow or
   a missed event is repaired by the next prepare or by an explicit resync.
 
-### D4. Per-file symlink by default, junction as an option, copy-on-write for
-game-writable files
+### D4. Per-file symlink by default, junction as an option, copy-on-write for game-writable files
 
 `LiveLinkKind`:
 
@@ -211,7 +283,7 @@ links.
   `node_modules`, `.genhub`
 - ignore file suffixes: `.tmp`, `.log` (source-side logs only), `.pdb`
 - protected extensions (section 7)
-- watcher debounce (250 ms), buffer size (64 KiB), resync throttle
+- watcher debounce (500 ms), buffer size (64 KiB), resync throttle
 - link overhead per entry (1 KiB)
 - localization keys
 
@@ -418,11 +490,10 @@ The snapshot strategy is never given a live manifest; the split is enforced by
 `ILiveWorkspaceLinker` (shared by the materializer and the watcher):
 
 ```csharp
-Task<OperationResult<bool>> EnsureEntryAsync(
-    LiveWorkspaceContext context,
-    string relativePath,
-    string sourcePath,
-    CancellationToken cancellationToken);
+OperationResult EnsureLink(string workspaceRoot, string relativePath, string sourcePath);
+OperationResult EnsureCopy(string workspaceRoot, string relativePath, string sourcePath);
+bool TryDeleteLiveLink(string linkPath, IReadOnlyList<string> liveRoots);
+bool IsLinkTo(string path, string sourcePath);
 ```
 
 Rules:
@@ -666,9 +737,8 @@ public interface ILiveWorkspaceSyncService
 ### 9.2 Lifetime
 
 Registered as a singleton. It must not capture scoped services
-(`IFileOperationsService` is scoped), so it resolves a scope per operation
-through `IServiceScopeFactory`. `WorkspaceManager` (scoped) injects the singleton
-and attaches after a successful prepare.
+The service is a singleton and does not depend on scoped file operations. `WorkspaceManager`
+(scoped) injects the singleton and attaches after a successful prepare.
 
 ### 9.3 Session
 
@@ -703,7 +773,7 @@ On `Renamed`: old path deletion plus new path creation.
 On watcher error (buffer overflow): enqueue a full `SyncNowAsync`, which rescans
 the root and reconciles both directions.
 
-Events are debounced (250 ms) and processed serially per workspace. A failed
+Events are debounced (500 ms) and processed serially per workspace. A failed
 event is logged once and repaired by the next rescan; it never crashes the UI.
 
 ### 9.5 What the watcher does not do

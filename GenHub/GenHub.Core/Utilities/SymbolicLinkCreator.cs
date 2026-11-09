@@ -66,7 +66,11 @@ public static class SymbolicLinkCreator
             CreateFileLink(linkPath, targetPath);
             return new FileInfo(linkPath).LinkTarget is not null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }
@@ -148,7 +152,11 @@ public static class SymbolicLinkCreator
         {
             File.Delete(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best-effort cleanup of a uniquely named probe.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best-effort cleanup of a uniquely named probe.
         }

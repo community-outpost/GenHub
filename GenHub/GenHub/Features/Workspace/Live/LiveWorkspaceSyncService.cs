@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -27,9 +28,6 @@ public sealed class LiveWorkspaceSyncService(
     ILogger<LiveWorkspaceSyncService> logger,
     ILocalizationService? localizationService = null) : ILiveWorkspaceSyncService
 {
-    private const int DebounceMilliseconds = 500;
-    private const int WatcherBufferSize = 64 * 1024;
-
     private readonly ConcurrentDictionary<string, LiveSession> _sessions = new(StringComparer.Ordinal);
 
     /// <inheritdoc/>
@@ -38,7 +36,9 @@ public sealed class LiveWorkspaceSyncService(
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        Detach(workspace.Id);
+        // Wait for the old worker before replacing its session so two applies cannot
+        // mutate the same workspace at once.
+        DetachAsync(workspace.Id).GetAwaiter().GetResult();
 
         var liveManifests = configuration.Manifests
             .Where(manifest => manifest.SourceMode == ContentSourceMode.Live)
@@ -111,18 +111,33 @@ public sealed class LiveWorkspaceSyncService(
     }
 
     /// <inheritdoc/>
-    public void Detach(string workspaceId)
+    public async Task DetachAsync(string workspaceId)
     {
         if (string.IsNullOrWhiteSpace(workspaceId))
         {
             return;
         }
 
-        if (_sessions.TryRemove(workspaceId, out var session))
+        if (!_sessions.TryRemove(workspaceId, out var session))
         {
-            session.Dispose();
-            logger.LogInformation("[Live] Stopped watching workspace {WorkspaceId}", workspaceId);
+            return;
         }
+
+        session.Cancellation.Cancel();
+        if (session.Worker != null)
+        {
+            try
+            {
+                await session.Worker.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown.
+            }
+        }
+
+        session.Dispose();
+        logger.LogInformation("[Live] Stopped watching workspace {WorkspaceId}", workspaceId);
     }
 
     /// <inheritdoc/>
@@ -143,19 +158,35 @@ public sealed class LiveWorkspaceSyncService(
 
         try
         {
-            var result = await materializer.ResyncAsync(
-                session.Workspace,
-                session.Configuration,
-                session.SnapshotConfiguration,
-                cancellationToken).ConfigureAwait(false);
+            using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                session.Cancellation.Token);
 
-            return result.Success
-                ? OperationResult<bool>.CreateSuccess(true)
-                : OperationResult<bool>.CreateFailure(
-                    result.FirstError ?? GetLiveError(
-                        "Workspace.Live.Error.Resync",
-                        "Live content resync failed: {0}",
-                        "unknown"));
+            await session.ApplyLock.WaitAsync(linkedCancellation.Token).ConfigureAwait(false);
+            try
+            {
+                var result = await materializer.ResyncAsync(
+                    session.Workspace,
+                    session.Configuration,
+                    session.SnapshotConfiguration,
+                    linkedCancellation.Token).ConfigureAwait(false);
+
+                return result.Success
+                    ? OperationResult<bool>.CreateSuccess(true)
+                    : OperationResult<bool>.CreateFailure(
+                        result.FirstError ?? GetLiveError(
+                            "Workspace.Live.Error.Resync",
+                            "Live content resync failed: {0}",
+                            "unknown"));
+            }
+            finally
+            {
+                session.ApplyLock.Release();
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || session.Cancellation.IsCancellationRequested)
+        {
+            return OperationResult<bool>.CreateFailure("Live content resync was cancelled.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {
@@ -173,7 +204,7 @@ public sealed class LiveWorkspaceSyncService(
     {
         foreach (var workspaceId in _sessions.Keys.ToList())
         {
-            Detach(workspaceId);
+            DetachAsync(workspaceId).GetAwaiter().GetResult();
         }
     }
 
@@ -198,7 +229,7 @@ public sealed class LiveWorkspaceSyncService(
             while (!cancellationToken.IsCancellationRequested)
             {
                 await session.SignalReader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                await Task.Delay(DebounceMilliseconds, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(LiveContentConstants.DebounceMilliseconds, cancellationToken).ConfigureAwait(false);
 
                 while (session.SignalReader.TryRead(out _))
                 {
@@ -207,18 +238,26 @@ public sealed class LiveWorkspaceSyncService(
 
                 try
                 {
-                    var result = await materializer.ResyncAsync(
-                        session.Workspace,
-                        session.Configuration,
-                        session.SnapshotConfiguration,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (!result.Success)
+                    await session.ApplyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
                     {
-                        logger.LogWarning(
-                            "[Live] Resync for workspace {WorkspaceId} failed: {Error}",
-                            session.Workspace.Id,
-                            result.FirstError);
+                        var result = await materializer.ResyncAsync(
+                            session.Workspace,
+                            session.Configuration,
+                            session.SnapshotConfiguration,
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (!result.Success)
+                        {
+                            logger.LogWarning(
+                                "[Live] Resync for workspace {WorkspaceId} failed: {Error}",
+                                session.Workspace.Id,
+                                result.FirstError);
+                        }
+                    }
+                    finally
+                    {
+                        session.ApplyLock.Release();
                     }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -263,7 +302,7 @@ public sealed class LiveWorkspaceSyncService(
                            NotifyFilters.DirectoryName |
                            NotifyFilters.LastWrite |
                            NotifyFilters.Size,
-            InternalBufferSize = WatcherBufferSize,
+            InternalBufferSize = LiveContentConstants.WatcherBufferSize,
             EnableRaisingEvents = false,
         };
 
@@ -301,6 +340,8 @@ public sealed class LiveWorkspaceSyncService(
         public WorkspaceConfiguration SnapshotConfiguration { get; } = snapshotConfiguration;
 
         public CancellationTokenSource Cancellation { get; } = cancellation;
+
+        public SemaphoreSlim ApplyLock { get; } = new(1, 1);
 
         public ChannelReader<byte> SignalReader => _signal.Reader;
 

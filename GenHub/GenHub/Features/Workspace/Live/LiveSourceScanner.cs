@@ -12,12 +12,12 @@ namespace GenHub.Features.Workspace.Live;
 /// </summary>
 internal static class LiveSourceScanner
 {
-    private static readonly HashSet<string> IgnoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _ignoredDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git", ".svn", ".hg", ".vs", ".vscode", "bin", "obj", "node_modules", ".genhub",
     };
 
-    private static readonly HashSet<string> IgnoredFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> _ignoredFileExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".tmp", ".log", ".pdb",
     };
@@ -88,7 +88,7 @@ internal static class LiveSourceScanner
         {
             foreach (var child in parent.EnumerateDirectories())
             {
-                if (IgnoredDirectoryNames.Contains(child.Name))
+                if (_ignoredDirectoryNames.Contains(child.Name))
                 {
                     continue;
                 }
@@ -114,7 +114,7 @@ internal static class LiveSourceScanner
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (IgnoredFileExtensions.Contains(file.Extension))
+                if (_ignoredFileExtensions.Contains(file.Extension))
                 {
                     continue;
                 }

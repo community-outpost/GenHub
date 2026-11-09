@@ -89,6 +89,33 @@ public class ProfileSharingServiceTests
             NullLogger<ProfileSharingService>.Instance);
     }
 
+    /// <summary>Profiles containing live content are refused before packaging.</summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToJsonAsync_WithLiveManifest_IsRefusedAsync()
+    {
+        var liveManifest = CreateTestManifest("1.0.local.addon.live-share", "Live Addon", ContentType.Addon);
+        liveManifest.SourceMode = ContentSourceMode.Live;
+        liveManifest.SourcePath = @"D:\mods\live-addon";
+
+        var profile = CreateTestProfile("live-profile", "Live Profile");
+        profile.EnabledContentIds = [liveManifest.Id.Value];
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(liveManifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(liveManifest));
+
+        var result = await _service.ExportProfileToJsonAsync(profile.Id);
+
+        Assert.False(result.Success);
+        var error = string.Join(" | ", result.Errors);
+        Assert.True(
+            error.Contains("live", StringComparison.OrdinalIgnoreCase) ||
+            error.Contains("实时", StringComparison.Ordinal),
+            error);
+    }
+
     /// <summary>Missing manifest errors use the injected localization service.</summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
