@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -273,7 +274,9 @@ public class LocalContentService(
 
             var storageRoot = Path.GetFullPath(contentStorageService.GetContentStorageRoot());
             var fullSource = Path.GetFullPath(sourceRoot);
-            if (IsUnder(fullSource, storageRoot) || IsUnder(storageRoot, fullSource))
+            if (IsUnder(fullSource, storageRoot) ||
+                IsUnder(storageRoot, fullSource) ||
+                PathHelper.AreSamePath(fullSource, storageRoot))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
                     GetLiveError(

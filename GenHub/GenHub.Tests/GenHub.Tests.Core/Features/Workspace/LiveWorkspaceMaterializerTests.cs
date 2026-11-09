@@ -47,6 +47,33 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
     }
 
     /// <summary>
+    /// Re-applying a live entry that shadows a snapshot path must not decrement the
+    /// workspace file count again.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task ApplyAsync_RepeatedShadowingDoesNotDriftFileCountAsync()
+    {
+        await File.WriteAllTextAsync(Path.Combine(_workspace, "Data", "Shared.ini"), "snapshot");
+        await File.WriteAllTextAsync(Path.Combine(_sourceA, "Data", "Shared.ini"), "live");
+
+        var snapshot = CreateManifest("1.0.local.mod.snapshot", ContentSourceMode.Snapshot, "Data/Shared.ini");
+        var live = CreateManifest("1.0.local.mod.live-a", ContentSourceMode.Live, "Data/Shared.ini", _sourceA);
+        var info = CreateWorkspace();
+        info.FileCount = 1;
+        var config = CreateConfiguration(snapshot, live);
+        var snapshotConfig = CreateConfiguration(snapshot);
+
+        var first = await _materializer.ApplyAsync(info, config, snapshotConfig, null, CancellationToken.None);
+        Assert.True(first.Success, first.FirstError);
+        Assert.Equal(1, info.FileCount);
+
+        var second = await _materializer.ResyncAsync(info, config, snapshotConfig, CancellationToken.None);
+        Assert.True(second.Success, second.FirstError);
+        Assert.Equal(1, info.FileCount);
+    }
+
+    /// <summary>
     /// A live file replaces a snapshot file at the same path, and a later source edit is
     /// refreshed while a simulated game write is preserved.
     /// </summary>
@@ -84,8 +111,8 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
         Assert.True(rescued.Success, rescued.FirstError);
         Assert.Equal("game-write", await File.ReadAllTextAsync(snapshotFile));
 
-        await Task.Delay(1100);
         await File.WriteAllTextAsync(sourceFile, "live-edit");
+        File.SetLastWriteTimeUtc(sourceFile, DateTime.UtcNow.AddSeconds(1));
         var refreshed = await _materializer.ResyncAsync(
             info,
             config,

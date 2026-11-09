@@ -106,14 +106,24 @@ public class ProfileSharingServiceTests
         _manifestPoolMock.Setup(m => m.GetManifestAsync(liveManifest.Id.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(liveManifest));
 
-        var result = await _service.ExportProfileToJsonAsync(profile.Id);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(l => l.GetString(
+                ProfileSharingConstants.LiveContentCannotBeSharedErrorKey,
+                It.IsAny<object[]>()))
+            .Returns(ProfileSharingConstants.LiveContentCannotBeSharedFallback);
+        using var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            localizationService: localization.Object);
+
+        var result = await service.ExportProfileToJsonAsync(profile.Id);
 
         Assert.False(result.Success);
-        var error = string.Join(" | ", result.Errors);
-        Assert.True(
-            error.Contains("live", StringComparison.OrdinalIgnoreCase) ||
-            error.Contains("实时", StringComparison.Ordinal),
-            error);
+        Assert.Equal(ProfileSharingConstants.LiveContentCannotBeSharedFallback, Assert.Single(result.Errors));
     }
 
     /// <summary>Missing manifest errors use the injected localization service.</summary>

@@ -18421,6 +18421,9 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
     <value>实时内容文件夹“{0}”与工作区根目录“{1}”重叠。请将实时内容移出工作区存储后再准备配置。</value>
   </data>
   <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
-    <value>拒绝清理工作区“{0}”：实时源“{1}”与其重叠。</value>
+    <value>拒绝清理工作区“{0}”：实时源“{1}”与其重叠。请先从配置中移除该实时内容，再删除配置。</value>
+  </data>
+  <data name="Workspace.Live.Error.ResyncCancelled" xml:space="preserve">
+    <value>实时内容重新同步已取消。</value>
   </data>
 </root>

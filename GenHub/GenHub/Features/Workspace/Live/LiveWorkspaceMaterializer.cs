@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -540,10 +541,7 @@ public sealed class LiveWorkspaceMaterializer(
 
             if (!replaceSnapshotTargets &&
                 previousCopySources.TryGetValue(entry.RelativePath, out var previousSource) &&
-                string.Equals(
-                    Path.GetFullPath(previousSource),
-                    Path.GetFullPath(entry.SourcePath),
-                    StringComparison.OrdinalIgnoreCase))
+                PathHelper.AreSamePath(previousSource, entry.SourcePath))
             {
                 // The same live source still owns this copy; keep a possible game write.
                 continue;
@@ -572,6 +570,9 @@ public sealed class LiveWorkspaceMaterializer(
 
             // The snapshot strategy materialized a conflicting path first. Live content
             // won conflict resolution, so the snapshot entry must not survive the copy.
+            logger.LogWarning(
+                "[Live] Replacing workspace copy {RelativePath}; any game write in it will be discarded",
+                entry.RelativePath);
             try
             {
                 File.SetAttributes(targetPath, FileAttributes.Normal);

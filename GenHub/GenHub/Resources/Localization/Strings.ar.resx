@@ -18319,6 +18319,9 @@ Error: فشل: {3}
     <value>Live content folder '{0}' overlaps the workspace root '{1}'. Move the live content outside the workspace storage before preparing the profile.</value>
   </data>
   <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
-    <value>Refusing to clean workspace '{0}': live source '{1}' overlaps it.</value>
+    <value>Refusing to clean workspace '{0}': live source '{1}' overlaps it. Remove the live content from the profile first, then delete the profile.</value>
+  </data>
+  <data name="Workspace.Live.Error.ResyncCancelled" xml:space="preserve">
+    <value>Live content resync was cancelled.</value>
   </data>
 </root>

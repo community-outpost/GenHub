@@ -191,7 +191,10 @@ public sealed class LiveWorkspaceSyncService(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || session.Cancellation.IsCancellationRequested)
         {
-            return OperationResult<bool>.CreateFailure("Live content resync was cancelled.");
+            return OperationResult<bool>.CreateFailure(
+                GetLiveError(
+                    "Workspace.Live.Error.ResyncCancelled",
+                    "Live content resync was cancelled."));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         {

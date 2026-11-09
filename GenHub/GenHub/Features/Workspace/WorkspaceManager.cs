@@ -71,6 +71,20 @@ public class WorkspaceManager(
             return OperationResult<WorkspaceInfo>.CreateFailure(overlapError);
         }
 
+        if (snapshotManifests.Count == 0 && liveManifests.Count == 0)
+        {
+            var existingWorkspaces = await GetAllWorkspacesAsync(cancellationToken);
+            if (existingWorkspaces.Success &&
+                existingWorkspaces.Data != null &&
+                existingWorkspaces.Data.Any(workspace =>
+                    workspace.Id == configuration.Id && Directory.Exists(workspace.WorkspacePath)))
+            {
+                return OperationResult<WorkspaceInfo>.CreateFailure(
+                    $"Refusing to prepare empty workspace '{configuration.Id}': an existing workspace would be cleared. " +
+                    "Delete the workspace explicitly before preparing an empty profile.");
+            }
+        }
+
         var strategyConfiguration = hasLiveSources
             ? configuration.WithManifests(snapshotManifests)
             : configuration;
@@ -855,7 +869,7 @@ public class WorkspaceManager(
                 .CanApplyIncrementallyAsync(workspace, configuration, strategyConfiguration, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
         {
             logger.LogWarning(ex, "[Workspace] Live incremental check failed; a full rebuild is required");
             configuration.ForceRecreate = true;
@@ -883,7 +897,7 @@ public class WorkspaceManager(
                 cancellationToken,
                 replaceSnapshotTargets: false).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
         {
             logger.LogWarning(ex, "[Workspace] Live incremental apply failed; a full rebuild is required");
             configuration.ForceRecreate = true;
@@ -934,7 +948,7 @@ public class WorkspaceManager(
             WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspace, configuration, logger);
             return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
             logger.LogWarning(
                 ex,
@@ -1070,7 +1084,7 @@ public class WorkspaceManager(
 
                     return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException)
+                catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
                 {
                     logger.LogWarning(
                         ex,
