@@ -18316,12 +18316,12 @@ Error: не удалось: {3}
     <value>Failed to watch live content: {0}</value>
   </data>
   <data name="Workspace.Live.Error.Overlap" xml:space="preserve">
-    <value>Live content folder '{0}' overlaps the workspace root '{1}'. Move the live content outside the workspace storage before preparing the profile.</value>
+    <value>Папка живого контента '{0}' пересекается с корнем рабочей области '{1}'. Переместите живой контент за пределы хранилища рабочей области перед подготовкой профиля.</value>
   </data>
   <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
-    <value>Refusing to clean workspace '{0}': live source '{1}' overlaps it. Remove the live content from the profile first, then delete the profile.</value>
+    <value>Отказано в очистке рабочей области '{0}': живой источник '{1}' пересекается с ней. Сначала удалите живой контент из профиля, затем удалите профиль.</value>
   </data>
   <data name="Workspace.Live.Error.ResyncCancelled" xml:space="preserve">
-    <value>Live content resync was cancelled.</value>
+    <value>Повторная синхронизация живого контента была отменена.</value>
   </data>
 </root>

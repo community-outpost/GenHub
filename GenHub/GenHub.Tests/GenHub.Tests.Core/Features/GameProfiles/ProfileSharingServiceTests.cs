@@ -106,11 +106,12 @@ public class ProfileSharingServiceTests
         _manifestPoolMock.Setup(m => m.GetManifestAsync(liveManifest.Id.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(liveManifest));
 
+        const string liveContentSentinel = "SENTINEL:LiveContent";
         var localization = new Mock<ILocalizationService>();
         localization.Setup(l => l.GetString(
                 ProfileSharingConstants.LiveContentCannotBeSharedErrorKey,
                 It.IsAny<object[]>()))
-            .Returns(ProfileSharingConstants.LiveContentCannotBeSharedFallback);
+            .Returns(liveContentSentinel);
         using var service = new ProfileSharingService(
             _profileRepositoryMock.Object,
             _manifestPoolMock.Object,
@@ -123,7 +124,7 @@ public class ProfileSharingServiceTests
         var result = await service.ExportProfileToJsonAsync(profile.Id);
 
         Assert.False(result.Success);
-        Assert.Equal(ProfileSharingConstants.LiveContentCannotBeSharedFallback, Assert.Single(result.Errors));
+        Assert.Equal(liveContentSentinel, Assert.Single(result.Errors));
     }
 
     /// <summary>Missing manifest errors use the injected localization service.</summary>

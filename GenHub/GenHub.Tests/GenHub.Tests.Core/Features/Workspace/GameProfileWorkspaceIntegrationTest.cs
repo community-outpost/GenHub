@@ -461,6 +461,38 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     }
 
     /// <summary>
+    /// Tests that an already-empty workspace can be prepared again without the
+    /// empty-configuration guard blocking an idempotent launch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareWorkspace_EmptyManifests_CanReprepareEmptyWorkspaceAsync()
+    {
+        var workspaceConfig = new WorkspaceConfiguration
+        {
+            Id = "test-workspace-empty-repeat",
+            Manifests = [],
+            GameClient = new GameClient
+            {
+                Id = "generals-108",
+                ExecutablePath = "generals.exe",
+                WorkingDirectory = _tempGameInstall,
+            },
+            Strategy = WorkspaceStrategy.FullCopy,
+            BaseInstallationPath = _tempGameInstall,
+            WorkspaceRootPath = _tempWorkspaceRoot,
+            ForceRecreate = true,
+        };
+
+        var first = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig);
+        Assert.True(first.Success, first.FirstError);
+
+        var second = await _workspaceManager.PrepareWorkspaceAsync(workspaceConfig);
+        Assert.True(second.Success, second.FirstError);
+        Assert.True(Directory.Exists(second.Data!.WorkspacePath));
+    }
+
+    /// <summary>
     /// Tests that workspace preparation with ForceRecreate removes existing workspace.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

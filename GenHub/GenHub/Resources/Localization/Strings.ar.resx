@@ -18316,12 +18316,12 @@ Error: فشل: {3}
     <value>Failed to watch live content: {0}</value>
   </data>
   <data name="Workspace.Live.Error.Overlap" xml:space="preserve">
-    <value>Live content folder '{0}' overlaps the workspace root '{1}'. Move the live content outside the workspace storage before preparing the profile.</value>
+    <value>يتداخل مجلد المحتوى المباشر '{0}' مع جذر مساحة العمل '{1}'. انقل المحتوى المباشر خارج مساحة تخزين مساحة العمل قبل تحضير الملف الشخصي.</value>
   </data>
   <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
-    <value>Refusing to clean workspace '{0}': live source '{1}' overlaps it. Remove the live content from the profile first, then delete the profile.</value>
+    <value>تم رفض تنظيف مساحة العمل '{0}': المصدر المباشر '{1}' يتداخل معها. أزل المحتوى المباشر من الملف الشخصي أولاً، ثم احذف الملف الشخصي.</value>
   </data>
   <data name="Workspace.Live.Error.ResyncCancelled" xml:space="preserve">
-    <value>Live content resync was cancelled.</value>
+    <value>تم إلغاء إعادة مزامنة المحتوى المباشر.</value>
   </data>
 </root>

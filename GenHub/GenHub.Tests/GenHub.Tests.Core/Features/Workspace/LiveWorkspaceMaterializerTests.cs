@@ -61,16 +61,19 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
         var live = CreateManifest("1.0.local.mod.live-a", ContentSourceMode.Live, "Data/Shared.ini", _sourceA);
         var info = CreateWorkspace();
         info.FileCount = 1;
+        info.TotalSizeBytes = 4;
         var config = CreateConfiguration(snapshot, live);
         var snapshotConfig = CreateConfiguration(snapshot);
 
         var first = await _materializer.ApplyAsync(info, config, snapshotConfig, null, CancellationToken.None);
         Assert.True(first.Success, first.FirstError);
         Assert.Equal(1, info.FileCount);
+        Assert.Equal(4, info.TotalSizeBytes);
 
         var second = await _materializer.ResyncAsync(info, config, snapshotConfig, CancellationToken.None);
         Assert.True(second.Success, second.FirstError);
         Assert.Equal(1, info.FileCount);
+        Assert.Equal(4, info.TotalSizeBytes);
     }
 
     /// <summary>
@@ -271,7 +274,8 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
         string id,
         ContentSourceMode mode,
         string relativePath,
-        string? sourcePath = null)
+        string? sourcePath = null,
+        long size = 4)
     {
         var manifest = new ContentManifest
         {
@@ -289,6 +293,7 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
             RelativePath = relativePath,
             SourceType = ContentSourceType.LocalFile,
             InstallTarget = ContentInstallTarget.Workspace,
+            Size = size,
         });
 
         return manifest;
@@ -341,12 +346,13 @@ public sealed class LiveWorkspaceMaterializerTests : IDisposable
 
         public LiveWorkspaceState Load(string workspaceId) =>
             _states.TryGetValue(workspaceId, out var state)
-                ? new LiveWorkspaceState { WorkspaceId = state.WorkspaceId, Entries = [.. state.Entries] }
+                ? new LiveWorkspaceState { Version = state.Version, WorkspaceId = state.WorkspaceId, Entries = [.. state.Entries] }
                 : new LiveWorkspaceState { WorkspaceId = workspaceId };
 
         public void Save(LiveWorkspaceState state) =>
             _states[state.WorkspaceId] = new LiveWorkspaceState
             {
+                Version = state.Version,
                 WorkspaceId = state.WorkspaceId,
                 Entries = [.. state.Entries],
             };

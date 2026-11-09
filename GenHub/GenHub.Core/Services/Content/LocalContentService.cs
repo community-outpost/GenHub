@@ -31,7 +31,8 @@ public class LocalContentService(
     IContentReconciliationService reconciliationService,
     ILogger<LocalContentService> logger,
     IArchivePayloadProcessor? archivePayloadProcessor = null,
-    ILocalizationService? localizationService = null) : ILocalContentService
+    ILocalizationService? localizationService = null,
+    IContentManifestPool? manifestPool = null) : ILocalContentService
 {
     /// <summary>
     /// The publisher name for locally-generated content.
@@ -274,8 +275,8 @@ public class LocalContentService(
 
             var storageRoot = Path.GetFullPath(contentStorageService.GetContentStorageRoot());
             var fullSource = Path.GetFullPath(sourceRoot);
-            if (IsUnder(fullSource, storageRoot) ||
-                IsUnder(storageRoot, fullSource) ||
+            if (PathHelper.IsPathWithinDirectory(storageRoot, fullSource) ||
+                PathHelper.IsPathWithinDirectory(fullSource, storageRoot) ||
                 PathHelper.AreSamePath(fullSource, storageRoot))
             {
                 return OperationResult<ContentManifest>.CreateFailure(
@@ -328,6 +329,24 @@ public class LocalContentService(
             manifest.Name = name;
             manifest.SourceMode = ContentSourceMode.Live;
             manifest.SourcePath = fullSource;
+
+            if (manifestPool != null)
+            {
+                var existing = await manifestPool.GetManifestAsync(manifest.Id, token);
+                if (existing.Success &&
+                    existing.Data is { } existingManifest &&
+                    !PathHelper.AreSamePath(existingManifest.SourcePath ?? string.Empty, fullSource))
+                {
+                    // Two different live folders can share a display name. Never let the
+                    // second registration overwrite the first folder's manifest identity.
+                    var sourceAwareIdentity = ResolveSourceAwareIdentityName(name, fullSource);
+                    manifest.Id = ReplaceIdentity(manifest.Id, sourceAwareIdentity);
+                    logger.LogWarning(
+                        "Live content '{Name}' collided with an existing manifest ID; using source-aware identity '{Identity}'",
+                        name,
+                        sourceAwareIdentity);
+                }
+            }
 
             if (!string.IsNullOrWhiteSpace(options?.EntryPoint))
             {
@@ -402,6 +421,10 @@ public class LocalContentService(
             return CreateLiveRegistrationFailure(name, ex);
         }
         catch (NotSupportedException ex)
+        {
+            return CreateLiveRegistrationFailure(name, ex);
+        }
+        catch (System.Security.SecurityException ex)
         {
             return CreateLiveRegistrationFailure(name, ex);
         }
@@ -580,11 +603,25 @@ public class LocalContentService(
         return Convert.ToHexString(hash)[..8].ToLowerInvariant();
     }
 
-    private static bool IsUnder(string path, string root)
+    private static string ResolveSourceAwareIdentityName(string name, string sourcePath)
     {
-        var normalizedRoot = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
-        return path.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase);
+        var sanitized = SanitizeForManifestId(name);
+        var normalizedSource = Path.GetFullPath(sourcePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var suffix = StableSuffix(name + "|" + normalizedSource.ToLowerInvariant());
+        return string.IsNullOrEmpty(sanitized) ? "content-" + suffix : sanitized + "-" + suffix;
+    }
+
+    private static ManifestId ReplaceIdentity(ManifestId manifestId, string identity)
+    {
+        var segments = manifestId.Value.Split('.');
+        if (segments.Length < 2)
+        {
+            return manifestId;
+        }
+
+        segments[^1] = identity;
+        return ManifestId.Create(string.Join('.', segments));
     }
 
     private OperationResult<ContentManifest> CreateLiveRegistrationFailure(string name, Exception ex)

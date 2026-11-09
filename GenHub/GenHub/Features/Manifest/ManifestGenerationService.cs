@@ -403,6 +403,11 @@ public class ManifestGenerationService(
             logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
             throw;
         }
+        catch (System.Security.SecurityException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
     }
 
     /// <summary>

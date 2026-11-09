@@ -74,13 +74,28 @@ public class WorkspaceManager(
         if (snapshotManifests.Count == 0 && liveManifests.Count == 0)
         {
             var existingWorkspaces = await GetAllWorkspacesAsync(cancellationToken);
-            if (existingWorkspaces.Success &&
-                existingWorkspaces.Data != null &&
-                existingWorkspaces.Data.Any(workspace =>
-                    workspace.Id == configuration.Id && Directory.Exists(workspace.WorkspacePath)))
+            var recordedWorkspace = existingWorkspaces.Success && existingWorkspaces.Data != null
+                ? existingWorkspaces.Data.FirstOrDefault(workspace => workspace.Id == configuration.Id)
+                : null;
+
+            if (recordedWorkspace != null &&
+                Directory.Exists(recordedWorkspace.WorkspacePath) &&
+                HasWorkspaceContent(recordedWorkspace))
             {
                 return OperationResult<WorkspaceInfo>.CreateFailure(
                     $"Refusing to prepare empty workspace '{configuration.Id}': an existing workspace would be cleared. " +
+                    "Delete the workspace explicitly before preparing an empty profile.");
+            }
+
+            var expectedWorkspacePath = TryGetExpectedWorkspacePath(configuration);
+            if (recordedWorkspace == null &&
+                expectedWorkspacePath != null &&
+                Directory.Exists(expectedWorkspacePath) &&
+                HasDirectoryContent(expectedWorkspacePath))
+            {
+                return OperationResult<WorkspaceInfo>.CreateFailure(
+                    $"Refusing to prepare empty workspace '{configuration.Id}': " +
+                    $"the existing directory '{expectedWorkspacePath}' is not empty. " +
                     "Delete the workspace explicitly before preparing an empty profile.");
             }
         }
@@ -558,6 +573,55 @@ public class WorkspaceManager(
         return null;
     }
 
+    private static bool HasWorkspaceContent(WorkspaceInfo workspace)
+    {
+        if (workspace.ManifestIds.Count > 0 || workspace.LiveSources.Count > 0)
+        {
+            return true;
+        }
+
+        return HasDirectoryContent(workspace.WorkspacePath);
+    }
+
+    private static bool HasDirectoryContent(string path)
+    {
+        try
+        {
+            return Directory.Exists(path) && Directory.EnumerateFileSystemEntries(path).Any();
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return true;
+        }
+        catch (NotSupportedException)
+        {
+            return true;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return true;
+        }
+    }
+
+    private static string? TryGetExpectedWorkspacePath(WorkspaceConfiguration configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath) ||
+            string.IsNullOrWhiteSpace(configuration.Id))
+        {
+            return null;
+        }
+
+        return TryGetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
+    }
+
     private static string? TryGetFullPath(string path)
     {
         try
@@ -592,14 +656,12 @@ public class WorkspaceManager(
         var fullRoot = TryGetFullPath(root);
         if (fullPath == null || fullRoot == null)
         {
-            return false;
+            // Fail closed: an unreadable or malformed path may overlap.
+            return true;
         }
 
-        fullRoot = fullRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return string.Equals(fullPath, fullRoot, StringComparison.OrdinalIgnoreCase) ||
-               fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-               fullPath.StartsWith(fullRoot + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        return PathHelper.AreSamePath(fullPath, fullRoot) ||
+               PathHelper.IsPathWithinDirectory(fullRoot, fullPath);
     }
 
     private static string GetLiveError(
@@ -912,7 +974,7 @@ public class WorkspaceManager(
                 .CanApplyIncrementallyAsync(workspace, configuration, strategyConfiguration, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or System.Security.SecurityException)
         {
             logger.LogWarning(ex, "[Workspace] Live incremental check failed; a full rebuild is required");
             configuration.ForceRecreate = true;
@@ -940,7 +1002,7 @@ public class WorkspaceManager(
                 cancellationToken,
                 replaceSnapshotTargets: false).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or NotSupportedException or System.Security.SecurityException)
         {
             logger.LogWarning(ex, "[Workspace] Live incremental apply failed; a full rebuild is required");
             configuration.ForceRecreate = true;
@@ -991,7 +1053,7 @@ public class WorkspaceManager(
             WorkspaceCompatibilityHelper.EnsureDrmAndAssetCompatibility(workspace, configuration, logger);
             return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Security.SecurityException)
         {
             logger.LogWarning(
                 ex,
@@ -1127,7 +1189,7 @@ public class WorkspaceManager(
 
                     return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+                catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Security.SecurityException)
                 {
                     logger.LogWarning(
                         ex,

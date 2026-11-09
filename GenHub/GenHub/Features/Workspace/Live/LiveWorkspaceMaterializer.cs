@@ -132,6 +132,12 @@ public sealed class LiveWorkspaceMaterializer(
 
         var entries = plan.Values.ToList();
         var previousState = stateStore.Load(workspaceInfo.Id);
+        if (!replaceSnapshotTargets && previousState.Entries.Count > 0 && previousState.Version < 1)
+        {
+            return OperationResult<WorkspaceInfo>.CreateFailure(
+                "The live workspace uses the legacy contribution accounting; a full rebuild is required.");
+        }
+
         var previousCopySources = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in previousState.Entries.Where(entry => entry.IsCopy))
         {
@@ -211,6 +217,7 @@ public sealed class LiveWorkspaceMaterializer(
 
         stateStore.Save(new LiveWorkspaceState
         {
+            Version = 1,
             WorkspaceId = workspaceInfo.Id,
             Entries = [.. entries.Select(entry => new LiveWorkspaceEntry(entry.RelativePath, entry.SourcePath, entry.IsCopy))],
         });
@@ -270,6 +277,13 @@ public sealed class LiveWorkspaceMaterializer(
         }
 
         var previousState = stateStore.Load(workspaceInfo.Id);
+        if (previousState.Entries.Count > 0 && previousState.Version < 1)
+        {
+            logger.LogInformation(
+                "[Live] Workspace state uses the legacy contribution accounting; a full rebuild is required");
+            return Task.FromResult(false);
+        }
+
         var currentLiveIds = configuration.Manifests
             .Where(manifest => manifest.SourceMode == ContentSourceMode.Live)
             .Select(manifest => manifest.Id.Value)
@@ -300,7 +314,15 @@ public sealed class LiveWorkspaceMaterializer(
         ArgumentNullException.ThrowIfNull(workspaceInfo);
         ArgumentNullException.ThrowIfNull(snapshotConfiguration);
 
-        if (stateStore.Load(workspaceInfo.Id).Entries.Count == 0 &&
+        var previousState = stateStore.Load(workspaceInfo.Id);
+        if (previousState.Entries.Count > 0 && previousState.Version < 1)
+        {
+            logger.LogInformation(
+                "[Live] Workspace state uses the legacy contribution accounting; a full rebuild is required to clear it");
+            return Task.FromResult(false);
+        }
+
+        if (previousState.Entries.Count == 0 &&
             workspaceInfo.LiveSources.Count > 0)
         {
             logger.LogInformation(
@@ -366,7 +388,7 @@ public sealed class LiveWorkspaceMaterializer(
                     string.Join(", ", failures.Take(5)))));
         }
 
-        stateStore.Save(new LiveWorkspaceState { WorkspaceId = workspaceInfo.Id });
+        stateStore.Save(new LiveWorkspaceState { Version = 1, WorkspaceId = workspaceInfo.Id });
         workspaceInfo.IsLive = false;
         workspaceInfo.LiveSources = [];
         workspaceInfo.FileCount = Math.Max(0, workspaceInfo.FileCount - workspaceInfo.LiveFileCount);
@@ -570,7 +592,7 @@ public sealed class LiveWorkspaceMaterializer(
 
             // The snapshot strategy materialized a conflicting path first. Live content
             // won conflict resolution, so the snapshot entry must not survive the copy.
-            logger.LogWarning(
+            logger.LogDebug(
                 "[Live] Replacing workspace copy {RelativePath}; any game write in it will be discarded",
                 entry.RelativePath);
             try
