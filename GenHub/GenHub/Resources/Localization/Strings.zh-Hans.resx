@@ -91,7 +91,7 @@
     <value>移除</value>
   </data>
   <data name="Common.Button.RemoveItem" xml:space="preserve">
-    <value>✕ 移除</value>
+    <value> 移除</value>
   </data>
   <data name="Common.Button.Save" xml:space="preserve">
     <value>保存</value>
@@ -618,7 +618,7 @@
     <value>日志</value>
   </data>
   <data name="Settings.Section.Storage" xml:space="preserve">
-    <value>🗄️ 存储</value>
+    <value>️ 存储</value>
   </data>
   <data name="Settings.Section.Updates" xml:space="preserve">
     <value>更新</value>
@@ -651,7 +651,7 @@
     <value>恢复默认设置</value>
   </data>
   <data name="Settings.Notification.SettingsSaved" xml:space="preserve">
-    <value>✓ 设置保存成功！</value>
+    <value> 设置保存成功！</value>
   </data>
   <data name="Settings.Hint.SettingsAutoSave" xml:space="preserve">
     <value>设置会自动保存，并根据需要立即生效或在下次重启时生效。</value>
@@ -968,13 +968,13 @@
     <value>管理和使用工具插件以扩展 GenHub 功能</value>
   </data>
   <data name="Tools.Button.AddTool" xml:space="preserve">
-    <value>➕ 添加工具</value>
+    <value> 添加工具</value>
   </data>
   <data name="Tools.Button.AddToolAction" xml:space="preserve">
     <value>添加工具</value>
   </data>
   <data name="Tools.Button.RefreshTools" xml:space="preserve">
-    <value>🔄 刷新</value>
+    <value> 刷新</value>
   </data>
   <data name="Tools.Button.RefreshToolsAction" xml:space="preserve">
     <value>刷新工具列表</value>
@@ -8132,7 +8132,7 @@ This will:
     <value>Cloud Storage &amp; Uploads</value>
   </data>
   <data name="Settings.Section.ContentDirectories" xml:space="preserve">
-    <value>📂 Local Content Directories</value>
+    <value> Local Content Directories</value>
   </data>
   <data name="Settings.Section.DataDirectories" xml:space="preserve">
     <value>Data Directories</value>
@@ -8852,19 +8852,19 @@ This will:
     <value>Select a Tool</value>
   </data>
   <data name="Tools.Error.ErrorLoadingTool" xml:space="preserve">
-    <value>✗ Error loading tool '{0}': {1}</value>
+    <value> Error loading tool '{0}': {1}</value>
   </data>
   <data name="Tools.Error.FailedToInstallTool" xml:space="preserve">
-    <value>✗ Failed to install tool: {0}</value>
+    <value> Failed to install tool: {0}</value>
   </data>
   <data name="Tools.Error.FailedToLoadTools" xml:space="preserve">
-    <value>⚠ Failed to load tools: {0}</value>
+    <value> Failed to load tools: {0}</value>
   </data>
   <data name="Tools.Error.FailedToRefreshTools" xml:space="preserve">
-    <value>⚠ Failed to refresh tools: {0}</value>
+    <value> Failed to refresh tools: {0}</value>
   </data>
   <data name="Tools.Error.FailedToRemoveTool" xml:space="preserve">
-    <value>✗ Failed to remove tool: {0}</value>
+    <value> Failed to remove tool: {0}</value>
   </data>
   <data name="Tools.FileType.ToolPluginAssembly" xml:space="preserve">
     <value>Tool Plugin Assembly</value>
@@ -13201,7 +13201,7 @@ https://example.com/screenshot2.png</value>
     <value>Featured Badge Label</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedBadgePlaceholder" xml:space="preserve">
-    <value>★ FEATURED BUNDLE</value>
+    <value> FEATURED BUNDLE</value>
   </data>
   <data name="Tools.PublisherStudio.Content.FeaturedColor" xml:space="preserve">
     <value>Featured Color</value>
@@ -18416,5 +18416,11 @@ Recovery Engine: Profile '{0}' supports checkpoint saves, replay resumption, and
   </data>
   <data name="Workspace.Validation.SkippedMissingSourceFile" xml:space="preserve">
     <value>Skipped {0}: its source file is missing.</value>
+  </data>
+  <data name="Workspace.Live.Error.Overlap" xml:space="preserve">
+    <value>实时内容文件夹“{0}”与工作区根目录“{1}”重叠。请将实时内容移出工作区存储后再准备配置。</value>
+  </data>
+  <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
+    <value>拒绝清理工作区“{0}”：实时源“{1}”与其重叠。</value>
   </data>
 </root>

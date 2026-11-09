@@ -116,7 +116,7 @@ public class WorkspaceConfiguration
             Strategy = Strategy,
             ForceRecreate = ForceRecreate,
             ValidateAfterPreparation = ValidateAfterPreparation,
-            ReconciliationDeltas = ReconciliationDeltas,
+            ReconciliationDeltas = ReconciliationDeltas == null ? null : [.. ReconciliationDeltas],
             SkipCleanup = SkipCleanup,
         };
     }

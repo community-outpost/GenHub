@@ -728,7 +728,7 @@ symlink never produces a copy.
 public interface ILiveWorkspaceSyncService
 {
     OperationResult Attach(WorkspaceInfo workspace, WorkspaceConfiguration configuration);
-    void Detach(string workspaceId);
+    Task DetachAsync(string workspaceId);
     bool IsAttached(string workspaceId);
     Task<OperationResult<bool>> SyncNowAsync(string workspaceId, CancellationToken cancellationToken = default);
 }
@@ -736,8 +736,7 @@ public interface ILiveWorkspaceSyncService
 
 ### 9.2 Lifetime
 
-Registered as a singleton. It must not capture scoped services
-The service is a singleton and does not depend on scoped file operations. `WorkspaceManager`
+Registered as a singleton. It must not capture scoped services. `WorkspaceManager`
 (scoped) injects the singleton and attaches after a successful prepare.
 
 ### 9.3 Session
@@ -919,29 +918,24 @@ Application (`GenHub/GenHub`):
 | `Features/Workspace/Live/LiveWorkspaceMaterializer.cs` | new: overlay live manifests on a prepared workspace |
 | `Features/Workspace/Live/LiveSourceFile.cs` | new: scanned file record |
 | `Features/Workspace/Live/LiveSourceScanner.cs` | new: enumerate, ignore, reparse guard |
-| `Features/Workspace/Live/LiveWorkspaceLinker.cs` | new: link/copy/junction, conflict-safe |
+| `Features/Workspace/Live/LiveWorkspaceLinker.cs` | new: link/copy owner, conflict-safe |
 | `Features/Workspace/Live/LiveWorkspaceSyncService.cs` | new: watcher sessions |
 | `Features/Workspace/Live/LiveWorkspaceStateStore.cs` | new: app-data ownership state |
-| `Features/Workspace/WorkspaceManager.cs` | split snapshot/live, overlay, bypass reuse, attach/detach, cleanup |
-| `Features/Workspace/WorkspaceValidator.cs` | no-follow count, live skips |
-| `Features/Workspace/WorkspaceReconciler.cs` | live cleanup guard |
-| `Features/Workspace/FileOperationsService.cs` | junction, fallback policy, link logging |
-| `Features/Workspace/Strategies/SymlinkOnlyStrategy.cs` | remove hardlink/copy fallback |
-| `Features/Workspace/Strategies/HybridCopySymlinkStrategy.cs` | remove hardlink/copy fallback |
-| `Features/Workspace/Strategies/WorkspaceCompatibilityHelper.cs` | move junction primitive |
-| `Features/GameProfiles/Services/ProfileLauncherFacade.cs` | no silent downgrade for legacy strategies (section 8) |
+| `Features/Workspace/WorkspaceManager.cs` | split snapshot/live, overlay, incremental path, attach/detach, cleanup |
 | `Features/GameProfiles/Services/ProfileSharingService.cs` | refuse live export |
 | `Features/GameProfiles/ViewModels/AddLocalContentViewModel.cs` | live toggle, no staging copy, live edit load |
 | `Features/GameProfiles/Views/AddLocalContentView.axaml` | toggle and warning |
 | `Features/GameProfiles/ViewModels/ContentDisplayItem.cs` | `IsLive` badge flag |
 | `Features/GameProfiles/Views/GameProfileContentEditorView.axaml` | LIVE badge in both card lists |
-| `Features/GameProfiles/ViewModels/GameProfileItemViewModel.cs` | "Live files" profile marker |
 | `Infrastructure/DependencyInjection/WorkspaceModule.cs` | register materializer, linker, sync service |
 | `GenHub.Windows/Features/Workspace/WindowsSymlinkCapabilityProvider.cs` | use the unprivileged probe |
 | `Resources/Localization/Strings.resx` | new keys |
 | `Resources/Localization/Strings.zh-Hans.resx` | new keys |
 
-Tests (`GenHub/GenHub.Tests`): see section 13.
+`WorkspaceReconciler`, `WorkspaceValidator`, the four existing workspace
+strategies, `FileOperationsService`, `WorkspaceCompatibilityHelper` and
+`ProfileLauncherFacade` are intentionally unchanged. Tests are described in
+section 13.
 
 ## 13. Tests
 

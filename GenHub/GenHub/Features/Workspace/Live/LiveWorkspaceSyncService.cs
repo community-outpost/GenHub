@@ -124,20 +124,25 @@ public sealed class LiveWorkspaceSyncService(
         }
 
         session.Cancellation.Cancel();
-        if (session.Worker != null)
+        try
         {
-            try
+            if (session.Worker != null)
             {
-                await session.Worker.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Normal shutdown.
+                try
+                {
+                    await session.Worker.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Normal shutdown.
+                }
             }
         }
-
-        session.Dispose();
-        logger.LogInformation("[Live] Stopped watching workspace {WorkspaceId}", workspaceId);
+        finally
+        {
+            session.Dispose();
+            logger.LogInformation("[Live] Stopped watching workspace {WorkspaceId}", workspaceId);
+        }
     }
 
     /// <inheritdoc/>

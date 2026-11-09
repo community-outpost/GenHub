@@ -17,6 +17,7 @@ using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -64,7 +65,7 @@ public class WorkspaceManager(
         var (snapshotManifests, liveManifests) = SplitManifests(configuration.Manifests ?? []);
         var hasLiveSources = liveManifests.Count > 0;
 
-        var overlapError = ValidateLiveRootsDoNotOverlapWorkspace(configuration);
+        var overlapError = ValidateLiveRootsDoNotOverlapWorkspace(configuration, localizationService);
         if (overlapError != null)
         {
             return OperationResult<WorkspaceInfo>.CreateFailure(overlapError);
@@ -300,8 +301,12 @@ public class WorkspaceManager(
             if (overlappingLiveSource != null)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"Refusing to clean workspace '{workspaceId}': live source " +
-                    $"'{overlappingLiveSource.SourceRoot}' overlaps '{workspace.WorkspacePath}'.");
+                    GetLiveError(
+                        "Workspace.Live.Error.CleanupOverlap",
+                        "Refusing to clean workspace '{0}': live source '{1}' overlaps it.",
+                        localizationService,
+                        workspaceId,
+                        overlappingLiveSource.SourceRoot));
             }
 
             // Keep references until deletion succeeds: retained files may still depend on CAS.
@@ -475,7 +480,9 @@ public class WorkspaceManager(
         return (snapshot, live);
     }
 
-    private static string? ValidateLiveRootsDoNotOverlapWorkspace(WorkspaceConfiguration configuration)
+    private static string? ValidateLiveRootsDoNotOverlapWorkspace(
+        WorkspaceConfiguration configuration,
+        ILocalizationService? localization)
     {
         if (string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath))
         {
@@ -494,14 +501,33 @@ public class WorkspaceManager(
 
             if (string.IsNullOrWhiteSpace(root))
             {
-                continue;
+                return GetLiveError(
+                    "Workspace.Live.Error.MissingSource",
+                    "The live content folder for '{0}' is missing: {1}",
+                    localization,
+                    manifest.Name,
+                    root);
+            }
+
+            if (!Directory.Exists(root))
+            {
+                return GetLiveError(
+                    "Workspace.Live.Error.MissingSource",
+                    "The live content folder for '{0}' is missing: {1}",
+                    localization,
+                    manifest.Name,
+                    root);
             }
 
             var liveRoot = Path.GetFullPath(root);
             if (IsUnder(liveRoot, workspaceRoot) || IsUnder(workspaceRoot, liveRoot))
             {
-                return $"Live content folder '{liveRoot}' overlaps the workspace root '{workspaceRoot}'. " +
-                       "Move the live content outside the workspace storage before preparing the profile.";
+                return GetLiveError(
+                    "Workspace.Live.Error.Overlap",
+                    "Live content folder '{0}' overlaps the workspace root '{1}'. Move the live content outside the workspace storage before preparing the profile.",
+                    localization,
+                    liveRoot,
+                    workspaceRoot);
             }
         }
 
@@ -517,6 +543,18 @@ public class WorkspaceManager(
         return string.Equals(fullPath, fullRoot, StringComparison.OrdinalIgnoreCase) ||
                fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                fullPath.StartsWith(fullRoot + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetLiveError(
+        string key,
+        string fallback,
+        ILocalizationService? localization,
+        params object?[] arguments)
+    {
+        var message = LaunchExitMessages.GetString(key, localization, arguments);
+        return string.IsNullOrWhiteSpace(message) || string.Equals(message, key, StringComparison.Ordinal)
+            ? string.Format(CultureInfo.InvariantCulture, fallback, arguments)
+            : message;
     }
 
     private static bool SnapshotContentMatches(

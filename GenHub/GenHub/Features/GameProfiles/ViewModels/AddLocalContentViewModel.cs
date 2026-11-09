@@ -547,6 +547,20 @@ public partial class AddLocalContentViewModel(
     private static bool FilesHaveIdenticalContent(string file1, string file2) =>
         ArchivePayloadProcessor.FilesHaveIdenticalContent(file1, file2);
 
+    private static bool IsUnder(string path, string root)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(root))
+        {
+            return false;
+        }
+
+        var fullPath = Path.GetFullPath(path);
+        var fullRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        return fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsBigArchiveFile(string filePath) =>
         ArchivePayloadProcessor.IsBigArchiveFile(filePath);
 
@@ -1003,6 +1017,12 @@ public partial class AddLocalContentViewModel(
             // Live items point at the developer's source folder. Removing them from the
             // preview must never delete source files.
             logger?.LogWarning("DeleteItemAsync: Refusing to delete live source '{Path}'.", item.FullPath);
+            return;
+        }
+
+        if (!IsUnder(item.FullPath, _stagingPath))
+        {
+            logger?.LogWarning("DeleteItemAsync: Refusing to delete '{Path}' outside the staging folder.", item.FullPath);
             return;
         }
 

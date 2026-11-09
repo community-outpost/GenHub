@@ -196,17 +196,17 @@ public sealed class LiveWorkspaceMaterializer(
             .ToList();
         var replacedSnapshotBytes = replacedSnapshotEntries
             .Sum(entry => snapshotSizes.GetValueOrDefault(entry.RelativePath));
+        var netLiveFileCount = entries.Count - replacedSnapshotEntries.Count;
+        var netLiveBytes = liveBytes - replacedSnapshotBytes;
 
         workspaceInfo.IsLive = true;
         workspaceInfo.LiveSources = [.. liveRoots.Select(root => new LiveSourceBinding(root.ManifestId, root.Root))];
-        workspaceInfo.FileCount = Math.Max(0, workspaceInfo.FileCount - workspaceInfo.LiveFileCount)
-            + entries.Count
-            - replacedSnapshotEntries.Count;
+        workspaceInfo.FileCount = Math.Max(0, workspaceInfo.FileCount - workspaceInfo.LiveFileCount) + netLiveFileCount;
         workspaceInfo.TotalSizeBytes = Math.Max(
             0,
-            workspaceInfo.TotalSizeBytes - workspaceInfo.LiveSizeBytes + liveBytes - replacedSnapshotBytes);
-        workspaceInfo.LiveFileCount = entries.Count;
-        workspaceInfo.LiveSizeBytes = liveBytes;
+            workspaceInfo.TotalSizeBytes - workspaceInfo.LiveSizeBytes + netLiveBytes);
+        workspaceInfo.LiveFileCount = netLiveFileCount;
+        workspaceInfo.LiveSizeBytes = netLiveBytes;
 
         stateStore.Save(new LiveWorkspaceState
         {
