@@ -45,11 +45,6 @@ public sealed partial class SetupWizardViewModel(
     private bool _confirmed;
 
     /// <summary>
-    /// Event to signal view to close.
-    /// </summary>
-    public event System.EventHandler? RequestClose;
-
-    /// <summary>
     /// Gets a value indicating whether the user confirmed the setup actions.
     /// </summary>
     public bool Confirmed => _confirmed;
@@ -73,6 +68,11 @@ public sealed partial class SetupWizardViewModel(
     /// Gets the sentence describing what was found.
     /// </summary>
     public string FoundSummary { get; } = FormatFoundSummary(localizationService, foundGames ?? []);
+
+    /// <summary>
+    /// Event to signal view to close.
+    /// </summary>
+    public event System.EventHandler? RequestClose;
 
     private static string FormatConfirmLabel(ILocalizationService? localizationService, int selectedCount) =>
         selectedCount > 0
