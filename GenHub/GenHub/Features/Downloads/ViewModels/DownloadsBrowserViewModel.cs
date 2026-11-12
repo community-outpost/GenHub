@@ -4592,7 +4592,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 manifestPool,
                 notificationService,
                 localizationService ?? _localizationService,
-                serviceProvider.GetService<IUserSettingsService>());
+                serviceProvider.GetService<IUserSettingsService>(),
+                serviceProvider.GetService<IDialogService>());
 
             // Load profiles for the target game
             await profileSelectionVm.LoadProfilesAsync(

@@ -123,7 +123,10 @@ public sealed class ProfileContentServiceLiveTests
                     new DependencyResolver(
                         manifestPool.Object,
                         NullLogger<DependencyResolver>.Instance),
-                    installationService.Object),
+                    installationService.Object,
+                    new ContentDependencyValidator(
+                        manifestPool.Object,
+                        NullLogger<ContentDependencyValidator>.Instance)),
                 contentOrchestrator.Object,
                 notifications.Object,
                 NullLogger<ProfileContentService>.Instance);

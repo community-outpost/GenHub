@@ -135,6 +135,7 @@
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
                             <TextBlock Text="{Binding Title}"
+                                       TextWrapping="Wrap"
                                        FontSize="28"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextPrimary}"

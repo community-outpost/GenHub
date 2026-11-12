@@ -46,6 +46,11 @@ public class AddToProfileResult : ResultBase
     public bool WasAppliedLive { get; set; }
 
     /// <summary>
+    /// Gets the required items that blocked the add. Empty unless the add failed for missing dependencies.
+    /// </summary>
+    public IReadOnlyList<ContentDependencyGap> MissingDependencies { get; private init; } = [];
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AddToProfileResult"/> class for a successful operation.
     /// </summary>
     /// <param name="addedContentId">The added content ID.</param>
@@ -116,5 +121,23 @@ public class AddToProfileResult : ResultBase
     public static AddToProfileResult CreateFailure(string error, TimeSpan elapsed = default)
     {
         return new AddToProfileResult(error, elapsed);
+    }
+
+    /// <summary>
+    /// Creates a failed result for content whose required items are missing. Nothing was saved.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="missingDependencies">The missing required items.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="AddToProfileResult"/> that lists the missing items.</returns>
+    public static AddToProfileResult CreateMissingDependencies(
+        string error,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        TimeSpan elapsed = default)
+    {
+        return new AddToProfileResult(error, elapsed)
+        {
+            MissingDependencies = missingDependencies,
+        };
     }
 }

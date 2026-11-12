@@ -82,6 +82,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILaunchRegistry? _launchRegistry;
     private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
     private readonly ILocalizationService? _localizationService;
+    private readonly IContentDependencyValidator? _dependencyValidator;
+    private readonly IProfileContentService? _profileContentService;
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
@@ -117,6 +119,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="launchRegistry">The launch registry service.</param>
     /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
     /// <param name="localizationService">The optional localization service.</param>
+    /// <param name="dependencyValidator">The optional validator that reports missing required content on save.</param>
+    /// <param name="profileContentService">The optional service that downloads missing required content.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -137,7 +141,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IProfileContentLinker? profileContentLinker = null,
         ILaunchRegistry? launchRegistry = null,
         IArchivePayloadProcessor? archivePayloadProcessor = null,
-        ILocalizationService? localizationService = null)
+        ILocalizationService? localizationService = null,
+        IContentDependencyValidator? dependencyValidator = null,
+        IProfileContentService? profileContentService = null)
     {
         _gameProfileManager = gameProfileManager;
         _configurationProvider = configurationProvider;
@@ -158,6 +164,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _launchRegistry = launchRegistry;
         _archivePayloadProcessor = archivePayloadProcessor;
         _localizationService = localizationService;
+        _dependencyValidator = dependencyValidator;
+        _profileContentService = profileContentService;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,
@@ -1976,78 +1984,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             _logger?.LogError(ex, "Error during dependency validation");
         }
-    }
-
-    private async Task<List<string>> ValidateAllDependenciesAsync(List<string> enabledContentIds)
-    {
-        var errors = new List<string>();
-        try
-        {
-            if (_manifestPool == null) return errors;
-            var uniqueIds = enabledContentIds.Distinct().ToList();
-            var manifests = new List<ContentManifest>();
-            foreach (var id in uniqueIds)
-            {
-                var res = await _manifestPool.GetManifestAsync(id);
-                if (res.Success && res.Data != null) manifests.Add(res.Data);
-            }
-
-            var manifestsById = manifests.DistinctBy(m => m.Id.ToString()).ToDictionary(m => m.Id.ToString(), m => m);
-            var manifestsByType = manifests.GroupBy(m => m.ContentType).ToDictionary(g => g.Key, g => g.ToList());
-
-            foreach (var manifest in manifests)
-            {
-                if (manifest.Dependencies == null) continue;
-                foreach (var dep in manifest.Dependencies)
-                {
-                    if (!manifestsByType.TryGetValue(dep.DependencyType, out var matches) || matches.Count == 0)
-                    {
-                        if (!dep.IsOptional)
-                        {
-                            var reqType = dep.DependencyType switch
-                            {
-                                ContentType.GameInstallation => "a Game Installation",
-                                ContentType.GameClient => "a Game Client",
-                                _ => $"{dep.DependencyType} content",
-                            };
-                            errors.Add($"• '{manifest.Name}' requires {reqType}");
-                        }
-
-                        continue;
-                    }
-
-                    if (dep.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
-                    {
-                        bool found = manifestsById.ContainsKey(dep.Id.ToString());
-                        if (!found && !dep.StrictPublisher)
-                        {
-                            var segments = dep.Id.ToString().Split('.');
-                            if (segments.Length >= 5)
-                            {
-                                var (type, name) = (segments[3], segments[4]);
-                                found = matches.Any(m =>
-                                {
-                                    var ms = m.Id.ToString().Split('.');
-                                    return ms.Length >= 5 && ms[3] == type && ms[4] == name;
-                                });
-                            }
-                        }
-
-                        if (!found && !dep.IsOptional)
-                        {
-                            var depRes = await _manifestPool.GetManifestAsync(dep.Id.ToString());
-                            errors.Add($"• '{manifest.Name}' requires '{(depRes.Success && depRes.Data != null ? depRes.Data.Name : dep.Id.ToString())}'");
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "Error during comprehensive dependency validation");
-        }
-
-        return errors;
     }
 
     private void LoadAvailableIconsAndCovers(string gameType)

@@ -655,19 +655,10 @@ public partial class GameProfileSettingsViewModel
 
             var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
 
-            if (_manifestPool != null)
+            if (!await EnsureRequiredDependenciesAsync(enabledContentIds))
             {
-                var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
-                if (validationErrors.Count > 0)
-                {
-                    var errorMessage = string.Join("\n", validationErrors);
-                    StatusMessage = "Error: Missing required dependencies";
-                    _localNotificationService.ShowError(
-                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
-                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", $"Cannot save profile with missing dependencies:\n\n{errorMessage}", errorMessage));
-                    _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
-                    return;
-                }
+                StatusMessage = "Error: Missing required dependencies";
+                return;
             }
 
             _logger?.LogInformation(
@@ -693,6 +684,83 @@ public partial class GameProfileSettingsViewModel
         {
             IsSaving = false;
         }
+    }
+
+    /// <summary>
+    /// Blocks the save while required content is missing. Offers to install the missing items,
+    /// adds them to <paramref name="enabledContentIds"/>, and allows the save once nothing is missing.
+    /// </summary>
+    /// <param name="enabledContentIds">The content IDs to save. Installed items are appended.</param>
+    /// <returns><see langword="true"/> when nothing required is missing.</returns>
+    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds)
+    {
+        if (_dependencyValidator == null)
+        {
+            return true;
+        }
+
+        var missingDependencies = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds);
+        if (missingDependencies.Count == 0)
+        {
+            return true;
+        }
+
+        _logger?.LogWarning(
+            "Profile save blocked: missing required items {DependencyIds}",
+            string.Join(", ", missingDependencies.Select(gap => $"{gap.DependencyId} (required by {gap.RequiredById})")));
+
+        if (_dialogService == null || _profileContentService == null)
+        {
+            ShowMissingDependenciesError(missingDependencies);
+            return false;
+        }
+
+        var install = await MissingDependencyDialog.ConfirmInstallAsync(
+            _dialogService,
+            _localizationService,
+            Name,
+            missingDependencies);
+        if (!install)
+        {
+            return false;
+        }
+
+        var installResult = await _profileContentService.InstallMissingDependenciesAsync(missingDependencies);
+        if (installResult.Failed || installResult.Data == null)
+        {
+            _localNotificationService.ShowError(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
+                installResult.FirstError ?? string.Empty);
+            return false;
+        }
+
+        foreach (var installedId in installResult.Data.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+        {
+            enabledContentIds.Add(installedId);
+        }
+
+        var stillMissing = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds);
+        if (stillMissing.Count > 0)
+        {
+            ShowMissingDependenciesError(stillMissing);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        var names = string.Join(
+            "\n",
+            missingDependencies.Select(gap => _localizationService.GetLocalizedString(
+                "GameProfiles.Settings.Notification.MissingDependencies.Item",
+                "• {0} needs {1}",
+                gap.RequiredByName,
+                gap.DisplayName)));
+        _localNotificationService.ShowError(
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", "Cannot save profile with missing dependencies:\n\n{0}", names));
     }
 
     private async Task CreateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
