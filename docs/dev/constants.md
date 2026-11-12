@@ -2124,3 +2124,25 @@ Windows NTSTATUS exit codes that a game client reports when it fails to start, a
 | `DllNotFoundKey` | `"Launch.ExitCode.DllNotFound"` | Explains `StatusDllNotFound` |
 | `DllInitFailedKey` | `"Launch.ExitCode.DllInitFailed"` | Explains `StatusDllInitFailed` |
 | `StackBufferOverrunKey` | `"Launch.ExitCode.StackBufferOverrun"` | Explains `StatusStackBufferOverrun` |
+
+## GameClientConstants Class
+
+Setup wizard and publisher profile constants in `GenHub.Core.Constants.GameClientConstants`.
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherAcquisitionFailedError` | `"Could not acquire {0} content, so no profile was created."` | Error returned when a publisher download failed and left nothing to profile. `{0}` is the publisher type |
+
+### InstallationTypeLocalizationKeys
+
+Resource keys for installation source names in the setup wizard summary. Unknown and custom sources have no key and are left out.
+
+| Constant | Value |
+|----------|-------|
+| `Steam` | `"GameProfiles.InstallationType.Steam"` |
+| `EaApp` | `"GameProfiles.InstallationType.EaApp"` |
+| `TheFirstDecade` | `"GameProfiles.InstallationType.FirstDecade"` |
+| `CdIso` | `"GameProfiles.InstallationType.CdIso"` |
+| `Wine` | `"GameProfiles.InstallationType.Wine"` |
+| `Retail` | `"GameProfiles.InstallationType.Retail"` |
+| `Lutris` | `"GameProfiles.InstallationType.Lutris"` |

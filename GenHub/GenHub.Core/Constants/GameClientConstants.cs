@@ -206,6 +206,11 @@ public static class GameClientConstants
     /// <summary>Version string used for unknown/unrecognized clients.</summary>
     public const string UnknownVersion = "Unknown";
 
+    /// <summary>
+    /// Diagnostic error when a publisher download failed and left no content to profile, with the publisher type as {0}.
+    /// </summary>
+    public const string PublisherAcquisitionFailedError = "Could not acquire {0} content, so no profile was created.";
+
     // ===== Steam Latest Versions =====
 
     /// <summary>Latest Steam version for Command &amp; Conquer Generals.</summary>

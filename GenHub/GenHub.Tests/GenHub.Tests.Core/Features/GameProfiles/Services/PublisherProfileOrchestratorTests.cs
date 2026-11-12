@@ -375,6 +375,45 @@ public sealed class PublisherProfileOrchestratorTests
     }
 
     /// <summary>
+    /// Verifies that a failed download that leaves nothing to profile is reported as a failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenDownloadFailsWithNothingToProfile_ReturnsFailureAsync()
+    {
+        var installation = CreateInstallation();
+        var client = new GameClient
+        {
+            Id = GameClientConstants.SyntheticClientIds.SuperHackers,
+            Name = "SuperHackers",
+            PublisherType = PublisherTypeConstants.TheSuperHackers,
+        };
+        var searchResultItem = new ContentSearchResult
+        {
+            Id = "tsh-weekly",
+            Name = "TheSuperHackers",
+            Version = "weekly-2026-11-06",
+            ContentType = ContentType.GameClient,
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
+        };
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _contentOrchestratorMock
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResultItem]));
+        _contentOrchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("download failed"));
+
+        var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
+
+        Assert.False(result.Success);
+        Assert.Contains(PublisherTypeConstants.TheSuperHackers, string.Join(" ", result.Errors));
+    }
+
+    /// <summary>
     /// Verifies that when a non-retail Community Patch client is requested but only retail candidates
     /// are discovered, the orchestrator does not acquire the incompatible retail variant.
     /// </summary>
@@ -411,9 +450,8 @@ public sealed class PublisherProfileOrchestratorTests
         // Act
         var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
 
-        // Assert: Never acquires retailItem
-        Assert.True(result.Success);
-        Assert.Equal(0, result.Data);
+        // Assert: Never acquires retailItem, and reports that nothing could be acquired
+        Assert.False(result.Success);
         _contentOrchestratorMock.Verify(
             o => o.AcquireContentAsync(
                 It.IsAny<ContentSearchResult>(),

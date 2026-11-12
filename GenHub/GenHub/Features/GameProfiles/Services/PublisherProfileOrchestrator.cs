@@ -19,6 +19,7 @@ using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -160,13 +161,14 @@ public class PublisherProfileOrchestrator(
                 }
             }
 
+            var acquisitionFailed = false;
             if (shouldAcquire)
             {
                 logger.LogInformation(
                     "Acquisition triggered for {PublisherType} (IsNonRet: {IsNonRet})",
                     publisherType,
                     isNonRet);
-                await AcquirePublisherClientContentAsync(gameClient, isCommunityOutpost, isNonRet, cancellationToken);
+                acquisitionFailed = !await AcquirePublisherClientContentAsync(gameClient, isCommunityOutpost, isNonRet, cancellationToken);
 
                 // Re-check after acquisition
                 existingManifests = await GetPublisherManifestsFromPoolAsync(publisherType, cancellationToken);
@@ -218,6 +220,12 @@ public class PublisherProfileOrchestrator(
                 publisherType,
                 isNonRet,
                 existingManifests.Count);
+
+            // A failed download that left nothing to profile is a failure, not an up-to-date publisher.
+            if (acquisitionFailed && profilesCreated == 0)
+            {
+                return OperationResult<int>.CreateFailure(string.Format(CultureInfo.InvariantCulture, GameClientConstants.PublisherAcquisitionFailedError, publisherType));
+            }
 
             return OperationResult<int>.CreateSuccess(profilesCreated);
         }
@@ -430,7 +438,7 @@ public class PublisherProfileOrchestrator(
         return selected;
     }
 
-    private async Task AcquirePublisherClientContentAsync(
+    private async Task<bool> AcquirePublisherClientContentAsync(
         GameClient gameClient,
         bool isCommunityOutpost,
         bool isNonRet,
@@ -462,7 +470,7 @@ public class PublisherProfileOrchestrator(
                 notificationService.ShowWarning(
                     localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Title", $"{publisherDisplayName} Not Found", publisherDisplayName),
                     localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Message", $"Could not find {publisherDisplayName} content to download.", publisherDisplayName));
-                return;
+                return false;
             }
 
             var contentToAcquire = FindCandidate(searchResult.Data, isCommunityOutpost, isNonRet, publisherType);
@@ -476,7 +484,7 @@ public class PublisherProfileOrchestrator(
                 notificationService.ShowWarning(
                     localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Title", $"{publisherDisplayName} Not Found", publisherDisplayName),
                     localizationService.GetLocalizedString("GameProfiles.Notification.PublisherContentNotFound.Message", $"Could not find {publisherDisplayName} content to download.", publisherDisplayName));
-                return;
+                return false;
             }
 
             logger.LogInformation(
@@ -499,6 +507,7 @@ public class PublisherProfileOrchestrator(
                     scope.CompleteSuccess(
                         $"Successfully downloaded {contentToAcquire.Name} v{contentToAcquire.Version}.",
                         $"{publisherDisplayName} Downloaded");
+                    return true;
                 }
                 else
                 {
@@ -509,6 +518,7 @@ public class PublisherProfileOrchestrator(
                         errorMsg);
 
                     scope.CompleteFailure(errorMsg);
+                    return false;
                 }
             }
             catch (OperationCanceledException)
@@ -531,6 +541,7 @@ public class PublisherProfileOrchestrator(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in publisher client content acquisition for {ClientName}", gameClient.Name);
+            return false;
         }
     }
 

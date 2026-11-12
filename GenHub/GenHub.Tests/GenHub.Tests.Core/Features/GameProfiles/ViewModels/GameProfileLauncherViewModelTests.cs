@@ -2350,10 +2350,18 @@ public class GameProfileLauncherViewModelTests
             Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
             var superHackersClient = new GameClient { Id = "native-tsh", Name = "TheSuperHackers Zero Hour", PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id };
             var baseClient = new GameClient { Id = ClientId, Name = ClientName, GameType = GameType.ZeroHour, Version = "1.04", InstallationId = Installation.Id };
-            Installation.PopulateGameClients(
-                nativeSuperHackersOnly ? [superHackersClient]
-                : withSuperHackersClient ? [baseClient, superHackersClient]
-                : [baseClient]);
+            var clients = new List<GameClient>();
+            if (!nativeSuperHackersOnly)
+            {
+                clients.Add(baseClient);
+            }
+
+            if (nativeSuperHackersOnly || withSuperHackersClient)
+            {
+                clients.Add(superHackersClient);
+            }
+
+            Installation.PopulateGameClients(clients);
 
             var installationService = new Mock<IGameInstallationService>();
             installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
