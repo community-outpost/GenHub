@@ -18306,4 +18306,7 @@ Error: فشل: {3}
   <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
     <value>يحتاج {0} إلى {1}</value>
   </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>جارٍ تثبيت العناصر المطلوبة لـ {0}...</value>
+  </data>
 </root>

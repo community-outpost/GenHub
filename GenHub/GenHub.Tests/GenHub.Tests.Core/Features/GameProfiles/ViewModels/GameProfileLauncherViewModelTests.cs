@@ -713,11 +713,12 @@ public class GameProfileLauncherViewModelTests
 
     /// <summary>
     /// A launch blocked by a missing item shows the shared dialog. Install downloads the item,
-    /// enables it in the profile, and launches again.
+    /// enables it in the profile that launch validated, and launches that profile again.
+    /// Reconciliation can switch launch to another profile, so the card's ID is not used.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileCommand_MissingDependency_InstallEnablesItAndRetriesAsync()
+    public async Task LaunchProfileCommand_MissingDependency_InstallEnablesItInValidatedProfileAndRetriesAsync()
     {
         var notifications = new Mock<INotificationService>();
         var facade = new Mock<IProfileLauncherFacade>();
@@ -726,36 +727,33 @@ public class GameProfileLauncherViewModelTests
         var launchInfo = new GameLaunchInfo
         {
             LaunchId = "launch-1",
-            ProfileId = "profile-1",
-            WorkspaceId = "profile-1",
+            ProfileId = "reconciled-profile",
+            WorkspaceId = "reconciled-profile",
             ProcessInfo = new GameProcessInfo { ProcessId = 123 },
         };
-        facade.SetupSequence(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap]))
+        facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap], "reconciled-profile"));
+        facade.Setup(x => x.LaunchProfileAsync("reconciled-profile", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
-        string? dialogTitle = null;
-        dialogs.Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<GenHub.Core.Models.Dialogs.DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string title, string _, IEnumerable<GenHub.Core.Models.Dialogs.DialogAction> actions, bool _, CancellationToken _) =>
-            {
-                dialogTitle = title;
-                return (actions.First(a => a.Style == NotificationActionStyle.Primary), false);
-            });
+        SetupDialogChoice(dialogs, NotificationActionStyle.Primary);
         content.Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess(["1.10.communityoutpost.addon.gent"]));
-        content.Setup(x => x.AddContentToProfileAsync("profile-1", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+        content.Setup(x => x.AddContentToProfileAsync("reconciled-profile", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(AddToProfileResult.CreateSuccess("1.10.communityoutpost.addon.gent", "GenTool"));
         var vm = CreateLauncherViewModel(facade, notifications, dialogs, content);
 
         await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
 
-        Assert.NotNull(dialogTitle);
-        content.Verify(x => x.AddContentToProfileAsync("profile-1", It.Is<IReadOnlyList<string>>(ids => ids.Single() == "1.10.communityoutpost.addon.gent"), It.IsAny<CancellationToken>()), Times.Once);
-        facade.Verify(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        dialogs.Verify(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<GenHub.Core.Models.Dialogs.DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        content.Verify(x => x.AddContentToProfileAsync("reconciled-profile", It.Is<IReadOnlyList<string>>(ids => ids.Single() == "1.10.communityoutpost.addon.gent"), It.IsAny<CancellationToken>()), Times.Once);
+        content.Verify(x => x.AddContentToProfileAsync("profile-1", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()), Times.Never);
+        facade.Verify(x => x.LaunchProfileAsync("reconciled-profile", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         notifications.Verify(x => x.ShowSuccess("Game Launched", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>
-    /// Cancel on the missing-items dialog changes nothing and does not launch again.
+    /// Cancel on the missing-items dialog changes nothing, launches nothing, shows no error,
+    /// clears the launching status, and records the blocked launch.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
@@ -765,18 +763,51 @@ public class GameProfileLauncherViewModelTests
         var facade = new Mock<IProfileLauncherFacade>();
         var dialogs = new Mock<IDialogService>();
         var content = new Mock<IProfileContentService>();
+        var telemetry = new Mock<ITelemetryService>();
         facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap]));
-        dialogs.Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<GenHub.Core.Models.Dialogs.DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string _, string _, IEnumerable<GenHub.Core.Models.Dialogs.DialogAction> actions, bool _, CancellationToken _) =>
-                (actions.First(a => a.Style == NotificationActionStyle.Secondary), false));
-        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content);
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap], "profile-1"));
+        SetupDialogChoice(dialogs, NotificationActionStyle.Secondary);
+        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content, telemetry);
 
         await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
 
+        dialogs.Verify(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<GenHub.Core.Models.Dialogs.DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         content.Verify(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()), Times.Never);
-        facade.Verify(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        facade.Verify(x => x.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        notifications.Verify(x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
         notifications.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+        Assert.Equal(string.Empty, vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
+    }
+
+    /// <summary>
+    /// A failed download reports the error, leaves no stale launching status, and records the blocked launch.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_MissingDependency_DownloadFailureReportsErrorAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var facade = new Mock<IProfileLauncherFacade>();
+        var dialogs = new Mock<IDialogService>();
+        var content = new Mock<IProfileContentService>();
+        var telemetry = new Mock<ITelemetryService>();
+        facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap], "profile-1"));
+        SetupDialogChoice(dialogs, NotificationActionStyle.Primary);
+        content.Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateFailure("GenHub could not download GenTool."));
+        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content, telemetry);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
+
+        content.Verify(x => x.AddContentToProfileAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()), Times.Never);
+        facade.Verify(x => x.LaunchProfileAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        notifications.Verify(x => x.ShowError("Launch Failed", It.Is<string>(m => m.Contains("GenHub could not download GenTool.")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        Assert.Equal("GenHub could not download GenTool.", vm.ErrorMessage);
+        Assert.Contains("GenHub could not download GenTool.", vm.StatusMessage, StringComparison.Ordinal);
+        VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
     }
 
     /// <summary>Long drift reports show five details and an accurate remainder.</summary>
@@ -1999,11 +2030,25 @@ public class GameProfileLauncherViewModelTests
             telemetryService: telemetryService?.Object);
     }
 
+    private static void SetupDialogChoice(Mock<IDialogService> dialogs, NotificationActionStyle style) =>
+        dialogs.Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<GenHub.Core.Models.Dialogs.DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, IEnumerable<GenHub.Core.Models.Dialogs.DialogAction> actions, bool _, CancellationToken _) =>
+                (actions.First(a => a.Style == style), false));
+
+    private static void VerifyLaunchFailedTelemetry(Mock<ITelemetryService> telemetry, string errorCategory) =>
+        telemetry.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunchFailed,
+                It.Is<IReadOnlyDictionary<string, object?>>(p => Equals(p[TelemetryConstants.Properties.ErrorCategory], errorCategory)),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
+
     private static GameProfileLauncherViewModel CreateLauncherViewModel(
         Mock<IProfileLauncherFacade> launcherFacade,
         Mock<INotificationService> notificationService,
         Mock<IDialogService> dialogService,
-        Mock<IProfileContentService> profileContentService)
+        Mock<IProfileContentService> profileContentService,
+        Mock<ITelemetryService>? telemetryService = null)
     {
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
@@ -2023,6 +2068,7 @@ public class GameProfileLauncherViewModelTests
             dialogService.Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
             CreateLocalizationService(),
+            telemetryService: telemetryService?.Object,
             profileContentService: profileContentService.Object);
     }
 

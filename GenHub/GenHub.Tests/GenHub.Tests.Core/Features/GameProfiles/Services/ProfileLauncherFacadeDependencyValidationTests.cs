@@ -367,6 +367,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.False(result.Success);
         var gap = Assert.Single(result.MissingDependencies);
         Assert.Equal("GenTool", gap.DisplayName);
+        Assert.Equal(profileId, result.MissingDependenciesProfileId);
         Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }

@@ -18306,4 +18306,7 @@ Error: не удалось: {3}
   <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
     <value>Для {0} нужен компонент {1}</value>
   </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>Установка нужных компонентов для {0}...</value>
+  </data>
 </root>

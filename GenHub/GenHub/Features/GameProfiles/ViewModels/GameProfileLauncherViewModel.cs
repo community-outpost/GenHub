@@ -2294,14 +2294,17 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Executes the actual launch operation.
     /// </summary>
-    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile, bool allowDependencyInstall = true)
+    private async Task ExecuteLaunchAsync(
+        GameProfileItemViewModel profile,
+        bool allowDependencyInstall = true,
+        string? launchProfileId = null)
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
         var stopwatch = Stopwatch.StartNew();
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
-        var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
+        var launchResult = await profileLauncherFacade.LaunchProfileAsync(launchProfileId ?? profile.ProfileId, skipUserDataCleanup: false);
         stopwatch.Stop();
         var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
@@ -2366,48 +2369,79 @@ public partial class GameProfileLauncherViewModel(
         {
             if (allowDependencyInstall && launchResult.MissingDependencies.Count > 0 && profileContentService != null)
             {
-                if (await InstallMissingDependenciesAsync(profile, launchResult.MissingDependencies))
+                var targetProfileId = launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId;
+                var installError = await InstallMissingDependenciesAsync(profile, targetProfileId, launchResult.MissingDependencies);
+                if (installError == null)
                 {
-                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false);
+                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false, launchProfileId: targetProfileId);
+                    return;
                 }
 
+                if (installError.Length == 0)
+                {
+                    StatusMessage = string.Empty;
+                    ErrorMessage = string.Empty;
+                }
+                else
+                {
+                    ReportLaunchFailure(profile, installError);
+                }
+
+                TrackLaunchFailed(profile, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
                 return;
             }
 
             var errors = string.Join(", ", launchResult.Errors);
-            StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
-            ErrorMessage = errors;
-            notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
-
-            var gameClient = profile.Profile.GameClient;
-            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
-            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
-            {
-                [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
-                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
-                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
-                [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
-                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
-                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
-                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
-                [TelemetryConstants.Properties.Publisher] = clientPublisher,
-                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
-                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
-            });
+            var errorCategory = launchResult.MissingDependencies.Count > 0
+                ? TelemetryConstants.ErrorCategories.MissingDependencies
+                : TelemetryConstants.ErrorCategories.LaunchFailed;
+            ReportLaunchFailure(profile, errors);
+            TrackLaunchFailed(profile, timeToLaunchMs, errorCategory);
         }
+    }
+
+    private void ReportLaunchFailure(GameProfileItemViewModel profile, string errors)
+    {
+        StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
+        ErrorMessage = errors;
+        notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+    }
+
+    private void TrackLaunchFailed(GameProfileItemViewModel profile, long timeToLaunchMs, string errorCategory)
+    {
+        var gameClient = profile.Profile.GameClient;
+        var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+            [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+            [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+            [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+            [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
+            [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+            [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+            [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+            [TelemetryConstants.Properties.Publisher] = clientPublisher,
+            [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+            [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+            [TelemetryConstants.Properties.ErrorCategory] = errorCategory,
+        });
     }
 
     /// <summary>
     /// Asks to install the items a profile needs before it can launch, downloads them, and
-    /// enables them in the profile. Nothing changes when the player cancels or a download fails.
+    /// enables them in the profile that launch validated. Nothing changes when the player cancels.
     /// </summary>
-    /// <param name="profile">The profile that failed to launch.</param>
+    /// <param name="profile">The profile card that was launched.</param>
+    /// <param name="targetProfileId">The profile that launch validated. Reconciliation can change it.</param>
     /// <param name="missingDependencies">The missing items reported by launch validation.</param>
-    /// <returns><see langword="true"/> when the items are installed and the launch should be retried.</returns>
-    private async Task<bool> InstallMissingDependenciesAsync(
+    /// <returns>
+    /// <see langword="null"/> when the items are installed and the launch should be retried,
+    /// an empty string when the player cancelled, or a player-facing error.
+    /// </returns>
+    private async Task<string?> InstallMissingDependenciesAsync(
         GameProfileItemViewModel profile,
+        string targetProfileId,
         IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
         var install = await MissingDependencyDialog.ConfirmInstallAsync(
@@ -2417,38 +2451,35 @@ public partial class GameProfileLauncherViewModel(
             missingDependencies);
         if (!install || profileContentService == null)
         {
-            StatusMessage = string.Empty;
-            return false;
+            return string.Empty;
         }
 
-        var failureTitle = localizationService["GameProfiles.Notification.LaunchFailed.Title"];
+        StatusMessage = localizationService.GetLocalizedString(
+            "GameProfiles.Status.InstallingRequiredItems",
+            "Installing required items for {0}...",
+            profile.Name);
         var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies);
         if (installResult.Failed || installResult.Data == null)
         {
-            notificationService.ShowError(failureTitle, installResult.FirstError ?? string.Empty);
-            return false;
+            return installResult.FirstError ?? string.Join(", ", installResult.Errors);
         }
 
-        var addResult = await profileContentService.AddContentToProfileAsync(profile.ProfileId, installResult.Data);
+        var addResult = await profileContentService.AddContentToProfileAsync(targetProfileId, installResult.Data);
         if (addResult.MissingDependencies.Count > 0)
         {
-            notificationService.ShowError(
-                failureTitle,
-                localizationService.GetLocalizedString(
-                    "GameProfiles.MissingDependencies.LaunchError",
-                    "{0} can't launch. It needs {1}.",
-                    profile.Name,
-                    string.Join(", ", addResult.MissingDependencies.Select(gap => gap.DisplayName))));
-            return false;
+            return localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.LaunchError",
+                "{0} can't launch. It needs {1}.",
+                profile.Name,
+                string.Join(", ", addResult.MissingDependencies.Select(gap => gap.DisplayName)));
         }
 
         if (addResult.Failed)
         {
-            notificationService.ShowError(failureTitle, addResult.FirstError ?? string.Empty);
-            return false;
+            return addResult.FirstError ?? localizationService["GameProfiles.Notification.LaunchFailed.Title"];
         }
 
-        return true;
+        return null;
     }
 
     private void RestoreSelectedProfile(string? profileId)

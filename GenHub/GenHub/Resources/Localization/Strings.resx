@@ -18365,4 +18365,7 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
     <value>{0} needs {1}</value>
   </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>Installing required items for {0}...</value>
+  </data>
 </root>
