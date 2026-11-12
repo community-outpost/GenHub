@@ -1249,6 +1249,109 @@ public class SetupWizardServiceTests
     }
 
     /// <summary>
+    /// Verifies that Use installed game keeps the profile for a host-native build already on disk,
+    /// which is the only launchable client when no native base game exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_UseInstalledGameWithNativeSuperHackersBuild_KeepsCreateProfileAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Wizard.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var executablePath = Path.Combine(directory, "generalszh");
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
+
+            _goDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _cpDiscovererMock
+                .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+            _manifestPoolMock
+                .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+            var installation = new GameInstallation(directory, GameInstallationType.Retail, null);
+            installation.AvailableGameClients =
+            [
+                new GameClient
+                {
+                    Id = "native.thesuperhackers.gameclient.zerohour",
+                    InstallationId = installation.Id,
+                    Name = "TheSuperHackers Zero Hour",
+                    PublisherType = PublisherTypeConstants.TheSuperHackers,
+                    GameType = GameType.ZeroHour,
+                    ExecutablePath = executablePath,
+                },
+            ];
+
+            var service = CreateService();
+            SetupWizardViewModel? capturedVm = null;
+            service.DialogShower = vm =>
+            {
+                capturedVm = vm;
+                vm.UseInstalledGameCommand.Execute(null);
+                return Task.FromResult(vm.Confirmed);
+            };
+
+            var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+            Assert.True(result.Confirmed);
+            Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+            }
+            else
+            {
+                Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.SuperHackersAction);
+                Assert.Equal(["TheSuperHackers Zero Hour (Retail Installation)"], capturedVm!.FoundGames);
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a found game from an unknown or custom source is named without a source.
+    /// </summary>
+    /// <param name="installationType">The installation source.</param>
+    [Theory]
+    [InlineData(GameInstallationType.Unknown)]
+    [InlineData(GameInstallationType.Custom)]
+    public void DescribeFoundGames_WithoutNamedSource_OmitsSource(GameInstallationType installationType)
+    {
+        var installation = new GameInstallation("/games/other", installationType, null)
+        {
+            AvailableGameClients = [new GameClient { Name = "Zero Hour 1.04", GameType = GameType.ZeroHour, Version = "1.04" }],
+        };
+
+        Assert.Equal(["Zero Hour 1.04"], CreateService().DescribeFoundGames([installation]));
+    }
+
+    /// <summary>
+    /// Verifies that the installation source is resolved through its localization key.
+    /// </summary>
+    [Fact]
+    public void DescribeFoundGames_WithLocalizationService_ResolvesSourceThroughKey()
+    {
+        var installation = new GameInstallation("/games/steam", GameInstallationType.Steam, null)
+        {
+            AvailableGameClients = [new GameClient { Name = "Zero Hour 1.04", GameType = GameType.ZeroHour, Version = "1.04" }],
+        };
+
+        var found = CreateService(localizationService: new MarkerLocalizationService()).DescribeFoundGames([installation]);
+
+        var gameName = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.ZeroHourGameName);
+        var label = MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.FoundGameVersionEntry, gameName, "1.04");
+        var source = MarkerLocalizationService.Marker(GameClientConstants.InstallationTypeLocalizationKeys.Steam);
+        Assert.Equal([MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.FoundGameEntry, label, source)], found);
+    }
+
+    /// <summary>
     /// Verifies that on a host Generals Online does not support, an installed native Generals Online
     /// client is still offered for profiling. Only the Windows download is withheld. Windows has no
     /// native Unix client, so there the item is absent.

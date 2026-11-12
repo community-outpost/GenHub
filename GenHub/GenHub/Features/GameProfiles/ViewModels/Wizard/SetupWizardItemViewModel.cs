@@ -86,6 +86,11 @@ public partial class SetupWizardItemViewModel : ObservableObject
     public string ActionType { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the item profiles a build that runs natively on this host.
+    /// </summary>
+    public bool IsHostNative { get; set; }
+
+    /// <summary>
     /// Gets or sets the GameInstallation context associated with this item.
     /// </summary>
     public GameInstallation? Installation { get; set; }

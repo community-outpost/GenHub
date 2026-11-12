@@ -1000,6 +1000,14 @@ public partial class GameProfileLauncherViewModel(
         return !client.IsPublisherClient;
     }
 
+    private static bool IsDeclined(string decision) =>
+        decision == GameClientConstants.WizardActionTypes.Decline || decision == GameClientConstants.WizardActionTypes.None;
+
+    private static bool ProfileMatchesClient(GameProfile profile, GameInstallation installation, GameClient client) =>
+        profile.Name.Equals(client.Name, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(profile.GameInstallationId, installation.Id, StringComparison.OrdinalIgnoreCase) ||
+         (profile.GameClient != null && !string.IsNullOrEmpty(client.Id) && profile.GameClient.Id.Equals(client.Id, StringComparison.OrdinalIgnoreCase)));
+
     private static async Task ShowImportProfileInspectionDialogAsync(ImportProfileInspectionViewModel inspectionViewModel)
     {
         var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
@@ -1637,7 +1645,7 @@ public partial class GameProfileLauncherViewModel(
 
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
                 var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
-                await ReportSetupOutcomeAsync(installationsList, wizardResult.Confirmed, profilesCreated);
+                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated);
             }
             else
             {
@@ -1659,9 +1667,9 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
-    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, bool confirmed, int profilesCreated)
+    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult, int profilesCreated)
     {
-        if (!confirmed)
+        if (!wizardResult.Confirmed)
         {
             var setUpLaterMessage = localizationService["GameProfiles.Notification.SetUpLater.Message"];
             StatusMessage = setUpLaterMessage;
@@ -1675,14 +1683,17 @@ public partial class GameProfileLauncherViewModel(
         if (profilesCreated > 0)
         {
             StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
+            var createdMessage = profilesCreated == 1
+                ? localizationService["GameProfiles.Notification.ScanComplete.MessageSingular"]
+                : localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated);
             notificationService.ShowSuccess(
                 localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                createdMessage,
                 autoDismissMs: NotificationDurations.VeryLong);
             return;
         }
 
-        if (await AnyProfileUsesInstallationsAsync(installationsList))
+        if (await IsAlreadySetUpAsync(installationsList, wizardResult))
         {
             var alreadySetUpMessage = localizationService["GameProfiles.Notification.AlreadySetUp.Message"];
             StatusMessage = alreadySetUpMessage;
@@ -1701,16 +1712,36 @@ public partial class GameProfileLauncherViewModel(
             autoDismissMs: NotificationDurations.VeryLong);
     }
 
-    private async Task<bool> AnyProfileUsesInstallationsAsync(List<GameInstallation> installationsList)
+    /// <summary>
+    /// Determines whether a scan that created nothing found the game already set up: no component
+    /// was requested, and every base game client already has its profile.
+    /// </summary>
+    private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult)
     {
+        if (!IsDeclined(wizardResult.CommunityPatchAction) ||
+            !IsDeclined(wizardResult.CommunityPatchNonRetAction) ||
+            !IsDeclined(wizardResult.GeneralsOnlineAction) ||
+            !IsDeclined(wizardResult.SuperHackersAction))
+        {
+            return false;
+        }
+
         var profilesResult = await gameProfileManager.GetAllProfilesAsync();
         if (profilesResult is not { Success: true, Data: not null })
         {
             return false;
         }
 
+        var profiles = profilesResult.Data;
         var installationIds = installationsList.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return profilesResult.Data.Any(p => !string.IsNullOrEmpty(p.GameInstallationId) && installationIds.Contains(p.GameInstallationId));
+        if (!profiles.Any(p => !string.IsNullOrEmpty(p.GameInstallationId) && installationIds.Contains(p.GameInstallationId)))
+        {
+            return false;
+        }
+
+        return installationsList.All(installation => (installation.AvailableGameClients ?? [])
+            .Where(client => !client.IsPublisherClient)
+            .All(client => profiles.Any(p => ProfileMatchesClient(p, installation, client))));
     }
 
     private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()

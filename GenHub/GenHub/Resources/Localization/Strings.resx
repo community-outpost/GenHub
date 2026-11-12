@@ -639,6 +639,9 @@
   <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
     <value>PC Game</value>
   </data>
+  <data name="GameProfiles.InstallationType.Lutris" xml:space="preserve">
+    <value>Lutris</value>
+  </data>
   <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
     <value>Retail</value>
   </data>
@@ -782,6 +785,9 @@
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
     <value>Game scan complete! Created {0} new profiles.</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.MessageSingular" xml:space="preserve">
+    <value>Game scan complete! Created 1 new profile.</value>
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
     <value>Scan Complete</value>
@@ -4568,7 +4574,7 @@ This will modify game files and configuration settings at:
     <value>{0} ({1})</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
-    <value>{0} {1} ({2})</value>
+    <value>{0} {1}</value>
   </data>
   <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
     <value>Generals</value>

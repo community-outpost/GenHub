@@ -629,7 +629,7 @@ public static class GameClientConstants
         /// <summary>Found game entry with the game as {0} and the installation source as {1}.</summary>
         public const string FoundGameEntry = "Profiles.Wizard.Ready.FoundEntry";
 
-        /// <summary>Found game entry with the game as {0}, the version as {1} and the installation source as {2}.</summary>
+        /// <summary>Found game name with the game as {0} and the version as {1}.</summary>
         public const string FoundGameVersionEntry = "Profiles.Wizard.Ready.FoundEntryVersion";
 
         /// <summary>Generals game name.</summary>
@@ -673,10 +673,37 @@ public static class GameClientConstants
             [WizardLocalizationKeys.FoundManyGames] = "We found these games:",
             [WizardLocalizationKeys.FoundNoNamedGame] = "We found an installed game.",
             [WizardLocalizationKeys.FoundGameEntry] = "{0} ({1})",
-            [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1} ({2})",
+            [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1}",
             [WizardLocalizationKeys.GeneralsGameName] = "Generals",
             [WizardLocalizationKeys.ZeroHourGameName] = "Zero Hour",
         }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Localization resource keys for installation source names shown to the user.
+    /// </summary>
+    public static class InstallationTypeLocalizationKeys
+    {
+        /// <summary>Steam installation source.</summary>
+        public const string Steam = "GameProfiles.InstallationType.Steam";
+
+        /// <summary>EA App installation source.</summary>
+        public const string EaApp = "GameProfiles.InstallationType.EaApp";
+
+        /// <summary>The First Decade installation source.</summary>
+        public const string TheFirstDecade = "GameProfiles.InstallationType.FirstDecade";
+
+        /// <summary>CD or ISO installation source.</summary>
+        public const string CdIso = "GameProfiles.InstallationType.CdIso";
+
+        /// <summary>Wine installation source.</summary>
+        public const string Wine = "GameProfiles.InstallationType.Wine";
+
+        /// <summary>Retail installation source.</summary>
+        public const string Retail = "GameProfiles.InstallationType.Retail";
+
+        /// <summary>Lutris installation source.</summary>
+        public const string Lutris = "GameProfiles.InstallationType.Lutris";
+    }
 
     /// <summary>
     /// Deterministic IDs for synthetic game clients used during initial setup.
