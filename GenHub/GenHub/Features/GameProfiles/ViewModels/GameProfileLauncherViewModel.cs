@@ -1507,7 +1507,7 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The classified types, or null when no executable is recognized.</returns>
     private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath, CancellationToken cancellationToken)
     {
-        List<string> candidates;
+        List<string> candidates = [];
         try
         {
             candidates = Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
@@ -3408,7 +3408,7 @@ public partial class GameProfileLauncherViewModel(
 
     private void UpdateHasNoProfiles()
     {
-        HasNoProfiles = !Profiles.OfType<GameProfileItemViewModel>().Any(p => p.Profile is not GameProfile { IsToolProfile: true });
+        HasNoProfiles = Profiles.OfType<GameProfileItemViewModel>().All(p => p.Profile is GameProfile { IsToolProfile: true });
     }
 
     private void InitializeSortOptions(bool forceRefresh = false)

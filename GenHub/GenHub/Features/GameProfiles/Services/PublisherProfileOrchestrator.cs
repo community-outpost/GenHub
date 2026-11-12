@@ -509,17 +509,15 @@ public class PublisherProfileOrchestrator(
                         $"{publisherDisplayName} Downloaded");
                     return true;
                 }
-                else
-                {
-                    var errorMsg = acquireResult.FirstError ?? "Acquisition failed";
-                    logger.LogWarning(
-                        "Failed to acquire content for publisher client {ClientName}: {Error}",
-                        gameClient.Name,
-                        errorMsg);
 
-                    scope.CompleteFailure(errorMsg);
-                    return false;
-                }
+                var errorMsg = acquireResult.FirstError ?? "Acquisition failed";
+                logger.LogWarning(
+                    "Failed to acquire content for publisher client {ClientName}: {Error}",
+                    gameClient.Name,
+                    errorMsg);
+
+                scope.CompleteFailure(errorMsg);
+                return false;
             }
             catch (OperationCanceledException)
             {
