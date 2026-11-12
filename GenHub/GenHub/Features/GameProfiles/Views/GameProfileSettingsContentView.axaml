@@ -625,34 +625,13 @@
 
                             <StackPanel Classes="form-field">
                                 <TextBlock Classes="form-label" Text="{localization:Localize Profiles.Settings.WorkspaceStrategy}" />
-                                <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                <ComboBox Classes="workspace-strategy"
+                                          ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
                                           SelectedItem="{Binding SelectedWorkspaceStrategy}"
                                           IsEnabled="{Binding CanEditImmutableMetadata}"
-                                          HorizontalAlignment="Stretch">
-                                    <ComboBox.Styles>
-                                        <Style Selector="ComboBoxItem">
-                                            <Setter Property="ToolTip.Tip">
-                                                <Binding Path="Content" RelativeSource="{RelativeSource Self}">
-                                                    <Binding.Converter>
-                                                        <conv:WorkspaceStrategyTooltipConverter />
-                                                    </Binding.Converter>
-                                                </Binding>
-                                            </Setter>
-                                        </Style>
-                                    </ComboBox.Styles>
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding .}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <TextBlock FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap">
-                                    <TextBlock.Text>
-                                        <MultiBinding StringFormat="{}{0}">
-                                            <Binding Path="SelectedWorkspaceStrategy" />
-                                        </MultiBinding>
-                                    </TextBlock.Text>
-                                </TextBlock>
+                                          HorizontalAlignment="Stretch" />
+                                <TextBlock Text="{Binding SelectedWorkspaceStrategy, Converter={x:Static conv:WorkspaceStrategyDisplayConverter.Description}}"
+                                           FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap" />
                             </StackPanel>
 
                             <StackPanel Classes="form-field">
