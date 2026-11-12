@@ -94,6 +94,11 @@ public sealed partial class ProfileSelectionViewModel(
     private bool _isLoading;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SelectProfileCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CreateNewProfileCommand))]
+    private bool _isResolvingDependencies;
+
+    [ObservableProperty]
     private string? _errorMessage;
 
     [ObservableProperty]
@@ -433,7 +438,7 @@ public sealed partial class ProfileSelectionViewModel(
     /// Selects a profile and optionally adds content to it.
     /// </summary>
     /// <param name="option">The selected profile option.</param>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanChooseProfile))]
     private async Task SelectProfileAsync(ProfileOptionViewModel? option)
     {
         if (option == null)
@@ -469,16 +474,24 @@ public sealed partial class ProfileSelectionViewModel(
             var result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
             if (result.MissingDependencies.Count > 0)
             {
-                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, addFailedTitle))
+                IsResolvingDependencies = true;
+                try
                 {
-                    return;
-                }
+                    if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, addFailedTitle))
+                    {
+                        return;
+                    }
 
-                result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
-                if (result.MissingDependencies.Count > 0)
+                    result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
+                    if (result.MissingDependencies.Count > 0)
+                    {
+                        NotifyStillMissing(selectedContentName, result.MissingDependencies, addFailedTitle);
+                        return;
+                    }
+                }
+                finally
                 {
-                    NotifyStillMissing(selectedContentName, result.MissingDependencies, addFailedTitle);
-                    return;
+                    IsResolvingDependencies = false;
                 }
             }
 
@@ -538,7 +551,7 @@ public sealed partial class ProfileSelectionViewModel(
     /// <summary>
     /// Creates a new profile with the current content pre-enabled using the chosen variant manifest ID.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanChooseProfile))]
     private async Task CreateNewProfileAsync()
     {
         if (string.IsNullOrEmpty(ContentManifestId))
@@ -563,16 +576,24 @@ public sealed partial class ProfileSelectionViewModel(
             var result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
             if (result.MissingDependencies.Count > 0)
             {
-                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, createFailedTitle))
+                IsResolvingDependencies = true;
+                try
                 {
-                    return;
-                }
+                    if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, createFailedTitle))
+                    {
+                        return;
+                    }
 
-                result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
-                if (result.MissingDependencies.Count > 0)
+                    result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
+                    if (result.MissingDependencies.Count > 0)
+                    {
+                        NotifyStillMissing(selectedContentName, result.MissingDependencies, createFailedTitle);
+                        return;
+                    }
+                }
+                finally
                 {
-                    NotifyStillMissing(selectedContentName, result.MissingDependencies, createFailedTitle);
-                    return;
+                    IsResolvingDependencies = false;
                 }
             }
 
@@ -618,6 +639,8 @@ public sealed partial class ProfileSelectionViewModel(
         var displayName = string.IsNullOrWhiteSpace(selectedContentName) ? (ContentName ?? "New Profile") : selectedContentName;
         return (safeId, selectedManifest, displayName, idsToEnable);
     }
+
+    private bool CanChooseProfile() => !IsResolvingDependencies;
 
     private Task<AddToProfileResult> AddContentAsync(
         string profileId,

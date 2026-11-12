@@ -1145,8 +1145,15 @@ public sealed class ProfileContentService(
             // Include the canonical manifest IDs acquired above. The generic dependency resolver
             // intentionally skips semantic AutoInstall references, so relying on its output alone
             // would download a dependency without enabling it in the profile.
+            // Content already in the profile can need items that were downloaded later, for
+            // example after the missing-items dialog installed them. Enable those local items too.
+            var existingContentDependencies = await FindLocalRequiredDependenciesAsync(
+                contentIds.Except(acquisition.Data, StringComparer.OrdinalIgnoreCase),
+                cancellationToken);
+
             var contentIdsWithAcquiredDependencies = contentIds
                 .Concat(acquisition.Data)
+                .Concat(existingContentDependencies)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -1210,6 +1217,7 @@ public sealed class ProfileContentService(
 
             var enabledContentIds = completeResolution.ResolvedContentIds
                 .Concat(acquisition.Data)
+                .Concat(existingContentDependencies)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             foreach (var requestedId in requestedContentIds.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
@@ -1422,6 +1430,47 @@ public sealed class ProfileContentService(
         return gaps
             .Where(gap => gap.DependencyType != ContentType.GameInstallation && gap.DependencyType != ContentType.GameClient)
             .ToList();
+    }
+
+    /// <summary>
+    /// Walks the required dependencies of <paramref name="contentIds"/> and returns the ones that
+    /// are already acquired. Nothing is downloaded.
+    /// </summary>
+    private async Task<List<string>> FindLocalRequiredDependenciesAsync(
+        IEnumerable<string> contentIds,
+        CancellationToken cancellationToken)
+    {
+        var pendingIds = new Queue<string>(contentIds);
+        var visitedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var localDependencyIds = new List<string>();
+
+        while (pendingIds.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var contentId = pendingIds.Dequeue();
+            if (!visitedIds.Add(contentId) || !ManifestId.TryCreate(contentId, out var manifestId))
+            {
+                continue;
+            }
+
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            foreach (var dependency in manifestResult.Data?.Dependencies ?? [])
+            {
+                if (dependency.InstallBehavior is not (DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall))
+                {
+                    continue;
+                }
+
+                var localDependency = await FindLocalRequiredDependencyAsync(dependency, cancellationToken);
+                if (localDependency != null && !visitedIds.Contains(localDependency.Id.Value))
+                {
+                    localDependencyIds.Add(localDependency.Id.Value);
+                    pendingIds.Enqueue(localDependency.Id.Value);
+                }
+            }
+        }
+
+        return localDependencyIds;
     }
 
     /// <summary>
