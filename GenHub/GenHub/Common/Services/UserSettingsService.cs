@@ -2,7 +2,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
-using GenHub.Core.Models.Enums;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using System;
@@ -409,11 +408,6 @@ public class UserSettingsService : IUserSettingsService
 
             // Mark properties as explicitly set based on what was in the JSON
             MarkExplicitlySetPropertiesFromJson(settings, json);
-
-            if (!settings.IsExplicitlySet(nameof(UserSettings.TelemetryPreference)))
-            {
-                settings.TelemetryPreference = TelemetryLevel.Disabled;
-            }
 
             _logger.LogInformation("Settings loaded successfully from {Path}", path);
             outcome = SettingsLoadOutcome.Loaded;
