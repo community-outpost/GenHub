@@ -195,7 +195,9 @@ public partial class EngineLaunchSmokeTests : IDisposable
     private static int? ParseImmediateExitCode(string errors)
     {
         var match = ImmediateExitCodePattern().Match(errors);
-        return match.Success ? int.Parse(match.Groups["code"].Value, CultureInfo.InvariantCulture) : null;
+        return match.Success && int.TryParse(match.Groups["code"].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var code)
+            ? code
+            : null;
     }
 
     [GeneratedRegex(@"exited immediately with code (?<code>-?\d+)\b", RegexOptions.IgnoreCase)]

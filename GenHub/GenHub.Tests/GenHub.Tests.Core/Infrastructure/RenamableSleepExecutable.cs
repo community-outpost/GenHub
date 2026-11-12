@@ -16,5 +16,8 @@ internal static class RenamableSleepExecutable
     /// <summary>
     /// Gets the path of the preferred sleep binary on this host.
     /// </summary>
-    public static string FilePath => Candidates.FirstOrDefault(File.Exists) ?? Candidates[^1];
+    /// <exception cref="FileNotFoundException">No candidate exists on this host.</exception>
+    public static string FilePath =>
+        Candidates.FirstOrDefault(File.Exists)
+        ?? throw new FileNotFoundException($"No renamable sleep binary found. Probed: {string.Join(", ", Candidates)}");
 }
