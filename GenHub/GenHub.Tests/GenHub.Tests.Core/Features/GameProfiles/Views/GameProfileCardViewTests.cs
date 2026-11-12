@@ -12,6 +12,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GameProfiles.Views;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Globalization;
@@ -25,6 +26,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Views;
 /// <summary>
 /// Headless tests for the Play button on <see cref="GameProfileCardView"/>.
 /// </summary>
+[Collection(LocalizationCultureCollection.Name)]
 public class GameProfileCardViewTests
 {
     /// <summary>
@@ -128,21 +130,22 @@ public class GameProfileCardViewTests
     }
 
     /// <summary>
-    /// Verifies that Play stays clear of the metadata panel when Russian badges wrap on the narrowest card.
+    /// Verifies that Play stays clear of the hover tool row and the metadata panel when Russian badges wrap on the narrowest card.
     /// </summary>
     [AvaloniaFact]
-    public void PlayButton_DoesNotOverlapWrappedRussianBadgesAtMinimumWidth()
+    public void PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidth()
     {
         var resources = Avalonia.Application.Current!.Resources;
         var previousService = resources[LocalizationConstants.ResourceServiceKey];
         var previousUiCulture = CultureInfo.CurrentUICulture;
         var previousDefaultUiCulture = CultureInfo.DefaultThreadCurrentUICulture;
-        var russian = CreateLocalizationService();
-        Assert.True(russian.SetCulture(CultureInfo.GetCultureInfo("ru")).Success);
-        resources[LocalizationConstants.ResourceServiceKey] = russian;
 
         try
         {
+            var russian = CreateLocalizationService();
+            Assert.True(russian.SetCulture(CultureInfo.GetCultureInfo("ru")).Success);
+            resources[LocalizationConstants.ResourceServiceKey] = russian;
+
             var profile = new GameProfile
             {
                 Id = "card-badges",
@@ -177,6 +180,14 @@ public class GameProfileCardViewTests
                 Assert.True(
                     playBounds.Bottom <= metadataBounds.Top,
                     $"Play {playBounds} overlaps the metadata panel {metadataBounds}.");
+
+                var editButton = Assert.Single(
+                    view.GetVisualDescendants().OfType<Button>(),
+                    button => ReferenceEquals(button.Command, viewModel.EditProfileCommand) && button.IsEffectivelyVisible);
+                var toolRowBounds = BoundsIn(Assert.IsType<StackPanel>(editButton.GetVisualParent()), view);
+                Assert.True(
+                    playBounds.Top >= toolRowBounds.Bottom,
+                    $"Play {playBounds} overlaps the hover tool row {toolRowBounds}.");
             }
             finally
             {

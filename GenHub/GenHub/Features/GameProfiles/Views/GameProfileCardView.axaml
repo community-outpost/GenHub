@@ -456,6 +456,7 @@
 
 
                 <!-- Play Button: always visible between the tool row and the metadata, above the hover overlay, first card tab stop -->
+                <!-- The 48 top margin clears the hover tool row: 8 row margin, 32 button, 4 button margin above and below. PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidth guards it. -->
                 <Panel Grid.Row="0" ZIndex="1" Margin="0,48,0,0" IsVisible="{Binding CanLaunch}">
                     <Button Classes="launch-button play-button"
                             Command="{Binding LaunchProfileCommand}"
