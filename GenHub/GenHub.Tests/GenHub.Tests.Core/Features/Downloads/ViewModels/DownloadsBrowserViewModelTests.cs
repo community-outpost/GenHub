@@ -3533,6 +3533,87 @@ public class DownloadsBrowserViewModelTests
         Assert.All(viewModel.ContentItems, item => Assert.False(item.IsFilteredOut));
     }
 
+    /// <summary>
+    /// Verifies that the raw content type identifier matches, even when the display name differs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilterText_MatchesRawContentTypeIdentifierAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.ContentItems.Add(CreateCuratedCard("World Builder", "Tools", "tool", ContentType.ModdingTool));
+
+        // Act
+        viewModel.LocalFilterText = "moddingtool";
+
+        // Assert
+        Assert.Equal(["World Builder"], VisibleCardNames(viewModel));
+    }
+
+    /// <summary>
+    /// Verifies that a category that only repeats the content type shares one chip with uncategorized cards of
+    /// that type, and that case variants of a category share one chip with a stable label.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_MergeEquivalentCategoriesAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Badged Build", "Game Client", "weekly", ContentType.GameClient));
+        viewModel.ContentItems.Add(CreateCuratedCard("Lowercase Bar", "controlbar", "control-bar"));
+        var appended = viewModel.LocalCategoryFilters.Select(chip => chip.DisplayText).ToList();
+        viewModel.ContentItems = new ObservableCollection<ContentGridItemViewModel>(viewModel.ContentItems.Reverse());
+        var reversed = viewModel.LocalCategoryFilters.Select(chip => chip.DisplayText).ToList();
+
+        // Assert
+        Assert.Equal(["All (6)", "Control Bar (3)", "GameClient (2)", "Hotkeys (1)"], appended);
+        Assert.Equal(appended, reversed);
+    }
+
+    /// <summary>
+    /// Verifies that unknown categories are split into title-cased words without stray spaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_HumanizeUnknownCategoriesAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Odd Pack", "--special_edition--", "odd"));
+
+        // Assert
+        Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.Label == "Special Edition");
+    }
+
+    /// <summary>
+    /// Verifies that reordering cards and typing keep the chips, and appending cards filters only the new ones.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_MoveAndTyping_KeepChipsAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        var chips = viewModel.LocalCategoryFilters;
+
+        // Act
+        viewModel.ContentItems.Move(0, 3);
+        var afterMove = viewModel.LocalCategoryFilters;
+        viewModel.LocalFilterText = "control";
+        var afterTyping = viewModel.LocalCategoryFilters;
+
+        // Assert
+        Assert.Same(chips, afterMove);
+        Assert.Same(chips, afterTyping);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], VisibleCardNames(viewModel).Order());
+    }
+
     private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
         string publisherId,
         IContentDiscoverer? discoverer = null,

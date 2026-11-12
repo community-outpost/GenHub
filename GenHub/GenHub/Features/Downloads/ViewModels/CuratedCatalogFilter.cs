@@ -1,63 +1,103 @@
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.Content.ViewModels.Catalog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
 /// <summary>
-/// Matches loaded download cards against a local text and category filter for curated catalogs.
+/// Filters loaded download cards of a curated catalog by text and category, and tallies the categories for the chips.
+/// It only reads cards that are already loaded.
 /// </summary>
-internal static class CuratedCatalogFilter
+internal sealed class CuratedCatalogFilter
 {
+    /// <summary>
+    /// A tallied category: its canonical key and how many loaded cards fall into it.
+    /// </summary>
+    private sealed class CategoryTally
+    {
+        /// <summary>
+        /// Gets or sets the canonical key. Among case variants, the ordinal-smallest wins so labels stay stable.
+        /// </summary>
+        public required string Key { get; set; }
+
+        /// <summary>
+        /// Gets or sets the number of loaded cards in the category.
+        /// </summary>
+        public int Count { get; set; }
+    }
+
     /// <summary>
     /// Gets the chip key that selects every category.
     /// </summary>
     public const string AllCategoriesKey = "";
 
+    private const string AllLabelKey = "Downloads.Browser.Filter.All";
+    private const string AllLabelFallback = "All";
     private const string CategoryLabelKeyPrefix = "Downloads.Browser.Filter.Category.";
     private const string ContentTypeLabelKeyPrefix = "ContentType.";
 
+    private static readonly char[] WordSeparators = [' ', '-', '_'];
+
+    private readonly Dictionary<string, CategoryTally> _categories = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>
-    /// Resolves the category a card is grouped under: its catalog category, or its content type when it has none.
+    /// Gets or sets the filter text.
+    /// </summary>
+    public string Text { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the selected category key, or <see cref="AllCategoriesKey"/>.
+    /// </summary>
+    public string SelectedCategory { get; set; } = AllCategoriesKey;
+
+    /// <summary>
+    /// Gets the number of tallied cards.
+    /// </summary>
+    public int TotalCount { get; private set; }
+
+    /// <summary>
+    /// Gets the number of tallied cards that match the filter.
+    /// </summary>
+    public int VisibleCount { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether cards are loaded but none of them match.
+    /// </summary>
+    public bool HasNoMatches => TotalCount > 0 && VisibleCount == 0;
+
+    /// <summary>
+    /// Resolves the category key a card is grouped under. A card whose catalog category is missing,
+    /// or spells its content type identifier, is grouped under the content type identifier.
     /// </summary>
     /// <param name="item">The card.</param>
-    /// <returns>The category identifier.</returns>
+    /// <returns>The category key.</returns>
     public static string GetCategory(ContentGridItemViewModel item)
     {
-        var category = item.CategoryBadge;
-        return string.IsNullOrWhiteSpace(category) ? item.ContentTypeDisplay : category;
+        var badge = item.CategoryBadge.Trim();
+        var contentType = item.ContentType.ToString();
+        var letters = new string([.. badge.Where(char.IsLetterOrDigit)]);
+        return letters.Length == 0 || string.Equals(letters, contentType, StringComparison.OrdinalIgnoreCase)
+            ? contentType
+            : badge;
     }
 
     /// <summary>
-    /// Resolves the display label of the category a card is grouped under.
+    /// Resolves the display label of a category key: its catalog category resource, its content type label,
+    /// or the key split into words.
     /// </summary>
-    /// <param name="item">The card.</param>
+    /// <param name="category">The category key.</param>
     /// <param name="localization">The localization service, if any.</param>
     /// <returns>The localized category label.</returns>
-    public static string GetCategoryLabel(ContentGridItemViewModel item, ILocalizationService? localization) =>
-        string.IsNullOrWhiteSpace(item.CategoryBadge)
-            ? GetContentTypeLabel(item.ContentType, localization)
-            : GetCatalogCategoryLabel(item.CategoryBadge, localization);
-
-    /// <summary>
-    /// Resolves the display label of a catalog category identifier such as <c>ControlBar</c>.
-    /// Unknown identifiers are split into words.
-    /// </summary>
-    /// <param name="category">The category identifier.</param>
-    /// <param name="localization">The localization service, if any.</param>
-    /// <returns>The localized category label.</returns>
-    public static string GetCatalogCategoryLabel(string category, ILocalizationService? localization)
+    public static string GetCategoryLabel(string category, ILocalizationService? localization)
     {
-        if (localization != null && localization.TryGetString(CategoryLabelKeyPrefix + category, out var localized))
-        {
-            return localized;
-        }
-
-        return Humanize(category);
+        var fallback = Enum.TryParse<ContentType>(category, true, out var contentType) && Enum.IsDefined(contentType)
+            ? GetContentTypeLabel(contentType, localization)
+            : Humanize(category);
+        return localization.GetLocalizedString(CategoryLabelKeyPrefix + category, fallback);
     }
 
     /// <summary>
@@ -66,15 +106,8 @@ internal static class CuratedCatalogFilter
     /// <param name="contentType">The content type.</param>
     /// <param name="localization">The localization service, if any.</param>
     /// <returns>The localized content type label.</returns>
-    public static string GetContentTypeLabel(ContentType contentType, ILocalizationService? localization)
-    {
-        if (localization != null && localization.TryGetString(ContentTypeLabelKeyPrefix + contentType, out var localized))
-        {
-            return localized;
-        }
-
-        return contentType.GetDisplayName();
-    }
+    public static string GetContentTypeLabel(ContentType contentType, ILocalizationService? localization) =>
+        localization.GetLocalizedString(ContentTypeLabelKeyPrefix + contentType, contentType.GetDisplayName());
 
     /// <summary>
     /// Determines whether a card matches the filter text and the selected category.
@@ -100,53 +133,119 @@ internal static class CuratedCatalogFilter
 
         return Contains(item.Name, term)
             || Contains(category, term)
-            || Contains(GetCategoryLabel(item, localization), term)
+            || Contains(GetCategoryLabel(category, localization), term)
+            || Contains(item.ContentType.ToString(), term)
             || Contains(item.ContentTypeDisplay, term)
             || Contains(GetContentTypeLabel(item.ContentType, localization), term)
             || item.Tags.Any(tag => Contains(tag, term));
     }
 
     /// <summary>
-    /// Counts the loaded cards per category, ordered by category identifier.
+    /// Clears the tallies, then tallies and filters every card.
     /// </summary>
     /// <param name="items">The loaded cards.</param>
     /// <param name="localization">The localization service, if any.</param>
-    /// <returns>The category identifiers with their labels and card counts.</returns>
-    public static IReadOnlyList<(string Key, string Label, int Count)> CountCategories(
-        IEnumerable<ContentGridItemViewModel> items,
-        ILocalizationService? localization) =>
-        [.. items
-            .GroupBy(GetCategory, StringComparer.OrdinalIgnoreCase)
-            .Where(group => !string.IsNullOrWhiteSpace(group.Key))
-            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
-            .Select(group => (group.Key, GetCategoryLabel(group.First(), localization), group.Count()))];
+    public void Reset(IEnumerable<ContentGridItemViewModel> items, ILocalizationService? localization)
+    {
+        _categories.Clear();
+        TotalCount = 0;
+        VisibleCount = 0;
+        Add(items, localization);
+    }
+
+    /// <summary>
+    /// Tallies and filters newly loaded cards without revisiting the cards already tallied.
+    /// </summary>
+    /// <param name="items">The new cards.</param>
+    /// <param name="localization">The localization service, if any.</param>
+    public void Add(IEnumerable<ContentGridItemViewModel> items, ILocalizationService? localization)
+    {
+        foreach (var item in items)
+        {
+            var category = GetCategory(item);
+            if (_categories.TryGetValue(category, out var tally))
+            {
+                tally.Count++;
+                if (string.CompareOrdinal(category, tally.Key) < 0)
+                {
+                    tally.Key = category;
+                }
+            }
+            else
+            {
+                _categories[category] = new CategoryTally { Key = category, Count = 1 };
+            }
+
+            TotalCount++;
+            if (ApplyTo(item, localization))
+            {
+                VisibleCount++;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-applies the filter to every card after the text or selected category changed. The tallies are kept.
+    /// </summary>
+    /// <param name="items">The loaded cards.</param>
+    /// <param name="localization">The localization service, if any.</param>
+    public void Refilter(IEnumerable<ContentGridItemViewModel> items, ILocalizationService? localization) =>
+        VisibleCount = items.Count(item => ApplyTo(item, localization));
+
+    /// <summary>
+    /// Builds the chips: "All" first, then one chip per tallied category, ordered by key.
+    /// </summary>
+    /// <param name="localization">The localization service, if any.</param>
+    /// <returns>The chips, or an empty list when no category is tallied.</returns>
+    public IReadOnlyList<CatalogCategoryFilter> BuildChips(ILocalizationService? localization)
+    {
+        if (_categories.Count == 0)
+        {
+            return [];
+        }
+
+        List<CatalogCategoryFilter> chips =
+        [
+            new(AllCategoriesKey, localization.GetLocalizedString(AllLabelKey, AllLabelFallback), TotalCount, SelectedCategory.Length == 0),
+        ];
+        chips.AddRange(_categories.Values
+            .OrderBy(tally => tally.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(tally => new CatalogCategoryFilter(
+                tally.Key,
+                GetCategoryLabel(tally.Key, localization),
+                tally.Count,
+                string.Equals(tally.Key, SelectedCategory, StringComparison.OrdinalIgnoreCase))));
+        return chips;
+    }
 
     private static bool Contains(string? value, string term) =>
         !string.IsNullOrEmpty(value) && value.Contains(term, StringComparison.OrdinalIgnoreCase);
 
     private static string Humanize(string identifier)
     {
-        var builder = new StringBuilder(identifier.Length + 4);
-        var previous = ' ';
-        foreach (var current in identifier.Trim())
+        List<string> words = [];
+        foreach (var part in identifier.Split(WordSeparators, StringSplitOptions.RemoveEmptyEntries))
         {
-            if (current is '-' or '_')
+            var start = 0;
+            for (var i = 1; i < part.Length; i++)
             {
-                builder.Append(' ');
-            }
-            else
-            {
-                if (char.IsUpper(current) && char.IsLower(previous))
+                if (char.IsUpper(part[i]) && char.IsLower(part[i - 1]))
                 {
-                    builder.Append(' ');
+                    words.Add(part[start..i]);
+                    start = i;
                 }
-
-                builder.Append(builder.Length == 0 ? char.ToUpperInvariant(current) : current);
             }
 
-            previous = current;
+            words.Add(part[start..]);
         }
 
-        return builder.ToString();
+        return string.Join(' ', words.Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
+    }
+
+    private bool ApplyTo(ContentGridItemViewModel item, ILocalizationService? localization)
+    {
+        var matches = Matches(item, Text, SelectedCategory, localization);
+        item.IsFilteredOut = !matches;
+        return matches;
     }
 }

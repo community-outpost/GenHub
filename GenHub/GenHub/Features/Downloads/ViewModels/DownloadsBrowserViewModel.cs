@@ -175,6 +175,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly ConcurrentDictionary<string, HashSet<string>> _knownCatalogIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, HashSet<string>> _knownContentItemIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _vmCts = new();
+    private readonly CuratedCatalogFilter _localFilter = new();
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _catalogsCts;
     private int _activeRequestId;
@@ -186,7 +187,6 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _suppressCatalogChanged;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
-    private string _selectedLocalCategory = CuratedCatalogFilter.AllCategoriesKey;
     private ObservableCollection<ContentGridItemViewModel>? _observedContentItems;
 
     [ObservableProperty]
@@ -272,7 +272,7 @@ public sealed partial class DownloadsBrowserViewModel(
             if (SetProperty(ref _selectedPublisher, value))
             {
                 OnPropertyChanged(nameof(CanFilterLocally));
-                ClearLocalFilter();
+                ResetLocalFilter();
                 OnPropertyChanged(nameof(CanSearch));
                 OnPropertyChanged(nameof(CanSearchOrFilter));
                 OnPropertyChanged(nameof(IsSubscribedPublisher));
@@ -1503,23 +1503,47 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
-    partial void OnLocalFilterTextChanged(string value) => ApplyLocalFilter();
+    partial void OnLocalFilterTextChanged(string value)
+    {
+        _localFilter.Text = value;
+        RefilterLocally(rebuildChips: false);
+    }
 
     partial void OnContentItemsChanged(ObservableCollection<ContentGridItemViewModel> value) => ApplyLocalFilter();
 
-    private void OnContentItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => ApplyLocalFilter();
+    private void OnContentItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Move:
+                return;
+            case NotifyCollectionChangedAction.Add when e.NewItems != null:
+                AddToLocalFilter(e.NewItems.OfType<ContentGridItemViewModel>());
+                return;
+            default:
+                ApplyLocalFilter();
+                return;
+        }
+    }
 
     [RelayCommand]
     private void SelectLocalCategory(string? categoryKey)
     {
-        _selectedLocalCategory = categoryKey ?? CuratedCatalogFilter.AllCategoriesKey;
-        ApplyLocalFilter();
+        _localFilter.SelectedCategory = categoryKey ?? CuratedCatalogFilter.AllCategoriesKey;
+        RefilterLocally(rebuildChips: true);
     }
 
     [RelayCommand]
     private void ClearLocalFilter()
     {
-        _selectedLocalCategory = CuratedCatalogFilter.AllCategoriesKey;
+        _localFilter.SelectedCategory = CuratedCatalogFilter.AllCategoriesKey;
+        LocalFilterText = string.Empty;
+        RefilterLocally(rebuildChips: true);
+    }
+
+    private void ResetLocalFilter()
+    {
+        _localFilter.SelectedCategory = CuratedCatalogFilter.AllCategoriesKey;
         LocalFilterText = string.Empty;
         ApplyLocalFilter();
     }
@@ -1540,18 +1564,45 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        var visibleCount = 0;
-        foreach (var item in items)
+        _localFilter.Reset(items, _localizationService);
+        PublishLocalFilterState(rebuildChips: true);
+    }
+
+    private void AddToLocalFilter(IEnumerable<ContentGridItemViewModel> added)
+    {
+        if (!CanFilterLocally)
         {
-            item.IsFilteredOut = !CuratedCatalogFilter.Matches(item, LocalFilterText, _selectedLocalCategory, _localizationService);
-            if (!item.IsFilteredOut)
+            foreach (var item in added)
             {
-                visibleCount++;
+                item.IsFilteredOut = false;
             }
+
+            return;
         }
 
-        LocalCategoryFilters = BuildLocalCategoryFilters(items);
-        HasNoLocalFilterMatches = items.Count > 0 && visibleCount == 0;
+        _localFilter.Add(added, _localizationService);
+        PublishLocalFilterState(rebuildChips: true);
+    }
+
+    private void RefilterLocally(bool rebuildChips)
+    {
+        if (!CanFilterLocally)
+        {
+            return;
+        }
+
+        _localFilter.Refilter(ContentItems, _localizationService);
+        PublishLocalFilterState(rebuildChips);
+    }
+
+    private void PublishLocalFilterState(bool rebuildChips)
+    {
+        if (rebuildChips)
+        {
+            LocalCategoryFilters = _localFilter.BuildChips(_localizationService);
+        }
+
+        HasNoLocalFilterMatches = _localFilter.HasNoMatches;
     }
 
     private void ObserveContentItems(ObservableCollection<ContentGridItemViewModel> items)
@@ -1568,27 +1619,6 @@ public sealed partial class DownloadsBrowserViewModel(
 
         items.CollectionChanged += OnContentItemsCollectionChanged;
         _observedContentItems = items;
-    }
-
-    private IReadOnlyList<CatalogCategoryFilter> BuildLocalCategoryFilters(IReadOnlyCollection<ContentGridItemViewModel> items)
-    {
-        var categories = CuratedCatalogFilter.CountCategories(items, _localizationService);
-        if (categories.Count == 0)
-        {
-            return [];
-        }
-
-        var allLabel = _localizationService?.GetString("Downloads.Browser.Filter.All") ?? "All";
-        List<CatalogCategoryFilter> chips =
-        [
-            new(CuratedCatalogFilter.AllCategoriesKey, allLabel, items.Count, _selectedLocalCategory.Length == 0),
-        ];
-        chips.AddRange(categories.Select(category => new CatalogCategoryFilter(
-            category.Key,
-            category.Label,
-            category.Count,
-            string.Equals(category.Key, _selectedLocalCategory, StringComparison.OrdinalIgnoreCase))));
-        return chips;
     }
 
     partial void OnSelectedCatalogChanged(CatalogEntry? value)
