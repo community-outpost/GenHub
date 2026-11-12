@@ -371,6 +371,40 @@ public class UserSettingsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that an explicit telemetry preference survives a settings file with a trailing comma.
+    /// </summary>
+    [Fact]
+    public void LoadSettings_WithTrailingCommaAndExplicitTelemetryPreference_PreservesValue()
+    {
+        var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(testDir);
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
+        File.WriteAllText(settingsPath, """{"telemetryPreference": "CrashReportsOnly",}""");
+
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
+
+        Assert.Equal(TelemetryLevel.CrashReportsOnly, service.Get().TelemetryPreference);
+    }
+
+    /// <summary>
+    /// Verifies that a stored explicit-set marker without a telemetry value resolves to disabled.
+    /// </summary>
+    [Fact]
+    public void LoadSettings_WithStaleExplicitMarkerAndNoTelemetryPreference_DefaultsToDisabled()
+    {
+        var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(testDir);
+        var settingsPath = Path.Combine(testDir, FileTypes.JsonFileExtension);
+        File.WriteAllText(settingsPath, """{"explicitlySetProperties": ["TelemetryPreference"]}""");
+
+        var appConfig = CreateAppConfigMock();
+        var service = new TestableUserSettingsService(_mockLogger.Object, appConfig, settingsPath);
+
+        Assert.Equal(TelemetryLevel.Disabled, service.Get().TelemetryPreference);
+    }
+
+    /// <summary>
     /// Verifies that the first save on a fresh install records telemetry as disabled.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
