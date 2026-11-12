@@ -130,10 +130,12 @@ public class GameProfileCardViewTests
     }
 
     /// <summary>
-    /// Verifies that Play stays clear of the hover tool row and the metadata panel when Russian badges wrap on the narrowest card.
+    /// Verifies that Play stays clear of the hover tool row and the metadata panel when Russian badges wrap on the narrowest card,
+    /// at rest, with keyboard focus and on hover.
     /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
     [AvaloniaFact]
-    public void PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidth()
+    public async Task PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidthAsync()
     {
         var resources = Avalonia.Application.Current!.Resources;
         var previousService = resources[LocalizationConstants.ResourceServiceKey];
@@ -175,19 +177,24 @@ public class GameProfileCardViewTests
                 var firstBadge = badges.Children.OfType<Border>().First(badge => badge.IsVisible);
                 Assert.True(badges.Bounds.Height > firstBadge.Bounds.Height * 1.5, "The badges should wrap onto a second row.");
 
-                var playBounds = BoundsIn(FindButton(view, viewModel.LaunchProfileCommand), view);
-                var metadataBounds = BoundsIn(metadata, view);
-                Assert.True(
-                    playBounds.Bottom <= metadataBounds.Top,
-                    $"Play {playBounds} overlaps the metadata panel {metadataBounds}.");
-
+                var playButton = FindButton(view, viewModel.LaunchProfileCommand);
                 var editButton = Assert.Single(
                     view.GetVisualDescendants().OfType<Button>(),
                     button => ReferenceEquals(button.Command, viewModel.EditProfileCommand) && button.IsEffectivelyVisible);
-                var toolRowBounds = BoundsIn(Assert.IsType<StackPanel>(editButton.GetVisualParent()), view);
-                Assert.True(
-                    playBounds.Top >= toolRowBounds.Bottom,
-                    $"Play {playBounds} overlaps the hover tool row {toolRowBounds}.");
+                var toolRow = Assert.IsType<StackPanel>(editButton.GetVisualParent());
+
+                AssertPlayClears(playButton, metadata, toolRow, view, "at rest");
+
+                window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
+                Assert.Same(playButton, window.FocusManager?.GetFocusedElement());
+                await WaitForTransformsAsync(playButton, 1.0, metadata, 0);
+                AssertPlayClears(playButton, metadata, toolRow, view, "with keyboard focus");
+
+                var playCenter = playButton.TranslatePoint(new Point(playButton.Bounds.Width / 2, playButton.Bounds.Height / 2), window);
+                Assert.True(playCenter.HasValue);
+                window.MouseMove(playCenter.Value, RawInputModifiers.None);
+                await WaitForTransformsAsync(playButton, 1.05, metadata, -4);
+                AssertPlayClears(playButton, metadata, toolRow, view, "on hover");
             }
             finally
             {
@@ -200,6 +207,48 @@ public class GameProfileCardViewTests
             CultureInfo.CurrentUICulture = previousUiCulture;
             CultureInfo.DefaultThreadCurrentUICulture = previousDefaultUiCulture;
         }
+    }
+
+    private static void AssertPlayClears(Visual playButton, Visual metadata, Visual toolRow, Visual root, string state)
+    {
+        var playBounds = BoundsIn(playButton, root);
+        var metadataBounds = BoundsIn(metadata, root);
+        var toolRowBounds = BoundsIn(toolRow, root);
+        Assert.True(
+            playBounds.Bottom <= metadataBounds.Top,
+            $"Play {playBounds} overlaps the metadata panel {metadataBounds} {state}.");
+        Assert.True(
+            playBounds.Top >= toolRowBounds.Bottom,
+            $"Play {playBounds} overlaps the hover tool row {toolRowBounds} {state}.");
+    }
+
+    /// <summary>
+    /// Advances the render clock until the Play scale and metadata offset reach their target values,
+    /// instead of sleeping a fixed transition duration.
+    /// </summary>
+    /// <param name="playButton">The Play button.</param>
+    /// <param name="playScale">The target Play scale.</param>
+    /// <param name="metadata">The metadata panel.</param>
+    /// <param name="metadataOffsetY">The target metadata vertical offset.</param>
+    /// <returns>A task representing the asynchronous wait operation.</returns>
+    private static async Task WaitForTransformsAsync(Visual playButton, double playScale, Visual metadata, double metadataOffsetY)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+            var scale = playButton.RenderTransform?.Value.M11 ?? 1;
+            var offset = metadata.RenderTransform?.Value.M32 ?? 0;
+            if (Math.Abs(scale - playScale) < 0.001 && Math.Abs(offset - metadataOffsetY) < 0.001)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(16));
+        }
+
+        Assert.Fail($"Transforms did not settle on Play scale {playScale} and metadata offset {metadataOffsetY}.");
     }
 
     private static LocalizationService CreateLocalizationService()

@@ -456,8 +456,8 @@
 
 
                 <!-- Play Button: always visible between the tool row and the metadata, above the hover overlay, first card tab stop -->
-                <!-- The 48 top margin clears the hover tool row: 8 row margin, 32 button, 4 button margin above and below. PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidth guards it. -->
-                <Panel Grid.Row="0" ZIndex="1" Margin="0,48,0,0" IsVisible="{Binding CanLaunch}">
+                <!-- The 52 top margin clears the 48 hover tool row and leaves room for Play to grow on hover. The tool row is 8 row margin, 32 button and 4 button margin above and below. PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidthAsync guards it. -->
+                <Panel Grid.Row="0" ZIndex="1" Margin="0,52,0,0" IsVisible="{Binding CanLaunch}">
                     <Button Classes="launch-button play-button"
                             Command="{Binding LaunchProfileCommand}"
                             AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.LaunchProfile}">
