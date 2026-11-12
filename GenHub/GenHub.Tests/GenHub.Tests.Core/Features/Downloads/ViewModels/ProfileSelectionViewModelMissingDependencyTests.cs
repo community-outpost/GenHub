@@ -217,6 +217,36 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         _notifications.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
     }
 
+    /// <summary>
+    /// While the missing-items flow runs, the picker cannot start another add or create.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task SelectProfile_WhileDialogOpen_DisablesPickerCommandsAsync()
+    {
+        _profileContent
+            .Setup(x => x.AddContentToProfileAsync(ProfileId, ContentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AddToProfileResult.CreateMissingDependencies("missing", [GenToolGap]));
+        var vm = await CreateViewModelAsync();
+        bool? createEnabledDuringDialog = null;
+        bool? selectEnabledDuringDialog = null;
+        _dialogs
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, IEnumerable<DialogAction> actions, bool _, CancellationToken _) =>
+            {
+                createEnabledDuringDialog = vm.CreateNewProfileCommand.CanExecute(null);
+                selectEnabledDuringDialog = vm.SelectProfileCommand.CanExecute(vm.CompatibleProfiles[0]);
+                return (actions.First(action => action.Style == NotificationActionStyle.Secondary), false);
+            });
+
+        await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+
+        Assert.False(createEnabledDuringDialog);
+        Assert.False(selectEnabledDuringDialog);
+        Assert.False(vm.IsResolvingDependencies);
+        Assert.True(vm.CreateNewProfileCommand.CanExecute(null));
+    }
+
     private void SetupInstall(OperationResult<IReadOnlyList<string>> result) =>
         _profileContent
             .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))

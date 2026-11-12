@@ -634,10 +634,71 @@ public sealed class ProfileContentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// A profile saved before the fix holds Control Bar Pro without GenTool. Adding unrelated content
+    /// reports that gap. After GenTool is installed, the same add succeeds and enables GenTool.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_ExistingContentMissingGenTool_InstallThenAddEnablesGenToolAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.EnableInProfile(ControlBarProFixture.ControlBarProId);
+        fixture.AddManifest(ControlBarProFixture.CreateMapPack());
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                fixture.AddManifest(genTool);
+                return OperationResult<ContentManifest>.CreateSuccess(genTool);
+            });
+
+        var firstAttempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.MapPackId);
+        var gap = Assert.Single(firstAttempt.MissingDependencies);
+        Assert.Equal(ControlBarProFixture.ControlBarProId, gap.RequiredById);
+        var install = await fixture.Service.InstallMissingDependenciesAsync(firstAttempt.MissingDependencies);
+        var secondAttempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.MapPackId);
+
+        Assert.True(install.Success, install.FirstError);
+        Assert.True(secondAttempt.Success, secondAttempt.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(ControlBarProFixture.MapPackId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// When content already in the profile needs an item that is downloaded but not enabled,
+    /// the next add enables it without downloading anything.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_ExistingContentGapAlreadyDownloaded_EnablesItWithoutDownloadAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.EnableInProfile(ControlBarProFixture.ControlBarProId);
+        fixture.AddManifest(ControlBarProFixture.CreateMapPack());
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.MapPackId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+        fixture.Orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     private sealed class ControlBarProFixture
     {
         public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
         public const string GenToolId = "1.10.communityoutpost.addon.gent";
+        public const string MapPackId = "1.0.examplepublisher.mappack.tournamentmaps";
         private const string ClientId = "1.0.communityoutpost.gameclient.communitypatch";
 
         private readonly Dictionary<string, ContentManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
@@ -752,6 +813,16 @@ public sealed class ProfileContentServiceTests
             Metadata = new ContentMetadata { Tags = [$"contentCode:{contentCode}"] },
         };
 
+        public static ContentManifest CreateMapPack() => new()
+        {
+            Id = ManifestId.Create(MapPackId),
+            Name = "Tournament Maps",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+
         public void AddManifest(ContentManifest manifest) => _manifests[manifest.Id.Value] = manifest;
+
+        public void EnableInProfile(string manifestId) => Profile.EnabledContentIds.Add(manifestId);
     }
 }
