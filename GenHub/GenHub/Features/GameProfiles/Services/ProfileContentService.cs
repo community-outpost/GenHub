@@ -51,7 +51,8 @@ public sealed class ProfileContentService(
     private sealed record ProfileContentResolution(
         List<string> EnabledContentIds,
         Core.Models.Manifest.ContentManifest? RequiredGameClient,
-        GameType? RequiredGameType);
+        GameType? RequiredGameType,
+        IReadOnlyList<ContentDependencyGap> MissingDependencies);
 
     private sealed record ProfileFoundation(
         List<string> EnabledContentIds,
@@ -334,6 +335,13 @@ public sealed class ProfileContentService(
                     resolution.FirstError ?? "Unable to resolve the required content dependencies.");
             }
 
+            if (resolution.Data.MissingDependencies.Count > 0)
+            {
+                return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
+                    BuildMissingDependenciesError(manifest.Name ?? manifestId, resolution.Data.MissingDependencies),
+                    resolution.Data.MissingDependencies);
+            }
+
             List<string> enabledContentIds = resolution.Data.EnabledContentIds;
 
             // Find a suitable game installation
@@ -372,6 +380,20 @@ public sealed class ProfileContentService(
             var createRequest = manifest.ContentType.IsStandalone()
                 ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
                 : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
+
+            var missingDependencies = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
+                createRequest.EnabledContentIds ?? [],
+                cancellationToken);
+            if (missingDependencies.Count > 0)
+            {
+                logger.LogWarning(
+                    "Not creating profile '{ProfileName}': {Count} required item(s) are missing",
+                    profileName,
+                    missingDependencies.Count);
+                return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
+                    BuildMissingDependenciesError(manifest.Name ?? manifestId, missingDependencies),
+                    missingDependencies);
+            }
 
             var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
             if (createResult.Failed)
@@ -494,6 +516,49 @@ public sealed class ProfileContentService(
         }
 
         return warnings;
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<IReadOnlyList<string>>> InstallMissingDependenciesAsync(
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(missingDependencies);
+
+        var installedIds = new List<string>();
+        var failedNames = new List<string>();
+        foreach (var gap in missingDependencies.Where(gap => gap.CanDownload))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var manifest = await GetOrAcquireDependencyManifestAsync(gap.DependencyId, cancellationToken);
+            if (manifest == null)
+            {
+                logger.LogWarning(
+                    "Could not download required item {DependencyId} for {RequiredById}",
+                    gap.DependencyId,
+                    gap.RequiredById);
+                failedNames.Add(gap.DisplayName);
+                continue;
+            }
+
+            logger.LogInformation(
+                "Downloaded required item {DependencyId} as {ManifestId} for {RequiredById}",
+                gap.DependencyId,
+                manifest.Id.Value,
+                gap.RequiredById);
+            installedIds.Add(manifest.Id.Value);
+        }
+
+        if (failedNames.Count > 0)
+        {
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "GameProfiles.MissingDependencies.DownloadFailed.Message",
+                    "GenHub could not download {0}. Check your connection and try again.",
+                    string.Join(", ", failedNames)));
+        }
+
+        return OperationResult<IReadOnlyList<string>>.CreateSuccess(installedIds);
     }
 
     /// <summary>
@@ -821,6 +886,14 @@ public sealed class ProfileContentService(
                 sw.Elapsed);
         }
 
+        if (resolution.Data.MissingDependencies.Count > 0)
+        {
+            return AddToProfileResult.CreateMissingDependencies(
+                BuildMissingDependenciesError(contentName, resolution.Data.MissingDependencies),
+                resolution.Data.MissingDependencies,
+                sw.Elapsed);
+        }
+
         enabledContentIds = resolution.Data.EnabledContentIds;
 
         if (resolution.Data.RequiredGameType != null)
@@ -841,6 +914,22 @@ public sealed class ProfileContentService(
             enabledContentIds = foundation.Data.EnabledContentIds;
             reconciledGameClient = foundation.Data.GameClient;
             reconciledInstallationId = foundation.Data.InstallationId;
+        }
+
+        var missingDependencies = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
+            enabledContentIds,
+            cancellationToken);
+        if (missingDependencies.Count > 0)
+        {
+            logger.LogWarning(
+                "Not adding {ManifestId} to profile {ProfileId}: {Count} required item(s) are missing",
+                primaryManifestId,
+                profileId,
+                missingDependencies.Count);
+            return AddToProfileResult.CreateMissingDependencies(
+                BuildMissingDependenciesError(contentName, missingDependencies),
+                missingDependencies,
+                sw.Elapsed);
         }
 
         var updateRequest = new UpdateProfileRequest
@@ -1066,6 +1155,13 @@ public sealed class ProfileContentService(
                 cancellationToken);
             if (completeResolution.Failed)
             {
+                var missingContent = await FindMissingContentDependenciesAsync(contentIdsWithAcquiredDependencies, cancellationToken);
+                if (missingContent.Count > 0)
+                {
+                    return OperationResult<ProfileContentResolution>.CreateSuccess(
+                        new ProfileContentResolution(contentIdsWithAcquiredDependencies, null, null, missingContent));
+                }
+
                 return OperationResult<ProfileContentResolution>.CreateFailure(
                     completeResolution.FirstError ?? "Required content dependencies could not be resolved.");
             }
@@ -1125,7 +1221,8 @@ public sealed class ProfileContentService(
                 new ProfileContentResolution(
                     enabledContentIds,
                     requiredGameClients.SingleOrDefault(),
-                    requiredGameType));
+                    requiredGameType,
+                    []));
         }
         catch (OperationCanceledException)
         {
@@ -1174,6 +1271,17 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
+                if (dependency.InstallBehavior == DependencyInstallBehavior.RequireExisting)
+                {
+                    var localDependency = await FindLocalRequiredDependencyAsync(dependency, cancellationToken);
+                    if (localDependency != null)
+                    {
+                        pendingIds.Enqueue(localDependency.Id.Value);
+                    }
+
+                    continue;
+                }
+
                 if (dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall)
                 {
                     continue;
@@ -1289,6 +1397,56 @@ public sealed class ProfileContentService(
                 reconciledIds,
                 reconciledGameClient,
                 installation.Id));
+    }
+
+    private string BuildMissingDependenciesError(string contentName, IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        var names = string.Join(", ", missingDependencies.Select(gap => gap.DisplayName).Where(name => !string.IsNullOrWhiteSpace(name)));
+        return localizationService.GetLocalizedString(
+            "GameProfiles.MissingDependencies.Error",
+            "{0} needs {1} before it can be added.",
+            contentName,
+            names);
+    }
+
+    /// <summary>
+    /// Reports missing add-on content when the resolver cannot close the dependency graph.
+    /// Game installations and clients are left out because the foundation reconciliation that
+    /// runs after resolution supplies them.
+    /// </summary>
+    private async Task<IReadOnlyList<ContentDependencyGap>> FindMissingContentDependenciesAsync(
+        IEnumerable<string> contentIds,
+        CancellationToken cancellationToken)
+    {
+        var gaps = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(contentIds, cancellationToken);
+        return gaps
+            .Where(gap => gap.DependencyType != ContentType.GameInstallation && gap.DependencyType != ContentType.GameClient)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Finds a required, already acquired dependency so that adding content also enables it.
+    /// Nothing is downloaded here. Missing items are reported by the dependency validator instead.
+    /// </summary>
+    private async Task<ContentManifest?> FindLocalRequiredDependencyAsync(
+        ContentDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (dependency.IsOptional ||
+            dependency.DependencyType == ContentType.GameInstallation ||
+            dependency.DependencyType == ContentType.GameClient ||
+            string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var existing = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+        if (existing.Success && existing.Data != null)
+        {
+            return existing.Data;
+        }
+
+        return await FindEquivalentAcquiredManifestAsync(dependency.Id.Value, cancellationToken);
     }
 
     private async Task<List<string>> GetDependencyNamesAsync(

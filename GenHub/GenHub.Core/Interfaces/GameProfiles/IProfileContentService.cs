@@ -71,6 +71,18 @@ public interface IProfileContentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Downloads every missing item that GenHub can download.
+    /// </summary>
+    /// <param name="missingDependencies">The missing items reported by an add, create, or save.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>
+    /// The manifest IDs of the downloaded items, or a failure naming each item that could not be downloaded.
+    /// </returns>
+    Task<OperationResult<IReadOnlyList<string>>> InstallMissingDependenciesAsync(
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Validates a profile's enabled content for conflicts.
     /// </summary>
     /// <param name="profileId">The profile ID to validate.</param>

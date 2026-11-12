@@ -11,6 +11,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -36,6 +37,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="notificationService">The notification service.</param>
 /// <param name="localizationService">The optional localization service for user-facing notifications.</param>
 /// <param name="userSettingsService">The optional user settings service for reading the saved profile sort mode.</param>
+/// <param name="dialogService">The optional dialog service that asks to install missing required items.</param>
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public sealed partial class ProfileSelectionViewModel(
     ILogger<ProfileSelectionViewModel> logger,
@@ -44,7 +46,8 @@ public sealed partial class ProfileSelectionViewModel(
     IContentManifestPool manifestPool,
     INotificationService notificationService,
     ILocalizationService? localizationService = null,
-    IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
+    IUserSettingsService? userSettingsService = null,
+    IDialogService? dialogService = null) : ObservableObject, IDisposable, IRequestCloseViewModel
 {
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -461,16 +464,23 @@ public sealed partial class ProfileSelectionViewModel(
                 profile.Name);
 
             var (selectedManifestId, _, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
+            var addFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile");
 
-            var result = idsToAdd.Count > 1
-                ? await profileContentService.AddContentToProfileAsync(
-                    profile.Id,
-                    idsToAdd,
-                    _cts.Token)
-                : await profileContentService.AddContentToProfileAsync(
-                    profile.Id,
-                    selectedManifestId ?? string.Empty,
-                    _cts.Token);
+            var result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
+            if (result.MissingDependencies.Count > 0)
+            {
+                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, addFailedTitle))
+                {
+                    return;
+                }
+
+                result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
+                if (result.MissingDependencies.Count > 0)
+                {
+                    NotifyStillMissing(selectedContentName, result.MissingDependencies, addFailedTitle);
+                    return;
+                }
+            }
 
             if (result.Success)
             {
@@ -483,9 +493,7 @@ public sealed partial class ProfileSelectionViewModel(
                     profile.Name,
                     result.FirstError);
                 ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
-                notificationService.ShowError(
-                    localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
-                    ErrorMessage);
+                notificationService.ShowError(addFailedTitle, ErrorMessage);
                 WasSuccessful = false;
             }
         }
@@ -551,7 +559,22 @@ public sealed partial class ProfileSelectionViewModel(
 
             var (selectedManifestId, selectedManifest, selectedContentName, idsToEnable) = await ResolveProfileCreationContentAsync();
             var profileName = await ResolveUniqueProfileNameAsync(selectedManifest, selectedContentName);
+            var createFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed");
             var result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
+            if (result.MissingDependencies.Count > 0)
+            {
+                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, createFailedTitle))
+                {
+                    return;
+                }
+
+                result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
+                if (result.MissingDependencies.Count > 0)
+                {
+                    NotifyStillMissing(selectedContentName, result.MissingDependencies, createFailedTitle);
+                    return;
+                }
+            }
 
             if (result.Success && result.Data != null)
             {
@@ -567,9 +590,7 @@ public sealed partial class ProfileSelectionViewModel(
                     result.FirstError ?? "Unknown error");
 
                 ErrorMessage = result.FirstError ?? localizationService.GetLocalizedString("Common.UnknownError", "Unknown error");
-                notificationService.ShowError(
-                    localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed"),
-                    ErrorMessage);
+                notificationService.ShowError(createFailedTitle, ErrorMessage);
                 WasSuccessful = false;
             }
         }
@@ -596,6 +617,77 @@ public sealed partial class ProfileSelectionViewModel(
         var safeId = !string.IsNullOrEmpty(selectedManifestId) ? selectedManifestId : (ContentManifestId ?? string.Empty);
         var displayName = string.IsNullOrWhiteSpace(selectedContentName) ? (ContentName ?? "New Profile") : selectedContentName;
         return (safeId, selectedManifest, displayName, idsToEnable);
+    }
+
+    private Task<AddToProfileResult> AddContentAsync(
+        string profileId,
+        string? selectedManifestId,
+        IReadOnlyList<string> idsToAdd)
+    {
+        return idsToAdd.Count > 1
+            ? profileContentService.AddContentToProfileAsync(profileId, idsToAdd, _cts.Token)
+            : profileContentService.AddContentToProfileAsync(profileId, selectedManifestId ?? string.Empty, _cts.Token);
+    }
+
+    /// <summary>
+    /// Asks the player to install the missing required items, then downloads them.
+    /// Nothing is saved when the player cancels or a download fails.
+    /// </summary>
+    /// <param name="contentName">The name of the content that needs the items.</param>
+    /// <param name="missingDependencies">The missing items.</param>
+    /// <param name="failureTitle">The notification title used when the items cannot be installed.</param>
+    /// <returns><see langword="true"/> when every downloadable item was installed and the operation should be retried.</returns>
+    private async Task<bool> InstallMissingDependenciesAsync(
+        string contentName,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        string failureTitle)
+    {
+        WasSuccessful = false;
+        if (dialogService == null)
+        {
+            NotifyStillMissing(contentName, missingDependencies, failureTitle);
+            return false;
+        }
+
+        var install = await MissingDependencyDialog.ConfirmInstallAsync(
+            dialogService,
+            localizationService,
+            contentName,
+            missingDependencies,
+            _cts.Token);
+        if (!install)
+        {
+            logger.LogInformation("Player cancelled installing {Count} required item(s) for {ContentName}", missingDependencies.Count, contentName);
+            return false;
+        }
+
+        IsLoading = true;
+        try
+        {
+            var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies, _cts.Token);
+            if (installResult.Failed)
+            {
+                ErrorMessage = installResult.FirstError;
+                notificationService.ShowError(failureTitle, ErrorMessage ?? string.Empty);
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void NotifyStillMissing(
+        string contentName,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        string failureTitle)
+    {
+        WasSuccessful = false;
+        ErrorMessage = MissingDependencyDialog.BuildStillMissingMessage(localizationService, contentName, missingDependencies);
+        notificationService.ShowError(failureTitle, ErrorMessage);
     }
 
     private Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(

@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -220,7 +221,10 @@ public sealed class ProfileContentServiceTests
                 new DependencyResolver(
                     manifestPool.Object,
                     NullLogger<DependencyResolver>.Instance),
-                installationService.Object),
+                installationService.Object,
+                new ContentDependencyValidator(
+                    manifestPool.Object,
+                    NullLogger<ContentDependencyValidator>.Instance)),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);
@@ -350,7 +354,10 @@ public sealed class ProfileContentServiceTests
                 new DependencyResolver(
                     manifestPool.Object,
                     NullLogger<DependencyResolver>.Instance),
-                installationService.Object),
+                installationService.Object,
+                new ContentDependencyValidator(
+                    manifestPool.Object,
+                    NullLogger<ContentDependencyValidator>.Instance)),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);
@@ -465,7 +472,10 @@ public sealed class ProfileContentServiceTests
                 new DependencyResolver(
                     manifestPool.Object,
                     NullLogger<DependencyResolver>.Instance),
-                installationService.Object),
+                installationService.Object,
+                new ContentDependencyValidator(
+                    manifestPool.Object,
+                    NullLogger<ContentDependencyValidator>.Instance)),
             contentOrchestrator.Object,
             notifications.Object,
             NullLogger<ProfileContentService>.Instance);
@@ -477,5 +487,271 @@ public sealed class ProfileContentServiceTests
         var savedContentIds = Assert.IsType<List<string>>(savedRequest.EnabledContentIds);
         Assert.Contains(expectedInstallationId, savedContentIds, StringComparer.OrdinalIgnoreCase);
         Assert.DoesNotContain(deadInstallationId, savedContentIds, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Reproduces issue 686: Control Bar Pro requires GenTool as RequireExisting with StrictPublisher
+    /// false. Adding it from Downloads without GenTool must report GenTool by name and save nothing.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_ControlBarProWithoutGenTool_ReportsGenToolAndSavesNothingAsync()
+    {
+        var fixture = new ControlBarProFixture();
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.False(result.Success);
+        var gap = Assert.Single(result.MissingDependencies);
+        Assert.Equal("GenTool", gap.DisplayName);
+        Assert.True(gap.CanDownload);
+        Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
+        Assert.DoesNotContain("communityoutpost", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        fixture.ProfileManager.Verify(
+            manager => manager.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Creating a profile from Downloads applies the same rule and creates nothing while GenTool is missing.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_ControlBarProWithoutGenTool_ReportsGenToolAndCreatesNothingAsync()
+    {
+        var fixture = new ControlBarProFixture();
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Control Bar Pro Profile", ControlBarProFixture.ControlBarProId);
+
+        Assert.False(result.Success);
+        Assert.Equal("GenTool", Assert.Single(result.MissingDependencies).DisplayName);
+        fixture.ProfileManager.Verify(
+            manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A required item that is already downloaded is enabled with the content, so no dialog is needed.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_GenToolAlreadyDownloaded_EnablesItWithControlBarProAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Empty(result.MissingDependencies);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(ControlBarProFixture.ControlBarProId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Installing the missing items downloads GenTool, after which the same add succeeds and enables it.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_DownloadSucceeds_ThenAddEnablesGenToolAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                fixture.AddManifest(genTool);
+                return OperationResult<ContentManifest>.CreateSuccess(genTool);
+            });
+        var firstAttempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync(firstAttempt.MissingDependencies);
+        var secondAttempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.True(install.Success, install.FirstError);
+        Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
+        Assert.True(secondAttempt.Success, secondAttempt.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A failed download reports the item by name and leaves the profile untouched.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_DownloadFails_ReportsItemByNameAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("offline"));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("offline"));
+        var attempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync(attempt.MissingDependencies);
+
+        Assert.False(install.Success);
+        Assert.Contains("GenTool", install.FirstError, StringComparison.Ordinal);
+        Assert.DoesNotContain("communityoutpost", install.FirstError, StringComparison.OrdinalIgnoreCase);
+        fixture.ProfileManager.Verify(
+            manager => manager.UpdateProfileAsync(It.IsAny<string>(), It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Items GenHub cannot download are skipped by the installer instead of being attempted.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_ItemCannotBeDownloaded_DoesNotAttemptItAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        ContentDependencyGap installationGap = new()
+        {
+            DisplayName = "Zero Hour Installation (Required)",
+            DependencyId = "1.104.any.gameinstallation.zerohour",
+            DependencyType = ContentType.GameInstallation,
+            CanDownload = false,
+            RequiredByName = "Control Bar Pro (ExiLe)",
+            RequiredById = ControlBarProFixture.ControlBarProId,
+        };
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync([installationGap]);
+
+        Assert.True(install.Success);
+        Assert.Empty(Assert.IsAssignableFrom<IReadOnlyList<string>>(install.Data));
+        fixture.Orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private sealed class ControlBarProFixture
+    {
+        public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
+        public const string GenToolId = "1.10.communityoutpost.addon.gent";
+        private const string ClientId = "1.0.communityoutpost.gameclient.communitypatch";
+
+        private readonly Dictionary<string, ContentManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
+
+        public ControlBarProFixture()
+        {
+            var installation = new GameInstallation("C:\\ZH", GameInstallationType.Steam)
+            {
+                AvailableGameClients =
+                [
+                    new GameClient { Id = ClientId, GameType = GameType.ZeroHour, Version = "1.04" },
+                ],
+            };
+            var installationId = ManifestIdGenerator.GenerateGameInstallationId(
+                installation,
+                GameType.ZeroHour,
+                GameVersionHelper.ResolveInstallationVersion("1.04", GameType.ZeroHour));
+
+            AddManifest(new ContentManifest
+            {
+                Id = ManifestId.Create(ControlBarProId),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+                Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+            });
+            AddManifest(CreateAddon("1.10.communityoutpost.addon.cbpc", "cbpc"));
+            AddManifest(CreateAddon("1.10.communityoutpost.addon.cben", "cben"));
+            AddManifest(new ContentManifest
+            {
+                Id = ManifestId.Create(ClientId),
+                Name = "Community Patch",
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            });
+            AddManifest(new ContentManifest
+            {
+                Id = ManifestId.Create(installationId),
+                Name = "Zero Hour Installation",
+                ContentType = ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+            });
+
+            Profile = new GameProfile
+            {
+                Id = "profile-id",
+                Name = "TheSuperHackers Zero Hour",
+                GameClient = new GameClient { Id = ClientId, GameType = GameType.ZeroHour, InstallationId = installation.Id },
+                EnabledContentIds = [installationId, ClientId],
+            };
+
+            ProfileManager
+                .Setup(manager => manager.GetProfileAsync(Profile.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(Profile));
+            ProfileManager
+                .Setup(manager => manager.UpdateProfileAsync(Profile.Id, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, UpdateProfileRequest request, CancellationToken _) =>
+                {
+                    SavedRequest = request;
+                    return ProfileOperationResult<GameProfile>.CreateSuccess(Profile);
+                });
+            ProfileManager
+                .Setup(manager => manager.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([Profile]));
+
+            var manifestPool = new Mock<IContentManifestPool>();
+            manifestPool
+                .Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ManifestId manifestId, CancellationToken _) =>
+                    OperationResult<ContentManifest?>.CreateSuccess(_manifests.GetValueOrDefault(manifestId.Value)));
+            manifestPool
+                .Setup(pool => pool.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(_manifests.Values.ToList()));
+
+            var installationService = new Mock<IGameInstallationService>();
+            installationService
+                .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+            Service = new ProfileContentService(
+                ProfileManager.Object,
+                manifestPool.Object,
+                new ProfileContentResolutionServices(
+                    new DependencyResolver(manifestPool.Object, NullLogger<DependencyResolver>.Instance),
+                    installationService.Object,
+                    new ContentDependencyValidator(manifestPool.Object, NullLogger<ContentDependencyValidator>.Instance)),
+                Orchestrator.Object,
+                Mock.Of<INotificationService>(),
+                NullLogger<ProfileContentService>.Instance);
+        }
+
+        public Mock<IGameProfileManager> ProfileManager { get; } = new();
+
+        public Mock<IContentOrchestrator> Orchestrator { get; } = new();
+
+        public GameProfile Profile { get; }
+
+        public ProfileContentService Service { get; }
+
+        public UpdateProfileRequest? SavedRequest { get; private set; }
+
+        public static ContentManifest CreateAddon(string id, string contentCode) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = GenPatcherContentRegistry.GetMetadata(contentCode).DisplayName,
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = [$"contentCode:{contentCode}"] },
+        };
+
+        public void AddManifest(ContentManifest manifest) => _manifests[manifest.Id.Value] = manifest;
     }
 }
