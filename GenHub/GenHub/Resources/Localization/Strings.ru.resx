@@ -4156,6 +4156,39 @@
   <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
     <value>Сбросить фильтры</value>
   </data>
+  <data name="Downloads.Browser.Filter.Category.CommunityPatch" xml:space="preserve">
+    <value>Патч сообщества</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.OfficialPatch" xml:space="preserve">
+    <value>Официальный патч</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.BaseGame" xml:space="preserve">
+    <value>Базовая игра</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.ControlBar" xml:space="preserve">
+    <value>Панели управления</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Hotkeys" xml:space="preserve">
+    <value>Горячие клавиши</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Camera" xml:space="preserve">
+    <value>Камера</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Tools" xml:space="preserve">
+    <value>Инструменты</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Maps" xml:space="preserve">
+    <value>Карты</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Visuals" xml:space="preserve">
+    <value>Визуальные эффекты</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Prerequisites" xml:space="preserve">
+    <value>Необходимые компоненты</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Other" xml:space="preserve">
+    <value>Другое</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>Мои загрузки</value>
   </data>

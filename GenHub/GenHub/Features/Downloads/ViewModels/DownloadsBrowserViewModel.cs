@@ -1543,7 +1543,7 @@ public sealed partial class DownloadsBrowserViewModel(
         var visibleCount = 0;
         foreach (var item in items)
         {
-            item.IsFilteredOut = !CuratedCatalogFilter.Matches(item, LocalFilterText, _selectedLocalCategory);
+            item.IsFilteredOut = !CuratedCatalogFilter.Matches(item, LocalFilterText, _selectedLocalCategory, _localizationService);
             if (!item.IsFilteredOut)
             {
                 visibleCount++;
@@ -1572,7 +1572,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
     private IReadOnlyList<CatalogCategoryFilter> BuildLocalCategoryFilters(IReadOnlyCollection<ContentGridItemViewModel> items)
     {
-        var categories = CuratedCatalogFilter.CountCategories(items);
+        var categories = CuratedCatalogFilter.CountCategories(items, _localizationService);
         if (categories.Count == 0)
         {
             return [];
@@ -1585,25 +1585,10 @@ public sealed partial class DownloadsBrowserViewModel(
         ];
         chips.AddRange(categories.Select(category => new CatalogCategoryFilter(
             category.Key,
-            ResolveLocalCategoryLabel(category),
+            category.Label,
             category.Count,
             string.Equals(category.Key, _selectedLocalCategory, StringComparison.OrdinalIgnoreCase))));
         return chips;
-    }
-
-    private string ResolveLocalCategoryLabel(CuratedCatalogFilter.CategoryCount category)
-    {
-        if (category.ContentType is not { } contentType)
-        {
-            return category.Key;
-        }
-
-        if (_localizationService is { } locService && locService.TryGetString($"ContentType.{contentType}", out var localized))
-        {
-            return localized;
-        }
-
-        return contentType.GetDisplayName();
     }
 
     partial void OnSelectedCatalogChanged(CatalogEntry? value)

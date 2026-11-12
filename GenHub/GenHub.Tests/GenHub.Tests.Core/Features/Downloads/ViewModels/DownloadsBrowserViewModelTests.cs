@@ -23,8 +23,13 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -3354,7 +3359,7 @@ public class DownloadsBrowserViewModelTests
 
         // Assert
         Assert.Equal(
-            ["All (4)", "ControlBar (2)", "GameClient (1)", "Hotkeys (1)"],
+            ["All (4)", "Control Bar (2)", "GameClient (1)", "Hotkeys (1)"],
             chips.Select(chip => chip.DisplayText));
         Assert.True(chips[0].IsSelected);
         Assert.True(viewModel.HasLocalCategoryFilters);
@@ -3407,15 +3412,18 @@ public class DownloadsBrowserViewModelTests
     }
 
     /// <summary>
-    /// Verifies that filtering never reloads or replaces the loaded cards.
+    /// Verifies that filtering never queries the provider and never replaces the loaded cards.
+    /// Generals Online resolves to a real discoverer whose HTTP traffic is counted.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LocalFilter_DoesNotReloadContentAsync()
+    public async Task LocalFilter_DoesNotQueryProviderAsync()
     {
         // Arrange
-        var discoverer = new Mock<IContentDiscoverer>(MockBehavior.Strict);
-        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, discoverer.Object);
+        using var handler = new CountingNotFoundHandler();
+        var discoverer = GeneralsOnlinePlatformTests.CreateDiscoverer([HostPlatform.Current], handler);
+        using var viewModel = await CreateCuratedViewModelAsync(PublisherTypeConstants.GeneralsOnline, discoverer);
+        var requestsAfterLoad = handler.Requests;
         var loadedItems = viewModel.ContentItems;
         var loadedSnapshot = loadedItems.ToList();
 
@@ -3423,12 +3431,63 @@ public class DownloadsBrowserViewModelTests
         viewModel.LocalFilterText = "control";
         viewModel.SelectLocalCategoryCommand.Execute("ControlBar");
         viewModel.ClearLocalFilterCommand.Execute(null);
+        await WaitForLoadToSettleAsync(viewModel);
 
         // Assert
+        Assert.True(requestsAfterLoad > 0);
+        Assert.Equal(requestsAfterLoad, handler.Requests);
         Assert.Same(loadedItems, viewModel.ContentItems);
         Assert.Equal(loadedSnapshot, viewModel.ContentItems);
         Assert.False(viewModel.IsLoading);
-        discoverer.VerifyNoOtherCalls();
+    }
+
+    /// <summary>
+    /// Verifies that chips show localized friendly labels and that typing a displayed label matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_Russian_ShowsAndMatchesLocalizedLabelsAsync()
+    {
+        // Arrange
+        var russian = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("ru"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: russian);
+
+        // Act
+        var labels = viewModel.LocalCategoryFilters.Select(chip => chip.Label).ToList();
+        viewModel.LocalFilterText = "Игровой клиент";
+        var clientMatches = VisibleCardNames(viewModel);
+        viewModel.LocalFilterText = "панели";
+        var controlBarMatches = VisibleCardNames(viewModel);
+
+        // Assert
+        Assert.Equal(["Все", "Панели управления", "Игровой клиент", "Горячие клавиши"], labels);
+        Assert.Equal(["Weekly Build"], clientMatches);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], controlBarMatches);
+    }
+
+    /// <summary>
+    /// Verifies that chips use friendly English labels, fall back to spaced identifiers, and still match the identifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_English_UsesFriendlyLabelsAsync()
+    {
+        // Arrange
+        var english = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("en"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: english);
+        viewModel.ContentItems.Add(CreateCuratedCard("Mystery Pack", "SpecialEdition", "mystery"));
+
+        // Act
+        var labels = viewModel.LocalCategoryFilters.Select(chip => chip.Label).ToList();
+        viewModel.LocalFilterText = "controlbar";
+        var identifierMatches = VisibleCardNames(viewModel);
+        viewModel.LocalFilterText = "special edition";
+        var fallbackMatches = VisibleCardNames(viewModel);
+
+        // Assert
+        Assert.Equal(["All", "Control bars", "Game Client", "Hotkeys", "Special Edition"], labels);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], identifierMatches);
+        Assert.Equal(["Mystery Pack"], fallbackMatches);
     }
 
     /// <summary>
@@ -3476,11 +3535,17 @@ public class DownloadsBrowserViewModelTests
 
     private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
         string publisherId,
-        IContentDiscoverer? discoverer = null)
+        IContentDiscoverer? discoverer = null,
+        ILocalizationService? localization = null)
     {
-        var viewModel = CreateViewModel(contentDiscoverers: discoverer == null ? null : [discoverer]);
+        var serviceProvider = new Mock<IServiceProvider>();
+        serviceProvider.Setup(sp => sp.GetService(typeof(ILocalizationService))).Returns(localization);
+        var viewModel = CreateViewModel(
+            serviceProvider: serviceProvider.Object,
+            contentDiscoverers: discoverer == null ? null : [discoverer]);
         await viewModel.InitializeAsync();
         viewModel.SelectedPublisher = viewModel.Publishers.Single(p => p.PublisherId == publisherId);
+        await WaitForLoadToSettleAsync(viewModel);
         viewModel.ContentItems = new ObservableCollection<ContentGridItemViewModel>(
         [
             CreateCuratedCard("Control Bar Pro", "ControlBar", "control-bar"),
@@ -3516,6 +3581,15 @@ public class DownloadsBrowserViewModelTests
 
     private static List<string> VisibleCardNames(DownloadsBrowserViewModel viewModel) =>
         [.. viewModel.ContentItems.Where(item => !item.IsFilteredOut).Select(item => item.Name)];
+
+    private static async Task WaitForLoadToSettleAsync(DownloadsBrowserViewModel viewModel)
+    {
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(25);
+        }
+    }
 
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
@@ -3588,5 +3662,48 @@ public class DownloadsBrowserViewModelTests
             new Mock<ILoggerFactory>().Object,
             subscriptionStore.Object,
             reconcilerRegistry: reconcilerRegistry);
+    }
+
+    private sealed class CountingNotFoundHandler : HttpMessageHandler
+    {
+        private int _requests;
+
+        public int Requests => Volatile.Read(ref _requests);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requests);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private sealed class CultureResourceLocalizationService(CultureInfo culture) : ILocalizationService
+    {
+        private readonly ResourceManager _resources = new(
+            LocalizationConstants.StringResourceBaseName,
+            typeof(DownloadsBrowserViewModel).Assembly);
+
+        public IReadOnlyList<CultureInfo> AvailableCultures => [culture];
+
+        public CultureInfo CurrentCulture => culture;
+
+        public string this[string key] => GetString(key);
+
+        public event PropertyChangedEventHandler? PropertyChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public string GetString(string key, params object?[] arguments) =>
+            TryGetString(key, out var value, arguments) ? value : key;
+
+        public bool TryGetString(string key, [NotNullWhen(true)] out string? result, params object?[] arguments)
+        {
+            result = _resources.GetString(key, culture);
+            return result != null;
+        }
+
+        public OperationResult SetCulture(CultureInfo newCulture) => OperationResult.CreateSuccess();
     }
 }

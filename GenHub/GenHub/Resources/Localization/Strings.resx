@@ -4156,6 +4156,39 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
     <value>Clear filters</value>
   </data>
+  <data name="Downloads.Browser.Filter.Category.CommunityPatch" xml:space="preserve">
+    <value>Community patch</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.OfficialPatch" xml:space="preserve">
+    <value>Official patch</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.BaseGame" xml:space="preserve">
+    <value>Base game</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.ControlBar" xml:space="preserve">
+    <value>Control bars</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Hotkeys" xml:space="preserve">
+    <value>Hotkeys</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Camera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Maps" xml:space="preserve">
+    <value>Maps</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Visuals" xml:space="preserve">
+    <value>Visuals</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Prerequisites" xml:space="preserve">
+    <value>Prerequisites</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>My Downloads</value>
   </data>
