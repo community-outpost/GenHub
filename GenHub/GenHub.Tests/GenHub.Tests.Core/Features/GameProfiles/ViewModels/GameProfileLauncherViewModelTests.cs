@@ -2054,8 +2054,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
     [Fact]
     public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
     {
-        var savedModes = new List<ProfileSortMode>();
-        var savedModesLock = new object();
+        var savedModes = new System.Collections.Concurrent.ConcurrentQueue<ProfileSortMode>();
         var settingsService = new Mock<IUserSettingsService>();
         settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
         settingsService
@@ -2065,10 +2064,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
                 var settings = new UserSettings();
                 if (apply(settings))
                 {
-                    lock (savedModesLock)
-                    {
-                        savedModes.Add(settings.ProfileSortMode);
-                    }
+                    savedModes.Enqueue(settings.ProfileSortMode);
                 }
             })
             .ReturnsAsync(true);
@@ -2097,26 +2093,16 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
         vm.SelectedSortMode = ProfileSortMode.DateCreated;
 
-        for (var attempt = 0; attempt < 200; attempt++)
+        for (var attempt = 0; attempt < 200 && !savedModes.Contains(ProfileSortMode.DateCreated); attempt++)
         {
-            lock (savedModesLock)
-            {
-                if (savedModes.Contains(ProfileSortMode.DateCreated))
-                {
-                    break;
-                }
-            }
-
             await Task.Delay(20);
         }
 
         await Task.Delay(200);
 
-        lock (savedModesLock)
-        {
-            Assert.NotEmpty(savedModes);
-            Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
-        }
+        var persisted = savedModes.ToArray();
+        Assert.NotEmpty(persisted);
+        Assert.Equal(ProfileSortMode.DateCreated, persisted[^1]);
     }
 
     /// <summary>
