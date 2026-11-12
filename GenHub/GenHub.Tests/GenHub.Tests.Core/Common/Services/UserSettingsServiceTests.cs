@@ -382,8 +382,16 @@ public class UserSettingsServiceTests : IDisposable
 
         await service.SaveAsync();
 
-        var reloaded = new TestableUserSettingsService(_mockLogger.Object, CreateAppConfigMock(), settingsPath);
-        Assert.Equal(TelemetryLevel.Disabled, reloaded.Get().TelemetryPreference);
+        Assert.True(File.Exists(settingsPath));
+        using (var document = JsonDocument.Parse(await File.ReadAllTextAsync(settingsPath)))
+        {
+            Assert.True(document.RootElement.TryGetProperty("telemetryPreference", out var stored));
+            Assert.Equal(nameof(TelemetryLevel.Disabled), stored.GetString());
+        }
+
+        var reloaded = new TestableUserSettingsService(_mockLogger.Object, CreateAppConfigMock(), settingsPath).Get();
+        Assert.True(reloaded.IsExplicitlySet(nameof(UserSettings.TelemetryPreference)));
+        Assert.Equal(TelemetryLevel.Disabled, reloaded.TelemetryPreference);
     }
 
     /// <summary>
