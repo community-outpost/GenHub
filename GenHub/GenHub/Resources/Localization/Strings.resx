@@ -543,6 +543,9 @@
   <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
     <value>Edit Profile (Hotswap Content)</value>
   </data>
+  <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
+    <value>Launch Profile</value>
+  </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>Toggle Steam Integration</value>
   </data>

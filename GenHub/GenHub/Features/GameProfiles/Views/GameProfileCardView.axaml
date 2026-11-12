@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
              x:DataType="vm:GameProfileItemViewModel"
@@ -98,7 +99,6 @@
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="RenderTransform" Value="scale(0.9)" />
-            <Setter Property="Opacity" Value="0.4" />
             <Setter Property="Transitions">
                 <Transitions>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
@@ -110,7 +110,15 @@
 
         <Style Selector="Border.profile-card:pointerover Button.launch-button">
             <Setter Property="RenderTransform" Value="scale(1)" />
-            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Button.launch-button:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1)" />
+        </Style>
+
+        <!-- Read-only card previews cannot be clicked, so they hide the Play button -->
+        <Style Selector="views|GameProfileCardView[IsHitTestVisible=False] Button.play-button">
+            <Setter Property="IsVisible" Value="False" />
         </Style>
 
         <Style Selector="Button.launch-button:pointerover">
@@ -447,6 +455,20 @@
                 </StackPanel>
 
 
+                <!-- Play Button: always visible, drawn above the hover overlay, first card tab stop -->
+                <Panel ZIndex="1" IsVisible="{Binding CanLaunch}">
+                    <Button Classes="launch-button play-button"
+                            Command="{Binding LaunchProfileCommand}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.LaunchProfile}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
+                                <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Launch}" VerticalAlignment="Center" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+                </Panel>
+
                 <!-- Hover Interaction Overlay -->
                 <!-- Tag bound to IsDemoModeActive allows CSS-like selection to force visibility -->
                 <Grid Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
@@ -473,19 +495,6 @@
                             <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="14" Height="14" />
                         </Button>
                     </StackPanel>
-
-                    <!-- Launch Button Center -->
-                    <Button Classes="launch-button"
-                            Command="{Binding LaunchProfileCommand}"
-                            AutomationProperties.Name="Launch Profile"
-                            IsVisible="{Binding CanLaunch}">
-                        <Button.Content>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
-                                <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Launch}" VerticalAlignment="Center" FontWeight="Bold"/>
-                            </StackPanel>
-                        </Button.Content>
-                    </Button>
 
                     <!-- Top Right Tools (Expanded) -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
