@@ -4141,6 +4141,21 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>Поиск</value>
   </data>
+  <data name="Downloads.Browser.Filter.Watermark" xml:space="preserve">
+    <value>Фильтр по названию, категории или тегу...</value>
+  </data>
+  <data name="Downloads.Browser.Filter.All" xml:space="preserve">
+    <value>Все</value>
+  </data>
+  <data name="Downloads.Browser.Filter.NoMatches" xml:space="preserve">
+    <value>Нет контента, соответствующего текущему фильтру.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.LoadedOnly" xml:space="preserve">
+    <value>Фильтруются только загруженные элементы. Загрузите ещё, чтобы учесть остальные.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
+    <value>Сбросить фильтры</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>Мои загрузки</value>
   </data>

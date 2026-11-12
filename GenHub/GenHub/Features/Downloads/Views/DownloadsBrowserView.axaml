@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:catalogVm="clr-namespace:GenHub.Features.Content.ViewModels.Catalog"
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
@@ -326,6 +327,36 @@
                     </ToggleButton>
                 </Grid>
 
+                <!-- Curated catalog filter: narrows the loaded cards locally without querying the provider. -->
+                <StackPanel DockPanel.Dock="Top"
+                            Spacing="8"
+                            Margin="0,0,0,12"
+                            IsVisible="{Binding CanFilterLocally}">
+                    <TextBox Classes="search-box clearButton"
+                             Text="{Binding LocalFilterText}"
+                             Watermark="{localization:Localize Downloads.Browser.Filter.Watermark}"
+                             AutomationProperties.Name="{localization:Localize Downloads.Browser.Filter.Watermark}" />
+
+                    <ItemsControl ItemsSource="{Binding LocalCategoryFilters}"
+                                  IsVisible="{Binding HasLocalCategoryFilters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="catalogVm:CatalogCategoryFilter">
+                                <Button Command="{Binding $parent[views:DownloadsBrowserView].((vm:DownloadsBrowserViewModel)DataContext).SelectLocalCategoryCommand}"
+                                        CommandParameter="{Binding Key}"
+                                        Classes.filter-chip-selected="{Binding IsSelected}"
+                                        Classes.filter-chip="{Binding !IsSelected}">
+                                    <TextBlock Text="{Binding DisplayText}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
                 <!-- Catalog switcher and reload bar (visible for subscribed publishers with multiple catalogs, or while loading).
                      Long catalog names trim in place; the full name stays available via tooltip. -->
                 <StackPanel DockPanel.Dock="Top"
@@ -453,6 +484,29 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                                   VerticalScrollBarVisibility="Auto">
                     <StackPanel>
+                        <StackPanel HorizontalAlignment="Center"
+                                    Spacing="8"
+                                    Margin="0,40,0,0"
+                                    IsVisible="{Binding HasNoLocalFilterMatches}">
+                            <TextBlock Text="{localization:Localize Downloads.Browser.Filter.NoMatches}"
+                                       FontSize="15"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{localization:Localize Downloads.Browser.Filter.LoadedOnly}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding CanLoadMore}" />
+                            <Button Classes="toolbar-btn"
+                                    Content="{localization:Localize Downloads.Browser.Filter.Clear}"
+                                    Command="{Binding ClearLocalFilterCommand}"
+                                    HorizontalAlignment="Center" />
+                        </StackPanel>
+
                         <ItemsControl ItemsSource="{Binding ContentItems}" HorizontalAlignment="Center">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -460,8 +514,8 @@
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Panel Margin="6">
+                                <DataTemplate DataType="vm:ContentGridItemViewModel">
+                                    <Panel Margin="6" IsVisible="{Binding !IsFilteredOut}">
                                         <views:ContentCardView DataContext="{Binding}" />
                                     </Panel>
                                 </DataTemplate>

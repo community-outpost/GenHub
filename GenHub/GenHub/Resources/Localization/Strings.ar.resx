@@ -4141,6 +4141,21 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>بحث</value>
   </data>
+  <data name="Downloads.Browser.Filter.Watermark" xml:space="preserve">
+    <value>التصفية حسب الاسم أو الفئة أو الوسم...</value>
+  </data>
+  <data name="Downloads.Browser.Filter.All" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Downloads.Browser.Filter.NoMatches" xml:space="preserve">
+    <value>لا يوجد محتوى يطابق عامل التصفية الحالي.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.LoadedOnly" xml:space="preserve">
+    <value>تتم تصفية العناصر المحمّلة فقط. حمّل المزيد لتضمين البقية.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
+    <value>مسح عوامل التصفية</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>تنزيلاتي</value>
   </data>

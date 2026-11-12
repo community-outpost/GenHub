@@ -34,6 +34,7 @@ using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Content.Services.Reconciliation;
 using GenHub.Features.Content.Services.SteamWorkshop;
+using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
 using GenHub.Features.Downloads.Views;
@@ -44,6 +45,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -184,9 +186,21 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _suppressCatalogChanged;
     private bool _disposed;
     private bool _builtInPublishersInitialized;
+    private string _selectedLocalCategory = CuratedCatalogFilter.AllCategoriesKey;
+    private ObservableCollection<ContentGridItemViewModel>? _observedContentItems;
 
     [ObservableProperty]
     private string _searchTerm = string.Empty;
+
+    [ObservableProperty]
+    private string _localFilterText = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLocalCategoryFilters))]
+    private IReadOnlyList<CatalogCategoryFilter> _localCategoryFilters = [];
+
+    [ObservableProperty]
+    private bool _hasNoLocalFilterMatches;
 
     [ObservableProperty]
     private bool _isPaneOpen = true;
@@ -257,6 +271,8 @@ public sealed partial class DownloadsBrowserViewModel(
 
             if (SetProperty(ref _selectedPublisher, value))
             {
+                OnPropertyChanged(nameof(CanFilterLocally));
+                ClearLocalFilter();
                 OnPropertyChanged(nameof(CanSearch));
                 OnPropertyChanged(nameof(CanSearchOrFilter));
                 OnPropertyChanged(nameof(IsSubscribedPublisher));
@@ -290,6 +306,20 @@ public sealed partial class DownloadsBrowserViewModel(
     /// Gets a value indicating whether search or filter UI controls are available for the current publisher.
     /// </summary>
     public bool CanSearchOrFilter => CanSearch || CanShowFilters;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected publisher is a curated catalog that is filtered locally.
+    /// The filter only reads cards that are already loaded and never queries the provider.
+    /// </summary>
+    public bool CanFilterLocally => SelectedPublisher?.PublisherId is
+        PublisherTypeConstants.GeneralsOnline or
+        CommunityOutpostConstants.PublisherType or
+        PublisherTypeConstants.TheSuperHackers;
+
+    /// <summary>
+    /// Gets a value indicating whether the loaded cards span at least one category chip besides "All".
+    /// </summary>
+    public bool HasLocalCategoryFilters => LocalCategoryFilters.Count > 1;
 
     /// <summary>
     /// Gets a value indicating whether the selected publisher offers more than one catalog.
@@ -459,6 +489,11 @@ public sealed partial class DownloadsBrowserViewModel(
                 {
                     filterViewModel.Dispose();
                 }
+            }
+
+            if (_observedContentItems != null)
+            {
+                _observedContentItems.CollectionChanged -= OnContentItemsCollectionChanged;
             }
 
             if (CurrentFilterViewModel != null)
@@ -1468,6 +1503,109 @@ public sealed partial class DownloadsBrowserViewModel(
         }
     }
 
+    partial void OnLocalFilterTextChanged(string value) => ApplyLocalFilter();
+
+    partial void OnContentItemsChanged(ObservableCollection<ContentGridItemViewModel> value) => ApplyLocalFilter();
+
+    private void OnContentItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => ApplyLocalFilter();
+
+    [RelayCommand]
+    private void SelectLocalCategory(string? categoryKey)
+    {
+        _selectedLocalCategory = categoryKey ?? CuratedCatalogFilter.AllCategoriesKey;
+        ApplyLocalFilter();
+    }
+
+    [RelayCommand]
+    private void ClearLocalFilter()
+    {
+        _selectedLocalCategory = CuratedCatalogFilter.AllCategoriesKey;
+        LocalFilterText = string.Empty;
+        ApplyLocalFilter();
+    }
+
+    private void ApplyLocalFilter()
+    {
+        var items = ContentItems;
+        ObserveContentItems(items);
+        if (!CanFilterLocally)
+        {
+            foreach (var item in items)
+            {
+                item.IsFilteredOut = false;
+            }
+
+            LocalCategoryFilters = [];
+            HasNoLocalFilterMatches = false;
+            return;
+        }
+
+        var visibleCount = 0;
+        foreach (var item in items)
+        {
+            item.IsFilteredOut = !CuratedCatalogFilter.Matches(item, LocalFilterText, _selectedLocalCategory);
+            if (!item.IsFilteredOut)
+            {
+                visibleCount++;
+            }
+        }
+
+        LocalCategoryFilters = BuildLocalCategoryFilters(items);
+        HasNoLocalFilterMatches = items.Count > 0 && visibleCount == 0;
+    }
+
+    private void ObserveContentItems(ObservableCollection<ContentGridItemViewModel> items)
+    {
+        if (ReferenceEquals(_observedContentItems, items))
+        {
+            return;
+        }
+
+        if (_observedContentItems != null)
+        {
+            _observedContentItems.CollectionChanged -= OnContentItemsCollectionChanged;
+        }
+
+        items.CollectionChanged += OnContentItemsCollectionChanged;
+        _observedContentItems = items;
+    }
+
+    private IReadOnlyList<CatalogCategoryFilter> BuildLocalCategoryFilters(IReadOnlyCollection<ContentGridItemViewModel> items)
+    {
+        var categories = CuratedCatalogFilter.CountCategories(items);
+        if (categories.Count == 0)
+        {
+            return [];
+        }
+
+        var allLabel = _localizationService?.GetString("Downloads.Browser.Filter.All") ?? "All";
+        List<CatalogCategoryFilter> chips =
+        [
+            new(CuratedCatalogFilter.AllCategoriesKey, allLabel, items.Count, _selectedLocalCategory.Length == 0),
+        ];
+        chips.AddRange(categories.Select(category => new CatalogCategoryFilter(
+            category.Key,
+            ResolveLocalCategoryLabel(category),
+            category.Count,
+            string.Equals(category.Key, _selectedLocalCategory, StringComparison.OrdinalIgnoreCase))));
+        return chips;
+    }
+
+    private string ResolveLocalCategoryLabel(CuratedCatalogFilter.CategoryCount category)
+    {
+        if (category.ContentType is not { } contentType)
+        {
+            return category.Key;
+        }
+
+        if (_localizationService is { } locService && locService.TryGetString($"ContentType.{contentType}", out var localized))
+        {
+            return localized;
+        }
+
+        return contentType.GetDisplayName();
+    }
+
     partial void OnSelectedCatalogChanged(CatalogEntry? value)
     {
         if (_suppressCatalogChanged || value == null || SelectedPublisher == null)
@@ -2168,6 +2306,7 @@ public sealed partial class DownloadsBrowserViewModel(
             }
 
             OnPropertyChanged(nameof(CatalogLoadingStatusText));
+            ApplyLocalFilter();
         }
     }
 
