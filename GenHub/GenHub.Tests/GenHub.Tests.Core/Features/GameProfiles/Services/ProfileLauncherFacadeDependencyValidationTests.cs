@@ -307,8 +307,68 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains(result.Errors, err => err.Contains("Leikeze/Legionnaire Hotkeys Indicators"));
+        Assert.Equal(2, result.MissingDependencies.Count);
+        Assert.Contains(result.Errors, err => err.Contains("Hotkeys Indicators (Leikeze/Legionnaire)"));
         Assert.Contains(result.Errors, err => err.Contains("GenTool"));
+        Assert.DoesNotContain(result.Errors, err => err.Contains("communityoutpost.addon", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Launch uses the shared validator: Control Bar Pro's RequireExisting GenTool with
+    /// StrictPublisher false blocks launch, named by display name, with the gap attached.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_ControlBarProWithoutGenTool_ReportsGenToolGapAsync()
+    {
+        const string profileId = "profile-control-bar";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string controlBarId = "1.0.communityoutpost.addon.cbpr-1080p";
+
+        var manifests = new[]
+        {
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create(controlBarId),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies =
+                [
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency(),
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateGenToolDependency(),
+                ],
+            },
+        };
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Control Bar Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient { Id = clientManifestId, Name = "Community Patch", GameType = GameType.ZeroHour, InstallationId = "steam-zh-install-id" },
+            EnabledContentIds = [.. manifests.Select(m => m.Id.Value)],
+        };
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        foreach (var manifest in manifests)
+        {
+            _manifestPoolMock
+                .Setup(m => m.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        }
+
+        var result = await CreateFacade().ValidateLaunchAsync(profileId);
+
+        Assert.False(result.Success);
+        var gap = Assert.Single(result.MissingDependencies);
+        Assert.Equal("GenTool", gap.DisplayName);
+        Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
+        Assert.DoesNotContain("communityoutpost", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
