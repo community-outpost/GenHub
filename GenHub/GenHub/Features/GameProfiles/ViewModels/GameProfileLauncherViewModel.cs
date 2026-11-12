@@ -1637,13 +1637,7 @@ public partial class GameProfileLauncherViewModel(
 
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
                 var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
-
-                StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
-
-                notificationService.ShowSuccess(
-                    localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                    localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
-                    autoDismissMs: NotificationDurations.VeryLong);
+                await ReportSetupOutcomeAsync(installationsList, wizardResult.Confirmed, profilesCreated);
             }
             else
             {
@@ -1663,6 +1657,60 @@ public partial class GameProfileLauncherViewModel(
         {
             IsScanning = false;
         }
+    }
+
+    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, bool confirmed, int profilesCreated)
+    {
+        if (!confirmed)
+        {
+            var setUpLaterMessage = localizationService["GameProfiles.Notification.SetUpLater.Message"];
+            StatusMessage = setUpLaterMessage;
+            notificationService.ShowInfo(
+                localizationService["GameProfiles.Notification.SetUpLater.Title"],
+                setUpLaterMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
+            return;
+        }
+
+        if (profilesCreated > 0)
+        {
+            StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
+            notificationService.ShowSuccess(
+                localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                autoDismissMs: NotificationDurations.VeryLong);
+            return;
+        }
+
+        if (await AnyProfileUsesInstallationsAsync(installationsList))
+        {
+            var alreadySetUpMessage = localizationService["GameProfiles.Notification.AlreadySetUp.Message"];
+            StatusMessage = alreadySetUpMessage;
+            notificationService.ShowInfo(
+                localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                alreadySetUpMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
+            return;
+        }
+
+        var noProfilesMessage = localizationService["GameProfiles.Notification.NoProfilesCreated.Message"];
+        StatusMessage = noProfilesMessage;
+        notificationService.ShowWarning(
+            localizationService["GameProfiles.Notification.NoProfilesCreated.Title"],
+            noProfilesMessage,
+            autoDismissMs: NotificationDurations.VeryLong);
+    }
+
+    private async Task<bool> AnyProfileUsesInstallationsAsync(List<GameInstallation> installationsList)
+    {
+        var profilesResult = await gameProfileManager.GetAllProfilesAsync();
+        if (profilesResult is not { Success: true, Data: not null })
+        {
+            return false;
+        }
+
+        var installationIds = installationsList.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return profilesResult.Data.Any(p => !string.IsNullOrEmpty(p.GameInstallationId) && installationIds.Contains(p.GameInstallationId));
     }
 
     private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()

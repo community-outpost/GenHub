@@ -193,11 +193,12 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that ScanForGamesCommand shows success on successful scan.
+    /// Verifies that a confirmed scan that creates no profile and finds none for the installations
+    /// warns instead of reporting a successful scan with zero new profiles.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WithSuccessfulScan_ShowsSuccessAsync()
+    public async Task ScanForGamesCommand_WhenConfirmedButNoProfileCreated_WarnsInsteadOfSuccessAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var installations = new List<GameInstallation>
@@ -240,8 +241,81 @@ public class GameProfileLauncherViewModelTests
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
-        // Updated to match actual message format that includes manifest generation and profile creation
-        Assert.Equal("Scan complete. Found 2 installations, created 0 profiles", vm.StatusMessage);
+        Assert.Equal("GenHub found your game but could not create a profile for it. Check the logs for details.", vm.StatusMessage);
+        notificationService.Verify(
+            x => x.ShowWarning("No Profiles Created", vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a re-scan whose installed game already has a profile says nothing new was needed,
+    /// without a success notification and without creating a duplicate profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenInstalledGameAlreadyHasProfile_SaysNothingNewWasNeededAsync()
+    {
+        var installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        installation.PopulateGameClients([
+            new GameClient { Id = "zh-client", Name = "Zero Hour 1.04", GameType = GameType.ZeroHour, Version = "1.04" },
+        ]);
+
+        var installationService = new Mock<IGameInstallationService>();
+        installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+                [new GameProfile { Id = "existing", Name = "Zero Hour 1.04", GameInstallationId = installation.Id }]));
+
+        var notificationService = new Mock<INotificationService>();
+        var editorFacade = new Mock<IProfileEditorFacade>();
+        var setupWizardService = new Mock<ISetupWizardService>();
+        setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult
+            {
+                Confirmed = true,
+                CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline,
+                CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline,
+                GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline,
+                SuperHackersAction = GameClientConstants.WizardActionTypes.Decline,
+            });
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            profileManager.Object,
+            null!,
+            null!,
+            editorFacade.Object,
+            null!,
+            null!,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            notificationService.Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService());
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Your game is already set up. No new profiles were needed.", vm.StatusMessage);
+        notificationService.Verify(
+            x => x.ShowInfo("Scan Complete", vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        editorFacade.Verify(
+            x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>
@@ -437,11 +511,11 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that ScanForGamesCommand creates zero profiles when the wizard is skipped/cancelled.
+    /// Verifies that Set up later creates no profiles and says so without a success notification.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WhenWizardCancelled_CreatesZeroProfilesAsync()
+    public async Task ScanForGamesCommand_WhenSetUpLaterChosen_CreatesZeroProfilesAndSaysSoAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
@@ -494,7 +568,13 @@ public class GameProfileLauncherViewModelTests
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
-        Assert.Equal("Scan complete. Found 1 installations, created 0 profiles", vm.StatusMessage);
+        Assert.Equal("You chose to set up later. Select SCAN when you are ready to create a profile.", vm.StatusMessage);
+        notificationService.Verify(
+            x => x.ShowInfo("No Profiles Created", vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        notificationService.Verify(
+            x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
         publisherOrchestrator.Verify(
             x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Never);

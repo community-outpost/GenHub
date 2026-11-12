@@ -921,7 +921,6 @@ public class SetupWizardServiceTests
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.InstallDescription, shTitle), shItem.Description);
 
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Title), capturedVm.Title);
-        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Skip), capturedVm.CancelLabel);
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, 2), capturedVm.ConfirmLabel);
 
         Assert.True(result.Confirmed);
@@ -1172,6 +1171,84 @@ public class SetupWizardServiceTests
     }
 
     /// <summary>
+    /// Verifies that Use installed game declines every optional component, even preselected ones,
+    /// so only base game profiles are created.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenUseInstalledGameChosen_DeclinesAllComponentsAsync()
+    {
+        var installation = SetUpDetectedGeneralsOnlineInstallation();
+        var service = CreateService();
+
+        SetupWizardViewModel? capturedVm = null;
+        service.DialogShower = vm =>
+        {
+            capturedVm = vm;
+            vm.UseInstalledGameCommand.Execute(null);
+            return Task.FromResult(vm.Confirmed);
+        };
+
+        var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+        Assert.NotNull(capturedVm);
+        Assert.Contains(capturedVm.Items, i => i.IsSelected);
+        Assert.Equal(["Zero Hour 1.04 (Retail Installation)"], capturedVm.FoundGames);
+        Assert.True(result.Confirmed);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
+    }
+
+    /// <summary>
+    /// Verifies that Set up later leaves the wizard unconfirmed with every component declined.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenSetUpLaterChosen_ReturnsUnconfirmedAsync()
+    {
+        var installation = SetUpDetectedGeneralsOnlineInstallation();
+        var service = CreateService();
+        service.DialogShower = vm =>
+        {
+            vm.SetUpLaterCommand.Execute(null);
+            return Task.FromResult(vm.Confirmed);
+        };
+
+        var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+        Assert.False(result.Confirmed);
+        Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
+    }
+
+    /// <summary>
+    /// Verifies that found games name each base game client with its version and source, skip
+    /// publisher clients, and list a repeated game once.
+    /// </summary>
+    [Fact]
+    public void DescribeFoundGames_NamesBaseClientsWithVersionAndSource()
+    {
+        var steam = new GameInstallation("/games/steam", GameInstallationType.Steam, null)
+        {
+            AvailableGameClients =
+            [
+                new GameClient { Name = "Generals 1.08", GameType = GameType.Generals, Version = "1.08" },
+                new GameClient { Name = "Zero Hour", GameType = GameType.ZeroHour, Version = GameClientConstants.UnknownVersion },
+                new GameClient { Name = "Generals Online", GameType = GameType.ZeroHour, Version = "1.0", PublisherType = PublisherTypeConstants.GeneralsOnline },
+            ],
+        };
+        var secondSteam = new GameInstallation("/games/steam2", GameInstallationType.Steam, null)
+        {
+            AvailableGameClients = [new GameClient { Name = "Generals 1.08", GameType = GameType.Generals, Version = "1.08" }],
+        };
+
+        var found = CreateService().DescribeFoundGames([steam, secondSteam]);
+
+        Assert.Equal(["Generals 1.08 (Steam)", "Zero Hour (Steam)"], found);
+    }
+
+    /// <summary>
     /// Verifies that on a host Generals Online does not support, an installed native Generals Online
     /// client is still offered for profiling. Only the Windows download is withheld. Windows has no
     /// native Unix client, so there the item is absent.
@@ -1261,6 +1338,43 @@ public class SetupWizardServiceTests
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
         ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
         : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
+
+    private GameInstallation SetUpDetectedGeneralsOnlineInstallation()
+    {
+        const string latestVersion = "082826_QFE1";
+        const string clientId = "installed.generalsonline.client";
+
+        _goDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
+            {
+                Items = [new ContentSearchResult { Version = latestVersion }],
+            }));
+        _cpDiscovererMock
+            .Setup(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [] }));
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _profileServiceMock
+            .Setup(s => s.ProfileExistsForGameClientAsync(clientId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var installation = new GameInstallation("C:\\Games\\Generals", GameInstallationType.Retail, null);
+        installation.AvailableGameClients =
+        [
+            new GameClient { Name = "Zero Hour 1.04", GameType = GameType.ZeroHour, Version = "1.04", InstallationId = installation.Id },
+            new GameClient
+            {
+                Id = clientId,
+                InstallationId = installation.Id,
+                Name = "Generals Online",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Version = latestVersion,
+            },
+        ];
+        return installation;
+    }
 
     private SetupWizardService CreateService(
         SuperHackersProvider? superHackersProvider = null,

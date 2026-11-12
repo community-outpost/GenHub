@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -425,11 +426,19 @@ public class SetupWizardService(
                 ApplyDisplayLabels(wizardItem);
             }
 
-            var wizardVm = new SetupWizardViewModel(wizardItems, localizationService);
+            var wizardVm = new SetupWizardViewModel(wizardItems, localizationService, DescribeFoundGames(installationsList));
 
             var accepted = await ShowWizardDialogAsync(wizardVm);
             result.Confirmed = accepted;
-            if (accepted)
+            if (accepted && wizardVm.UseInstalledGameChosen)
+            {
+                logger.LogInformation("[SetupWizard] User chose to use the installed game");
+                result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
+                result.CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline;
+                result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
+                result.SuperHackersAction = GameClientConstants.WizardActionTypes.Decline;
+            }
+            else if (accepted)
             {
                 logger.LogInformation("[SetupWizard] User accepted wizard selections");
 
@@ -457,7 +466,7 @@ public class SetupWizardService(
             }
             else
             {
-                logger.LogInformation("[SetupWizard] User canceled or declined the wizard");
+                logger.LogInformation("[SetupWizard] User chose to set up later");
                 result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
                 result.CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline;
                 result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
@@ -500,6 +509,19 @@ public class SetupWizardService(
     }
 
     /// <summary>
+    /// Describes each base game client found in the installations, such as "Zero Hour 1.04 (Steam)".
+    /// </summary>
+    /// <param name="installations">The detected installations.</param>
+    /// <returns>The distinct display names of the found games.</returns>
+    internal IReadOnlyList<string> DescribeFoundGames(IEnumerable<GameInstallation> installations) =>
+        installations
+            .SelectMany(installation => (installation.AvailableGameClients ?? [])
+                .Where(client => !client.IsPublisherClient)
+                .Select(client => DescribeFoundGame(installation, client)))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
     /// Selects the installation's client that matches <paramref name="predicate"/>, preferring a
     /// build native to this host so a Windows build of the same publisher does not hide it.
     /// </summary>
@@ -536,6 +558,17 @@ public class SetupWizardService(
         }
 
         return null;
+    }
+
+    private string DescribeFoundGame(GameInstallation installation, GameClient client)
+    {
+        var gameName = localizationService.GetWizardText(client.GameType == GameType.Generals
+            ? GameClientConstants.WizardLocalizationKeys.GeneralsGameName
+            : GameClientConstants.WizardLocalizationKeys.ZeroHourGameName);
+        var source = installation.InstallationType.GetDisplayName();
+        return HasDisplayVersion(client.Version)
+            ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundGameVersionEntry, gameName, client.Version, source)
+            : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundGameEntry, gameName, source);
     }
 
     private string FormatCreateProfileDescription(string title, string? version) =>

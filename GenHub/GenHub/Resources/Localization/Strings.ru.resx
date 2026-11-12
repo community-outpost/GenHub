@@ -4552,8 +4552,59 @@
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>Настройка обнаруженного содержимого</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>Пропустить</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>Ваша игра готова</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>Мы нашли {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>Мы нашли эти игры:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>Мы нашли установленную игру.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1} ({2})</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>Использовать установленную игру</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>Настроить вручную</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>Добавьте Generals Online, TheSuperHackers или Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>Настроить позже</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>Назад</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>Профили не созданы</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>Вы решили настроить игру позже. Нажмите «СКАНИРОВАТЬ», когда будете готовы создать профиль.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>Ваша игра уже настроена. Новые профили не понадобились.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>Профили не созданы</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>GenHub нашёл вашу игру, но не смог создать для неё профиль. Подробности смотрите в журнале.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>Продолжить</value>

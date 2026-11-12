@@ -4552,8 +4552,59 @@
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>إعداد المحتوى المكتشف</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>تخطي</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>لعبتك جاهزة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>وجدنا {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>وجدنا هذه الألعاب:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>وجدنا لعبة مثبتة.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1} ({2})</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>استخدام اللعبة المثبتة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>تخصيص الإعداد</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>أضف Generals Online أو TheSuperHackers أو Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>الإعداد لاحقًا</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>لقد اخترت الإعداد لاحقًا. اختر «فحص» عندما تكون جاهزًا لإنشاء ملف تعريف.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>لعبتك معدّة بالفعل. لم تكن هناك حاجة إلى ملفات تعريف جديدة.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>عثر GenHub على لعبتك لكنه لم يتمكن من إنشاء ملف تعريف لها. راجع السجلات لمعرفة التفاصيل.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>متابعة</value>

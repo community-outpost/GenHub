@@ -4552,8 +4552,59 @@ This will modify game files and configuration settings at:
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>Setup Detected Content</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>Skip</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>Your game is ready</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>We found {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>We found these games:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>We found an installed game.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1} ({2})</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>Use installed game</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>Customize setup</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>Add Generals Online, TheSuperHackers or the Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>Set up later</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>No Profiles Created</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>You chose to set up later. Select SCAN when you are ready to create a profile.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>Your game is already set up. No new profiles were needed.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>No Profiles Created</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>GenHub found your game but could not create a profile for it. Check the logs for details.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>Continue</value>

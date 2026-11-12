@@ -548,9 +548,6 @@ public static class GameClientConstants
         /// <summary>Wizard heading.</summary>
         public const string Title = "Profiles.Wizard.Title";
 
-        /// <summary>Skip button label.</summary>
-        public const string Skip = "Profiles.Wizard.Skip";
-
         /// <summary>Continue button label with no selected items.</summary>
         public const string Continue = "Profiles.Wizard.Continue";
 
@@ -619,6 +616,27 @@ public static class GameClientConstants
 
         /// <summary>Missing status label.</summary>
         public const string MissingStatus = "Profiles.Wizard.Status.Missing";
+
+        /// <summary>Summary for one found game, with the game as {0}.</summary>
+        public const string FoundOneGame = "Profiles.Wizard.Ready.FoundOne";
+
+        /// <summary>Lead-in for a list of several found games.</summary>
+        public const string FoundManyGames = "Profiles.Wizard.Ready.FoundMany";
+
+        /// <summary>Summary when no game client could be named.</summary>
+        public const string FoundNoNamedGame = "Profiles.Wizard.Ready.FoundNone";
+
+        /// <summary>Found game entry with the game as {0} and the installation source as {1}.</summary>
+        public const string FoundGameEntry = "Profiles.Wizard.Ready.FoundEntry";
+
+        /// <summary>Found game entry with the game as {0}, the version as {1} and the installation source as {2}.</summary>
+        public const string FoundGameVersionEntry = "Profiles.Wizard.Ready.FoundEntryVersion";
+
+        /// <summary>Generals game name.</summary>
+        public const string GeneralsGameName = "Profiles.Wizard.Game.Generals";
+
+        /// <summary>Zero Hour game name.</summary>
+        public const string ZeroHourGameName = "Profiles.Wizard.Game.ZeroHour";
     }
 
     /// <summary>
@@ -628,7 +646,6 @@ public static class GameClientConstants
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [WizardLocalizationKeys.Title] = "Setup Detected Content",
-            [WizardLocalizationKeys.Skip] = "Skip",
             [WizardLocalizationKeys.Continue] = "Continue",
             [WizardLocalizationKeys.ContinueWithCount] = "Continue ({0})",
             [WizardLocalizationKeys.CommunityPatchRetailTitle] = "Community Patch (Retail)",
@@ -652,6 +669,13 @@ public static class GameClientConstants
             [WizardLocalizationKeys.DownloadedStatus] = WizardStatuses.Downloaded,
             [WizardLocalizationKeys.DetectedStatus] = WizardStatuses.Detected,
             [WizardLocalizationKeys.MissingStatus] = WizardStatuses.Missing,
+            [WizardLocalizationKeys.FoundOneGame] = "We found {0}.",
+            [WizardLocalizationKeys.FoundManyGames] = "We found these games:",
+            [WizardLocalizationKeys.FoundNoNamedGame] = "We found an installed game.",
+            [WizardLocalizationKeys.FoundGameEntry] = "{0} ({1})",
+            [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1} ({2})",
+            [WizardLocalizationKeys.GeneralsGameName] = "Generals",
+            [WizardLocalizationKeys.ZeroHourGameName] = "Zero Hour",
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
