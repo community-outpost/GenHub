@@ -3631,6 +3631,9 @@ public class DownloadsBrowserViewModelTests
         // Assert
         Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.DisplayText == "Панели управления (3)");
         Assert.DoesNotContain(viewModel.LocalCategoryFilters, chip => chip.Key == "control_bar");
+
+        viewModel.LocalFilterText = "control_bar";
+        Assert.Equal(["Snake Bar"], VisibleCardNames(viewModel));
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.CommunityOutpost;
@@ -5,7 +6,9 @@ using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Resources;
 
 namespace GenHub.Features.Downloads.ViewModels;
 
@@ -37,9 +40,10 @@ internal sealed class CuratedCatalogFilter
     public const string AllCategoriesKey = "";
 
     private const string AllLabelKey = "Downloads.Browser.Filter.All";
-    private const string AllLabelFallback = "All";
     private const string CategoryLabelKeyPrefix = "Downloads.Browser.Filter.Category.";
     private const string ContentTypeLabelKeyPrefix = "ContentType.";
+
+    private static readonly ResourceManager NeutralResources = new(LocalizationConstants.StringResourceBaseName, typeof(CuratedCatalogFilter).Assembly);
 
     private static readonly char[] WordSeparators = [' ', '-', '_'];
 
@@ -141,6 +145,7 @@ internal sealed class CuratedCatalogFilter
 
         return Contains(item.Name, term)
             || Contains(category, term)
+            || Contains(item.CategoryBadge, term)
             || Contains(GetCategoryLabel(category, localization), term)
             || Contains(item.ContentType.ToString(), term)
             || Contains(item.ContentTypeDisplay, term)
@@ -159,7 +164,7 @@ internal sealed class CuratedCatalogFilter
         _tallied.Clear();
         TotalCount = 0;
         VisibleCount = 0;
-        if (SelectedCategory.Length > 0 && items.Count > 0 && !items.Any(item => string.Equals(GetCategory(item), SelectedCategory, StringComparison.OrdinalIgnoreCase)))
+        if (SelectedCategory.Length > 0 && items.Count > 0 && items.All(item => !string.Equals(GetCategory(item), SelectedCategory, StringComparison.OrdinalIgnoreCase)))
         {
             SelectedCategory = AllCategoriesKey;
         }
@@ -220,7 +225,7 @@ internal sealed class CuratedCatalogFilter
 
         List<CatalogCategoryFilter> chips =
         [
-            new(AllCategoriesKey, localization.GetLocalizedString(AllLabelKey, AllLabelFallback), TotalCount, SelectedCategory.Length == 0),
+            new(AllCategoriesKey, localization.GetLocalizedString(AllLabelKey, NeutralResources.GetString(AllLabelKey, CultureInfo.InvariantCulture) ?? AllLabelKey), TotalCount, SelectedCategory.Length == 0),
         ];
         chips.AddRange(_categories.Values
             .OrderBy(tally => tally.Key, StringComparer.OrdinalIgnoreCase)
