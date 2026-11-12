@@ -2,6 +2,7 @@ using Avalonia.Data.Converters;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
@@ -9,7 +10,11 @@ namespace GenHub.Infrastructure.Converters;
 /// <summary>
 /// Converts a <see cref="WorkspaceStrategy"/> value to its localized display name or description.
 /// </summary>
-public sealed class WorkspaceStrategyDisplayConverter : IValueConverter
+/// <remarks>
+/// As a multi-value converter the first value is the strategy. Any further value, such as the
+/// localization service's current culture, only makes the binding refresh when the language changes.
+/// </remarks>
+public sealed class WorkspaceStrategyDisplayConverter : IValueConverter, IMultiValueConverter
 {
     /// <summary>
     /// Gets a converter that returns the localized display name of a strategy.
@@ -32,6 +37,11 @@ public sealed class WorkspaceStrategyDisplayConverter : IValueConverter
         _describe = describe;
     }
 
+    /// <summary>
+    /// Gets the application localization service, for bindings that refresh on culture changes.
+    /// </summary>
+    public static ILocalizationService? LocalizationSource => LocalizationConverterHelper.ResolveLocalizationService();
+
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -45,6 +55,10 @@ public sealed class WorkspaceStrategyDisplayConverter : IValueConverter
             ? GetDescription(strategy, localizationService, OperatingSystem.IsWindows())
             : GetName(strategy, localizationService);
     }
+
+    /// <inheritdoc/>
+    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture) =>
+        Convert(values.Count > 0 ? values[0] : null, targetType, parameter, culture);
 
     /// <inheritdoc/>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
