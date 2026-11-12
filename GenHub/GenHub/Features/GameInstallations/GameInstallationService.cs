@@ -100,6 +100,16 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             var initResult = await TryInitializeCacheAsync(cancellationToken);
             if (!initResult.Success && _cachedInstallations == null)
             {
+                var pending = await GetPendingManualInstallationsAsync(cancellationToken);
+                if (pending.Count > 0)
+                {
+                    logger.LogWarning(
+                        "Detection is incomplete ({Error}); returning {Count} manually chosen installation(s)",
+                        initResult.Errors[0],
+                        pending.Count);
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(pending);
+                }
+
                 return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
             }
 
@@ -1542,6 +1552,19 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         }
     }
 
+    private async Task<IReadOnlyList<GameInstallation>> GetPendingManualInstallationsAsync(CancellationToken cancellationToken)
+    {
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            return [.. _pendingManualInstallations];
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
     private async Task<GameInstallation?> FindPendingManualInstallationAsync(string installationId, CancellationToken cancellationToken)
     {
         await _cacheLock.WaitAsync(cancellationToken);
@@ -1556,18 +1579,22 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     }
 
     /// <summary>
-    /// Adds manually chosen installations held during a failed detection. Must be called under the cache lock.
+    /// Moves manually chosen installations held during a failed detection into the cache, then releases them.
+    /// Must be called under the cache lock.
     /// </summary>
     /// <param name="installations">The installations about to be cached.</param>
     private void MergePendingManualInstallations(List<GameInstallation> installations)
     {
         foreach (var pending in _pendingManualInstallations)
         {
-            if (!installations.Any(i => PathHelper.AreSamePath(i.InstallationPath, pending.InstallationPath)))
+            if (Directory.Exists(pending.InstallationPath) &&
+                !installations.Any(i => PathHelper.AreSamePath(i.InstallationPath, pending.InstallationPath)))
             {
                 installations.Add(pending);
             }
         }
+
+        _pendingManualInstallations.Clear();
     }
 
     /// <summary>

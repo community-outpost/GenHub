@@ -972,6 +972,9 @@
   <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
     <value>تعذّر إعداد مجلد اللعبة المختار: {0}</value>
   </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>تعذّر البحث في بعض المواقع، لذلك استخدم GenHub مجلد اللعبة الذي اخترته. أصلح مشكلة الوصول ثم أعد الفحص للعثور على تثبيتات أخرى.</value>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>
   </data>

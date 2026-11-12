@@ -972,6 +972,9 @@
   <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
     <value>Не удалось настроить выбранную папку игры: {0}</value>
   </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>Некоторые расположения не удалось проверить, поэтому GenHub использовал выбранную вами папку игры. Устраните проблему с доступом и повторите сканирование, чтобы найти другие установки.</value>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>Установленные игры не найдены</value>
   </data>

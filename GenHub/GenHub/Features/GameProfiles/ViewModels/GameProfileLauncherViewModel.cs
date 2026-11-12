@@ -1635,6 +1635,7 @@ public partial class GameProfileLauncherViewModel(
             if (installations.Success && installations.Data != null)
             {
                 var installationsList = installations.Data.ToList();
+                WarnIfDetectionIncomplete(installationsList.Count);
 
                 if (installationsList.Count == 0)
                 {
@@ -1683,7 +1684,7 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
-                RecordScanFailure(errors);
+                await RecordScanFailureAsync(errors);
             }
         }
         catch (Exception ex)
@@ -1693,7 +1694,7 @@ public partial class GameProfileLauncherViewModel(
             ErrorMessage = ex.Message;
             if (!detectionFinished)
             {
-                RecordScanFailure(ex.Message);
+                await RecordScanFailureAsync(ex.Message);
             }
         }
         finally
@@ -1764,7 +1765,7 @@ public partial class GameProfileLauncherViewModel(
         ScanFailureMessage = string.Empty;
     }
 
-    private void RecordScanFailure(string reason)
+    private async Task RecordScanFailureAsync(string reason)
     {
         ScanFailureMessage = reason;
         HasScanFailed = true;
@@ -1772,11 +1773,36 @@ public partial class GameProfileLauncherViewModel(
             localizationService["GameProfiles.ScanFailure.Title"],
             reason,
             autoDismissMs: NotificationDurations.Long);
+
+        // A failed scan says nothing about whether the game is installed, so an older empty result must not survive it.
+        await PersistScanOutcomeAsync(InstallationScanOutcome.NotScanned);
+    }
+
+    /// <summary>
+    /// Tells the player when installations came back only from a folder they chose while detection kept failing.
+    /// </summary>
+    /// <param name="installationCount">The number of installations the scan returned.</param>
+    private void WarnIfDetectionIncomplete(int installationCount)
+    {
+        if (installationCount == 0 || installationService.CachedInstallations != null)
+        {
+            return;
+        }
+
+        notificationService.ShowWarning(
+            localizationService["GameProfiles.ScanFailure.Title"],
+            localizationService["GameProfiles.ScanFailure.IncompleteMessage"],
+            autoDismissMs: NotificationDurations.Long);
     }
 
     private async Task RecordCompletedScanAsync(InstallationScanOutcome outcome)
     {
         HasCompletedScan = true;
+        await PersistScanOutcomeAsync(outcome);
+    }
+
+    private async Task PersistScanOutcomeAsync(InstallationScanOutcome outcome)
+    {
         if (userSettingsService == null)
         {
             return;
