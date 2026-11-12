@@ -110,7 +110,7 @@ public class WorkspaceStrategyDisplayConverterTests
     [Fact]
     public void Convert_WithNonStrategy_ReturnsStringForm()
     {
-        Assert.Equal(string.Empty, WorkspaceStrategyDisplayConverter.Name.Convert(null, typeof(string), null, CultureInfo.InvariantCulture));
+        Assert.Equal(string.Empty, WorkspaceStrategyDisplayConverter.Name.Convert((object?)null, typeof(string), null, CultureInfo.InvariantCulture));
         Assert.Equal("42", WorkspaceStrategyDisplayConverter.Description.Convert(42, typeof(string), null, CultureInfo.InvariantCulture));
     }
 

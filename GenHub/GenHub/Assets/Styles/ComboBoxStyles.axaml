@@ -259,19 +259,39 @@
         <Setter Property="ItemTemplate">
             <DataTemplate x:DataType="enums:WorkspaceStrategy">
                 <StackPanel Spacing="2" Margin="0,2">
-                    <TextBlock Text="{Binding Converter={x:Static conv:WorkspaceStrategyDisplayConverter.Name}}" />
-                    <TextBlock Text="{Binding Converter={x:Static conv:WorkspaceStrategyDisplayConverter.Description}}"
-                               FontSize="11"
+                    <TextBlock>
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Name}">
+                                <Binding />
+                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock FontSize="11"
                                Opacity="0.7"
                                MaxWidth="360"
                                HorizontalAlignment="Left"
-                               TextWrapping="Wrap" />
+                               TextWrapping="Wrap">
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                <Binding />
+                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
                 </StackPanel>
             </DataTemplate>
         </Setter>
         <Setter Property="SelectionBoxItemTemplate">
             <DataTemplate x:DataType="enums:WorkspaceStrategy">
-                <TextBlock Text="{Binding Converter={x:Static conv:WorkspaceStrategyDisplayConverter.Name}}" />
+                <TextBlock>
+                    <TextBlock.Text>
+                        <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Name}">
+                            <Binding />
+                            <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
             </DataTemplate>
         </Setter>
     </Style>
