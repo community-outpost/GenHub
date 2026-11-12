@@ -6,6 +6,7 @@ using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Infrastructure;
 using GenHub.Features.Launching;
+using GenHub.Tests.Core.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -971,7 +972,7 @@ public class GameProcessManagerTests
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "PING.EXE");
             }
 
-            return File.Exists("/bin/sleep") ? "/bin/sleep" : "/usr/bin/sleep";
+            return RenamableSleepExecutable.FilePath;
         }
 
         /// <summary>

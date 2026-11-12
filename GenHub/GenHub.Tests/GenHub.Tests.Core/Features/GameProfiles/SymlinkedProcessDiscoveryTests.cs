@@ -150,7 +150,7 @@ public sealed class SymlinkedProcessDiscoveryTests(ITestOutputHelper output) : I
     private static (string Source, string Arguments) GetLongRunningExecutable() =>
         OperatingSystem.IsWindows()
             ? (Path.Combine(Environment.SystemDirectory, "PING.EXE"), "-n 30 127.0.0.1")
-            : ("/bin/sleep", "30");
+            : (RenamableSleepExecutable.FilePath, "30");
 
     /// <summary>
     /// Makes the copy runnable. macOS kills a copied platform binary until it is re-signed ad hoc.
