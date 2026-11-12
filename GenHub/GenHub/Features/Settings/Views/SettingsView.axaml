@@ -195,10 +195,11 @@
             <!-- Default Workspace Strategy -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Label}" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableWorkspaceStrategies}"
+              <ComboBox Classes="workspace-strategy"
+                        ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
-                        MinWidth="250" />
+                        MinWidth="420" />
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Description}"
                          Classes="setting-description" />
             </StackPanel>

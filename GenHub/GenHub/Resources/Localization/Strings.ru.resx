@@ -3355,13 +3355,13 @@
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>Основной цвет интерфейса</value>
   </data>
-  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Контент</value>
   </data>
-  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.ProfileSettings" xml:space="preserve">
     <value>Настройки профиля</value>
   </data>
-  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.GameSettings" xml:space="preserve">
     <value>Настройки игры</value>
   </data>
   <data name="GameSettings.Category.Video" xml:space="preserve">
@@ -18236,5 +18236,41 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
+    <value>Эти настройки заблокированы, пока игра запущена. Закройте игру, чтобы изменить их.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Name" xml:space="preserve">
+    <value>Связывать файлы (рекомендуется)</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Description" xml:space="preserve">
+    <value>Связывает файлы игры вместо копирования. Почти не занимает дополнительного места на диске.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
+    <value>Если игра и рабочая область находятся на разных дисках, нужны права администратора или режим разработчика.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
+    <value>Символические ссылки</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Description" xml:space="preserve">
+    <value>Указывает на файлы игры символическими ссылками. Работает между разными дисками.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.WindowsNote" xml:space="preserve">
+    <value>Нужны права администратора или режим разработчика.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Name" xml:space="preserve">
+    <value>Копировать файлы игры, связывать отдельные медиафайлы</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Description" xml:space="preserve">
+    <value>Копирует архивы игры, программы и настройки. Связывает только отдельные текстуры, звук и видео. Занимает почти столько же места, сколько полная копия.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.WindowsNote" xml:space="preserve">
+    <value>Для ссылок нужны права администратора или режим разработчика.</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Name" xml:space="preserve">
+    <value>Копировать все файлы</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
+    <value>Копирует каждый файл в рабочую область. Работает везде, но занимает больше всего места на диске.</value>
   </data>
 </root>
