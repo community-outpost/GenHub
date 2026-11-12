@@ -2055,6 +2055,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
     public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
     {
         var savedModes = new List<ProfileSortMode>();
+        var savedModesLock = new object();
         var settingsService = new Mock<IUserSettingsService>();
         settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
         settingsService
@@ -2064,7 +2065,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
                 var settings = new UserSettings();
                 if (apply(settings))
                 {
-                    lock (savedModes)
+                    lock (savedModesLock)
                     {
                         savedModes.Add(settings.ProfileSortMode);
                     }
@@ -2089,14 +2090,16 @@ public class GameProfileLauncherViewModelTests : IDisposable
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
             CreateLocalizationService(),
-            userSettingsService: settingsService.Object);
+            userSettingsService: settingsService.Object)
+        {
+            SelectedSortMode = ProfileSortMode.Alphabetical,
+        };
 
-        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
         vm.SelectedSortMode = ProfileSortMode.DateCreated;
 
         for (var attempt = 0; attempt < 200; attempt++)
         {
-            lock (savedModes)
+            lock (savedModesLock)
             {
                 if (savedModes.Contains(ProfileSortMode.DateCreated))
                 {
@@ -2109,7 +2112,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
         await Task.Delay(200);
 
-        lock (savedModes)
+        lock (savedModesLock)
         {
             Assert.NotEmpty(savedModes);
             Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
@@ -2452,7 +2455,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             .Returns<string, object?[]>((key, args) =>
             {
                 var val = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key;
-                return args != null && args.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
+                return args is { Length: > 0 } ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);

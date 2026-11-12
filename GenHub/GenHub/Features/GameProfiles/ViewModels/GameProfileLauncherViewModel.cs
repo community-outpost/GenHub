@@ -1524,17 +1524,9 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The classified types, or null when no executable is recognized.</returns>
     private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath, CancellationToken cancellationToken)
     {
-        List<string> candidates;
-        try
+        var candidates = TryListExecutableCandidates(directoryPath);
+        if (candidates == null)
         {
-            candidates = Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
-                .Where(IsExecutableCandidate)
-                .Take(MaxDirectoryExecutablesToInspect)
-                .ToList();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
             return null;
         }
 
@@ -1564,6 +1556,22 @@ public partial class GameProfileLauncherViewModel(
 
             var profileCount = Math.Max(0, Profiles.Count - 1);
             StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
+        }
+    }
+
+    private List<string>? TryListExecutableCandidates(string directoryPath)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsExecutableCandidate)
+                .Take(MaxDirectoryExecutablesToInspect)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
+            return null;
         }
     }
 

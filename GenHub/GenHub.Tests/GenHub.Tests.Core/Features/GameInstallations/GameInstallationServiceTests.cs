@@ -722,6 +722,82 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A folder added while the cache already holds it under another ID still resolves by the caller's ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_WhenCacheHoldsFolderUnderAnotherId_ResolvesCallerIdAsync()
+    {
+        var folder = Directory.CreateTempSubdirectory("GenHubCached_").FullName;
+        try
+        {
+            var detected = new GameInstallation(folder, GameInstallationType.Steam);
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([detected], TimeSpan.Zero));
+            await _service.GetAllInstallationsAsync();
+            var chosen = new GameInstallation(folder, GameInstallationType.Retail);
+
+            var added = await _service.AddInstallationToCacheAsync(chosen);
+            var resolved = await _service.GetInstallationAsync(chosen.Id);
+
+            Assert.True(added.Success);
+            Assert.True(resolved.Success);
+            Assert.Same(detected, resolved.Data);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+    }
+
+    /// <summary>
+    /// After a restart, a profile created for a folder chosen during a detection failure still resolves
+    /// when recovered detection types the same folder differently. The folder's persisted manifest
+    /// rebuilds the chosen ID, which then resolves to the detected installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetInstallationAsync_AfterRestart_ResolvesIdOfFolderChosenDuringDetectionFailureAsync()
+    {
+        var folder = Directory.CreateTempSubdirectory("GenHubRestart_").FullName;
+        try
+        {
+            var chosenId = new GameInstallation(folder, GameInstallationType.Retail).Id;
+            var persistedManifest = new ContentManifest
+            {
+                Id = "1.0.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Metadata = new ContentMetadata { SourcePath = folder },
+            };
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([persistedManifest]));
+            var detected = new GameInstallation(folder, GameInstallationType.Steam);
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([detected], TimeSpan.Zero));
+            using var restarted = new GameInstallationService(
+                _orchestratorMock.Object,
+                _clientOrchestratorMock.Object,
+                _loggerMock.Object,
+                _manifestServiceMock.Object,
+                _manifestPoolMock.Object,
+                _pathResolverMock.Object,
+                _userSettingsMock.Object);
+
+            var resolved = await restarted.GetInstallationAsync(chosenId);
+
+            Assert.NotEqual(chosenId, detected.Id);
+            Assert.True(resolved.Success, string.Join("; ", resolved.Errors));
+            Assert.Same(detected, resolved.Data);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+    }
+
+    /// <summary>
     /// Held installations are released once merged, and a held folder that vanished is not cached.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
