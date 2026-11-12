@@ -1,5 +1,6 @@
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using System;
@@ -42,7 +43,10 @@ internal sealed class CuratedCatalogFilter
 
     private static readonly char[] WordSeparators = [' ', '-', '_'];
 
+    private static readonly string[] KnownCategories = Enum.GetNames<GenPatcherContentCategory>();
+
     private readonly Dictionary<string, CategoryTally> _categories = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<ContentGridItemViewModel> _tallied = [];
 
     /// <summary>
     /// Gets or sets the filter text.
@@ -72,6 +76,7 @@ internal sealed class CuratedCatalogFilter
     /// <summary>
     /// Resolves the category key a card is grouped under. A card whose catalog category is missing,
     /// or spells its content type identifier, is grouped under the content type identifier.
+    /// A category that spells a known catalog category, such as <c>control bar</c>, uses that identifier.
     /// </summary>
     /// <param name="item">The card.</param>
     /// <returns>The category key.</returns>
@@ -80,9 +85,12 @@ internal sealed class CuratedCatalogFilter
         var badge = item.CategoryBadge.Trim();
         var contentType = item.ContentType.ToString();
         var letters = new string([.. badge.Where(char.IsLetterOrDigit)]);
-        return letters.Length == 0 || string.Equals(letters, contentType, StringComparison.OrdinalIgnoreCase)
-            ? contentType
-            : badge;
+        if (letters.Length == 0 || string.Equals(letters, contentType, StringComparison.OrdinalIgnoreCase))
+        {
+            return contentType;
+        }
+
+        return Array.Find(KnownCategories, known => string.Equals(known, letters, StringComparison.OrdinalIgnoreCase)) ?? badge;
     }
 
     /// <summary>
@@ -141,26 +149,32 @@ internal sealed class CuratedCatalogFilter
     }
 
     /// <summary>
-    /// Clears the tallies, then tallies and filters every card.
+    /// Clears the tallies, then tallies and filters every card. A selected category with no loaded cards falls back to all categories.
     /// </summary>
     /// <param name="items">The loaded cards.</param>
     /// <param name="localization">The localization service, if any.</param>
-    public void Reset(IEnumerable<ContentGridItemViewModel> items, ILocalizationService? localization)
+    public void Reset(IReadOnlyCollection<ContentGridItemViewModel> items, ILocalizationService? localization)
     {
         _categories.Clear();
+        _tallied.Clear();
         TotalCount = 0;
         VisibleCount = 0;
+        if (SelectedCategory.Length > 0 && items.Count > 0 && !items.Any(item => string.Equals(GetCategory(item), SelectedCategory, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedCategory = AllCategoriesKey;
+        }
+
         Add(items, localization);
     }
 
     /// <summary>
-    /// Tallies and filters newly loaded cards without revisiting the cards already tallied.
+    /// Tallies and filters newly loaded cards without revisiting the cards already tallied. Cards already tallied are skipped.
     /// </summary>
     /// <param name="items">The new cards.</param>
     /// <param name="localization">The localization service, if any.</param>
     public void Add(IEnumerable<ContentGridItemViewModel> items, ILocalizationService? localization)
     {
-        foreach (var item in items)
+        foreach (var item in items.Where(_tallied.Add))
         {
             var category = GetCategory(item);
             if (_categories.TryGetValue(category, out var tally))

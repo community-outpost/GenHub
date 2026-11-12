@@ -3614,6 +3614,62 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], VisibleCardNames(viewModel).Order());
     }
 
+    /// <summary>
+    /// Verifies that a free-form spelling of a known catalog category joins its chip and keeps the localized label.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_CanonicalizeKnownCategorySpellingsAsync()
+    {
+        // Arrange
+        var russian = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("ru"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: russian);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Snake Bar", "control_bar", "ui"));
+
+        // Assert
+        Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.DisplayText == "Панели управления (3)");
+        Assert.DoesNotContain(viewModel.LocalCategoryFilters, chip => chip.Key == "control_bar");
+    }
+
+    /// <summary>
+    /// Verifies that removing the last card of the selected category falls back to all categories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_SelectedCategoryRemoved_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.SelectLocalCategoryCommand.Execute("Hotkeys");
+
+        // Act
+        viewModel.ContentItems.Remove(viewModel.ContentItems.Single(item => item.Name == "Pro Hotkeys"));
+
+        // Assert
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.Equal(3, VisibleCardNames(viewModel).Count);
+    }
+
+    /// <summary>
+    /// Verifies that adding a card that is already tallied does not inflate the counts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_RepeatedAdd_DoesNotInflateCountsAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(viewModel.ContentItems[0]);
+
+        // Assert
+        Assert.Equal("All (4)", viewModel.LocalCategoryFilters[0].DisplayText);
+    }
+
     private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
         string publisherId,
         IContentDiscoverer? discoverer = null,
