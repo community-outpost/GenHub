@@ -2677,7 +2677,10 @@ public class GameProfileLauncherViewModelTests : IDisposable
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
             CreateLocalizationService(),
-            userSettingsService: settingsService.Object);
+            userSettingsService: settingsService.Object)
+        {
+            SelectedSortMode = ProfileSortMode.Alphabetical,
+        };
 
         foreach (var mode in new[] { ProfileSortMode.Alphabetical, ProfileSortMode.DateCreated })
         {
@@ -3055,7 +3058,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             .Returns<string, object?[]>((key, args) =>
             {
                 var val = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key;
-                return args?.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
+                return args is { Length: > 0 } ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);

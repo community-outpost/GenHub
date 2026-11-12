@@ -177,6 +177,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                     logger.LogDebug(
                         "Installation already exists in cache: {Path}",
                         installation.InstallationPath);
+                    RecordInstallationAlias(installation.Id, existing.Id);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
 
@@ -1422,6 +1423,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                         logger.LogDebug(
                             "[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}",
                             manifestInstall.InstallationPath);
+                        RecordInstallationAlias(manifestInstall.Id, existingByPath.Id);
                     }
                 }
             }
@@ -1543,9 +1545,16 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             if (cached != null)
             {
                 // Detection recovered on another caller before this lock was taken.
-                if (cached.All(i => i.Id != installation.Id && !PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath)))
+                var existing = cached.FirstOrDefault(i =>
+                    i.Id == installation.Id ||
+                    PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
+                if (existing == null)
                 {
                     Volatile.Write(ref _cachedInstallations, cached.Append(installation).ToList().AsReadOnly());
+                }
+                else
+                {
+                    RecordInstallationAlias(installation.Id, existing.Id);
                 }
 
                 return OperationResult<bool>.CreateSuccess(true);
@@ -1567,6 +1576,21 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         finally
         {
             _cacheLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Lets an installation ID that lost a same-path merge keep resolving to the installation that won it.
+    /// Profiles store the ID they were created with, and the manual folder's manifests rebuild that ID on
+    /// every start, so the alias is recreated after a restart too.
+    /// </summary>
+    /// <param name="mergedId">The ID of the installation that was not cached.</param>
+    /// <param name="canonicalId">The ID of the cached installation at the same path.</param>
+    private void RecordInstallationAlias(string mergedId, string canonicalId)
+    {
+        if (!string.Equals(mergedId, canonicalId, StringComparison.Ordinal))
+        {
+            _mergedInstallationIds[mergedId] = canonicalId;
         }
     }
 
@@ -1612,9 +1636,9 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             {
                 installations.Add(pending);
             }
-            else if (samePath.Id != pending.Id)
+            else
             {
-                _mergedInstallationIds[pending.Id] = samePath.Id;
+                RecordInstallationAlias(pending.Id, samePath.Id);
             }
         }
 
