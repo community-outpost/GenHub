@@ -1195,6 +1195,8 @@ public class SetupWizardServiceTests
         Assert.Contains(capturedVm.Items, i => i.IsSelected);
         Assert.Equal(["Zero Hour 1.04 (Retail Installation)"], capturedVm.FoundGames);
         Assert.True(result.Confirmed);
+        Assert.True(result.UseInstalledGame);
+        Assert.False(result.SetUpLater);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchNonRetAction);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
@@ -1219,6 +1221,8 @@ public class SetupWizardServiceTests
         var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
 
         Assert.False(result.Confirmed);
+        Assert.True(result.SetUpLater);
+        Assert.False(result.UseInstalledGame);
         Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.GeneralsOnlineAction);
     }
 

@@ -430,8 +430,10 @@ public class SetupWizardService(
 
             var wizardVm = new SetupWizardViewModel(wizardItems, localizationService, DescribeFoundGames(installationsList));
 
-            var accepted = await ShowWizardDialogAsync(wizardVm);
+            var (shown, accepted) = await ShowWizardDialogAsync(wizardVm);
             result.Confirmed = accepted;
+            result.UseInstalledGame = accepted && wizardVm.UseInstalledGameChosen;
+            result.SetUpLater = shown && !accepted;
             if (accepted)
             {
                 logger.LogInformation("[SetupWizard] User confirmed the wizard. Use installed game: {UseInstalledGame}", wizardVm.UseInstalledGameChosen);
@@ -686,18 +688,18 @@ public class SetupWizardService(
     /// <summary>
     /// Shows the wizard dialog asynchronously, respecting testing hooks.
     /// </summary>
-    private async Task<bool> ShowWizardDialogAsync(SetupWizardViewModel viewModel)
+    private async Task<(bool Shown, bool Accepted)> ShowWizardDialogAsync(SetupWizardViewModel viewModel)
     {
         if (DialogShower != null)
         {
-            return await DialogShower(viewModel);
+            return (true, await DialogShower(viewModel));
         }
 
         var mainWindow = GetMainWindow();
         if (mainWindow == null)
         {
             logger.LogWarning("[SetupWizard] Cannot display wizard dialog: MainWindow is null");
-            return false;
+            return (false, false);
         }
 
         var dialog = new SetupWizardView
@@ -706,7 +708,7 @@ public class SetupWizardService(
         };
 
         await dialog.ShowDialog(mainWindow);
-        return viewModel.Confirmed;
+        return (true, viewModel.Confirmed);
     }
 
     /// <summary>

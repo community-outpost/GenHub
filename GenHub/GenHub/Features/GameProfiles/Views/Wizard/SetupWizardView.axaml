@@ -129,13 +129,16 @@
                 <StackPanel Grid.Row="1" Margin="48,0" Spacing="0">
                     <TextBlock Text="{localization:Localize Profiles.Wizard.Ready.Title}" FontSize="26" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,10"/>
                     <TextBlock Text="{Binding FoundSummary}" FontSize="15" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-                    <ItemsControl ItemsSource="{Binding FoundGames}" IsVisible="{Binding HasMultipleFoundGames}" Margin="0,8,0,0">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <TextBlock Text="{Binding}" FontSize="14" Foreground="#CCCCCC" Margin="12,2,0,2"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <ScrollViewer MaxHeight="96" Margin="0,8,0,0" IsVisible="{Binding HasMultipleFoundGames}"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding FoundGames}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" FontSize="14" Foreground="#CCCCCC" Margin="12,2,0,2" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
                     <Button Content="{localization:Localize Profiles.Wizard.Ready.UseInstalledGame}" Command="{Binding UseInstalledGameCommand}"
                             Background="White" Foreground="Black" CornerRadius="6" FontWeight="SemiBold" FontSize="15" Padding="28,10"
