@@ -942,7 +942,8 @@ public class ProfileLauncherFacade(
                 {
                     return ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(
                         string.Join(", ", validationResult.Errors),
-                        validationResult.MissingDependencies);
+                        validationResult.MissingDependencies,
+                        profileId);
                 }
 
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", validationResult.Errors));
@@ -1339,7 +1340,8 @@ public class ProfileLauncherFacade(
                     "{0} can't launch. It needs {1}.",
                     profile.Name,
                     string.Join(", ", missingDependencies.Select(gap => gap.DisplayName))),
-                missingDependencies);
+                missingDependencies,
+                profile.Id);
         }
 
         var dependencyErrors = ValidateDependencies(manifests, profile.GameClient?.GameType ?? GameType.ZeroHour);
