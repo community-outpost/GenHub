@@ -30,6 +30,7 @@ using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -68,8 +69,12 @@ public class ProfileLauncherFacade(
     IGameLaunchRunner launchRunner,
     IInstallationCasPoolService? installationCasPoolService = null,
     ILocalizationService? localizationService = null,
-    IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null) : IProfileLauncherFacade
+    IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null,
+    IContentDependencyValidator? dependencyValidator = null) : IProfileLauncherFacade
 {
+    private readonly IContentDependencyValidator _dependencyValidator = dependencyValidator
+        ?? new ContentDependencyValidator(manifestPool, NullLogger<ContentDependencyValidator>.Instance);
+
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
     {
         public void Report(T value) => handler(value);
@@ -933,6 +938,13 @@ public class ProfileLauncherFacade(
             if (validationResult.Failed)
             {
                 logger.LogError("[Launch] Validation failed: {Errors}", string.Join(", ", validationResult.Errors));
+                if (validationResult.MissingDependencies.Count > 0)
+                {
+                    return ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(
+                        string.Join(", ", validationResult.Errors),
+                        validationResult.MissingDependencies);
+                }
+
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", validationResult.Errors));
             }
 
@@ -1312,6 +1324,22 @@ public class ProfileLauncherFacade(
         {
             logger.LogWarning("Profile {ProfileId} launch validation failed: {Errors}", profile.Id, string.Join(", ", errors));
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
+        }
+
+        var missingDependencies = _dependencyValidator.FindMissingDependencies(manifests);
+        if (missingDependencies.Count > 0)
+        {
+            logger.LogWarning(
+                "Profile {ProfileId} launch blocked: missing required items {DependencyIds}",
+                profile.Id,
+                string.Join(", ", missingDependencies.Select(gap => gap.DependencyId)));
+            return ProfileOperationResult<bool>.CreateMissingDependencies(
+                localizationService.GetLocalizedString(
+                    "GameProfiles.MissingDependencies.LaunchError",
+                    "{0} can't launch. It needs {1}.",
+                    profile.Name,
+                    string.Join(", ", missingDependencies.Select(gap => gap.DisplayName))),
+                missingDependencies);
         }
 
         var dependencyErrors = ValidateDependencies(manifests, profile.GameClient?.GameType ?? GameType.ZeroHour);
@@ -1720,12 +1748,6 @@ public class ProfileLauncherFacade(
     {
         if (!manifestsByType.TryGetValue(dependency.DependencyType, out var potentialMatches) || potentialMatches.Count == 0)
         {
-            var msg = $"Content '{manifest.Name}' requires {dependency.DependencyType} content, but none is selected";
-            if (!dependency.IsOptional)
-            {
-                errors.Add(msg);
-            }
-
             logger.LogWarning(
                 "Dependency validation failed: {ManifestName} requires {DependencyType} but none found (Optional: {IsOptional})",
                 manifest.Name,
@@ -1797,12 +1819,6 @@ public class ProfileLauncherFacade(
                     candidateMatch.Version,
                     dependency.IsOptional);
                 return;
-            }
-
-            var missingMsg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
-            if (!dependency.IsOptional)
-            {
-                errors.Add(missingMsg);
             }
 
             logger.LogWarning(

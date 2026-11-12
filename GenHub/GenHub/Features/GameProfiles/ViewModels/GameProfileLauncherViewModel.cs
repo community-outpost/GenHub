@@ -71,7 +71,8 @@ public partial class GameProfileLauncherViewModel(
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null,
     ITelemetryService? telemetryService = null,
-    IUserSettingsService? userSettingsService = null) : ViewModelBase,
+    IUserSettingsService? userSettingsService = null,
+    IProfileContentService? profileContentService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -2293,7 +2294,7 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Executes the actual launch operation.
     /// </summary>
-    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
+    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile, bool allowDependencyInstall = true)
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
@@ -2363,6 +2364,16 @@ public partial class GameProfileLauncherViewModel(
         }
         else
         {
+            if (allowDependencyInstall && launchResult.MissingDependencies.Count > 0 && profileContentService != null)
+            {
+                if (await InstallMissingDependenciesAsync(profile, launchResult.MissingDependencies))
+                {
+                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false);
+                }
+
+                return;
+            }
+
             var errors = string.Join(", ", launchResult.Errors);
             StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
             ErrorMessage = errors;
@@ -2386,6 +2397,58 @@ public partial class GameProfileLauncherViewModel(
                 [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
             });
         }
+    }
+
+    /// <summary>
+    /// Asks to install the items a profile needs before it can launch, downloads them, and
+    /// enables them in the profile. Nothing changes when the player cancels or a download fails.
+    /// </summary>
+    /// <param name="profile">The profile that failed to launch.</param>
+    /// <param name="missingDependencies">The missing items reported by launch validation.</param>
+    /// <returns><see langword="true"/> when the items are installed and the launch should be retried.</returns>
+    private async Task<bool> InstallMissingDependenciesAsync(
+        GameProfileItemViewModel profile,
+        IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        var install = await MissingDependencyDialog.ConfirmInstallAsync(
+            dialogService,
+            localizationService,
+            profile.Name,
+            missingDependencies);
+        if (!install || profileContentService == null)
+        {
+            StatusMessage = string.Empty;
+            return false;
+        }
+
+        var failureTitle = localizationService["GameProfiles.Notification.LaunchFailed.Title"];
+        var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies);
+        if (installResult.Failed || installResult.Data == null)
+        {
+            notificationService.ShowError(failureTitle, installResult.FirstError ?? string.Empty);
+            return false;
+        }
+
+        var addResult = await profileContentService.AddContentToProfileAsync(profile.ProfileId, installResult.Data);
+        if (addResult.MissingDependencies.Count > 0)
+        {
+            notificationService.ShowError(
+                failureTitle,
+                localizationService.GetLocalizedString(
+                    "GameProfiles.MissingDependencies.LaunchError",
+                    "{0} can't launch. It needs {1}.",
+                    profile.Name,
+                    string.Join(", ", addResult.MissingDependencies.Select(gap => gap.DisplayName))));
+            return false;
+        }
+
+        if (addResult.Failed)
+        {
+            notificationService.ShowError(failureTitle, addResult.FirstError ?? string.Empty);
+            return false;
+        }
+
+        return true;
     }
 
     private void RestoreSelectedProfile(string? profileId)

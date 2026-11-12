@@ -18300,4 +18300,10 @@ Error: не удалось: {3}
   <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
     <value>GenHub не удалось установить нужные компоненты.</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.LaunchError" xml:space="preserve">
+    <value>{0} не запускается. Нужно: {1}.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
+    <value>Для {0} нужен компонент {1}</value>
+  </data>
 </root>

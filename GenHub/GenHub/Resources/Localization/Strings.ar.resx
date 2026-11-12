@@ -18300,4 +18300,10 @@ Error: فشل: {3}
   <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
     <value>تعذّر على GenHub تثبيت العناصر المطلوبة.</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.LaunchError" xml:space="preserve">
+    <value>لا يمكن تشغيل {0}. يحتاج إلى {1}.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
+    <value>يحتاج {0} إلى {1}</value>
+  </data>
 </root>
