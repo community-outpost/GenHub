@@ -4600,6 +4600,12 @@
   <data name="GameProfiles.Notification.WizardUnavailable.Message" xml:space="preserve">
     <value>تعذر فتح معالج الإعداد، لذلك لم يتم إنشاء ملفات تعريف. اختر «فحص» للمحاولة مرة أخرى.</value>
   </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Title" xml:space="preserve">
+    <value>لم يتم إعداد بعض المكونات</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Message" xml:space="preserve">
+    <value>تعذر إعداد هذه المكونات: {0}. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
   <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
     <value>لم يتم إنشاء ملفات تعريف</value>
   </data>

@@ -224,7 +224,7 @@ public class PublisherProfileOrchestrator(
             // A failed download that left nothing to profile is a failure, not an up-to-date publisher.
             if (acquisitionFailed && profilesCreated == 0)
             {
-                return OperationResult<int>.CreateFailure(string.Format(CultureInfo.InvariantCulture, GameClientConstants.PublisherAcquisitionFailedError, publisherType));
+                return OperationResult<int>.CreateFailure(string.Format(CultureInfo.InvariantCulture, GameClientConstants.PublisherAcquisitionFailedError, GetPublisherDisplayName(publisherType, isNonRet)));
             }
 
             return OperationResult<int>.CreateSuccess(profilesCreated);

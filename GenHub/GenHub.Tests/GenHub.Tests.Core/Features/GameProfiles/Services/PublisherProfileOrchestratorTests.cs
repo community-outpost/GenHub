@@ -410,7 +410,7 @@ public sealed class PublisherProfileOrchestratorTests
         var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client);
 
         Assert.False(result.Success);
-        Assert.Contains(PublisherTypeConstants.TheSuperHackers, string.Join(" ", result.Errors));
+        Assert.Contains(SuperHackersConstants.PublisherName, string.Join(" ", result.Errors));
     }
 
     /// <summary>

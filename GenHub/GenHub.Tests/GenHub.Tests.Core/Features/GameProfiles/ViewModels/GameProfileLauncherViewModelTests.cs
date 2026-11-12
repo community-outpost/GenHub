@@ -346,6 +346,55 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a failed component is reported next to the success of the others.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenOneComponentFailsAndAnotherSucceeds_ShowsSuccessAndNamesFailureAsync()
+    {
+        var scan = new WizardScanFixture();
+        scan.Orchestrator
+            .Setup(x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.Is<GameClient>(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<int>.CreateSuccess(2));
+        scan.Orchestrator
+            .Setup(x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.Is<GameClient>(c => c.PublisherType == PublisherTypeConstants.TheSuperHackers), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<int>.CreateFailure("download failed"));
+        var wizardResult = CreateDeclinedWizardResult();
+        wizardResult.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Install;
+        wizardResult.SuperHackersAction = GameClientConstants.WizardActionTypes.Install;
+
+        await scan.RunAsync(wizardResult);
+
+        scan.Notifications.Verify(
+            x => x.ShowSuccess("Scan Complete", "Game scan complete! Created 2 new profiles.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        scan.Notifications.Verify(
+            x => x.ShowWarning("Some Components Not Set Up", "These components could not be set up: TheSuperHackers. Check the logs for details.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that an installation without the selected component still gets its base game profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenSelectedComponentIsAbsentFromInstallation_CreatesBaseProfileAsync()
+    {
+        var scan = new WizardScanFixture();
+        var wizardResult = CreateDeclinedWizardResult();
+        wizardResult.SuperHackersAction = GameClientConstants.WizardActionTypes.Update;
+
+        await scan.RunAsync(wizardResult);
+
+        scan.Orchestrator.Verify(
+            x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        scan.EditorFacade.Verify(
+            x => x.CreateProfileWithWorkspaceAsync(It.Is<CreateProfileRequest>(r => r.GameClientId == WizardScanFixture.ClientId), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that a profile with the same name on another installation does not stop the base
     /// game profile from being created.
     /// </summary>
@@ -407,7 +456,7 @@ public class GameProfileLauncherViewModelTests
         await scan.RunAsync(wizardResult);
 
         scan.Notifications.Verify(
-            x => x.ShowWarning("No Profiles Created", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            x => x.ShowWarning("No Profiles Created", "These components could not be set up: TheSuperHackers. Check the logs for details.", It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         scan.Notifications.Verify(x => x.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
         scan.Notifications.Verify(x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);

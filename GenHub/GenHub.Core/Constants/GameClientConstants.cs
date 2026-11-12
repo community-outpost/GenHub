@@ -207,7 +207,7 @@ public static class GameClientConstants
     public const string UnknownVersion = "Unknown";
 
     /// <summary>
-    /// Diagnostic error when a publisher download failed and left no content to profile, with the publisher type as {0}.
+    /// Diagnostic error when a publisher download failed and left no content to profile, with the publisher display name as {0}.
     /// </summary>
     public const string PublisherAcquisitionFailedError = "Could not acquire {0} content, so no profile was created.";
 

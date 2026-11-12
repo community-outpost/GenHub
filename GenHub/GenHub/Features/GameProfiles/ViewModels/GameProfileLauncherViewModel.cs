@@ -28,6 +28,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging;
@@ -1644,8 +1645,8 @@ public partial class GameProfileLauncherViewModel(
                     installationsList.Count(i => i.HasZeroHour));
 
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
-                var (profilesCreated, anyDecisionFailed) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
-                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, anyDecisionFailed);
+                var (profilesCreated, failedComponentKeys) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
+                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys);
             }
             else
             {
@@ -1667,7 +1668,7 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
-    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult, int profilesCreated, bool anyDecisionFailed)
+    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult, int profilesCreated, IReadOnlyList<string> failedComponentKeys)
     {
         if (!wizardResult.Confirmed && !wizardResult.SetUpLater)
         {
@@ -1701,10 +1702,29 @@ public partial class GameProfileLauncherViewModel(
                 localizationService["GameProfiles.Notification.ScanComplete.Title"],
                 createdMessage,
                 autoDismissMs: NotificationDurations.VeryLong);
+            if (failedComponentKeys.Count > 0)
+            {
+                notificationService.ShowWarning(
+                    localizationService["GameProfiles.Notification.ComponentsFailed.Title"],
+                    FormatFailedComponentsMessage(failedComponentKeys),
+                    autoDismissMs: NotificationDurations.VeryLong);
+            }
+
             return;
         }
 
-        if (!anyDecisionFailed && await IsAlreadySetUpAsync(installationsList))
+        if (failedComponentKeys.Count > 0)
+        {
+            var failedMessage = FormatFailedComponentsMessage(failedComponentKeys);
+            StatusMessage = failedMessage;
+            notificationService.ShowWarning(
+                localizationService["GameProfiles.Notification.NoProfilesCreated.Title"],
+                failedMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
+            return;
+        }
+
+        if (await IsAlreadySetUpAsync(installationsList))
         {
             var alreadySetUpMessage = localizationService["GameProfiles.Notification.AlreadySetUp.Message"];
             StatusMessage = alreadySetUpMessage;
@@ -1722,6 +1742,11 @@ public partial class GameProfileLauncherViewModel(
             noProfilesMessage,
             autoDismissMs: NotificationDurations.VeryLong);
     }
+
+    private string FormatFailedComponentsMessage(IReadOnlyList<string> failedComponentKeys) =>
+        localizationService.GetString(
+            "GameProfiles.Notification.ComponentsFailed.Message",
+            string.Join(", ", failedComponentKeys.Select(key => localizationService.GetWizardText(key))));
 
     /// <summary>
     /// Determines whether a scan that created nothing and had no failed decision found the game
@@ -1785,14 +1810,14 @@ public partial class GameProfileLauncherViewModel(
         return manualInstallation;
     }
 
-    private async Task<(int ProfilesCreated, bool AnyDecisionFailed)> ApplyInstallationWizardDecisionsAsync(
+    private async Task<(int ProfilesCreated, IReadOnlyList<string> FailedComponentKeys)> ApplyInstallationWizardDecisionsAsync(
         List<GameInstallation> installationsList,
         SetupWizardResult wizardResult)
     {
         if (!wizardResult.Confirmed)
         {
             logger.LogInformation("Setup wizard was not confirmed, skipping profile creation");
-            return (0, false);
+            return (0, []);
         }
 
         var cpDecision = wizardResult.CommunityPatchAction;
@@ -1800,14 +1825,8 @@ public partial class GameProfileLauncherViewModel(
         var goDecision = wizardResult.GeneralsOnlineAction;
         var shDecision = wizardResult.SuperHackersAction;
 
-        bool anyPatchSelectedGlobally =
-            (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None) ||
-            (cpNonRetDecision != GameClientConstants.WizardActionTypes.Decline && cpNonRetDecision != GameClientConstants.WizardActionTypes.None) ||
-            (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None) ||
-            (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None);
-
         int profilesCreated = 0;
-        bool anyDecisionFailed = false;
+        var failedComponentKeys = new List<string>();
         foreach (var installation in installationsList)
         {
             if (installation.AvailableGameClients == null || installation.AvailableGameClients.Count == 0)
@@ -1821,28 +1840,26 @@ public partial class GameProfileLauncherViewModel(
                 cpNonRetDecision,
                 goDecision,
                 shDecision,
-                anyPatchSelectedGlobally,
                 wizardResult.UseInstalledGame);
             profilesCreated += created;
-            anyDecisionFailed |= failed;
+            failedComponentKeys.AddRange(failed.Except(failedComponentKeys, StringComparer.Ordinal));
         }
 
-        return (profilesCreated, anyDecisionFailed);
+        return (profilesCreated, failedComponentKeys);
     }
 
-    private async Task<(int ProfilesCreated, bool AnyDecisionFailed)> ProcessInstallationDecisionsAsync(
+    private async Task<(int ProfilesCreated, IReadOnlyList<string> FailedComponentKeys)> ProcessInstallationDecisionsAsync(
         GameInstallation installation,
         string cpDecision,
         string cpNonRetDecision,
         string goDecision,
         string shDecision,
-        bool anyPatchSelectedGlobally,
         bool installedOnly)
     {
         logger.LogInformation("Processing installation: {InstallationId} ({Type})", installation.Id, installation.InstallationType);
         int profilesCreated = 0;
 
-        var (cpHandled, cpProfiles, cpFailed) = await TryProcessPublisherDecisionAsync(
+        var (cpProfiles, cpFailed) = await TryProcessPublisherDecisionAsync(
             installation,
             cpDecision,
             CommunityOutpostConstants.PublisherType,
@@ -1852,7 +1869,7 @@ public partial class GameProfileLauncherViewModel(
             installedOnly: installedOnly);
         profilesCreated += cpProfiles;
 
-        var (cpNonRetHandled, cpNonRetProfiles, cpNonRetFailed) = await TryProcessPublisherDecisionAsync(
+        var (cpNonRetProfiles, cpNonRetFailed) = await TryProcessPublisherDecisionAsync(
             installation,
             cpNonRetDecision,
             CommunityOutpostConstants.PublisherType,
@@ -1862,7 +1879,7 @@ public partial class GameProfileLauncherViewModel(
             installedOnly: installedOnly);
         profilesCreated += cpNonRetProfiles;
 
-        var (goHandled, goProfiles, goFailed) = await TryProcessPublisherDecisionAsync(
+        var (goProfiles, goFailed) = await TryProcessPublisherDecisionAsync(
             installation,
             goDecision,
             PublisherTypeConstants.GeneralsOnline,
@@ -1871,7 +1888,7 @@ public partial class GameProfileLauncherViewModel(
             installedOnly: installedOnly);
         profilesCreated += goProfiles;
 
-        var (shHandled, shProfiles, shFailed) = await TryProcessPublisherDecisionAsync(
+        var (shProfiles, shFailed) = await TryProcessPublisherDecisionAsync(
             installation,
             shDecision,
             PublisherTypeConstants.TheSuperHackers,
@@ -1880,12 +1897,17 @@ public partial class GameProfileLauncherViewModel(
             installedOnly: installedOnly);
         profilesCreated += shProfiles;
 
-        bool anyPatchHandled = cpHandled || cpNonRetHandled || goHandled || shHandled;
-        bool anyDecisionFailed = cpFailed || cpNonRetFailed || goFailed || shFailed;
+        var failedComponentKeys = new List<string>();
+        AddIf(cpFailed, GameClientConstants.WizardLocalizationKeys.CommunityPatchRetailTitle);
+        AddIf(cpNonRetFailed, GameClientConstants.WizardLocalizationKeys.CommunityPatchNonRetailTitle);
+        AddIf(goFailed, GameClientConstants.WizardLocalizationKeys.GeneralsOnlineTitle);
+        AddIf(shFailed, GameClientConstants.WizardLocalizationKeys.SuperHackersTitle);
 
-        if (installedOnly || (!anyPatchHandled && !anyPatchSelectedGlobally) || (anyPatchHandled && profilesCreated == 0))
+        // Every installation keeps a playable profile: base game profiles are created unless a
+        // publisher profile was created for this installation.
+        if (installedOnly || profilesCreated == 0)
         {
-            logger.LogInformation("No patches selected or created for {InstallationId}, creating base game profiles", installation.Id);
+            logger.LogInformation("No publisher profiles created for {InstallationId}, creating base game profiles", installation.Id);
             foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())
             {
                 if (await TryCreateProfileForGameClientAsync(installation, client))
@@ -1895,10 +1917,18 @@ public partial class GameProfileLauncherViewModel(
             }
         }
 
-        return (profilesCreated, anyDecisionFailed);
+        return (profilesCreated, failedComponentKeys);
+
+        void AddIf(bool failed, string componentKey)
+        {
+            if (failed)
+            {
+                failedComponentKeys.Add(componentKey);
+            }
+        }
     }
 
-    private async Task<(bool Handled, int ProfilesCreated, bool Failed)> TryProcessPublisherDecisionAsync(
+    private async Task<(int ProfilesCreated, bool Failed)> TryProcessPublisherDecisionAsync(
         GameInstallation installation,
         string decision,
         string publisherType,
@@ -1909,7 +1939,7 @@ public partial class GameProfileLauncherViewModel(
     {
         if (IsDeclined(decision))
         {
-            return (false, 0, false);
+            return (0, false);
         }
 
         var isCommunityOutpost = string.Equals(publisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase);
@@ -1928,14 +1958,14 @@ public partial class GameProfileLauncherViewModel(
         // Use installed game only profiles a native build already on disk, never a download.
         if (installedOnly && (client == null || !PublisherProfileOrchestrator.IsHostNativeClient(client)))
         {
-            return (false, 0, false);
+            return (0, false);
         }
 
         if (client == null &&
             decision != GameClientConstants.WizardActionTypes.Install &&
             decision != GameClientConstants.WizardActionTypes.CreateProfile)
         {
-            return (false, 0, false);
+            return (0, false);
         }
 
         var clientToUse = client ?? new GameClient
@@ -1965,7 +1995,7 @@ public partial class GameProfileLauncherViewModel(
 
         int profiles = (result.Success && result.Data > 0) ? result.Data : 0;
 
-        return (true, profiles, !result.Success);
+        return (profiles, !result.Success);
     }
 
     /// <summary>
