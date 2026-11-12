@@ -301,7 +301,87 @@
         <!-- Row 1: Main Content (Game Profiles List) -->
         <ScrollViewer Grid.Row="1" Margin="10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <!-- Storefront purchase banner when no game installations or profiles are detected -->
+                <!-- First-run prompt to scan, shown before any scan has completed -->
+                <Border IsVisible="{Binding ShouldShowScanPrompt}"
+                        Background="{DynamicResource SurfaceCardDarkBrush}"
+                        BorderBrush="{DynamicResource BorderSubtleDarkBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="24,20"
+                        Margin="20,10,20,24"
+                        MaxWidth="840"
+                        HorizontalAlignment="Center">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Title}"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Description}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Classes="accent"
+                                Command="{Binding ScanForGamesCommand}"
+                                VerticalAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                Margin="16,0,0,0"
+                                Padding="14,8">
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Button}" VerticalAlignment="Center" />
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Failed scan: explains the failure and offers a manual folder choice -->
+                <Border IsVisible="{Binding ShouldShowScanFailure}"
+                        Background="{DynamicResource SurfaceCardDarkBrush}"
+                        BorderBrush="{DynamicResource WarningBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="24,20"
+                        Margin="20,10,20,24"
+                        MaxWidth="840"
+                        HorizontalAlignment="Center">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}"
+                                       FontSize="16"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+                            <SelectableTextBlock Text="{Binding ScanFailureMessage}"
+                                                 FontSize="12"
+                                                 Foreground="{DynamicResource WarningBrush}"
+                                                 TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <Button Classes="accent"
+                                    Command="{Binding ChooseGameFolderCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Padding="14,8">
+                                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" VerticalAlignment="Center" />
+                            </Button>
+
+                            <Button Classes="outline"
+                                    Command="{Binding ScanForGamesCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Center"
+                                    Padding="14,8">
+                                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.RetryButton}" VerticalAlignment="Center" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Storefront purchase banner, shown only after a completed scan found no installation -->
                 <Border IsVisible="{Binding ShouldShowStorefrontBanner}"
                         Background="{DynamicResource SurfaceCardDarkBrush}"
                         BorderBrush="{DynamicResource BorderSubtleDarkBrush}"

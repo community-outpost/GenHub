@@ -640,6 +640,46 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A folder the user chooses while detection fails must still resolve by ID, so profiles
+    /// can be created for it, without turning the failed scan into a cached success.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_WhenDetectionFails_HoldsChosenInstallationUntilDetectionSucceedsAsync()
+    {
+        var denied = DetectionResult<GameInstallation>.CreateFailure(
+            "Could not search /Users/test/Documents because macOS denied access");
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(denied);
+        var chosenPath = Path.Combine(Path.GetTempPath(), "GenHubChosen_" + Guid.NewGuid().ToString("N"));
+        var chosen = new GameInstallation(chosenPath, GameInstallationType.Retail);
+
+        var added = await _service.AddInstallationToCacheAsync(chosen);
+        var addedAgain = await _service.AddInstallationToCacheAsync(chosen);
+        var resolved = await _service.GetInstallationAsync(chosen.Id);
+        var unknown = await _service.GetInstallationAsync("unknown-id");
+        var all = await _service.GetAllInstallationsAsync();
+
+        Assert.True(added.Success);
+        Assert.True(addedAgain.Success);
+        Assert.True(resolved.Success);
+        Assert.Same(chosen, resolved.Data);
+        Assert.False(unknown.Success);
+        Assert.Contains("Failed to detect", unknown.Errors[0]);
+        Assert.False(all.Success);
+
+        var detected = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam);
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([detected], TimeSpan.Zero));
+
+        var afterGrant = await _service.GetAllInstallationsAsync();
+
+        Assert.True(afterGrant.Success);
+        Assert.Equal(2, afterGrant.Data!.Count);
+        Assert.Single(afterGrant.Data, i => i.Id == chosen.Id);
+    }
+
+    /// <summary>
     /// Persisted manifests must not turn a failed live scan into a cached partial success.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
