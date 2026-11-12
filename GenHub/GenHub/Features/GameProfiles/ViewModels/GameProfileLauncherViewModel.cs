@@ -285,9 +285,9 @@ public partial class GameProfileLauncherViewModel(
 
     /// <summary>
     /// Gets a value indicating whether the storefront purchase banner should be displayed.
-    /// Visible only after a completed scan found no game installation.
+    /// Visible only after a completed scan found no game installation and while there are no playable profiles.
     /// </summary>
-    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoDetectedInstallations;
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoDetectedInstallations && HasNoProfiles;
 
     /// <summary>
     /// Gets a value indicating whether the prompt to scan for games should be displayed.
@@ -298,7 +298,7 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Gets a value indicating whether the failed-scan panel should be displayed.
     /// </summary>
-    public bool ShouldShowScanFailure => HasScanFailed && !IsScanning;
+    public bool ShouldShowScanFailure => HasLoadedProfilesSuccessfully && HasScanFailed && !IsScanning;
 
     partial void OnHasLoadedProfilesSuccessfullyChanged(bool value) => NotifyScanStateChanged();
 
@@ -1894,7 +1894,9 @@ public partial class GameProfileLauncherViewModel(
         try
         {
             IsScanning = true;
-            var installation = await PromptAndRegisterManualInstallationAsync(announceMissingInstallations: false);
+            IsHeaderExpanded = true;
+            _headerCollapseTimer.Stop();
+            var installation = await PromptAndRegisterManualInstallationAsync(announceMissingInstallations: false, requireRegistration: true);
             if (installation == null)
             {
                 return;
@@ -2015,10 +2017,10 @@ public partial class GameProfileLauncherViewModel(
 
         var outcome = userSettingsService.Get().LastInstallationScanOutcome;
         HasCompletedScan = outcome != InstallationScanOutcome.NotScanned;
-        HasNoDetectedInstallations = outcome == InstallationScanOutcome.FoundNothing && HasNoProfiles;
+        HasNoDetectedInstallations = outcome == InstallationScanOutcome.FoundNothing;
     }
 
-    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(bool announceMissingInstallations = true)
+    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(bool announceMissingInstallations = true, bool requireRegistration = false)
     {
         if (announceMissingInstallations)
         {
@@ -2053,6 +2055,14 @@ public partial class GameProfileLauncherViewModel(
         if (!addResult.Success)
         {
             logger.LogWarning("Failed to add manual installation to cache: {Error}", addResult.FirstError);
+            if (requireRegistration)
+            {
+                notificationService.ShowError(
+                    localizationService[NotificationErrorTitleKey],
+                    localizationService.GetString("GameProfiles.ScanFailure.ChooseFolderFailed", addResult.FirstError ?? string.Empty),
+                    autoDismissMs: NotificationDurations.Long);
+                return null;
+            }
         }
 
         logger.LogInformation("User provided manual installation, proceeding with profile creation");

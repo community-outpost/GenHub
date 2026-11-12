@@ -14,6 +14,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -45,6 +46,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
 
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private readonly List<GameInstallation> _pendingManualInstallations = [];
+    private readonly ConcurrentDictionary<string, string> _mergedInstallationIds = new(StringComparer.Ordinal);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
     private bool _disposed = false;
 
@@ -79,6 +81,10 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         }
 
         var installation = _cachedInstallations.FirstOrDefault(i => i.Id == installationId);
+        if (installation == null && _mergedInstallationIds.TryGetValue(installationId, out var mergedId))
+        {
+            installation = _cachedInstallations.FirstOrDefault(i => i.Id == mergedId);
+        }
 
         if (installation == null)
         {
@@ -1533,6 +1539,18 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
+            var cached = _cachedInstallations;
+            if (cached != null)
+            {
+                // Detection recovered on another caller before this lock was taken.
+                if (cached.All(i => i.Id != installation.Id && !PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath)))
+                {
+                    Volatile.Write(ref _cachedInstallations, cached.Append(installation).ToList().AsReadOnly());
+                }
+
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
             var alreadyHeld = _pendingManualInstallations.Any(i =>
                 i.Id == installation.Id ||
                 PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
@@ -1580,17 +1598,23 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
 
     /// <summary>
     /// Moves manually chosen installations held during a failed detection into the cache, then releases them.
+    /// When detection found the same folder under another ID, the held ID keeps resolving to it,
+    /// so profiles created while detection failed still find their installation.
     /// Must be called under the cache lock.
     /// </summary>
     /// <param name="installations">The installations about to be cached.</param>
     private void MergePendingManualInstallations(List<GameInstallation> installations)
     {
-        foreach (var pending in _pendingManualInstallations)
+        foreach (var pending in _pendingManualInstallations.Where(p => Directory.Exists(p.InstallationPath)))
         {
-            if (Directory.Exists(pending.InstallationPath) &&
-                !installations.Any(i => PathHelper.AreSamePath(i.InstallationPath, pending.InstallationPath)))
+            var samePath = installations.Find(i => PathHelper.AreSamePath(i.InstallationPath, pending.InstallationPath));
+            if (samePath == null)
             {
                 installations.Add(pending);
+            }
+            else if (samePath.Id != pending.Id)
+            {
+                _mergedInstallationIds[pending.Id] = samePath.Id;
             }
         }
 
