@@ -102,6 +102,7 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
     private bool _isRestoringSelection;
+    private bool _hasRestoredScanOutcome;
 
     /// <summary>
     /// Represents a profile sorting option.
@@ -257,27 +258,51 @@ public partial class GameProfileLauncherViewModel(
     private bool _hasNoDetectedInstallations;
 
     /// <summary>
-    /// Gets a value indicating whether the storefront purchase banner should be displayed.
-    /// Visible when profiles have been loaded successfully and either no playable profiles exist
-    /// or no game installations were detected on the system.
+    /// Gets a value indicating whether a game installation scan has completed, in this session or a previous one.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
-    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && (HasNoProfiles || HasNoDetectedInstallations);
+    [ObservableProperty]
+    private bool _hasCompletedScan;
 
-    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets a value indicating whether the most recent game installation scan failed.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasScanFailed;
 
-    partial void OnHasNoProfilesChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets the reason the most recent game installation scan failed.
+    /// </summary>
+    [ObservableProperty]
+    private string _scanFailureMessage = string.Empty;
 
-    partial void OnHasNoDetectedInstallationsChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets a value indicating whether the storefront purchase banner should be displayed.
+    /// Visible only after a completed scan found no game installation.
+    /// </summary>
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoDetectedInstallations;
+
+    /// <summary>
+    /// Gets a value indicating whether the prompt to scan for games should be displayed.
+    /// Visible when there are no playable profiles and no scan has completed or failed yet.
+    /// </summary>
+    public bool ShouldShowScanPrompt => HasLoadedProfilesSuccessfully && HasNoProfiles && !HasCompletedScan && !HasScanFailed && !IsScanning;
+
+    /// <summary>
+    /// Gets a value indicating whether the failed-scan panel should be displayed.
+    /// </summary>
+    public bool ShouldShowScanFailure => HasScanFailed && !IsScanning;
+
+    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasNoProfilesChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasNoDetectedInstallationsChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasCompletedScanChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasScanFailedChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnIsScanningChanged(bool value) => NotifyScanStateChanged();
 
     /// <summary>
     /// Gets the collection of game profiles.
@@ -435,6 +460,7 @@ public partial class GameProfileLauncherViewModel(
                 RestoreSelectedProfile(selectedProfileId);
 
                 ApplySorting();
+                RestoreScanOutcome();
 
                 var profileCount = Profiles.Count - 1;
                 HasLoadedProfilesSuccessfully = true;
@@ -1592,12 +1618,14 @@ public partial class GameProfileLauncherViewModel(
             return; // Prevent multiple concurrent scans
         }
 
+        var detectionFinished = false;
         try
         {
             IsScanning = true;
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
             HasNoDetectedInstallations = false;
+            ClearScanFailure();
 
             StatusMessage = localizationService["GameProfiles.Status.ScanningForGames"];
             ErrorMessage = string.Empty;
@@ -1617,6 +1645,8 @@ public partial class GameProfileLauncherViewModel(
                     }
                     else
                     {
+                        detectionFinished = true;
+                        await RecordCompletedScanAsync(InstallationScanOutcome.FoundNothing);
                         HasNoDetectedInstallations = true;
                         StatusMessage = localizationService["GameProfiles.Status.NoInstallationsFound"];
                         notificationService.ShowWarning(
@@ -1628,6 +1658,8 @@ public partial class GameProfileLauncherViewModel(
                 }
 
                 HasNoDetectedInstallations = false;
+                detectionFinished = true;
+                await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
 
                 logger.LogInformation(
                     "Game scan completed. Found {Count} installations ({GeneralsCount} Generals, {ZeroHourCount} Zero Hour)",
@@ -1651,6 +1683,7 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
+                RecordScanFailure(errors);
             }
         }
         catch (Exception ex)
@@ -1658,6 +1691,10 @@ public partial class GameProfileLauncherViewModel(
             logger.LogError(ex, "Error scanning for games");
             StatusMessage = localizationService["GameProfiles.Status.ErrorDuringScan"];
             ErrorMessage = ex.Message;
+            if (!detectionFinished)
+            {
+                RecordScanFailure(ex.Message);
+            }
         }
         finally
         {
@@ -1665,14 +1702,130 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
-    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()
+    /// <summary>
+    /// Lets the user pick the game folder after a failed scan and creates profiles for it.
+    /// </summary>
+    [RelayCommand]
+    private async Task ChooseGameFolderAsync()
     {
-        logger.LogInformation("No game installations found, prompting user for manual directory selection");
+        if (IsScanning)
+        {
+            return;
+        }
 
-        notificationService.ShowInfo(
-            localizationService["GameProfiles.Notification.ManualSelection.Title"],
-            localizationService["GameProfiles.Notification.ManualSelection.Message"],
-            autoDismissMs: NotificationDurations.VeryLong);
+        try
+        {
+            IsScanning = true;
+            var installation = await PromptAndRegisterManualInstallationAsync(announceMissingInstallations: false);
+            if (installation == null)
+            {
+                return;
+            }
+
+            ClearScanFailure();
+            ErrorMessage = string.Empty;
+            HasNoDetectedInstallations = false;
+            await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
+
+            List<GameInstallation> installations = [installation];
+            var wizardResult = await setupWizardService.RunSetupWizardAsync(installations);
+            var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installations, wizardResult);
+
+            StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installations.Count, profilesCreated);
+            notificationService.ShowSuccess(
+                localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                autoDismissMs: NotificationDurations.VeryLong);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error registering the chosen game folder");
+            notificationService.ShowError(
+                localizationService[NotificationErrorTitleKey],
+                localizationService.GetString("GameProfiles.ScanFailure.ChooseFolderFailed", ex.Message),
+                autoDismissMs: NotificationDurations.Long);
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    private void NotifyScanStateChanged()
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+        OnPropertyChanged(nameof(ShouldShowScanPrompt));
+        OnPropertyChanged(nameof(ShouldShowScanFailure));
+    }
+
+    private void ClearScanFailure()
+    {
+        HasScanFailed = false;
+        ScanFailureMessage = string.Empty;
+    }
+
+    private void RecordScanFailure(string reason)
+    {
+        ScanFailureMessage = reason;
+        HasScanFailed = true;
+        notificationService.ShowWarning(
+            localizationService["GameProfiles.ScanFailure.Title"],
+            reason,
+            autoDismissMs: NotificationDurations.Long);
+    }
+
+    private async Task RecordCompletedScanAsync(InstallationScanOutcome outcome)
+    {
+        HasCompletedScan = true;
+        if (userSettingsService == null)
+        {
+            return;
+        }
+
+        var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
+        {
+            s.LastInstallationScanOutcome = outcome;
+            return true;
+        });
+        if (!saved)
+        {
+            logger.LogWarning("Failed to persist installation scan outcome {Outcome}", outcome);
+        }
+    }
+
+    /// <summary>
+    /// Restores the outcome of a scan from a previous session, so a player whose last scan
+    /// found nothing still sees the storefront banner instead of the first-run scan prompt.
+    /// </summary>
+    private void RestoreScanOutcome()
+    {
+        if (_hasRestoredScanOutcome || userSettingsService == null)
+        {
+            return;
+        }
+
+        _hasRestoredScanOutcome = true;
+        if (HasCompletedScan || HasScanFailed)
+        {
+            return;
+        }
+
+        var outcome = userSettingsService.Get().LastInstallationScanOutcome;
+        HasCompletedScan = outcome != InstallationScanOutcome.NotScanned;
+        HasNoDetectedInstallations = outcome == InstallationScanOutcome.FoundNothing && HasNoProfiles;
+    }
+
+    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(bool announceMissingInstallations = true)
+    {
+        if (announceMissingInstallations)
+        {
+            logger.LogInformation("No game installations found, prompting user for manual directory selection");
+
+            notificationService.ShowInfo(
+                localizationService["GameProfiles.Notification.ManualSelection.Title"],
+                localizationService["GameProfiles.Notification.ManualSelection.Message"],
+                autoDismissMs: NotificationDurations.VeryLong);
+        }
 
         var manualInstallation = ManualDirectoryPrompter != null
             ? await ManualDirectoryPrompter()
@@ -3279,7 +3432,7 @@ public partial class GameProfileLauncherViewModel(
 
     private void UpdateHasNoProfiles()
     {
-        HasNoProfiles = !Profiles.OfType<GameProfileItemViewModel>().Any(p => p.Profile is not GameProfile { IsToolProfile: true });
+        HasNoProfiles = !Profiles.Any(p => p is not AddProfileItemViewModel && p.Profile is not GameProfile { IsToolProfile: true });
     }
 
     private void InitializeSortOptions(bool forceRefresh = false)

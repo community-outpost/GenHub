@@ -948,6 +948,30 @@
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>فشل في فتح صفحة المتجر: {0}</value>
   </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>دع GenHub يعثر على لعبتك</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>لم يفحص GenHub هذا الكمبيوتر بعد. ابدأ الفحص للعثور على Command &amp; Conquer Generals و Zero Hour وإعداد ملفات تعريف لهما.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>البحث عن الألعاب</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>لم يكتمل فحص اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>تعذّر على GenHub البحث في جميع المواقع. أصلح المشكلة أدناه ثم أعد الفحص، أو اختر مجلد اللعبة بنفسك.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>اختيار مجلد اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>إعادة الفحص</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>تعذّر إعداد مجلد اللعبة المختار: {0}</value>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>
   </data>

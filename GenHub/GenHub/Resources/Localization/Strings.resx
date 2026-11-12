@@ -948,6 +948,30 @@
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>Failed to open store page: {0}</value>
   </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>Let GenHub find your game</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>GenHub has not scanned this computer yet. Scan to find Command &amp; Conquer Generals and Zero Hour and set up profiles for them.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>Scan for Games</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>The game scan did not finish</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>GenHub could not search every location. Fix the problem below and scan again, or choose the game folder yourself.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>Choose Game Folder</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>Scan Again</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>Could not set up the chosen game folder: {0}</value>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>No game installations found</value>
   </data>

@@ -948,6 +948,30 @@
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>Не удалось открыть страницу магазина: {0}</value>
   </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>Позвольте GenHub найти вашу игру</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>GenHub ещё не сканировал этот компьютер. Запустите сканирование, чтобы найти Command &amp; Conquer Generals и Zero Hour и создать для них профили.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>Найти игры</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>Сканирование игр не завершено</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>GenHub не смог проверить все расположения. Устраните проблему, указанную ниже, и повторите сканирование или выберите папку игры вручную.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>Выбрать папку игры</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>Сканировать снова</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>Не удалось настроить выбранную папку игры: {0}</value>
+  </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>Установленные игры не найдены</value>
   </data>
