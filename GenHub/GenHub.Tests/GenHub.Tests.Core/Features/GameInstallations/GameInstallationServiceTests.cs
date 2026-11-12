@@ -689,6 +689,39 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// When recovered detection finds the held folder under another ID, the held ID still resolves,
+    /// so profiles created while detection failed keep their installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetInstallationAsync_AfterDetectionFindsHeldFolderUnderAnotherId_ResolvesHeldIdAsync()
+    {
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("denied"));
+        var folder = Directory.CreateTempSubdirectory("GenHubHeld_").FullName;
+        try
+        {
+            var held = new GameInstallation(folder, GameInstallationType.Retail);
+            await _service.AddInstallationToCacheAsync(held);
+            var detected = new GameInstallation(folder, GameInstallationType.Steam);
+            Assert.NotEqual(held.Id, detected.Id);
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([detected], TimeSpan.Zero));
+
+            var all = await _service.GetAllInstallationsAsync();
+            var resolved = await _service.GetInstallationAsync(held.Id);
+
+            Assert.Same(detected, Assert.Single(all.Data!));
+            Assert.True(resolved.Success);
+            Assert.Same(detected, resolved.Data);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+    }
+
+    /// <summary>
     /// Held installations are released once merged, and a held folder that vanished is not cached.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

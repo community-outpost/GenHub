@@ -1,5 +1,6 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -37,9 +38,25 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// <summary>
 /// Contains unit tests for <see cref="GameProfileLauncherViewModel"/>.
 /// </summary>
-public class GameProfileLauncherViewModelTests
+public class GameProfileLauncherViewModelTests : IDisposable
 {
+    private readonly List<GameProfileLauncherViewModel> _initializedViewModels = [];
+
     private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
+
+    /// <summary>
+    /// Unregisters view models created by the scan state tests from the shared messenger, so profile
+    /// messages sent by other tests on background threads never reach them.
+    /// </summary>
+    public void Dispose()
+    {
+        foreach (var vm in _initializedViewModels)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(vm);
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     /// <summary>
     /// Verifies that the constructor initializes properties correctly.
@@ -1391,10 +1408,10 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that the storefront banner follows a completed empty scan, not the profile count.
+    /// Verifies that the storefront banner needs a completed empty scan and no playable profiles.
     /// </summary>
     [Fact]
-    public void ShouldShowStorefrontBanner_FollowsDetectedInstallationsOnly()
+    public void ShouldShowStorefrontBanner_RequiresEmptyScanAndNoProfiles()
     {
         var vm = CreateViewModelWithMockDependencies();
         vm.HasLoadedProfilesSuccessfully = true;
@@ -1405,7 +1422,11 @@ public class GameProfileLauncherViewModelTests
         vm.HasNoDetectedInstallations = true;
         Assert.True(vm.ShouldShowStorefrontBanner);
 
-        vm.Profiles.Add(CreateProfileItem("Test Profile"));
+        var profile = CreateProfileItem("Test Profile");
+        vm.Profiles.Add(profile);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+
+        vm.Profiles.Remove(profile);
         Assert.True(vm.ShouldShowStorefrontBanner);
 
         vm.HasNoDetectedInstallations = false;
@@ -1614,6 +1635,40 @@ public class GameProfileLauncherViewModelTests
         notifications.Verify(
             n => n.ShowInfo("Select Game Directory", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// A chosen folder that could not be registered does not clear the failure or run setup.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_WhenRegistrationFails_KeepsFailureAsync()
+    {
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        installationService
+            .Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("cache unavailable"));
+        var wizard = new Mock<ISetupWizardService>();
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null));
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.Equal(InstallationScanOutcome.NotScanned, settings.LastInstallationScanOutcome);
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("cache unavailable")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -2388,47 +2443,6 @@ public class GameProfileLauncherViewModelTests
         return settingsService;
     }
 
-    private static GameProfileLauncherViewModel CreateViewModelForScanState(
-        Mock<IGameInstallationService> installationService,
-        Mock<IUserSettingsService> settingsService,
-        Mock<INotificationService> notificationService,
-        Mock<ISetupWizardService> setupWizardService,
-        Mock<IGameProfileManager>? profileManager = null)
-    {
-        if (profileManager == null)
-        {
-            profileManager = new Mock<IGameProfileManager>();
-            profileManager
-                .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
-        }
-
-        var clientDetector = new Mock<IGameClientDetector>();
-        clientDetector
-            .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
-
-        return new GameProfileLauncherViewModel(
-            installationService.Object,
-            profileManager.Object,
-            new Mock<IProfileLauncherFacade>().Object,
-            null!,
-            new Mock<IProfileEditorFacade>().Object,
-            new Mock<IConfigurationProviderService>().Object,
-            new Mock<IGameProcessManager>().Object,
-            new Mock<IShortcutService>().Object,
-            new Mock<IPublisherProfileOrchestrator>().Object,
-            new Mock<ISteamManifestPatcher>().Object,
-            CreateProfileResourceService(),
-            clientDetector.Object,
-            notificationService.Object,
-            setupWizardService.Object,
-            new Mock<IDialogService>().Object,
-            NullLogger<GameProfileLauncherViewModel>.Instance,
-            CreateLocalizationService(),
-            userSettingsService: settingsService.Object);
-    }
-
     private static ILocalizationService CreateLocalizationService()
     {
         var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
@@ -2510,5 +2524,48 @@ public class GameProfileLauncherViewModelTests
     private static GameProfileLauncherViewModel CreateViewModel()
     {
         return CreateViewModelWithMockDependencies();
+    }
+
+    private GameProfileLauncherViewModel CreateViewModelForScanState(
+        Mock<IGameInstallationService> installationService,
+        Mock<IUserSettingsService> settingsService,
+        Mock<INotificationService> notificationService,
+        Mock<ISetupWizardService> setupWizardService,
+        Mock<IGameProfileManager>? profileManager = null)
+    {
+        if (profileManager == null)
+        {
+            profileManager = new Mock<IGameProfileManager>();
+            profileManager
+                .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        }
+
+        var clientDetector = new Mock<IGameClientDetector>();
+        clientDetector
+            .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            profileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            clientDetector.Object,
+            notificationService.Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+        _initializedViewModels.Add(vm);
+        return vm;
     }
 }

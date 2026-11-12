@@ -55,7 +55,7 @@ public class UserSettings
     public ProfileSortMode ProfileSortMode { get; set; } = ProfileSortMode.LastPlayed;
 
     /// <summary>Gets or sets the outcome of the most recent completed game installation scan.</summary>
-    public InstallationScanOutcome LastInstallationScanOutcome { get; set; }
+    public InstallationScanOutcome LastInstallationScanOutcome { get; set; } = InstallationScanOutcome.NotScanned;
 
     /// <summary>Gets or sets the last selected navigation tab.</summary>
     public NavigationTab LastSelectedTab { get; set; } = NavigationTab.Home;
