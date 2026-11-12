@@ -56,9 +56,8 @@
         <Style Selector="Button.card-select:pointerover Border.hover-glow">
             <Setter Property="Opacity" Value="1" />
         </Style>
-        <!-- Hide the launcher's LAUNCH/tools overlay in this context; the Add badge is the action. -->
-        <Style Selector="Button.card-select:pointerover Grid.hover-overlay Button.launch-button,
-                         Button.card-select:pointerover Grid.hover-overlay StackPanel">
+        <!-- Hide the launcher's tool buttons here. The Add badge is the action. -->
+        <Style Selector="Button.card-select:pointerover Grid.hover-overlay StackPanel">
             <Setter Property="IsVisible" Value="False" />
         </Style>
 

@@ -351,16 +351,16 @@
         <!-- Clipping Container for Internal Content -->
         <!-- This ensures all children are strictly clipped to the rounded corners, preventing 'hard corners' -->
         <Border CornerRadius="16" ClipToBounds="True">
-            <Grid>
+            <Grid RowDefinitions="*,Auto">
                 <!-- Background Image (Clipped) -->
                 <!-- Margin 1px to prevent sub-pixel bleeding at edges -->
-                <Border CornerRadius="16" ClipToBounds="True" Margin="1">
+                <Border Grid.RowSpan="2" CornerRadius="16" ClipToBounds="True" Margin="1">
                      <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}"
                             Stretch="UniformToFill" />
                 </Border>
 
                 <!-- Dark Gradient Overlay -->
-                <Border CornerRadius="16" Margin="1">
+                <Border Grid.RowSpan="2" CornerRadius="16" Margin="1">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                             <GradientStop Color="#20000000" Offset="0" />
@@ -375,7 +375,7 @@
                      Actually, let's use Margin="-2" to make it bleed OUTWARD slightly if ZIndex is high, or 0 if contained.
                      The user reported missing borders (left/top). This usually means clipping.
                      Let's ensure the parent container has enough padding or this element has margin. -->
-                <Border Classes="hover-glow" IsVisible="{Binding !IsProcessRunning}"
+                <Border Grid.RowSpan="2" Classes="hover-glow" IsVisible="{Binding !IsProcessRunning}"
                         BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
                         BorderThickness="4"
                         CornerRadius="16"
@@ -387,14 +387,14 @@
                 </Border>
 
                 <!-- Color Tint Overlay -->
-                <Border Opacity="0.25" IsVisible="{Binding !IsProcessRunning}" CornerRadius="16">
+                <Border Grid.RowSpan="2" Opacity="0.25" IsVisible="{Binding !IsProcessRunning}" CornerRadius="16">
                     <Border.Background>
                         <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" />
                     </Border.Background>
                 </Border>
 
                 <!-- Running State Active Overlay -->
-                <Border IsVisible="{Binding IsProcessRunning}"
+                <Border Grid.RowSpan="2" IsVisible="{Binding IsProcessRunning}"
                         BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
                         BorderThickness="2"
                         CornerRadius="16"
@@ -405,7 +405,7 @@
                 </Border>
 
                 <!-- Metadata Content (Bottom) -->
-                <StackPanel Classes="metadata-panel" VerticalAlignment="Bottom" Margin="16">
+                <StackPanel Grid.Row="1" Classes="metadata-panel" VerticalAlignment="Bottom" Margin="16">
                     <!-- Title and Icon -->
                     <Grid ColumnDefinitions="Auto, *">
                         <!-- Icon Container with Profile Color Border -->
@@ -455,8 +455,8 @@
                 </StackPanel>
 
 
-                <!-- Play Button: always visible, drawn above the hover overlay, first card tab stop -->
-                <Panel ZIndex="1" IsVisible="{Binding CanLaunch}">
+                <!-- Play Button: always visible between the tool row and the metadata, above the hover overlay, first card tab stop -->
+                <Panel Grid.Row="0" ZIndex="1" Margin="0,48,0,0" IsVisible="{Binding CanLaunch}">
                     <Button Classes="launch-button play-button"
                             Command="{Binding LaunchProfileCommand}"
                             AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.LaunchProfile}">
@@ -471,7 +471,7 @@
 
                 <!-- Hover Interaction Overlay -->
                 <!-- Tag bound to IsDemoModeActive allows CSS-like selection to force visibility -->
-                <Grid Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
+                <Grid Grid.RowSpan="2" Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
 
                     <!-- Tint Darken on Hover -->
                     <Border Background="#30000000" CornerRadius="16" />
@@ -564,7 +564,7 @@
                 </Grid>
 
                 <!-- Demo Highlight Circles Overlay (Always Visible, Independent of Hover) -->
-                <Grid IsVisible="{Binding !IsProcessRunning}" IsHitTestVisible="False">
+                <Grid Grid.RowSpan="2" IsVisible="{Binding !IsProcessRunning}" IsHitTestVisible="False">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
 
                         <!-- 1. Steam Slot -->
@@ -607,7 +607,7 @@
                 </Grid>
 
                 <!-- Running State Overlay (Always interactions when running) -->
-                <Grid IsVisible="{Binding IsProcessRunning}">
+                <Grid Grid.RowSpan="2" IsVisible="{Binding IsProcessRunning}">
                     <!-- Stop Button Center -->
                     <Button Classes="launch-button"
                             Command="{Binding StopProfileCommand}"
