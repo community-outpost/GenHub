@@ -169,8 +169,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
         }
     }
 
-    private readonly object _savedModesLock = new();
-
+    /// <summary>
     /// Unregisters view models created by the scan state tests from the shared messenger, so profile
     /// messages sent by other tests on background threads never reach them.
     /// </summary>
@@ -2642,7 +2641,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
     [Fact]
     public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
     {
-        var savedModes = new List<ProfileSortMode>();
+        var savedModes = new System.Collections.Concurrent.ConcurrentQueue<ProfileSortMode>();
         var settingsService = new Mock<IUserSettingsService>();
         settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
         settingsService
@@ -2652,10 +2651,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
                 var settings = new UserSettings();
                 if (apply(settings))
                 {
-                    lock (_savedModesLock)
-                    {
-                        savedModes.Add(settings.ProfileSortMode);
-                    }
+                    savedModes.Enqueue(settings.ProfileSortMode);
                 }
             })
             .ReturnsAsync(true);
@@ -2687,26 +2683,16 @@ public class GameProfileLauncherViewModelTests : IDisposable
             vm.SelectedSortMode = mode;
         }
 
-        for (var attempt = 0; attempt < 200; attempt++)
+        for (var attempt = 0; attempt < 200 && !savedModes.Contains(ProfileSortMode.DateCreated); attempt++)
         {
-            lock (_savedModesLock)
-            {
-                if (savedModes.Contains(ProfileSortMode.DateCreated))
-                {
-                    break;
-                }
-            }
-
             await Task.Delay(20);
         }
 
         await Task.Delay(200);
 
-        lock (_savedModesLock)
-        {
-            Assert.NotEmpty(savedModes);
-            Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
-        }
+        var persisted = savedModes.ToArray();
+        Assert.NotEmpty(persisted);
+        Assert.Equal(ProfileSortMode.DateCreated, persisted[^1]);
     }
 
     /// <summary>
