@@ -175,6 +175,30 @@ public class ActionButtonStyleTests
         }
     }
 
+    /// <summary>Action glyphs follow semantic ink and command-disabled foreground.</summary>
+    [AvaloniaFact]
+    public void ActionIcon_FollowsButtonForegroundWhenDisabled()
+    {
+        var icon = new PathIcon { Data = Geometry.Parse("M0,0 L16,16") };
+        var button = new Button { Content = icon };
+        button.Classes.Add("action-primary");
+        var window = new Window { Width = 240, Height = 160, Content = button };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Black, BrushColor(icon.Foreground));
+            button.IsEnabled = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(BrushColor(button.Foreground), BrushColor(icon.Foreground));
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("TextMuted")!), BrushColor(icon.Foreground));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static Color BrushColor(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 
     private static double Luminance(Color color)

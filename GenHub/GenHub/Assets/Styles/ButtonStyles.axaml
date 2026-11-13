@@ -1,4 +1,5 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
     <!-- Opt-in action roles. Navigation, filter chips and branded controls keep their own styles. -->
     <Style Selector="Button.action-primary, Button.action-secondary, Button.action-danger, Button.icon-action">
         <Setter Property="MinHeight" Value="{DynamicResource ActionMinHeight}" />
@@ -176,7 +177,8 @@
         <Setter Property="MinHeight" Value="{DynamicResource ActionCompactMinHeight}" />
         <Setter Property="Padding" Value="6" />
     </Style>
-    <Style Selector="Button.action-primary PathIcon, Button.action-secondary PathIcon, Button.action-danger PathIcon, Button.icon-action PathIcon">
+    <Style Selector="Button.action-primary PathIcon, Button.action-secondary PathIcon, Button.action-danger PathIcon, Button.icon-action PathIcon, Button.action-primary material|MaterialIcon, Button.action-secondary material|MaterialIcon, Button.action-danger material|MaterialIcon, Button.icon-action material|MaterialIcon">
+        <Setter Property="Foreground" Value="{ReflectionBinding $parent[Button].Foreground}" />
         <Setter Property="Width" Value="{DynamicResource ActionIconSize}" />
         <Setter Property="Height" Value="{DynamicResource ActionIconSize}" />
     </Style>
