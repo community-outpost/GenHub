@@ -508,7 +508,7 @@
     <value>SCAN</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>LAUNCH</value>
+    <value>Play</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>STOP</value>

@@ -130,6 +130,19 @@
             <Setter Property="RenderTransform" Value="scale(0.95)" />
         </Style>
 
+        <!-- Keep the primary action readable over every cover image. -->
+        <Style Selector="Button.launch-button.play-button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="CornerRadius" Value="18" />
+        </Style>
+        <Style Selector="Button.launch-button.play-button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+        </Style>
+
         <!-- Tools/Action Button Style -->
         <Style Selector="Button.tool-button, ToggleButton.tool-button">
             <Setter Property="Background" Value="#40000000" />

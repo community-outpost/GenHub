@@ -508,7 +508,7 @@
     <value>فحص</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>تشغيل</value>
+    <value>العب</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>إيقاف</value>

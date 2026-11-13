@@ -508,7 +508,7 @@
     <value>СКАНИРОВАТЬ</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>ЗАПУСК</value>
+    <value>Играть</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>СТОП</value>
