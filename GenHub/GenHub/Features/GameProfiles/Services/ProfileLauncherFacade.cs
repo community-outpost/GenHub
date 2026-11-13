@@ -1770,20 +1770,33 @@ public class ProfileLauncherFacade(
             return;
         }
 
+        IReadOnlyList<ContentManifest> matches = potentialMatches;
         if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
         {
-            ValidateSpecificDependencyRequirement(manifest, dependency, manifestsById, potentialMatches, errors);
+            var match = ValidateSpecificDependencyRequirement(manifest, dependency, manifestsById, potentialMatches, errors);
+
+            // A missing item is left to the shared validator, which offers to install it.
+            if (match == null)
+            {
+                return;
+            }
+
+            matches = [match];
         }
         else
         {
             logger.LogDebug("Generic dependency {DependencyType} satisfied for {ManifestName}", dependency.DependencyType, manifest.Name);
         }
 
-        ValidateDependencyGameType(manifest, dependency, potentialMatches, profileGameType, errors);
-        ValidateDependencyPublisher(manifest, dependency, potentialMatches, errors);
+        ValidateDependencyGameType(manifest, dependency, matches, profileGameType, errors);
+        ValidateDependencyPublisher(manifest, dependency, matches, errors);
     }
 
-    private void ValidateSpecificDependencyRequirement(
+    /// <summary>
+    /// Checks the version of the manifest that matches a specific dependency.
+    /// </summary>
+    /// <returns>The matching manifest, or <see langword="null"/> when none is enabled.</returns>
+    private ContentManifest? ValidateSpecificDependencyRequirement(
         ContentManifest manifest,
         ContentDependency dependency,
         Dictionary<string, ContentManifest> manifestsById,
@@ -1819,7 +1832,7 @@ public class ProfileLauncherFacade(
             // A matching manifest without a comparable version is accepted, as the shared validator does.
             if (candidateMatch != null && IsVersionCompatible(candidateMatch.Version, dependency))
             {
-                return;
+                return candidateMatch;
             }
 
             if (candidateMatch != null)
@@ -1838,7 +1851,7 @@ public class ProfileLauncherFacade(
                     versionInfo,
                     candidateMatch.Version,
                     dependency.IsOptional);
-                return;
+                return candidateMatch;
             }
 
             logger.LogWarning(
@@ -1846,7 +1859,7 @@ public class ProfileLauncherFacade(
                 manifest.Name,
                 dependency.Id,
                 dependency.IsOptional);
-            return;
+            return null;
         }
 
         if ((!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
@@ -1867,12 +1880,14 @@ public class ProfileLauncherFacade(
                 requiredManifest.Version,
                 dependency.IsOptional);
         }
+
+        return requiredManifest;
     }
 
     private void ValidateDependencyGameType(
         ContentManifest manifest,
         ContentDependency dependency,
-        List<ContentManifest> potentialMatches,
+        IReadOnlyList<ContentManifest> potentialMatches,
         GameType profileGameType,
         List<string> errors)
     {
@@ -1919,12 +1934,14 @@ public class ProfileLauncherFacade(
     private void ValidateDependencyPublisher(
         ContentManifest manifest,
         ContentDependency dependency,
-        List<ContentManifest> potentialMatches,
+        IReadOnlyList<ContentManifest> potentialMatches,
         List<string> errors)
     {
         if (dependency.StrictPublisher && !string.IsNullOrEmpty(dependency.PublisherType))
         {
-            var dependencyManifest = potentialMatches.FirstOrDefault();
+            var dependencyManifest = potentialMatches.FirstOrDefault(match =>
+                string.Equals(match.Publisher?.PublisherType, dependency.PublisherType, StringComparison.OrdinalIgnoreCase))
+                ?? potentialMatches.FirstOrDefault();
             if (dependencyManifest != null)
             {
                 var publisherType = dependencyManifest.Publisher?.PublisherType ?? PublisherTypeConstants.Unknown;
