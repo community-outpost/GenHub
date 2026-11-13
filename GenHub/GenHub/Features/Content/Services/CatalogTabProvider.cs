@@ -12,18 +12,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services;
 
 /// <summary>
-/// Loads dynamic custom tab definitions from remote publisher catalog manifests for the downloads browser content detail view.
-/// When a user opens the detail page for a specific mod, map, or patch in the downloads section, publishers can display extra custom UI tabs (e.g. documentation, server stats, sub-addons, or custom web views) defined in their catalog json.
+/// Loads publisher-defined custom tabs for the content item selected in the downloads browser detail view.
 /// </summary>
 /// <remarks>
-/// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
-/// Currently disabled in ContentDetailView.axaml. See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+/// Tabs come from the selected item's own <c>customTabs</c> entry, carried in its resolver metadata, and from
+/// catalog-level tabs whose <c>appliesTo</c> list names the item. An item tab wins over a catalog-level tab with the same ID.
 /// </remarks>
 /// <param name="subscriptionStore">The publisher subscription store.</param>
 /// <param name="catalogParser">The publisher catalog parser.</param>
@@ -35,12 +35,18 @@ public class CatalogTabProvider(
     IHttpClientFactory httpClientFactory,
     ILogger<CatalogTabProvider> logger) : ITabProvider
 {
+    private sealed class CatalogItemTabs
+    {
+        [JsonPropertyName("customTabs")]
+        public List<CatalogTabDefinition>? CustomTabs { get; set; }
+    }
+
     private const int MaxCacheEntries = 100;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromMinutes(1);
     private static readonly JsonSerializerOptions CatalogTabJsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lazy<Task<PublisherCatalog?>>> _inFlightFetches = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<Task<PublisherCatalog?>>> _inFlightFetches = new(StringComparer.Ordinal);
 
     private void TrimCacheIfNeeded()
     {
@@ -86,23 +92,51 @@ public class CatalogTabProvider(
     {
         try
         {
-            var publisherId = ResolvePublisherId(searchResult);
-            var catalog = await GetOrFetchCatalogAsync(publisherId, cancellationToken);
-
-            if (catalog?.CustomTabs is not { Count: > 0 })
-            {
-                return [];
-            }
-
-            // Convert parsed catalog tab definitions into runtime tab definitions for the downloads detail view
             searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var catalogContentId);
             var contentId = !string.IsNullOrWhiteSpace(catalogContentId) ? catalogContentId : searchResult.Id;
             var resultId = searchResult.Id;
 
-            return catalog.CustomTabs
-                .Where(catalogTab => TabAppliesToContent(catalogTab, contentId, resultId))
-                .Select(catalogTab => MapToTabDefinition(catalogTab, searchResult))
-                .ToList();
+            var itemTabs = ReadItemTabs(searchResult);
+            if (itemTabs != null)
+            {
+                itemTabs = CatalogTabValidator.Normalize(itemTabs);
+                CatalogTabValidator.Sanitize(
+                    itemTabs,
+                    issue => logger.LogWarning(
+                        "Dropped publisher tab content: {Issue}",
+                        CatalogTabValidator.Describe($"Content item '{contentId}'", issue)));
+            }
+
+            var publisherId = ResolvePublisherId(searchResult);
+            var catalog = await GetOrFetchCatalogAsync(publisherId, cancellationToken);
+
+            if (itemTabs == null && catalog != null)
+            {
+                itemTabs = catalog.Content?
+                    .FirstOrDefault(item => item != null &&
+                        (item.Id.Equals(contentId, StringComparison.OrdinalIgnoreCase) ||
+                         item.Id.Equals(resultId, StringComparison.OrdinalIgnoreCase)))?
+                    .CustomTabs;
+            }
+
+            var rootTabs = catalog?.CustomTabs?
+                .Where(catalogTab => catalogTab != null && TabAppliesToContent(catalogTab, contentId, resultId))
+                ?? [];
+
+            var merged = new List<CustomTabDefinition>();
+            var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var catalogTab in (itemTabs ?? []).Where(tab => tab != null).Concat(rootTabs))
+            {
+                var tab = CatalogTabMapper.Map(catalogTab);
+                if (string.IsNullOrWhiteSpace(tab.TabId) || string.IsNullOrWhiteSpace(tab.Header) || !seenIds.Add(tab.TabId))
+                {
+                    continue;
+                }
+
+                merged.Add(tab);
+            }
+
+            return merged;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -118,28 +152,46 @@ public class CatalogTabProvider(
     private static string ResolvePublisherId(ContentSearchResult searchResult)
     {
         var publisherId = searchResult.ProviderName;
-        if (searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherProfileJson))
+        if (!searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherProfileJson))
         {
-            var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson, CatalogTabJsonOptions);
-            if (!string.IsNullOrWhiteSpace(publisherProfile?.Id))
-            {
-                publisherId = publisherProfile.Id;
-            }
+            return publisherId;
         }
 
-        return publisherId;
+        try
+        {
+            var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson, CatalogTabJsonOptions);
+            return !string.IsNullOrWhiteSpace(publisherProfile?.Id) ? publisherProfile.Id : publisherId;
+        }
+        catch (JsonException)
+        {
+            return publisherId;
+        }
+    }
+
+    private static List<CatalogTabDefinition>? ReadItemTabs(ContentSearchResult searchResult)
+    {
+        if (!searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var itemJson) ||
+            string.IsNullOrWhiteSpace(itemJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<CatalogItemTabs>(itemJson, CatalogTabJsonOptions)?.CustomTabs;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static bool TabAppliesToContent(CatalogTabDefinition catalogTab, string contentId, string resultId)
     {
-        if (catalogTab.AppliesTo is not { Count: > 0 })
-        {
-            return true;
-        }
-
-        return catalogTab.AppliesTo.Any(a =>
-            a.Equals(contentId, StringComparison.OrdinalIgnoreCase) ||
-            a.Equals(resultId, StringComparison.OrdinalIgnoreCase));
+        return catalogTab.AppliesTo?.Any(a =>
+            a != null &&
+            (a.Equals(contentId, StringComparison.OrdinalIgnoreCase) ||
+             a.Equals(resultId, StringComparison.OrdinalIgnoreCase))) == true;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Background fetch failures are logged and returned as null.")]
@@ -147,7 +199,28 @@ public class CatalogTabProvider(
         string publisherId,
         CancellationToken cancellationToken)
     {
-        if (_catalogCache.TryGetValue(publisherId, out var cached))
+        string? catalogUrl;
+        try
+        {
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken).ConfigureAwait(false);
+            catalogUrl = subscriptionResult.Success ? subscriptionResult.Data?.CatalogUrl : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read the subscription for publisher '{PublisherId}'", publisherId);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(catalogUrl))
+        {
+            return null;
+        }
+
+        if (_catalogCache.TryGetValue(catalogUrl, out var cached))
         {
             var ttl = cached.Catalog != null ? CacheDuration : NegativeCacheDuration;
             if (DateTime.UtcNow - cached.FetchedAt < ttl)
@@ -157,9 +230,9 @@ public class CatalogTabProvider(
         }
 
         var lazyFetch = _inFlightFetches.GetOrAdd(
-            publisherId,
-            id => new Lazy<Task<PublisherCatalog?>>(
-                () => FetchCatalogCoreAsync(id, CancellationToken.None),
+            catalogUrl,
+            url => new Lazy<Task<PublisherCatalog?>>(
+                () => FetchCatalogCoreAsync(publisherId, url, CancellationToken.None),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         try
@@ -175,92 +248,39 @@ public class CatalogTabProvider(
             logger.LogWarning(ex, "Failed to fetch catalog for publisher '{PublisherId}'", publisherId);
             return null;
         }
-        finally
-        {
-            if (lazyFetch.IsValueCreated && lazyFetch.Value.IsCompleted)
-            {
-                _inFlightFetches.TryRemove(KeyValuePair.Create(publisherId, lazyFetch));
-            }
-        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Network and parsing failures are logged and negatively cached.")]
-    private async Task<PublisherCatalog?> FetchCatalogCoreAsync(string publisherId, CancellationToken cancellationToken)
+    private async Task<PublisherCatalog?> FetchCatalogCoreAsync(string publisherId, string catalogUrl, CancellationToken cancellationToken)
     {
         try
         {
-            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
-                publisherId,
-                cancellationToken).ConfigureAwait(false);
-
-            if (!subscriptionResult.Success || subscriptionResult.Data == null)
-            {
-                TrimCacheIfNeeded();
-                _catalogCache[publisherId] = (DateTime.UtcNow, null);
-                return null;
-            }
-
-            var subscription = subscriptionResult.Data;
             var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-
             var catalogJson = await CatalogDocumentReader.ReadAsync(
                 httpClient,
-                subscription.CatalogUrl,
+                catalogUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken).ConfigureAwait(false);
             var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
             TrimCacheIfNeeded();
-            _catalogCache[publisherId] = (DateTime.UtcNow, resolvedCatalog);
+            _catalogCache[catalogUrl] = (DateTime.UtcNow, resolvedCatalog);
             return resolvedCatalog;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
             TrimCacheIfNeeded();
-            _catalogCache[publisherId] = (DateTime.UtcNow, null);
+            _catalogCache[catalogUrl] = (DateTime.UtcNow, null);
             return null;
         }
         finally
         {
-            if (_inFlightFetches.TryGetValue(publisherId, out var currentLazy))
+            if (_inFlightFetches.TryGetValue(catalogUrl, out var currentLazy))
             {
-                _inFlightFetches.TryRemove(KeyValuePair.Create(publisherId, currentLazy));
+                _inFlightFetches.TryRemove(KeyValuePair.Create(catalogUrl, currentLazy));
             }
         }
-    }
-
-    private CustomTabDefinition MapToTabDefinition(CatalogTabDefinition catalogTab, ContentSearchResult searchResult)
-    {
-        if (!Enum.TryParse<TabContentType>(catalogTab.ContentType, true, out var contentType) ||
-            !Enum.IsDefined(contentType))
-        {
-            logger.LogWarning("invalid content type '{ContentType}' for tab '{TabId}' in publisher '{Publisher}'", catalogTab.ContentType, catalogTab.TabId, searchResult.ProviderName);
-            contentType = TabContentType.Custom;
-        }
-
-        return new CustomTabDefinition
-        {
-            TabId = catalogTab.TabId,
-            Header = catalogTab.Header,
-            Icon = catalogTab.Icon,
-            Order = catalogTab.Order,
-            ContentType = contentType,
-            DataSourceUrl = catalogTab.DataSourceUrl,
-            ContentTemplate = catalogTab.ContentTemplate,
-            Intro = catalogTab.Intro,
-            Cards = catalogTab.Cards?.ConvertAll(card => new CustomTabCardDefinition
-            {
-                Title = card.Title,
-                Description = card.Description,
-                ImageUrl = card.ImageUrl,
-                Label = card.Label,
-                AccentColor = card.AccentColor,
-            }) ?? [],
-            Metadata = catalogTab.Metadata,
-            IsVisible = catalogTab.IsVisible,
-            LazyLoad = catalogTab.LazyLoad,
-        };
     }
 }

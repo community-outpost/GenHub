@@ -710,6 +710,60 @@ Constants for publisher endpoint names and keys used in JSON serialization and l
 
 ---
 
+## CustomTabConstants Class
+
+Limits, allowlists, link patterns and UI resource keys for publisher-defined custom tabs.
+
+### Limits
+
+| Constant                   | Value   | Description                                              |
+| -------------------------- | ------- | -------------------------------------------------------- |
+| `MaxTabsPerScope`          | `10`    | Most tabs one content item or the catalog root may declare |
+| `MaxCardsPerTab`           | `24`    | Most cards one tab may declare                           |
+| `MaxTabIdLength`           | `64`    | Longest tab ID                                           |
+| `MaxHeaderLength`          | `40`    | Longest tab header                                       |
+| `MaxIntroLength`           | `2000`  | Longest tab intro                                        |
+| `MaxBodyLength`            | `50000` | Longest tab Markdown body                                |
+| `MaxCardTitleLength`       | `100`   | Longest card title or label                              |
+| `MaxCardDescriptionLength` | `1000`  | Longest card description                                 |
+| `AvaloniaResourceScheme`   | `"avares"` | URI scheme for images bundled with the app            |
+| `GeneratedIdFallbackPrefix` | `"tab-"` | Prefix of a generated tab ID when the header has no usable characters |
+| `GeneratedIdFallbackHashLength` | `8` | Hash characters in a generated fallback tab ID       |
+
+### Studio Tab Header Buttons
+
+| Constant                   | Value                                               | Description                                 |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| `EditTabLocalizationKey`   | `"Tools.PublisherStudio.Content.CustomTabs.EditTab"`   | Tooltip key of the tab header edit button   |
+| `DeleteTabLocalizationKey` | `"Tools.PublisherStudio.Content.CustomTabs.DeleteTab"` | Tooltip key of the tab header delete button |
+| `EditIconResourceKey`      | `"EditIcon"`                                        | Icon resource of the tab header edit button |
+| `DeleteIconResourceKey`    | `"DeleteIcon"`                                      | Icon resource of the tab header delete button |
+
+The header buttons use `ThemeResourceKeys.AccentBrush` for edit and `ThemeResourceKeys.StatusErrorBrush` for delete.
+
+### Publisher Image Links
+
+| Constant                                | Value                                                              | Description                                   |
+| --------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `GoogleDriveHost`                       | `"drive.google.com"`                                               | Host of Drive file viewer links               |
+| `GoogleDriveDirectUrlFormat`            | `"https://drive.usercontent.google.com/download?id={0}&export=view"` | Direct download URL for a Drive file ID     |
+| `GoogleDriveOpenPath`                   | `"/open"`                                                          | Drive open link path                          |
+| `GoogleDriveUcPath`                     | `"/uc"`                                                            | Drive legacy download link path               |
+| `GoogleDriveIdQueryKey`                 | `"id"`                                                             | Query parameter carrying a Drive file ID      |
+| `GoogleDriveResourceKeyQueryKey`        | `"resourcekey"`                                                    | Query parameter carrying a Drive resource key |
+| `GoogleDriveFilePathPattern`            | regex                                                              | Drive viewer path, captures the `id` group    |
+| `GoogleDriveFileIdPattern`              | regex                                                              | Drive file ID                                 |
+| `GoogleDriveResourceKeyPattern`         | regex                                                              | Drive resource key                            |
+| `DiscordCdnHost`                        | `"cdn.discordapp.com"`                                             | Discord CDN attachment host                   |
+| `DiscordMediaHost`                      | `"media.discordapp.net"`                                           | Discord media proxy attachment host           |
+| `DiscordAttachmentsPathPrefix`          | `"/attachments/"`                                                  | Discord attachment path prefix                |
+| `DiscordEphemeralAttachmentsPathPrefix` | `"/ephemeral-attachments/"`                                        | Discord ephemeral attachment path prefix      |
+| `DiscordExpiryQueryKey`                 | `"ex"`                                                             | Query parameter carrying the expiry time      |
+| `DiscordSignatureQueryKey`              | `"hm"`                                                             | Query parameter carrying the signature        |
+| `BodyLinkPattern`                       | regex                                                              | http or https link in a tab body              |
+
+---
+
 ## PublisherInfoConstants Class
 
 Constants for publisher information including display names, websites, and support URLs.
@@ -1104,6 +1158,10 @@ User interface sizing, theme color, and display name constants.
 - `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
 - `GeneralsThemeColor`: Default theme color for Generals content (`"#BD5A0F"`)
 - `ZeroHourThemeColor`: Default theme color for Zero Hour content (`"#1B6575"`)
+
+### Collection Notifications
+
+- `IndexerPropertyName`: Property name raised when the items of an indexed collection change (`"Item[]"`)
 
 ## ScrollSpyConstants Class
 

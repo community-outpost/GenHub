@@ -1,3 +1,5 @@
+using GenHub.Core.Helpers;
+
 namespace GenHub.Core.Models.Content;
 
 /// <summary>
@@ -13,6 +15,9 @@ public class CustomTabCardDefinition
 
     /// <summary>Gets or sets an optional local or remote image URL.</summary>
     public string? ImageUrl { get; set; }
+
+    /// <summary>Gets a value indicating whether the image is a remote HTTP or HTTPS link that a browser can open.</summary>
+    public bool HasRemoteImage => MediaFileHelper.IsRemoteHttpUrl(ImageUrl);
 
     /// <summary>Gets or sets an optional compact label displayed above the card title.</summary>
     public string? Label { get; set; }

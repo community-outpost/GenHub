@@ -334,7 +334,9 @@ public interface ITabProvider
 }
 ```
 
-`CatalogTabProvider` reads publisher-defined tabs from `catalog.json` (such as dedicated server guides, system requirements, or custom credits), allowing creators to present rich multi-tab pages within GenHub.
+`CatalogTabProvider` loads the tabs authored for the selected item. It reads the item's `customTabs` from the catalog item in the search result's resolver metadata, and falls back to the cached catalog when that metadata is missing. It adds catalog-level tabs only when their `appliesTo` list names the item. `TabProviderRegistry` drops hidden tabs, sorts by `order`, and keeps the first tab for each `tabId`.
+
+`ContentDetailView` appends one top-level tab per publisher tab after the built-in tabs. Each tab renders through `CustomTabContentView`, which shows the plain-text intro, the Markdown `body` through the safe Markdown viewer, and the card grid. Selecting another variant reloads the tabs for that item and discards results from an earlier load. See the [catalog schema reference](content/creator-publishing.md#catalogtabdefinition) for the fields and validation rules.
 
 ---
 

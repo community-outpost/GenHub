@@ -21,43 +21,7 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
-
-        <Style Selector="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-        </Style>
-
-        <Style Selector="TextBlock.label">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-        <Style Selector="TextBlock.hint">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
+        <StyleInclude Source="avares://GenHub/Features/Tools/Views/Dialogs/StudioDialogFormStyles.axaml"/>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*" Margin="20,14,20,14">

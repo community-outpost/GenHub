@@ -177,6 +177,34 @@ public partial class LocalizationParityTests
     }
 
     /// <summary>
+    /// Verifies that no style included from App.axaml sets a value with the Localize markup extension.
+    /// Application styles load before the localization service is in the application resources, so such
+    /// a setter resolves to the raw resource key at runtime even though the key exists.
+    /// </summary>
+    [Fact]
+    public void Xaml_ApplicationStyles_ShouldNotLocalizeSetterValues()
+    {
+        var appXaml = File.ReadAllText(Path.Combine(GenHubProjectDirectory, "App.axaml"));
+        var offenders = new List<string>();
+        foreach (Match include in Regex.Matches(appXaml, @"<StyleInclude\s+Source=""avares://GenHub/([^""]+)"""))
+        {
+            var file = Path.Combine(GenHubProjectDirectory, include.Groups[1].Value.Replace('/', Path.DirectorySeparatorChar));
+            var lines = File.ReadAllLines(file);
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (Regex.IsMatch(lines[i], @"<Setter\b[^>]*Value=""\{localization:Localize"))
+                {
+                    offenders.Add($"{include.Groups[1].Value}:{i + 1}");
+                }
+            }
+        }
+
+        Assert.True(
+            offenders.Count == 0,
+            $"Application styles must not use Localize in setter values:\n{string.Join("\n", offenders)}");
+    }
+
+    /// <summary>
     /// Scans all application XAML (.axaml) files to ensure that user-facing attributes (Text, Content, Header, ToolTip.Tip, Watermark)
     /// do not contain hardcoded English string literals, enforcing the use of localization markup extensions.
     /// </summary>

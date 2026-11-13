@@ -1099,6 +1099,7 @@ Manages content items, releases, artifacts, and dependencies.
 - Upload artifacts with SHA256 verification
 - Define cross-publisher dependencies
 - Rich metadata (tags, screenshots, descriptions)
+- Per-item custom tabs for the Downloads detail page. The item preview shows each tab as a real tab after Summary, Releases, Addons and Media, rendered with the same view players see. Edit buttons on the tab header, body and cards open the tab editor, which edits the ID, header, order, intro, Markdown body, visibility and cards with a live preview. The delete button on a tab asks for confirmation
 
 **Dialog Integration**:
 

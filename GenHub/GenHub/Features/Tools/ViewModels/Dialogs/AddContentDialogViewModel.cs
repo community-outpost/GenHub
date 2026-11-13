@@ -2569,6 +2569,8 @@ public partial class AddContentDialogViewModel(
             contentItem.PublisherType = _existingItem.PublisherType;
         }
 
+        contentItem.CustomTabs = [.. _existingItem.CustomTabs];
+
         // Preserve existing releases & dependencies as deep copies so the edited
         // item never aliases the source item's mutable lists.
         foreach (var release in _existingItem.Releases)

@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -113,6 +114,12 @@ public partial class ContentDetailViewModel(
     IUserSettingsService? userSettingsService = null) : ObservableObject, IDisposable
 {
     // ===== Constants =====
+
+    /// <summary>
+    /// The number of built-in tabs declared before the publisher-defined tabs in the detail view.
+    /// </summary>
+    public const int BuiltInTabCount = 6;
+
     private const string UnknownValue = "Unknown";
     private const string DefaultAddonName = "Addon";
     private const string DeleteFailedTitleKey = "Downloads.ContentDetail.DeleteFailedTitle";
@@ -179,6 +186,10 @@ public partial class ContentDetailViewModel(
     private Task? _initialStateTask;
     private Task? _iconTask;
     private Task? _customTabsTask;
+    private int _customTabsLoadVersion;
+    private string? _customTabsItemKey;
+    private string? _pendingCustomTabId;
+    private bool _isUpdatingCustomTabs;
     private Task? _variantsTask;
     private Task? _gitHubReadmeTask;
     private Task? _generalsOnlineNotesTask;
@@ -458,23 +469,7 @@ public partial class ContentDetailViewModel(
     [NotifyPropertyChangedFor(nameof(PublisherSupportUrl))]
     [NotifyPropertyChangedFor(nameof(PublisherContactEmail))]
     [NotifyPropertyChangedFor(nameof(HasPublisherProfile))]
-    [NotifyPropertyChangedFor(nameof(HasPublisherInfo))]
     private PublisherProfile? _publisherProfile;
-
-    [ObservableProperty]
-    private CustomTabDefinition? _selectedCustomTab;
-
-    /// <summary>
-    /// Gets the collection of custom tabs from publishers.
-    /// </summary>
-    /// <remarks>
-    /// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
-    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
-    /// </remarks>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasCustomTabs))]
-    [NotifyPropertyChangedFor(nameof(HasPublisherInfo))]
-    private ObservableCollection<CustomTabDefinition> _customTabs = [];
 
     // ===== Properties =====
 
@@ -1035,11 +1030,6 @@ public partial class ContentDetailViewModel(
         (!string.IsNullOrWhiteSpace(PublisherWebsite) || !string.IsNullOrWhiteSpace(PublisherSupportUrl) || !string.IsNullOrWhiteSpace(PublisherContactEmail) || HasPublisherReferrals);
 
     /// <summary>
-    /// Gets a value indicating whether the Publisher tab should be visible.
-    /// </summary>
-    public bool HasPublisherInfo => HasCustomTabs || HasPublisherProfile;
-
-    /// <summary>
     /// Gets the publisher category or role badge text.
     /// </summary>
     public string PublisherTypeBadge => searchResult.ResolverId == CatalogConstants.GenericCatalogResolverId
@@ -1047,9 +1037,14 @@ public partial class ContentDetailViewModel(
         : (localizationService?.GetString("Downloads.Publisher.OfficialProvider") ?? CatalogConstants.OfficialProviderBadge);
 
     /// <summary>
+    /// Gets the publisher-defined tabs for the selected content item, rendered after the built-in tabs.
+    /// </summary>
+    public BatchObservableCollection<CustomTabDefinition> CustomTabs { get; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether there are custom tabs to display.
     /// </summary>
-    public bool HasCustomTabs => CustomTabs?.Count > 0;
+    public bool HasCustomTabs => CustomTabs.Count > 0;
 
     /// <summary>
     /// Disposes resources used by the view model.
@@ -2859,6 +2854,7 @@ public partial class ContentDetailViewModel(
 
             _ = LoadHeaderImagesAsync();
             _ = LoadInitialStateAsync();
+            ReloadCustomTabsIfItemChanged();
         }
         else
         {
@@ -3998,7 +3994,6 @@ public partial class ContentDetailViewModel(
         OnPropertyChanged(nameof(PublisherSupportUrl));
         OnPropertyChanged(nameof(PublisherContactEmail));
         OnPropertyChanged(nameof(HasPublisherProfile));
-        OnPropertyChanged(nameof(HasPublisherInfo));
     }
 
     /// <summary>
@@ -8526,41 +8521,156 @@ public partial class ContentDetailViewModel(
     }
 
     /// <summary>
-    /// Loads custom tabs from registered tab providers.
+    /// Loads the publisher-defined tabs for the current content item from registered tab providers.
     /// </summary>
     /// <remarks>
-    /// Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported.
-    /// See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621).
+    /// A newer load, a disposed view model, or a cancelled token discards the result, so switching
+    /// to another variant never shows the tabs of the previously selected item.
     /// </remarks>
     private async Task LoadCustomTabsAsync()
     {
+        var loadVersion = Interlocked.Increment(ref _customTabsLoadVersion);
+        _customTabsItemKey = ResolveCustomTabsItemKey();
+        CancellationToken token;
         try
         {
-            var tabs = await tabProviderRegistry.GetTabsForContentAsync(searchResult, _cts.Token);
+            token = _cts.Token;
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
+
+        try
+        {
+            var tabs = await tabProviderRegistry.GetTabsForContentAsync(searchResult, token);
+            if (IsStaleCustomTabsLoad(loadVersion, token))
+            {
+                return;
+            }
 
             await RunOnUiThreadAsync(() =>
             {
-                CustomTabs.Clear();
-                foreach (var tab in tabs)
+                if (IsStaleCustomTabsLoad(loadVersion, token))
                 {
-                    CustomTabs.Add(tab);
+                    return;
                 }
 
-                if (CustomTabs.Count > 0 && (SelectedCustomTab == null || !CustomTabs.Contains(SelectedCustomTab)))
-                {
-                    SelectedCustomTab = CustomTabs[0];
-                }
-
-                OnPropertyChanged(nameof(HasCustomTabs));
-                OnPropertyChanged(nameof(HasPublisherInfo));
+                ApplyCustomTabs(tabs ?? []);
             });
 
-            logger.LogDebug("Loaded {Count} custom tabs for content: {Name}", CustomTabs.Count, Name);
+            logger.LogDebug("Loaded {Count} custom tabs for content: {Name}", tabs?.Count ?? 0, Name);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            logger.LogDebug("Custom tab load cancelled for content: {Name}", Name);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to load custom tabs for content: {Name}", Name);
+            if (IsStaleCustomTabsLoad(loadVersion, token))
+            {
+                return;
+            }
+
+            await RunOnUiThreadAsync(() =>
+            {
+                if (!IsStaleCustomTabsLoad(loadVersion, token))
+                {
+                    _pendingCustomTabId = null;
+                }
+            });
         }
+    }
+
+    private bool IsStaleCustomTabsLoad(int loadVersion, CancellationToken token) =>
+        _disposed || token.IsCancellationRequested || loadVersion != Volatile.Read(ref _customTabsLoadVersion);
+
+    private void ApplyCustomTabs(IReadOnlyList<CustomTabDefinition> tabs)
+    {
+        var previousTabId = GetSelectedCustomTabId();
+        if (previousTabId == null && SelectedTabIndex == 0)
+        {
+            previousTabId = _pendingCustomTabId;
+        }
+
+        _pendingCustomTabId = null;
+        _isUpdatingCustomTabs = true;
+        try
+        {
+            CustomTabs.ReplaceAll(tabs);
+
+            OnPropertyChanged(nameof(HasCustomTabs));
+
+            if (previousTabId == null && SelectedTabIndex < BuiltInTabCount)
+            {
+                return;
+            }
+
+            var restoredIndex = -1;
+            for (var i = 0; previousTabId != null && i < CustomTabs.Count; i++)
+            {
+                if (CustomTabs[i].TabId.Equals(previousTabId, StringComparison.OrdinalIgnoreCase))
+                {
+                    restoredIndex = i;
+                    break;
+                }
+            }
+
+            SelectedTabIndex = restoredIndex >= 0 ? BuiltInTabCount + restoredIndex : 0;
+        }
+        finally
+        {
+            _isUpdatingCustomTabs = false;
+        }
+    }
+
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        if (!_isUpdatingCustomTabs)
+        {
+            _pendingCustomTabId = null;
+        }
+    }
+
+    private string? GetSelectedCustomTabId()
+    {
+        var customIndex = SelectedTabIndex - BuiltInTabCount;
+        return customIndex >= 0 && customIndex < CustomTabs.Count ? CustomTabs[customIndex].TabId : null;
+    }
+
+    private string ResolveCustomTabsItemKey()
+    {
+        return searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var contentId) &&
+            !string.IsNullOrWhiteSpace(contentId)
+            ? contentId
+            : searchResult.Id;
+    }
+
+    private void ReloadCustomTabsIfItemChanged()
+    {
+        if (_disposed || string.Equals(_customTabsItemKey, ResolveCustomTabsItemKey(), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _pendingCustomTabId = GetSelectedCustomTabId() ?? _pendingCustomTabId;
+        _isUpdatingCustomTabs = true;
+        try
+        {
+            CustomTabs.Clear();
+            OnPropertyChanged(nameof(HasCustomTabs));
+            if (SelectedTabIndex >= BuiltInTabCount)
+            {
+                SelectedTabIndex = 0;
+            }
+        }
+        finally
+        {
+            _isUpdatingCustomTabs = false;
+        }
+
+        _customTabsTask = LoadCustomTabsAsync();
     }
 
     private ReleaseItemViewModel? FindMatchingReleaseForSearchResult(IReadOnlyList<ReleaseItemViewModel> releases)
