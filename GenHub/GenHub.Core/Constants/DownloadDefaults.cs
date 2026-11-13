@@ -69,6 +69,13 @@ public static class DownloadDefaults
     public const int ParallelChunkBufferSizeBytes = 128 * 1024;
 
     /// <summary>
+    /// Maximum time in milliseconds the initial response may take before parallel chunk mode is skipped.
+    /// Every chunk is a separate request that pays the same server latency (Google Drive takes ~30 seconds
+    /// per request for large files), so slow origins download faster and with smooth progress sequentially.
+    /// </summary>
+    public const int ParallelDownloadMaxResponseLatencyMs = 5000;
+
+    /// <summary>
     /// SocketsHttpHandler connection timeout in seconds.
     /// </summary>
     public const int HttpConnectTimeoutSeconds = 30;

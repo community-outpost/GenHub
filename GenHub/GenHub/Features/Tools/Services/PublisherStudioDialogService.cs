@@ -4,8 +4,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
+using GenHub.Core.Services.Tools;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Features.Tools.ViewModels.Dialogs;
@@ -25,9 +27,11 @@ namespace GenHub.Features.Tools.Services;
 public class PublisherStudioDialogService(
     IDialogService dialogService,
     GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null,
-    INotificationService? notificationService = null) : IPublisherStudioDialogService
+    INotificationService? notificationService = null,
+    IGenHubBuildInspector? buildInspector = null) : IPublisherStudioDialogService
 {
     private const string AllFilesFilterName = "All Files";
+    private readonly IGenHubBuildInspector _buildInspector = buildInspector ?? new GenHubBuildInspector();
 
     /// <inheritdoc/>
     public Func<string, (string Name, string Url, long Size)?>? DuplicateAssetLookup { get; set; }
@@ -75,7 +79,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
             callback =>
             {
-                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog, notificationService);
+                var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog, notificationService, _buildInspector);
                 var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
                 if (pathsList is { Count: > 0 })
                 {
@@ -90,7 +94,7 @@ public class PublisherStudioDialogService(
     public async Task<CatalogContentItem?> ShowEditContentDialogAsync(CatalogContentItem existing, PublisherCatalog? catalog = null, Func<CatalogContentItem, Task>? onDelete = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog, notificationService, onDelete));
+            callback => new AddContentDialogViewModel(existing, res => callback(res!), this, localizationService, catalog, notificationService, onDelete, _buildInspector));
     }
 
     /// <inheritdoc/>
@@ -99,7 +103,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
            async callback =>
            {
-               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, notificationService: notificationService);
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, notificationService: notificationService, buildInspector: _buildInspector);
                await StageInitialArtifactsAsync(vm, initialPaths);
                return vm;
            });
@@ -122,7 +126,8 @@ public class PublisherStudioDialogService(
                 localizationService,
                 isAddon: false,
                 notificationService: notificationService,
-                onReleaseDeleted: onDelete));
+                onReleaseDeleted: onDelete,
+                buildInspector: _buildInspector));
     }
 
     /// <inheritdoc/>
@@ -131,7 +136,7 @@ public class PublisherStudioDialogService(
         return await ShowDialogAsync<AddReleaseDialogViewModel, AddReleaseDialogView, ContentRelease>(
            async callback =>
            {
-               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService);
+               var vm = new AddReleaseDialogViewModel(contentItem, catalog, callback, this, localizationService, isAddon: true, notificationService: notificationService, buildInspector: _buildInspector);
                await StageInitialArtifactsAsync(vm, initialPaths);
                return vm;
            });
@@ -154,7 +159,8 @@ public class PublisherStudioDialogService(
                 localizationService,
                 isAddon: true,
                 notificationService: notificationService,
-                onReleaseDeleted: onDelete));
+                onReleaseDeleted: onDelete,
+                buildInspector: _buildInspector));
     }
 
     /// <inheritdoc/>

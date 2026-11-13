@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -147,6 +148,155 @@ public class ContentOrchestratorTests
         Assert.Equal(manifest, result.Data);
         _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that provider preparation progress (0-100) is scaled into the 40-70% range.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_ScalesProviderPreparationProgressMonotonicallyAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Mod" };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns("TestProvider");
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns<ContentManifest, string, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, prog, _) =>
+            {
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 0, CurrentOperation = "0%" });
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 50, CurrentOperation = "50%" });
+                prog?.Report(new ContentAcquisitionProgress { ProgressPercentage = 100, CurrentOperation = "100%" });
+                return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            });
+
+        _cacheMock.Setup(c => c.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var reportedProgress = new List<int>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add((int)p.ProgressPercentage));
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult, progress);
+
+        // Assert
+        Assert.True(result.Success);
+
+        // Progress is reported synchronously, so all reports are recorded once acquisition completes.
+        Assert.Contains(40, reportedProgress);
+        Assert.Contains(55, reportedProgress);
+        Assert.Contains(70, reportedProgress);
+        for (var i = 1; i < reportedProgress.Count; i++)
+        {
+            Assert.True(reportedProgress[i] >= reportedProgress[i - 1], $"Progress regressed at index {i}: {reportedProgress[i - 1]} -> {reportedProgress[i]}");
+        }
+    }
+
+    /// <summary>
+    /// Verifies that validating stage reports take precedence over stage descriptions containing "Process" or "Extract",
+    /// routing into the validating/storing progress span (85-90%).
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_ValidatingStageTakesPrecedenceOverExtractingDescription_ScalesIntoStoringSpanAsync()
+    {
+        // Arrange
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.testprecedence",
+            Name = "Precedence Mod",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.testprecedence", Name = "Precedence Mod" };
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(p => p.SourceName).Returns("TestProvider");
+        providerMock.Setup(p => p.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        providerMock.Setup(p => p.PrepareContentAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Returns<ContentManifest, string, IProgress<ContentAcquisitionProgress>, CancellationToken>((_, _, prog, _) =>
+            {
+                prog?.Report(new ContentAcquisitionProgress
+                {
+                    CurrentStage = ContentConstants.PipelineStageValidating,
+                    StageDescription = "Processing extracted files",
+                    ProgressPercentage = 50,
+                });
+                return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+            });
+
+        _cacheMock.Setup(c => c.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+
+        _contentValidatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _contentValidatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var reportedProgress = new List<ContentAcquisitionProgress>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p => reportedProgress.Add(p));
+
+        // Act
+        var result = await orchestrator.AcquireContentAsync(searchResult, progress);
+
+        // Assert
+        Assert.True(result.Success);
+        var validatingReport = reportedProgress.FirstOrDefault(p => p.CurrentStage == ContentConstants.PipelineStageValidating);
+        Assert.NotNull(validatingReport);
+        Assert.Equal(ContentAcquisitionPhase.ValidatingFiles, validatingReport.Phase);
+        Assert.InRange(validatingReport.ProgressPercentage, ContentConstants.ProgressStepExtracting, ContentConstants.ProgressStepStoring);
     }
 
     /// <summary>
@@ -740,5 +890,89 @@ public class ContentOrchestratorTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("GenTool", result.Data.Name);
+    }
+
+    /// <summary>
+    /// Verifies that downloading progress scales into the 40-70% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_DownloadingScalesIntoDownloadSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 50,
+            CurrentOperation = "Downloading",
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Downloading, scaled.Phase);
+        Assert.Equal(55, scaled.ProgressPercentage);
+        Assert.Equal("Downloading", scaled.CurrentOperation);
+    }
+
+    /// <summary>
+    /// Verifies that extracting progress scales into the 70-85% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_ExtractingScalesIntoExtractingSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Extracting,
+            ProgressPercentage = 50,
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Extracting, scaled.Phase);
+        Assert.InRange(scaled.ProgressPercentage, 70.0, 85.0);
+    }
+
+    /// <summary>
+    /// Verifies that a processing stage description routes downloading progress into the extracting span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_ProcessingDescriptionRoutesIntoExtractingSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 50,
+            StageDescription = "Processing payload",
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.Extracting, scaled.Phase);
+        Assert.InRange(scaled.ProgressPercentage, 70.0, 85.0);
+    }
+
+    /// <summary>
+    /// Verifies that storing progress keeps its phase and scales into the 85-90% acquisition span.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_StoringKeepsPhaseAndScalesIntoStoringSpan()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.StoringInCas,
+            ProgressPercentage = 100,
+        });
+
+        Assert.Equal(ContentAcquisitionPhase.StoringInCas, scaled.Phase);
+        Assert.Equal(90, scaled.ProgressPercentage);
+    }
+
+    /// <summary>
+    /// Verifies that a missing operation description falls back to the provider preparation message.
+    /// </summary>
+    [Fact]
+    public void ScalePrepareProgress_MissingOperationFallsBackToPreparingMessage()
+    {
+        var scaled = ContentOrchestrator.ScalePrepareProgress(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 0,
+            CurrentOperation = null!,
+        });
+
+        Assert.Equal(ContentConstants.PreparingContentViaProviderOperation, scaled.CurrentOperation);
+        Assert.Equal(40, scaled.ProgressPercentage);
     }
 }

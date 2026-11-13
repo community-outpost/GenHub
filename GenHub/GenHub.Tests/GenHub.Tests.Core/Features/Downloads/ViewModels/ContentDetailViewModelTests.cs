@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -494,6 +495,118 @@ public sealed class ContentDetailViewModelTests
             coordinatorInputs,
             input => Assert.StartsWith(ContentConstants.FileContentIdPrefix, input.Id, StringComparison.Ordinal));
         Assert.All(viewModel.Releases, row => Assert.True(row.IsDownloaded));
+    }
+
+    /// <summary>
+    /// Verifies that downloading an older catalog release row sends that row's own release
+    /// version to the resolver instead of the card's (latest) release.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task DownloadRelease_CatalogRow_SendsItsOwnReleaseVersionToResolverAsync()
+    {
+        // Arrange
+        const string OlderVersion = "0.0.3685-pr512";
+        const string NewerVersion = "0.0.5469-pr611.2";
+        const string OlderUrl = "https://drive.example.invalid/download?id=older-build";
+        const string NewerUrl = "https://drive.example.invalid/download?id=newer-build";
+
+        var olderRelease = new ContentRelease
+        {
+            Version = OlderVersion,
+            ReleaseDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            Artifacts =
+            [
+                new ReleaseArtifact { Filename = "GenHub-win-Setup.exe", DownloadUrl = OlderUrl, IsPrimary = true },
+            ],
+        };
+        var newerRelease = new ContentRelease
+        {
+            Version = NewerVersion,
+            ReleaseDate = new DateTime(2026, 10, 2, 0, 0, 0, DateTimeKind.Utc),
+            Artifacts =
+            [
+                new ReleaseArtifact { Filename = "GenHub-win-Setup.exe", DownloadUrl = NewerUrl, IsPrimary = true },
+            ],
+        };
+        var catalogItem = new CatalogContentItem
+        {
+            Id = "genhub-pr-512",
+            Name = "GenHub PR #512",
+            ContentType = ContentType.GenHubBuild,
+            Releases = [olderRelease, newerRelease],
+        };
+        var card = new ContentSearchResult
+        {
+            Id = CatalogManifestIdentity.CreateContentId(
+                CatalogConstants.GenericCatalogResolverId, ContentType.GenHubBuild, catalogItem.Id, NewerVersion),
+            Name = catalogItem.Name,
+            Version = NewerVersion,
+            ProviderName = "Undead2146",
+            ContentType = ContentType.GenHubBuild,
+            ResolverId = CatalogConstants.GenericCatalogResolverId,
+            RequiresResolution = true,
+        };
+        card.ResolverMetadata[CatalogConstants.CatalogItemJsonMetadataKey] = JsonSerializer.Serialize(catalogItem);
+        card.ResolverMetadata[CatalogConstants.ReleaseJsonMetadataKey] = JsonSerializer.Serialize(newerRelease);
+        card.ResolverMetadata[CatalogConstants.PublisherProfileJsonMetadataKey] =
+            JsonSerializer.Serialize(new PublisherProfile { Id = "undead2146", Name = "Undead2146" });
+        card.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = catalogItem.Id;
+
+        var coordinatorInputs = new List<ContentSearchResult>();
+        var coordinator = new Mock<IContentDownloadCoordinator>();
+        coordinator
+            .Setup(c => c.DownloadContentAsync(
+                It.IsAny<ContentSearchResult>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .Callback<ContentSearchResult, IProgress<ContentAcquisitionProgress>?, CancellationToken, bool>(
+                (content, _, _, _) => coordinatorInputs.Add(content))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create(CatalogManifestIdentity.CreateContentId(
+                    CatalogConstants.GenericCatalogResolverId, ContentType.GenHubBuild, catalogItem.Id, OlderVersion)),
+                Name = catalogItem.Name,
+                ContentType = ContentType.GenHubBuild,
+            }));
+
+        var stateService = new Mock<IContentStateService>();
+        stateService
+            .Setup(s => s.GetStateAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentState.NotDownloaded);
+        stateService
+            .Setup(s => s.GetLocalManifestIdAsync(It.IsAny<ContentSearchResult>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+
+        var viewModel = CreateViewModel(card, coordinator.Object, contentStateService: stateService.Object);
+        viewModel.PopulateReleases(
+        [
+            new DownloadableFile(
+                Name: catalogItem.Name,
+                Version: OlderVersion,
+                DownloadUrl: OlderUrl,
+                ReleaseDate: olderRelease.ReleaseDate,
+                FileSectionType: FileSectionType.Downloads),
+            new DownloadableFile(
+                Name: catalogItem.Name,
+                Version: NewerVersion,
+                DownloadUrl: NewerUrl,
+                ReleaseDate: newerRelease.ReleaseDate,
+                FileSectionType: FileSectionType.Downloads),
+        ]);
+        Assert.Equal(2, viewModel.Releases.Count);
+        var olderRow = viewModel.Releases.Single(r => string.Equals(r.Version, OlderVersion, StringComparison.Ordinal));
+
+        // Act
+        await Assert.IsAssignableFrom<IAsyncRelayCommand>(olderRow.DownloadCommand).ExecuteAsync(null);
+
+        // Assert
+        var sent = Assert.Single(coordinatorInputs);
+        Assert.True(
+            sent.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson),
+            "Row download must carry release resolver metadata.");
+        Assert.Equal(OlderVersion, JsonSerializer.Deserialize<ContentRelease>(releaseJson)?.Version);
     }
 
     /// <summary>

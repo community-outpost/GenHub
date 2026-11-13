@@ -188,7 +188,7 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
     private static GameType InferGameTypeFromTokens(string executablePath)
     {
         var fileName = Path.GetFileName(executablePath);
-        if (ContainsZeroHourToken(fileName) || ContainsZeroHourToken(executablePath))
+        if (ContainsZeroHourToken(fileName, isFileName: true) || ContainsZeroHourToken(executablePath, isFileName: false))
         {
             return GameType.ZeroHour;
         }
@@ -228,7 +228,7 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
         return executablePath;
     }
 
-    private static bool ContainsZeroHourToken(string text)
+    private static bool ContainsZeroHourToken(string text, bool isFileName)
     {
         if (text.Contains("zerohour", StringComparison.OrdinalIgnoreCase)
             || text.Contains("zero-hour", StringComparison.OrdinalIgnoreCase)
@@ -242,7 +242,7 @@ public class CommunityGameClientIdentifier : IGameClientIdentifier
         return tokens.Any(t =>
             t.Equals("zh", StringComparison.OrdinalIgnoreCase)
             || t.Equals("zerohour", StringComparison.OrdinalIgnoreCase)
-            || t.EndsWith("zh", StringComparison.OrdinalIgnoreCase));
+            || (isFileName && t.EndsWith("zh", StringComparison.OrdinalIgnoreCase)));
     }
 
     private static bool ContainsGeneralsToken(string text)

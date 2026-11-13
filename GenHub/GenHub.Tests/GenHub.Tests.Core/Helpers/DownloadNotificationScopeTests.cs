@@ -258,4 +258,85 @@ public sealed class DownloadNotificationScopeTests
             n => n.ShowError(It.IsAny<string>(), "Restart failed", It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that content progress with an embedded percentage and speed is not prefixed with a duplicate percentage.
+    /// </summary>
+    [Fact]
+    public void Report_ContentProgressWithSpeedAndEmbeddedPercentage_ShowsStatusWithoutDuplicatePrefix()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "GenHub PR #512");
+
+        scope.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 60,
+            CurrentOperation = "GenHub-win-Setup2.exe - 66% (808.4 KB/s)",
+        });
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "Downloading: GenHub-win-Setup2.exe - 66% (808.4 KB/s)",
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that an operation change forces an immediate toast update without being discarded by the throttle.
+    /// </summary>
+    [Fact]
+    public void Report_OperationChange_ForcesImmediateToastUpdateWithoutThrottle()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "GenHub PR #512");
+
+        scope.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 40,
+            CurrentOperation = ContentConstants.PreparingContentViaProviderOperation,
+        });
+
+        scope.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 40,
+            CurrentOperation = "Connecting to download server...",
+        });
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "40% - Downloading: Preparing content via provider pipeline",
+                It.IsAny<string>()),
+            Times.Once);
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "40% - Downloading: Connecting to download server...",
+                It.IsAny<string>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that ReportFraction preserves the aggregate percentage prefix even when status text contains a component percentage.
+    /// </summary>
+    [Fact]
+    public void ReportFraction_WithComponentPercentageInStatus_PreservesAggregatePercentagePrefix()
+    {
+        var notifications = new Mock<INotificationService>();
+        using var scope = new DownloadNotificationScope(notifications.Object, "Bundle Content");
+
+        scope.ReportFraction(0.4, "Downloading component (80%)");
+
+        notifications.Verify(
+            n => n.Update(
+                scope.NotificationId,
+                "40% - Downloading component (80%)",
+                It.IsAny<string>()),
+            Times.Once);
+    }
 }

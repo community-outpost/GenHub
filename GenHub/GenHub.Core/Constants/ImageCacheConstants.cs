@@ -44,6 +44,16 @@ public static class ImageCacheConstants
     public const int DefaultTimeoutSeconds = 30;
 
     /// <summary>
+    /// Default socket connect timeout in seconds for image downloads.
+    /// </summary>
+    public const int DefaultConnectTimeoutSeconds = 10;
+
+    /// <summary>
+    /// Default pooled connection lifetime in minutes for image downloads.
+    /// </summary>
+    public const int DefaultPooledConnectionLifetimeMinutes = 5;
+
+    /// <summary>
     /// Maximum allowed HTTP redirects when downloading images.
     /// </summary>
     public const int MaxRedirects = 5;

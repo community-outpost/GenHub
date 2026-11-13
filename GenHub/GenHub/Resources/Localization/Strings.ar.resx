@@ -18237,4 +18237,88 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
+  <data name="GameProfiles.GenHubBuild.CreateNotAllowed" xml:space="preserve">
+    <value>لا يمكن استخدام إصدارات تطبيق GenHub لإنشاء ملفات تعريف الألعاب.</value>
+  </data>
+  <data name="GameProfiles.GenHubBuild.AddNotAllowed" xml:space="preserve">
+    <value>لا يمكن إضافة إصدارات تطبيق GenHub إلى ملفات تعريف الألعاب.</value>
+  </data>
+  <data name="Updates.CustomBuilds.Label" xml:space="preserve">
+    <value>إصدارات وتفريعات مخصصة</value>
+  </data>
+  <data name="Updates.Status.CheckingCustomBuildUpdates" xml:space="preserve">
+    <value>جارٍ التحقق من تحديثات {0}...</value>
+  </data>
+  <data name="Updates.Status.CustomBuildNotFound" xml:space="preserve">
+    <value>لم يتم العثور على الإصدار '{0}' في اشتراكات الناشرين.</value>
+  </data>
+  <data name="Updates.Status.CustomBuildNoReleases" xml:space="preserve">
+    <value>لا توجد إصدارات متاحة لهذا البناء.</value>
+  </data>
+  <data name="Updates.Status.CustomBuildUpdateAvailable" xml:space="preserve">
+    <value>يتوفر تحديث: {0} لـ {1}</value>
+  </data>
+  <data name="Updates.Status.CustomBuildReadyToInstall" xml:space="preserve">
+    <value>جاهز للتثبيت: {0} ({1})</value>
+  </data>
+  <data name="Updates.Status.CustomBuildUpToDate" xml:space="preserve">
+    <value>{0} محدث إلى أحدث إصدار (v{1})</value>
+  </data>
+  <data name="Downloads.Card.InstallBuild" xml:space="preserve">
+    <value>تثبيت النسخة</value>
+  </data>
+  <data name="Downloads.Card.InstallBuildTooltip" xml:space="preserve">
+    <value>تثبيت إصدار GenHub هذا وإعادة تشغيل التطبيق</value>
+  </data>
+  <data name="Downloads.Notification.GenHubBuildNotAllowedInProfiles" xml:space="preserve">
+    <value>لا يمكن إضافة إصدارات تطبيق GenHub إلى ملفات تعريف اللعبة.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Title" xml:space="preserve">
+    <value>جارٍ التحضير للتثبيت</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Preparing.Message" xml:space="preserve">
+    <value>جارٍ تحضير {0} للتثبيت...</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.Title" xml:space="preserve">
+    <value>فشل التثبيت</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Title" xml:space="preserve">
+    <value>إجراء غير صالح</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.InvalidAction.Message" xml:space="preserve">
+    <value>لا يمكن إضافة إصدارات تطبيق GenHub إلى ملفات تعريف اللعبة. استخدم خيار تثبيت الإصدار بدلاً من ذلك.</value>
+  </data>
+  <data name="Updates.Error.NoVersionsAvailable" xml:space="preserve">
+    <value>لا توجد إصدارات متاحة للنسخة المخصصة المشترك بها</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.ServicesUnavailable" xml:space="preserve">
+    <value>الخدمات المطلوبة لتثبيت الإصدار غير متوفرة.</value>
+  </data>
+  <data name="Downloads.Notification.InstallBuild.Failed.GenericMessage" xml:space="preserve">
+    <value>حدث خطأ غير متوقع أثناء تثبيت الإصدار.</value>
+  </data>
+  <data name="Profiles.Error.NoInstallationsFound" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيتات للعبة. يرجى تكوين تثبيت اللعبة أولاً.</value>
+  </data>
+  <data name="Profiles.Error.NoInstallationForGameType" xml:space="preserve">
+    <value>لا يتوفر أي تثبيت لـ {0} لعميل اللعبة المطلوب.</value>
+  </data>
+  <data name="Profiles.Error.NoGameClientForInstallation" xml:space="preserve">
+    <value>لم يتم العثور على عميل لعبة مناسب للتثبيت '{0}'.</value>
+  </data>
+  <data name="Updates.Mock.DemoUpdateTitle" xml:space="preserve">
+    <value>تحديث تجريبي</value>
+  </data>
+  <data name="Updates.Mock.RestartMessage" xml:space="preserve">
+    <value>في التثبيت الحقيقي، سيُعاد تشغيل التطبيق الآن لتطبيق التحديث!</value>
+  </data>
+  <data name="Updates.Mock.DemoDeploymentTitle" xml:space="preserve">
+    <value>نشر تجريبي</value>
+  </data>
+  <data name="Updates.Mock.ArtifactInstalledFormat" xml:space="preserve">
+    <value>سيتم تثبيت العنصر {0} وإعادة تشغيل التطبيق.</value>
+  </data>
+  <data name="Updates.Mock.BuildInstalledFormat" xml:space="preserve">
+    <value>سيتم تثبيت الإصدار {0} وإعادة تشغيل التطبيق.</value>
+  </data>
 </root>

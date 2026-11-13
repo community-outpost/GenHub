@@ -1,5 +1,6 @@
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Infrastructure.Services;
@@ -104,6 +105,11 @@ public static class DownloadModule
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(DownloadDefaults.HttpPooledConnectionIdleTimeoutSeconds),
         EnableMultipleHttp2Connections = true,
         MaxConnectionsPerServer = DownloadDefaults.HttpMaxConnectionsPerServer,
+        ConnectCallback = static (context, cancellationToken) => NetworkSecurityHelper.ConnectSocketWithSsrfCheckAsync(
+            context,
+            DownloadDefaults.HttpConnectTimeoutSeconds,
+            cancellationToken,
+            static msg => new HttpRequestException(msg)),
     };
 
     private static void ConfigureDownloadClient(HttpClient client, IConfigurationProviderService configProvider)
