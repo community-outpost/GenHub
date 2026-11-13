@@ -699,7 +699,22 @@ public partial class GameProfileSettingsViewModel
             return true;
         }
 
-        var missingDependencies = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds);
+        _dependencyInstallCts?.Dispose();
+        _dependencyInstallCts = new CancellationTokenSource();
+        try
+        {
+            return await EnsureRequiredDependenciesAsync(enabledContentIds, _dependencyInstallCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger?.LogInformation("Installing required items was cancelled because the editor closed");
+            return false;
+        }
+    }
+
+    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds, CancellationToken cancellationToken)
+    {
+        var missingDependencies = await _dependencyValidator!.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
         if (missingDependencies.Count == 0)
         {
             return true;
@@ -719,13 +734,14 @@ public partial class GameProfileSettingsViewModel
             _dialogService,
             _localizationService,
             Name,
-            missingDependencies);
+            missingDependencies,
+            cancellationToken);
         if (!install)
         {
             return false;
         }
 
-        var installResult = await _profileContentService.InstallMissingDependenciesAsync(missingDependencies);
+        var installResult = await _profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
         if (installResult.Failed || installResult.Data == null)
         {
             _localNotificationService.ShowError(
@@ -737,9 +753,10 @@ public partial class GameProfileSettingsViewModel
         foreach (var installedId in installResult.Data.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
         {
             enabledContentIds.Add(installedId);
+            await ShowInstalledItemAsEnabledAsync(installedId, cancellationToken);
         }
 
-        var stillMissing = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds);
+        var stillMissing = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
         if (stillMissing.Count > 0)
         {
             ShowMissingDependenciesError(stillMissing);
@@ -747,6 +764,40 @@ public partial class GameProfileSettingsViewModel
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Adds an installed item to the enabled list, so a later save keeps it even when this save fails.
+    /// </summary>
+    private async Task ShowInstalledItemAsEnabledAsync(string manifestId, CancellationToken cancellationToken)
+    {
+        if (_manifestPool == null ||
+            _profileContentLoader == null ||
+            EnabledContent.Any(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
+        if (manifestResult.Data == null)
+        {
+            return;
+        }
+
+        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+        if (coreItem == null)
+        {
+            return;
+        }
+
+        var item = ConvertToViewModelContentDisplayItem(coreItem);
+        item.IsEnabled = true;
+        EnabledContent.Add(item);
+        var available = AvailableContent.FirstOrDefault(candidate => string.Equals(candidate.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
+        if (available != null)
+        {
+            AvailableContent.Remove(available);
+        }
     }
 
     private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
@@ -757,7 +808,7 @@ public partial class GameProfileSettingsViewModel
                 "GameProfiles.Settings.Notification.MissingDependencies.Item",
                 "• {0} needs {1}",
                 gap.RequiredByName,
-                gap.DisplayName)));
+                MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
         _localNotificationService.ShowError(
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", "Cannot save profile with missing dependencies:\n\n{0}", names));
@@ -1486,6 +1537,7 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void ExecuteCancel()
     {
+        CancelPendingOperations();
         StatusMessage = "Cancelled";
         RequestClose?.Invoke(this, EventArgs.Empty);
     }

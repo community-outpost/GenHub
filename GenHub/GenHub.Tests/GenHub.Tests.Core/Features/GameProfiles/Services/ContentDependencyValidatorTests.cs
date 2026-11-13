@@ -150,6 +150,81 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// A placeholder dependency is not satisfied by content for another game.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_PlaceholderDependencyWrongGame_ReportsGap()
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.zhonly"),
+            Name = "Zero Hour Addon",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Name = "Zero Hour Installation",
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+        var generals = new ContentManifest
+        {
+            Id = ManifestId.Create("1.108.steam.gameinstallation.generals"),
+            Name = "Generals",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([addon, generals]));
+        Assert.Equal(ContentType.GameInstallation, gap.DependencyType);
+    }
+
+    /// <summary>
+    /// A matching item outside the declared version range does not satisfy the dependency.
+    /// An item without a recorded version is not rejected for its version.
+    /// </summary>
+    /// <param name="version">The enabled item's version.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.0", true)]
+    [InlineData("2.5", false)]
+    [InlineData("", false)]
+    public void FindMissingDependencies_VersionConstraint_IsApplied(string version, bool expectGap)
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = true,
+                    MinVersion = "2.0",
+                },
+            ],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = version,
+        };
+
+        var gaps = _validator.FindMissingDependencies([addon, basePack]);
+
+        Assert.Equal(expectGap, gaps.Count == 1);
+    }
+
+    /// <summary>
     /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
     /// </summary>
     /// <returns>A task that completes when validation finishes.</returns>

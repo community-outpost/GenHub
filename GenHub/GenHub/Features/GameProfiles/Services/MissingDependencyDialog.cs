@@ -172,6 +172,17 @@ public static class MissingDependencyDialog
             string.Join(", ", missingDependencies.Select(gap => GetDisplayName(localizationService, gap))));
     }
 
+    /// <summary>
+    /// Gets the name to show for a missing item, with a generic name when none is declared.
+    /// </summary>
+    /// <param name="localizationService">The localization service, or null to use English.</param>
+    /// <param name="gap">The missing item.</param>
+    /// <returns>The player-facing name.</returns>
+    public static string GetDisplayName(ILocalizationService? localizationService, ContentDependencyGap gap) =>
+        string.IsNullOrWhiteSpace(gap.DisplayName)
+            ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item")
+            : gap.DisplayName;
+
     private static List<string> GetOwnerNames(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
         missingDependencies
             .Select(gap => gap.RequiredByName)
@@ -184,11 +195,6 @@ public static class MissingDependencyDialog
         var owners = GetOwnerNames(missingDependencies);
         return owners.Count == 1 ? owners[0] : contentName;
     }
-
-    private static string GetDisplayName(ILocalizationService? localizationService, ContentDependencyGap gap) =>
-        string.IsNullOrWhiteSpace(gap.DisplayName)
-            ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item")
-            : gap.DisplayName;
 
     private static string GetManualInstallHint(ILocalizationService? localizationService, ContentType dependencyType) =>
         dependencyType switch

@@ -25,4 +25,13 @@ public interface IContentDependencyValidator
     /// <param name="enabledManifests">The manifests that the profile would enable.</param>
     /// <returns>One gap per missing item. The list is empty when nothing is missing.</returns>
     IReadOnlyList<ContentDependencyGap> FindMissingDependencies(IReadOnlyCollection<ContentManifest> enabledManifests);
+
+    /// <summary>
+    /// Checks whether any manifest in <paramref name="manifests"/> satisfies <paramref name="dependency"/>,
+    /// using the same identity, game and version rules as <see cref="FindMissingDependencies"/>.
+    /// </summary>
+    /// <param name="dependency">The dependency to check.</param>
+    /// <param name="manifests">The candidate manifests.</param>
+    /// <returns><see langword="true"/> when a manifest satisfies the dependency.</returns>
+    bool IsSatisfiedBy(ContentDependency dependency, IReadOnlyCollection<ContentManifest> manifests);
 }

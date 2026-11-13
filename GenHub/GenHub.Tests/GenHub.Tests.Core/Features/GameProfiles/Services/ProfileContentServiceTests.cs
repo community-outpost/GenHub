@@ -694,6 +694,84 @@ public sealed class ProfileContentServiceTests
             Times.Never);
     }
 
+    /// <summary>
+    /// A non-strict dependency is satisfied locally by another publisher's acquired manifest,
+    /// the same way the validator accepts it, so the add enables it without a dialog.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_NonStrictDependencyFromOtherPublisher_EnablesLocalManifestAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        const string modId = "1.0.publishera.mod.bigmod";
+        const string widgetId = "1.0.publisherb.addon.widget";
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(modId),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.publishera.addon.widget"),
+                    Name = "Widget",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                },
+            ],
+        });
+        fixture.AddManifest(new ContentManifest { Id = ManifestId.Create(widgetId), Name = "Widget", ContentType = ContentType.Addon });
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, modId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(widgetId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Installing an item also installs the items it requires, so one click is enough.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_InstalledItemNeedsMore_InstallsThoseTooAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        const string indicatorsId = "1.10.communityoutpost.addon.hlenenglish";
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        genTool.Dependencies =
+        [
+            new ContentDependency
+            {
+                Id = ManifestId.Create("1.1.communityoutpost.addon.hlen"),
+                Name = "Hotkeys Indicators",
+                DependencyType = ContentType.Addon,
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            },
+        ];
+        var indicators = ControlBarProFixture.CreateAddon(indicatorsId, "hlen");
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentSearchResult hit, IProgress<ContentAcquisitionProgress>? _, CancellationToken _) =>
+            {
+                var acquired = hit.Id!.EndsWith(".gent", StringComparison.OrdinalIgnoreCase) ? genTool : indicators;
+                fixture.AddManifest(acquired);
+                return OperationResult<ContentManifest>.CreateSuccess(acquired);
+            });
+        var attempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync(attempt.MissingDependencies);
+
+        Assert.True(install.Success, install.FirstError);
+        Assert.Contains(ControlBarProFixture.GenToolId, install.Data!);
+        Assert.Contains(indicatorsId, install.Data!);
+    }
+
     private sealed class ControlBarProFixture
     {
         public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
