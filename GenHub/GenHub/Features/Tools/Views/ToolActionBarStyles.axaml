@@ -43,6 +43,7 @@
     <Setter Property="RenderTransform" Value="rotate(90deg)" />
   </Style>
   <Style Selector="ToggleButton.SplitRight PathIcon">
+    <Setter Property="Foreground" Value="{ReflectionBinding $parent[ToggleButton].Foreground}" />
     <Setter Property="Transitions">
       <Transitions>
         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
