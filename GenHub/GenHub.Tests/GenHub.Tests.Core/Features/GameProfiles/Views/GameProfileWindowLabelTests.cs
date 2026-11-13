@@ -65,7 +65,7 @@ public class GameProfileWindowLabelTests
                     return Assert.Single(tab.GetLogicalDescendants().OfType<TextBlock>());
                 }).ToList();
 
-                Assert.Equal(keys.Select(key => resourceSet.GetString(key)), labels.Select(label => label.Text));
+                Assert.Equal(keys.Select(resourceSet.GetString), labels.Select(label => label.Text));
                 Assert.All(tabs, tab =>
                 {
                     var origin = tab.TranslatePoint(default, view);
