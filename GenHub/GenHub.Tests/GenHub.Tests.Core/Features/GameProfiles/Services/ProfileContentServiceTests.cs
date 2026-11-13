@@ -855,6 +855,112 @@ public sealed class ProfileContentServiceTests
         Assert.Contains("Hotkeys Indicators", install.FirstError, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// When content already in the profile is satisfied by another publisher's item, adding
+    /// unrelated content does not enable a second copy of that dependency.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_ExistingDependencySatisfied_DoesNotEnableSecondCopyAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        const string modId = "1.0.publishera.mod.bigmod";
+        const string exactPackId = "1.0.publishera.addon.basepack";
+        const string otherPackId = "1.0.publisherb.addon.basepack";
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(modId),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(exactPackId),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                },
+            ],
+        });
+        fixture.AddManifest(new ContentManifest { Id = ManifestId.Create(exactPackId), Name = "Base Pack", ContentType = ContentType.Addon });
+        fixture.AddManifest(new ContentManifest { Id = ManifestId.Create(otherPackId), Name = "Base Pack", ContentType = ContentType.Addon });
+        fixture.AddManifest(ControlBarProFixture.CreateMapPack());
+        fixture.EnableInProfile(modId);
+        fixture.EnableInProfile(otherPackId);
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.MapPackId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(otherPackId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(exactPackId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Install honors the declared version limit. It picks the compatible acquired version over
+    /// the exact-ID one, and fails when only an incompatible version is available.
+    /// </summary>
+    /// <param name="withCompatibleVersion">Whether a compatible version is acquired.</param>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InstallMissingDependenciesAsync_ExactIdTooOld_HonorsVersionLimitAsync(bool withCompatibleVersion)
+    {
+        var fixture = new ControlBarProFixture();
+        const string declaredId = "1.1.communityoutpost.addon.gent";
+        const string requiringId = "1.0.communityoutpost.addon.needsnewgentool";
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(requiringId),
+            Name = "Needs New GenTool",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(declaredId),
+                    Name = "GenTool",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    MinVersion = "2.0",
+                },
+            ],
+        });
+        var oldGenTool = ControlBarProFixture.CreateAddon(declaredId, "gent");
+        oldGenTool.Version = "1.0";
+        fixture.AddManifest(oldGenTool);
+        if (withCompatibleVersion)
+        {
+            var newGenTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+            newGenTool.Version = "2.5";
+            fixture.AddManifest(newGenTool);
+        }
+
+        var gap = new ContentDependencyGap
+        {
+            DisplayName = "GenTool",
+            DependencyId = declaredId,
+            DependencyType = ContentType.Addon,
+            CanDownload = true,
+            RequiredByName = "Needs New GenTool",
+            RequiredById = requiringId,
+        };
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync([gap]);
+
+        Assert.Equal(withCompatibleVersion, install.Success);
+        if (withCompatibleVersion)
+        {
+            Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
+        }
+        else
+        {
+            Assert.Contains("GenTool", install.FirstError, StringComparison.Ordinal);
+        }
+    }
+
     private sealed class ControlBarProFixture
     {
         public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";

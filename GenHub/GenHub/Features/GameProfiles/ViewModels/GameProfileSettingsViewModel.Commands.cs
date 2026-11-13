@@ -700,7 +700,8 @@ public partial class GameProfileSettingsViewModel
         }
 
         using var installCancellation = new CancellationTokenSource();
-        _cancelDependencyInstall = installCancellation.Cancel;
+        Action cancel = installCancellation.Cancel;
+        _pendingInstallCancellations.Add(cancel);
         try
         {
             return await EnsureRequiredDependenciesAsync(enabledContentIds, installCancellation.Token);
@@ -712,7 +713,7 @@ public partial class GameProfileSettingsViewModel
         }
         finally
         {
-            _cancelDependencyInstall = null;
+            _pendingInstallCancellations.Remove(cancel);
         }
     }
 
