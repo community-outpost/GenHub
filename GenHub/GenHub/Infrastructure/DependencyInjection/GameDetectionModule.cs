@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -7,6 +6,7 @@ using GenHub.Features.GameClients;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -28,6 +28,7 @@ public static class GameDetectionModule
         // Register identifiers for local detection
         services.AddSingleton<IGameClientIdentifier, Features.Content.Services.GeneralsOnline.GeneralsOnlineClientIdentifier>();
         services.AddSingleton<IGameClientIdentifier, Features.Content.Services.Publishers.SuperHackersClientIdentifier>();
+        services.AddSingleton<IGameClientIdentifier, Features.Content.Services.Publishers.CommunityGameClientIdentifier>();
 
         // Register game client detector with dependencies
         services.AddSingleton<IGameClientDetector>(provider =>

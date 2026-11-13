@@ -20,6 +20,7 @@ public interface IGameClientProfileService
     /// <param name="gameClient">The game client to create a profile for.</param>
     /// <param name="iconPath">The optional path to the profile icon.</param>
     /// <param name="coverPath">The optional path to the profile cover image.</param>
+    /// <param name="themeColor">The optional theme color for the profile.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A result containing the created profile or error information.</returns>
     Task<ProfileOperationResult<GameProfile>> CreateProfileForGameClientAsync(
@@ -27,6 +28,7 @@ public interface IGameClientProfileService
         GameClient gameClient,
         string? iconPath = null,
         string? coverPath = null,
+        string? themeColor = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -38,6 +40,7 @@ public interface IGameClientProfileService
     /// <param name="gameClient">The game client.</param>
     /// <param name="iconPath">Optional path to the profile icon.</param>
     /// <param name="coverPath">Optional path to the profile cover.</param>
+    /// <param name="themeColor">Optional theme color for the profile.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A list of results containing created profiles or error information.</returns>
     Task<System.Collections.Generic.List<ProfileOperationResult<GameProfile>>> CreateProfilesForGameClientAsync(
@@ -45,6 +48,7 @@ public interface IGameClientProfileService
         GameClient gameClient,
         string? iconPath = null,
         string? coverPath = null,
+        string? themeColor = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

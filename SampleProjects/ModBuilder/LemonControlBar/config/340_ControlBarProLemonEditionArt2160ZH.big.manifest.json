@@ -1,0 +1,22 @@
+{
+  "bigFileName": "340_ControlBarProLemonEditionArt2160ZH.big",
+  "trailerHex": "0000000000000000",
+  "headerSizeOverride": null,
+  "sha256": "bb72394d20d3eea65d34d149bbf0e0578b48ff0aabdafdac3c9881da0c3fd060",
+  "entryOrder": [
+    "Art\\Textures\\AmericaCommandBarPro_4096_1024.dds",
+    "Art\\Textures\\AmericaPowersPro_2048_2048.dds",
+    "Art\\Textures\\BlankTexture_16.tga",
+    "Art\\Textures\\ChinaCommandBarPro_4096_1024.dds",
+    "Art\\Textures\\ChinaPowersPro_2048_2048.dds",
+    "Art\\Textures\\ControlButtonsPro_512_512.dds",
+    "Art\\Textures\\DiplomacyWindowPro_2048_1024.dds",
+    "Art\\Textures\\DisconnectWindowPro_2048_2048.dds",
+    "Art\\Textures\\GlaCommandBarPro_4096_1024.dds",
+    "Art\\Textures\\GlaPowersPro_2048_2048.dds",
+    "Art\\Textures\\HelpboxPro_1024_256.dds",
+    "Art\\Textures\\ObsCommandBarPro_4096_1024.dds",
+    "Art\\Textures\\ObsPlayerWindowPro_1024_512.dds",
+    "Art\\Textures\\QuitWindowPro_1024_2048.dds"
+  ]
+}

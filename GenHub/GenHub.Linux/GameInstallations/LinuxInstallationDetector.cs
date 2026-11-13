@@ -1,3 +1,8 @@
+using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -5,18 +10,13 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Extensions.GameInstallations;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Linux.GameInstallations;
 
 /// <summary>
 /// Linux-specific game installation detector for Steam and Wine/Proton installations.
 /// </summary>
-public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger) : IGameInstallationDetector
+public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger, ILoggerFactory? loggerFactory = null) : IGameInstallationDetector
 {
     /// <summary>
     /// Gets the human-readable name for logs/UI.
@@ -33,7 +33,7 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
     /// </summary>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>A <see cref="Task{TResult}"/> where TResult is <see cref="DetectionResult{GameInstallation}"/>, representing the asynchronous operation.</returns>
-    public Task<DetectionResult<GameInstallation>> DetectInstallationsAsync(CancellationToken cancellationToken = default)
+    public async Task<DetectionResult<GameInstallation>> DetectInstallationsAsync(CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
         var installs = new List<GameInstallation>();
@@ -45,10 +45,10 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
         {
             // Check Steam installations
             logger.LogDebug("Checking Steam installations on Linux");
-            var steam = new SteamInstallation(fetch: true, logger: logger as ILogger<SteamInstallation>);
+            var steam = new SteamInstallation(fetch: true, logger: loggerFactory?.CreateLogger<SteamInstallation>());
             if (steam.IsSteamInstalled && (steam.HasGenerals || steam.HasZeroHour))
             {
-                installs.Add(steam.ToDomain(logger));
+                installs.Add(steam.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected Steam installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     steam.HasGenerals ? 1 : 0,
@@ -61,10 +61,11 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
 
             // Check Lutris installations
             logger.LogDebug("Checking Lutris installations on Linux");
-            var lutrisInstallation = new LutrisInstallation(fetch: true, logger: logger as ILogger<LutrisInstallation>);
+            var lutrisInstallation = new LutrisInstallation(fetch: false, logger: loggerFactory?.CreateLogger<LutrisInstallation>());
+            await lutrisInstallation.FetchAsync(cancellationToken).ConfigureAwait(false);
             if (lutrisInstallation.IsLutrisInstalled && (lutrisInstallation.HasGenerals || lutrisInstallation.HasZeroHour))
             {
-                installs.Add(lutrisInstallation.ToDomain(logger));
+                installs.Add(lutrisInstallation.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected Lutris installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     lutrisInstallation.HasGenerals ? 1 : 0,
@@ -77,10 +78,10 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
 
             // Check Wine/Proton installations
             logger.LogDebug("Checking Wine/Proton installations");
-            var wine = new WineInstallation(fetch: true, logger: logger as ILogger<WineInstallation>);
+            var wine = new WineInstallation(fetch: true, logger: loggerFactory?.CreateLogger<WineInstallation>());
             if (wine.IsWineInstalled && (wine.HasGenerals || wine.HasZeroHour))
             {
-                installs.Add(wine.ToDomain(logger));
+                installs.Add(wine.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected Wine installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     wine.HasGenerals ? 1 : 0,
@@ -93,10 +94,10 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
 
             // Check CD/ISO installations
             logger.LogDebug("Checking CD/ISO installations on Linux");
-            var cdiso = new CdisoInstallation(fetch: true, logger: logger as ILogger<CdisoInstallation>);
+            var cdiso = new CdisoInstallation(fetch: true, logger: loggerFactory?.CreateLogger<CdisoInstallation>());
             if (cdiso.IsCdisoInstalled && (cdiso.HasGenerals || cdiso.HasZeroHour))
             {
-                installs.Add(cdiso.ToDomain(logger));
+                installs.Add(cdiso.ToDomain(logger, loggerFactory));
                 logger.LogInformation(
                     "Detected CD/ISO installation with {GeneralsCount} Generals and {ZeroHourCount} Zero Hour installations",
                     cdiso.HasGenerals ? 1 : 0,
@@ -120,6 +121,6 @@ public class LinuxInstallationDetector(ILogger<LinuxInstallationDetector> logger
             ? DetectionResult<GameInstallation>.CreateFailure(string.Join(", ", errors))
             : DetectionResult<GameInstallation>.CreateSuccess(installs, sw.Elapsed);
 
-        return Task.FromResult(result);
+        return result;
     }
 }

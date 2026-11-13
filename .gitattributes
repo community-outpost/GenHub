@@ -1,0 +1,21 @@
+# Exclude large backdrop cover images and hotkey assets from source archives (PURA bot 25MB cap / GitHub release tarballs)
+GenHub/GenHub/Assets/Covers/*.png export-ignore
+GenHub/GenHub/Assets/GenHotkeys/**/*.webp export-ignore
+GenHub/GenHub/Assets/GenHotkeys/**/*.png export-ignore
+.gitattributes export-ignore
+
+# Ensure CSV files retain LF line endings across all platforms
+*.csv text eol=lf
+
+# Ensure C# source files retain LF line endings across all platforms
+*.cs text eol=lf
+
+# Ensure AXAML files retain LF line endings across all platforms
+*.axaml text eol=lf
+
+# Merge localization files key-by-key instead of line-by-line. The driver is
+# scripts/git_merge_resx.py, run automatically by the Resx Auto Merge
+# workflow. Line-based union merging is unsafe here: adjacent insertions
+# from two branches can silently drop a </data> closing tag while reporting
+# success.
+*.resx merge=resx text eol=lf

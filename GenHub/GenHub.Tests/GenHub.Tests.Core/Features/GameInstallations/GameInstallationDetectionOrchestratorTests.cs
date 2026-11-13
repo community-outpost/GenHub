@@ -18,7 +18,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_AllDetectorsSucceed_CombinesItems()
+    public async Task DetectAllInstallationsAsync_AllDetectorsSucceed_CombinesItemsAsync()
     {
         // Arrange
         var instA = new GameInstallation("C:\\Steam\\Games", GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
@@ -55,7 +55,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_DetectorFails_ReturnsFailed()
+    public async Task DetectAllInstallationsAsync_DetectorFails_ReturnsFailedAsync()
     {
         // Arrange
         var mockD = new Mock<IGameInstallationDetector>();
@@ -81,7 +81,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_PlatformFiltering_SkipsIncompatibleDetectors()
+    public async Task DetectAllInstallationsAsync_PlatformFiltering_SkipsIncompatibleDetectorsAsync()
     {
         // Arrange
         var instA = new GameInstallation("C:\\Steam\\Games", GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
@@ -117,7 +117,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_MixedResults_CombinesSuccessAndFailures()
+    public async Task DetectAllInstallationsAsync_MixedResults_CombinesSuccessAndFailuresAsync()
     {
         // Arrange
         var instA = new GameInstallation("C:\\Steam\\Games", GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);
@@ -151,7 +151,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_EmptyDetectors_ReturnsEmptySuccess()
+    public async Task DetectAllInstallationsAsync_EmptyDetectors_ReturnsEmptySuccessAsync()
     {
         // Arrange
         var svc = new GameInstallationDetectionOrchestrator(
@@ -172,7 +172,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllInstallationsAsync_DetectorThrowsException_HandlesGracefully()
+    public async Task DetectAllInstallationsAsync_DetectorThrowsException_HandlesGracefullyAsync()
     {
         // Arrange
         var mockSuccess = new Mock<IGameInstallationDetector>();
@@ -204,7 +204,7 @@ public class GameInstallationDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetDetectedInstallationsAsync_ReturnsResults()
+    public async Task GetDetectedInstallationsAsync_ReturnsResultsAsync()
     {
         // Arrange
         var instA = new GameInstallation("C:\\Steam\\Games", GameInstallationType.Steam, NullLogger<GameInstallation>.Instance);

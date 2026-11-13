@@ -1,6 +1,8 @@
+using GenHub.Core.Features.GameInstallations;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -16,8 +18,11 @@ public static class GameInstallationModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddGameInstallation(this IServiceCollection services)
     {
+        services.AddSingleton<ILanguageDetector, LanguageDetector>();
         services.AddSingleton<IGameInstallationService, GameInstallationService>();
         services.AddSingleton<IGameInstallationDetectionOrchestrator, GameInstallationDetectionOrchestrator>();
+        services.TryAddSingleton<IInstallationSearchPathProvider, DefaultInstallationSearchPathProvider>();
+        services.AddScoped<IInstallationPathResolver, InstallationPathResolver>();
 
         return services;
     }

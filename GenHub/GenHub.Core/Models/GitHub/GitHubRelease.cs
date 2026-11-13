@@ -58,5 +58,5 @@ public class GitHubRelease
     /// <summary>
     /// Gets or sets the release assets.
     /// </summary>
-    public List<GitHubReleaseAsset> Assets { get; set; } = new List<GitHubReleaseAsset>();
+    public List<GitHubReleaseAsset> Assets { get; set; } = [];
 }

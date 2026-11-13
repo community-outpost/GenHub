@@ -1,0 +1,876 @@
+using FluentAssertions;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Tools.ModBuilder.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Tests.Core.Features.Tools.ModBuilder.Services;
+
+/// <summary>
+/// Unit tests for <see cref="ProjectConfigService"/>.
+/// </summary>
+public sealed class ProjectConfigServiceTests : IDisposable
+{
+    private readonly Mock<ILogger<ProjectConfigService>> _mockLogger;
+    private readonly ProjectConfigService _service;
+    private readonly string _tempDirectory;
+
+    public ProjectConfigServiceTests()
+    {
+        _mockLogger = new Mock<ILogger<ProjectConfigService>>();
+        _service = new ProjectConfigService(_mockLogger.Object);
+        _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_tempDirectory);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDirectory))
+        {
+            Directory.Delete(_tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Constructor_WithValidDependencies_DoesNotThrow()
+    {
+        // Act
+        var service = new ProjectConfigService(_mockLogger.Object);
+
+        // Assert
+        service.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithValidParameters_CreatesProject()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Name.Should().Be(projectName);
+        File.Exists(projectPath).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_SetsProjectDir()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.ProjectDir.Should().Be(Path.GetDirectoryName(projectPath));
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithEmptyPath_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = string.Empty;
+        var projectName = "TestProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain("Project path cannot be empty");
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithEmptyName_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = string.Empty;
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain("Project name cannot be empty");
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithExistingProject_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+        await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("already exists"));
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithoutExtension_AddsExtension()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject");
+        var projectName = "TestProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        File.Exists(Path.Combine(_tempDirectory, "TestProject.mbproj")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithTemplate_AppliesTemplate()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+        var template = new ProjectTemplate
+        {
+            Name = "Test Template",
+            DefaultBundleConfigs = new List<string> { "config1.json", "config2.json" },
+            CreateSampleFiles = false
+        };
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, projectName, template: template);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.BundleConfigs.Should().Contain("config1.json");
+        result.Data.BundleConfigs.Should().Contain("config2.json");
+    }
+
+    [Fact]
+    public async Task LoadProjectAsync_WithValidProject_LoadsProject()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+        await _service.CreateProjectAsync(projectPath, projectName);
+
+        // Act
+        var result = await _service.LoadProjectAsync(projectPath);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Name.Should().Be(projectName);
+    }
+
+    [Fact]
+    public async Task LoadProjectAsync_WithNonExistentFile_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "NonExistent.mbproj");
+
+        // Act
+        var result = await _service.LoadProjectAsync(projectPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("not found"));
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WithValidProject_SavesProject()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories(),
+            BundleConfigs = new List<string>(),
+            CreatedAt = DateTime.UtcNow,
+            LastModified = DateTime.UtcNow
+        };
+
+        // Act
+        var result = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        File.Exists(projectPath).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_UpdatesLastModified()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var project = new ModBuilderProject
+        {
+            Name = "TestProject",
+            Directories = new ProjectDirectories(),
+            BundleConfigs = new List<string>(),
+            CreatedAt = DateTime.UtcNow.AddDays(-1),
+            LastModified = DateTime.UtcNow.AddDays(-1)
+        };
+        var oldLastModified = project.LastModified;
+
+        // Act
+        await Task.Delay(10); // Ensure time difference
+        var result = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data!.LastModified.Should().BeAfter(oldLastModified);
+    }
+
+    [Fact]
+    public async Task ValidateProjectAsync_WithValidProject_ReturnsSuccess()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+        var createResult = await _service.CreateProjectAsync(projectPath, projectName);
+        var project = createResult.Data!;
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateProjectAsync_WithNonExistentProject_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "NonExistent.mbproj");
+        var project = new ModBuilderProject { Name = "NonExistent" };
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateProjectAsync_WithNullDirectories_ReturnsFailure()
+    {
+        // Arrange: explicit null directories (e.g. hand-edited .mbproj with "directories": null)
+        var projectPath = Path.Combine(_tempDirectory, "NullDirs.mbproj");
+        var project = new ModBuilderProject { Name = "NullDirs", Directories = null! };
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert: reported as a validation error instead of throwing NullReferenceException
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle().Which.Should().Contain("directories");
+    }
+
+    [Fact]
+    public async Task GetBundleConfigsAsync_WithNullDirectories_ReturnsSuccess()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "NullDirs.mbproj");
+        var project = new ModBuilderProject { Name = "NullDirs", Directories = null! };
+
+        // Act
+        var result = await _service.GetBundleConfigsAsync(projectPath, project);
+
+        // Assert: falls back to default configs directory instead of throwing
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull().And.BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetRecentProjectsAsync_ReturnsRecentProjects()
+    {
+        // Arrange
+        var projectPath1 = Path.Combine(_tempDirectory, "Project1.mbproj");
+        var projectPath2 = Path.Combine(_tempDirectory, "Project2.mbproj");
+        await _service.CreateProjectAsync(projectPath1, "Project1");
+        await _service.CreateProjectAsync(projectPath2, "Project2");
+
+        // Act
+        var result = await _service.GetRecentProjectsAsync();
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Data.Should().NotBeNull();
+        result.Data.Should().Contain(p => p.Contains("Project1.mbproj") || p.Contains("Project2.mbproj"));
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithCancellation_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "TestProject.mbproj");
+        var projectName = "TestProject";
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await _service.CreateProjectAsync(projectPath, projectName, cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public async Task LoadProjectAsync_WithCorruptedFile_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "Corrupted.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{ invalid json }");
+
+        // Act
+        var result = await _service.LoadProjectAsync(projectPath);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("invalid", StringComparison.OrdinalIgnoreCase) || e.Contains("parse", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithContentType_SetsContentType()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "PatchProject.mbproj");
+        var projectName = "PatchProject";
+
+        // Act
+        var result = await _service.CreateProjectAsync(
+            projectPath,
+            projectName,
+            contentType: GenHub.Core.Models.Enums.ContentType.Patch);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Patch);
+
+        var loaded = await _service.LoadProjectAsync(projectPath);
+        loaded.Success.Should().BeTrue();
+        loaded.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Patch);
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WithContentType_PersistsAndLoadsContentType()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "AddonProject.mbproj");
+        var projectName = "AddonProject";
+        var createResult = await _service.CreateProjectAsync(projectPath, projectName);
+        createResult.Success.Should().BeTrue();
+
+        var project = createResult.Data!;
+        project.ContentType = GenHub.Core.Models.Enums.ContentType.Addon;
+
+        // Act
+        var saveResult = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        saveResult.Success.Should().BeTrue();
+        var loaded = await _service.LoadProjectAsync(projectPath);
+        loaded.Success.Should().BeTrue();
+        loaded.Data!.ContentType.Should().Be(GenHub.Core.Models.Enums.ContentType.Addon);
+    }
+
+    [Fact]
+    public async Task ImportBigFilesAsync_WithValidBigArchives_UnpacksAndConfiguresPacks()
+    {
+        // Arrange
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "big_source");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Data", "INI"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Data", "INI", "Weapon.ini"), "Weapon StandardGun");
+
+        var bigPath = Path.Combine(_tempDirectory, "WeaponPatch.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, bigPath);
+        packResult.Success.Should().BeTrue();
+
+        var projectPath = Path.Combine(_tempDirectory, "TestImportProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "TestImportProject");
+        createResult.Success.Should().BeTrue();
+
+        // Act
+        var importResult = await _service.ImportBigFilesAsync(projectPath, new[] { bigPath });
+
+        // Assert
+        importResult.Success.Should().BeTrue();
+        var extractedFile = Path.Combine(_tempDirectory, "GameFilesEdited", "Data", "INI", "Weapon.ini");
+        File.Exists(extractedFile).Should().BeTrue();
+        (await File.ReadAllTextAsync(extractedFile)).Should().Be("Weapon StandardGun");
+
+        var configFolder = createResult.Data?.Directories.Configs ?? (Directory.Exists(Path.Combine(_tempDirectory, "Configs")) ? "Configs" : "config");
+        var packsConfigPath = Path.Combine(_tempDirectory, configFolder, "ModBundlePacks.json");
+        File.Exists(packsConfigPath).Should().BeTrue();
+        var packsContent = await File.ReadAllTextAsync(packsConfigPath);
+        packsContent.Should().Contain("WeaponPatch.big");
+    }
+
+    [Fact]
+    public async Task CreateProjectFromBigFilesAsync_WithValidBigArchives_InitializesProjectAndExtracts()
+    {
+        // Arrange
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "source_mod");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Art", "Textures"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Art", "Textures", "Icon.dds"), "DDS_BYTES");
+
+        var bigPath = Path.Combine(_tempDirectory, "ArtMod.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, bigPath);
+        packResult.Success.Should().BeTrue();
+
+        var projectDir = Path.Combine(_tempDirectory, "ImportedArtProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "ImportedArtProject.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "ImportedArtProject",
+            new[] { bigPath });
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Name.Should().Be("ImportedArtProject");
+        result.Data!.Description.Should().ContainEquivalentOf("imported from");
+
+        var extractedFile = Path.Combine(projectDir, "GameFilesEdited", "Art", "Textures", "Icon.dds");
+        File.Exists(extractedFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateProjectFromBigFilesAsync_WhenImportFails_RollsBackPartialProjectAndAllowsRetry()
+    {
+        // Arrange: a corrupt BIG archive that fails header validation during import
+        var corruptBigPath = Path.Combine(_tempDirectory, "Corrupt.big");
+        await File.WriteAllTextAsync(corruptBigPath, "NOT_A_VALID_BIG_ARCHIVE");
+
+        var projectDir = Path.Combine(_tempDirectory, "FailedImportProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "FailedImportProject.mbproj");
+
+        // Act: first attempt fails during the BIG import stage
+        var failedResult = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "FailedImportProject",
+            new[] { corruptBigPath });
+
+        // Assert: no half-created project is left behind
+        failedResult.Success.Should().BeFalse();
+        File.Exists(projectPath).Should().BeFalse();
+
+        // Arrange: a valid BIG archive for the retry at the same path
+        var archiveLogger = new Mock<ILogger<ArchiveService>>();
+        var archiveService = new ArchiveService(archiveLogger.Object);
+
+        var bigSourceDir = Path.Combine(_tempDirectory, "retry_source");
+        Directory.CreateDirectory(Path.Combine(bigSourceDir, "Data"));
+        await File.WriteAllTextAsync(Path.Combine(bigSourceDir, "Data", "Retry.ini"), "RetryContent");
+
+        var validBigPath = Path.Combine(_tempDirectory, "Retry.big");
+        var packResult = await archiveService.CreateBigArchiveAsync(bigSourceDir, validBigPath);
+        packResult.Success.Should().BeTrue();
+
+        // Act: retry must not be trapped by "Project file already exists"
+        var retryResult = await _service.CreateProjectFromBigFilesAsync(
+            projectPath,
+            "FailedImportProject",
+            new[] { validBigPath });
+
+        // Assert
+        retryResult.Success.Should().BeTrue();
+        retryResult.Data.Should().NotBeNull();
+        File.Exists(projectPath).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateProjectAsync_WhenBuildAndReleaseDirectoriesMissing_AutoCreatesAndReturnsSuccess()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "UnbuiltProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "UnbuiltProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "UnbuiltProject");
+        createResult.Success.Should().BeTrue();
+        var project = createResult.Data!;
+
+        var buildDir = Path.Combine(projectDir, project.Directories.Build);
+        var releaseDir = Path.Combine(projectDir, project.Directories.Release);
+        if (Directory.Exists(buildDir)) Directory.Delete(buildDir, true);
+        if (Directory.Exists(releaseDir)) Directory.Delete(releaseDir, true);
+
+        Directory.Exists(buildDir).Should().BeFalse();
+        Directory.Exists(releaseDir).Should().BeFalse();
+
+        // Act
+        var result = await _service.ValidateProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+        Directory.Exists(buildDir).Should().BeTrue();
+        Directory.Exists(releaseDir).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetBundleConfigsAsync_WithConfigPrefix_ResolvesCorrectPaths()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "SampleIconsProject");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "SampleIconsProject.mbproj");
+        var createResult = await _service.CreateProjectAsync(projectPath, "SampleIconsProject", template: ProjectTemplate.Hotkeys);
+        createResult.Success.Should().BeTrue();
+        var project = createResult.Data!;
+
+        // mbproj sample projects have "config/ModBundleItems.json"
+        project.BundleConfigs = new List<string>
+        {
+            "config/ModBundleItems.json",
+            "config/ModBundlePacks.json"
+        };
+
+        // Act
+        var result = await _service.GetBundleConfigsAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Count.Should().Be(2);
+        result.Data.Should().AllSatisfy(p =>
+        {
+            File.Exists(p).Should().BeTrue();
+            p.Should().NotContain("config" + Path.DirectorySeparatorChar + "config");
+        });
+    }
+
+    [Fact]
+    public void ResolveBundleConfigPath_HandlesBothRelativeFormats()
+    {
+        // Arrange
+        var projectDir = Path.Combine(_tempDirectory, "ResolveTest");
+        var configsDir = Path.Combine(projectDir, "config");
+        Directory.CreateDirectory(configsDir);
+        var itemFile = Path.Combine(configsDir, "ModBundleItems.json");
+        File.WriteAllText(itemFile, "{}");
+
+        // Act & Assert
+        // 1. With "config/ModBundleItems.json"
+        var resolvedWithPrefix = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", "config/ModBundleItems.json");
+        resolvedWithPrefix.Should().Be(itemFile);
+
+        // 2. With "ModBundleItems.json"
+        var resolvedWithoutPrefix = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", "ModBundleItems.json");
+        resolvedWithoutPrefix.Should().Be(itemFile);
+
+        // 3. Rooted path
+        var rooted = Path.GetFullPath(itemFile);
+        var resolvedRooted = ProjectConfigService.ResolveBundleConfigPath(projectDir, "config", rooted);
+        resolvedRooted.Should().Be(rooted);
+    }
+
+    [Fact]
+    public async Task GetRecentProjectsAsync_WithDirectoryEntry_PrunesIt()
+    {
+        // Arrange: isolated recent-projects file via mocked configuration provider
+        var appDataDir = Path.Combine(_tempDirectory, "appdata");
+        Directory.CreateDirectory(appDataDir);
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetApplicationDataPath()).Returns(appDataDir);
+        var service = new ProjectConfigService(_mockLogger.Object, configMock.Object);
+
+        var directoryEntry = Path.Combine(_tempDirectory, "LegacyProjectDir");
+        Directory.CreateDirectory(directoryEntry);
+        await service.AddToRecentProjectsAsync(directoryEntry);
+
+        var staleFileEntry = Path.Combine(_tempDirectory, "Deleted", "Gone.mbproj");
+        await service.AddToRecentProjectsAsync(staleFileEntry);
+
+        // Act
+        var result = await service.GetRecentProjectsAsync();
+
+        // Assert: directory entries can never be opened, so they are pruned
+        result.Success.Should().BeTrue();
+        result.Data.Should().NotContain(directoryEntry);
+        result.Data.Should().NotContain(staleFileEntry);
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithLocalizationService_ReturnsLocalizedError()
+    {
+        // Arrange
+        string? localizedValue = "LOCALIZED:Tools.ModBuilder.Project.Error.NameEmpty";
+        var localizationMock = new Mock<ILocalizationService>();
+        localizationMock
+            .Setup(m => m.TryGetString("Tools.ModBuilder.Project.Error.NameEmpty", out localizedValue, It.IsAny<object?[]>()))
+            .Returns(true);
+        var service = new ProjectConfigService(_mockLogger.Object, localizationService: localizationMock.Object);
+
+        // Act
+        var result = await service.CreateProjectAsync(Path.Combine(_tempDirectory, "Localized.mbproj"), string.Empty);
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle().Which.Should().Be(localizedValue);
+    }
+
+    [Fact]
+    public async Task AtomicWriteJsonFileAsync_WritesCompleteDocumentWithoutTempLeftoversAsync()
+    {
+        // Arrange
+        var filePath = Path.Combine(_tempDirectory, "bundle.json");
+        var value = new JsonObject { ["BundleItems"] = new JsonArray { "a", "b" } };
+        var options = new JsonSerializerOptions { WriteIndented = true };
+
+        // Act
+        await ProjectConfigService.AtomicWriteJsonFileAsync(filePath, value, options, _mockLogger.Object, CancellationToken.None);
+
+        // Assert
+        File.Exists(filePath).Should().BeTrue();
+        var parsed = JsonNode.Parse(await File.ReadAllTextAsync(filePath));
+        parsed.Should().NotBeNull();
+        parsed!["BundleItems"]!.AsArray().Should().HaveCount(2);
+        Directory.GetFiles(_tempDirectory, "*.tmp").Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithImprovedMenusTemplate_WritesLanguageVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "ImprovedMenus");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "ImprovedMenus.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "ImprovedMenus", template: ProjectTemplate.ImprovedMenus);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(3);
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("English", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_English" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("Russian", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_Russian" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains("Spanish", StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.SequenceEqual(new[] { "ImprovedMenus_Spanish" }));
+
+        var itemsConfigPath = Path.Combine(projectDir, "Configs", ModBuilderConstants.BundleItemsConfigFileName);
+        File.Exists(itemsConfigPath).Should().BeTrue();
+        var itemsJson = await File.ReadAllTextAsync(itemsConfigPath);
+        using var itemsDoc = JsonDocument.Parse(itemsJson);
+        foreach (var itemElement in itemsDoc.RootElement.GetProperty("BundleItems").EnumerateArray())
+        {
+            itemElement.TryGetProperty("ManifestFile", out _).Should().BeFalse();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithLemonControlBarTemplate_WritesResolutionVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "LemonControlBar");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "LemonControlBar.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "LemonControlBar", template: ProjectTemplate.LemonControlBar);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(4);
+        AssertResolutionManifest(manifests, "720p", ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_720p"]);
+        AssertResolutionManifest(manifests, "1080p", ["LemonControlBar_Base", "LemonControlBar_Art1080", "LemonControlBar_Data1080", "LemonControlBar_1080p"]);
+        AssertResolutionManifest(manifests, "1440p", ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_1440p"]);
+        AssertResolutionManifest(manifests, "4K", ["LemonControlBar_Base", "LemonControlBar_Art2160", "LemonControlBar_Data2160", "LemonControlBar_4K"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CreateProjectAsync_WithLeikezeHotkeysTemplate_WritesLanguageVariantManifests(bool forceFallback)
+    {
+        // Arrange
+        using var isolation = TemplateIsolation.Create(forceFallback, _tempDirectory);
+        var projectDir = Path.Combine(_tempDirectory, "LeikezeHotkeys");
+        Directory.CreateDirectory(projectDir);
+        var projectPath = Path.Combine(projectDir, "LeikezeHotkeys.mbproj");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "LeikezeHotkeys", template: ProjectTemplate.LeikezeHotkeys);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        var manifests = ReadSampleManifests(projectDir);
+        manifests.Should().HaveCount(3);
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_ZH_EN" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_Generals_EN" }));
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Packs.SequenceEqual(new[] { "LeikezeHotkeys_ZH_DE" }));
+    }
+
+    private static void AssertResolutionManifest(
+        List<SampleManifestEntry> manifests,
+        string resolution,
+        string[] expectedPacks)
+    {
+        manifests.Should().ContainSingle(manifest =>
+            manifest.Name.Contains(resolution, StringComparison.OrdinalIgnoreCase) &&
+            manifest.Packs.OrderBy(pack => pack).SequenceEqual(expectedPacks.OrderBy(pack => pack)));
+    }
+
+    private static List<SampleManifestEntry> ReadSampleManifests(string projectDir)
+    {
+        var manifestsPath = Path.Combine(projectDir, "Configs", ModBuilderConstants.BundleManifestsConfigFileName);
+        File.Exists(manifestsPath).Should().BeTrue();
+        var json = File.ReadAllText(manifestsPath);
+        var document = JsonSerializer.Deserialize<SampleManifestsDocument>(
+            json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        document.Should().NotBeNull();
+        return document!.BundleManifests;
+    }
+
+    private sealed class SampleManifestsDocument
+    {
+        public List<SampleManifestEntry> BundleManifests { get; set; } = new();
+    }
+
+    private sealed class SampleManifestEntry
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public List<string> Packs { get; set; } = new();
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WhenProjectAlreadyExists_ReturnsFailure()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "ExistingProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+
+        // Act
+        var result = await _service.CreateProjectAsync(projectPath, "ExistingProject");
+
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("already exists", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SaveProjectAsync_WhenProjectAlreadyExists_OverwritesSuccessfully()
+    {
+        // Arrange
+        var projectPath = Path.Combine(_tempDirectory, "OverwriteProject.mbproj");
+        await File.WriteAllTextAsync(projectPath, "{}");
+        var project = new ModBuilderProject { Name = "OverwriteProject" };
+
+        // Act
+        var result = await _service.SaveProjectAsync(projectPath, project);
+
+        // Assert
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RecentProjects_CaseInsensitiveMatch_HandlesDuplicatesAndRemoval()
+    {
+        // Arrange
+        var appDataDir = Path.Combine(_tempDirectory, "appdata_recent");
+        Directory.CreateDirectory(appDataDir);
+        var configMock = new Mock<IConfigurationProviderService>();
+        configMock.Setup(c => c.GetApplicationDataPath()).Returns(appDataDir);
+        var service = new ProjectConfigService(_mockLogger.Object, configMock.Object);
+
+        var projectPathLower = Path.Combine(_tempDirectory, "project.mbproj");
+        var projectPathUpper = Path.Combine(_tempDirectory, "PROJECT.MBPROJ");
+        await File.WriteAllTextAsync(projectPathLower, "{}");
+
+        // Act 1: Add lowercase, then add uppercase
+        await service.AddToRecentProjectsAsync(projectPathLower);
+        await service.AddToRecentProjectsAsync(projectPathUpper);
+        var recent = await service.GetRecentProjectsAsync();
+
+        // Assert 1: Only 1 entry (case-insensitively deduped)
+        recent.Success.Should().BeTrue();
+        recent.Data.Should().HaveCount(1);
+
+        // Act 2: Remove using different casing
+        var removeResult = await service.RemoveFromRecentProjectsAsync(projectPathLower);
+
+        // Assert 2: Project removed completely
+        removeResult.Success.Should().BeTrue();
+        var afterRemove = await service.GetRecentProjectsAsync();
+        afterRemove.Data.Should().BeEmpty();
+    }
+
+    private sealed class TemplateIsolation : IDisposable
+    {
+        private readonly string _originalDirectory;
+        private readonly string? _originalEnvironment;
+
+        private TemplateIsolation(string isolatedDirectory)
+        {
+            _originalDirectory = Directory.GetCurrentDirectory();
+            _originalEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+            Directory.SetCurrentDirectory(isolatedDirectory);
+            Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", null);
+        }
+
+        public static TemplateIsolation? Create(bool forceFallback, string isolatedDirectory)
+        {
+            return forceFallback ? new TemplateIsolation(isolatedDirectory) : null;
+        }
+
+        public void Dispose()
+        {
+            Directory.SetCurrentDirectory(_originalDirectory);
+            Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", _originalEnvironment);
+        }
+    }
+}

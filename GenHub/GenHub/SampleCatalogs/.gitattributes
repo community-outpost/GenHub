@@ -1,0 +1,7 @@
+# Keep the bootstrap scripts and Unix shortcuts portable across platforms:
+#   *.sh / *.desktop / *.command -> LF
+#   *.ps1 -> CRLF (Windows convention; PowerShell tolerates both)
+*.sh       text eol=lf
+*.desktop  text eol=lf
+*.command  text eol=lf
+*.ps1      text eol=crlf

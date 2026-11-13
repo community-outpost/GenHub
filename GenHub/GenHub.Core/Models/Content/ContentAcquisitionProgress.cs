@@ -6,15 +6,23 @@ namespace GenHub.Core.Models.Content;
 /// </summary>
 public class ContentAcquisitionProgress
 {
+    private double _progressPercentage;
+    private double _stageProgress;
+
     /// <summary>
     /// Gets or sets the current phase of acquisition.
     /// </summary>
     public ContentAcquisitionPhase Phase { get; set; } = ContentAcquisitionPhase.Downloading;
 
     /// <summary>
-    /// Gets or sets the overall progress percentage (0-100) for the current phase.
+    /// Gets or sets the overall progress percentage for the current phase.
+    /// Values are clamped to 0-100 so over-reporting deliverers cannot break progress bars.
     /// </summary>
-    public double ProgressPercentage { get; set; }
+    public double ProgressPercentage
+    {
+        get => _progressPercentage;
+        set => _progressPercentage = ClampPercentage(value);
+    }
 
     /// <summary>
     /// Gets or sets a description of the current operation being performed.
@@ -50,4 +58,74 @@ public class ContentAcquisitionProgress
     /// Gets or sets the estimated time remaining for the current phase.
     /// </summary>
     public TimeSpan EstimatedTimeRemaining { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current stage number (1-based). Set to 0 to disable staged progress display.
+    /// </summary>
+    public int CurrentStage { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the total number of stages in the acquisition process. Set to 0 to disable staged progress display.
+    /// </summary>
+    public int TotalStages { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the progress within the current stage.
+    /// Values are clamped to 0-100 so over-reporting deliverers cannot break progress bars.
+    /// </summary>
+    public double StageProgress
+    {
+        get => _stageProgress;
+        set => _stageProgress = ClampPercentage(value);
+    }
+
+    /// <summary>
+    /// Gets or sets the description of the current stage.
+    /// </summary>
+    public string StageDescription { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the time elapsed since the last progress update.
+    /// Used to detect stalled operations and provide feedback.
+    /// </summary>
+    public TimeSpan TimeSinceLastUpdate { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the current operation is a bottleneck (e.g., hash calculation).
+    /// </summary>
+    public bool IsBottleneck { get; set; }
+
+    /// <summary>
+    /// Gets or sets a message explaining why the operation is slow (if IsBottleneck is true).
+    /// </summary>
+    public string? BottleneckReason { get; set; }
+
+    /// <summary>
+    /// Gets the formatted stage indicator (e.g., "2/5").
+    /// </summary>
+    public string StageIndicator => $"{CurrentStage}/{TotalStages}";
+
+    /// <summary>
+    /// Gets a formatted progress string combining stage and percentage.
+    /// </summary>
+    public string FormattedProgress
+    {
+        get
+        {
+            var stagePart = $"{CurrentStage}/{TotalStages}";
+            var percentPart = StageProgress > 0 ? $" ({StageProgress:F0}%)" : string.Empty;
+            var description = !string.IsNullOrEmpty(StageDescription) ? $" - {StageDescription}" : string.Empty;
+            return $"{stagePart}{description}{percentPart}";
+        }
+    }
+
+    private static double ClampPercentage(double value)
+    {
+        if (double.IsNaN(value))
+        {
+            return 0;
+        }
+
+        return Math.Clamp(value, 0, 100);
+    }
 }

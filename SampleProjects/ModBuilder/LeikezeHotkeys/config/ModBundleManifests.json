@@ -1,0 +1,25 @@
+{
+  "BundleManifests": [
+    {
+      "Name": "Leikeze Hotkeys (ZH English)",
+      "Description": "Leikeze competitive hotkeys for Zero Hour (English)",
+      "Packs": [
+        "LeikezeHotkeys_ZH_EN"
+      ]
+    },
+    {
+      "Name": "Leikeze Hotkeys (Generals English)",
+      "Description": "Leikeze competitive hotkeys for Generals (English)",
+      "Packs": [
+        "LeikezeHotkeys_Generals_EN"
+      ]
+    },
+    {
+      "Name": "Leikeze Hotkeys (ZH German)",
+      "Description": "Leikeze competitive hotkeys for Zero Hour (German)",
+      "Packs": [
+        "LeikezeHotkeys_ZH_DE"
+      ]
+    }
+  ]
+}

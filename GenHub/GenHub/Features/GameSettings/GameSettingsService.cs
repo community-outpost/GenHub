@@ -1,25 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Security;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.GameSettings;
 
 /// <summary>
 /// Service for managing game settings (Options.ini) for Generals and Zero Hour.
 /// </summary>
-public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider? pathProvider = null) : IGameSettingsService
+public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathProvider pathProvider) : IGameSettingsService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
 
     /// <summary>
     /// Static semaphore to serialize Options.ini writes across all game launches.
@@ -28,8 +37,25 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// </summary>
     private static readonly SemaphoreSlim _optionsIniWriteSemaphore = new(1, 1);
 
+    /// <summary>
+    /// Static semaphore to serialize settings.json reads and writes across all game launches.
+    /// The launch lock is per profile, so two GeneralsOnline profiles launching at once both
+    /// reach this one global file. On Windows that is not a race one writer simply wins: two
+    /// overlapping replacements of the same destination, or a replacement overlapping a read,
+    /// fail outright with an access denial, and the launch loses the settings it meant to save.
+    /// The lock is released between a load and the save that follows it, so which launch writes
+    /// last is still whichever finishes last.
+    /// </summary>
+    private static readonly SemaphoreSlim _generalsOnlineSettingsSemaphore = new(1, 1);
+
     private readonly ILogger<GameSettingsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IGamePathProvider _pathProvider = pathProvider ?? new WindowsGamePathProvider();
+
+    // Required, not optional. This previously defaulted to WindowsGamePathProvider when
+    // nothing was registered — which was every platform, because no DI module registered
+    // an IGamePathProvider at all. macOS and Linux therefore wrote Options.ini via
+    // SpecialFolder.MyDocuments, which .NET maps to $HOME on Unix. An unregistered
+    // dependency must fail at container build, not silently resolve to the wrong OS.
+    private readonly IGamePathProvider _pathProvider = pathProvider ?? throw new ArgumentNullException(nameof(pathProvider));
 
     /// <inheritdoc/>
     public virtual string GetOptionsFilePath(GameType gameType)
@@ -48,194 +74,304 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// <inheritdoc/>
     public async Task<OperationResult<IniOptions>> LoadOptionsAsync(GameType gameType)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" });
-
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
-            var filePath = GetOptionsFilePath(gameType);
-            _logger.LogDebug("Loading from path: {FilePath}", filePath);
-
-            if (!File.Exists(filePath))
+            // Acquire semaphore to prevent reading while writing
+            await _optionsIniWriteSemaphore.WaitAsync();
+            try
             {
-                _logger.LogWarning("File not found at {FilePath}, returning defaults", filePath);
-                return OperationResult<IniOptions>.CreateSuccess(new IniOptions());
+                var filePath = GetOptionsFilePath(gameType);
+                _logger.LogDebug("Loading from path: {FilePath}", filePath);
+
+                if (!File.Exists(filePath))
+                {
+                    _logger.LogWarning("File not found at {FilePath}, returning defaults", filePath);
+                    return OperationResult<IniOptions>.CreateSuccess(new IniOptions());
+                }
+
+                _logger.LogDebug("Reading file");
+                var lines = await File.ReadAllLinesAsync(filePath);
+                _logger.LogDebug("Parsing {LineCount} lines", lines.Length);
+                var options = ParseOptionsIni(lines);
+
+                _logger.LogInformation("Loaded successfully from {FilePath}", filePath);
+                return OperationResult<IniOptions>.CreateSuccess(options);
             }
-
-            _logger.LogDebug("Reading file");
-            var lines = await File.ReadAllLinesAsync(filePath);
-            _logger.LogDebug("Parsing {LineCount} lines", lines.Length);
-            var options = ParseOptionsIni(lines);
-
-            _logger.LogInformation("Loaded successfully from {FilePath}", filePath);
-            return OperationResult<IniOptions>.CreateSuccess(options);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load Options.ini for {GameType}", gameType);
-            return OperationResult<IniOptions>.CreateFailure($"Failed to load options: {ex.Message}");
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Failed to load Options.ini for {GameType}", gameType);
+                return OperationResult<IniOptions>.CreateFailure($"Failed to load options: {ex.Message}");
+            }
+            finally
+            {
+                _optionsIniWriteSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveOptionsAsync(GameType gameType, IniOptions options)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" });
-
-        // Acquire semaphore to serialize Options.ini writes
-        await _optionsIniWriteSemaphore.WaitAsync();
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
-            var filePath = GetOptionsFilePath(gameType);
-            _logger.LogDebug("Saving to path: {FilePath}", filePath);
-
-            var directory = Path.GetDirectoryName(filePath);
-
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            // Acquire semaphore to serialize Options.ini writes
+            await _optionsIniWriteSemaphore.WaitAsync();
+            try
             {
-                _logger.LogDebug("Creating directory: {Directory}", directory);
-                Directory.CreateDirectory(directory);
-                _logger.LogInformation("Created directory {Directory}", directory);
+                var filePath = GetOptionsFilePath(gameType);
+                _logger.LogDebug("Saving to path: {FilePath}", filePath);
+
+                var directory = Path.GetDirectoryName(filePath);
+
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    _logger.LogDebug("Creating directory: {Directory}", directory);
+                    Directory.CreateDirectory(directory);
+                    _logger.LogInformation("Created directory {Directory}", directory);
+                }
+
+                // Safety check: Don't overwrite existing non-empty file with empty options
+                // This prevents data loss if a load failed but Save was called with defaults
+                if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+                {
+                    bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
+                    if (isDefault)
+                    {
+                        _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
+                        return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                    }
+                }
+
+                _logger.LogDebug("Serializing options");
+                var lines = SerializeOptionsIni(options);
+                _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
+                await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
+
+                _logger.LogInformation("Saved successfully to {FilePath}", filePath);
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            _logger.LogDebug("Serializing options");
-            var lines = SerializeOptionsIni(options);
-            _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
-            await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
-
-            _logger.LogInformation("Saved successfully to {FilePath}", filePath);
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
-            return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
-        }
-        finally
-        {
-            // Always release the semaphore
-            _optionsIniWriteSemaphore.Release();
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException)
+            {
+                _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
+                return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
+            }
+            finally
+            {
+                // Always release the semaphore
+                _optionsIniWriteSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<TheSuperHackersSettings>> LoadTheSuperHackersSettingsAsync(GameType gameType)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
-
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = GameSettingsTheSuperHackersConstants.SectionName }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                }
+
+                var settings = new TheSuperHackersSettings();
+                var options = optionsResult.Data;
+
+                var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+                if (tshKvp.Value != null)
+                {
+                    ParseTheSuperHackersSection(settings, tshKvp.Value);
+                }
+
+                _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
             }
-
-            var settings = new TheSuperHackersSettings();
-            var options = optionsResult.Data;
-
-            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+            catch (Exception ex)
             {
-                ParseTheSuperHackersSection(settings, tshSection);
+                _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
             }
-
-            _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveTheSuperHackersSettingsAsync(GameType gameType, TheSuperHackersSettings settings)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
-
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = GameSettingsTheSuperHackersConstants.SectionName }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+                }
+
+                var options = optionsResult.Data;
+                var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k => string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)) ?? GameSettingsTheSuperHackersConstants.SectionName;
+                Dictionary<string, string> tshSection = [];
+                if (options.AdditionalSections.TryGetValue(tshKey, out var existingTsh) && existingTsh != null)
+                {
+                    tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
+                }
+
+                var serializedTsh = SerializeTheSuperHackersSettings(settings);
+                foreach (var kvp in serializedTsh)
+                {
+                    tshSection[kvp.Key] = kvp.Value;
+                }
+
+                options.AdditionalSections[tshKey] = tshSection;
+
+                var saveResult = await SaveOptionsAsync(gameType, options);
+                return saveResult;
             }
-
-            var options = optionsResult.Data;
-            var tshSection = SerializeTheSuperHackersSettings(settings);
-            options.AdditionalSections["TheSuperHackers"] = tshSection;
-
-            var saveResult = await SaveOptionsAsync(gameType, options);
-            return saveResult;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
+            }
         }
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
+    public Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+        return LoadGeneralsOnlineSettingsAsync(CancellationToken.None);
+    }
 
-        try
+    /// <inheritdoc/>
+    public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync(CancellationToken cancellationToken)
+    {
+        using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
-            _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
-
-            if (!File.Exists(settingsPath))
+            await _generalsOnlineSettingsSemaphore.WaitAsync(cancellationToken);
+            try
             {
-                _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                var settingsPath = GetGeneralsOnlineSettingsPath();
+                _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
+
+                if (!File.Exists(settingsPath))
+                {
+                    _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
+                    return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                }
+
+                var json = await File.ReadAllTextAsync(settingsPath, cancellationToken);
+                var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
+
+                if (settings == null)
+                {
+                    _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
+                    return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                }
+
+                settings.EnsureNestedSectionsInitialized();
+
+                _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
+                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
             }
-
-            var json = await File.ReadAllTextAsync(settingsPath);
-            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json);
-
-            if (settings == null)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException or JsonException)
             {
-                _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                _logger.LogError(ex, "Failed to load GeneralsOnline settings");
+                return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
             }
-
-            _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
-            return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load GeneralsOnline settings");
-            return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
+            finally
+            {
+                _generalsOnlineSettingsSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
+    public Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
+        return SaveGeneralsOnlineSettingsAsync(settings, CancellationToken.None);
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings, CancellationToken cancellationToken)
+    {
+        using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
+        {
+            string? temporaryPath = null;
+            await _generalsOnlineSettingsSemaphore.WaitAsync(cancellationToken);
+            try
+            {
+                var settingsPath = GetGeneralsOnlineSettingsPath();
+                var directory = Path.GetDirectoryName(settingsPath);
+
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    _logger.LogDebug("Creating directory: {Directory}", directory);
+                    Directory.CreateDirectory(directory);
+                }
+
+                var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
+
+                // Written beside settings.json under a name of its own and then moved over it. This
+                // file belongs to the GeneralsOnline client and holds keys GenHub cannot reconstruct,
+                // so a truncating write that is interrupted, or that overlaps a second launch writing
+                // the same path, would leave the client with a settings.json it cannot read.
+                temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
+                await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8, cancellationToken);
+                await ReplaceSettingsFileAsync(temporaryPath, settingsPath, cancellationToken);
+                temporaryPath = null;
+
+                _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException or InvalidOperationException or JsonException)
+            {
+                _logger.LogError(ex, "Failed to save GeneralsOnline settings");
+                return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
+            }
+            finally
+            {
+                DiscardTemporarySettingsFile(temporaryPath);
+                _generalsOnlineSettingsSemaphore.Release();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the path of the GeneralsOnline client's global settings.json.
+    /// </summary>
+    /// <returns>The full path to settings.json.</returns>
+    protected virtual string GetGeneralsOnlineSettingsPath()
+    {
+        var zeroHourDataPath = _pathProvider.GetOptionsDirectory(GameType.ZeroHour);
+        if (string.IsNullOrWhiteSpace(zeroHourDataPath) || !Path.IsPathFullyQualified(zeroHourDataPath))
+        {
+            zeroHourDataPath = Path.Combine(AppContext.BaseDirectory, GameSettingsConstants.FolderNames.ZeroHour);
+        }
+
+        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
+        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
+
+    private static void DiscardTemporarySettingsFile(string? temporaryPath)
+    {
+        if (temporaryPath == null || !File.Exists(temporaryPath))
+        {
+            return;
+        }
 
         try
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
-            var directory = Path.GetDirectoryName(settingsPath);
-
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                _logger.LogDebug("Creating directory: {Directory}", directory);
-                Directory.CreateDirectory(directory);
-            }
-
-            var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
-            await File.WriteAllTextAsync(settingsPath, json, Encoding.UTF8);
-
-            _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
-            return OperationResult<bool>.CreateSuccess(true);
+            File.Delete(temporaryPath);
         }
-        catch (Exception ex)
+        catch (IOException)
         {
-            _logger.LogError(ex, "Failed to save GeneralsOnline settings");
-            return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
+            // Best effort; a leftover temporary file is not worth failing the save over, and
+            // this runs in a finally block where throwing would hide the error being reported.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort; a leftover temporary file is not worth failing the save over, and
+            // this runs in a finally block where throwing would hide the error being reported.
         }
     }
 
@@ -243,8 +379,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         var options = new IniOptions();
         var currentSection = string.Empty;
-        var currentDict = new Dictionary<string, string>();
-        var rootDict = new Dictionary<string, string>(); // For flat format
+        Dictionary<string, string> currentDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> rootDict = new(StringComparer.OrdinalIgnoreCase); // For flat format
 
         foreach (var rawLine in lines)
         {
@@ -261,7 +397,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 if (!string.IsNullOrEmpty(currentSection))
                 {
                     ProcessSection(options, currentSection, currentDict);
-                    currentDict = [];
+                    currentDict = new(StringComparer.OrdinalIgnoreCase);
                 }
 
                 currentSection = line[1..^1].Trim();
@@ -275,26 +411,28 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 var key = line[..separatorIndex].Trim();
                 var value = line[(separatorIndex + 1)..].Trim();
 
+                // Sanitize key (remove BOM and other invisible characters)
+                key = SanitizeKey(key);
+
                 if (string.IsNullOrEmpty(currentSection))
                 {
-                    // Flat format - store in root dict
+                    // Flat format (no section header yet)
                     rootDict[key] = value;
                 }
                 else
                 {
-                    // Sectioned format - store in current section
                     currentDict[key] = value;
                 }
             }
         }
 
-        // Process last section if any
+        // Process the last section
         if (!string.IsNullOrEmpty(currentSection))
         {
             ProcessSection(options, currentSection, currentDict);
         }
 
-        // Process root dict (flat format) - categorize by key name
+        // Process root-level settings if any were found (flat format)
         if (rootDict.Count > 0)
         {
             CategorizeRootSettings(options, rootDict);
@@ -319,7 +457,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
-            "IdealStaticGameLOD", "StaticGameLOD",
+            "IdealStaticGameLOD", "StaticGameLOD", "AlternateMouseSetup", "HeatEffects",
+            "BuildingOcclusion", "ShowProps", "ShowSoftWaterEdge", "ShowTrees",
+            "UseCloudMap", "UseLightMap",
         };
 
         var networkKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -330,22 +470,37 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         // TheSuperHackers / GeneralsOnline specific keys that appear in flat format
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ArchiveReplays", "BuildingOcclusion", "CursorCaptureEnabledInFullscreenGame",
-            "CursorCaptureEnabledInFullscreenMenu", "CursorCaptureEnabledInWindowedGame",
-            "CursorCaptureEnabledInWindowedMenu", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", "HeatEffects", "LanguageFilter", "MaxParticleCount",
-            "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
-            "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
-            "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
-            "ScreenEdgeScrollEnabledInWindowedApp", "ScrollFactor", "SendDelay",
-            "ShowMoneyPerMinute", "ShowSoftWaterEdge", "ShowTrees", "SystemTimeFontSize",
-            "UseAlternateMouse", "UseCloudMap", "UseDoubleClickAttackMove", "UseLightMap",
+            GameSettingsTheSuperHackersConstants.ArchiveReplaysKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey,
+            GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey,
+            "DrawScrollAnchor",
+            GameSettingsTheSuperHackersConstants.DynamicLODKey,
+            "GameTimeFontSize",
+            GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey,
+            "LanguageFilter",
+            GameSettingsTheSuperHackersConstants.MaxParticleCountKey,
+            GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey,
+            "MoveScrollAnchor",
+            GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey,
+            GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey,
+            GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey,
+            GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey,
+            GameSettingsTheSuperHackersConstants.RetaliationKey,
+            GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey,
+            GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey,
+            GameSettingsTheSuperHackersConstants.ScrollFactorKey,
+            "SendDelay",
+            GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey,
+            GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey,
+            GameSettingsTheSuperHackersConstants.UseDoubleClickAttackMoveKey,
         };
 
-        var audioDict = new Dictionary<string, string>();
-        var videoDict = new Dictionary<string, string>();
-        var networkDict = new Dictionary<string, string>();
-        var theSuperHackersDict = new Dictionary<string, string>();
+        Dictionary<string, string> audioDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> videoDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> networkDict = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> theSuperHackersDict = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (var kvp in rootDict)
         {
@@ -399,7 +554,24 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // Store TheSuperHackers settings in AdditionalSections to preserve them
         if (theSuperHackersDict.Count > 0)
-            options.AdditionalSections["TheSuperHackers"] = theSuperHackersDict;
+        {
+            var tshKey = options.AdditionalSections.Keys.FirstOrDefault(k =>
+                string.Equals(k, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+
+            if (tshKey != null && options.AdditionalSections.TryGetValue(tshKey, out var existingTshDict) && existingTshDict != null)
+            {
+                // Merge flat root settings; existing section values win on conflict
+                foreach (var kvp in theSuperHackersDict.Where(kvp => !existingTshDict.ContainsKey(kvp.Key)))
+                {
+                    existingTshDict[kvp.Key] = kvp.Value;
+                }
+            }
+            else
+            {
+                options.AdditionalSections[GameSettingsTheSuperHackersConstants.SectionName] =
+                    new Dictionary<string, string>(theSuperHackersDict, StringComparer.OrdinalIgnoreCase);
+            }
+        }
     }
 
     private static void ProcessSection(IniOptions options, string sectionName, Dictionary<string, string> values)
@@ -416,7 +588,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 ParseNetworkSection(options.Network, values);
                 break;
             default:
-                options.AdditionalSections[sectionName] = new Dictionary<string, string>(values);
+                options.AdditionalSections[sectionName] = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
                 break;
         }
     }
@@ -457,6 +629,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "NumSounds" when int.TryParse(kvp.Value, out var ns):
                     audio.NumSounds = ns;
                     break;
+                default:
+                    // Ignore unrecognized keys or invalid numeric values.
+                    break;
             }
         }
     }
@@ -467,6 +642,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             "Resolution", "Windowed", "TextureReduction", "AntiAliasing",
             "UseShadowVolumes", "UseShadowDecals", "ExtraAnimations", "Gamma",
+            "AlternateMouseSetup", "HeatEffects", "BuildingOcclusion", "ShowProps",
         };
 
         foreach (var kvp in values)
@@ -512,6 +688,21 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "Gamma" when int.TryParse(kvp.Value, out var g):
                     video.Gamma = g;
                     break;
+                case "AlternateMouseSetup":
+                    video.AlternateMouseSetup = ParseBool(kvp.Value);
+                    break;
+                case "HeatEffects":
+                    video.HeatEffects = ParseBool(kvp.Value);
+                    break;
+                case "BuildingOcclusion":
+                    video.BuildingOcclusion = ParseBool(kvp.Value);
+                    break;
+                case "ShowProps":
+                    video.ShowProps = ParseBool(kvp.Value);
+                    break;
+                default:
+                    // Ignore unrecognized keys or invalid numeric values.
+                    break;
             }
         }
     }
@@ -542,7 +733,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static string[] SerializeOptionsIni(IniOptions options)
     {
-        var lines = new List<string>();
+        List<string> lines = [];
 
         // Write all settings in flat format (no sections) as the game expects
         // Audio settings
@@ -568,6 +759,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         lines.Add($"UseShadowDecals={BoolToString(options.Video.UseShadowDecals)}");
         lines.Add($"ExtraAnimations={BoolToString(options.Video.ExtraAnimations)}");
         lines.Add($"Gamma={options.Video.Gamma}");
+        lines.Add($"AlternateMouseSetup={BoolToString(options.Video.AlternateMouseSetup)}");
+        lines.Add($"HeatEffects={BoolToString(options.Video.HeatEffects)}");
+        lines.Add($"BuildingOcclusion={BoolToString(options.Video.BuildingOcclusion)}");
+        lines.Add($"ShowProps={BoolToString(options.Video.ShowProps)}");
 
         // Add additional video properties
         foreach (var kvp in options.Video.AdditionalProperties)
@@ -575,12 +770,15 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             lines.Add($"{kvp.Key}={kvp.Value}");
         }
 
-        // TheSuperHackers/GeneralsOnline settings (flat, no section header)
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSettings))
+        // TheSuperHackers settings
+        var tshKvp = options.AdditionalSections.FirstOrDefault(s => string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase));
+        if (tshKvp.Value is { Count: > 0 })
         {
-            foreach (var kvp in tshSettings)
+            lines.Add(string.Empty);
+            lines.Add($"[{GameSettingsTheSuperHackersConstants.SectionName}]");
+            foreach (var kvp in tshKvp.Value)
             {
-                lines.Add($"{kvp.Key}={kvp.Value}");
+                lines.Add($"{kvp.Key} = {kvp.Value}");
             }
         }
 
@@ -597,12 +795,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         }
 
         // Add any other additional sections with section headers (for future extensibility)
-        foreach (var section in options.AdditionalSections)
+        foreach (var section in options.AdditionalSections.Where(s => !string.Equals(s.Key, GameSettingsTheSuperHackersConstants.SectionName, StringComparison.OrdinalIgnoreCase)))
         {
-            // Skip TheSuperHackers - already written flat above
-            if (section.Key.Equals("TheSuperHackers", StringComparison.OrdinalIgnoreCase))
-                continue;
-
             lines.Add(string.Empty);
             lines.Add($"[{section.Key}]");
             foreach (var kvp in section.Value)
@@ -618,75 +812,131 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
     private static void ParseTheSuperHackersSection(TheSuperHackersSettings settings, Dictionary<string, string> values)
     {
-        if (values.TryGetValue("ArchiveReplays", out var archiveReplays))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ArchiveReplaysKey, out var archiveReplays))
             settings.ArchiveReplays = ParseBool(archiveReplays);
 
-        if (values.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var cursorFullscreenGame))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey, out var cursorFullscreenGame))
             settings.CursorCaptureEnabledInFullscreenGame = ParseBool(cursorFullscreenGame);
 
-        if (values.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var cursorFullscreenMenu))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey, out var cursorFullscreenMenu))
             settings.CursorCaptureEnabledInFullscreenMenu = ParseBool(cursorFullscreenMenu);
 
-        if (values.TryGetValue("CursorCaptureEnabledInWindowedGame", out var cursorWindowedGame))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey, out var cursorWindowedGame))
             settings.CursorCaptureEnabledInWindowedGame = ParseBool(cursorWindowedGame);
 
-        if (values.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var cursorWindowedMenu))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey, out var cursorWindowedMenu))
             settings.CursorCaptureEnabledInWindowedMenu = ParseBool(cursorWindowedMenu);
 
-        if (values.TryGetValue("MoneyTransactionVolume", out var moneyVolume) && int.TryParse(moneyVolume, out var mv))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey, out var moneyVolume) && int.TryParse(moneyVolume, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mv))
             settings.MoneyTransactionVolume = mv;
 
-        if (values.TryGetValue("NetworkLatencyFontSize", out var netLatencyFont) && int.TryParse(netLatencyFont, out var nlf))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey, out var netLatencyFont) && int.TryParse(netLatencyFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nlf))
             settings.NetworkLatencyFontSize = nlf;
 
-        if (values.TryGetValue("PlayerObserverEnabled", out var playerObserver))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey, out var playerObserver))
             settings.PlayerObserverEnabled = ParseBool(playerObserver);
 
-        if (values.TryGetValue("RenderFpsFontSize", out var fpsFont) && int.TryParse(fpsFont, out var ff))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey, out var fpsFont) && int.TryParse(fpsFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ff))
             settings.RenderFpsFontSize = ff;
 
-        if (values.TryGetValue("ResolutionFontAdjustment", out var resFontAdj) && int.TryParse(resFontAdj, out var rfa))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey, out var resFontAdj) && int.TryParse(resFontAdj, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rfa))
             settings.ResolutionFontAdjustment = rfa;
 
-        if (values.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var scrollFullscreen))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey, out var scrollFullscreen))
             settings.ScreenEdgeScrollEnabledInFullscreenApp = ParseBool(scrollFullscreen);
 
-        if (values.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var scrollWindowed))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey, out var scrollWindowed))
             settings.ScreenEdgeScrollEnabledInWindowedApp = ParseBool(scrollWindowed);
 
-        if (values.TryGetValue("ShowMoneyPerMinute", out var showMoney))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey, out var showMoney))
             settings.ShowMoneyPerMinute = ParseBool(showMoney);
 
-        if (values.TryGetValue("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, out var stf))
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey, out var sysTimeFont) && int.TryParse(sysTimeFont, NumberStyles.Integer, CultureInfo.InvariantCulture, out var stf))
             settings.SystemTimeFontSize = stf;
+
+        if (values.TryGetCaseInsensitive(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
+        {
+            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(speedMult);
+            if (parsed.HasValue)
+            {
+                settings.GameWindowTransitionSpeedMultiplier = parsed.Value;
+            }
+        }
     }
 
     private static Dictionary<string, string> SerializeTheSuperHackersSettings(TheSuperHackersSettings settings)
     {
-        return new Dictionary<string, string>
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["ArchiveReplays"] = BoolToString(settings.ArchiveReplays),
-            ["CursorCaptureEnabledInFullscreenGame"] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),
-            ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
-            ["CursorCaptureEnabledInWindowedGame"] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
-            ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
-            ["MoneyTransactionVolume"] = settings.MoneyTransactionVolume.ToString(),
-            ["NetworkLatencyFontSize"] = settings.NetworkLatencyFontSize.ToString(),
-            ["PlayerObserverEnabled"] = BoolToString(settings.PlayerObserverEnabled),
-            ["RenderFpsFontSize"] = settings.RenderFpsFontSize.ToString(),
-            ["ResolutionFontAdjustment"] = settings.ResolutionFontAdjustment.ToString(),
-            ["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
-            ["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
-            ["ShowMoneyPerMinute"] = BoolToString(settings.ShowMoneyPerMinute),
-            ["SystemTimeFontSize"] = settings.SystemTimeFontSize.ToString(),
+            [GameSettingsTheSuperHackersConstants.ArchiveReplaysKey] = BoolToString(settings.ArchiveReplays),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenGameKey] = BoolToString(settings.CursorCaptureEnabledInFullscreenGame),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInFullscreenMenuKey] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedGameKey] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
+            [GameSettingsTheSuperHackersConstants.CursorCaptureEnabledInWindowedMenuKey] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(settings.GameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.MoneyTransactionVolumeKey] = settings.MoneyTransactionVolume.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.NetworkLatencyFontSizeKey] = settings.NetworkLatencyFontSize.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.PlayerObserverEnabledKey] = BoolToString(settings.PlayerObserverEnabled),
+            [GameSettingsTheSuperHackersConstants.RenderFpsFontSizeKey] = settings.RenderFpsFontSize.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.ResolutionFontAdjustmentKey] = settings.ResolutionFontAdjustment.ToString(CultureInfo.InvariantCulture),
+            [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInFullscreenAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInFullscreenApp),
+            [GameSettingsTheSuperHackersConstants.ScreenEdgeScrollEnabledInWindowedAppKey] = BoolToString(settings.ScreenEdgeScrollEnabledInWindowedApp),
+            [GameSettingsTheSuperHackersConstants.ShowMoneyPerMinuteKey] = BoolToString(settings.ShowMoneyPerMinute),
+            [GameSettingsTheSuperHackersConstants.SystemTimeFontSizeKey] = settings.SystemTimeFontSize.ToString(CultureInfo.InvariantCulture),
         };
     }
 
-    private static string GetGeneralsOnlineSettingsPath()
+    private static string SanitizeKey(string key)
     {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
-        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
-        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+        if (string.IsNullOrEmpty(key)) return key;
+
+        // Remove BOM if present
+        if (key.StartsWith('\uFEFF'))
+        {
+            key = key[1..];
+        }
+
+        // Remove any other control characters or non-printable chars if needed
+        return key.Trim();
+    }
+
+    /// <summary>
+    /// Moves a completed settings file over settings.json, retrying the move a bounded number
+    /// of times before letting the failure reach the caller.
+    /// </summary>
+    /// <remarks>
+    /// The semaphore keeps GenHub's own saves off each other, but settings.json belongs to the
+    /// GeneralsOnline client, and a running client, a virus scanner or the search indexer can
+    /// hold it open. Windows refuses a replacement of a file another handle has open instead of
+    /// waiting for it, and reports that as an access denial rather than as contention. Every
+    /// such holder lets go within milliseconds, so a few attempts separated by a short delay
+    /// tell an overlap apart from a file GenHub genuinely may not write.
+    /// </remarks>
+    /// <param name="temporaryPath">The completed file to move.</param>
+    /// <param name="settingsPath">The settings.json path to replace.</param>
+    /// <param name="cancellationToken">Cancellation token for cancelling retry delays.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    private async Task ReplaceSettingsFileAsync(string temporaryPath, string settingsPath, CancellationToken cancellationToken = default)
+    {
+        for (var attempt = 1; attempt < GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit; attempt++)
+        {
+            try
+            {
+                File.Move(temporaryPath, settingsPath, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogDebug(
+                    ex,
+                    "Attempt {Attempt} of {AttemptLimit} to replace {SettingsPath} was refused, retrying",
+                    attempt,
+                    GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit,
+                    settingsPath);
+                await Task.Delay(GameSettingsGeneralsOnlineConstants.SettingsReplaceRetryDelayMilliseconds, cancellationToken);
+            }
+        }
+
+        File.Move(temporaryPath, settingsPath, overwrite: true);
     }
 }

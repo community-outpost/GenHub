@@ -1,0 +1,376 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Common.Validation;
+using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
+using GenHub.Core.Models.Providers;
+using GenHub.Features.Content.Services.Catalog;
+using GenHub.Infrastructure.Services;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Tools.ViewModels.Dialogs;
+
+/// <summary>
+/// ViewModel for the Add Referral dialog with publisher discovery.
+/// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
+public partial class AddReferralDialogViewModel(
+    Action<PublisherReferral> onReferralCreated,
+    IEnumerable<PublisherReferralOption>? existingSubscriptions = null,
+    GenHub.Core.Interfaces.Common.ILocalizationService? localizationService = null) : ObservableValidator, IDisposable
+{
+    private static readonly HttpClient SharedHttpClient = new(
+        ImageCacheService.CreateSsrfSafeSocketsHttpHandler())
+    {
+        Timeout = TimeSpan.FromSeconds(15),
+    };
+
+    private CancellationTokenSource? _discoveryCts;
+
+    private bool _suppressSelectionClear;
+
+    [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.PublisherIdRequired", "Publisher ID is required")]
+    private string _publisherId = string.Empty;
+
+    [ObservableProperty]
+    [NotifyDataErrorInfo]
+    [LocalizedRequired("Tools.PublisherStudio.Validation.CatalogUrlRequired", "Catalog URL is required")]
+    [LocalizedUrl("Tools.PublisherStudio.Validation.ValidUrl", "Please enter a valid URL")]
+    private string _catalogUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _note = string.Empty;
+
+    [ObservableProperty]
+    private string? _validationError;
+
+    [ObservableProperty]
+    private bool _isValid;
+
+    [ObservableProperty]
+    private bool _isBusy;
+
+    [ObservableProperty]
+    private PublisherProfile? _discoveredPublisher;
+
+    [ObservableProperty]
+    private ObservableCollection<PublisherReferralOption> _availablePublishers = new(
+        existingSubscriptions ?? Enumerable.Empty<PublisherReferralOption>());
+
+    [ObservableProperty]
+    private PublisherReferralOption? _selectedPublisher;
+
+    /// <summary>
+    /// Gets example catalog URLs for user guidance.
+    /// </summary>
+    public IReadOnlyList<string> ExampleCatalogUrls { get; } =
+    [
+        "https://raw.githubusercontent.com/username/publisher/main/catalog.json",
+        "https://gist.githubusercontent.com/username/...",
+        "https://example.com/publisher.json",
+    ];
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _discoveryCts?.Cancel();
+            _discoveryCts?.Dispose();
+            _discoveryCts = null;
+        }
+    }
+
+    partial void OnPublisherIdChanged(string value) => OnManualFieldChanged();
+
+    partial void OnCatalogUrlChanged(string value) => OnManualFieldChanged();
+
+    partial void OnSelectedPublisherChanged(PublisherReferralOption? value) => Validate();
+
+    private void OnManualFieldChanged()
+    {
+        if (!_suppressSelectionClear)
+        {
+            SelectedPublisher = null;
+        }
+
+        Validate();
+    }
+
+    /// <summary>
+    /// Closes the dialog without saving.
+    /// </summary>
+    [RelayCommand]
+    private void Close()
+    {
+        ArgumentNullException.ThrowIfNull(onReferralCreated);
+        onReferralCreated(null!);
+    }
+
+    /// <summary>
+    /// Creates the referral if validation passes.
+    /// </summary>
+    [RelayCommand]
+    private void CreateReferral()
+    {
+        Validate();
+
+        if (!IsValid) return;
+
+        var referral = new PublisherReferral
+        {
+            PublisherId = PublisherId.ToLowerInvariant().Trim(),
+            CatalogUrl = CatalogUrl.Trim(),
+            Note = string.IsNullOrWhiteSpace(Note) ? null : Note.Trim(),
+        };
+
+        ArgumentNullException.ThrowIfNull(onReferralCreated);
+        onReferralCreated(referral);
+    }
+
+    /// <summary>
+    /// Attempts to discover publisher information from the entered Catalog URL.
+    /// </summary>
+    [RelayCommand]
+    private async Task DiscoverPublisherAsync()
+    {
+        if (string.IsNullOrWhiteSpace(CatalogUrl) || !Uri.TryCreate(CatalogUrl, UriKind.Absolute, out var uri))
+        {
+            ValidationError = GetLocalizedString(
+                "Tools.PublisherStudio.Referral.ValidUrlRequired",
+                "Please enter a valid URL first");
+            return;
+        }
+
+        var previousCts = _discoveryCts;
+        _discoveryCts = null;
+        if (previousCts != null)
+        {
+            await previousCts.CancelAsync();
+            previousCts.Dispose();
+        }
+
+        _discoveryCts = new CancellationTokenSource();
+        var ct = _discoveryCts.Token;
+
+        IsBusy = true;
+        ValidationError = null;
+
+        try
+        {
+            var json = await CatalogDocumentReader.ReadAsync(SharedHttpClient, uri.AbsoluteUri, CatalogConstants.MaxCatalogSizeBytes, ct);
+
+            // Attempt to parse as PublisherDefinition first (which contains PublisherProfile)
+            if (TryExtractPublisherFromDefinition(json, out var defProfile, out var extractedUrl))
+            {
+                DiscoveredPublisher = defProfile;
+                PublisherId = defProfile.Id;
+                if (!string.IsNullOrEmpty(extractedUrl))
+                {
+                    CatalogUrl = extractedUrl;
+                }
+
+                Validate();
+                return;
+            }
+
+            // Fallback: try parsing as a raw PublisherCatalog
+            if (TryExtractPublisherFromCatalog(json, out var catProfile, out var error))
+            {
+                DiscoveredPublisher = catProfile;
+                PublisherId = catProfile.Id;
+                Validate();
+                return;
+            }
+
+            var detailsError = error ?? GetLocalizedString(
+                "Tools.PublisherStudio.Referral.NoPublisherDetails",
+                "Could not find publisher details in the response");
+            SetDiscoveryErrorIfCurrentToken(ct, detailsError);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                var timeoutError = GetLocalizedString(
+                    "Tools.PublisherStudio.Referral.DiscoveryTimeout",
+                    "Discovery request timed out. Please try again.");
+                SetDiscoveryErrorIfCurrentToken(ct, timeoutError);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            var statusCode = (int?)ex.StatusCode;
+            var fetchError = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.FetchFailed",
+                statusCode) ?? $"Could not fetch catalog: HTTP {statusCode}";
+            SetDiscoveryErrorIfCurrentToken(ct, fetchError);
+        }
+        catch (Exception ex)
+        {
+            var discoveryError = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.DiscoveryError",
+                ex.Message) ?? $"Discovery error: {ex.Message}";
+            SetDiscoveryErrorIfCurrentToken(ct, discoveryError);
+        }
+        finally
+        {
+            if (_discoveryCts?.Token == ct)
+            {
+                IsBusy = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Selects a publisher from the available list.
+    /// </summary>
+    [RelayCommand]
+    private void SelectPublisher(PublisherReferralOption? publisher)
+    {
+        if (publisher != null)
+        {
+            _suppressSelectionClear = true;
+            try
+            {
+                SelectedPublisher = publisher;
+                PublisherId = publisher.PublisherId;
+                CatalogUrl = publisher.CatalogUrl;
+            }
+            finally
+            {
+                _suppressSelectionClear = false;
+            }
+        }
+    }
+
+    private bool TryExtractPublisherFromDefinition(
+        string json,
+        [NotNullWhen(true)] out PublisherProfile? profile,
+        out string? catalogUrl)
+    {
+        profile = null;
+        catalogUrl = null;
+
+        try
+        {
+            var definition = JsonSerializer.Deserialize<PublisherDefinition>(json, PublisherJsonOptions.Definition);
+            if (definition?.Publisher != null)
+            {
+                profile = definition.Publisher;
+                catalogUrl = definition.CatalogUrl;
+                return true;
+            }
+        }
+        catch (JsonException)
+        {
+            // Not a definition, fallback to catalog parser
+        }
+        catch (NotSupportedException)
+        {
+            // Not a definition, fallback to catalog parser
+        }
+
+        return false;
+    }
+
+    private bool TryExtractPublisherFromCatalog(
+        string json,
+        [NotNullWhen(true)] out PublisherProfile? profile,
+        out string? error)
+    {
+        profile = null;
+        error = null;
+
+        try
+        {
+            var catalog = JsonSerializer.Deserialize<PublisherCatalog>(json, PublisherJsonOptions.Definition);
+            if (catalog?.Publisher != null)
+            {
+                profile = catalog.Publisher;
+                return true;
+            }
+
+            error = GetLocalizedString(
+                "Tools.PublisherStudio.Referral.NoPublisherInfo",
+                "No valid publisher information found at URL");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            error = localizationService?.GetString(
+                "Tools.PublisherStudio.Referral.ParseFailed",
+                ex.Message) ?? $"Failed to parse catalog: {ex.Message}";
+            return false;
+        }
+    }
+
+    private void SetDiscoveryErrorIfCurrentToken(CancellationToken ct, string message)
+    {
+        if (_discoveryCts?.Token == ct)
+        {
+            ValidationError = message;
+        }
+    }
+
+    private void Validate()
+    {
+        var errors = new List<string>();
+
+        // If a publisher is selected from list, use that info
+        if (SelectedPublisher != null)
+        {
+            IsValid = true;
+            ValidationError = null;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(PublisherId))
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.PublisherIdRequired",
+                "Publisher ID is required"));
+        }
+
+        if (string.IsNullOrWhiteSpace(CatalogUrl))
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.CatalogUrlRequired",
+                "Catalog URL is required"));
+        }
+        else if (!Uri.TryCreate(CatalogUrl, UriKind.Absolute, out _))
+        {
+            errors.Add(GetLocalizedString(
+                "Tools.PublisherStudio.Referral.InvalidCatalogUrl",
+                "Invalid Catalog URL"));
+        }
+
+        IsValid = errors.Count == 0;
+        ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
+    }
+
+    private string GetLocalizedString(string key, string fallback)
+    {
+        return localizationService?.GetString(key) ?? fallback;
+    }
+}

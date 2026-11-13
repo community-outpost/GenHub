@@ -1,17 +1,16 @@
-using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.Controls;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.AppUpdate.Views;
 
 /// <summary>
 /// Window for displaying update notifications.
 /// </summary>
-public partial class UpdateNotificationWindow : Window
+public partial class UpdateNotificationWindow : GenHubWindow
 {
     private readonly ILogger<UpdateNotificationWindow>? _logger;
 
@@ -36,6 +35,9 @@ public partial class UpdateNotificationWindow : Window
         }
     }
 
+    /// <inheritdoc/>
+    protected override bool DisposeDataContextOnClose => true;
+
     /// <summary>
     /// Shows the update notification window as a dialog.
     /// </summary>
@@ -53,7 +55,7 @@ public partial class UpdateNotificationWindow : Window
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync()
     {
-        if (DataContext is UpdateNotificationViewModel viewModel)
+        if (DataContext is UpdateNotificationViewModel)
         {
             // Add any initialization logic here
             await Task.CompletedTask;
@@ -61,24 +63,4 @@ public partial class UpdateNotificationWindow : Window
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
-    /// <summary>
-    /// Handles the close button click event.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event args.</param>
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    /// <summary>
-    /// Handles pointer pressed event for the title bar to enable window dragging.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The pointer event args.</param>
-    private void TitleBar_PointerPressed(object sender, PointerPressedEventArgs e)
-    {
-        BeginMoveDrag(e);
-    }
 }

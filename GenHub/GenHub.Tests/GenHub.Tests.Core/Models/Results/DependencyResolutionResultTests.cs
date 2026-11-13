@@ -1,8 +1,8 @@
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Results;
 using Xunit;
 
 namespace GenHub.Tests.Core.Models.Results;

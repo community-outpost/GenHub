@@ -1,6 +1,6 @@
-namespace GenHub.Core.Interfaces.Content;
-
 using GenHub.Core.Models.Results.Content;
+
+namespace GenHub.Core.Interfaces.Content;
 
 /// <summary>
 /// Defines the contract for content update checking services.

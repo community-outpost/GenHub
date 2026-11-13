@@ -1,0 +1,103 @@
+{
+  "BundleItems": [
+    {
+      "Name": "LemonControlBarArt1080",
+      "SourceFiles": [
+        "GameFilesEdited/Gen1080/Art/**/*.dds",
+        "GameFilesEdited/Gen1080/Art/**/*.tga"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEditionArt1080ZH.big.manifest.json",
+      "Description": "Lemon Edition 1080-generation command bar and power textures (DDS/TGA)"
+    },
+    {
+      "Name": "LemonControlBarArt2160",
+      "SourceFiles": [
+        "GameFilesEdited/Gen2160/Art/**/*.dds",
+        "GameFilesEdited/Gen2160/Art/**/*.tga"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEditionArt2160ZH.big.manifest.json",
+      "Description": "Lemon Edition 2160-generation command bar and power textures (DDS/TGA)"
+    },
+    {
+      "Name": "LemonControlBarData1080",
+      "SourceFiles": [
+        "GameFilesEdited/Gen1080/Data/**/*.ini",
+        "GameFilesEdited/Gen1080/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEditionData1080ZH.big.manifest.json",
+      "Description": "Lemon Edition 1080-generation control bar scheme, mapped images, and window layouts"
+    },
+    {
+      "Name": "LemonControlBarData2160",
+      "SourceFiles": [
+        "GameFilesEdited/Gen2160/Data/**/*.ini",
+        "GameFilesEdited/Gen2160/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEditionData2160ZH.big.manifest.json",
+      "Description": "Lemon Edition 2160-generation control bar scheme, mapped images, and window layouts"
+    },
+    {
+      "Name": "LemonControlBarBase",
+      "SourceFiles": [
+        "GameFilesEdited/ControlBarPro.txt",
+        "GameFilesEdited/GenTool/**/*"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEditionZH.big.manifest.json",
+      "Description": "Lemon Edition shared base files (ControlBarPro.txt and GenTool fullviewport data)"
+    },
+    {
+      "Name": "LemonControlBarWindows_720p",
+      "SourceFiles": [
+        "GameFilesEdited/Res720p/Data/**/*.ini",
+        "GameFilesEdited/Res720p/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEdition720ZH.big.manifest.json",
+      "Description": "Lemon Edition 720p (1280x720) locale data and widescreen window layouts"
+    },
+    {
+      "Name": "LemonControlBarWindows_1080p",
+      "SourceFiles": [
+        "GameFilesEdited/Res1080p/Data/**/*.ini",
+        "GameFilesEdited/Res1080p/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEdition1080ZH.big.manifest.json",
+      "Description": "Lemon Edition 1080p (1920x1080) locale data and widescreen window layouts"
+    },
+    {
+      "Name": "LemonControlBarWindows_1440p",
+      "SourceFiles": [
+        "GameFilesEdited/Res1440p/Data/**/*.ini",
+        "GameFilesEdited/Res1440p/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEdition1440ZH.big.manifest.json",
+      "Description": "Lemon Edition 1440p (2560x1440) locale data and widescreen window layouts"
+    },
+    {
+      "Name": "LemonControlBarWindows_4K",
+      "SourceFiles": [
+        "GameFilesEdited/Res4K/Data/**/*.ini",
+        "GameFilesEdited/Res4K/Window/**/*.wnd"
+      ],
+      "OutputFormat": "RAW",
+      "NoConvert": true,
+      "ManifestFile": "config/340_ControlBarProLemonEdition2160ZH.big.manifest.json",
+      "Description": "Lemon Edition 4K (3840x2160) locale data and widescreen window layouts"
+    }
+  ]
+}

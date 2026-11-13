@@ -1,0 +1,1195 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Info;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Messages;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Info;
+using GenHub.Features.AppUpdate.ViewModels;
+using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.Info.Services;
+using GenHub.Features.Tools.GenHotkeys.ViewModels;
+using GenHub.Features.Tools.MapManager.ViewModels;
+using GenHub.Features.Tools.ModBuilder.ViewModels;
+using GenHub.Features.Tools.ReplayManager.ViewModels;
+using GenHub.Features.Tools.ViewModels;
+using GenHub.Features.Tools.WndEditor.ViewModels;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Info.ViewModels;
+
+/// <summary>
+/// ViewModel for the GenHub information section, managing detailed feature explanations and guides.
+/// </summary>
+/// <param name="contentProvider">The info content provider.</param>
+/// <param name="changelogsViewModel">The changelogs view model.</param>
+/// <param name="goChangelogViewModel">The Generals Online changelog view model.</param>
+/// <param name="notificationService">Optional notification service for demo actions.</param>
+/// <param name="localizationService">Optional localization service for dynamic string translation.</param>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
+public partial class GenHubInfoSectionViewModel(
+    IInfoContentProvider contentProvider,
+    ChangelogsViewModel changelogsViewModel,
+    GeneralsOnlineChangelogViewModel goChangelogViewModel,
+    INotificationService? notificationService = null,
+    ILocalizationService? localizationService = null) : ObservableObject, IInfoSectionViewModel, IDisposable
+{
+    private readonly List<InfoSectionViewModel> _allSections = [];
+    private bool _disposed;
+    private GeneralsHubModule _currentModule = GeneralsHubModule.Guide;
+    private ObservableCollection<InfoCardViewModel>? _selectedSectionCards;
+    private NotifyCollectionChangedEventHandler? _cardsCollectionChangedHandler;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGameProfilesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileSettingsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameSettingsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGameProfileContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsShortcutsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsToolsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsLocalContentSelected))]
+    [NotifyPropertyChangedFor(nameof(IsScanForGamesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsAppUpdatesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsChangelogsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsWorkspaceSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFaqSelected))]
+    [NotifyPropertyChangedFor(nameof(IsGoChangelogSelected))]
+    [NotifyPropertyChangedFor(nameof(IsQuickStartSelected))]
+    [NotifyPropertyChangedFor(nameof(IsStandardCardsVisible))]
+    [NotifyPropertyChangedFor(nameof(MainColumnCards))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsLeft))]
+    [NotifyPropertyChangedFor(nameof(FaqCardsRight))]
+    [NotifyPropertyChangedFor(nameof(ToolsIntroCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsReplayCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsMapCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsHotkeyCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsPublisherCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsModBuilderCards))]
+    [NotifyPropertyChangedFor(nameof(ToolsWndCards))]
+    private InfoSectionViewModel? _selectedSection;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeCompact))]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeStandard))]
+    [NotifyPropertyChangedFor(nameof(IsDemoSizeExpanded))]
+    private double _demoSettingsWidth = 840;
+
+    [ObservableProperty]
+    private double _demoSettingsHeight = 580;
+
+    [ObservableProperty]
+    private InfoCardViewModel? _selectedCard;
+
+    [ObservableProperty]
+    private bool _isCardsPaneOpen = true;
+
+    [ObservableProperty]
+    private double _cardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
+
+    // Tools section expandable state
+    [ObservableProperty]
+    private bool _replayFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _replayInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _replayImportingExpanded;
+
+    [ObservableProperty]
+    private bool _replayManagingExpanded;
+
+    [ObservableProperty]
+    private bool _replayExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapFeaturesExpanded;
+
+    [ObservableProperty]
+    private bool _mapInterfaceExpanded;
+
+    [ObservableProperty]
+    private bool _mapImportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapManagingExpanded;
+
+    [ObservableProperty]
+    private bool _mapExportingExpanded;
+
+    [ObservableProperty]
+    private bool _mapPacksExpanded;
+
+    [ObservableProperty]
+    private bool _gsDisplayExpanded;
+
+    [ObservableProperty]
+    private bool _gsGraphicsExpanded;
+
+    [ObservableProperty]
+    private bool _gsAudioExpanded;
+
+    [ObservableProperty]
+    private bool _gsControlExpanded;
+
+    [ObservableProperty]
+    private bool _gsAdvancedExpanded;
+
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private bool _isPaneOpen;
+
+    /// <summary>
+    /// Event raised when changelogs or patch notes collections are updated, allowing the view to refresh scroll spy registrations.
+    /// </summary>
+    public event Action? ChangelogsLoaded;
+
+    /// <summary>
+    /// Gets a value indicating whether the compact demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeCompact => Math.Abs(DemoSettingsWidth - 720) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the standard demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeStandard => Math.Abs(DemoSettingsWidth - 840) < 1;
+
+    /// <summary>
+    /// Gets a value indicating whether the expanded demo size is selected.
+    /// </summary>
+    public bool IsDemoSizeExpanded => Math.Abs(DemoSettingsWidth - 980) < 1;
+
+    /// <summary>
+    /// Navigates to an info section by its unique identifier.
+    /// </summary>
+    /// <param name="sectionId">The target section ID.</param>
+    public void NavigateToSectionById(string sectionId)
+    {
+        var target = Sections.FirstOrDefault(s => s.Id == sectionId);
+        if (target != null && !ReferenceEquals(SelectedSection, target))
+        {
+            SelectedSection = target;
+        }
+    }
+
+    /// <summary>
+    /// Gets the icon key.
+    /// </summary>
+    public static string IconKey => "InformationOutline";
+
+    /// <inheritdoc/>
+    public string Title => _currentModule switch
+    {
+        GeneralsHubModule.GeneralsOnline => localizationService?.GetString("Info.Module.GeneralsOnline") ?? "Generals Online",
+        _ => localizationService?.GetString("Info.Module.GenHubGuide") ?? "GenHub Guide",
+    };
+
+    /// <summary>
+    /// Gets the changelogs view model.
+    /// </summary>
+    public ChangelogsViewModel Changelogs => changelogsViewModel;
+
+    /// <summary>
+    /// Gets the Generals Online changelog view model.
+    /// </summary>
+    public GeneralsOnlineChangelogViewModel GoChangelog => goChangelogViewModel;
+
+    /// <summary>
+    /// Gets the FAQ cards for the left column.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> FaqCardsLeft => SelectedSection?.Cards.Where((_, i) => i % 2 == 0) ?? [];
+
+    /// <summary>
+    /// Gets the FAQ cards for the right column.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 != 0) ?? [];
+
+    /// <summary>
+    /// Gets a value indicating whether the standard single-column card list is visible.
+    /// The Tools section renders its cards interleaved with per-tool demos instead.
+    /// </summary>
+    public bool IsStandardCardsVisible => !IsFaqSelected && !IsToolsSelected;
+
+    /// <summary>
+    /// Gets the cards rendered in the main single-column list.
+    /// Excludes navigation-only entries that point at demo browser items (release and patch note cards).
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> MainColumnCards => SelectedSection?.Cards.Where(c => c.TargetItem == null) ?? [];
+
+    /// <summary>
+    /// Gets the Tools suite intro card rendered above the per-tool groups.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsIntroCards => FilterToolsCards(InfoConstants.CardToolsDemo);
+
+    /// <summary>
+    /// Gets the Replay Manager guide cards rendered under the Replay Manager demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsReplayCards => FilterToolsCards("replay-");
+
+    /// <summary>
+    /// Gets the Map Manager guide cards rendered under the Map Manager demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsMapCards => FilterToolsCards("map-");
+
+    /// <summary>
+    /// Gets the Hotkey Editor guide cards rendered under the Hotkey Editor demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsHotkeyCards => FilterToolsCards("hotkey-");
+
+    /// <summary>
+    /// Gets the Publisher Studio guide cards rendered under the Publisher Studio demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsPublisherCards => FilterToolsCards("publisher-");
+
+    /// <summary>
+    /// Gets the ModBuilder guide cards rendered under the ModBuilder demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsModBuilderCards => FilterToolsCards("modbuilder-");
+
+    /// <summary>
+    /// Gets the WND Editor guide cards rendered under the WND Editor demo.
+    /// </summary>
+    public IEnumerable<InfoCardViewModel> ToolsWndCards => FilterToolsCards("wnd-editor-");
+
+    /// <inheritdoc/>
+    public string Id => "guide";
+
+    /// <inheritdoc/>
+    public int Order => 1;
+
+    /// <summary>
+    /// Gets the available info sections for the current module context.
+    /// </summary>
+    public ObservableCollection<InfoSectionViewModel> Sections { get; } = [];
+
+    /// <summary>
+    /// Gets the demo profile card for interactive demonstrations (General/Shortcuts).
+    /// </summary>
+    public GameProfileItemViewModel? DemoProfileCard { get; private set; }
+
+    /// <summary>
+    /// Gets the demo profile card specifically for the Steam integration demo.
+    /// </summary>
+    public GameProfileItemViewModel? DemoSteamProfile { get; private set; }
+
+    /// <summary>
+    /// Gets the demo profile card specifically for the Shortcut demo.
+    /// </summary>
+    public GameProfileItemViewModel? DemoShortcutProfile { get; private set; }
+
+    /// <summary>
+    /// Gets the demo update notification for interactive demonstrations.
+    /// </summary>
+    public UpdateNotificationViewModel? DemoUpdateNotification { get; private set; }
+
+    /// <summary>
+    /// Gets the demo game settings for the Content Editor demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_ContentTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+
+    /// <summary>
+    /// Gets the demo game settings for the Profile Settings demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_ProfileTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+
+    /// <summary>
+    /// Gets the demo game settings for the Game Settings demonstration.
+    /// </summary>
+    public GameProfileSettingsViewModel? DemoGameSettings_SettingsTab { get; private set; } = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+
+    /// <summary>
+    /// Gets the demo replay manager for interactive demonstrations.
+    /// </summary>
+    public ReplayManagerViewModel? DemoReplayManager { get; private set; }
+
+    /// <summary>
+    /// Gets the demo map manager for interactive demonstrations.
+    /// </summary>
+    public MapManagerViewModel? DemoMapManager { get; private set; }
+
+    /// <summary>
+    /// Gets the demo WND editor for interactive demonstrations.
+    /// </summary>
+    public WndEditorViewModel? DemoWndEditor { get; private set; }
+
+    /// <summary>
+    /// Gets the demo ModBuilder for interactive demonstrations.
+    /// </summary>
+    public ModBuilderViewModel? DemoModBuilder { get; private set; }
+
+    /// <summary>
+    /// Gets the demo Hotkey Editor for interactive demonstrations.
+    /// </summary>
+    public GenHotkeysViewModel? DemoHotkeyEditor { get; private set; }
+
+    /// <summary>
+    /// Gets the demo Publisher Studio for interactive demonstrations.
+    /// </summary>
+    public PublisherStudioViewModel? DemoPublisherStudio { get; private set; }
+
+    /// <summary>
+    /// Gets the demo add local content view model.
+    /// </summary>
+    public DemoAddLocalContentViewModel? DemoAddLocalContent { get; private set; }
+
+    /// <summary>
+    /// Gets the demo workspace view model for the Filesystem Magic section.
+    /// </summary>
+    public WorkspaceDemoViewModel? DemoWorkspace { get; private set; }
+
+    /// <summary>
+    /// Gets the demo scan wizard view model for the game detection demonstration.
+    /// </summary>
+    public ScanWizardDemoViewModel? DemoScanWizard { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the Quickstart section is selected.
+    /// </summary>
+    public bool IsQuickStartSelected => SelectedSection?.Id == InfoConstants.SectionQuickstart;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profiles section is selected.
+    /// </summary>
+    public bool IsGameProfilesSelected => SelectedSection?.Id == InfoConstants.SectionGameProfiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Settings section is selected.
+    /// </summary>
+    public bool IsGameProfileSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileSettings;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Settings section is selected.
+    /// </summary>
+    public bool IsGameSettingsSelected => SelectedSection?.Id == InfoConstants.SectionGameSettings;
+
+    /// <summary>
+    /// Gets a value indicating whether the Game Profile Content section is selected.
+    /// </summary>
+    public bool IsGameProfileContentSelected => SelectedSection?.Id == InfoConstants.SectionGameProfileContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Shortcuts section is selected.
+    /// </summary>
+    public bool IsShortcutsSelected => SelectedSection?.Id == InfoConstants.SectionShortcuts;
+
+    /// <summary>
+    /// Gets a value indicating whether the Tools section is selected.
+    /// </summary>
+    public bool IsToolsSelected => SelectedSection?.Id == InfoConstants.SectionTools;
+
+    /// <summary>
+    /// Gets a value indicating whether the Add Local Content section is selected.
+    /// </summary>
+    public bool IsLocalContentSelected => SelectedSection?.Id == InfoConstants.SectionLocalContent;
+
+    /// <summary>
+    /// Gets a value indicating whether the Scan for Games section is selected.
+    /// </summary>
+    public bool IsScanForGamesSelected => SelectedSection?.Id == InfoConstants.SectionScanGames;
+
+    /// <summary>
+    /// Gets a value indicating whether the App Updates section is selected.
+    /// </summary>
+    public bool IsAppUpdatesSelected => SelectedSection?.Id == InfoConstants.SectionAppUpdates;
+
+    /// <summary>
+    /// Gets a value indicating whether the Changelogs section is selected.
+    /// </summary>
+    public bool IsChangelogsSelected => SelectedSection?.Id == InfoConstants.SectionChangelogs;
+
+    /// <summary>
+    /// Gets a value indicating whether the Workspace (Filesystem Magic) section is selected.
+    /// </summary>
+    public bool IsWorkspaceSelected => SelectedSection?.Id == InfoConstants.SectionWorkspaces;
+
+    /// <summary>
+    /// Gets a value indicating whether the FAQ section is selected.
+    /// </summary>
+    public bool IsFaqSelected => SelectedSection?.Id == InfoConstants.SectionFaq;
+
+    /// <summary>
+    /// Gets a value indicating whether the Generals Online Changelog section is selected.
+    /// </summary>
+    public bool IsGoChangelogSelected => SelectedSection?.Id == InfoConstants.SectionGoChangelog;
+
+    /// <summary>
+    /// Updates the selected card from scroll-spy tracking.
+    /// </summary>
+    /// <param name="card">The newly activated card.</param>
+    public void UpdateCardFromScroll(InfoCardViewModel card)
+    {
+        if (SelectedSection != null && SelectedSection.Cards.Contains(card))
+        {
+            SelectedCard = card;
+        }
+    }
+
+    /// <summary>
+    /// Selects a specific card within the currently active section.
+    /// </summary>
+    /// <param name="card">The card to select.</param>
+    [RelayCommand]
+    public void SelectCard(InfoCardViewModel? card)
+    {
+        if (card == null)
+        {
+            return;
+        }
+
+        SelectedCard = card;
+    }
+
+    /// <summary>
+    /// Sets the current module context and filters the displayed sections.
+    /// </summary>
+    /// <param name="module">The module to switch to.</param>
+    public void SetModuleContext(GeneralsHubModule module)
+    {
+        if (_currentModule == module && Sections.Any())
+        {
+            return;
+        }
+
+        _currentModule = module;
+        OnPropertyChanged(nameof(Title));
+        FilterSections();
+    }
+
+    /// <summary>
+    /// Sets demo size to compact (720x480).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoCompact()
+    {
+        DemoSettingsWidth = 720;
+        DemoSettingsHeight = 480;
+    }
+
+    /// <summary>
+    /// Sets demo size to standard (840x580).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoStandard()
+    {
+        DemoSettingsWidth = 840;
+        DemoSettingsHeight = 580;
+    }
+
+    /// <summary>
+    /// Sets demo size to expanded (980x680).
+    /// </summary>
+    [RelayCommand]
+    public void SetDemoExpanded()
+    {
+        DemoSettingsWidth = 980;
+        DemoSettingsHeight = 680;
+    }
+
+    /// <summary>
+    /// Toggles the expanded state of the replay features section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayFeaturesExpanded() => ReplayFeaturesExpanded = !ReplayFeaturesExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay interface section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayInterfaceExpanded() => ReplayInterfaceExpanded = !ReplayInterfaceExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay importing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayImportingExpanded() => ReplayImportingExpanded = !ReplayImportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay managing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayManagingExpanded() => ReplayManagingExpanded = !ReplayManagingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the replay exporting section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleReplayExportingExpanded() => ReplayExportingExpanded = !ReplayExportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map features section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapFeaturesExpanded() => MapFeaturesExpanded = !MapFeaturesExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map interface section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapInterfaceExpanded() => MapInterfaceExpanded = !MapInterfaceExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map importing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapImportingExpanded() => MapImportingExpanded = !MapImportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map managing section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapManagingExpanded() => MapManagingExpanded = !MapManagingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map exporting section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapExportingExpanded() => MapExportingExpanded = !MapExportingExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the map packs section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleMapPacksExpanded() => MapPacksExpanded = !MapPacksExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings display section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsDisplayExpanded() => GsDisplayExpanded = !GsDisplayExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings graphics section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsGraphicsExpanded() => GsGraphicsExpanded = !GsGraphicsExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings audio section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsAudioExpanded() => GsAudioExpanded = !GsAudioExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings control section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsControlExpanded() => GsControlExpanded = !GsControlExpanded;
+
+    /// <summary>
+    /// Toggles the expanded state of the game settings advanced section.
+    /// </summary>
+    [RelayCommand]
+    public void ToggleGsAdvancedExpanded() => GsAdvancedExpanded = !GsAdvancedExpanded;
+
+    /// <inheritdoc/>
+    public async Task InitializeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (localizationService != null)
+        {
+            localizationService.PropertyChanged -= OnLocalizationChanged;
+            localizationService.PropertyChanged += OnLocalizationChanged;
+        }
+
+        // Load sections if not already loaded
+        if (!Sections.Any())
+        {
+            var sections = await contentProvider.GetAllSectionsAsync();
+
+            _allSections.Clear();
+            foreach (var section in sections)
+            {
+                _allSections.Add(MapToViewModel(section));
+            }
+
+            FilterSections();
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
+            // Load changelogs automatically
+            await Changelogs.LoadChangelogsAsync();
+        }
+        else
+        {
+            SyncChangelogCards();
+            SyncGoChangelogCards();
+
+            // Already initialized, but load changelogs if not loaded
+            if (Changelogs.Releases.Count == 0)
+            {
+                await Changelogs.LoadChangelogsAsync();
+            }
+        }
+
+        // The awaits above may have allowed Dispose to run; do not attach handlers on a disposed instance.
+        if (_disposed)
+        {
+            return;
+        }
+
+        changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+        changelogsViewModel.Releases.CollectionChanged += OnChangelogsReleasesChanged;
+
+        goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+        goChangelogViewModel.PatchNotes.CollectionChanged += OnGoPatchNotesChanged;
+
+        changelogsViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+        changelogsViewModel.PropertyChanged += OnChangelogLoadingChanged;
+
+        goChangelogViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+        goChangelogViewModel.PropertyChanged += OnChangelogLoadingChanged;
+
+        SyncChangelogCards();
+        SyncGoChangelogCards();
+
+        // Ensure Demo ViewModels are initialized (even if Sections were already loaded)
+        // Check each property individually to be robust against partial initialization failures
+        if (DemoProfileCard == null)
+        {
+            DemoProfileCard = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoProfileCard));
+        }
+
+        if (DemoSteamProfile == null)
+        {
+            DemoSteamProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: true, showShortcutHighlight: false);
+            OnPropertyChanged(nameof(DemoSteamProfile));
+        }
+
+        if (DemoShortcutProfile == null)
+        {
+            DemoShortcutProfile = DemoViewModelFactory.CreateDemoProfileCard(notificationService, showSteamHighlight: false, showShortcutHighlight: true);
+            OnPropertyChanged(nameof(DemoShortcutProfile));
+        }
+
+        if (DemoUpdateNotification == null)
+        {
+            DemoUpdateNotification = DemoViewModelFactory.CreateDemoUpdateViewModel();
+            OnPropertyChanged(nameof(DemoUpdateNotification));
+        }
+
+        if (DemoGameSettings_ContentTab == null)
+        {
+            DemoGameSettings_ContentTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ContentTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ContentTab));
+        }
+
+        if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel cTab)
+        {
+            cTab.NavigationRequested = NavigateToSectionById;
+        }
+
+        if (DemoGameSettings_ProfileTab == null)
+        {
+            DemoGameSettings_ProfileTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+            OnPropertyChanged(nameof(DemoGameSettings_ProfileTab));
+        }
+
+        if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel pTab)
+        {
+            pTab.NavigationRequested = NavigateToSectionById;
+        }
+
+        if (DemoGameSettings_SettingsTab == null)
+        {
+            DemoGameSettings_SettingsTab = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
+            OnPropertyChanged(nameof(DemoGameSettings_SettingsTab));
+        }
+
+        if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel sTab)
+        {
+            sTab.NavigationRequested = NavigateToSectionById;
+        }
+
+        if (DemoReplayManager == null)
+        {
+            DemoReplayManager = DemoViewModelFactory.CreateDemoReplayManager(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoReplayManager));
+        }
+
+        if (DemoMapManager == null)
+        {
+            DemoMapManager = DemoViewModelFactory.CreateDemoMapManager(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoMapManager));
+        }
+
+        if (DemoWndEditor == null)
+        {
+            DemoWndEditor = DemoViewModelFactory.CreateDemoWndEditor(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoWndEditor));
+        }
+
+        if (DemoModBuilder == null)
+        {
+            DemoModBuilder = DemoViewModelFactory.CreateDemoModBuilder(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoModBuilder));
+        }
+
+        if (DemoHotkeyEditor == null)
+        {
+            DemoHotkeyEditor = DemoViewModelFactory.CreateDemoGenHotkeys(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoHotkeyEditor));
+        }
+
+        if (DemoPublisherStudio == null)
+        {
+            DemoPublisherStudio = DemoViewModelFactory.CreateDemoPublisherStudio(notificationService, localizationService);
+            OnPropertyChanged(nameof(DemoPublisherStudio));
+        }
+
+        if (DemoAddLocalContent == null)
+        {
+            DemoAddLocalContent = DemoViewModelFactory.CreateDemoAddLocalContent(notificationService);
+            OnPropertyChanged(nameof(DemoAddLocalContent));
+        }
+
+        if (DemoWorkspace == null)
+        {
+            DemoWorkspace = DemoViewModelFactory.CreateDemoWorkspaceViewModel(notificationService);
+            OnPropertyChanged(nameof(DemoWorkspace));
+        }
+
+        if (DemoScanWizard == null)
+        {
+            DemoScanWizard = DemoViewModelFactory.CreateDemoScanWizard(notificationService);
+            OnPropertyChanged(nameof(DemoScanWizard));
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and - optionally - managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            if (localizationService != null)
+            {
+                localizationService.PropertyChanged -= OnLocalizationChanged;
+            }
+
+            changelogsViewModel.Releases.CollectionChanged -= OnChangelogsReleasesChanged;
+            goChangelogViewModel.PatchNotes.CollectionChanged -= OnGoPatchNotesChanged;
+            changelogsViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+            goChangelogViewModel.PropertyChanged -= OnChangelogLoadingChanged;
+            if (_selectedSectionCards != null && _cardsCollectionChangedHandler != null)
+            {
+                _selectedSectionCards.CollectionChanged -= _cardsCollectionChangedHandler;
+            }
+
+            DemoReplayManager?.Dispose();
+            DemoMapManager?.Dispose();
+            DemoWndEditor?.Dispose();
+            DemoModBuilder?.Dispose();
+            DemoHotkeyEditor?.Dispose();
+            DemoPublisherStudio?.Dispose();
+        }
+
+        _disposed = true;
+    }
+
+    /// <summary>
+    /// Toggles the expanded state of a card.
+    /// </summary>
+    /// <param name="card">The card to toggle.</param>
+    [RelayCommand]
+    private static void ToggleCardExpansion(InfoCardViewModel card)
+    {
+        if (card.IsExpandable)
+        {
+            card.IsExpanded = !card.IsExpanded;
+        }
+    }
+
+    /// <summary>
+    /// Handles an action from an info card.
+    /// </summary>
+    /// <param name="action">The action to handle.</param>
+    [RelayCommand]
+    private static void HandleAction(InfoAction action)
+    {
+        if (string.IsNullOrEmpty(action.ActionId))
+        {
+            return;
+        }
+
+        if (action.ActionId.StartsWith("NAV_INFO_", StringComparison.OrdinalIgnoreCase))
+        {
+            var sectionId = action.ActionId["NAV_INFO_".Length..];
+            WeakReferenceMessenger.Default.Send(new OpenInfoSectionMessage(sectionId));
+        }
+        else if (action.ActionId.StartsWith("NAV_", StringComparison.OrdinalIgnoreCase))
+        {
+            var tabName = action.ActionId[4..];
+            if (Enum.TryParse<NavigationTab>(tabName, true, out var tab))
+            {
+                WeakReferenceMessenger.Default.Send(new NavigationMessage(tab));
+            }
+        }
+        else if (action.ActionId.StartsWith("URL_", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = action.ActionId[4..];
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Moves navigation-only cards linked to demo browser items to the front of the sidebar,
+    /// matching the visual order of the demo browser above the guide cards.
+    /// Overview cards are pinned above them separately with <see cref="PinCardToTop"/>.
+    /// </summary>
+    /// <param name="section">The section whose cards to reorder.</param>
+    /// <param name="orderedTargets">The demo browser items in display order.</param>
+    private static void MoveLinkedCardsToFront(InfoSectionViewModel section, IEnumerable<object?> orderedTargets)
+    {
+        var targetIndex = 0;
+        foreach (var target in orderedTargets)
+        {
+            var card = section.Cards.FirstOrDefault(c => ReferenceEquals(c.TargetItem, target));
+            if (card == null)
+            {
+                continue;
+            }
+
+            var currentIndex = section.Cards.IndexOf(card);
+            if (currentIndex != targetIndex)
+            {
+                section.Cards.Move(currentIndex, targetIndex);
+            }
+
+            targetIndex++;
+        }
+    }
+
+    /// <summary>
+    /// Pins a guide card to the top of the sidebar, above release or patch note entries.
+    /// </summary>
+    /// <param name="section">The section whose cards to reorder.</param>
+    /// <param name="cardId">The guide card ID to pin.</param>
+    private static void PinCardToTop(InfoSectionViewModel section, string cardId)
+    {
+        var card = section.Cards.FirstOrDefault(c => c.Id == cardId);
+        if (card == null)
+        {
+            return;
+        }
+
+        var currentIndex = section.Cards.IndexOf(card);
+        if (currentIndex > 0)
+        {
+            section.Cards.Move(currentIndex, 0);
+        }
+    }
+
+    /// <summary>
+    /// Navigates to the tools tab.
+    /// </summary>
+    [RelayCommand]
+    private void OpenToolsTab()
+    {
+        WeakReferenceMessenger.Default.Send(new NavigationMessage(NavigationTab.Tools));
+    }
+
+    private InfoSectionViewModel MapToViewModel(InfoSection section)
+    {
+        var vm = new InfoSectionViewModel(section, localizationService);
+        return vm;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Title));
+        foreach (var sec in _allSections)
+        {
+            sec.NotifyLocalizationChanged();
+        }
+    }
+
+    private IEnumerable<InfoCardViewModel> FilterToolsCards(string idPrefix)
+    {
+        if (SelectedSection?.Id != InfoConstants.SectionTools)
+        {
+            return [];
+        }
+
+        return SelectedSection.Cards.Where(c => c.Id.StartsWith(idPrefix, StringComparison.Ordinal));
+    }
+
+    private void FilterSections()
+    {
+        Sections.Clear();
+
+        var filtered = _currentModule == GeneralsHubModule.GeneralsOnline
+            ? _allSections.Where(s => s.Id == InfoConstants.SectionFaq || s.Id == InfoConstants.SectionGoChangelog)
+            : _allSections.Where(s => s.Id != InfoConstants.SectionFaq && s.Id != InfoConstants.SectionGoChangelog);
+
+        foreach (var section in filtered)
+        {
+            Sections.Add(section);
+        }
+
+        // Auto-select first if current selection is invalid
+        if (SelectedSection == null || !Sections.Contains(SelectedSection))
+        {
+            SelectedSection = Sections.FirstOrDefault();
+        }
+    }
+
+    private void OnChangelogsReleasesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        // Releases stream in one item at a time while a bulk load runs; sync silently and notify once on completion.
+        SyncChangelogCards(raiseLoadedEvent: !changelogsViewModel.IsLoading);
+    }
+
+    private void OnGoPatchNotesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SyncGoChangelogCards(raiseLoadedEvent: !goChangelogViewModel.IsLoading);
+    }
+
+    private void OnChangelogLoadingChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(ChangelogsViewModel.IsLoading))
+        {
+            return;
+        }
+
+        if (ReferenceEquals(sender, changelogsViewModel) && !changelogsViewModel.IsLoading)
+        {
+            SyncChangelogCards();
+        }
+        else if (ReferenceEquals(sender, goChangelogViewModel) && !goChangelogViewModel.IsLoading)
+        {
+            SyncGoChangelogCards();
+        }
+    }
+
+    private void SyncChangelogCards(bool raiseLoadedEvent = true)
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionChangelogs);
+        if (section == null)
+        {
+            return;
+        }
+
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is ChangelogItemViewModel releaseItem && !Changelogs.Releases.Contains(releaseItem))
+            {
+                section.Cards.RemoveAt(i);
+            }
+        }
+
+        foreach (var release in Changelogs.Releases.Where(r => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, r))))
+        {
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
+                {
+                    Id = InfoConstants.CardChangelogsReleasePrefix + (release.Release.TagName ?? release.Release.Name ?? Guid.NewGuid().ToString()),
+                    Title = release.Release.Name ?? release.Release.TagName ?? localizationService?.GetString("Info.Changelog.UntitledRelease") ?? "Release",
+                    Content = release.Release.PublishedAt?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = release.Release.Body,
+                },
+                InfoConstants.SectionChangelogs,
+                localizationService)
+            {
+                TargetItem = release,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
+        }
+
+        MoveLinkedCardsToFront(section, Changelogs.Releases);
+        PinCardToTop(section, InfoConstants.CardChangelogsOverview);
+
+        if (SelectedSection?.Id == InfoConstants.SectionChangelogs)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+
+        if (raiseLoadedEvent)
+        {
+            ChangelogsLoaded?.Invoke();
+        }
+    }
+
+    private void SyncGoChangelogCards(bool raiseLoadedEvent = true)
+    {
+        var section = _allSections.FirstOrDefault(s => s.Id == InfoConstants.SectionGoChangelog);
+        if (section == null)
+        {
+            return;
+        }
+
+        for (var i = section.Cards.Count - 1; i >= 0; i--)
+        {
+            var card = section.Cards[i];
+            if (card.TargetItem is PatchNote patchNote && !GoChangelog.PatchNotes.Contains(patchNote))
+            {
+                section.Cards.RemoveAt(i);
+            }
+        }
+
+        foreach (var note in GoChangelog.PatchNotes.Where(n => !section.Cards.Any(c => ReferenceEquals(c.TargetItem, n))))
+        {
+            var cardId = string.IsNullOrEmpty(note.Id) ? (note.Title ?? Guid.NewGuid().ToString()) : note.Id;
+            var cardVm = new InfoCardViewModel(
+                new InfoCard
+                {
+                    Id = InfoConstants.CardGoPatchNotesPrefix + cardId,
+                    Title = note.Title ?? string.Empty,
+                    Content = note.Date ?? string.Empty,
+                    Type = InfoCardType.Feature,
+                    DetailedContent = note.Summary,
+                },
+                InfoConstants.SectionGoChangelog,
+                localizationService)
+            {
+                TargetItem = note,
+                CustomIconKind = Material.Icons.MaterialIconKind.TagOutline,
+            };
+            section.Cards.Add(cardVm);
+        }
+
+        MoveLinkedCardsToFront(section, GoChangelog.PatchNotes);
+        PinCardToTop(section, InfoConstants.CardGoChangelogOverview);
+
+        if (SelectedSection?.Id == InfoConstants.SectionGoChangelog)
+        {
+            UpdateCardsPaneLengthForSection(SelectedSection);
+        }
+
+        if (raiseLoadedEvent)
+        {
+            ChangelogsLoaded?.Invoke();
+        }
+    }
+
+    private void UpdateCardsPaneLengthForSection(InfoSectionViewModel? section)
+    {
+        if (section == null || section.Cards.Count == 0)
+        {
+            CardsOpenPaneLength = SidebarConstants.DefaultOpenPaneLength;
+            return;
+        }
+
+        var maxTitleLength = section.Cards.Max(c => c.Title?.Length ?? 0);
+        double estimatedWidth = 60 + (maxTitleLength * 8.0);
+        CardsOpenPaneLength = Math.Clamp(estimatedWidth, 180, 380);
+    }
+
+    partial void OnSelectedSectionChanged(InfoSectionViewModel? oldValue, InfoSectionViewModel? newValue)
+    {
+        if (oldValue?.Cards != null && _cardsCollectionChangedHandler != null)
+        {
+            oldValue.Cards.CollectionChanged -= _cardsCollectionChangedHandler;
+        }
+
+        SelectedCard = newValue?.Cards.FirstOrDefault();
+        UpdateCardsPaneLengthForSection(newValue);
+
+        if (newValue?.Cards != null)
+        {
+            _cardsCollectionChangedHandler ??= (_, _) =>
+            {
+                UpdateCardsPaneLengthForSection(SelectedSection);
+                OnPropertyChanged(nameof(MainColumnCards));
+            };
+            newValue.Cards.CollectionChanged += _cardsCollectionChangedHandler;
+            _selectedSectionCards = newValue.Cards;
+        }
+        else
+        {
+            _selectedSectionCards = null;
+        }
+
+        OnPropertyChanged(nameof(IsQuickStartSelected));
+        OnPropertyChanged(nameof(IsGameProfilesSelected));
+        OnPropertyChanged(nameof(IsGameProfileSettingsSelected));
+        OnPropertyChanged(nameof(IsGameSettingsSelected));
+        OnPropertyChanged(nameof(IsGameProfileContentSelected));
+        OnPropertyChanged(nameof(IsShortcutsSelected));
+        OnPropertyChanged(nameof(IsToolsSelected));
+        OnPropertyChanged(nameof(IsLocalContentSelected));
+        OnPropertyChanged(nameof(IsScanForGamesSelected));
+        OnPropertyChanged(nameof(IsAppUpdatesSelected));
+        OnPropertyChanged(nameof(IsChangelogsSelected));
+        OnPropertyChanged(nameof(IsWorkspaceSelected));
+        OnPropertyChanged(nameof(IsFaqSelected));
+        OnPropertyChanged(nameof(IsGoChangelogSelected));
+        OnPropertyChanged(nameof(IsStandardCardsVisible));
+        OnPropertyChanged(nameof(MainColumnCards));
+        OnPropertyChanged(nameof(ToolsIntroCards));
+        OnPropertyChanged(nameof(ToolsReplayCards));
+        OnPropertyChanged(nameof(ToolsMapCards));
+        OnPropertyChanged(nameof(ToolsHotkeyCards));
+        OnPropertyChanged(nameof(ToolsPublisherCards));
+        OnPropertyChanged(nameof(ToolsModBuilderCards));
+        OnPropertyChanged(nameof(ToolsWndCards));
+
+        if (newValue != null)
+        {
+            if (DemoGameSettings_SettingsTab is DemoGameProfileSettingsViewModel demoSettings)
+            {
+                demoSettings.SyncTabToSection(newValue.Id);
+            }
+
+            if (DemoGameSettings_ProfileTab is DemoGameProfileSettingsViewModel demoProfile)
+            {
+                demoProfile.SyncTabToSection(newValue.Id);
+            }
+
+            if (DemoGameSettings_ContentTab is DemoGameProfileSettingsViewModel demoContent)
+            {
+                demoContent.SyncTabToSection(newValue.Id);
+            }
+        }
+
+        if (IsChangelogsSelected && !Changelogs.Releases.Any() && !Changelogs.IsLoading)
+        {
+            _ = Changelogs.LoadChangelogsAsync();
+        }
+
+        if (IsGoChangelogSelected && !GoChangelog.PatchNotes.Any() && !GoChangelog.IsLoading)
+        {
+            _ = GoChangelog.LoadPatchNotesCommand.ExecuteAsync(null);
+        }
+    }
+}

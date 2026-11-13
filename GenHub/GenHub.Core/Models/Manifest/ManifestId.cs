@@ -16,6 +16,23 @@ public readonly struct ManifestId(string value)
     public string Value { get; } = value;
 
     /// <summary>
+    /// Gets the publisher segment if formatted with 5 segments; otherwise returns null.
+    /// </summary>
+    public string? Publisher
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Value))
+            {
+                return null;
+            }
+
+            var segments = Value.Split('.');
+            return segments.Length == 5 ? segments[2] : null;
+        }
+    }
+
+    /// <summary>
     /// Conversion from <see cref="string"/> to <see cref="ManifestId"/> which validates the input.
     /// Made implicit for convenience in tests and call-sites that use plain strings.
     /// </summary>
@@ -58,6 +75,23 @@ public readonly struct ManifestId(string value)
         }
 
         return new ManifestId(id);
+    }
+
+    /// <summary>
+    /// Attempts to parse a string into a <see cref="ManifestId"/>.
+    /// </summary>
+    /// <param name="value">The string value to parse.</param>
+    /// <param name="manifestId">The parsed manifest id if successful.</param>
+    /// <returns>True if parsing succeeded; otherwise false.</returns>
+    public static bool TryParse(string? value, out ManifestId manifestId)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            manifestId = default;
+            return false;
+        }
+
+        return TryCreate(value, out manifestId);
     }
 
     /// <summary>

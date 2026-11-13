@@ -56,4 +56,10 @@ public class WorkspaceInfo
     /// Used to detect when manifests have changed and workspace needs recreation.
     /// </summary>
     public List<string> ManifestIds { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the dictionary of manifest versions (Key: ID, Value: Version) used in this workspace.
+    /// Used for granular detection of content updates when manifest IDs remain static (e.g. local content).
+    /// </summary>
+    public Dictionary<string, string> ManifestVersions { get; set; } = [];
 }

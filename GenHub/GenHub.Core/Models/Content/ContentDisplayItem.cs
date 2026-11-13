@@ -1,6 +1,8 @@
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.Manifest;
+using System.Globalization;
 
 namespace GenHub.Core.Models.Content;
 
@@ -30,10 +32,26 @@ public class ContentDisplayItem
     /// </summary>
     public string? Description { get; set; }
 
+    private string? _version;
+
     /// <summary>
     /// Gets or sets the version of this content item.
     /// </summary>
-    public string? Version { get; set; }
+    public string? Version
+    {
+        get => _version;
+        set => _version = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+    }
+
+    /// <summary>
+    /// Gets the formatted version for display in badges, or null if it shouldn't be displayed.
+    /// </summary>
+    public string? DisplayVersion => GameVersionHelper.FormatDisplayVersion(Version);
+
+    /// <summary>
+    /// Gets a value indicating whether this item has a displayable version badge.
+    /// </summary>
+    public bool HasDisplayVersion => !string.IsNullOrEmpty(DisplayVersion);
 
     /// <summary>
     /// Gets or sets the content type (Mod, Patch, Addon, etc.).
@@ -59,6 +77,11 @@ public class ContentDisplayItem
     /// Gets or sets the game client ID.
     /// </summary>
     public string GameClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the associated game client instance, if applicable.
+    /// </summary>
+    public GameClient? GameClient { get; set; }
 
     /// <summary>
     /// Gets or sets the publisher name.
@@ -91,6 +114,16 @@ public class ContentDisplayItem
     public bool IsEnabled { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether this content is editable (locally created).
+    /// </summary>
+    public bool IsEditable { get; set; }
+
+    /// <summary>
+    /// Gets or sets the path to the original content source (for local content).
+    /// </summary>
+    public string? SourcePath { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether this content is installed.
     /// </summary>
     public bool IsInstalled { get; set; }
@@ -101,14 +134,9 @@ public class ContentDisplayItem
     public bool CanInstall => !IsInstalled;
 
     /// <summary>
-    /// Gets a value indicating whether this content can be enabled/disabled.
-    /// </summary>
-    public bool CanToggle => true;
-
-    /// <summary>
     /// Gets or sets the tags associated with this content.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the underlying content manifest if available.
@@ -118,7 +146,7 @@ public class ContentDisplayItem
     /// <summary>
     /// Gets or sets additional metadata as key-value pairs.
     /// </summary>
-    public Dictionary<string, string> Metadata { get; set; } = new();
+    public Dictionary<string, string> Metadata { get; set; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether this content is required for the profile.
@@ -136,7 +164,7 @@ public class ContentDisplayItem
     /// <summary>
     /// Gets or sets the list of dependency manifest IDs.
     /// </summary>
-    public List<string> Dependencies { get; set; } = new();
+    public List<string> Dependencies { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the status message.
@@ -203,7 +231,7 @@ public class ContentDisplayItem
 
             // TODO: Add localization logic - current format is US-centric (e.g., "Nov 30, 2025")
             // Should use culture-specific formatting (e.g., "30 November 2025" for NL/BE)
-            return ReleaseDate.Value.ToString("MMM dd, yyyy");
+            return ReleaseDate.Value.ToString("d", CultureInfo.CurrentCulture);
         }
     }
 
@@ -219,7 +247,7 @@ public class ContentDisplayItem
             if (!string.IsNullOrEmpty(Publisher))
                 parts.Add($"By {Publisher}");
 
-            if (!string.IsNullOrEmpty(Version))
+            if (!string.IsNullOrWhiteSpace(Version) && Version != "0")
                 parts.Add($"v{Version}");
 
             if (FileSize.HasValue)

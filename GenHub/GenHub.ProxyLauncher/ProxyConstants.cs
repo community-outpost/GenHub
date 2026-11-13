@@ -1,0 +1,33 @@
+namespace GenHub.ProxyLauncher;
+
+/// <summary>
+/// Constants for the GenHub Proxy Launcher.
+/// </summary>
+public static class ProxyConstants
+{
+    /// <summary>
+    /// The name of the configuration file.
+    /// </summary>
+    public const string ConfigFileName = "proxy_config.json";
+
+    /// <summary>
+    /// The name of the log file.
+    /// </summary>
+    public const string LogFileName = "genhub_proxy.log";
+
+    /// <summary>
+    /// Prefix for the per-installation mutex.
+    /// </summary>
+    public const string MutexPrefix = "GenHubProxyLauncher_";
+
+    /// <summary>
+    /// Delay in milliseconds to wait for the launcher to spawn the game process.
+    /// </summary>
+    public const int LauncherToGameSpawnDelayMs = 500;
+
+    /// <summary>
+    /// Extension for backed up game executables. Mirrors the canonical value so the
+    /// proxy ships with no project references and stays a tiny single file.
+    /// </summary>
+    public const string BackupExtension = ".ghbak";
+}

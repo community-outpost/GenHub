@@ -37,8 +37,19 @@ public class DownloadProgress(
     /// <summary>Gets the elapsed download time.</summary>
     public TimeSpan ElapsedTime { get; } = elapsedTime;
 
-    /// <summary>Gets the download percentage (0-100).</summary>
-    public double Percentage => TotalBytes > 0 ? (double)BytesReceived / TotalBytes * 100 : 0;
+    /// <summary>Gets the download percentage, clamped to 0-100.</summary>
+    public double Percentage
+    {
+        get
+        {
+            if (TotalBytes <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Clamp((double)BytesReceived / TotalBytes * 100, 0, 100);
+        }
+    }
 
     /// <summary>Gets the estimated time remaining.</summary>
     public TimeSpan? EstimatedTimeRemaining =>

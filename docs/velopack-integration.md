@@ -110,38 +110,52 @@ This allows users to reinstall the same PR build with different commits without 
 
 ## Update Channels
 
-GenHub provides two update channels that users can switch between:
+GenHub provides three update channels that users can switch between:
 
-### Stable Channel
+### 1. Stable Channel (Default)
 
 - **Source**: GitHub Releases
-- **Versions**: `0.0.X` (no PR suffix)
-- **Updates**: Only stable builds from main branch
-- **Recommended for**: Production use
+- **Versions**: `0.0.X` (no branch/PR suffix)
+- **Updates**: Only published releases from the main branch
+- **Recommended for**: General production use
 
-### Artifacts Channel (PR Subscription)
+### 2. PR Artifacts Channel (PR Subscription)
 
-- **Source**: GitHub Actions CI artifacts
+- **Source**: GitHub Actions CI workflow artifacts
 - **Versions**: `0.0.X-prY` format
-- **Updates**: Specific PR builds
-- **Recommended for**: Testing features, bug fixes
-- **Requires**: GitHub Personal Access Token (PAT) with `repo` scope
+- **Updates**: Specific Pull Request CI builds
+- **Recommended for**: Testing specific feature branches or bug fix pull requests
+- **Requires**: GitHub sign-in (OAuth device flow)
 
 #### Subscribing to PR Builds
 
 1. Navigate to Settings → Updates
 2. Click "Manage Updates & PRs"
-3. Enter GitHub PAT (if not already configured)
-4. Select a PR from the list
-5. Click "Subscribe"
+3. In the "Browse Builds" tab, select a pull request
+4. Click "Subscribe"
 
-The app will now check for updates from that PR instead of stable releases.
+The application will automatically query and notify when newer CI builds are published for that PR.
+
+### 3. Branch Artifacts Channel (Branch Subscription)
+
+- **Source**: GitHub Actions CI workflow artifacts on a branch (e.g., `development`, `main`)
+- **Versions**: `0.0.X-branchname` format
+- **Updates**: Continuous integration builds on the selected branch
+- **Recommended for**: Developers and testers wanting bleeding-edge builds
 
 #### Unsubscribing
 
 1. Open "Manage Updates & PRs"
-2. Click "Unsubscribe" on the currently subscribed PR
-3. App returns to stable channel
+2. Click "Unsubscribe" on the currently subscribed PR or branch
+3. The app returns to the stable release channel
+
+### Periodic Background Update Checks
+
+GenHub supports periodic background update checks configured in **Settings**:
+- **Automatic Background Checks**: Enable or disable periodic checks
+- **Configurable Interval**: Set between 5 minutes and 7 days (default: 30 minutes)
+- **Persistent Notifications & Badges**: Prompts users with a non-intrusive one-click "Update" action in the notification feed
+- **Duplicate Prevention**: Notification records are uniquely tracked per update identity (`pr:{prNumber}:{version}`, `branch:{branch}:{version}`, or `release:{version}`) to avoid notification spam
 
 ## Building Releases
 
@@ -225,23 +239,28 @@ GenHub includes GitHub Actions workflows:
 
 Runs on every push and PR:
 
-1. Builds for Windows and Linux
+1. Builds for Windows, Linux, and macOS
 2. Packages with Velopack using `0.0.{RUN_NUMBER}[-pr{PR_NUMBER}]` versioning
-3. Uploads artifacts to GitHub Actions
-4. Generates `releases.win.json` and `releases.linux.json` metadata
+3. Uploads setup installers, update packages, and metadata to GitHub Actions
+4. Generates `releases.win.json`, `releases.linux.json`, and `releases.osx.json` metadata
 
 **Artifacts uploaded:**
 
-- `genhub-velopack-windows-{VERSION}` - Windows installer and packages
-- `genhub-velopack-linux-{VERSION}` - Linux packages
+- `genhub-setup-windows-{VERSION}` - Standalone setup installer (`*-Setup.exe`)
+- `genhub-setup-linux-{VERSION}` - AppImage setup installer (`*.AppImage`)
+- `genhub-setup-macos-{VERSION}` - macOS installer package (`*.pkg`)
+- `genhub-velopack-windows-{VERSION}` - Velopack update packages (`*.nupkg`)
+- `genhub-velopack-linux-{VERSION}` - Velopack update packages (`*.nupkg`)
+- `genhub-velopack-macos-{VERSION}` - Velopack update packages (`*.nupkg`)
 - `genhub-metadata-windows-{VERSION}` - Update metadata (`releases.win.json`)
 - `genhub-metadata-linux-{VERSION}` - Update metadata (`releases.linux.json`)
+- `genhub-metadata-macos-{VERSION}` - Update metadata (`releases.osx.json`)
 
 #### `.github/workflows/release.yml` - Stable Releases
 
 Triggered by version tags (`v*`):
 
-1. Builds releases for Windows and Linux
+1. Builds releases for Windows, Linux, and macOS
 2. Creates GitHub Release
 3. Uploads installers and packages
 4. Publishes update feed for automatic updates
@@ -267,10 +286,17 @@ After packaging, Velopack generates:
 
 ### Linux
 
-- **GenHub-{Version}-linux-x64.AppImage** - AppImage installer
-- **GenHub-{Version}-full.nupkg** - Full release package
-- **GenHub-{Version}-delta.nupkg** - Delta update package
+- **GenHub.AppImage** - Standalone AppImage installer
+- **GenHub-{Version}-linux-full.nupkg** - Full release package
+- **GenHub-{Version}-linux-delta.nupkg** - Delta update package (if previous version exists)
 - **releases.linux.json** - Update feed manifest (JSON format)
+
+### macOS
+
+- **GenHub-osx-Setup.pkg** - Standalone macOS PKG installer
+- **GenHub-{Version}-osx-full.nupkg** - Full release package
+- **GenHub-{Version}-osx-delta.nupkg** - Delta update package (if previous version exists)
+- **releases.osx.json** - Update feed manifest (JSON format)
 
 **Note**: Velopack v0.0.942+ uses JSON format (`releases.*.json`) instead of the legacy `RELEASES` file.
 
@@ -282,12 +308,34 @@ After packaging, Velopack generates:
 - **User Data**: `%APPDATA%\GenHub\`
 - **Update Cache**: `%LOCALAPPDATA%\GenHub\packages\`
 
-**Note**: Velopack uses a "one-click" installer that always installs to LocalAppData. This location:
+**Note**: Velopack uses a "one-click" installer that installs to LocalAppData by default. This location:
 
 - Does not require administrator privileges
 - Is standard for modern auto-updating applications (VS Code, Discord, Slack, etc.)
 - Enables seamless automatic updates
 - Is isolated per-user for better security
+
+### Custom Installation Path (--installto)
+
+Users who wish to install GenHub to a custom drive or directory (e.g. `D:\Games\GenHub`) can use the `--installto` (or short form `-t`) parameter during setup:
+
+```cmd
+GenHub-win-Setup.exe --installto "D:\Games\GenHub"
+```
+
+Any application arguments must follow a `--` separator if needed. When `--installto` is specified, Velopack installs all binaries, `Update.exe`, and package metadata into the designated target folder instead of `%LOCALAPPDATA%\GenHub\`. Automatic updates continue to work normally within the custom installation directory.
+
+Existing installations on `C:` can also be migrated to a new location at any time using the in-app **Settings → Migrate Installation** workflow.
+
+> [!IMPORTANT]
+> **Re-running `GenHub-win-Setup.exe` on Custom Installations**
+> Velopack's precompiled `Setup.exe` bootstrapper always defaults its destination to `%LOCALAPPDATA%\GenHub` when run without command-line arguments. It does not inspect existing registry keys or detect custom paths on its own.
+>
+> If you installed GenHub to a custom path (e.g. `D:\Games\GenHub`):
+> - **In-App Updates (Preferred)**: GenHub updates seamlessly in-place within the custom directory without running `Setup.exe`.
+> - **Manual Re-installation / Upgrades via Installer**: You must specify `--installto "<custom-path>"` again when running `Setup.exe`.
+> - **Collision Resolution**: If `Setup.exe` is run without arguments, creating a duplicate install in `%LOCALAPPDATA%\GenHub`, GenHub's startup diagnostics detect the collision, record/preserve custom installation roots across platforms (the registry value `CustomInstallPath` under `HKCU\Software\GenHub` on Windows, and `~/.genhub/install-location` across platforms), conditionally adopt existing user settings and profiles into the new install when the default location has no conflicting user data (preserving derived CAS and workspaces to be cleanly rebuilt), and notify the user of the duplicate installation, including how to uninstall the duplicate copy first and then reinstall over the previous location with `--installto`.
+> - While a collision is active, OS entry points keep pointing at the registered custom installation: the `genhub://` scheme registration and application shortcut repair resolve the launcher inside the custom root, so the accidental default-location copy can never hijack them. In-app updates always apply to the install they are launched from (Velopack resolves the update root relative to the running executable), so updating the custom install in place never creates a duplicate. To converge back to a single install, first remove the stale default copy via Add or Remove Programs while the shared `GenHub` entry still points at it, then reinstall over the custom location with `--installto "<custom-path>"` (both copies share one `GenHub` entry pointing at the most recently installed location).
 
 ### Linux Installation
 
@@ -295,7 +343,11 @@ After packaging, Velopack generates:
 - **User Data**: `~/.config/GenHub/`
 - **Update Cache**: `~/.cache/GenHub/`
 
-The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes.
+The app ID `GenHub` ensures clean, predictable installation paths without vendor prefixes. Note that CI release pipelines currently produce `.nupkg` packages and JSON release-feed manifests for Linux updates; no standalone installer or AppImage picker is distributed at this time.
+
+### Protocol Handler & URI Scheme Registration
+
+On Windows, the `genhub://` custom URI scheme is registered under `HKCU\Software\Classes\genhub` on application startup. If the installation directory is moved or migrated to a different folder or drive, the registration automatically self-heals upon next launch from the new location by updating the command path in the registry. On Linux, application shortcuts and desktop entries containing `Exec=` and `Path=` definitions automatically self-heal upon next launch via `RepairApplicationShortcutsAsync()`. macOS application bundles maintain internal paths and do not require shortcut re-registration.
 
 ## Update Features
 
@@ -421,7 +473,7 @@ To test updates:
 ### Update Check Fails
 
 - **GitHub Releases**: Ensure repository is public or provide authentication
-- **PR Artifacts**: Requires GitHub PAT with `repo` scope
+- **PR Artifacts**: Requires GitHub sign-in (OAuth device flow)
 - Verify GitHub Releases/Actions contain Velopack packages
 - Check network connectivity
 - Review logs for specific error messages
@@ -448,8 +500,8 @@ Common issues:
    - This is expected - versions are identical
 
 3. **Authentication errors**
-   - GitHub PAT missing or invalid
-   - PAT needs `repo` scope for private repos
+   - GitHub sign-in missing or expired
+   - Sign in again via Settings → Updates → GitHub Account
 
 ### App Doesn't Restart After Update
 
@@ -457,14 +509,21 @@ Common issues:
 - Check logs for update application errors
 - Verify update package integrity
 
+### Custom Installation Directory Updates
+
+When GenHub is installed into a custom directory via `--installto <path>` or relocated using the in-app migration tool:
+- Automatic updates continue to operate seamlessly within the custom directory. Velopack automatically resolves the update root relative to the running executable's path (`AppContext.BaseDirectory`).
+- New version binaries and packages will be staged and applied directly inside the custom folder without reverting to `%LOCALAPPDATA%\GenHub`.
+- Desktop shortcuts and protocol handler registrations automatically point to the new location.
+
 ## Security Considerations
 
-### GitHub Personal Access Tokens
+### GitHub Device Flow Sign-In
 
-- **Storage**: Tokens are stored in Windows Credential Manager (Windows) or Keyring (Linux)
-- **Scope**: Only `repo` scope is required
-- **Usage**: Only for downloading PR artifacts
-- **Rotation**: Users can update/remove tokens at any time
+- **Storage**: Tokens are stored encrypted at rest (DPAPI on Windows, AES-GCM encrypted file on Linux/macOS)
+- **Scope**: `public_repo` (public repository data and CI artifacts) and `read:user` (profile)
+- **Usage**: Only for downloading PR artifacts and raising API rate limits
+- **Sign-out**: Users can sign out at any time from Settings → Updates → GitHub Account
 
 ### Update Verification
 

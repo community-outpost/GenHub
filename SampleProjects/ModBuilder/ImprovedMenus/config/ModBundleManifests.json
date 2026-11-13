@@ -1,0 +1,25 @@
+{
+  "BundleManifests": [
+    {
+      "Name": "Improved Menus (English)",
+      "Description": "Complete 16:9 widescreen menu overhaul, English variant",
+      "Packs": [
+        "ImprovedMenus_English"
+      ]
+    },
+    {
+      "Name": "Improved Menus (Russian)",
+      "Description": "Complete 16:9 widescreen menu overhaul, Russian variant",
+      "Packs": [
+        "ImprovedMenus_Russian"
+      ]
+    },
+    {
+      "Name": "Improved Menus (Spanish)",
+      "Description": "Complete 16:9 widescreen menu overhaul, Spanish variant",
+      "Packs": [
+        "ImprovedMenus_Spanish"
+      ]
+    }
+  ]
+}

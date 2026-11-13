@@ -32,4 +32,18 @@ public interface IWorkspaceValidator
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The validation result.</returns>
     Task<OperationResult<ValidationResult>> ValidateWorkspaceAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ensures the workspace entry point is executable by the current process, restoring
+    /// the Unix execute mode on a workspace-owned copy when the file exists without it.
+    /// A missing entry point is reported as a failure, never created, and an entry point
+    /// resolving outside the workspace root is refused without being touched.
+    /// </summary>
+    /// <param name="workspaceInfo">The workspace whose entry point is checked.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>
+    /// A successful result whose data indicates whether a repair was performed, or a
+    /// failed result when the entry point is missing or could not be made executable.
+    /// </returns>
+    Task<OperationResult<bool>> EnsureEntryPointExecutableAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken = default);
 }

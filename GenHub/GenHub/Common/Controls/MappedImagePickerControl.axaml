@@ -1,0 +1,86 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:controls="clr-namespace:GenHub.Common.Controls"
+             mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="480"
+             x:Class="GenHub.Common.Controls.MappedImagePickerControl"
+             x:Name="Root">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <TextBox Grid.Row="0" Name="SearchBox"
+             Watermark="{localization:Localize TextureEditor.Picker.Watermark.Search}"
+             Margin="0,0,0,8"
+             VerticalContentAlignment="Center">
+      <TextBox.InnerLeftContent>
+        <PathIcon Data="{StaticResource ToolIcon.Magnify}" Width="16" Height="16"
+                  Foreground="{DynamicResource TextMuted}"
+                  VerticalAlignment="Center" Margin="8,0,0,0"/>
+      </TextBox.InnerLeftContent>
+    </TextBox>
+
+    <Border Grid.Row="1" Background="{DynamicResource CardBackground}" CornerRadius="8"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" ClipToBounds="True">
+      <Grid>
+        <ListBox Name="ImagesList"
+                 ItemsSource="{Binding #Root.FilteredItems}"
+                 SelectionMode="Single"
+                 Background="Transparent"
+                 BorderThickness="0">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="controls:MappedImagePickerItem">
+              <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4" ToolTip.Tip="{Binding Definition.SourcePath}">
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="4" Margin="0,0,10,0"
+                        Background="{DynamicResource SurfaceElevatedBrush}" ClipToBounds="True">
+                  <Grid>
+                    <Image Source="{Binding Thumbnail}" Width="40" Height="40" Stretch="Uniform"/>
+                    <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="20" Height="20"
+                              Foreground="{DynamicResource TextMuted}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              IsVisible="{Binding Thumbnail, Converter={x:Static ObjectConverters.IsNull}}"/>
+                  </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Definition.Name}" FontWeight="SemiBold" FontSize="12"
+                             Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis">
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="{}{0}x{1} • {2}">
+                        <Binding Path="Definition.Width"/>
+                        <Binding Path="Definition.Height"/>
+                        <Binding Path="Definition.TextureFileName"/>
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                </StackPanel>
+                <PathIcon Grid.Column="2" Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14"
+                          Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8"
+                    IsVisible="{Binding !#Root.FilteredItems.Count}"
+                    IsHitTestVisible="False" Margin="16">
+          <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="36" Height="36"
+                    Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize TextureEditor.Picker.Empty.Title}" FontSize="13" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="{localization:Localize TextureEditor.Picker.Empty.Description}" FontSize="11"
+                     Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Button Grid.Row="2" Name="EditButton" Margin="0,8,0,0"
+            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+            IsEnabled="{Binding #Root.SelectedImage, Converter={x:Static ObjectConverters.IsNotNull}}"
+            ToolTip.Tip="{localization:Localize TextureEditor.Picker.Tooltip.EditInTextureEditor}">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="14" Height="14"/>
+        <TextBlock Text="{localization:Localize TextureEditor.Picker.Button.EditInTextureEditor}" VerticalAlignment="Center"/>
+      </StackPanel>
+    </Button>
+  </Grid>
+</UserControl>

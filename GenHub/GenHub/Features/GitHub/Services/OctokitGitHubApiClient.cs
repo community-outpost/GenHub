@@ -1,3 +1,9 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GitHub;
+using GenHub.Core.Models.GitHub;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using Octokit;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -5,12 +11,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GitHub;
-using GenHub.Core.Models.GitHub;
-using Microsoft.Extensions.Logging;
-using Octokit;
 
 namespace GenHub.Features.GitHub.Services;
 
@@ -18,32 +21,69 @@ namespace GenHub.Features.GitHub.Services;
 /// GitHub API client implementation using Octokit.
 /// </summary>
 public class OctokitGitHubApiClient(
-   IGitHubClient gitHubClient,
-   IHttpClientFactory httpClientFactory,
-   ILogger<OctokitGitHubApiClient> logger)
-   : IGitHubApiClient
+    IGitHubClient gitHubClient,
+    IHttpClientFactory httpClientFactory,
+    ILogger<OctokitGitHubApiClient> logger,
+    IMemoryCache cache,
+    IGitHubTokenStorage? tokenStorage = null,
+    GitHubRateLimitTracker? rateLimitTracker = null,
+    IGitHubAuthService? authService = null)
+    : IGitHubApiClient
 {
     private const int MaxPerPage = 100;
+    private static readonly TimeSpan DefaultCacheDuration = TimeSpan.FromHours(1);
+    private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromHours(4);
+    private readonly object _credentialLock = new();
     private SecureString? token;
+    private bool _credentialsExplicitlyCleared;
+    private bool _credentialsLoaded;
+    private bool _authSubscribed;
+    private int _credentialGeneration;
 
     /// <summary>
     /// Gets a value indicating whether the client is authenticated.
     /// </summary>
-    public bool IsAuthenticated => ((GitHubClient)gitHubClient).Credentials != Credentials.Anonymous;
+    public bool IsAuthenticated
+    {
+        get
+        {
+            if (gitHubClient is GitHubClient client && client.Credentials != Credentials.Anonymous)
+            {
+                return true;
+            }
+
+            var needsLoad = false;
+            lock (_credentialLock)
+            {
+                needsLoad = !_credentialsLoaded && !_credentialsExplicitlyCleared;
+            }
+
+            if (needsLoad)
+            {
+                EnsureCredentialsLoadedFast();
+            }
+
+            return gitHubClient is GitHubClient c && c.Credentials != Credentials.Anonymous;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
+        return IsAuthenticated;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the GitHub API rate limit is reached.
+    /// </summary>
+    public bool IsRateLimited => rateLimitTracker is { IsAtLimit: true } && rateLimitTracker.TimeUntilReset > TimeSpan.Zero;
 
     /// <summary>
     /// Sets the GitHub token for authentication.
     /// </summary>
     /// <param name="token">The GitHub token.</param>
-    public void SetToken(SecureString token)
-    {
-        this.token = token;
-        if (gitHubClient is GitHubClient client)
-        {
-            var tokenString = new System.Net.NetworkCredential(string.Empty, token).Password;
-            client.Credentials = new Credentials(tokenString);
-        }
-    }
+    public void SetToken(SecureString token) => SetAuthenticationToken(token);
 
     /// <summary>
     /// Gets the current GitHub token.
@@ -69,9 +109,30 @@ public class OctokitGitHubApiClient(
     {
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             logger.LogDebug("Downloading release asset {AssetId} to {Destination}", asset.Id, destinationPath);
 
             var httpClient = httpClientFactory.CreateClient("GitHubApi");
+            httpClient.DefaultRequestHeaders.UserAgent.Clear();
+            httpClient.DefaultRequestHeaders.UserAgent.Add(
+                new System.Net.Http.Headers.ProductInfoHeaderValue(AppConstants.AppName, AppConstants.AppVersion));
+
+            if (gitHubClient is GitHubClient authClient && authClient.Credentials != Credentials.Anonymous)
+            {
+                if (authClient.Credentials.AuthenticationType == AuthenticationType.Bearer)
+                {
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authClient.Credentials.Password);
+                }
+                else if (authClient.Credentials.AuthenticationType == AuthenticationType.Basic)
+                {
+                    var authValue = Convert.ToBase64String(
+                        System.Text.Encoding.ASCII.GetBytes($"{authClient.Credentials.Login}:{authClient.Credentials.Password}"));
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", authValue);
+                }
+            }
+
             using var response = await httpClient.GetAsync(asset.BrowserDownloadUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
             await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -105,6 +166,7 @@ public class OctokitGitHubApiClient(
     {
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             logger.LogInformation("Starting download of artifact {ArtifactId} from {Owner}/{Repo}", artifact.Id, owner, repo);
 
             // Check authentication status first
@@ -116,16 +178,18 @@ public class OctokitGitHubApiClient(
 
                 if (!isAuth)
                 {
-                    logger.LogError("No authentication available for artifact download. Please configure a GitHub token.");
-                    throw new InvalidOperationException("GitHub authentication required for artifact downloads. Please configure a GitHub token.");
+                    logger.LogError("No authentication available for artifact download. Please sign in with GitHub in Settings.");
+                    throw new InvalidOperationException("GitHub authentication required for artifact downloads. Please sign in with GitHub in Settings.");
                 }
             }
 
-            var artifactUrl = $"https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact.Id}/zip";
+            var artifactUrl = string.Format(ApiConstants.GitHubApiArtifactDownloadFormat, owner, repo, artifact.Id);
             logger.LogInformation("Requesting artifact from URL: {Url}", artifactUrl);
 
             var httpClient = httpClientFactory.CreateClient("GitHubApi");
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "GenHub/1.0");
+            httpClient.DefaultRequestHeaders.UserAgent.Clear();
+            httpClient.DefaultRequestHeaders.UserAgent.Add(
+                new System.Net.Http.Headers.ProductInfoHeaderValue(AppConstants.AppName, AppConstants.AppVersion));
 
             // Add authentication headers
             if (gitHubClient is GitHubClient authClient && authClient.Credentials != Credentials.Anonymous)
@@ -186,11 +250,22 @@ public class OctokitGitHubApiClient(
         string repositoryName,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_LatestRelease_{owner}_{repositoryName}";
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease) && cachedRelease != null)
+        {
+            return cachedRelease;
+        }
+
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             var octo = await gitHubClient.Repository.Release.GetLatest(owner, repositoryName)
                 .ConfigureAwait(false);
-            return MapToGitHubRelease(octo);
+            UpdateRateLimitFromLastApiInfo();
+            var release = MapToGitHubRelease(octo);
+
+            cache.Set(cacheKey, release, DefaultCacheDuration);
+            return release;
         }
         catch (Octokit.NotFoundException)
         {
@@ -198,7 +273,8 @@ public class OctokitGitHubApiClient(
         }
         catch (RateLimitExceededException ex)
         {
-            logger.LogWarning("Rate limit exceeded when fetching latest release for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repositoryName, ex.Reset);
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when fetching latest release for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repositoryName, ex.Reset);
             return null!;
         }
         catch (Exception ex)
@@ -213,20 +289,31 @@ public class OctokitGitHubApiClient(
     /// </summary>
     /// <param name="owner">The repository owner.</param>
     /// <param name="repositoryName">The repository name.</param>
-    /// <param name="tag">The release tag.</param>
+    /// <param name="tag">The tag of the release to fetch.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The <see cref="GitHubRelease"/> with the specified tag or null if not found.</returns>
+    /// <returns>The <see cref="GitHubRelease"/> with the specified tag, or null if not found.</returns>
     public async Task<GitHubRelease> GetReleaseByTagAsync(
         string owner,
         string repositoryName,
         string tag,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_Release_{owner}_{repositoryName}_{tag}";
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease) && cachedRelease != null)
+        {
+            return cachedRelease;
+        }
+
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             var octo = await gitHubClient.Repository.Release.Get(owner, repositoryName, tag)
                 .ConfigureAwait(false);
-            return MapToGitHubRelease(octo);
+            UpdateRateLimitFromLastApiInfo();
+            var release = MapToGitHubRelease(octo);
+
+            cache.Set(cacheKey, release, DefaultCacheDuration);
+            return release;
         }
         catch (Octokit.NotFoundException)
         {
@@ -235,7 +322,8 @@ public class OctokitGitHubApiClient(
         }
         catch (RateLimitExceededException ex)
         {
-            logger.LogWarning("Rate limit exceeded when fetching release by tag '{Tag}' for {Owner}/{Repo}. Reset at: {ResetTime}", tag, owner, repositoryName, ex.Reset);
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when fetching release by tag '{Tag}' for {Owner}/{Repo}. Reset at: {ResetTime}", tag, owner, repositoryName, ex.Reset);
             return null!;
         }
         catch (Exception ex)
@@ -257,15 +345,29 @@ public class OctokitGitHubApiClient(
         string repo,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_Releases_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out IEnumerable<GitHubRelease>? cachedReleases) && cachedReleases != null)
+        {
+            return cachedReleases;
+        }
+
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             var releases = await gitHubClient.Repository.Release.GetAll(owner, repo)
                 .ConfigureAwait(false);
-            return releases.Select(MapToGitHubRelease);
+            UpdateRateLimitFromLastApiInfo();
+
+            // Drafts have no assets and must never surface as releases.
+            var mappedReleases = releases.Where(release => !release.Draft).Select(MapToGitHubRelease).ToList();
+
+            cache.Set(cacheKey, mappedReleases, DefaultCacheDuration);
+            return mappedReleases;
         }
         catch (RateLimitExceededException ex)
         {
-            logger.LogWarning("Rate limit exceeded when fetching releases for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when fetching releases for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
             return [];
         }
         catch (Exception ex)
@@ -293,6 +395,7 @@ public class OctokitGitHubApiClient(
         IProgress<GitHubWorkflowRun>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
         if (!IsAuthenticated)
         {
             logger.LogWarning("Authentication required for workflow runs. Returning empty list. Configure token in settings to access workflows.");
@@ -322,38 +425,38 @@ public class OctokitGitHubApiClient(
 
             var runs = await gitHubClient.Actions.Workflows.Runs.List(owner, repo, request, options)
                 .ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
 
-            logger.LogInformation("Successfully fetched {Count} workflow runs for {Owner}/{Repo} page {Page}", runs.WorkflowRuns.Count, owner, repo, page);
+            logger.LogInformation("Octokit returned {Count} raw workflow runs for {Owner}/{Repo} page {Page}", runs.WorkflowRuns.Count, owner, repo, page);
 
-            // Filter to only successful workflows WITH artifacts
             var workflowsWithArtifacts = new List<GitHubWorkflowRun>();
             bool stoppedAtPerPageLimit = false;
 
             foreach (var run in runs.WorkflowRuns)
             {
-                // Skip if not successful
-                if (!string.Equals(run.Conclusion?.StringValue, WorkflowRunConclusion.Success.ToString(), StringComparison.OrdinalIgnoreCase))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (run.Conclusion?.Value != WorkflowRunConclusion.Success)
                 {
                     continue;
                 }
 
-                // Check if workflow has artifacts
                 try
                 {
                     var artifacts = await gitHubClient.Actions.Artifacts.ListWorkflowArtifacts(owner, repo, run.Id)
                         .ConfigureAwait(false);
+                    UpdateRateLimitFromLastApiInfo();
 
                     if (artifacts.TotalCount > 0)
                     {
-                        var workflowRun = MapToGitHubWorkflowRun(run);
-                        workflowsWithArtifacts.Add(workflowRun);
-                        logger.LogDebug("Workflow {RunId} '{Title}' has {Count} artifacts", run.Id, run.DisplayTitle, artifacts.TotalCount);
+                        var mappedRun = MapToGitHubWorkflowRun(run);
+                        workflowsWithArtifacts.Add(mappedRun);
+                        progress?.Report(mappedRun);
 
-                        // Report this workflow immediately for streaming display
-                        progress?.Report(workflowRun);
-
+                        // If we have enough workflows with artifacts, stop checking
                         if (workflowsWithArtifacts.Count >= perPage)
                         {
+                            logger.LogInformation("Reached requested perPage limit ({PerPage}) of workflows with artifacts, stopping early", perPage);
                             stoppedAtPerPageLimit = true;
                             break;
                         }
@@ -362,6 +465,11 @@ public class OctokitGitHubApiClient(
                     {
                         logger.LogDebug("Skipping workflow {RunId} '{Title}' - no artifacts", run.Id, run.DisplayTitle);
                     }
+                }
+                catch (RateLimitExceededException ex)
+                {
+                    rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+                    logger.LogWarning(ex, "Rate limit exceeded checking artifacts for workflow {RunId}", run.Id);
                 }
                 catch (Exception ex)
                 {
@@ -400,7 +508,8 @@ public class OctokitGitHubApiClient(
         }
         catch (RateLimitExceededException ex)
         {
-            logger.LogWarning("Rate limit exceeded when fetching workflow runs for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when fetching workflow runs for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
             return new GitHubWorkflowRunsResult
             {
                 WorkflowRuns = [],
@@ -433,6 +542,7 @@ public class OctokitGitHubApiClient(
         long runId,
         CancellationToken cancellationToken = default)
     {
+        await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
         if (!IsAuthenticated)
         {
             logger.LogWarning("Authentication required for artifacts. Returning empty list. Configure token in settings to access artifacts.");
@@ -443,11 +553,13 @@ public class OctokitGitHubApiClient(
         {
             var artifacts = await gitHubClient.Actions.Artifacts.ListWorkflowArtifacts(owner, repo, runId)
                 .ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
             return artifacts.Artifacts.Select(MapToGitHubArtifact);
         }
         catch (RateLimitExceededException ex)
         {
-            logger.LogWarning("Rate limit exceeded when fetching artifacts for workflow run {RunId}. Reset at: {ResetTime}", runId, ex.Reset);
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when fetching artifacts for workflow run {RunId}. Reset at: {ResetTime}", runId, ex.Reset);
             return [];
         }
         catch (Exception ex)
@@ -458,7 +570,7 @@ public class OctokitGitHubApiClient(
     }
 
     /// <summary>
-    /// Sets the authentication token for the GitHub client.
+    /// Sets the authentication token for GitHub API requests.
     /// </summary>
     /// <param name="token">The authentication token.</param>
     public void SetAuthenticationToken(SecureString token)
@@ -468,31 +580,33 @@ public class OctokitGitHubApiClient(
             throw new ArgumentException("Token cannot be null or empty.", nameof(token));
         }
 
-        IntPtr tokenPtr = IntPtr.Zero;
-        try
+        lock (_credentialLock)
         {
-            tokenPtr = Marshal.SecureStringToGlobalAllocUnicode(token);
-            string tokenString = Marshal.PtrToStringUni(tokenPtr) ?? throw new InvalidOperationException("Failed to convert secure token to string.");
-
-            if (gitHubClient is GitHubClient concreteClient)
-            {
-                concreteClient.Credentials = new Credentials(tokenString);
-                logger.LogInformation(
-                    "GitHub authentication token set successfully. IsAuthenticated: {IsAuth}, Type: {AuthType}",
-                    concreteClient.Credentials != Credentials.Anonymous,
-                    concreteClient.Credentials.AuthenticationType);
-            }
-            else
-            {
-                logger.LogError("Failed to set GitHub token - client does not support setting credentials");
-                throw new InvalidOperationException("The GitHub client does not support setting credentials.");
-            }
+            // An explicit set opens a new epoch so in-flight background loads
+            // cannot overwrite it with stale credentials.
+            _credentialGeneration++;
+            InstallAuthenticationToken(token);
         }
-        finally
+    }
+
+    /// <summary>
+    /// Clears any configured authentication token.
+    /// </summary>
+    public void ClearAuthenticationToken()
+    {
+        lock (_credentialLock)
         {
-            if (tokenPtr != IntPtr.Zero)
+            // A clear opens a new epoch so an in-flight background load that
+            // already passed its cleared check cannot resurrect these credentials.
+            _credentialGeneration++;
+            _credentialsExplicitlyCleared = true;
+            _credentialsLoaded = true;
+            token?.Dispose();
+            token = null;
+            if (gitHubClient is GitHubClient client)
             {
-                Marshal.ZeroFreeGlobalAllocUnicode(tokenPtr);
+                client.Credentials = Credentials.Anonymous;
+                logger.LogInformation("GitHub authentication token cleared");
             }
         }
     }
@@ -502,7 +616,9 @@ public class OctokitGitHubApiClient(
     {
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             var user = await gitHubClient.User.Current().ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
             return new GitHubUser
             {
                 Login = user.Login,
@@ -517,6 +633,12 @@ public class OctokitGitHubApiClient(
         catch (AuthorizationException)
         {
             logger.LogWarning("Not authenticated or token invalid");
+            return null;
+        }
+        catch (RateLimitExceededException ex)
+        {
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when getting authenticated user. Reset at: {ResetTime}", ex.Reset);
             return null;
         }
         catch (Exception ex)
@@ -543,14 +665,22 @@ public class OctokitGitHubApiClient(
         int page = 1,
         CancellationToken cancellationToken = default)
     {
+        var topicList = topics.ToList();
+        if (topicList.Count == 0)
+        {
+            logger.LogWarning("No topics provided for repository search");
+            return new GitHubRepositorySearchResponse();
+        }
+
+        var cacheKey = $"GitHub_SearchTopics_{string.Join("_", topicList)}_{perPage}_{page}";
+        if (cache.TryGetValue(cacheKey, out GitHubRepositorySearchResponse? cachedResponse))
+        {
+            return cachedResponse!;
+        }
+
         try
         {
-            var topicList = topics.ToList();
-            if (topicList.Count == 0)
-            {
-                logger.LogWarning("No topics provided for repository search");
-                return new GitHubRepositorySearchResponse();
-            }
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
 
             // Build query: topic:genhub topic:generalsonline etc.
             // Add fork:true to include forks (we filter them later in the discoverer to ensure they have the relevant topic)
@@ -566,6 +696,7 @@ public class OctokitGitHubApiClient(
             };
 
             var result = await gitHubClient.Search.SearchRepo(request).ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
 
             var response = new GitHubRepositorySearchResponse
             {
@@ -574,8 +705,16 @@ public class OctokitGitHubApiClient(
                 Items = [.. result.Items.Select(MapToSearchItem)],
             };
 
+            cache.Set(cacheKey, response, SearchCacheDuration);
+
             logger.LogInformation("Found {Count} repositories for topics: {Topics}", response.TotalCount, string.Join(", ", topicList));
             return response;
+        }
+        catch (RateLimitExceededException ex)
+        {
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when searching repositories by topics: {Topics}. Reset at: {ResetTime}", string.Join(", ", topics), ex.Reset);
+            return new GitHubRepositorySearchResponse();
         }
         catch (Exception ex)
         {
@@ -590,10 +729,18 @@ public class OctokitGitHubApiClient(
         string repo,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"GitHub_Repository_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out GitHubRepository? cachedRepo))
+        {
+            return cachedRepo;
+        }
+
         try
         {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
             var repository = await gitHubClient.Repository.Get(owner, repo).ConfigureAwait(false);
-            return new GitHubRepository
+            UpdateRateLimitFromLastApiInfo();
+            var mappedRepo = new GitHubRepository
             {
                 Id = repository.Id,
                 RepoOwner = repository.Owner?.Login ?? owner,
@@ -605,16 +752,98 @@ public class OctokitGitHubApiClient(
                 ForkCount = repository.ForksCount,
                 DisplayName = repository.Name,
             };
+
+            cache.Set(cacheKey, mappedRepo, DefaultCacheDuration);
+            return mappedRepo;
         }
         catch (NotFoundException)
         {
             logger.LogWarning("Repository {Owner}/{Repo} not found", owner, repo);
             return null;
         }
+        catch (RateLimitExceededException ex)
+        {
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when getting repository {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
+            return null;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to get repository {Owner}/{Repo}", owner, repo);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets the repository README decoded as markdown.
+    /// </summary>
+    /// <param name="owner">The repository owner.</param>
+    /// <param name="repo">The repository name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The README markdown, or null when the repository has no README.</returns>
+    public async Task<string?> GetReadmeAsync(
+        string owner,
+        string repo,
+        CancellationToken cancellationToken = default)
+    {
+        var cacheKey = $"GitHub_Readme_{owner}_{repo}";
+        if (cache.TryGetValue(cacheKey, out string? cachedReadme))
+        {
+            return cachedReadme;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            await EnsureCredentialsLoadedAsync().ConfigureAwait(false);
+
+            // Octokit exposes no CancellationToken overload for GetReadme, so bound the
+            // wait instead. A cancelled caller stops awaiting rather than hanging on a
+            // slow request, for example a disposed detail view awaiting initialization.
+            var readme = await gitHubClient.Repository.Content.GetReadme(owner, repo).WaitAsync(cancellationToken).ConfigureAwait(false);
+            UpdateRateLimitFromLastApiInfo();
+            var markdown = DecodeReadmeContent(readme.Content);
+            cache.Set(cacheKey, markdown, DefaultCacheDuration);
+            return markdown;
+        }
+        catch (NotFoundException ex)
+        {
+            logger.LogDebug(ex, "Repository {Owner}/{Repo} has no README", owner, repo);
+            cache.Set<string?>(cacheKey, null, DefaultCacheDuration);
+            return null;
+        }
+        catch (RateLimitExceededException ex)
+        {
+            rateLimitTracker?.UpdateFromException(ex.Reset.UtcDateTime);
+            logger.LogWarning(ex, "Rate limit exceeded when getting README for {Owner}/{Repo}. Reset at: {ResetTime}", owner, repo, ex.Reset);
+            return null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to get README for {Owner}/{Repo}", owner, repo);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Decodes base64 README content, falling back to the raw text when it is not encoded.
+    /// </summary>
+    private static string? DecodeReadmeContent(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(content);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (FormatException)
+        {
+            return content;
         }
     }
 
@@ -730,7 +959,7 @@ public class OctokitGitHubApiClient(
             Workflow = new GitHubWorkflow
             {
                 Id = octokitRun.WorkflowId,
-                Name = octokitRun.Name ?? octokitRun.Path ?? "Unknown",
+                Name = octokitRun.Name ?? octokitRun.Path ?? GameClientConstants.UnknownVersion,
             },
             CreatedAt = octokitRun.CreatedAt,
             UpdatedAt = octokitRun.UpdatedAt,
@@ -752,5 +981,284 @@ public class OctokitGitHubApiClient(
             CreatedAt = octokitArtifact.CreatedAt,
             ExpiresAt = octokitArtifact.ExpiresAt,
         };
+    }
+
+    private void InstallAuthenticationToken(SecureString token)
+    {
+        _credentialsExplicitlyCleared = false;
+        _credentialsLoaded = true;
+
+        this.token?.Dispose();
+        this.token = token.Copy();
+        this.token.MakeReadOnly();
+
+        IntPtr tokenPtr = IntPtr.Zero;
+        try
+        {
+            tokenPtr = Marshal.SecureStringToGlobalAllocUnicode(this.token);
+            string tokenString = Marshal.PtrToStringUni(tokenPtr) ?? throw new InvalidOperationException("Failed to convert secure token to string.");
+
+            if (gitHubClient is GitHubClient concreteClient)
+            {
+                concreteClient.Credentials = new Credentials(tokenString);
+                logger.LogInformation(
+                    "GitHub authentication token set successfully. IsAuthenticated: {IsAuth}, Type: {AuthType}",
+                    concreteClient.Credentials != Credentials.Anonymous,
+                    concreteClient.Credentials.AuthenticationType);
+            }
+            else
+            {
+                logger.LogError("Failed to set GitHub token - client does not support setting credentials");
+                throw new InvalidOperationException("The GitHub client does not support setting credentials.");
+            }
+        }
+        finally
+        {
+            if (tokenPtr != IntPtr.Zero)
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(tokenPtr);
+            }
+        }
+    }
+
+    private void EnsureAuthSubscribed()
+    {
+        lock (_credentialLock)
+        {
+            if (_authSubscribed)
+            {
+                return;
+            }
+
+            _authSubscribed = true;
+        }
+
+        if (authService is { } service)
+        {
+            // Both services are singletons, so this subscription never leaks.
+            service.AuthStateChanged += OnAuthStateChanged;
+        }
+    }
+
+    private void OnAuthStateChanged(object? sender, GitHubAuthStateChangedEventArgs e)
+    {
+        if (e.IsAuthenticated)
+        {
+            lock (_credentialLock)
+            {
+                _credentialGeneration++;
+                _credentialsExplicitlyCleared = false;
+                _credentialsLoaded = false;
+            }
+
+            // The fast path only consumes already-completed reads plus environment
+            // variables, so this never blocks the event publisher on storage I/O.
+            EnsureCredentialsLoadedFast();
+        }
+        else
+        {
+            ClearAuthenticationToken();
+        }
+    }
+
+    private void EnsureCredentialsLoadedFast()
+    {
+        EnsureAuthSubscribed();
+        if (AreCredentialsSettled())
+        {
+            return;
+        }
+
+        if (!TryBeginCredentialLoad(out var generation))
+        {
+            return;
+        }
+
+        if (gitHubClient is GitHubClient client && client.Credentials != Credentials.Anonymous)
+        {
+            MarkCredentialsLoaded();
+            return;
+        }
+
+        if (tokenStorage is { } storage && storage.HasToken())
+        {
+            try
+            {
+                var task = storage.LoadTokenAsync();
+                if (task.IsCompleted)
+                {
+                    using var storedToken = task.GetAwaiter().GetResult();
+                    if (storedToken is { Length: > 0 } && TryApplyLoadedToken(storedToken, generation))
+                    {
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to load GitHub token synchronously from token storage");
+            }
+        }
+
+        TryLoadCredentialsFromEnvironment(generation);
+        MarkCredentialsLoaded();
+    }
+
+    private async Task EnsureCredentialsLoadedAsync()
+    {
+        EnsureAuthSubscribed();
+        if (!TryBeginCredentialLoad(out var generation))
+        {
+            return;
+        }
+
+        if (gitHubClient is GitHubClient client && client.Credentials != Credentials.Anonymous)
+        {
+            MarkCredentialsLoaded();
+            return;
+        }
+
+        if (tokenStorage is { } storage && storage.HasToken())
+        {
+            try
+            {
+                using var storedToken = await storage.LoadTokenAsync().ConfigureAwait(false);
+                if (storedToken is { Length: > 0 } && TryApplyLoadedToken(storedToken, generation))
+                {
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to load GitHub token from token storage");
+            }
+        }
+
+        TryLoadCredentialsFromEnvironment(generation);
+        MarkCredentialsLoaded();
+    }
+
+    private bool AreCredentialsSettled()
+    {
+        lock (_credentialLock)
+        {
+            return _credentialsLoaded || _credentialsExplicitlyCleared || IsAuthServiceSignedOut();
+        }
+    }
+
+    private bool TryBeginCredentialLoad(out int generation)
+    {
+        lock (_credentialLock)
+        {
+            generation = _credentialGeneration;
+            return !_credentialsExplicitlyCleared && !IsAuthServiceSignedOut();
+        }
+    }
+
+    private bool TryApplyLoadedToken(SecureString token, int generation)
+    {
+        lock (_credentialLock)
+        {
+            if (_credentialsExplicitlyCleared || generation != _credentialGeneration || IsAuthServiceSignedOut())
+            {
+                return false;
+            }
+
+            InstallAuthenticationToken(token);
+            return true;
+        }
+    }
+
+    private void MarkCredentialsLoaded()
+    {
+        lock (_credentialLock)
+        {
+            _credentialsLoaded = true;
+        }
+    }
+
+    private bool IsAuthServiceSignedOut()
+    {
+        // The auth service subscription is lazy, so a sign-out that happened before
+        // the first API call must also suppress credential loads. The service reports
+        // signed out only after an explicit sign-out, so this cannot misfire on a fresh
+        // process where stored or environment credentials are legitimately present.
+        return authService != null && !authService.IsAuthenticated;
+    }
+
+    private void TryLoadCredentialsFromEnvironment(int generation)
+    {
+        var genHubToken = Environment.GetEnvironmentVariable(GitHubConstants.GenHubTokenEnvVar);
+        if (!string.IsNullOrEmpty(genHubToken))
+        {
+            try
+            {
+                using var secure = new SecureString();
+                foreach (char c in genHubToken)
+                {
+                    secure.AppendChar(c);
+                }
+
+                secure.MakeReadOnly();
+                if (TryApplyLoadedToken(secure, generation))
+                {
+                    logger.LogInformation(
+                        "Configured GitHub credentials from dedicated environment variable '{EnvVar}'",
+                        GitHubConstants.GenHubTokenEnvVar);
+                }
+
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to configure GitHub credentials from environment variable '{EnvVar}'", GitHubConstants.GenHubTokenEnvVar);
+            }
+        }
+
+        var fallbackToken = Environment.GetEnvironmentVariable(GitHubConstants.GitHubTokenEnvVar);
+        if (!string.IsNullOrEmpty(fallbackToken))
+        {
+            try
+            {
+                using var secure = new SecureString();
+                foreach (char c in fallbackToken)
+                {
+                    secure.AppendChar(c);
+                }
+
+                secure.MakeReadOnly();
+                if (TryApplyLoadedToken(secure, generation))
+                {
+                    logger.LogWarning(
+                        "Configured GitHub credentials from generic fallback environment variable '{EnvVar}' (token length: {Length}). Prefer using '{PreferredVar}' for GenHub to avoid unintended token sharing across tools.",
+                        GitHubConstants.GitHubTokenEnvVar,
+                        fallbackToken.Length,
+                        GitHubConstants.GenHubTokenEnvVar);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to configure GitHub credentials from environment variable '{EnvVar}'", GitHubConstants.GitHubTokenEnvVar);
+            }
+        }
+    }
+
+    private void UpdateRateLimitFromLastApiInfo()
+    {
+        try
+        {
+            var apiInfo = gitHubClient.GetLastApiInfo();
+            if (apiInfo?.RateLimit is { } rateLimit && rateLimitTracker is { } tracker)
+            {
+                tracker.UpdateFromHeaders(
+                    rateLimit.Remaining,
+                    rateLimit.Limit,
+                    rateLimit.Reset.UtcDateTime);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not update rate limit info from API response");
+        }
     }
 }

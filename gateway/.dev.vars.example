@@ -1,0 +1,2 @@
+UPLOADTHING_TOKEN=<your-uploadthing-token-base64>
+GATEWAY_HMAC_SECRET=<random-64-char-hex-secret>
