@@ -805,10 +805,8 @@ public partial class GameProfileSettingsViewModel
     /// <returns><see langword="false"/> when the editor cannot show the item.</returns>
     private async Task<bool> ShowInstalledItemAsEnabledAsync(string manifestId, CancellationToken cancellationToken)
     {
-        var listed = EnabledContent.FirstOrDefault(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
-        if (listed != null)
+        if (TryCheckListedItem(manifestId))
         {
-            listed.IsEnabled = true;
             return true;
         }
 
@@ -821,6 +819,12 @@ public partial class GameProfileSettingsViewModel
         if (manifestResult.Failed || manifestResult.Data == null)
         {
             return false;
+        }
+
+        // The editor stays usable during the lookup, so the item may have been added meanwhile.
+        if (TryCheckListedItem(manifestId))
+        {
+            return true;
         }
 
         var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
@@ -841,6 +845,18 @@ public partial class GameProfileSettingsViewModel
         return true;
     }
 
+    private bool TryCheckListedItem(string manifestId)
+    {
+        var listed = EnabledContent.FirstOrDefault(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
+        if (listed == null)
+        {
+            return false;
+        }
+
+        listed.IsEnabled = true;
+        return true;
+    }
+
     private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
         StatusMessage = MissingDependenciesStatus;
@@ -851,7 +867,7 @@ public partial class GameProfileSettingsViewModel
                 .Select(gap => _localizationService.GetLocalizedString(
                     "GameProfiles.Settings.Notification.MissingDependencies.Item",
                     "• {0} needs {1}",
-                    gap.RequiredByName,
+                    MissingDependencyDialog.GetRequiredByName(_localizationService, gap),
                     MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
         _localNotificationService.ShowError(
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
