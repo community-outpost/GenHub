@@ -216,7 +216,9 @@ remaining screen families.
 ## Button classes
 
 Ordinary actions use the global `Assets/Styles/ButtonStyles.axaml`, loaded by
-`App.axaml`. Choose one role and optionally `action-compact`. These are styles on
+`App.axaml`. Choose one text role and optionally `action-compact`. Add `icon-action` to a
+semantic role for an icon-only primary or destructive action; its 32px target
+does not replace the semantic colors. Use `icon-action` alone for neutral utilities. These are styles on
 standard Avalonia buttons: command enablement, keyboard activation and focus remain
 owned by Avalonia. Do not copy the styles into a feature view.
 

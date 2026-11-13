@@ -127,42 +127,42 @@
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
         <Setter Property="BorderThickness" Value="2" />
     </Style>
-    <Style Selector="Button.icon-action">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger)">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
         <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
-    <Style Selector="Button.icon-action:pointerover">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover">
         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:pressed">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed">
         <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:disabled">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled">
         <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
     </Style>
-    <Style Selector="Button.icon-action:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
         <Setter Property="BorderThickness" Value="2" />
     </Style>
