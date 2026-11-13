@@ -724,6 +724,7 @@ public class GameProfileLauncherViewModelTests
         var facade = new Mock<IProfileLauncherFacade>();
         var dialogs = new Mock<IDialogService>();
         var content = new Mock<IProfileContentService>();
+        var telemetry = new Mock<ITelemetryService>();
         var launchInfo = new GameLaunchInfo
         {
             LaunchId = "launch-1",
@@ -740,7 +741,7 @@ public class GameProfileLauncherViewModelTests
             .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess(["1.10.communityoutpost.addon.gent"]));
         content.Setup(x => x.AddContentToProfileAsync("reconciled-profile", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(AddToProfileResult.CreateSuccess("1.10.communityoutpost.addon.gent", "GenTool"));
-        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content);
+        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content, telemetry);
 
         await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
 
@@ -749,6 +750,7 @@ public class GameProfileLauncherViewModelTests
         content.Verify(x => x.AddContentToProfileAsync("profile-1", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()), Times.Never);
         facade.Verify(x => x.LaunchProfileAsync("reconciled-profile", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         notifications.Verify(x => x.ShowSuccess("Game Launched", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
     }
 
     /// <summary>

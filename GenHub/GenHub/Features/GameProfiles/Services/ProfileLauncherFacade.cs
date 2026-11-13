@@ -575,6 +575,16 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
 
+    private static ProfileOperationResult<GameLaunchInfo> CreateLaunchValidationFailure(
+        ProfileOperationResult<bool> validationResult,
+        string profileId)
+    {
+        var errors = string.Join(", ", validationResult.Errors);
+        return validationResult.MissingDependencies.Count > 0
+            ? ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(errors, validationResult.MissingDependencies, profileId)
+            : ProfileOperationResult<GameLaunchInfo>.CreateFailure(errors);
+    }
+
     /// <summary>
     /// Checks if a profile uses a SuperHackers game client.
     /// </summary>
@@ -938,15 +948,7 @@ public class ProfileLauncherFacade(
             if (validationResult.Failed)
             {
                 logger.LogError("[Launch] Validation failed: {Errors}", string.Join(", ", validationResult.Errors));
-                if (validationResult.MissingDependencies.Count > 0)
-                {
-                    return ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(
-                        string.Join(", ", validationResult.Errors),
-                        validationResult.MissingDependencies,
-                        profileId);
-                }
-
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", validationResult.Errors));
+                return CreateLaunchValidationFailure(validationResult, profileId);
             }
 
             logger.LogDebug("[Launch] Validation passed");
@@ -1327,6 +1329,16 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
         }
 
+        // Version, game, publisher and conflict problems keep their detailed messages.
+        // Missing items come next, so the launcher can offer to install them.
+        var dependencyErrors = ValidateDependencies(manifests, profile.GameClient?.GameType ?? GameType.ZeroHour);
+        if (dependencyErrors.Count > 0)
+        {
+            errors.AddRange(dependencyErrors);
+            logger.LogWarning("Profile {ProfileId} dependency validation failed: {Errors}", profile.Id, string.Join(", ", dependencyErrors));
+            return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
+        }
+
         var missingDependencies = _dependencyValidator.FindMissingDependencies(manifests);
         if (missingDependencies.Count > 0)
         {
@@ -1339,17 +1351,9 @@ public class ProfileLauncherFacade(
                     "GameProfiles.MissingDependencies.LaunchError",
                     "{0} can't launch. It needs {1}.",
                     profile.Name,
-                    string.Join(", ", missingDependencies.Select(gap => gap.DisplayName))),
+                    string.Join(", ", missingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap)))),
                 missingDependencies,
                 profile.Id);
-        }
-
-        var dependencyErrors = ValidateDependencies(manifests, profile.GameClient?.GameType ?? GameType.ZeroHour);
-        if (dependencyErrors.Count > 0)
-        {
-            errors.AddRange(dependencyErrors);
-            logger.LogWarning("Profile {ProfileId} dependency validation failed: {Errors}", profile.Id, string.Join(", ", dependencyErrors));
-            return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
         }
 
         try
