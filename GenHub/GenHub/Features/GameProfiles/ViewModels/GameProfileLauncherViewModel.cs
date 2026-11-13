@@ -1656,6 +1656,10 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogWarning("Game scan failed: {Errors}", errors);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error scanning for games");
@@ -1668,6 +1672,18 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
+    /// <summary>
+    /// Reports the outcome of a scan in the status line and a notification. The first matching outcome wins:
+    /// setup not finished, set up later, profiles created (with any failed components), components failed,
+    /// no installation with a detected game, already set up, and no profiles created.
+    /// </summary>
+    /// <param name="installationsList">The scanned installations.</param>
+    /// <param name="wizardResult">The setup wizard result.</param>
+    /// <param name="profilesCreated">The number of profiles the scan created.</param>
+    /// <param name="failedComponentKeys">The localization keys of the components that could not be set up.</param>
+    /// <param name="skippedInstallations">The number of installations skipped because no game client was detected.</param>
+    /// <param name="cancellationToken">Token that cancels the profile lookup.</param>
+    /// <returns>A task that completes when the outcome is reported.</returns>
     private async Task ReportSetupOutcomeAsync(
         List<GameInstallation> installationsList,
         SetupWizardResult wizardResult,
@@ -1730,7 +1746,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        if (skippedInstallations > 0)
+        if (skippedInstallations > 0 && skippedInstallations == installationsList.Count)
         {
             var noInstalledGameMessage = localizationService["GameProfiles.Notification.NoInstalledGame.Message"];
             StatusMessage = noInstalledGameMessage;
@@ -1778,15 +1794,14 @@ public partial class GameProfileLauncherViewModel(
         }
 
         var profiles = profilesResult.Data;
-        var installationIds = installationsList.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (profiles.All(p => string.IsNullOrEmpty(p.GameInstallationId) || !installationIds.Contains(p.GameInstallationId)))
-        {
-            return false;
-        }
+        var baseClients = installationsList
+            .SelectMany(installation => (installation.AvailableGameClients ?? [])
+                .Where(client => !client.IsPublisherClient)
+                .Select(client => (Installation: installation, Client: client)))
+            .ToList();
 
-        return installationsList.All(installation => (installation.AvailableGameClients ?? [])
-            .Where(client => !client.IsPublisherClient)
-            .All(client => profiles.Any(p => ProfileMatchesClient(p, installation, client))));
+        return baseClients.Count > 0 &&
+            baseClients.All(entry => profiles.Any(p => ProfileMatchesClient(p, entry.Installation, entry.Client)));
     }
 
     private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()
@@ -1944,9 +1959,17 @@ public partial class GameProfileLauncherViewModel(
             logger.LogInformation("No publisher profiles created for {InstallationId}, creating base game profiles", installation.Id);
             foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())
             {
-                if (await TryCreateProfileForGameClientAsync(installation, client, cancellationToken))
+                var outcome = await TryCreateProfileForGameClientAsync(installation, client, cancellationToken);
+                if (outcome == BaseProfileOutcome.Created)
                 {
                     profilesCreated++;
+                }
+                else if (outcome == BaseProfileOutcome.Failed)
+                {
+                    var gameKey = client.GameType == GameType.Generals
+                        ? GameClientConstants.WizardLocalizationKeys.GeneralsGameName
+                        : GameClientConstants.WizardLocalizationKeys.ZeroHourGameName;
+                    AddIf(!failedComponentKeys.Contains(gameKey), gameKey);
                 }
             }
         }
@@ -2083,8 +2106,8 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="installation">The game installation.</param>
     /// <param name="gameClient">The game client to create a profile for.</param>
     /// <param name="cancellationToken">Token that cancels the profile work.</param>
-    /// <returns>True if profile was created successfully, false otherwise.</returns>
-    private async Task<bool> TryCreateProfileForGameClientAsync(GameInstallation installation, GameClient gameClient, CancellationToken cancellationToken = default)
+    /// <returns>Whether the profile was created, already existed, or could not be created.</returns>
+    private async Task<BaseProfileOutcome> TryCreateProfileForGameClientAsync(GameInstallation installation, GameClient gameClient, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2093,7 +2116,7 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogWarning(
                     "GameClient is null for installation {InstallationId}",
                     installation.Id);
-                return false;
+                return BaseProfileOutcome.Failed;
             }
 
             // For publisher clients, handle specially to create all variant profiles
@@ -2103,10 +2126,10 @@ public partial class GameProfileLauncherViewModel(
                 if (result.Data > 0)
                 {
                     // No need to manually refresh - ProfileCreatedMessage handles UI updates
-                    return true;
+                    return BaseProfileOutcome.Created;
                 }
 
-                return false;
+                return result.Success ? BaseProfileOutcome.Existing : BaseProfileOutcome.Failed;
             }
 
             // Define profile name based on game client name and installation type
@@ -2124,7 +2147,7 @@ public partial class GameProfileLauncherViewModel(
                 if (profileExists)
                 {
                     logger.LogDebug("Profile already exists for {InstallationType} {GameClientName} (matched by Name+InstallationId), skipping", installation.InstallationType, gameClient.Name);
-                    return false;
+                    return BaseProfileOutcome.Existing;
                 }
 
                 // Also check by name AND game client ID (in case installation ID changed but it's the same logical profile)
@@ -2136,7 +2159,7 @@ public partial class GameProfileLauncherViewModel(
                 if (profileExistsByClient)
                 {
                     logger.LogDebug("Profile already exists for {InstallationType} {GameClientName} (matched by Name+ClientId), skipping", installation.InstallationType, gameClient.Name);
-                    return false;
+                    return BaseProfileOutcome.Existing;
                 }
             }
 
@@ -2181,12 +2204,12 @@ public partial class GameProfileLauncherViewModel(
                 // Add profile to UI immediately
                 AddProfileToUI(profileResult.Data);
 
-                return true;
+                return BaseProfileOutcome.Created;
             }
 
             var errors = ManifestHelper.FormatErrors(profileResult.Errors);
             logger.LogWarning("Failed to create profile for {InstallationType} {GameClientName}: {Errors}", installation.InstallationType, gameClient.Name, errors);
-            return false;
+            return BaseProfileOutcome.Failed;
         }
         catch (OperationCanceledException)
         {
@@ -2195,7 +2218,7 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? GameClientConstants.UnknownVersion);
-            return false;
+            return BaseProfileOutcome.Failed;
         }
     }
 
@@ -3449,7 +3472,9 @@ public partial class GameProfileLauncherViewModel(
 
     private void UpdateHasNoProfiles()
     {
-        HasNoProfiles = Profiles.OfType<GameProfileItemViewModel>().All(p => p.Profile is GameProfile { IsToolProfile: true });
+        HasNoProfiles = Profiles.OfType<GameProfileItemViewModel>()
+            .Where(p => p is not AddProfileItemViewModel)
+            .All(p => p.Profile is GameProfile { IsToolProfile: true });
     }
 
     private void InitializeSortOptions(bool forceRefresh = false)
@@ -3624,5 +3649,12 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return null;
+    }
+
+    private enum BaseProfileOutcome
+    {
+        Created,
+        Existing,
+        Failed,
     }
 }
