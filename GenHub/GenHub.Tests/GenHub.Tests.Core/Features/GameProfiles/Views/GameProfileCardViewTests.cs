@@ -4,7 +4,9 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Common.Services;
@@ -157,7 +159,37 @@ public class GameProfileCardViewTests
         Assert.False(string.IsNullOrEmpty(label));
         Assert.NotNull(name);
         Assert.Equal(cultureName == "en", label == resources.GetString("GameProfiles.Card.Action.Launch", CultureInfo.InvariantCulture));
-        Assert.Contains(label, name, StringComparison.CurrentCultureIgnoreCase);
+        Assert.Contains(label, name, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that Play keeps its compact width when a host view sets a minimum width on launch buttons.
+    /// </summary>
+    [AvaloniaFact]
+    public void PlayButton_KeepsCompactWidthUnderHostLaunchButtonStyle()
+    {
+        var viewModel = CreateViewModel();
+        var view = new GameProfileCardView { DataContext = viewModel };
+        var host = new Border { Child = view };
+        host.Styles.Add(new Style(x => x.OfType<Button>().Class("launch-button"))
+        {
+            Setters = { new Setter(Layoutable.MinWidthProperty, 110.0) },
+        });
+        var window = new Window { Width = 400, Height = 300, Content = host };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var playButton = FindButton(view, viewModel.LaunchProfileCommand);
+
+            Assert.Equal(0, playButton.MinWidth);
+            Assert.True(playButton.Bounds.Width < 110, $"Play is {playButton.Bounds.Width} wide under the host style.");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     /// <summary>
@@ -339,7 +371,7 @@ public class GameProfileCardViewTests
 
     private static void AssertBrush(Control scope, string resourceKey, IBrush? actual, string state)
     {
-        Assert.True(scope.TryFindResource(resourceKey, scope.ActualThemeVariant, out var resource));
+        Assert.True(scope.TryFindResource(resourceKey, scope.ActualThemeVariant, out var resource), $"Resource {resourceKey} not found for theme {scope.ActualThemeVariant}.");
         var expected = Assert.IsAssignableFrom<ISolidColorBrush>(resource).Color;
         var actualColor = (actual as ISolidColorBrush)?.Color;
         Assert.True(actualColor == expected, $"Play {state} is {actualColor?.ToString() ?? "not a solid brush"}, expected {resourceKey} {expected}.");
