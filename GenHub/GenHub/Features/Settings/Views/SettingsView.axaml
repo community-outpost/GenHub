@@ -1020,7 +1020,7 @@
                       Content="{localization:Localize Settings.CloudStorage.Button.ClearAll}"
                       Command="{Binding ClearAllUploadsCommand}"
                       IsEnabled="{Binding HasUploads}"
-                      Classes="action-secondary" />
+                      Classes="action-danger" />
             </Grid>
 
             <!-- Empty State -->
