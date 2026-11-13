@@ -192,7 +192,8 @@ public sealed class ContentDependencyValidator(
             var manifestParts = manifest.Id.Value.Split('.');
             return manifestParts.Length >= ManifestConstants.MinManifestSegments &&
                    string.Equals(manifestParts[3], declaredParts[3], StringComparison.OrdinalIgnoreCase) &&
-                   string.Equals(manifestParts[4], declaredParts[4], StringComparison.OrdinalIgnoreCase);
+                   (string.Equals(manifestParts[4], declaredParts[4], StringComparison.OrdinalIgnoreCase) ||
+                    CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestParts[4], declaredParts[4]));
         });
     }
 

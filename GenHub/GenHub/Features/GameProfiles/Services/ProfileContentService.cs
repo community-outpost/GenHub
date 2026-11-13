@@ -528,7 +528,7 @@ public sealed class ProfileContentService(
                 gap.DependencyId,
                 manifest.Id.Value,
                 gap.RequiredById);
-            AddInstalled(manifest);
+            TryAddInstalled(installedIds, installedManifests, manifest);
         }
 
         // An installed item can need more items. Enable the ones already acquired and download
@@ -541,16 +541,24 @@ public sealed class ProfileContentService(
                 cancellationToken.ThrowIfCancellationRequested();
                 var manifest = await FindLocalRequiredDependencyAsync(dependency, cancellationToken)
                     ?? await GetOrAcquireDependencyManifestAsync(dependency.Id.Value, cancellationToken);
-                if (manifest == null)
+                if (manifest != null)
                 {
-                    logger.LogWarning(
-                        "Could not install {DependencyId}, which {ManifestId} requires",
-                        dependency.Id.Value,
-                        installed.Id.Value);
+                    TryAddInstalled(installedIds, installedManifests, manifest);
                     continue;
                 }
 
-                AddInstalled(manifest);
+                logger.LogWarning(
+                    "Could not install {DependencyId}, which {ManifestId} requires",
+                    dependency.Id.Value,
+                    installed.Id.Value);
+
+                // Items GenHub cannot download are reported later as still missing. A failed
+                // download of an item it can fetch fails the install now.
+                if (CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.Value, out _, out var contentCode))
+                {
+                    var registryName = GenPatcherContentRegistry.GetMetadata(contentCode).DisplayName;
+                    failedNames.Add(string.IsNullOrWhiteSpace(registryName) ? dependency.Name : registryName);
+                }
             }
         }
 
@@ -564,15 +572,6 @@ public sealed class ProfileContentService(
         }
 
         return OperationResult<IReadOnlyList<string>>.CreateSuccess(installedIds);
-
-        void AddInstalled(ContentManifest manifest)
-        {
-            if (!installedIds.Contains(manifest.Id.Value, StringComparer.OrdinalIgnoreCase))
-            {
-                installedIds.Add(manifest.Id.Value);
-                installedManifests.Enqueue(manifest);
-            }
-        }
     }
 
     /// <summary>
@@ -672,6 +671,15 @@ public sealed class ProfileContentService(
         }
 
         return null;
+    }
+
+    private static void TryAddInstalled(List<string> installedIds, Queue<ContentManifest> installedManifests, ContentManifest manifest)
+    {
+        if (!installedIds.Contains(manifest.Id.Value, StringComparer.OrdinalIgnoreCase))
+        {
+            installedIds.Add(manifest.Id.Value);
+            installedManifests.Enqueue(manifest);
+        }
     }
 
     private static bool IsRequiredContentDependency(ContentDependency dependency) =>
@@ -1541,7 +1549,9 @@ public sealed class ProfileContentService(
         }
 
         var existing = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
-        if (existing.Success && existing.Data != null)
+        if (existing.Success &&
+            existing.Data != null &&
+            resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [existing.Data]))
         {
             return existing.Data;
         }

@@ -699,16 +699,20 @@ public partial class GameProfileSettingsViewModel
             return true;
         }
 
-        _dependencyInstallCts?.Dispose();
-        _dependencyInstallCts = new CancellationTokenSource();
+        using var installCancellation = new CancellationTokenSource();
+        _cancelDependencyInstall = installCancellation.Cancel;
         try
         {
-            return await EnsureRequiredDependenciesAsync(enabledContentIds, _dependencyInstallCts.Token);
+            return await EnsureRequiredDependenciesAsync(enabledContentIds, installCancellation.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger?.LogInformation("Installing required items was cancelled because the editor closed");
+            _logger?.LogInformation(ex, "Installing required items was cancelled because the editor closed");
             return false;
+        }
+        finally
+        {
+            _cancelDependencyInstall = null;
         }
     }
 

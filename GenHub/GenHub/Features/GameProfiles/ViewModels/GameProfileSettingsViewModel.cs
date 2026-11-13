@@ -89,7 +89,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
-    private CancellationTokenSource? _dependencyInstallCts;
+    private Action? _cancelDependencyInstall;
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
@@ -291,7 +291,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public void CancelPendingOperations()
     {
-        _dependencyInstallCts?.Cancel();
+        _cancelDependencyInstall?.Invoke();
     }
 
     /// <summary>
