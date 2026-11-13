@@ -777,6 +777,7 @@ public class GameInstallationServiceTests : IDisposable
         {
             var firstPick = new GameInstallation(folder, GameInstallationType.Retail) { GeneralsPath = folder };
             var secondPick = new GameInstallation(folder, GameInstallationType.Retail) { GeneralsPath = folder, ZeroHourPath = folder };
+            secondPick.PopulateGameClients([new GameClient { Id = "zh-client", InstallationId = secondPick.Id, GameType = GameType.ZeroHour }]);
             Assert.Equal(firstPick.Id, secondPick.Id);
 
             await _service.AddInstallationToCacheAsync(firstPick);
@@ -785,6 +786,7 @@ public class GameInstallationServiceTests : IDisposable
             var all = await _service.GetAllInstallationsAsync();
 
             Assert.Equal(folder, resolved.Data!.ZeroHourPath);
+            Assert.Equal("zh-client", Assert.Single(resolved.Data.AvailableGameClients).Id);
             Assert.Equal(folder, Assert.Single(all.Data!).ZeroHourPath);
         }
         finally

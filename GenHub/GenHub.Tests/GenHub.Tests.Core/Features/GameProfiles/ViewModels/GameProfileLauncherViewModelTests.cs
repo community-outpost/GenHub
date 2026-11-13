@@ -2624,8 +2624,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
         Mock<IUserSettingsService> settingsService,
         Mock<INotificationService> notificationService,
         Mock<ISetupWizardService> setupWizardService,
-        Mock<IGameProfileManager>? profileManager = null,
-        Mock<IGameClientDetector>? clientDetector = null)
+        Mock<IGameProfileManager>? profileManager = null)
     {
         if (profileManager == null)
         {
@@ -2635,13 +2634,10 @@ public class GameProfileLauncherViewModelTests : IDisposable
                 .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
         }
 
-        if (clientDetector == null)
-        {
-            clientDetector = new Mock<IGameClientDetector>();
-            clientDetector
-                .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
-        }
+        var clientDetector = new Mock<IGameClientDetector>();
+        clientDetector
+            .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
 
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
