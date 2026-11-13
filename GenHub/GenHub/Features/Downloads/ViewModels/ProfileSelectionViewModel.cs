@@ -685,7 +685,7 @@ public sealed partial class ProfileSelectionViewModel(
             if (installResult.Failed)
             {
                 ErrorMessage = installResult.FirstError
-                    ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
+                    ?? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.InstallFailed.Message", "GenHub could not install the required items.");
                 notificationService.ShowError(failureTitle, ErrorMessage);
                 return false;
             }

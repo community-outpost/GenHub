@@ -319,6 +319,52 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// Two declarations of the same placeholder with different version limits are both reported.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SamePlaceholderDifferentLimits_ReportsBoth()
+    {
+        ContentManifest Mod(string id, string minVersion) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies = [new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch, MinVersion = minVersion }],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", "1.0"), Mod("1.0.examplepublisher.mod.second", "2.0")]);
+
+        Assert.Equal(2, gaps.Count);
+    }
+
+    /// <summary>
+    /// A name cannot start a heading, list or new line in the dialog body.
+    /// </summary>
+    /// <param name="name">The manifest-supplied name.</param>
+    /// <param name="forbidden">Text that must not appear unescaped.</param>
+    [Theory]
+    [InlineData("# Free Points", "\n# Free")]
+    [InlineData("1. Step", "**1. Step")]
+    [InlineData("Line one\n# Line two", "\n# Line")]
+    public void BuildContent_NameWithBlockMarkdown_IsNeutralized(string name, string forbidden)
+    {
+        var gap = new ContentDependencyGap
+        {
+            DisplayName = name,
+            DependencyId = "1.0.examplepublisher.addon.widget",
+            DependencyType = ContentType.Addon,
+            CanDownload = false,
+            RequiredByName = name,
+            RequiredById = "1.0.examplepublisher.mod.bigmod",
+        };
+
+        var content = "\n" + MissingDependencyDialog.BuildContent(null, "Content", [gap]).Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.DoesNotContain(forbidden, content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
     /// </summary>
     /// <returns>A task that completes when validation finishes.</returns>
