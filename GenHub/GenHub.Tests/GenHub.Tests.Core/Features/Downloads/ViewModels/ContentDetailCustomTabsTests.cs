@@ -166,9 +166,9 @@ public sealed class ContentDetailCustomTabsTests
 
         var pendingB = registry.Pending("mod-b");
         viewModel.SelectedVariant = new InstallableVariant { ManifestId = ItemBManifestId, Name = "Mod B" };
-        foreach (var builtInTab in new[] { 2, 0 })
+        foreach (var builtInTabIndex in new[] { 2, 0 })
         {
-            viewModel.SelectedTabIndex = builtInTab;
+            viewModel.SelectedTabIndex = builtInTabIndex;
         }
 
         pendingB.SetResult([Tab("shared")]);

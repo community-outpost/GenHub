@@ -248,13 +248,6 @@ public class CatalogTabProvider(
             logger.LogWarning(ex, "Failed to fetch catalog for publisher '{PublisherId}'", publisherId);
             return null;
         }
-        finally
-        {
-            if (lazyFetch.IsValueCreated && lazyFetch.Value.IsCompleted)
-            {
-                _inFlightFetches.TryRemove(KeyValuePair.Create(catalogUrl, lazyFetch));
-            }
-        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Network and parsing failures are logged and negatively cached.")]
