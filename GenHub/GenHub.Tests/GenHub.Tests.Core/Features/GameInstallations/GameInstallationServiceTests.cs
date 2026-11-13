@@ -763,6 +763,37 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Picking a held folder again while detection fails replaces the held installation, so its current
+    /// paths and clients are used and resolve by the same ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_SameHeldFolderPickedAgain_UsesLatestPickAsync()
+    {
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("denied"));
+        var folder = Directory.CreateTempSubdirectory("GenHubRepick_").FullName;
+        try
+        {
+            var firstPick = new GameInstallation(folder, GameInstallationType.Retail) { GeneralsPath = folder };
+            var secondPick = new GameInstallation(folder, GameInstallationType.Retail) { GeneralsPath = folder, ZeroHourPath = folder };
+            Assert.Equal(firstPick.Id, secondPick.Id);
+
+            await _service.AddInstallationToCacheAsync(firstPick);
+            await _service.AddInstallationToCacheAsync(secondPick);
+            var resolved = await _service.GetInstallationAsync(secondPick.Id);
+            var all = await _service.GetAllInstallationsAsync();
+
+            Assert.Equal(folder, resolved.Data!.ZeroHourPath);
+            Assert.Equal(folder, Assert.Single(all.Data!).ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
     /// An alias that points at another alias resolves through both hops to the cached installation.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
