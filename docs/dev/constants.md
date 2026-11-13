@@ -727,7 +727,7 @@ Constants for Publisher Studio project storage and catalog export messages.
 
 ## CustomTabConstants Class
 
-Limits, allowlists and link patterns for publisher-defined custom tabs in the content detail view.
+Limits, allowlists, link patterns and UI resource keys for publisher-defined custom tabs.
 
 ### Limits
 
