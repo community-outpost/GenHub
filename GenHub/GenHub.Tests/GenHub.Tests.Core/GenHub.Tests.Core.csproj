@@ -38,6 +38,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TemporaryApplicationEnvironment.cs" Link="Shared\TemporaryApplicationEnvironment.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Features\Tools\Fixtures\*.rep">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

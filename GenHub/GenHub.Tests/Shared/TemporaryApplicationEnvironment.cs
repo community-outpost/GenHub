@@ -3,9 +3,11 @@ using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Storage;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 
 namespace GenHub.Tests.Shared;
 
@@ -14,6 +16,10 @@ namespace GenHub.Tests.Shared;
 /// </summary>
 internal sealed class TemporaryApplicationEnvironment : IDisposable
 {
+    private const int DeleteAttempts = 5;
+
+    private static readonly TimeSpan DeleteRetryDelay = TimeSpan.FromMilliseconds(50);
+
     private static readonly JsonSerializerOptions SettingsJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -65,9 +71,15 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
     /// <summary>
     /// Gets the root of the disposable test tree.
     /// </summary>
-    private string RootPath { get; }
+    internal string RootPath { get; }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Restores the environment and deletes the test tree on a best-effort basis.
+    /// </summary>
+    /// <remarks>
+    /// Services resolved during a test can keep writing under the tree after the test body ends.
+    /// A recursive delete that races with them fails, so cleanup retries and then leaves the tree in place.
+    /// </remarks>
     void IDisposable.Dispose()
     {
         foreach (var pair in _originalValues)
@@ -75,12 +87,50 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
             Environment.SetEnvironmentVariable(pair.Key, pair.Value);
         }
 
-        Directory.Delete(RootPath, recursive: true);
+        for (var attempt = 1; attempt <= DeleteAttempts; attempt++)
+        {
+            if (TryDeleteRoot(out var failure))
+            {
+                return;
+            }
+
+            if (attempt == DeleteAttempts)
+            {
+                Trace.TraceWarning($"Leaving test tree {RootPath} in place: {failure}");
+                return;
+            }
+
+            Thread.Sleep(DeleteRetryDelay * attempt);
+        }
     }
 
     private void SetEnvironmentVariable(string name, string value)
     {
         _originalValues[name] = Environment.GetEnvironmentVariable(name);
         Environment.SetEnvironmentVariable(name, value);
+    }
+
+    private bool TryDeleteRoot(out string? failure)
+    {
+        failure = null;
+        try
+        {
+            if (Directory.Exists(RootPath))
+            {
+                Directory.Delete(RootPath, recursive: true);
+            }
+
+            return true;
+        }
+        catch (IOException ex)
+        {
+            failure = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            failure = ex.Message;
+        }
+
+        return false;
     }
 }
