@@ -2823,6 +2823,12 @@ public partial class GameProfileLauncherViewModel(
                 // Normal launch
                 await ExecuteLaunchAsync(profile);
             }
+            catch (OperationCanceledException ex)
+            {
+                logger.LogInformation(ex, "Launch of {ProfileName} was cancelled", profile.Name);
+                StatusMessage = string.Empty;
+                ErrorMessage = string.Empty;
+            }
             catch (Exception ex)
             {
                 stopwatch.Stop();
@@ -2940,8 +2946,8 @@ public partial class GameProfileLauncherViewModel(
             if (allowDependencyInstall && launchResult.MissingDependencies.Count > 0 && profileContentService != null)
             {
                 // Record the blocked attempt once, whatever the player chooses next.
-                TrackLaunchFailed(profile, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
                 var targetProfileId = launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId;
+                TrackLaunchFailed(profile, targetProfileId, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
                 var installError = await InstallMissingDependenciesAsync(profile, targetProfileId, launchResult.MissingDependencies, cancellationToken);
                 if (installError == null)
                 {
@@ -2963,11 +2969,17 @@ public partial class GameProfileLauncherViewModel(
             }
 
             var errors = string.Join(", ", launchResult.Errors);
-            var errorCategory = launchResult.MissingDependencies.Count > 0
-                ? TelemetryConstants.ErrorCategories.MissingDependencies
-                : TelemetryConstants.ErrorCategories.LaunchFailed;
+            var isMissingDependencies = launchResult.MissingDependencies.Count > 0;
             ReportLaunchFailure(profile, errors);
-            TrackLaunchFailed(profile, timeToLaunchMs, errorCategory);
+
+            // A retry after installing items was already recorded as blocked before the dialog.
+            if (allowDependencyInstall || !isMissingDependencies)
+            {
+                var errorCategory = isMissingDependencies
+                    ? TelemetryConstants.ErrorCategories.MissingDependencies
+                    : TelemetryConstants.ErrorCategories.LaunchFailed;
+                TrackLaunchFailed(profile, launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId, timeToLaunchMs, errorCategory);
+            }
         }
     }
 
@@ -2978,13 +2990,13 @@ public partial class GameProfileLauncherViewModel(
         notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
     }
 
-    private void TrackLaunchFailed(GameProfileItemViewModel profile, long timeToLaunchMs, string errorCategory)
+    private void TrackLaunchFailed(GameProfileItemViewModel profile, string launchedProfileId, long timeToLaunchMs, string errorCategory)
     {
         var gameClient = profile.Profile.GameClient;
         var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
         telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
         {
-            [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
+            [TelemetryConstants.Properties.ProfileId] = launchedProfileId,
             [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
             [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
             [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
@@ -3050,7 +3062,8 @@ public partial class GameProfileLauncherViewModel(
 
         if (addResult.Failed)
         {
-            return addResult.FirstError ?? localizationService["GameProfiles.Notification.LaunchFailed.Title"];
+            return addResult.FirstError
+                ?? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.InstallFailed.Message", "GenHub could not install the required items.");
         }
 
         return null;

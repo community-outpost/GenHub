@@ -317,9 +317,12 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     /// Launch uses the shared validator: Control Bar Pro's RequireExisting GenTool with
     /// StrictPublisher false blocks launch, named by display name, with the gap attached.
     /// </summary>
+    /// <param name="installationVersion">The installation's recorded version. Empty means none was recorded.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task ValidateLaunchAsync_ControlBarProWithoutGenTool_ReportsGenToolGapAsync()
+    [Theory]
+    [InlineData("1.04")]
+    [InlineData("")]
+    public async Task ValidateLaunchAsync_ControlBarProWithoutGenTool_ReportsGenToolGapAsync(string installationVersion)
     {
         const string profileId = "profile-control-bar";
         const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
@@ -328,7 +331,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
 
         var manifests = new[]
         {
-            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = installationVersion, ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
             new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
             new ContentManifest
             {

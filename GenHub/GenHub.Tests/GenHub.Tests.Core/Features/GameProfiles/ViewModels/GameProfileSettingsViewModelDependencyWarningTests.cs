@@ -134,6 +134,7 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
     {
         AddControlBarPro();
         _viewModel.EnabledContent.Add(CreateItem(InstallationId, "Zero Hour", ContentType.GameInstallation, isEnabled: true));
+        _viewModel.EnabledContent.Add(CreateItem(InstallationId.ToUpperInvariant(), "Zero Hour", ContentType.GameInstallation, isEnabled: true));
 
         var warning = await EnableAndWaitForWarningAsync(CreateItem(ControlBarProId, "Control Bar Pro (ExiLe)", ContentType.Addon));
 
