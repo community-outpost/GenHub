@@ -225,6 +225,37 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// A non-strict dependency is satisfied by another publisher's language variant of the same content.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_NonStrictDependencyOtherPublisherVariant_ReportsNothing()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publishera.mod.bigmod"),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.publishera.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                },
+            ],
+        };
+        var variant = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publisherb.addon.basepack-en"),
+            Name = "Base Pack (English)",
+            ContentType = ContentType.Addon,
+        };
+
+        Assert.Empty(_validator.FindMissingDependencies([mod, variant]));
+    }
+
+    /// <summary>
     /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
     /// </summary>
     /// <returns>A task that completes when validation finishes.</returns>

@@ -772,6 +772,89 @@ public sealed class ProfileContentServiceTests
         Assert.Contains(indicatorsId, install.Data!);
     }
 
+    /// <summary>
+    /// An acquired manifest with the exact declared ID but the wrong version is skipped in favor
+    /// of a compatible acquired version of the same content.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_ExactIdWrongVersion_EnablesCompatibleVersionAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        const string modId = "1.0.examplepublisher.mod.bigmod";
+        const string oldPackId = "1.0.examplepublisher.addon.basepack";
+        const string newPackId = "1.5.examplepublisher.addon.basepack";
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(modId),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(oldPackId),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    MinVersion = "2.0",
+                },
+            ],
+        });
+        fixture.AddManifest(new ContentManifest { Id = ManifestId.Create(oldPackId), Name = "Base Pack", Version = "1.0", ContentType = ContentType.Addon });
+        fixture.AddManifest(new ContentManifest { Id = ManifestId.Create(newPackId), Name = "Base Pack", Version = "2.5", ContentType = ContentType.Addon });
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, modId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.IsType<List<string>>(Assert.IsType<UpdateProfileRequest>(fixture.SavedRequest).EnabledContentIds);
+        Assert.Contains(newPackId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(oldPackId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// When an item that an installed item needs cannot be downloaded, the install fails and names it.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_RequiredItemOfInstalledItemFails_ReportsFailureAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        genTool.Dependencies =
+        [
+            new ContentDependency
+            {
+                Id = ManifestId.Create("1.1.communityoutpost.addon.hlen"),
+                Name = "Hotkeys Indicators",
+                DependencyType = ContentType.Addon,
+                InstallBehavior = DependencyInstallBehavior.AutoInstall,
+            },
+        ];
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentSearchResult hit, IProgress<ContentAcquisitionProgress>? _, CancellationToken _) =>
+            {
+                if (!hit.Id!.EndsWith(".gent", StringComparison.OrdinalIgnoreCase))
+                {
+                    return OperationResult<ContentManifest>.CreateFailure("offline");
+                }
+
+                fixture.AddManifest(genTool);
+                return OperationResult<ContentManifest>.CreateSuccess(genTool);
+            });
+        var attempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync(attempt.MissingDependencies);
+
+        Assert.False(install.Success);
+        Assert.Contains("Hotkeys Indicators", install.FirstError, StringComparison.Ordinal);
+    }
+
     private sealed class ControlBarProFixture
     {
         public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
