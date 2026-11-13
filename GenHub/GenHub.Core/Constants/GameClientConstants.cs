@@ -703,7 +703,7 @@ public static class GameClientConstants
             [WizardLocalizationKeys.MissingStatus] = WizardStatuses.Missing,
             [WizardLocalizationKeys.FoundOneGame] = "We found {0}.",
             [WizardLocalizationKeys.FoundManyGames] = "We found these games:",
-            [WizardLocalizationKeys.FoundNoNamedGame] = "We found an installed game.",
+            [WizardLocalizationKeys.FoundNoNamedGame] = "Choose a game folder or scan again to find your installed game.",
             [WizardLocalizationKeys.FoundGameEntry] = "{0} ({1})",
             [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1}",
             [WizardLocalizationKeys.GeneralsGameName] = "Generals",

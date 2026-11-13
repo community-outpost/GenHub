@@ -4559,7 +4559,7 @@ This will modify game files and configuration settings at:
     <value>Setup Detected Content</value>
   </data>
   <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
-    <value>Your game is ready</value>
+    <value>Game found</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
     <value>We found {0}.</value>
@@ -4568,7 +4568,7 @@ This will modify game files and configuration settings at:
     <value>We found these games:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>We found an installed game.</value>
+    <value>Choose a game folder or scan again to find your installed game.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -18409,5 +18409,8 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>No installed game found</value>
   </data>
 </root>

@@ -127,7 +127,8 @@
             <!-- Summary step -->
             <Grid RowDefinitions="*,Auto,*" IsVisible="{Binding !IsCustomizing}">
                 <StackPanel Grid.Row="1" Margin="48,0" Spacing="0">
-                    <TextBlock Text="{localization:Localize Profiles.Wizard.Ready.Title}" FontSize="26" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,10"/>
+                    <TextBlock Text="{localization:Localize Profiles.Wizard.Ready.Title}" IsVisible="{Binding HasFoundGames}" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+                    <TextBlock Text="{localization:Localize Profiles.Wizard.Ready.NoGameTitle}" IsVisible="{Binding !HasFoundGames}" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10"/>
                     <TextBlock Text="{Binding FoundSummary}" FontSize="15" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                     <ScrollViewer MaxHeight="96" Margin="0,8,0,0" IsVisible="{Binding HasMultipleFoundGames}"
                                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -140,12 +141,12 @@
                         </ItemsControl>
                     </ScrollViewer>
 
-                    <Button Content="{localization:Localize Profiles.Wizard.Ready.UseInstalledGame}" Command="{Binding UseInstalledGameCommand}"
-                            Background="White" Foreground="Black" CornerRadius="6" FontWeight="SemiBold" FontSize="15" Padding="28,10"
+                    <Button Content="{localization:Localize Profiles.Wizard.Ready.UseInstalledGame}" Command="{Binding UseInstalledGameCommand}" IsVisible="{Binding HasFoundGames}"
+                            Background="{DynamicResource PrimaryButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}" CornerRadius="6" FontWeight="SemiBold" FontSize="15" Padding="28,10"
                             Margin="0,28,0,0" Cursor="Hand" HorizontalAlignment="Left">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource TextPrimaryBrush}"/>
+                                <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>

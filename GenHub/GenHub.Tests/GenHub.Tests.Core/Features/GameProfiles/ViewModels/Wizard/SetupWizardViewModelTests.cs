@@ -28,7 +28,7 @@ public class SetupWizardViewModelTests
         Assert.Equal(3, vm.Items.Count);
         Assert.Equal("Setup Detected Content", vm.Title);
         Assert.Equal("Continue (2)", vm.ConfirmLabel);
-        Assert.Equal("We found an installed game.", vm.FoundSummary);
+        Assert.Equal("Choose a game folder or scan again to find your installed game.", vm.FoundSummary);
         Assert.False(vm.IsCustomizing);
         Assert.False(vm.Confirmed);
     }
@@ -148,7 +148,7 @@ public class SetupWizardViewModelTests
     public void UseInstalledGameCommand_ConfirmsWithInstalledGameChoiceAndFiresRequestClose()
     {
         var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true };
-        var vm = new SetupWizardViewModel([item]);
+        var vm = new SetupWizardViewModel([item], foundGames: ["Zero Hour"]);
         var closeFired = false;
         vm.RequestClose += (_, _) => closeFired = true;
 
@@ -158,6 +158,25 @@ public class SetupWizardViewModelTests
         Assert.True(vm.UseInstalledGameChosen);
         Assert.False(vm.SetUpLaterChosen);
         Assert.True(closeFired);
+    }
+
+    /// <summary>
+    /// A missing installation cannot be accepted as an installed game.
+    /// </summary>
+    [Fact]
+    public void UseInstalledGameCommand_WithoutFoundGames_DoesNotConfirmOrClose()
+    {
+        var vm = new SetupWizardViewModel([]);
+        var closed = false;
+        vm.RequestClose += (_, _) => closed = true;
+
+        Assert.False(vm.HasFoundGames);
+        Assert.False(vm.UseInstalledGameCommand.CanExecute(null));
+        vm.UseInstalledGameCommand.Execute(null);
+
+        Assert.False(vm.Confirmed);
+        Assert.False(vm.UseInstalledGameChosen);
+        Assert.False(closed);
     }
 
     /// <summary>

@@ -4559,7 +4559,7 @@
     <value>Настройка обнаруженного содержимого</value>
   </data>
   <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
-    <value>Ваша игра готова</value>
+    <value>Игра найдена</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
     <value>Мы нашли {0}.</value>
@@ -4568,7 +4568,7 @@
     <value>Мы нашли эти игры:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>Мы нашли установленную игру.</value>
+    <value>Выберите папку игры или повторите поиск установленной игры.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -18350,5 +18350,8 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>Установленная игра не найдена</value>
   </data>
 </root>

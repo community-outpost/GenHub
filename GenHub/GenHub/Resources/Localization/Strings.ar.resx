@@ -4559,7 +4559,7 @@
     <value>إعداد المحتوى المكتشف</value>
   </data>
   <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
-    <value>لعبتك جاهزة</value>
+    <value>تم العثور على اللعبة</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
     <value>وجدنا {0}.</value>
@@ -4568,7 +4568,7 @@
     <value>وجدنا هذه الألعاب:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>وجدنا لعبة مثبتة.</value>
+    <value>اختر مجلد اللعبة أو أعد الفحص للعثور على لعبتك المثبتة.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -18350,5 +18350,8 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>لم يتم العثور على لعبة مثبتة</value>
   </data>
 </root>

@@ -65,6 +65,11 @@ public sealed partial class SetupWizardViewModel(
     public IReadOnlyList<string> FoundGames { get; } = foundGames ?? [];
 
     /// <summary>
+    /// Gets a value indicating whether an installed game was identified.
+    /// </summary>
+    public bool HasFoundGames => FoundGames.Count > 0;
+
+    /// <summary>
     /// Gets a value indicating whether more than one installed game was found.
     /// </summary>
     public bool HasMultipleFoundGames => FoundGames.Count > 1;
@@ -107,9 +112,14 @@ public sealed partial class SetupWizardViewModel(
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasFoundGames))]
     private void UseInstalledGame()
     {
+        if (!HasFoundGames)
+        {
+            return;
+        }
+
         UseInstalledGameChosen = true;
         _confirmed = true;
         OnRequestClose();
