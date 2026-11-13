@@ -26,11 +26,12 @@ public class ActionButtonStyleTests
     [InlineData("action-primary", "AccentLightBrush", "AccentBrush", "ActionOnAccentBrush")]
     [InlineData("action-secondary", "SurfaceHoverBrush", "SurfaceElevatedBrush", "TextPrimary")]
     [InlineData("action-danger", "ActionDangerHoverBrush", "ErrorBrush", "ActionOnAccentBrush")]
+    [InlineData("action-danger icon-action", "ActionDangerHoverBrush", "ErrorBrush", "ActionOnAccentBrush")]
     [InlineData("icon-action", "SurfaceHoverBrush", "SurfaceElevatedBrush", "TextSecondary")]
     public void ActionButton_PointerAndDisabledStatesUseSharedPalette(string role, string hover, string pressed, string foreground)
     {
         var button = new Button { Content = "Install" };
-        button.Classes.Add(role);
+        button.Classes.AddRange(role.Split(' '));
         var window = new Window { Width = 320, Height = 160, Content = button };
         window.Show();
         try
@@ -41,7 +42,7 @@ public class ActionButtonStyleTests
 
             // Inspect final state brushes without Fluent's interpolation clock.
             presenter.Transitions = null;
-            Assert.Equal(role == "icon-action" ? 32 : 36, button.MinHeight);
+            Assert.Equal(role.Contains("icon-action", StringComparison.Ordinal) ? 32 : 36, button.MinHeight);
             Assert.Equal(new CornerRadius(8), button.CornerRadius);
             Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource(foreground)!), BrushColor(presenter.Foreground));
             window.MouseMove(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value);
