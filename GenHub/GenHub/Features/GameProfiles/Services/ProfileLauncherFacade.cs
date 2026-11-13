@@ -1894,7 +1894,9 @@ public class ProfileLauncherFacade(
         if (dependency.DependencyType == Core.Models.Enums.ContentType.GameInstallation)
         {
             var gameInstallations = potentialMatches;
-            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType);
+
+            // Like the shared validator, an installation with no recorded game is not rejected for it.
+            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType || gi.TargetGame == GameType.Unknown);
 
             if (compatibleInstallation == null)
             {

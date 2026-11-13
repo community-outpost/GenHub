@@ -409,7 +409,7 @@ public partial class GameProfileLauncherViewModel(
                         iconPath,
                         coverPath)
                     {
-                        LaunchAction = LaunchProfileAsync,
+                        LaunchAction = card => LaunchProfileAsync(card, CancellationToken.None),
                         EditProfileAction = EditProfile,
                         DeleteProfileAction = DeleteProfile,
                         CreateShortcutAction = CreateShortcut,
@@ -2195,7 +2195,7 @@ public partial class GameProfileLauncherViewModel(
                 iconPath,
                 coverPath)
             {
-                LaunchAction = LaunchProfileAsync,
+                LaunchAction = card => LaunchProfileAsync(card, CancellationToken.None),
                 EditProfileAction = EditProfile,
                 DeleteProfileAction = DeleteProfile,
                 CreateShortcutAction = CreateShortcut,
@@ -2229,8 +2229,9 @@ public partial class GameProfileLauncherViewModel(
     /// Launches the specified game profile.
     /// </summary>
     /// <param name="profile">The game profile to launch.</param>
+    /// <param name="cancellationToken">A token that cancels the launch, including any required-item install.</param>
     [RelayCommand]
-    private async Task LaunchProfileAsync(GameProfileItemViewModel profile)
+    private async Task LaunchProfileAsync(GameProfileItemViewModel profile, CancellationToken cancellationToken)
     {
         // Try without blocking
         if (!await _launchSemaphore.WaitAsync(0))
@@ -2252,9 +2253,9 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogDebug("[Launch] Launching profile {ProfileName} (ID: {ProfileId})", profile.Name, profile.ProfileId);
 
                 // Normal launch
-                await ExecuteLaunchAsync(profile);
+                await ExecuteLaunchAsync(profile, cancellationToken: cancellationToken);
             }
-            catch (OperationCanceledException ex)
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
             {
                 logger.LogInformation(ex, "Launch of {ProfileName} was cancelled", profile.Name);
                 StatusMessage = string.Empty;
@@ -2423,7 +2424,11 @@ public partial class GameProfileLauncherViewModel(
 
     private void TrackLaunchFailed(GameProfileItemViewModel profile, string launchedProfileId, long timeToLaunchMs, string errorCategory)
     {
-        var gameClient = profile.Profile.GameClient;
+        // Reconciliation can launch another profile, so describe the client of the profile that was validated.
+        var launchedProfile = string.Equals(launchedProfileId, profile.ProfileId, StringComparison.OrdinalIgnoreCase)
+            ? profile
+            : Profiles.FirstOrDefault(p => p is not AddProfileItemViewModel && string.Equals(p.ProfileId, launchedProfileId, StringComparison.OrdinalIgnoreCase)) ?? profile;
+        var gameClient = launchedProfile.Profile.GameClient;
         var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
         telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
         {

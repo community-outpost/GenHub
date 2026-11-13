@@ -116,6 +116,31 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
     }
 
     /// <summary>
+    /// Two different unnamed items share the generic name but are each listed.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task EnableContent_TwoUnnamedItemsMissing_ListsBothAsync()
+    {
+        const string modId = "1.0.examplepublisher.addon.needsboth";
+        AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(modId),
+            Name = "Needs Both",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency { Id = ManifestId.Create("1.0.examplepublisher.addon.first"), Name = string.Empty, DependencyType = ContentType.Addon },
+                new ContentDependency { Id = ManifestId.Create("1.0.examplepublisher.addon.second"), Name = string.Empty, DependencyType = ContentType.Addon },
+            ],
+        });
+
+        var warning = await EnableAndWaitForWarningAsync(CreateItem(modId, "Needs Both", ContentType.Addon));
+
+        Assert.Equal(2, warning.Message.Split('\n').Count(line => line.Contains("Needs Both needs A required item", StringComparison.Ordinal)));
+    }
+
+    /// <summary>
     /// A declared conflict between two enabled items is still reported.
     /// </summary>
     /// <returns>A task that completes when the test finishes.</returns>
