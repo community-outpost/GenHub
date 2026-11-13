@@ -355,10 +355,14 @@
                                        FontSize="13"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        TextWrapping="Wrap" />
-                            <SelectableTextBlock Text="{Binding ScanFailureMessage}"
-                                                 FontSize="12"
-                                                 Foreground="{DynamicResource WarningBrush}"
-                                                 TextWrapping="Wrap" />
+                            <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}"
+                                      IsExpanded="False"
+                                      HorizontalAlignment="Stretch">
+                                <SelectableTextBlock Text="{Binding ScanFailureMessage}"
+                                                     FontSize="12"
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                     TextWrapping="Wrap" />
+                            </Expander>
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
@@ -405,6 +409,13 @@
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
                             <Button Classes="accent"
+                                    Command="{Binding ChooseGameFolderCommand}"
+                                    HorizontalAlignment="Stretch"
+                                    Padding="14,8">
+                                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" />
+                            </Button>
+
+                            <Button Classes="outline"
                                     Command="{Binding OpenSteamStoreCommand}"
                                     HorizontalAlignment="Stretch"
                                     HorizontalContentAlignment="Center"

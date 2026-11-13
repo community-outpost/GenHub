@@ -689,6 +689,39 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A held folder registered under different identities keeps both profile IDs valid through recovery.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_SamePendingFolderUnderDifferentIds_ResolvesBothAfterRecoveryAsync()
+    {
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("denied"));
+        var folder = Directory.CreateTempSubdirectory("GenHubRepeated_").FullName;
+        try
+        {
+            var first = new GameInstallation(folder, GameInstallationType.Retail);
+            var second = new GameInstallation(folder, GameInstallationType.Steam);
+            Assert.NotEqual(first.Id, second.Id);
+            Assert.True((await _service.AddInstallationToCacheAsync(first)).Success);
+            Assert.True((await _service.AddInstallationToCacheAsync(second)).Success);
+            Assert.Same(first, (await _service.GetInstallationAsync(second.Id)).Data);
+            Assert.Same(first, Assert.Single((await _service.GetAllInstallationsAsync()).Data!));
+
+            var recovered = new GameInstallation(folder, GameInstallationType.Steam) { Id = "recovered-installation" };
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([recovered], TimeSpan.Zero));
+            Assert.Same(recovered, Assert.Single((await _service.GetAllInstallationsAsync()).Data!));
+            Assert.Same(recovered, (await _service.GetInstallationAsync(first.Id)).Data);
+            Assert.Same(recovered, (await _service.GetInstallationAsync(second.Id)).Data);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+    }
+
+    /// <summary>
     /// When recovered detection finds the held folder under another ID, the held ID still resolves,
     /// so profiles created while detection failed keep their installation.
     /// </summary>
