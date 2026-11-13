@@ -52,14 +52,14 @@
                   Classes="action-primary action-compact" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.ImportFromUrl}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}"/>
               <TextBlock Text="{localization:Localize Maps.Button.Import}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
                   Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.BrowseFiles}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.BrowseFiles}">
-            <PathIcon Data="{StaticResource ToolIcon.Paperclip}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.Paperclip}"/>
           </Button>
         </Grid>
 
@@ -81,14 +81,14 @@
         <!-- Utilities -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
           <Button Command="{Binding LoadMapsCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.RefreshList}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.RefreshList}">
-            <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.Refresh}"/>
           </Button>
           <Button Command="{Binding OpenFolderCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.OpenFolder}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.OpenFolder}">
-            <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
           </Button>
           <Button Command="{Binding ToggleMapPackPanelCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.MapPackManager}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"/>
               <TextBlock Text="{localization:Localize Maps.Button.Pack}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -217,7 +217,7 @@
                   Classes="action-danger ActionBarBtn action-compact" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.DeleteSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
               <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -232,7 +232,7 @@
                   Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding HasSelectedZips}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.UncompressSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"/>
               <TextBlock Text="{localization:Localize Maps.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -241,7 +241,7 @@
                   Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}"/>
               <TextBlock Text="{localization:Localize Maps.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -250,7 +250,7 @@
                     Classes="action-primary SplitLeft ActionBarBtn action-compact"
                     ToolTip.Tip="{localization:Localize Maps.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
+                <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}"/>
                 <TextBlock Text="{localization:Localize Maps.Button.Upload}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
@@ -293,21 +293,21 @@
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyUrlCommand}"
                                         CommandParameter="{Binding Url}" Margin="8,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Localize Maps.Tooltip.CopyLink}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.CopyLink}">
-                                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="16" Height="16"/>
+                                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"/>
                                 </Button>
 
                                 <Button Grid.Column="2" Classes="action-secondary icon-action"
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).CopyGenHubLinkCommand}"
                                         CommandParameter="{Binding}" Margin="4,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Localize Maps.Tooltip.CopyGenHubLink}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.CopyGenHubLink}">
-                                  <PathIcon Data="{StaticResource ToolIcon.ShareOutline}" Width="16" Height="16"/>
+                                  <PathIcon Data="{StaticResource ToolIcon.ShareOutline}"/>
                                 </Button>
 
                                 <Button Grid.Column="3" Classes="action-danger icon-action"
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).RemoveHistoryItemCommand}"
                                         CommandParameter="{Binding}" Margin="4,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Localize Maps.Tooltip.DeleteHistoryItem}" AutomationProperties.Name="{localization:Localize Maps.Tooltip.DeleteHistoryItem}">
-                                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
+                                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
                                 </Button>
                               </Grid>
                             </Border>
@@ -328,7 +328,7 @@
                           IsVisible="{Binding UploadHistory.Count}"
                           ToolTip.Tip="{localization:Localize Maps.Tooltip.ClearHistory}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                      <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}" Width="16" Height="16"/>
+                      <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}"/>
                       <TextBlock Text="{localization:Localize Maps.Button.ClearAllHistory}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
@@ -366,7 +366,7 @@
             </StackPanel>
             <Button Grid.Column="1" Command="{Binding ToggleMapPackPanelCommand}"
                     Classes="action-secondary icon-action" VerticalAlignment="Top" ToolTip.Tip="{localization:Localize Common.Button.Close}" AutomationProperties.Name="{localization:Localize Common.Button.Close}">
-              <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.Close}"/>
             </Button>
           </Grid>
 
@@ -410,7 +410,7 @@
                           HorizontalAlignment="Stretch"
                           ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.CreateAndAddToProfile}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                      <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="12" Height="12" VerticalAlignment="Center"/>
+                      <PathIcon Data="{StaticResource ToolIcon.Plus}" VerticalAlignment="Center"/>
                       <TextBlock Text="{localization:Localize Maps.MapPack.Button.CreateAndAddToProfile}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
@@ -446,13 +446,13 @@
                                     CommandParameter="{Binding}" Classes="action-secondary action-compact"
                                     ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.AddToProfile}">
                               <StackPanel Orientation="Horizontal" Spacing="4">
-                                <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="12" Height="12" VerticalAlignment="Center"/>
+                                <PathIcon Data="{StaticResource ToolIcon.Plus}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{localization:Localize Maps.MapPack.Button.AddToProfile}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                               </StackPanel>
                             </Button>
                             <Button Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).DeleteMapPackCommand}"
                                     CommandParameter="{Binding}" Classes="action-danger icon-action" ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.Delete}" AutomationProperties.Name="{localization:Localize Maps.MapPack.Tooltip.Delete}">
-                              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
+                              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
                             </Button>
                           </StackPanel>
                         </Grid>

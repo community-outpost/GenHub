@@ -63,15 +63,15 @@
             <material:MaterialIcon Kind="HandBackLeft" Width="16" Height="16"/>
           </ToggleButton>
           <Button Command="{Binding ZoomOutCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomOut}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ZoomOut}">
-            <PathIcon Data="{StaticResource ToolIcon.MagnifyMinus}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.MagnifyMinus}"/>
           </Button>
           <TextBlock Text="{Binding Zoom, StringFormat='{}{0:P0}'}" VerticalAlignment="Center" MinWidth="48" TextAlignment="Center"
                      Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
           <Button Command="{Binding ZoomInCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomIn}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ZoomIn}">
-            <PathIcon Data="{StaticResource ToolIcon.MagnifyPlus}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.MagnifyPlus}"/>
           </Button>
           <Button Command="{Binding ResetZoomCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ResetZoom}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ResetZoom}">
-            <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.Refresh}"/>
           </Button>
           <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}" Margin="4,0"/>
           <Button Command="{Binding UndoCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding CanUndo}"
@@ -88,14 +88,14 @@
           <Button Command="{Binding OpenFolderCommand}" Classes="action-primary action-compact" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.OpenFolder}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
               <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Command="{Binding SaveCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding HasAtlas}"
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.Save}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}"/>
               <TextBlock Text="{localization:Localize TextureEditor.Button.Save}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -314,7 +314,7 @@
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding HasAtlas}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.AddSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="14" Height="14"/>
+                  <PathIcon Data="{StaticResource ToolIcon.Plus}"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.Add}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -322,7 +322,7 @@
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanDuplicate}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DuplicateSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
+                  <material:MaterialIcon Kind="ContentDuplicate" Width="16" Height="16"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.Duplicate}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -331,7 +331,7 @@
                       IsEnabled="{Binding CanDelete}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DeleteSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
+                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
                   <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -341,7 +341,7 @@
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanCut}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Cut}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentCut" Width="14" Height="14"/>
+                  <material:MaterialIcon Kind="ContentCut" Width="16" Height="16"/>
                   <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Cut}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -349,7 +349,7 @@
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanCopy}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Copy}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"/>
                   <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Copy}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -357,7 +357,7 @@
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanPaste}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Paste}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
+                  <material:MaterialIcon Kind="ContentPaste" Width="16" Height="16"/>
                   <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Paste}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -513,13 +513,13 @@
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,8,0,0">
               <Button Command="{Binding OpenFolderCommand}" Classes="action-primary action-compact">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
+                  <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Command="{Binding OpenFileCommand}" Classes="action-secondary action-compact">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="16" Height="16"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ImageOutline}"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.OpenAtlas}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
