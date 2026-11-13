@@ -18297,10 +18297,10 @@ Mapped image texture reference</value>
     <value>Screenshot name (optional)</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
-    <value>{0} needs {1}</value>
+    <value>One required item is missing</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
-    <value>{0} needs {1} more items</value>
+    <value>{0} required items are missing</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
     <value>{0} only works when these items are in the profile:</value>
@@ -18309,7 +18309,7 @@ Mapped image texture reference</value>
     <value>(needed by {0})</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
-    <value>Details</value>
+    <value>Technical details</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
     <value>Install required items</value>
@@ -18330,7 +18330,7 @@ Mapped image texture reference</value>
     <value>Install required items downloads and enables them first. Cancel saves nothing.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
-    <value>Install required items downloads what GenHub can. Nothing is saved until every item is present.</value>
+    <value>GenHub can install some of these items. Install the others manually, then try again.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
     <value>Nothing is saved until these items are present.</value>
@@ -18349,5 +18349,8 @@ Mapped image texture reference</value>
   </data>
   <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
     <value>GenHub found {0}, but not a version this content works with.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>Install available items</value>
   </data>
 </root>

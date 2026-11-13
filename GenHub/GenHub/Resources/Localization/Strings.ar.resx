@@ -18238,10 +18238,10 @@ Error: فشل: {3}
     <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
-    <value>يحتاج {0} إلى {1}</value>
+    <value>أحد العناصر المطلوبة مفقود</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
-    <value>يحتاج {0} إلى {1} عناصر إضافية</value>
+    <value>هناك {0} عناصر مطلوبة مفقودة</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
     <value>لا يعمل {0} إلا عند وجود هذه العناصر في الملف الشخصي:</value>
@@ -18250,7 +18250,7 @@ Error: فشل: {3}
     <value>(يحتاجه {0})</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
-    <value>التفاصيل</value>
+    <value>التفاصيل التقنية</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
     <value>تثبيت العناصر المطلوبة</value>
@@ -18271,7 +18271,7 @@ Error: فشل: {3}
     <value>يقوم زر تثبيت العناصر المطلوبة بتنزيلها وتفعيلها أولاً. الإلغاء لا يحفظ أي شيء.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
-    <value>يقوم زر تثبيت العناصر المطلوبة بتنزيل ما يستطيع GenHub تنزيله. لن يُحفظ أي شيء حتى تتوفر جميع العناصر.</value>
+    <value>يمكن لـ GenHub تثبيت بعض هذه العناصر. ثبّت العناصر الأخرى يدويًا، ثم حاول مرة أخرى.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
     <value>لن يُحفظ أي شيء حتى تتوفر هذه العناصر.</value>
@@ -18290,5 +18290,8 @@ Error: فشل: {3}
   </data>
   <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
     <value>عثر GenHub على {0}، لكن ليس بإصدار يعمل مع هذا المحتوى.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>تثبيت العناصر المتاحة</value>
   </data>
 </root>

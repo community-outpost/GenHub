@@ -67,12 +67,73 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
     }
 
     /// <inheritdoc/>
-    public async Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(
+    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(
         string title,
         string content,
         System.Collections.Generic.IEnumerable<DialogAction> actions,
         bool showDoNotAskAgain = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ShowMessageCoreAsync(title, content, actions, showDoNotAskAgain, string.Empty, string.Empty, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageWithDetailsAsync(
+        string title,
+        string content,
+        System.Collections.Generic.IEnumerable<DialogAction> actions,
+        string detailsHeader,
+        string detailsContent,
+        CancellationToken cancellationToken = default) =>
+        ShowMessageCoreAsync(title, content, actions, false, detailsHeader, detailsContent, cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions)
+    {
+        var viewModel = new UpdateOptionDialogViewModel
+        {
+            Title = title,
+            Message = message,
+            DeleteOldVersions = initialDeleteOldVersions,
+        };
+
+        var window = new UpdateOptionDialogWindow
+        {
+            DataContext = viewModel,
+        };
+
+        var mainWindow = GetMainWindow();
+        if (mainWindow != null)
+        {
+            await window.ShowDialog(mainWindow);
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource();
+            window.Closed += (s, e) => tcs.SetResult();
+            window.Show();
+            await tcs.Task;
+        }
+
+        return viewModel.Result;
+    }
+
+    private static Window? GetMainWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            return desktop.MainWindow;
+        }
+
+        return null;
+    }
+
+    private async Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageCoreAsync(
+        string title,
+        string content,
+        System.Collections.Generic.IEnumerable<DialogAction> actions,
+        bool showDoNotAskAgain,
+        string detailsHeader,
+        string detailsContent,
+        CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -81,6 +142,8 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             Title = title,
             Content = content,
             ShowDoNotAskAgain = showDoNotAskAgain,
+            DetailsHeader = detailsHeader,
+            DetailsContent = detailsContent,
         };
 
         foreach (var action in actions)
@@ -122,46 +185,5 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         }
 
         return (viewModel.Result, viewModel.DoNotAskAgain);
-    }
-
-    /// <inheritdoc/>
-    public async Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions)
-    {
-        var viewModel = new UpdateOptionDialogViewModel
-        {
-            Title = title,
-            Message = message,
-            DeleteOldVersions = initialDeleteOldVersions,
-        };
-
-        var window = new UpdateOptionDialogWindow
-        {
-            DataContext = viewModel,
-        };
-
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
-        {
-            await window.ShowDialog(mainWindow);
-        }
-        else
-        {
-            var tcs = new TaskCompletionSource();
-            window.Closed += (s, e) => tcs.SetResult();
-            window.Show();
-            await tcs.Task;
-        }
-
-        return viewModel.Result;
-    }
-
-    private static Window? GetMainWindow()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            return desktop.MainWindow;
-        }
-
-        return null;
     }
 }

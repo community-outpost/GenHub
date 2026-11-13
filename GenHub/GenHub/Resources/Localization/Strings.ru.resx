@@ -18238,10 +18238,10 @@ Error: не удалось: {3}
     <value>Название снимка (необязательно)</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
-    <value>Для {0} нужен компонент {1}</value>
+    <value>Отсутствует необходимый компонент</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
-    <value>Для {0} нужно ещё компонентов: {1}</value>
+    <value>Отсутствуют необходимые компоненты: {0}</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
     <value>{0} работает, только если в профиле есть эти компоненты:</value>
@@ -18250,7 +18250,7 @@ Error: не удалось: {3}
     <value>(нужен для {0})</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
-    <value>Подробности</value>
+    <value>Технические сведения</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
     <value>Установить нужные компоненты</value>
@@ -18271,7 +18271,7 @@ Error: не удалось: {3}
     <value>Кнопка «Установить нужные компоненты» сначала скачает и включит их. Отмена ничего не сохраняет.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
-    <value>Кнопка «Установить нужные компоненты» скачает то, что может GenHub. Ничего не сохранится, пока не будут все компоненты.</value>
+    <value>GenHub может установить часть компонентов. Остальные установите вручную, затем повторите попытку.</value>
   </data>
   <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
     <value>Ничего не сохранится, пока эти компоненты не появятся.</value>
@@ -18290,5 +18290,8 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
     <value>GenHub нашёл {0}, но не ту версию, с которой работает этот контент.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>Установить доступные компоненты</value>
   </data>
 </root>

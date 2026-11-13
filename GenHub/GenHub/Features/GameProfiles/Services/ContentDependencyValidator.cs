@@ -171,9 +171,9 @@ public sealed class ContentDependencyValidator(
 
         // Like the dependency resolver, a version list and a range must both hold.
         if (dependency.CompatibleVersions is { Count: > 0 } &&
-            !dependency.CompatibleVersions.Any(compatible =>
-                string.Equals(compatible, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(compatible, version) == 0))
+            dependency.CompatibleVersions.All(compatible =>
+                !string.Equals(compatible, version, StringComparison.OrdinalIgnoreCase) &&
+                CatalogManifestIdentity.CompareVersions(compatible, version) != 0))
         {
             return false;
         }
