@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Tests.Core.Collections;
 using GenHub.Tests.Shared;
 using System.Diagnostics;
@@ -11,7 +12,72 @@ namespace GenHub.Tests.Core.Infrastructure;
 [Collection(ApplicationEnvironmentCollection.Name)]
 public class TemporaryApplicationEnvironmentTests
 {
-    private const string HomeVariable = "HOME";
+    private sealed class ReleaseOnRetryListener(string rootPath, IDisposable block) : TraceListener
+    {
+        public bool Released { get; private set; }
+
+        public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
+        {
+            ReleaseIfRetry(eventType, message);
+        }
+
+        public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? format, params object?[]? args)
+        {
+            ReleaseIfRetry(eventType, args is null ? format : string.Format(System.Globalization.CultureInfo.InvariantCulture, format ?? string.Empty, args));
+        }
+
+        public override void Write(string? message)
+        {
+        }
+
+        public override void WriteLine(string? message)
+        {
+        }
+
+        private void ReleaseIfRetry(TraceEventType eventType, string? message)
+        {
+            if (Released || eventType != TraceEventType.Information || message?.Contains(rootPath, StringComparison.Ordinal) != true)
+            {
+                return;
+            }
+
+            block.Dispose();
+            Released = true;
+        }
+    }
+
+    [UnsupportedOSPlatform("windows")]
+    private sealed class ReadOnlyDirectory : IDisposable
+    {
+        private readonly string _path;
+        private readonly UnixFileMode _originalMode;
+
+        public ReadOnlyDirectory(string path)
+        {
+            _path = path;
+            _originalMode = File.GetUnixFileMode(path);
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(_path))
+            {
+                File.SetUnixFileMode(_path, _originalMode);
+            }
+        }
+    }
+
+    private static readonly string[] RedirectedVariables =
+    [
+        StorageMigrationConstants.AppDataPathEnvVar,
+        "APPDATA",
+        "LOCALAPPDATA",
+        "USERPROFILE",
+        "HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+    ];
 
     /// <summary>
     /// Verifies that disposing restores the environment and deletes the tree when nothing holds it.
@@ -19,14 +85,16 @@ public class TemporaryApplicationEnvironmentTests
     [Fact]
     public void Dispose_WhenNothingInterferes_RestoresEnvironmentAndDeletesTree()
     {
-        var originalHome = Environment.GetEnvironmentVariable(HomeVariable);
+        var originalValues = CaptureRedirectedVariables();
         using var environment = new TemporaryApplicationEnvironment();
         File.WriteAllText(Path.Combine(environment.AppDataPath, "late.log"), "entry");
-        Assert.Equal(environment.RootPath, Environment.GetEnvironmentVariable(HomeVariable));
+        Assert.All(
+            CaptureRedirectedVariables().Values,
+            value => Assert.StartsWith(environment.RootPath, value, StringComparison.Ordinal));
 
         ((IDisposable)environment).Dispose();
 
-        Assert.Equal(originalHome, Environment.GetEnvironmentVariable(HomeVariable));
+        Assert.Equal(originalValues, CaptureRedirectedVariables());
         Assert.False(Directory.Exists(environment.RootPath));
     }
 
@@ -36,7 +104,7 @@ public class TemporaryApplicationEnvironmentTests
     [NonRootFact]
     public void Dispose_WhenTreeCannotBeDeleted_LeavesTreeWithoutThrowing()
     {
-        var originalHome = Environment.GetEnvironmentVariable(HomeVariable);
+        var originalValues = CaptureRedirectedVariables();
         using var environment = new TemporaryApplicationEnvironment();
         var heldFile = CreateHeldFile(environment);
 
@@ -48,7 +116,7 @@ public class TemporaryApplicationEnvironmentTests
 
                 Assert.Null(failure);
                 Assert.True(File.Exists(heldFile));
-                Assert.Equal(originalHome, Environment.GetEnvironmentVariable(HomeVariable));
+                Assert.Equal(originalValues, CaptureRedirectedVariables());
             }
         }
         finally
@@ -116,6 +184,9 @@ public class TemporaryApplicationEnvironmentTests
         }
     }
 
+    private static Dictionary<string, string?> CaptureRedirectedVariables() =>
+        RedirectedVariables.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+
     private static string CreateHeldFile(TemporaryApplicationEnvironment environment)
     {
         var heldFile = Path.Combine(environment.AppDataPath, "held.log");
@@ -162,62 +233,6 @@ public class TemporaryApplicationEnvironmentTests
         if (Directory.Exists(path))
         {
             Directory.Delete(path, recursive: true);
-        }
-    }
-
-    private sealed class ReleaseOnRetryListener(string rootPath, IDisposable block) : TraceListener
-    {
-        public bool Released { get; private set; }
-
-        public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? message)
-        {
-            ReleaseIfRetry(eventType, message);
-        }
-
-        public override void TraceEvent(TraceEventCache? eventCache, string source, TraceEventType eventType, int id, string? format, params object?[]? args)
-        {
-            ReleaseIfRetry(eventType, args is null ? format : string.Format(System.Globalization.CultureInfo.InvariantCulture, format ?? string.Empty, args));
-        }
-
-        public override void Write(string? message)
-        {
-        }
-
-        public override void WriteLine(string? message)
-        {
-        }
-
-        private void ReleaseIfRetry(TraceEventType eventType, string? message)
-        {
-            if (Released || eventType != TraceEventType.Information || message?.Contains(rootPath, StringComparison.Ordinal) != true)
-            {
-                return;
-            }
-
-            block.Dispose();
-            Released = true;
-        }
-    }
-
-    [UnsupportedOSPlatform("windows")]
-    private sealed class ReadOnlyDirectory : IDisposable
-    {
-        private readonly string _path;
-        private readonly UnixFileMode _originalMode;
-
-        public ReadOnlyDirectory(string path)
-        {
-            _path = path;
-            _originalMode = File.GetUnixFileMode(path);
-            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserExecute);
-        }
-
-        public void Dispose()
-        {
-            if (Directory.Exists(_path))
-            {
-                File.SetUnixFileMode(_path, _originalMode);
-            }
         }
     }
 }
