@@ -74,21 +74,21 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         IReadOnlyCollection<string>? allowedBaseRelativePaths = null,
         IReadOnlyList<string>? overlayModPaths = null)
     {
-        var sideloadsPart = sideloadPaths != null && sideloadPaths.Count > 0 ? string.Join(';', sideloadPaths) : string.Empty;
+        var sideloadsPart = sideloadPaths is { Count: > 0 } ? string.Join(';', sideloadPaths) : string.Empty;
         var baseKey = $"{gameRootPath}|{gameType}|{sideloadsPart}|{modPath}";
 
         // An explicitly empty allow-list excludes every base file, which differs from
         // the unrestricted scan, so only a null allow-list reuses the legacy key.
-        if (allowedBaseRelativePaths == null &&
-            (overlayModPaths == null || overlayModPaths.Count == 0))
+        if (allowedBaseRelativePaths is null &&
+            (overlayModPaths is null or { Count: 0 }))
         {
             return baseKey;
         }
 
-        var allowedPart = allowedBaseRelativePaths != null && allowedBaseRelativePaths.Count > 0
+        var allowedPart = allowedBaseRelativePaths is { Count: > 0 }
             ? string.Join(';', allowedBaseRelativePaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             : string.Empty;
-        var overlaysPart = overlayModPaths != null && overlayModPaths.Count > 0
+        var overlaysPart = overlayModPaths is { Count: > 0 }
             ? string.Join(';', overlayModPaths)
             : string.Empty;
         return $"{baseKey}|base:{allowedPart}|overlays:{overlaysPart}";
@@ -149,7 +149,7 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         => CalculateExeCrcAsync(executablePath, gameRootPath, major, minor, gameType: null, ct);
 
     /// <inheritdoc/>
-    public async Task<OperationResult<string>> CalculateExeCrcAsync(
+    public Task<OperationResult<string>> CalculateExeCrcAsync(
         string executablePath,
         string? gameRootPath,
         int? major,
@@ -159,68 +159,45 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
     {
         if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
         {
-            return OperationResult<string>.CreateFailure($"Executable not found at '{executablePath}'.");
+            return Task.FromResult(OperationResult<string>.CreateFailure($"Executable not found at '{executablePath}'."));
         }
 
-        try
+        var fileInfo = new FileInfo(executablePath);
+        string root = gameRootPath ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
+        var cacheKey = $"{fileInfo.FullName}|{gameRootPath}|{major}|{minor}|{gameType}";
+        return CalculateExeCrcCoreAsync(
+            executablePath,
+            root,
+            cacheKey,
+            exeBytes => ResolveVersion(exeBytes, executablePath, major, minor, gameType),
+            AddVersionBytes,
+            includeSkirmishScripts: true,
+            ct: ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<OperationResult<string>> CalculateEngineExeCrcAsync(
+        string executablePath,
+        GameType gameType,
+        string? scriptsRoot = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath) || !File.Exists(executablePath))
         {
-            var fileInfo = new FileInfo(executablePath);
-            string root = gameRootPath ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
-            var scriptsSig = GetScriptsSignature(root);
-            var cacheKey = $"{fileInfo.FullName}|{gameRootPath}|{major}|{minor}|{gameType}";
-
-            if (ExeCrcCache.TryGetValue(cacheKey, out var cached) &&
-                cached.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc &&
-                cached.FileLength == fileInfo.Length &&
-                cached.SkirmishTicks == scriptsSig.SkirmishTicks &&
-                cached.SkirmishLength == scriptsSig.SkirmishLength &&
-                cached.MpTicks == scriptsSig.MpTicks &&
-                cached.MpLength == scriptsSig.MpLength)
-            {
-                return OperationResult<string>.CreateSuccess(cached.Crc);
-            }
-
-            return await Task.Run(
-                () =>
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    var readResult = ReadExecutableBytes(executablePath);
-                    if (!readResult.Success || readResult.Data == null)
-                    {
-                        var errorMessage = readResult.Errors.Count > 0 ? readResult.Errors[0] : "Failed to read executable.";
-                        return OperationResult<string>.CreateFailure(errorMessage);
-                    }
-
-                    var exeBytes = readResult.Data;
-
-                    var crc = new LegacyChecksum();
-                    crc.Add(exeBytes);
-
-                    var (resolvedMajor, resolvedMinor) = ResolveVersion(exeBytes, executablePath, major, minor, gameType);
-                    AddVersionBytes(crc, resolvedMajor, resolvedMinor);
-
-                    bool scriptsReadSuccessfully = AddScriptFiles(crc, root);
-                    if (!scriptsReadSuccessfully)
-                    {
-                        return OperationResult<string>.CreateFailure($"Failed to read script files for executable CRC calculation in '{root}'.");
-                    }
-
-                    var calculatedCrc = $"0x{crc.Value:X8}";
-                    ExeCrcCache[cacheKey] = (fileInfo.LastWriteTimeUtc, fileInfo.Length, scriptsSig.SkirmishTicks, scriptsSig.SkirmishLength, scriptsSig.MpTicks, scriptsSig.MpLength, calculatedCrc);
-
-                    return OperationResult<string>.CreateSuccess(calculatedCrc);
-                },
-                ct);
+            return Task.FromResult(OperationResult<string>.CreateFailure($"Executable not found at '{executablePath}'."));
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return OperationResult<string>.CreateFailure($"Failed to calculate executable CRC: {ex.Message}");
-        }
+
+        var fileInfo = new FileInfo(executablePath);
+        string root = scriptsRoot ?? Path.GetDirectoryName(executablePath) ?? string.Empty;
+        var cacheKey = $"engine|{fileInfo.FullName}|{root}|{gameType}";
+        return CalculateExeCrcCoreAsync(
+            executablePath,
+            root,
+            cacheKey,
+            _ => ResolveEngineVersion(gameType),
+            AddEngineVersionBytes,
+            includeSkirmishScripts: true,
+            ct: ct);
     }
 
     /// <inheritdoc/>
@@ -260,11 +237,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         {
             return await inFlightTask.WaitAsync(ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (IOException ex)
         {
-            throw;
+            return OperationResult<string>.CreateFailure($"Failed to calculate INI CRC: {ex.Message}");
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
             return OperationResult<string>.CreateFailure($"Failed to calculate INI CRC: {ex.Message}");
         }
@@ -290,6 +267,99 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         }
     }
 
+    private static async Task<OperationResult<string>> CalculateExeCrcCoreAsync(
+        string executablePath,
+        string root,
+        string cacheKey,
+        Func<byte[], (int Major, int Minor)> resolveVersion,
+        Action<LegacyChecksum, int, int> appendVersion,
+        bool includeSkirmishScripts,
+        CancellationToken ct)
+    {
+        try
+        {
+            var fileInfo = new FileInfo(executablePath);
+            var scriptsSig = GetScriptsSignature(root, includeSkirmishScripts);
+
+            if (ExeCrcCache.TryGetValue(cacheKey, out var cached) &&
+                cached.LastWriteTimeUtc == fileInfo.LastWriteTimeUtc &&
+                cached.FileLength == fileInfo.Length &&
+                cached.SkirmishTicks == scriptsSig.SkirmishTicks &&
+                cached.SkirmishLength == scriptsSig.SkirmishLength &&
+                cached.MpTicks == scriptsSig.MpTicks &&
+                cached.MpLength == scriptsSig.MpLength)
+            {
+                return OperationResult<string>.CreateSuccess(cached.Crc);
+            }
+
+            return await Task.Run(
+                () =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var readResult = ReadExecutableBytes(executablePath);
+                    if (!readResult.Success || readResult.Data == null)
+                    {
+                        var errorMessage = readResult.Errors.Count > 0 ? readResult.Errors[0] : "Failed to read executable.";
+                        return OperationResult<string>.CreateFailure(errorMessage);
+                    }
+
+                    var exeBytes = readResult.Data;
+
+                    var crc = new LegacyChecksum();
+                    crc.Add(exeBytes);
+
+                    var (resolvedMajor, resolvedMinor) = resolveVersion(exeBytes);
+                    appendVersion(crc, resolvedMajor, resolvedMinor);
+
+                    bool scriptsReadSuccessfully = AddScriptFiles(crc, root, includeSkirmishScripts);
+                    if (!scriptsReadSuccessfully)
+                    {
+                        return OperationResult<string>.CreateFailure($"Failed to read script files for executable CRC calculation in '{root}'.");
+                    }
+
+                    var calculatedCrc = $"0x{crc.Value:X8}";
+                    ExeCrcCache[cacheKey] = (fileInfo.LastWriteTimeUtc, fileInfo.Length, scriptsSig.SkirmishTicks, scriptsSig.SkirmishLength, scriptsSig.MpTicks, scriptsSig.MpLength, calculatedCrc);
+
+                    return OperationResult<string>.CreateSuccess(calculatedCrc);
+                },
+                ct);
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<string>.CreateFailure($"Failed to calculate executable CRC: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<string>.CreateFailure($"Failed to calculate executable CRC: {ex.Message}");
+        }
+    }
+
+    private static (int Major, int Minor) ResolveEngineVersion(GameType gameType)
+    {
+        // Compiled engine versions (VERSION_MAJOR/VERSION_MINOR in the GeneralsMD/Generals build).
+        return gameType switch
+        {
+            GameType.Generals => (1, 8),
+            _ => (1, 4),
+        };
+    }
+
+    private static void AddEngineVersionBytes(LegacyChecksum crc, int major, int minor)
+    {
+        // The engine packs the version as one little-endian uint: (major << 16) | minor.
+        uint version = unchecked(((uint)major << 16) | (uint)minor);
+        byte[] versionBytes =
+        [
+            (byte)(version & 0xFF),
+            (byte)((version >> 8) & 0xFF),
+            (byte)((version >> 16) & 0xFF),
+            (byte)((version >> 24) & 0xFF),
+        ];
+
+        crc.Add(versionBytes);
+    }
+
     private static (int Major, int Minor) ResolveVersion(
         byte[] exeBytes,
         string executablePath,
@@ -307,25 +377,18 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         }
         else if (gameType.HasValue)
         {
-            detectedMajor = 1;
-            detectedMinor = gameType.Value == GameType.ZeroHour ? 4 : 8;
+            (detectedMajor, detectedMinor) = ResolveEngineVersion(gameType.Value);
         }
         else
         {
             // Fallback based on executable filename and immediate parent directory convention
             var fileName = Path.GetFileName(executablePath).ToLowerInvariant();
             var dirName = Path.GetFileName(Path.GetDirectoryName(executablePath) ?? string.Empty).ToLowerInvariant();
-            if (fileName.Contains("zh") || fileName.Contains("generalsmd") ||
-                dirName.Contains("zerohour") || dirName.Contains("zero hour") || dirName.Contains("zh"))
-            {
-                detectedMajor = 1;
-                detectedMinor = 4;
-            }
-            else
-            {
-                detectedMajor = 1;
-                detectedMinor = 8;
-            }
+            var resolvedType = fileName.Contains("zh") || fileName.Contains("generalsmd") ||
+                dirName.Contains("zerohour") || dirName.Contains("zero hour") || dirName.Contains("zh")
+                ? GameType.ZeroHour
+                : GameType.Generals;
+            (detectedMajor, detectedMinor) = ResolveEngineVersion(resolvedType);
         }
 
         return (major ?? detectedMajor, minor ?? detectedMinor);
@@ -348,17 +411,20 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         crc.Add(versionBytes);
     }
 
-    private static (long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength) GetScriptsSignature(string root)
+    private static (long SkirmishTicks, long SkirmishLength, long MpTicks, long MpLength) GetScriptsSignature(string root, bool includeSkirmish = true)
     {
         long sTicks = 0, sLen = 0, mTicks = 0, mLen = 0;
         if (!string.IsNullOrEmpty(root))
         {
-            var sPath = Path.Combine(root, SageChecksumConstants.SkirmishScriptsRelativePath);
-            if (File.Exists(sPath))
+            if (includeSkirmish)
             {
-                var fi = new FileInfo(sPath);
-                sTicks = fi.LastWriteTimeUtc.Ticks;
-                sLen = fi.Length;
+                var sPath = Path.Combine(root, SageChecksumConstants.SkirmishScriptsRelativePath);
+                if (File.Exists(sPath))
+                {
+                    var fi = new FileInfo(sPath);
+                    sTicks = fi.LastWriteTimeUtc.Ticks;
+                    sLen = fi.Length;
+                }
             }
 
             var mPath = Path.Combine(root, SageChecksumConstants.MultiplayerScriptsRelativePath);
@@ -425,7 +491,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 UpdateFreshnessFromDirectory(accumulator, path);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Suppress transient I/O exceptions during signature calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Suppress transient I/O exceptions during signature calculation
         }
@@ -455,7 +525,11 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 accumulator.AddFile(file);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Tolerate transient I/O issues during freshness calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Tolerate transient I/O issues during freshness calculation
         }
@@ -479,13 +553,17 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
                 accumulator.AddFile(file);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Tolerate transient I/O issues during freshness calculation
+        }
+        catch (UnauthorizedAccessException)
         {
             // Tolerate transient I/O issues during freshness calculation
         }
     }
 
-    private static bool AddScriptFiles(LegacyChecksum crc, string root)
+    private static bool AddScriptFiles(LegacyChecksum crc, string root, bool includeSkirmish = true)
     {
         if (string.IsNullOrEmpty(root))
         {
@@ -493,10 +571,13 @@ public sealed class GameCrcCalculatorService : IGameCrcCalculatorService
         }
 
         bool success = true;
-        string skirmishPath = Path.Combine(root, SageChecksumConstants.SkirmishScriptsRelativePath);
-        if (File.Exists(skirmishPath))
+        if (includeSkirmish)
         {
-            success &= TryAddFileBytes(crc, skirmishPath);
+            string skirmishPath = Path.Combine(root, SageChecksumConstants.SkirmishScriptsRelativePath);
+            if (File.Exists(skirmishPath))
+            {
+                success &= TryAddFileBytes(crc, skirmishPath);
+            }
         }
 
         string mpPath = Path.Combine(root, SageChecksumConstants.MultiplayerScriptsRelativePath);

@@ -52,6 +52,36 @@ public class BoolToVisibilityConverterTests
     }
 
     /// <summary>
+    /// Tests that Convert with true value and boolean target returns true.
+    /// </summary>
+    [Fact]
+    public void Convert_WithTrueValueAndBoolTarget_ReturnsTrue()
+    {
+        var result = _converter.Convert(true, typeof(bool), null, _culture);
+        Assert.True(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
+    /// Tests that Convert with false value and boolean target returns false.
+    /// </summary>
+    [Fact]
+    public void Convert_WithFalseValueAndBoolTarget_ReturnsFalse()
+    {
+        var result = _converter.Convert(false, typeof(bool), null, _culture);
+        Assert.False(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
+    /// Tests that Convert with null value and boolean target returns false.
+    /// </summary>
+    [Fact]
+    public void Convert_WithNullValueAndBoolTarget_ReturnsFalse()
+    {
+        var result = _converter.Convert(null, typeof(bool), null, _culture);
+        Assert.False(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
     /// Tests that <see cref="BoolToVisibilityConverter.ConvertBack"/> throws NotImplementedException.
     /// </summary>
     [Fact]

@@ -52,6 +52,26 @@ public class InvertedBoolToVisibilityConverterTests
     }
 
     /// <summary>
+    /// Tests that <see cref="InvertedBoolToVisibilityConverter.Convert"/> returns false for a true value with a boolean target.
+    /// </summary>
+    [Fact]
+    public void Convert_WithTrueValueAndBoolTarget_ReturnsFalse()
+    {
+        var result = _converter.Convert(true, typeof(bool), null, _culture);
+        Assert.False(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="InvertedBoolToVisibilityConverter.Convert"/> returns true for a false value with a boolean target.
+    /// </summary>
+    [Fact]
+    public void Convert_WithFalseValueAndBoolTarget_ReturnsTrue()
+    {
+        var result = _converter.Convert(false, typeof(bool), null, _culture);
+        Assert.True(Assert.IsType<bool>(result));
+    }
+
+    /// <summary>
     /// Tests that <see cref="InvertedBoolToVisibilityConverter.ConvertBack"/> throws <see cref="NotSupportedException"/>.
     /// </summary>
     [Fact]

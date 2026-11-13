@@ -1,6 +1,7 @@
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.GeneralsOnline;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Shortcuts;
@@ -14,6 +15,7 @@ using GenHub.Windows.Features.ActionSets;
 using GenHub.Windows.Features.ActionSets.Fixes;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using GenHub.Windows.Features.ActionSets.UI;
+using GenHub.Windows.Features.GeneralsOnline.Services;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.Features.Shortcuts;
 using GenHub.Windows.Features.Storage;
@@ -46,6 +48,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IGamePathProvider, WindowsGamePathProvider>();
         services.AddSingleton<ISymlinkCapabilityProvider, WindowsSymlinkCapabilityProvider>();
         services.AddSingleton<IGitHubTokenStorage, WindowsGitHubTokenStorage>();
+        services.AddSingleton<IGeneralsOnlineTokenStorage, WindowsGeneralsOnlineTokenStorage>();
         services.AddSingleton<IShortcutService, WindowsShortcutService>();
         services.Replace(ServiceDescriptor.Singleton<IInstallationLocationTracker, WindowsInstallationTracker>());
         services.Replace(ServiceDescriptor.Singleton<IInstallationSearchPathProvider, WindowsInstallationSearchPathProvider>());

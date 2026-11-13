@@ -5,7 +5,7 @@ using System.Globalization;
 namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
-/// Converts a boolean to Avalonia.Controls.Visibility.Visible or Collapsed.
+/// Converts a boolean to visible or hidden for IsVisible bindings.
 /// </summary>
 public class BoolToVisibilityConverter : IValueConverter
 {
@@ -17,6 +17,13 @@ public class BoolToVisibilityConverter : IValueConverter
     /// <inheritdoc />
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
+        // IsVisible is a bool in Avalonia: returning "Collapsed" or "Visible"
+        // strings leaves the binding unresolved and the control visible.
+        if (targetType == typeof(bool) || targetType == typeof(bool?))
+        {
+            return value is true;
+        }
+
         if (value is bool isVisible)
         {
             return isVisible ? "Visible" : "Collapsed";
