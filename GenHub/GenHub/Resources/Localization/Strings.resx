@@ -3355,13 +3355,13 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>Interface Primary Color</value>
   </data>
-  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Content</value>
   </data>
-  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.ProfileSettings" xml:space="preserve">
     <value>Profile Settings</value>
   </data>
-  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.GameSettings" xml:space="preserve">
     <value>Game Settings</value>
   </data>
   <data name="GameSettings.Category.Video" xml:space="preserve">
@@ -18295,5 +18295,41 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
+    <value>These settings are locked while the game is running. Close the game to change them.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Name" xml:space="preserve">
+    <value>Link files (recommended)</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Description" xml:space="preserve">
+    <value>Links game files instead of copying them. Uses almost no extra disk space.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
+    <value>If the game and workspace are on different drives, needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
+    <value>Symbolic links</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Description" xml:space="preserve">
+    <value>Points to game files with symbolic links. Works across drives.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.WindowsNote" xml:space="preserve">
+    <value>Needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Name" xml:space="preserve">
+    <value>Copy game files, link loose media</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Description" xml:space="preserve">
+    <value>Copies game archives, programs and settings. Links only loose textures, audio and video. Uses nearly as much disk space as a full copy.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.WindowsNote" xml:space="preserve">
+    <value>Linking needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Name" xml:space="preserve">
+    <value>Copy all files</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
+    <value>Copies every file into the workspace. Works everywhere but uses the most disk space.</value>
   </data>
 </root>

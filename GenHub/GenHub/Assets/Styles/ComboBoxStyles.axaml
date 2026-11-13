@@ -1,5 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core">
 
     <Design.PreviewWith>
         <Border Padding="20" Background="#08080C" Width="300" Height="300">
@@ -250,5 +252,47 @@
         <Setter Property="MinHeight" Value="30" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <!-- Workspace strategy picker: plain name and description in the list, name only when closed -->
+    <Style Selector="ComboBox.workspace-strategy">
+        <Setter Property="ItemTemplate">
+            <DataTemplate x:DataType="enums:WorkspaceStrategy">
+                <StackPanel Spacing="2" Margin="0,2">
+                    <TextBlock>
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Name}">
+                                <Binding />
+                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock FontSize="11"
+                               Opacity="0.7"
+                               MaxWidth="360"
+                               HorizontalAlignment="Left"
+                               TextWrapping="Wrap">
+                        <TextBlock.Text>
+                            <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
+                                <Binding />
+                                <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                            </MultiBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+            </DataTemplate>
+        </Setter>
+        <Setter Property="SelectionBoxItemTemplate">
+            <DataTemplate x:DataType="enums:WorkspaceStrategy">
+                <TextBlock>
+                    <TextBlock.Text>
+                        <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Name}">
+                            <Binding />
+                            <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+            </DataTemplate>
+        </Setter>
     </Style>
 </Styles>

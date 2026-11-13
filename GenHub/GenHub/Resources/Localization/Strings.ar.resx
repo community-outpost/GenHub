@@ -3355,13 +3355,13 @@
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>اللون الأساسي للواجهة</value>
   </data>
-  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>المحتوى</value>
   </data>
-  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.ProfileSettings" xml:space="preserve">
     <value>إعدادات الملف الشخصي</value>
   </data>
-  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.GameSettings" xml:space="preserve">
     <value>إعدادات اللعبة</value>
   </data>
   <data name="GameSettings.Category.Video" xml:space="preserve">
@@ -18236,5 +18236,41 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
+    <value>هذه الإعدادات مقفلة أثناء تشغيل اللعبة. أغلق اللعبة لتغييرها.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Name" xml:space="preserve">
+    <value>ربط الملفات (موصى به)</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Description" xml:space="preserve">
+    <value>يربط ملفات اللعبة بدلاً من نسخها. لا يستخدم تقريباً أي مساحة إضافية على القرص.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
+    <value>إذا كانت اللعبة ومساحة العمل على محركي أقراص مختلفين، يتطلب صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
+    <value>روابط رمزية</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Description" xml:space="preserve">
+    <value>يشير إلى ملفات اللعبة عبر روابط رمزية. يعمل عبر محركات الأقراص المختلفة.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.WindowsNote" xml:space="preserve">
+    <value>يتطلب صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Name" xml:space="preserve">
+    <value>نسخ ملفات اللعبة وربط الوسائط المنفصلة</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Description" xml:space="preserve">
+    <value>ينسخ أرشيفات اللعبة والبرامج والإعدادات. يربط فقط ملفات الصور والصوت والفيديو المنفصلة. يستخدم مساحة تقارب مساحة النسخ الكامل.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.WindowsNote" xml:space="preserve">
+    <value>يتطلب الربط صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Name" xml:space="preserve">
+    <value>نسخ كل الملفات</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
+    <value>ينسخ كل ملف إلى مساحة العمل. يعمل في كل مكان لكنه يستخدم أكبر مساحة على القرص.</value>
   </data>
 </root>
