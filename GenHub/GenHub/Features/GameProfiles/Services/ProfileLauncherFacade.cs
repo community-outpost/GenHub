@@ -1351,7 +1351,7 @@ public class ProfileLauncherFacade(
                     "GameProfiles.MissingDependencies.LaunchError",
                     "{0} can't launch. It needs {1}.",
                     profile.Name,
-                    string.Join(", ", missingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap)))),
+                    string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, missingDependencies))),
                 missingDependencies,
                 profileId: profile.Id);
         }
@@ -1621,8 +1621,8 @@ public class ProfileLauncherFacade(
 
     /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
-    /// Unparseable version strings that do not match <see cref="ContentDependency.CompatibleVersions"/>
-    /// intentionally fail numeric min/max range checks by design.
+    /// A version with no digits is accepted, as in the shared validator. Other unparseable version strings
+    /// that do not match <see cref="ContentDependency.CompatibleVersions"/> intentionally fail numeric min/max range checks.
     /// </summary>
     /// <param name="version">The version to check.</param>
     /// <param name="dependency">The dependency with version requirements.</param>
@@ -1632,7 +1632,7 @@ public class ProfileLauncherFacade(
         // Like the shared validator, a manifest without a comparable version is not rejected for it.
         if (string.IsNullOrWhiteSpace(version) ||
             string.Equals(version, ManifestConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-            !version.Any(char.IsDigit))
+            version.All(character => !char.IsDigit(character)))
         {
             return true;
         }

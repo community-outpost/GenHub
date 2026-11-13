@@ -2488,7 +2488,7 @@ public partial class GameProfileLauncherViewModel(
                 "GameProfiles.MissingDependencies.LaunchError",
                 "{0} can't launch. It needs {1}.",
                 profile.Name,
-                string.Join(", ", addResult.MissingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap))));
+                string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, addResult.MissingDependencies)));
         }
 
         if (addResult.Failed)
