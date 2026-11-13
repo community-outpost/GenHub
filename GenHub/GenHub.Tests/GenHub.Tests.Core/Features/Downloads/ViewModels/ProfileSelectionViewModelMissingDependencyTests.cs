@@ -186,8 +186,8 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         Assert.Equal("3 required items are missing", Assert.Single(_dialogTitles));
         var content = Assert.Single(_dialogContents);
         var body = content;
-        Assert.Contains("**GenTool**", body, StringComparison.Ordinal);
-        Assert.Contains("**Control Bar Pro (Core)**", body, StringComparison.Ordinal);
+        Assert.Contains("**\u2060GenTool**", body, StringComparison.Ordinal);
+        Assert.Contains("**\u2060Control Bar Pro (Core)**", body, StringComparison.Ordinal);
         Assert.Contains("GenHub can't download this", body, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("gameinstallation", body, StringComparison.OrdinalIgnoreCase);
@@ -334,7 +334,8 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         var content = Assert.Single(_dialogContents);
-        Assert.Contains("\\[Free Coins\\](http://example.invalid)", content, StringComparison.Ordinal);
+        Assert.Contains("Free Coins", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("](", content, StringComparison.Ordinal);
     }
 
     private void SetupInstall(OperationResult<IReadOnlyList<string>> result) =>

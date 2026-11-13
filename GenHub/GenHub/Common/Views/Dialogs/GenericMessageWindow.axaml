@@ -9,6 +9,7 @@
         xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        xmlns:markdown="clr-namespace:GenHub.Infrastructure.Markdown;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
         x:Class="GenHub.Common.Views.Dialogs.GenericMessageWindow"
         x:DataType="vm:GenericMessageViewModel"
@@ -63,6 +64,11 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
     </Window.Styles>
+
+    <Window.Resources>
+        <markdown:SafeMarkdownHyperlinkCommand x:Key="SafeMarkdownHyperlinkCommand" />
+        <markdown:SafeMarkdownPathResolver x:Key="SafeMarkdownPathResolver" />
+    </Window.Resources>
 
     <Border CornerRadius="16" ClipToBounds="True">
         <Panel>
@@ -165,6 +171,10 @@
                 <StackPanel Grid.Row="1" Spacing="12" Margin="0,0,0,24">
                 <md:MarkdownScrollViewer Markdown="{Binding Content}" MaxHeight="320"
                                          TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+                    <md:MarkdownScrollViewer.Plugins>
+                        <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                        PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                    </md:MarkdownScrollViewer.Plugins>
                     <md:MarkdownScrollViewer.Styles>
                          <Style Selector="Border.Note">
                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>

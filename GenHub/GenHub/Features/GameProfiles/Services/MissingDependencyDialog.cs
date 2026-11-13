@@ -18,8 +18,8 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 public static class MissingDependencyDialog
 {
-    private const string MarkdownSpecialCharacters = "\\`*_[]<>";
-    private const string MarkdownLineStartCharacters = "#-+=|";
+    private const string RendererEscapedCharacters = "\\*_~%:";
+    private const char WordJoiner = '\u2060';
 
     /// <summary>
     /// Shows the dialog and waits for the player's choice.
@@ -60,7 +60,7 @@ public static class MissingDependencyDialog
         }
 
         var (action, _) = await dialogService.ShowMessageWithDetailsAsync(
-            BuildTitle(localizationService, contentName, missingDependencies),
+            BuildTitle(localizationService, missingDependencies),
             BuildContent(localizationService, contentName, missingDependencies),
             actions,
             localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Details", "Technical details"),
@@ -71,22 +71,21 @@ public static class MissingDependencyDialog
     }
 
     /// <summary>
-    /// Builds the dialog title, which names the single missing item or counts several.
+    /// Builds the dialog title, which says one item is missing or counts several.
     /// </summary>
     /// <param name="localizationService">The localization service, or null to use English.</param>
-    /// <param name="contentName">The name to show when the items are needed by more than one content item.</param>
     /// <param name="missingDependencies">The missing items.</param>
     /// <returns>The title.</returns>
     public static string BuildTitle(
         ILocalizationService? localizationService,
-        string contentName,
         IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
         ArgumentNullException.ThrowIfNull(missingDependencies);
 
-        return missingDependencies.Count == 1
+        var itemCount = GroupByItem(missingDependencies).Count;
+        return itemCount == 1
             ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Title.Single", "One required item is missing")
-            : localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Title.Multiple", "{0} required items are missing", missingDependencies.Count);
+            : localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Title.Multiple", "{0} required items are missing", itemCount);
     }
 
     /// <summary>
@@ -113,20 +112,22 @@ public static class MissingDependencyDialog
             EscapeMarkdown(ownerName)));
         builder.AppendLine();
 
-        foreach (var gap in missingDependencies)
+        foreach (var item in GroupByItem(missingDependencies))
         {
-            builder.Append("- **").Append(EscapeMarkdown(GetDisplayName(localizationService, gap))).Append("**");
-            if (showRequiredBy && !string.IsNullOrWhiteSpace(gap.RequiredByName))
+            builder.Append("- **").Append(EscapeMarkdown(GetDisplayName(localizationService, item.First()))).Append("**");
+            var requiredBy = GetOwnerNames(item);
+            if (showRequiredBy && requiredBy.Count > 0)
             {
                 builder.Append(' ').Append(localizationService.GetLocalizedString(
                     "GameProfiles.MissingDependencies.RequiredBy",
                     "(needed by {0})",
-                    EscapeMarkdown(gap.RequiredByName)));
+                    string.Join(", ", requiredBy.Select(EscapeMarkdown))));
             }
 
-            if (!gap.CanDownload)
+            var manualItem = item.FirstOrDefault(gap => !gap.CanDownload);
+            if (manualItem != null)
             {
-                builder.Append(". ").Append(GetManualInstallHint(localizationService, gap.DependencyType));
+                builder.Append(". ").Append(GetManualInstallHint(localizationService, manualItem.DependencyType));
             }
 
             builder.AppendLine();
@@ -166,7 +167,21 @@ public static class MissingDependencyDialog
             "GameProfiles.MissingDependencies.StillMissing.Message",
             "{0} was not added. It still needs {1}.",
             contentName,
-            string.Join(", ", missingDependencies.Select(gap => GetDisplayName(localizationService, gap))));
+            string.Join(", ", GetDisplayNames(localizationService, missingDependencies)));
+    }
+
+    /// <summary>
+    /// Gets one name per missing item. An item required twice with different version limits is named once.
+    /// </summary>
+    /// <param name="localizationService">The localization service, or null to use English.</param>
+    /// <param name="missingDependencies">The missing items.</param>
+    /// <returns>The player-facing names.</returns>
+    public static IReadOnlyList<string> GetDisplayNames(
+        ILocalizationService? localizationService,
+        IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        ArgumentNullException.ThrowIfNull(missingDependencies);
+        return GroupByItem(missingDependencies).Select(item => GetDisplayName(localizationService, item.First())).ToList();
     }
 
     /// <summary>
@@ -181,33 +196,45 @@ public static class MissingDependencyDialog
             : gap.DisplayName;
 
     /// <summary>
-    /// Escapes Markdown in names taken from manifests, so a name cannot add links or formatting.
+    /// Neutralizes Markdown in names taken from manifests, so a name cannot add links, images,
+    /// formatting or block structure. Markdown.Avalonia removes a backslash only before the
+    /// characters in <see cref="RendererEscapedCharacters"/>, so the other markers are broken
+    /// with an invisible word joiner instead.
     /// </summary>
     private static string EscapeMarkdown(string text)
     {
-        // A name stays on one line, so it cannot start a heading, list, quote or rule.
         var singleLine = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        var builder = new StringBuilder(singleLine.Length);
-        for (var index = 0; index < singleLine.Length; index++)
+        var builder = new StringBuilder(singleLine.Length + 1);
+
+        // A leading joiner means the name never starts a line, so it cannot open a heading, list, quote or rule.
+        builder.Append(WordJoiner);
+        foreach (var character in singleLine)
         {
-            var character = singleLine[index];
-            if (MarkdownSpecialCharacters.Contains(character) ||
-                (index == 0 && MarkdownLineStartCharacters.Contains(character)) ||
-                (character is '.' or ')' && IsOrderedListMarker(singleLine, index)))
+            if (RendererEscapedCharacters.Contains(character))
             {
                 builder.Append('\\');
             }
 
             builder.Append(character);
+
+            // Links and images need "](" and HTML tags need "<" before the tag name, with nothing between.
+            if (character is ']' or '<')
+            {
+                builder.Append(WordJoiner);
+            }
         }
 
         return builder.ToString();
     }
 
-    private static bool IsOrderedListMarker(string text, int index) =>
-        index > 0 && text[..index].All(char.IsDigit);
+    private static List<IGrouping<string, ContentDependencyGap>> GroupByItem(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
+        missingDependencies
+            .GroupBy(
+                gap => string.IsNullOrWhiteSpace(gap.DisplayName) ? $"{gap.DependencyType}:{gap.DependencyId}" : gap.DisplayName,
+                StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-    private static List<string> GetOwnerNames(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
+    private static List<string> GetOwnerNames(IEnumerable<ContentDependencyGap> missingDependencies) =>
         missingDependencies
             .Select(gap => gap.RequiredByName)
             .Where(name => !string.IsNullOrWhiteSpace(name))
@@ -249,7 +276,7 @@ public static class MissingDependencyDialog
         {
             return localizationService.GetLocalizedString(
                 "GameProfiles.MissingDependencies.Outcome.Partial",
-                "Install required items downloads what GenHub can. Nothing is saved until every item is present.");
+                "GenHub can install some of these items. Install the others manually, then try again.");
         }
 
         return localizationService.GetLocalizedString(

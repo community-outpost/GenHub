@@ -248,7 +248,7 @@ public sealed class ContentDependencyValidator(
     /// limits stay separate, so the stricter one is not dropped.
     /// </summary>
     private static string GetGapKey(ContentDependency dependency) =>
-        $"{GetGapIdentityKey(dependency)}|{dependency.MinVersion}|{dependency.MaxVersion}|{dependency.ExactVersion}|{string.Join(",", dependency.CompatibleVersions)}";
+        $"{GetGapIdentityKey(dependency)}|{dependency.MinVersion}|{dependency.MinInclusive}|{dependency.MaxVersion}|{dependency.MaxInclusive}|{dependency.ExactVersion}|{string.Join(",", dependency.CompatibleVersions ?? [])}";
 
     private static string GetGapIdentityKey(ContentDependency dependency)
     {
@@ -259,7 +259,7 @@ public sealed class ContentDependencyValidator(
 
         if (IsFoundationType(dependency.DependencyType) && !dependency.StrictPublisher)
         {
-            return $"{dependency.DependencyType}:{string.Join(",", dependency.CompatibleGameTypes.Order())}";
+            return $"{dependency.DependencyType}:{string.Join(",", (dependency.CompatibleGameTypes ?? []).Order())}";
         }
 
         if (string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))

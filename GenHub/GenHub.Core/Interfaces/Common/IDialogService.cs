@@ -53,14 +53,14 @@ public interface IDialogService
     /// <param name="detailsContent">The diagnostic text.</param>
     /// <param name="cancellationToken">A token that closes the dialog without a result.</param>
     /// <returns>The selected action and checkbox state.</returns>
+    /// <exception cref="OperationCanceledException">The dialog was closed through <paramref name="cancellationToken"/>.</exception>
     Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageWithDetailsAsync(
         string title,
         string content,
         IEnumerable<DialogAction> actions,
         string detailsHeader,
         string detailsContent,
-        CancellationToken cancellationToken = default) =>
-        ShowMessageAsync(title, content, actions, cancellationToken: cancellationToken);
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Shows a custom update option dialog.

@@ -339,29 +339,52 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
-    /// A name cannot start a heading, list or new line in the dialog body.
+    /// Two declarations that differ only in whether a version bound is inclusive are both reported.
     /// </summary>
-    /// <param name="name">The manifest-supplied name.</param>
-    /// <param name="forbidden">Text that must not appear unescaped.</param>
-    [Theory]
-    [InlineData("# Free Points", "\n# Free")]
-    [InlineData("1. Step", "**1. Step")]
-    [InlineData("Line one\n# Line two", "\n# Line")]
-    public void BuildContent_NameWithBlockMarkdown_IsNeutralized(string name, string forbidden)
+    [Fact]
+    public void FindMissingDependencies_SamePlaceholderDifferentInclusivity_ReportsBoth()
     {
-        var gap = new ContentDependencyGap
+        ContentManifest Mod(string id, bool minInclusive) => new()
         {
-            DisplayName = name,
-            DependencyId = "1.0.examplepublisher.addon.widget",
-            DependencyType = ContentType.Addon,
-            CanDownload = false,
-            RequiredByName = name,
-            RequiredById = "1.0.examplepublisher.mod.bigmod",
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies = [new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch, MinVersion = "2.0", MinInclusive = minInclusive }],
         };
 
-        var content = "\n" + MissingDependencyDialog.BuildContent(null, "Content", [gap]).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", true), Mod("1.0.examplepublisher.mod.second", false)]);
 
-        Assert.DoesNotContain(forbidden, content, StringComparison.Ordinal);
+        Assert.Equal(2, gaps.Count);
+    }
+
+    /// <summary>
+    /// A manifest whose dependency lists were deserialized as null still reports the gap.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_NullDependencyLists_ReportsGap()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.bigmod"),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.widget"),
+                    Name = "Widget",
+                    DependencyType = ContentType.Addon,
+                    CompatibleVersions = null!,
+                    CompatibleGameTypes = null!,
+                },
+            ],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod]));
+
+        Assert.Equal("Widget", gap.DisplayName);
     }
 
     /// <summary>

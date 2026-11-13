@@ -814,7 +814,7 @@ public partial class GameProfileSettingsViewModel
                 "GameProfiles.Settings.Notification.MissingDependencies.Item",
                 "• {0} needs {1}",
                 gap.RequiredByName,
-                MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
+                MissingDependencyDialog.GetDisplayName(_localizationService, gap))).Distinct(StringComparer.OrdinalIgnoreCase));
         _localNotificationService.ShowError(
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", "Cannot save profile with missing dependencies:\n\n{0}", names));
