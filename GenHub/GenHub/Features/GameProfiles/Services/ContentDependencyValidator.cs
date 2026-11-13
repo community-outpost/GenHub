@@ -240,6 +240,7 @@ public sealed class ContentDependencyValidator(
             CanDownload = isCommunityOutpostContent && !IsFoundationType(dependency.DependencyType),
             RequiredByName = requiredBy.Name ?? string.Empty,
             RequiredById = requiredBy.Id.Value,
+            ItemKey = GetGapIdentityKey(dependency),
         };
     }
 
