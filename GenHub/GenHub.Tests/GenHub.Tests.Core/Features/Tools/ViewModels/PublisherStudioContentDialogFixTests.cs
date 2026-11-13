@@ -99,9 +99,8 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
         using var vm = new AddContentDialogViewModel(_ => { })
         {
             UseDirectUrl = true,
+            DownloadUrl = url,
         };
-
-        vm.DownloadUrl = url;
 
         Assert.Equal(expectedFilename, string.IsNullOrEmpty(vm.PackageFilename) ? null : vm.PackageFilename);
     }
