@@ -86,15 +86,16 @@ public class CustomTabStudioViewTests
 
     /// <summary>
     /// A detail panel refresh for the same item, such as after removing a screenshot, keeps the author
-    /// on the custom tab they are viewing.
+    /// on the custom tab they are viewing, also when the item's tabs were replaced with new instances.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [AvaloniaFact]
     public async Task ContentLibraryView_DetailRefresh_KeepsViewedCustomTabAsync()
     {
         const string screenshot = "https://example.com/shot.png";
+        const string secondScreenshot = "https://example.com/shot-2.png";
         var item = CreateItem();
-        item.Metadata = new ContentRichMetadata { ScreenshotUrls = [screenshot] };
+        item.Metadata = new ContentRichMetadata { ScreenshotUrls = [screenshot, secondScreenshot] };
         item.CustomTabs =
         [
             new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
@@ -115,7 +116,20 @@ public class CustomTabStudioViewTests
             window.UpdateLayout();
             tabs = view.GetLogicalDescendants().OfType<TabControl>().Single(t => t.Name == "DetailTabs");
 
-            Assert.Empty(item.Metadata!.ScreenshotUrls);
+            Assert.Equal([secondScreenshot], item.Metadata!.ScreenshotUrls);
+            Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, library.SelectedDetailTabIndex);
+            Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, tabs.SelectedIndex);
+
+            item.CustomTabs =
+            [
+                new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
+                new CatalogTabDefinition { TabId = "FAQ", Header = "FAQ", Order = 20 },
+            ];
+            await library.RemoveMediaFromSelectedContentCommand.ExecuteAsync(secondScreenshot);
+            window.UpdateLayout();
+            tabs = view.GetLogicalDescendants().OfType<TabControl>().Single(t => t.Name == "DetailTabs");
+
+            Assert.Empty(item.Metadata.ScreenshotUrls);
             Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, library.SelectedDetailTabIndex);
             Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, tabs.SelectedIndex);
         }

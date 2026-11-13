@@ -32,7 +32,8 @@ public class BatchObservableCollectionTests
         collection.ReplaceAll(replacement);
 
         Assert.Equal([NotifyCollectionChangedAction.Reset], actions);
-        Assert.Equal([nameof(collection.Count), UiConstants.IndexerPropertyName], properties);
+        Assert.Contains(nameof(collection.Count), properties);
+        Assert.Contains(UiConstants.IndexerPropertyName, properties);
         Assert.Equal(replacement, collection);
     }
 

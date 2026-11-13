@@ -1896,6 +1896,11 @@ public partial class ContentLibraryViewModel(
         }
 
         var viewedIndex = viewedTab == null ? -1 : _selectedContentTabSources.IndexOf(viewedTab);
+        if (viewedIndex < 0 && viewedTab != null)
+        {
+            viewedIndex = _selectedContentTabSources.FindIndex(tab => string.Equals(tab.TabId, viewedTab.TabId, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (viewedIndex >= 0)
         {
             SelectedDetailTabIndex = BuiltInDetailTabCount + viewedIndex;
