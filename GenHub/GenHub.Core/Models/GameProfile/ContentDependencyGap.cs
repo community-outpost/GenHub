@@ -36,4 +36,9 @@ public sealed record ContentDependencyGap
     /// Gets the manifest ID of the content that requires the item. Use it for diagnostics only.
     /// </summary>
     public required string RequiredById { get; init; }
+
+    /// <summary>
+    /// Gets the key of the missing item. Requirements for the same item with different version limits share it.
+    /// </summary>
+    public string? ItemKey { get; init; }
 }

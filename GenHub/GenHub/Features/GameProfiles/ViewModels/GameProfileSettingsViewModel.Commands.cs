@@ -654,11 +654,11 @@ public partial class GameProfileSettingsViewModel
             }
 
             var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
-            var installedIds = new List<string>();
+            var unshownInstalledIds = new List<string>();
             while (true)
             {
                 var validatedIds = new List<string>(enabledContentIds);
-                if (!await EnsureRequiredDependenciesAsync(validatedIds))
+                if (!await EnsureRequiredDependenciesAsync(validatedIds, unshownInstalledIds))
                 {
                     return;
                 }
@@ -666,12 +666,10 @@ public partial class GameProfileSettingsViewModel
                 // The editor stays usable while items download, so save what it shows now.
                 // Installed items the editor could not show are kept. A change made meanwhile
                 // is validated again before saving.
-                installedIds.AddRange(validatedIds.Skip(enabledContentIds.Count));
-                var shownIds = EnabledContent.Select(c => c.ManifestId.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var currentIds = EnabledContent
                     .Where(c => c.IsEnabled)
                     .Select(c => c.ManifestId.Value)
-                    .Union(installedIds.Where(id => !shownIds.Contains(id)), StringComparer.OrdinalIgnoreCase)
+                    .Union(unshownInstalledIds, StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 if (currentIds.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(validatedIds))
                 {
@@ -712,8 +710,9 @@ public partial class GameProfileSettingsViewModel
     /// adds them to <paramref name="enabledContentIds"/>, and allows the save once nothing is missing.
     /// </summary>
     /// <param name="enabledContentIds">The content IDs to save. Installed items are appended.</param>
+    /// <param name="unshownInstalledIds">Installed items the editor could not show. They are appended.</param>
     /// <returns><see langword="true"/> when nothing required is missing.</returns>
-    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds)
+    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds, List<string> unshownInstalledIds)
     {
         if (_dependencyValidator == null)
         {
@@ -725,7 +724,7 @@ public partial class GameProfileSettingsViewModel
         _pendingInstallCancellations.Add(cancel);
         try
         {
-            return await EnsureRequiredDependenciesAsync(enabledContentIds, installCancellation.Token);
+            return await EnsureRequiredDependenciesAsync(enabledContentIds, unshownInstalledIds, installCancellation.Token);
         }
         catch (OperationCanceledException ex)
         {
@@ -738,7 +737,10 @@ public partial class GameProfileSettingsViewModel
         }
     }
 
-    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds, CancellationToken cancellationToken)
+    private async Task<bool> EnsureRequiredDependenciesAsync(
+        List<string> enabledContentIds,
+        List<string> unshownInstalledIds,
+        CancellationToken cancellationToken)
     {
         var missingDependencies = await _dependencyValidator!.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
         if (missingDependencies.Count == 0)
@@ -764,6 +766,7 @@ public partial class GameProfileSettingsViewModel
             cancellationToken);
         if (!install)
         {
+            StatusMessage = string.Empty;
             return false;
         }
 
@@ -780,7 +783,10 @@ public partial class GameProfileSettingsViewModel
         foreach (var installedId in installResult.Data.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
         {
             enabledContentIds.Add(installedId);
-            await ShowInstalledItemAsEnabledAsync(installedId, cancellationToken);
+            if (!await ShowInstalledItemAsEnabledAsync(installedId, cancellationToken))
+            {
+                unshownInstalledIds.Add(installedId);
+            }
         }
 
         var stillMissing = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
@@ -794,27 +800,33 @@ public partial class GameProfileSettingsViewModel
     }
 
     /// <summary>
-    /// Adds an installed item to the enabled list, so a later save keeps it even when this save fails.
+    /// Shows an installed item as enabled, so a later save keeps it even when this save fails.
     /// </summary>
-    private async Task ShowInstalledItemAsEnabledAsync(string manifestId, CancellationToken cancellationToken)
+    /// <returns><see langword="false"/> when the editor cannot show the item.</returns>
+    private async Task<bool> ShowInstalledItemAsEnabledAsync(string manifestId, CancellationToken cancellationToken)
     {
-        if (_manifestPool == null ||
-            _profileContentLoader == null ||
-            EnabledContent.Any(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase)))
+        var listed = EnabledContent.FirstOrDefault(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
+        if (listed != null)
         {
-            return;
+            listed.IsEnabled = true;
+            return true;
+        }
+
+        if (_manifestPool == null || _profileContentLoader == null)
+        {
+            return false;
         }
 
         var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
         if (manifestResult.Failed || manifestResult.Data == null)
         {
-            return;
+            return false;
         }
 
         var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
         if (coreItem == null)
         {
-            return;
+            return false;
         }
 
         var item = ConvertToViewModelContentDisplayItem(coreItem);
@@ -825,6 +837,8 @@ public partial class GameProfileSettingsViewModel
         {
             AvailableContent.Remove(available);
         }
+
+        return true;
     }
 
     private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
@@ -832,11 +846,13 @@ public partial class GameProfileSettingsViewModel
         StatusMessage = MissingDependenciesStatus;
         var names = string.Join(
             "\n",
-            missingDependencies.Select(gap => _localizationService.GetLocalizedString(
-                "GameProfiles.Settings.Notification.MissingDependencies.Item",
-                "• {0} needs {1}",
-                gap.RequiredByName,
-                MissingDependencyDialog.GetDisplayName(_localizationService, gap))).Distinct(StringComparer.OrdinalIgnoreCase));
+            missingDependencies
+                .DistinctBy(gap => $"{gap.RequiredById}|{MissingDependencyDialog.GetItemKey(gap)}", StringComparer.OrdinalIgnoreCase)
+                .Select(gap => _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Notification.MissingDependencies.Item",
+                    "• {0} needs {1}",
+                    gap.RequiredByName,
+                    MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
         _localNotificationService.ShowError(
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
             _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", "Cannot save profile with missing dependencies:\n\n{0}", names));

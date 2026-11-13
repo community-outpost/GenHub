@@ -147,7 +147,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Contains("**\u2060GenTool**", body, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("1.1.communityoutpost.addon.gent", Assert.Single(_dialogDetails), StringComparison.Ordinal);
-        Assert.NotEqual("Error: Missing required dependencies", _viewModel.StatusMessage);
+        Assert.Equal(string.Empty, _viewModel.StatusMessage);
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -309,13 +309,120 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
             .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess([]));
         var notifications = new List<NotificationMessage>();
-        using var subscription = _viewModel.LocalNotifications.Subscribe(new NotificationCollector(notifications));
-
-        await _viewModel.SaveCommand.ExecuteAsync(null);
+        var subscription = _viewModel.LocalNotifications.Subscribe(new NotificationCollector(notifications));
+        try
+        {
+            await _viewModel.SaveCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            subscription.Dispose();
+        }
 
         var error = Assert.Single(notifications, notification => notification.Title == "Missing Dependencies");
         Assert.Single(error.Message.Split('\n'), line => line.Contains("needs GenTool", StringComparison.Ordinal));
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// An installed item that is listed in the editor but unchecked is checked, so one install lets the save finish.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_InstalledItemListedButUnchecked_ChecksItAndSavesAsync()
+    {
+        ChosenStyle = NotificationActionStyle.Primary;
+        _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+        {
+            ManifestId = ManifestId.Create(GenToolId),
+            DisplayName = "GenTool",
+            ContentType = ContentType.Addon,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = false,
+        });
+        SetupGenToolInstall();
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Single(_dialogTitles);
+        Assert.True(_viewModel.EnabledContent.Single(item => item.ManifestId.Value == GenToolId).IsEnabled);
+        Assert.Contains(GenToolId, Assert.Single(_createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An installed item the player removes while the save checks again is not saved behind their back.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_InstalledItemRemovedDuringRecheck_IsNotSavedAsync()
+    {
+        const string mapPackId = "1.0.examplepublisher.mappack.tournamentmaps";
+        var mapPackLookups = 0;
+        _manifests[mapPackId] = new ContentManifest
+        {
+            Id = ManifestId.Create(mapPackId),
+            Name = "Tournament Maps",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+        _manifestPool
+            .Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == mapPackId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (++mapPackLookups == 1)
+                {
+                    var genTool = _viewModel.EnabledContent.Single(item => item.ManifestId.Value == GenToolId);
+                    _viewModel.EnabledContent.Remove(genTool);
+                }
+
+                return OperationResult<ContentManifest?>.CreateSuccess(_manifests[mapPackId]);
+            });
+        _contentLoader
+            .Setup(x => x.CreateManifestDisplayItem(It.IsAny<ContentManifest>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
+            .Returns((ContentManifest manifest, string? _, string? _, bool _) => new GenHub.Core.Models.Content.ContentDisplayItem
+            {
+                Id = manifest.Id.Value,
+                ManifestId = manifest.Id.Value,
+                DisplayName = manifest.Name,
+                ContentType = manifest.ContentType,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Unknown,
+            });
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (_dialogTitles.Count > 1)
+                {
+                    return OperationResult<IReadOnlyList<string>>.CreateFailure("GenHub could not download GenTool.");
+                }
+
+                _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+                {
+                    ManifestId = ManifestId.Create(mapPackId),
+                    DisplayName = "Tournament Maps",
+                    ContentType = ContentType.MapPack,
+                    GameType = GameType.ZeroHour,
+                    InstallationType = GameInstallationType.Unknown,
+                    IsEnabled = true,
+                });
+                _manifests[GenToolId] = new ContentManifest
+                {
+                    Id = ManifestId.Create(GenToolId),
+                    Name = "GenTool",
+                    ContentType = ContentType.Addon,
+                    Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                    Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
+                };
+                return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
+            });
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, _dialogTitles.Count);
+        Assert.Empty(_createRequests);
     }
 
     private void SetupGenToolInstall() =>

@@ -105,6 +105,31 @@ public sealed class MissingDependencyDialogTests
     }
 
     /// <summary>
+    /// Two different items that share a name are counted and listed separately.
+    /// </summary>
+    [Fact]
+    public void BuildTitle_DifferentItemsSameName_CountsEach()
+    {
+        var first = CreateGap("Base Pack", "Big Mod") with { ItemKey = "1.0.firstpublisher.mappack.basepack" };
+        var second = first with { DependencyId = "1.0.secondpublisher.mappack.basepack", ItemKey = "1.0.secondpublisher.mappack.basepack" };
+
+        Assert.Equal("2 required items are missing", MissingDependencyDialog.BuildTitle(null, [first, second]));
+        Assert.Equal(["Base Pack", "Base Pack"], MissingDependencyDialog.GetDisplayNames(null, [first, second]));
+    }
+
+    /// <summary>
+    /// Requirements for the same item under different declared IDs share the item key and are listed once.
+    /// </summary>
+    [Fact]
+    public void BuildTitle_SameItemKeyDifferentIds_CountsOnce()
+    {
+        var first = CreateGap("GenTool", "Big Mod") with { ItemKey = "communityoutpost:gent" };
+        var second = first with { DependencyId = "1.10.communityoutpost.addon.gent", RequiredByName = "Other Mod" };
+
+        Assert.Equal("One required item is missing", MissingDependencyDialog.BuildTitle(null, [first, second]));
+    }
+
+    /// <summary>
     /// Items with no declared name stay separate even though they share the generic name.
     /// </summary>
     [Fact]

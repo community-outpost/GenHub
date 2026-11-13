@@ -197,6 +197,14 @@ public static class MissingDependencyDialog
             : gap.DisplayName;
 
     /// <summary>
+    /// Gets the key that identifies the missing item, so repeated requirements for it are shown once.
+    /// </summary>
+    /// <param name="gap">The missing item.</param>
+    /// <returns>The item key.</returns>
+    public static string GetItemKey(ContentDependencyGap gap) =>
+        string.IsNullOrWhiteSpace(gap.ItemKey) ? $"{gap.DependencyType}:{gap.DependencyId}" : gap.ItemKey;
+
+    /// <summary>
     /// Neutralizes Markdown in names taken from manifests, so a name cannot add links, images,
     /// formatting or block structure. Markdown.Avalonia removes a backslash only before the
     /// characters in <see cref="RendererEscapedCharacters"/>, so the other markers are broken
@@ -236,11 +244,7 @@ public static class MissingDependencyDialog
     }
 
     private static List<IGrouping<string, ContentDependencyGap>> GroupByItem(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
-        missingDependencies
-            .GroupBy(
-                gap => string.IsNullOrWhiteSpace(gap.DisplayName) ? $"{gap.DependencyType}:{gap.DependencyId}" : gap.DisplayName,
-                StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        missingDependencies.GroupBy(GetItemKey, StringComparer.OrdinalIgnoreCase).ToList();
 
     private static List<string> GetOwnerNames(IEnumerable<ContentDependencyGap> missingDependencies) =>
         missingDependencies
