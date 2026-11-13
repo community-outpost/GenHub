@@ -254,6 +254,21 @@
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
 
+    <!-- Action dimensions grow with content; never impose a fixed text button height. -->
+    <x:Double x:Key="ActionMinHeight">36</x:Double>
+    <x:Double x:Key="ActionCompactMinHeight">32</x:Double>
+    <x:Double x:Key="ActionFontSize">13</x:Double>
+    <x:Double x:Key="ActionCompactFontSize">12</x:Double>
+    <x:Double x:Key="ActionIconSize">16</x:Double>
+    <x:Double x:Key="SectionIconSize">20</x:Double>
+    <x:Double x:Key="NavigationIconSize">24</x:Double>
+    <Thickness x:Key="ActionPadding">16,8</Thickness>
+    <Thickness x:Key="ActionCompactPadding">12,6</Thickness>
+    <!-- Dark ink remains legible on all shipped bright accent palettes. -->
+    <SolidColorBrush x:Key="ActionOnAccentBrush" Color="Black" />
+    <SolidColorBrush x:Key="ActionDangerHoverBrush" Color="#F87171" />
+    <SolidColorBrush x:Key="ActionFocusBrush" Color="{StaticResource TextPrimaryColor}" />
+
     <!-- ==================================================================== -->
     <!-- 6. StreamGeometry Icons                                              -->
     <!-- ==================================================================== -->
