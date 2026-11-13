@@ -1896,7 +1896,8 @@ public class ProfileLauncherFacade(
             var gameInstallations = potentialMatches;
 
             // Like the shared validator, an installation with no recorded game is not rejected for it.
-            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType || gi.TargetGame == GameType.Unknown);
+            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType)
+                ?? gameInstallations.FirstOrDefault(gi => gi.TargetGame == GameType.Unknown);
 
             if (compatibleInstallation == null)
             {

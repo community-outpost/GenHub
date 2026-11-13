@@ -2234,7 +2234,7 @@ public partial class GameProfileLauncherViewModel(
     private async Task LaunchProfileAsync(GameProfileItemViewModel profile, CancellationToken cancellationToken)
     {
         // Try without blocking
-        if (!await _launchSemaphore.WaitAsync(0))
+        if (!await _launchSemaphore.WaitAsync(0, CancellationToken.None))
         {
             StatusMessage = localizationService["GameProfiles.Status.AlreadyLaunching"];
             return;

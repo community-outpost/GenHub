@@ -141,6 +141,27 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
     }
 
     /// <summary>
+    /// Content with no name is shown with a generic name in the warning.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task EnableContent_UnnamedRequirer_UsesGenericNameAsync()
+    {
+        const string modId = "1.0.examplepublisher.addon.nameless";
+        AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(modId),
+            Name = string.Empty,
+            ContentType = ContentType.Addon,
+            Dependencies = [new ContentDependency { Id = ManifestId.Create("1.0.examplepublisher.addon.widget"), Name = "Widget", DependencyType = ContentType.Addon }],
+        });
+
+        var warning = await EnableAndWaitForWarningAsync(CreateItem(modId, "Nameless", ContentType.Addon));
+
+        Assert.Contains("• Unnamed content needs Widget", warning.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A declared conflict between two enabled items is still reported.
     /// </summary>
     /// <returns>A task that completes when the test finishes.</returns>

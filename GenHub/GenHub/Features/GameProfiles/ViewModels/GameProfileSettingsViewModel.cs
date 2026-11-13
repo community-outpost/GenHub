@@ -1943,7 +1943,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                     .Select(gap => _localizationService.GetLocalizedString(
                         "GameProfiles.Settings.Notification.DependencyWarning.Item",
                         "{0} needs {1}",
-                        gap.RequiredByName,
+                        MissingDependencyDialog.GetRequiredByName(_localizationService, gap),
                         MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
             }
 
