@@ -385,9 +385,53 @@ public sealed class CatalogTabProviderTests : IDisposable
         // Assert
         Assert.Single(firstResult);
         Assert.Single(secondResult);
-        subscriptionStore.Verify(store => store.GetSubscriptionAsync(publisherId, It.IsAny<CancellationToken>()), Times.Once);
         catalogParser.Verify(parser => parser.ParseCatalogAsync("{}", It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    /// <summary>
+    /// Ensures switching the subscription to another catalog of the same publisher loads that catalog's tabs
+    /// instead of the cached catalog.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetTabsAsync_SubscriptionSwitchesCatalog_UsesNewCatalogAsync()
+    {
+        const string publisherId = "example-publisher";
+        const string firstUrl = "https://catalog.example.test/first.json";
+        const string secondUrl = "https://catalog.example.test/second.json";
+        var subscriptionStore = new Mock<IPublisherSubscriptionStore>();
+        subscriptionStore
+            .SetupSequence(store => store.GetSubscriptionAsync(publisherId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription { PublisherId = publisherId, CatalogUrl = firstUrl }))
+            .ReturnsAsync(OperationResult<PublisherSubscription?>.CreateSuccess(new PublisherSubscription { PublisherId = publisherId, CatalogUrl = secondUrl }));
+        var catalogParser = new Mock<IPublisherCatalogParser>();
+        catalogParser
+            .Setup(parser => parser.ParseCatalogAsync("/first.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(CatalogWithRootTab("first-notes")));
+        catalogParser
+            .Setup(parser => parser.ParseCatalogAsync("/second.json", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(CatalogWithRootTab("second-notes")));
+        var httpClientFactory = new Mock<IHttpClientFactory>();
+        httpClientFactory
+            .Setup(factory => factory.CreateClient(It.IsAny<string>()))
+            .Returns(() => new HttpClient(new PathEchoHandler()));
+        var provider = new CatalogTabProvider(
+            subscriptionStore.Object,
+            catalogParser.Object,
+            httpClientFactory.Object,
+            new Mock<ILogger<CatalogTabProvider>>().Object);
+
+        var first = await provider.GetTabsAsync(CreateSearchResult("mod-a"));
+        var second = await provider.GetTabsAsync(CreateSearchResult("mod-a"));
+
+        Assert.Equal("first-notes", Assert.Single(first).TabId);
+        Assert.Equal("second-notes", Assert.Single(second).TabId);
+    }
+
+    private static PublisherCatalog CatalogWithRootTab(string tabId) => new()
+    {
+        CustomTabs = [new CatalogTabDefinition { TabId = tabId, Header = tabId, AppliesTo = ["mod-a"] }],
+    };
 
     private static CatalogTabProvider CreateProvider(PublisherCatalog? catalog)
     {
@@ -439,6 +483,17 @@ public sealed class CatalogTabProviderTests : IDisposable
         }
 
         return searchResult;
+    }
+
+    private sealed class PathEchoHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(request.RequestUri!.AbsolutePath),
+            });
+        }
     }
 
     private sealed class StaticResponseHandler(string content) : HttpMessageHandler

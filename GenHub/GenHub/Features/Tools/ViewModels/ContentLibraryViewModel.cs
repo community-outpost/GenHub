@@ -1880,6 +1880,8 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        var viewedTab = GetSelectedCustomTabSource();
+
         // The selection round-trip only forces the detail panel to rebuild for the same
         // item, so keep the upstream preview instead of cancelling and re-fetching it.
         _suppressUpstreamPreviewReload = true;
@@ -1891,6 +1893,12 @@ public partial class ContentLibraryViewModel(
         finally
         {
             _suppressUpstreamPreviewReload = false;
+        }
+
+        var viewedIndex = viewedTab == null ? -1 : _selectedContentTabSources.IndexOf(viewedTab);
+        if (viewedIndex >= 0)
+        {
+            SelectedDetailTabIndex = BuiltInDetailTabCount + viewedIndex;
         }
 
         OnPropertyChanged(nameof(FilteredContent));

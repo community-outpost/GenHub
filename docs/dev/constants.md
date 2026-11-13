@@ -715,6 +715,8 @@ Limits, allowlists and link patterns for publisher-defined custom tabs in the co
 | `MaxCardTitleLength`       | `100`   | Longest card title or label                              |
 | `MaxCardDescriptionLength` | `1000`  | Longest card description                                 |
 | `AvaloniaResourceScheme`   | `"avares"` | URI scheme for images bundled with the app            |
+| `GeneratedIdFallbackPrefix` | `"tab-"` | Prefix of a generated tab ID when the header has no usable characters |
+| `GeneratedIdFallbackHashLength` | `8` | Hash characters in a generated fallback tab ID       |
 
 ### Publisher Image Links
 

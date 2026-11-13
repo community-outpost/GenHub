@@ -45,8 +45,8 @@ public class CatalogTabProvider(
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan NegativeCacheDuration = TimeSpan.FromMinutes(1);
     private static readonly JsonSerializerOptions CatalogTabJsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Lazy<Task<PublisherCatalog?>>> _inFlightFetches = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (DateTime FetchedAt, PublisherCatalog? Catalog)> _catalogCache = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<Task<PublisherCatalog?>>> _inFlightFetches = new(StringComparer.Ordinal);
 
     private void TrimCacheIfNeeded()
     {
@@ -199,7 +199,28 @@ public class CatalogTabProvider(
         string publisherId,
         CancellationToken cancellationToken)
     {
-        if (_catalogCache.TryGetValue(publisherId, out var cached))
+        string? catalogUrl;
+        try
+        {
+            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(publisherId, cancellationToken).ConfigureAwait(false);
+            catalogUrl = subscriptionResult.Success ? subscriptionResult.Data?.CatalogUrl : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read the subscription for publisher '{PublisherId}'", publisherId);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(catalogUrl))
+        {
+            return null;
+        }
+
+        if (_catalogCache.TryGetValue(catalogUrl, out var cached))
         {
             var ttl = cached.Catalog != null ? CacheDuration : NegativeCacheDuration;
             if (DateTime.UtcNow - cached.FetchedAt < ttl)
@@ -209,9 +230,9 @@ public class CatalogTabProvider(
         }
 
         var lazyFetch = _inFlightFetches.GetOrAdd(
-            publisherId,
-            id => new Lazy<Task<PublisherCatalog?>>(
-                () => FetchCatalogCoreAsync(id, CancellationToken.None),
+            catalogUrl,
+            url => new Lazy<Task<PublisherCatalog?>>(
+                () => FetchCatalogCoreAsync(publisherId, url, CancellationToken.None),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         try
@@ -231,54 +252,41 @@ public class CatalogTabProvider(
         {
             if (lazyFetch.IsValueCreated && lazyFetch.Value.IsCompleted)
             {
-                _inFlightFetches.TryRemove(KeyValuePair.Create(publisherId, lazyFetch));
+                _inFlightFetches.TryRemove(KeyValuePair.Create(catalogUrl, lazyFetch));
             }
         }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "Network and parsing failures are logged and negatively cached.")]
-    private async Task<PublisherCatalog?> FetchCatalogCoreAsync(string publisherId, CancellationToken cancellationToken)
+    private async Task<PublisherCatalog?> FetchCatalogCoreAsync(string publisherId, string catalogUrl, CancellationToken cancellationToken)
     {
         try
         {
-            var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
-                publisherId,
-                cancellationToken).ConfigureAwait(false);
-
-            if (!subscriptionResult.Success || subscriptionResult.Data == null)
-            {
-                TrimCacheIfNeeded();
-                _catalogCache[publisherId] = (DateTime.UtcNow, null);
-                return null;
-            }
-
-            var subscription = subscriptionResult.Data;
             var httpClient = httpClientFactory.CreateClient(CatalogConstants.CatalogHttpClientName);
-
             var catalogJson = await CatalogDocumentReader.ReadAsync(
                 httpClient,
-                subscription.CatalogUrl,
+                catalogUrl,
                 CatalogConstants.MaxCatalogSizeBytes,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             var catalogResult = await catalogParser.ParseCatalogAsync(catalogJson, cancellationToken).ConfigureAwait(false);
             var resolvedCatalog = catalogResult.Success && catalogResult.Data != null ? catalogResult.Data : null;
             TrimCacheIfNeeded();
-            _catalogCache[publisherId] = (DateTime.UtcNow, resolvedCatalog);
+            _catalogCache[catalogUrl] = (DateTime.UtcNow, resolvedCatalog);
             return resolvedCatalog;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error fetching catalog for publisher '{PublisherId}', recording negative cache entry", publisherId);
             TrimCacheIfNeeded();
-            _catalogCache[publisherId] = (DateTime.UtcNow, null);
+            _catalogCache[catalogUrl] = (DateTime.UtcNow, null);
             return null;
         }
         finally
         {
-            if (_inFlightFetches.TryGetValue(publisherId, out var currentLazy))
+            if (_inFlightFetches.TryGetValue(catalogUrl, out var currentLazy))
             {
-                _inFlightFetches.TryRemove(KeyValuePair.Create(publisherId, currentLazy));
+                _inFlightFetches.TryRemove(KeyValuePair.Create(catalogUrl, currentLazy));
             }
         }
     }
