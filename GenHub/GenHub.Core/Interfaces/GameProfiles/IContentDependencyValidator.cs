@@ -5,7 +5,7 @@ namespace GenHub.Core.Interfaces.GameProfiles;
 
 /// <summary>
 /// Finds the required dependencies missing from a set of enabled profile content.
-/// Adding content to a profile, creating a profile with content, and saving a profile all use these rules.
+/// Adding content to a profile, creating a profile with content, saving a profile, and launch preflight all use these rules.
 /// </summary>
 public interface IContentDependencyValidator
 {
