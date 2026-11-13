@@ -1646,7 +1646,7 @@ public partial class GameProfileLauncherViewModel(
 
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList, cancellationToken);
                 var (profilesCreated, failedComponentKeys) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult, cancellationToken);
-                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys);
+                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys, cancellationToken);
             }
             else
             {
@@ -1668,7 +1668,12 @@ public partial class GameProfileLauncherViewModel(
         }
     }
 
-    private async Task ReportSetupOutcomeAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult, int profilesCreated, IReadOnlyList<string> failedComponentKeys)
+    private async Task ReportSetupOutcomeAsync(
+        List<GameInstallation> installationsList,
+        SetupWizardResult wizardResult,
+        int profilesCreated,
+        IReadOnlyList<string> failedComponentKeys,
+        CancellationToken cancellationToken)
     {
         if (!wizardResult.Confirmed && !wizardResult.SetUpLater)
         {
@@ -1724,7 +1729,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        if (await IsAlreadySetUpAsync(installationsList))
+        if (await IsAlreadySetUpAsync(installationsList, cancellationToken))
         {
             var alreadySetUpMessage = localizationService["GameProfiles.Notification.AlreadySetUp.Message"];
             StatusMessage = alreadySetUpMessage;
@@ -1752,9 +1757,9 @@ public partial class GameProfileLauncherViewModel(
     /// Determines whether a scan that created nothing and had no failed decision found the game
     /// already set up: every base game client already has its profile.
     /// </summary>
-    private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList)
+    private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList, CancellationToken cancellationToken)
     {
-        var profilesResult = await gameProfileManager.GetAllProfilesAsync();
+        var profilesResult = await gameProfileManager.GetAllProfilesAsync(cancellationToken);
         if (profilesResult is not { Success: true, Data: not null })
         {
             return false;
@@ -1917,7 +1922,7 @@ public partial class GameProfileLauncherViewModel(
             logger.LogInformation("No publisher profiles created for {InstallationId}, creating base game profiles", installation.Id);
             foreach (var client in installation.AvailableGameClients.Where(c => !c.IsPublisherClient).ToList())
             {
-                if (await TryCreateProfileForGameClientAsync(installation, client))
+                if (await TryCreateProfileForGameClientAsync(installation, client, cancellationToken))
                 {
                     profilesCreated++;
                 }
@@ -2055,8 +2060,9 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     /// <param name="installation">The game installation.</param>
     /// <param name="gameClient">The game client to create a profile for.</param>
+    /// <param name="cancellationToken">Token that cancels the profile work.</param>
     /// <returns>True if profile was created successfully, false otherwise.</returns>
-    private async Task<bool> TryCreateProfileForGameClientAsync(GameInstallation installation, GameClient gameClient)
+    private async Task<bool> TryCreateProfileForGameClientAsync(GameInstallation installation, GameClient gameClient, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2071,7 +2077,7 @@ public partial class GameProfileLauncherViewModel(
             // For publisher clients, handle specially to create all variant profiles
             if (gameClient.IsPublisherClient)
             {
-                var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, gameClient);
+                var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, gameClient, cancellationToken: cancellationToken);
                 if (result.Data > 0)
                 {
                     // No need to manually refresh - ProfileCreatedMessage handles UI updates
@@ -2085,7 +2091,7 @@ public partial class GameProfileLauncherViewModel(
             var profileName = gameClient.Name;
 
             // Check if a profile already exists for this exact name and installation
-            var existingProfiles = await gameProfileManager.GetAllProfilesAsync();
+            var existingProfiles = await gameProfileManager.GetAllProfilesAsync(cancellationToken);
             if (existingProfiles.Success && existingProfiles.Data != null)
             {
                 // Check by name AND installation ID
@@ -2145,7 +2151,7 @@ public partial class GameProfileLauncherViewModel(
                 CoverPath = coverPath,
             };
 
-            var profileResult = await profileEditorFacade.CreateProfileWithWorkspaceAsync(createRequest);
+            var profileResult = await profileEditorFacade.CreateProfileWithWorkspaceAsync(createRequest, cancellationToken);
             if (profileResult.Success && profileResult.Data != null)
             {
                 logger.LogInformation("Successfully created profile '{ProfileName}' for {InstallationType} {GameClientName}", profileResult.Data.Name, installation.InstallationType, gameClient.Name);
@@ -2159,6 +2165,10 @@ public partial class GameProfileLauncherViewModel(
             var errors = ManifestHelper.FormatErrors(profileResult.Errors);
             logger.LogWarning("Failed to create profile for {InstallationType} {GameClientName}: {Errors}", installation.InstallationType, gameClient.Name, errors);
             return false;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

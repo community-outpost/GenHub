@@ -1974,12 +1974,12 @@ public class GameProfileLauncherViewModelTests
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
             CreateLocalizationService(),
-            userSettingsService: settingsService.Object)
-        {
-            SelectedSortMode = ProfileSortMode.Alphabetical,
-        };
+            userSettingsService: settingsService.Object);
 
-        vm.SelectedSortMode = ProfileSortMode.DateCreated;
+        foreach (var mode in new[] { ProfileSortMode.Alphabetical, ProfileSortMode.DateCreated })
+        {
+            vm.SelectedSortMode = mode;
+        }
 
         for (var attempt = 0; attempt < 200; attempt++)
         {
