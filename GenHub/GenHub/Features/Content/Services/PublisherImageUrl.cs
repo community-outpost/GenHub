@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using System;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -9,9 +10,6 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public static partial class PublisherImageUrl
 {
-    private const string GoogleDriveHost = "drive.google.com";
-    private const string GoogleDriveDirectFormat = "https://drive.usercontent.google.com/download?id={0}&export=view";
-
     /// <summary>
     /// Rewrites a Google Drive file viewer link to the direct download form, which serves the image bytes.
     /// Other links are returned unchanged.
@@ -29,10 +27,10 @@ public static partial class PublisherImageUrl
             return url;
         }
 
-        var direct = string.Format(GoogleDriveDirectFormat, Uri.EscapeDataString(fileId));
-        var resourceKey = HttpUtility.ParseQueryString(new Uri(url!).Query)["resourcekey"];
+        var direct = string.Format(CustomTabConstants.GoogleDriveDirectUrlFormat, Uri.EscapeDataString(fileId));
+        var resourceKey = HttpUtility.ParseQueryString(new Uri(url!).Query)[CustomTabConstants.GoogleDriveResourceKeyQueryKey];
         return resourceKey != null && ResourceKeyRegex().IsMatch(resourceKey)
-            ? $"{direct}&resourcekey={Uri.EscapeDataString(resourceKey)}"
+            ? $"{direct}&{CustomTabConstants.GoogleDriveResourceKeyQueryKey}={Uri.EscapeDataString(resourceKey)}"
             : direct;
     }
 
@@ -49,7 +47,7 @@ public static partial class PublisherImageUrl
             uri.Scheme != Uri.UriSchemeHttps ||
             !uri.IsDefaultPort ||
             uri.UserInfo.Length > 0 ||
-            !uri.Host.Equals(GoogleDriveHost, StringComparison.OrdinalIgnoreCase))
+            !uri.Host.Equals(CustomTabConstants.GoogleDriveHost, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -61,10 +59,10 @@ public static partial class PublisherImageUrl
             return true;
         }
 
-        if (uri.AbsolutePath.Equals("/open", StringComparison.OrdinalIgnoreCase) ||
-            uri.AbsolutePath.Equals("/uc", StringComparison.OrdinalIgnoreCase))
+        if (uri.AbsolutePath.Equals(CustomTabConstants.GoogleDriveOpenPath, StringComparison.OrdinalIgnoreCase) ||
+            uri.AbsolutePath.Equals(CustomTabConstants.GoogleDriveUcPath, StringComparison.OrdinalIgnoreCase))
         {
-            var id = HttpUtility.ParseQueryString(uri.Query)["id"];
+            var id = HttpUtility.ParseQueryString(uri.Query)[CustomTabConstants.GoogleDriveIdQueryKey];
             if (id != null && DriveFileIdRegex().IsMatch(id))
             {
                 fileId = id;
@@ -84,24 +82,24 @@ public static partial class PublisherImageUrl
     public static bool IsExpiringDiscordAttachment(string? url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
-            !(uri.Host.Equals("cdn.discordapp.com", StringComparison.OrdinalIgnoreCase) ||
-              uri.Host.Equals("media.discordapp.net", StringComparison.OrdinalIgnoreCase)) ||
-            !(uri.AbsolutePath.StartsWith("/attachments/", StringComparison.OrdinalIgnoreCase) ||
-              uri.AbsolutePath.StartsWith("/ephemeral-attachments/", StringComparison.OrdinalIgnoreCase)))
+            !(uri.Host.Equals(CustomTabConstants.DiscordCdnHost, StringComparison.OrdinalIgnoreCase) ||
+              uri.Host.Equals(CustomTabConstants.DiscordMediaHost, StringComparison.OrdinalIgnoreCase)) ||
+            !(uri.AbsolutePath.StartsWith(CustomTabConstants.DiscordAttachmentsPathPrefix, StringComparison.OrdinalIgnoreCase) ||
+              uri.AbsolutePath.StartsWith(CustomTabConstants.DiscordEphemeralAttachmentsPathPrefix, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
 
         var query = HttpUtility.ParseQueryString(uri.Query);
-        return query["ex"] != null || query["hm"] != null;
+        return query[CustomTabConstants.DiscordExpiryQueryKey] != null || query[CustomTabConstants.DiscordSignatureQueryKey] != null;
     }
 
-    [GeneratedRegex(@"^(?:/u/\d+)?/file/d/(?<id>[A-Za-z0-9_-]{10,})(?:/(?:view|preview|edit)?)?/?$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(CustomTabConstants.GoogleDriveFilePathPattern, RegexOptions.IgnoreCase)]
     private static partial Regex DriveFilePathRegex();
 
-    [GeneratedRegex(@"^[A-Za-z0-9_-]{10,}$")]
+    [GeneratedRegex(CustomTabConstants.GoogleDriveFileIdPattern)]
     private static partial Regex DriveFileIdRegex();
 
-    [GeneratedRegex(@"^[A-Za-z0-9_-]+$")]
+    [GeneratedRegex(CustomTabConstants.GoogleDriveResourceKeyPattern)]
     private static partial Regex ResourceKeyRegex();
 }

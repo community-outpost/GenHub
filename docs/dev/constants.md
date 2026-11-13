@@ -698,6 +698,47 @@ Constants for publisher endpoint names and keys used in JSON serialization and l
 
 ---
 
+## CustomTabConstants Class
+
+Limits, allowlists and link patterns for publisher-defined custom tabs in the content detail view.
+
+### Limits
+
+| Constant                   | Value   | Description                                              |
+| -------------------------- | ------- | -------------------------------------------------------- |
+| `MaxTabsPerScope`          | `10`    | Most tabs one content item or the catalog root may declare |
+| `MaxCardsPerTab`           | `24`    | Most cards one tab may declare                           |
+| `MaxTabIdLength`           | `64`    | Longest tab ID                                           |
+| `MaxHeaderLength`          | `40`    | Longest tab header                                       |
+| `MaxIntroLength`           | `2000`  | Longest tab intro                                        |
+| `MaxBodyLength`            | `50000` | Longest tab Markdown body                                |
+| `MaxCardTitleLength`       | `100`   | Longest card title or label                              |
+| `MaxCardDescriptionLength` | `1000`  | Longest card description                                 |
+| `AvaloniaResourceScheme`   | `"avares"` | URI scheme for images bundled with the app            |
+
+### Publisher Image Links
+
+| Constant                                | Value                                                              | Description                                   |
+| --------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `GoogleDriveHost`                       | `"drive.google.com"`                                               | Host of Drive file viewer links               |
+| `GoogleDriveDirectUrlFormat`            | `"https://drive.usercontent.google.com/download?id={0}&export=view"` | Direct download URL for a Drive file ID     |
+| `GoogleDriveOpenPath`                   | `"/open"`                                                          | Drive open link path                          |
+| `GoogleDriveUcPath`                     | `"/uc"`                                                            | Drive legacy download link path               |
+| `GoogleDriveIdQueryKey`                 | `"id"`                                                             | Query parameter carrying a Drive file ID      |
+| `GoogleDriveResourceKeyQueryKey`        | `"resourcekey"`                                                    | Query parameter carrying a Drive resource key |
+| `GoogleDriveFilePathPattern`            | regex                                                              | Drive viewer path, captures the `id` group    |
+| `GoogleDriveFileIdPattern`              | regex                                                              | Drive file ID                                 |
+| `GoogleDriveResourceKeyPattern`         | regex                                                              | Drive resource key                            |
+| `DiscordCdnHost`                        | `"cdn.discordapp.com"`                                             | Discord CDN attachment host                   |
+| `DiscordMediaHost`                      | `"media.discordapp.net"`                                           | Discord media proxy attachment host           |
+| `DiscordAttachmentsPathPrefix`          | `"/attachments/"`                                                  | Discord attachment path prefix                |
+| `DiscordEphemeralAttachmentsPathPrefix` | `"/ephemeral-attachments/"`                                        | Discord ephemeral attachment path prefix      |
+| `DiscordExpiryQueryKey`                 | `"ex"`                                                             | Query parameter carrying the expiry time      |
+| `DiscordSignatureQueryKey`              | `"hm"`                                                             | Query parameter carrying the signature        |
+| `BodyLinkPattern`                       | regex                                                              | http or https link in a tab body              |
+
+---
+
 ## PublisherInfoConstants Class
 
 Constants for publisher information including display names, websites, and support URLs.

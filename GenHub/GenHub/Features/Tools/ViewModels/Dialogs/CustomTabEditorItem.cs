@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services;
@@ -138,7 +139,7 @@ public partial class CustomTabEditorItem : ObservableObject
         }
     }
 
-    [GeneratedRegex(@"https?://[^\s)\]""'<>]+")]
+    [GeneratedRegex(CustomTabConstants.BodyLinkPattern)]
     private static partial Regex UrlRegex();
 
     private static CatalogTabDefinition Clone(CatalogTabDefinition source)
