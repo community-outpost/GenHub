@@ -454,6 +454,27 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     }
 
     /// <summary>
+    /// Lets an installation ID that lost a same-path merge keep resolving to the installation that won it.
+    /// Profiles store the ID they were created with, and the manual folder's manifests rebuild that ID on
+    /// every start, so the alias is recreated after a restart too.
+    /// </summary>
+    /// <param name="mergedId">The ID of the installation that was not cached.</param>
+    /// <param name="canonicalId">The ID of the cached installation at the same path.</param>
+    internal void RecordInstallationAlias(string mergedId, string canonicalId)
+    {
+        if (!string.Equals(mergedId, canonicalId, StringComparison.Ordinal))
+        {
+            _mergedInstallationIds[mergedId] = canonicalId;
+
+            // Keep callers of an earlier pending registration pointing at the recovered installation.
+            foreach (var alias in _mergedInstallationIds.Where(pair => pair.Value == mergedId))
+            {
+                _mergedInstallationIds[alias.Key] = canonicalId;
+            }
+        }
+    }
+
+    /// <summary>
     /// Releases the unmanaged resources used by the <see cref="GameInstallationService"/> and optionally releases the managed resources.
     /// </summary>
     /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
@@ -1590,27 +1611,6 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     }
 
     /// <summary>
-    /// Lets an installation ID that lost a same-path merge keep resolving to the installation that won it.
-    /// Profiles store the ID they were created with, and the manual folder's manifests rebuild that ID on
-    /// every start, so the alias is recreated after a restart too.
-    /// </summary>
-    /// <param name="mergedId">The ID of the installation that was not cached.</param>
-    /// <param name="canonicalId">The ID of the cached installation at the same path.</param>
-    private void RecordInstallationAlias(string mergedId, string canonicalId)
-    {
-        if (!string.Equals(mergedId, canonicalId, StringComparison.Ordinal))
-        {
-            _mergedInstallationIds[mergedId] = canonicalId;
-
-            // Keep callers of an earlier pending registration pointing at the recovered installation.
-            foreach (var alias in _mergedInstallationIds.Where(pair => pair.Value == mergedId))
-            {
-                _mergedInstallationIds[alias.Key] = canonicalId;
-            }
-        }
-    }
-
-    /// <summary>
     /// Returns the installations to use after a failed initialization. Another caller may have
     /// recovered detection meanwhile and moved held installations into the cache, so the live cache
     /// is checked under the same lock before the held list.
@@ -1653,7 +1653,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         // The walk is bounded by the number of aliases, so a cycle cannot loop forever.
         var currentId = installationId;
         var installation = cached.FirstOrDefault(i => i.Id == currentId);
-        for (var hops = 0; installation == null && hops < _mergedInstallationIds.Count && _mergedInstallationIds.TryGetValue(currentId, out var nextId); hops++)
+        var maxHops = _mergedInstallationIds.Count;
+        for (var hops = 0; installation == null && hops < maxHops && _mergedInstallationIds.TryGetValue(currentId, out var nextId); hops++)
         {
             currentId = nextId;
             installation = cached.FirstOrDefault(i => i.Id == currentId);

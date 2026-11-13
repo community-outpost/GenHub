@@ -723,11 +723,11 @@ public class GameInstallationServiceTests : IDisposable
 
     /// <summary>
     /// After a cache invalidation, a folder picked again under an ID that is already an alias still
-    /// resolves through the whole alias chain.
+    /// resolves through the flattened alias chain.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithTwoHopAliasChain_ResolvesCallerIdAsync()
+    public async Task GetInstallationAsync_AfterRepickUnderAliasedId_ResolvesThroughFlattenedAliasChainAsync()
     {
         var denied = DetectionResult<GameInstallation>.CreateFailure("denied");
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(denied);
@@ -743,7 +743,7 @@ public class GameInstallationServiceTests : IDisposable
 
             _service.InvalidateCache();
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(denied);
-            await _service.AddInstallationToCacheAsync(new GameInstallation(folder, GameInstallationType.Retail));
+            await _service.AddInstallationToCacheAsync(new GameInstallation(folder, GameInstallationType.Retail) { Id = retail.Id });
             var eaApp = new GameInstallation(folder, GameInstallationType.EaApp);
             await _service.AddInstallationToCacheAsync(eaApp);
 
@@ -760,6 +760,28 @@ public class GameInstallationServiceTests : IDisposable
         {
             Directory.Delete(folder, true);
         }
+    }
+
+    /// <summary>
+    /// An alias that points at another alias resolves through both hops to the cached installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetInstallationAsync_WithTwoHopAliasChain_ResolvesToCachedInstallationAsync()
+    {
+        var cached = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam) { Id = "installation-c" };
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([cached], TimeSpan.Zero));
+        await _service.GetAllInstallationsAsync();
+
+        // Recorded in this order the map holds A -> B -> C, with B itself an alias.
+        _service.RecordInstallationAlias("installation-b", "installation-c");
+        _service.RecordInstallationAlias("installation-a", "installation-b");
+
+        var resolved = await _service.GetInstallationAsync("installation-a");
+
+        Assert.True(resolved.Success, string.Join("; ", resolved.Errors));
+        Assert.Equal(cached.Id, resolved.Data!.Id);
     }
 
     /// <summary>
