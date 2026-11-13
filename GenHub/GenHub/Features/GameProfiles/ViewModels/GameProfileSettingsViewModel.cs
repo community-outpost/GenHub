@@ -1942,7 +1942,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                     "GameProfiles.Settings.Notification.DependencyWarning.Item",
                     "{0} needs {1}",
                     gap.RequiredByName,
-                    gap.DisplayName)));
+                    MissingDependencyDialog.GetDisplayName(_localizationService, gap))).Distinct(StringComparer.OrdinalIgnoreCase));
             }
 
             var manifestsById = manifests
