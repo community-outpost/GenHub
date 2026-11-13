@@ -4597,8 +4597,8 @@ This will modify game files and configuration settings at:
   <data name="Profiles.Wizard.Back" xml:space="preserve">
     <value>Back</value>
   </data>
-  <data name="GameProfiles.Notification.WizardUnavailable.Message" xml:space="preserve">
-    <value>The setup wizard could not open, so no profiles were created. Select SCAN to try again.</value>
+  <data name="GameProfiles.Notification.SetupNotFinished.Message" xml:space="preserve">
+    <value>Setup did not finish, so no profiles were created. Select SCAN to try again.</value>
   </data>
   <data name="GameProfiles.Notification.ComponentsFailed.Title" xml:space="preserve">
     <value>Some Components Not Set Up</value>

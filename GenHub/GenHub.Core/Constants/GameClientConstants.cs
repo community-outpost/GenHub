@@ -207,9 +207,9 @@ public static class GameClientConstants
     public const string UnknownVersion = "Unknown";
 
     /// <summary>
-    /// Diagnostic error when a publisher download failed and left no content to profile, with the publisher display name as {0}.
+    /// Diagnostic error when a publisher download failed, with the publisher display name as {0}.
     /// </summary>
-    public const string PublisherAcquisitionFailedError = "Could not acquire {0} content, so no profile was created.";
+    public const string PublisherAcquisitionFailedError = "Could not download {0} content.";
 
     // ===== Steam Latest Versions =====
 
@@ -645,6 +645,33 @@ public static class GameClientConstants
     }
 
     /// <summary>
+    /// Localization resource keys for installation source names shown to the user.
+    /// </summary>
+    public static class InstallationTypeLocalizationKeys
+    {
+        /// <summary>Steam installation source.</summary>
+        public const string Steam = "GameProfiles.InstallationType.Steam";
+
+        /// <summary>EA App installation source.</summary>
+        public const string EaApp = "GameProfiles.InstallationType.EaApp";
+
+        /// <summary>The First Decade installation source.</summary>
+        public const string TheFirstDecade = "GameProfiles.InstallationType.FirstDecade";
+
+        /// <summary>CD or ISO installation source.</summary>
+        public const string CdIso = "GameProfiles.InstallationType.CdIso";
+
+        /// <summary>Wine installation source.</summary>
+        public const string Wine = "GameProfiles.InstallationType.Wine";
+
+        /// <summary>Retail installation source.</summary>
+        public const string Retail = "GameProfiles.InstallationType.Retail";
+
+        /// <summary>Lutris installation source.</summary>
+        public const string Lutris = "GameProfiles.InstallationType.Lutris";
+    }
+
+    /// <summary>
     /// Gets the English fallback text for each <see cref="WizardLocalizationKeys"/> key, used when no resource resolves.
     /// </summary>
     public static IReadOnlyDictionary<string, string> WizardFallbackText { get; } =
@@ -682,33 +709,6 @@ public static class GameClientConstants
             [WizardLocalizationKeys.GeneralsGameName] = "Generals",
             [WizardLocalizationKeys.ZeroHourGameName] = "Zero Hour",
         }.ToFrozenDictionary(StringComparer.Ordinal);
-
-    /// <summary>
-    /// Localization resource keys for installation source names shown to the user.
-    /// </summary>
-    public static class InstallationTypeLocalizationKeys
-    {
-        /// <summary>Steam installation source.</summary>
-        public const string Steam = "GameProfiles.InstallationType.Steam";
-
-        /// <summary>EA App installation source.</summary>
-        public const string EaApp = "GameProfiles.InstallationType.EaApp";
-
-        /// <summary>The First Decade installation source.</summary>
-        public const string TheFirstDecade = "GameProfiles.InstallationType.FirstDecade";
-
-        /// <summary>CD or ISO installation source.</summary>
-        public const string CdIso = "GameProfiles.InstallationType.CdIso";
-
-        /// <summary>Wine installation source.</summary>
-        public const string Wine = "GameProfiles.InstallationType.Wine";
-
-        /// <summary>Retail installation source.</summary>
-        public const string Retail = "GameProfiles.InstallationType.Retail";
-
-        /// <summary>Lutris installation source.</summary>
-        public const string Lutris = "GameProfiles.InstallationType.Lutris";
-    }
 
     /// <summary>
     /// Deterministic IDs for synthetic game clients used during initial setup.

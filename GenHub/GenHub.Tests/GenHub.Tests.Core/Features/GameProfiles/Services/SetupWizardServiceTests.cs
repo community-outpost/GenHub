@@ -1227,6 +1227,23 @@ public class SetupWizardServiceTests
     }
 
     /// <summary>
+    /// Verifies that closing the wizard without a choice is not recorded as Set up later.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RunSetupWizardAsync_WhenClosedWithoutChoice_IsNotSetUpLaterAsync()
+    {
+        var installation = SetUpDetectedGeneralsOnlineInstallation();
+        var service = CreateService();
+        service.DialogShower = _ => Task.FromResult(false);
+
+        var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
+
+        Assert.False(result.Confirmed);
+        Assert.False(result.SetUpLater);
+    }
+
+    /// <summary>
     /// Verifies that found games name each base game client with its version and source, skip
     /// publisher clients, and list a repeated game once.
     /// </summary>

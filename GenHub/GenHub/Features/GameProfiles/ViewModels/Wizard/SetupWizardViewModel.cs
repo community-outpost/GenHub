@@ -55,6 +55,11 @@ public sealed partial class SetupWizardViewModel(
     public bool UseInstalledGameChosen { get; private set; }
 
     /// <summary>
+    /// Gets a value indicating whether the user chose to set up later.
+    /// </summary>
+    public bool SetUpLaterChosen { get; private set; }
+
+    /// <summary>
     /// Gets the installed games that were found.
     /// </summary>
     public IReadOnlyList<string> FoundGames { get; } = foundGames ?? [];
@@ -127,6 +132,7 @@ public sealed partial class SetupWizardViewModel(
     [RelayCommand]
     private void SetUpLater()
     {
+        SetUpLaterChosen = true;
         UseInstalledGameChosen = false;
         _confirmed = false;
         OnRequestClose();

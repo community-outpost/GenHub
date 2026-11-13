@@ -137,6 +137,7 @@ public class SetupWizardViewModelTests
 
         Assert.False(vm.Confirmed);
         Assert.False(vm.UseInstalledGameChosen);
+        Assert.True(vm.SetUpLaterChosen);
         Assert.True(closeFired);
     }
 
@@ -155,6 +156,7 @@ public class SetupWizardViewModelTests
 
         Assert.True(vm.Confirmed);
         Assert.True(vm.UseInstalledGameChosen);
+        Assert.False(vm.SetUpLaterChosen);
         Assert.True(closeFired);
     }
 

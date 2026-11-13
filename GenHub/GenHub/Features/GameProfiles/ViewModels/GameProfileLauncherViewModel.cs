@@ -1594,7 +1594,7 @@ public partial class GameProfileLauncherViewModel(
     /// or prompts for Community Patch installation.
     /// </summary>
     [RelayCommand]
-    private async Task ScanForGamesAsync()
+    private async Task ScanForGamesAsync(CancellationToken cancellationToken)
     {
         if (IsScanning)
         {
@@ -1612,7 +1612,7 @@ public partial class GameProfileLauncherViewModel(
             ErrorMessage = string.Empty;
 
             // Scan for all installations
-            var installations = await installationService.GetAllInstallationsAsync();
+            var installations = await installationService.GetAllInstallationsAsync(cancellationToken);
             if (installations.Success && installations.Data != null)
             {
                 var installationsList = installations.Data.ToList();
@@ -1644,8 +1644,8 @@ public partial class GameProfileLauncherViewModel(
                     installationsList.Count(i => i.HasGenerals),
                     installationsList.Count(i => i.HasZeroHour));
 
-                var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList);
-                var (profilesCreated, failedComponentKeys) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult);
+                var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList, cancellationToken);
+                var (profilesCreated, failedComponentKeys) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult, cancellationToken);
                 await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys);
             }
             else
@@ -1672,11 +1672,11 @@ public partial class GameProfileLauncherViewModel(
     {
         if (!wizardResult.Confirmed && !wizardResult.SetUpLater)
         {
-            var unavailableMessage = localizationService["GameProfiles.Notification.WizardUnavailable.Message"];
-            StatusMessage = unavailableMessage;
+            var notFinishedMessage = localizationService["GameProfiles.Notification.SetupNotFinished.Message"];
+            StatusMessage = notFinishedMessage;
             notificationService.ShowWarning(
                 localizationService["GameProfiles.Notification.NoProfilesCreated.Title"],
-                unavailableMessage,
+                notFinishedMessage,
                 autoDismissMs: NotificationDurations.VeryLong);
             return;
         }
@@ -1812,7 +1812,8 @@ public partial class GameProfileLauncherViewModel(
 
     private async Task<(int ProfilesCreated, IReadOnlyList<string> FailedComponentKeys)> ApplyInstallationWizardDecisionsAsync(
         List<GameInstallation> installationsList,
-        SetupWizardResult wizardResult)
+        SetupWizardResult wizardResult,
+        CancellationToken cancellationToken)
     {
         if (!wizardResult.Confirmed)
         {
@@ -1840,7 +1841,8 @@ public partial class GameProfileLauncherViewModel(
                 cpNonRetDecision,
                 goDecision,
                 shDecision,
-                wizardResult.UseInstalledGame);
+                wizardResult.UseInstalledGame,
+                cancellationToken);
             profilesCreated += created;
             failedComponentKeys.AddRange(failed.Except(failedComponentKeys, StringComparer.Ordinal));
         }
@@ -1854,7 +1856,8 @@ public partial class GameProfileLauncherViewModel(
         string cpNonRetDecision,
         string goDecision,
         string shDecision,
-        bool installedOnly)
+        bool installedOnly,
+        CancellationToken cancellationToken)
     {
         logger.LogInformation("Processing installation: {InstallationId} ({Type})", installation.Id, installation.InstallationType);
         int profilesCreated = 0;
@@ -1866,7 +1869,8 @@ public partial class GameProfileLauncherViewModel(
             GameClientConstants.SyntheticClientIds.CommunityPatch,
             "Community Patch (Retail)",
             isNonRetail: false,
-            installedOnly: installedOnly);
+            installedOnly: installedOnly,
+            cancellationToken: cancellationToken);
         profilesCreated += cpProfiles;
 
         var (cpNonRetProfiles, cpNonRetFailed) = await TryProcessPublisherDecisionAsync(
@@ -1876,7 +1880,8 @@ public partial class GameProfileLauncherViewModel(
             GameClientConstants.SyntheticClientIds.CommunityPatchNonRet,
             "Community Patch (Non-Retail)",
             isNonRetail: true,
-            installedOnly: installedOnly);
+            installedOnly: installedOnly,
+            cancellationToken: cancellationToken);
         profilesCreated += cpNonRetProfiles;
 
         var (goProfiles, goFailed) = await TryProcessPublisherDecisionAsync(
@@ -1885,7 +1890,8 @@ public partial class GameProfileLauncherViewModel(
             PublisherTypeConstants.GeneralsOnline,
             GameClientConstants.SyntheticClientIds.GeneralsOnline,
             "GeneralsOnline",
-            installedOnly: installedOnly);
+            installedOnly: installedOnly,
+            cancellationToken: cancellationToken);
         profilesCreated += goProfiles;
 
         var (shProfiles, shFailed) = await TryProcessPublisherDecisionAsync(
@@ -1894,7 +1900,8 @@ public partial class GameProfileLauncherViewModel(
             PublisherTypeConstants.TheSuperHackers,
             GameClientConstants.SyntheticClientIds.SuperHackers,
             "SuperHackers",
-            installedOnly: installedOnly);
+            installedOnly: installedOnly,
+            cancellationToken: cancellationToken);
         profilesCreated += shProfiles;
 
         var failedComponentKeys = new List<string>();
@@ -1935,7 +1942,8 @@ public partial class GameProfileLauncherViewModel(
         string syntheticClientId,
         string clientName,
         bool isNonRetail = false,
-        bool installedOnly = false)
+        bool installedOnly = false,
+        CancellationToken cancellationToken = default)
     {
         if (IsDeclined(decision))
         {
@@ -1983,7 +1991,8 @@ public partial class GameProfileLauncherViewModel(
             installation,
             clientToUse,
             forceReacquireContent: forceAttr,
-            skipAcquisition: skipAcquire);
+            skipAcquisition: skipAcquire,
+            cancellationToken: cancellationToken);
         if (!result.Success)
         {
             logger.LogWarning(
@@ -1993,7 +2002,7 @@ public partial class GameProfileLauncherViewModel(
                 string.Join(", ", result.Errors));
         }
 
-        int profiles = (result.Success && result.Data > 0) ? result.Data : 0;
+        int profiles = result.Data > 0 ? result.Data : 0;
 
         return (profiles, !result.Success);
     }
@@ -2063,7 +2072,7 @@ public partial class GameProfileLauncherViewModel(
             if (gameClient.IsPublisherClient)
             {
                 var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, gameClient);
-                if (result.Success && result.Data > 0)
+                if (result.Data > 0)
                 {
                     // No need to manually refresh - ProfileCreatedMessage handles UI updates
                     return true;

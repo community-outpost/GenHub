@@ -883,7 +883,7 @@ Constants related to game client detection and management.
 
 | Constant | Value | Description |
 |----------|-------|-------------|
-| `PublisherAcquisitionFailedError` | `"Could not acquire {0} content, so no profile was created."` | Error returned when a publisher download failed and left nothing to profile. `{0}` is the publisher display name |
+| `PublisherAcquisitionFailedError` | `"Could not download {0} content."` | Error returned when a publisher download failed. The result still carries any profiles created from an older package. `{0}` is the publisher display name |
 
 #### InstallationTypeLocalizationKeys
 

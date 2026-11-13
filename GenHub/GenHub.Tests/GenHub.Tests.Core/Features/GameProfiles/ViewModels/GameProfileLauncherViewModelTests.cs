@@ -39,6 +39,8 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// </summary>
 public class GameProfileLauncherViewModelTests
 {
+    private readonly object _savedModesLock = new();
+
     private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
 
     /// <summary>
@@ -335,7 +337,7 @@ public class GameProfileLauncherViewModelTests
 
         await scan.RunAsync(new SetupWizardResult { Confirmed = false, SetUpLater = false });
 
-        Assert.Equal("The setup wizard could not open, so no profiles were created. Select SCAN to try again.", scan.ViewModel.StatusMessage);
+        Assert.Equal("Setup did not finish, so no profiles were created. Select SCAN to try again.", scan.ViewModel.StatusMessage);
         scan.Notifications.Verify(
             x => x.ShowWarning("No Profiles Created", scan.ViewModel.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
@@ -367,6 +369,30 @@ public class GameProfileLauncherViewModelTests
 
         scan.Notifications.Verify(
             x => x.ShowSuccess("Scan Complete", "Game scan complete! Created 2 new profiles.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        scan.Notifications.Verify(
+            x => x.ShowWarning("Some Components Not Set Up", "These components could not be set up: TheSuperHackers. Check the logs for details.", It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed update that still created a profile from an older package reports both.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenUpdateFailsButProfileWasCreated_ShowsSuccessAndNamesFailureAsync()
+    {
+        var scan = new WizardScanFixture(withSuperHackersClient: true);
+        scan.Orchestrator
+            .Setup(x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<int>.CreateFailure("download failed", 1, TimeSpan.Zero));
+        var wizardResult = CreateDeclinedWizardResult();
+        wizardResult.SuperHackersAction = GameClientConstants.WizardActionTypes.Update;
+
+        await scan.RunAsync(wizardResult);
+
+        scan.Notifications.Verify(
+            x => x.ShowSuccess("Scan Complete", "Game scan complete! Created 1 new profile.", It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
         scan.Notifications.Verify(
             x => x.ShowWarning("Some Components Not Set Up", "These components could not be set up: TheSuperHackers. Check the logs for details.", It.IsAny<int?>(), It.IsAny<bool>()),
@@ -1914,7 +1940,6 @@ public class GameProfileLauncherViewModelTests
     public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
     {
         var savedModes = new List<ProfileSortMode>();
-        var savedModesLock = new object();
         var settingsService = new Mock<IUserSettingsService>();
         settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
         settingsService
@@ -1924,7 +1949,7 @@ public class GameProfileLauncherViewModelTests
                 var settings = new UserSettings();
                 if (apply(settings))
                 {
-                    lock (savedModesLock)
+                    lock (_savedModesLock)
                     {
                         savedModes.Add(settings.ProfileSortMode);
                     }
@@ -1958,7 +1983,7 @@ public class GameProfileLauncherViewModelTests
 
         for (var attempt = 0; attempt < 200; attempt++)
         {
-            lock (savedModesLock)
+            lock (_savedModesLock)
             {
                 if (savedModes.Contains(ProfileSortMode.DateCreated))
                 {
@@ -1971,7 +1996,7 @@ public class GameProfileLauncherViewModelTests
 
         await Task.Delay(200);
 
-        lock (savedModesLock)
+        lock (_savedModesLock)
         {
             Assert.NotEmpty(savedModes);
             Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);

@@ -375,6 +375,47 @@ public sealed class PublisherProfileOrchestratorTests
     }
 
     /// <summary>
+    /// Verifies that a failed update download stays a failure when an older package still creates a
+    /// profile, and that the created profile is still counted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfilesForPublisherClientAsync_WhenUpdateDownloadFailsButOlderPackageCreatesProfile_ReturnsFailureWithCountAsync()
+    {
+        var installation = CreateInstallation();
+        var client = CreateGameClient();
+        var manifest = CreateDownloadedManifest();
+
+        _manifestPoolMock
+            .Setup(p => p.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest]));
+        _contentOrchestratorMock
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult
+                {
+                    Id = "search-go",
+                    Name = "GeneralsOnline 60Hz",
+                    Version = "060526_QFE1",
+                    ContentType = ContentType.GameClient,
+                    ProviderName = PublisherTypeConstants.GeneralsOnline,
+                },
+            ]));
+        _contentOrchestratorMock
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("download failed"));
+        _gameClientProfileServiceMock
+            .Setup(s => s.CreateProfileFromManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "p1", Name = "Profile 1" }));
+
+        var result = await _orchestrator.CreateProfilesForPublisherClientAsync(installation, client, forceReacquireContent: true);
+
+        Assert.False(result.Success);
+        Assert.Equal(1, result.Data);
+    }
+
+    /// <summary>
     /// Verifies that a failed download that leaves nothing to profile is reported as a failure.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>

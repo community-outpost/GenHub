@@ -221,10 +221,14 @@ public class PublisherProfileOrchestrator(
                 isNonRet,
                 existingManifests.Count);
 
-            // A failed download that left nothing to profile is a failure, not an up-to-date publisher.
-            if (acquisitionFailed && profilesCreated == 0)
+            // A failed download is a failure even when an older package still produced profiles.
+            // The count is kept so callers can report those profiles too.
+            if (acquisitionFailed)
             {
-                return OperationResult<int>.CreateFailure(string.Format(CultureInfo.InvariantCulture, GameClientConstants.PublisherAcquisitionFailedError, GetPublisherDisplayName(publisherType, isNonRet)));
+                return OperationResult<int>.CreateFailure(
+                    string.Format(CultureInfo.InvariantCulture, GameClientConstants.PublisherAcquisitionFailedError, GetPublisherDisplayName(publisherType, isNonRet)),
+                    profilesCreated,
+                    TimeSpan.Zero);
             }
 
             return OperationResult<int>.CreateSuccess(profilesCreated);
