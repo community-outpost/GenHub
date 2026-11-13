@@ -41,7 +41,9 @@ public static class MissingDependencyDialog
 
         var installAction = new DialogAction
         {
-            Text = localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Install", "Install required items"),
+            Text = missingDependencies.All(gap => gap.CanDownload)
+                ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Install", "Install required items")
+                : localizationService.GetLocalizedString("GameProfiles.MissingDependencies.InstallAvailable", "Install available items"),
             Style = NotificationActionStyle.Primary,
         };
         var cancelAction = new DialogAction
@@ -56,11 +58,12 @@ public static class MissingDependencyDialog
             actions.Add(installAction);
         }
 
-        var (action, _) = await dialogService.ShowMessageAsync(
+        var (action, _) = await dialogService.ShowMessageWithDetailsAsync(
             BuildTitle(localizationService, contentName, missingDependencies),
             BuildContent(localizationService, contentName, missingDependencies),
             actions,
-            showDoNotAskAgain: false,
+            localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Details", "Technical details"),
+            BuildDetails(missingDependencies),
             cancellationToken);
 
         return ReferenceEquals(action, installAction);
@@ -80,25 +83,13 @@ public static class MissingDependencyDialog
     {
         ArgumentNullException.ThrowIfNull(missingDependencies);
 
-        var ownerName = GetOwnerName(contentName, missingDependencies);
-        if (missingDependencies.Count == 1)
-        {
-            return localizationService.GetLocalizedString(
-                "GameProfiles.MissingDependencies.Title.Single",
-                "{0} needs {1}",
-                ownerName,
-                GetDisplayName(localizationService, missingDependencies[0]));
-        }
-
-        return localizationService.GetLocalizedString(
-            "GameProfiles.MissingDependencies.Title.Multiple",
-            "{0} needs {1} more items",
-            ownerName,
-            missingDependencies.Count);
+        return missingDependencies.Count == 1
+            ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Title.Single", "One required item is missing")
+            : localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Title.Multiple", "{0} required items are missing", missingDependencies.Count);
     }
 
     /// <summary>
-    /// Builds the Markdown body. Items are listed by name. Raw IDs appear only under Details.
+    /// Builds the player-facing Markdown body without diagnostic IDs.
     /// </summary>
     /// <param name="localizationService">The localization service, or null to use English.</param>
     /// <param name="contentName">The name to show when the items are needed by more than one content item.</param>
@@ -142,15 +133,18 @@ public static class MissingDependencyDialog
 
         builder.AppendLine();
         builder.AppendLine(GetOutcomeText(localizationService, missingDependencies));
-        builder.AppendLine();
-        builder.Append("#### ").AppendLine(localizationService.GetLocalizedString("GameProfiles.MissingDependencies.Details", "Details"));
-        builder.AppendLine();
-        foreach (var gap in missingDependencies)
-        {
-            builder.Append("- `").Append(gap.DependencyId).Append("` (").Append(gap.RequiredById).AppendLine(")");
-        }
-
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Builds plain diagnostic text for the collapsed details panel.
+    /// </summary>
+    /// <param name="missingDependencies">The missing items.</param>
+    /// <returns>The declared dependency and owner IDs.</returns>
+    public static string BuildDetails(IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        ArgumentNullException.ThrowIfNull(missingDependencies);
+        return string.Join(Environment.NewLine, missingDependencies.Select(gap => $"{gap.DependencyId} ({gap.RequiredById})"));
     }
 
     /// <summary>

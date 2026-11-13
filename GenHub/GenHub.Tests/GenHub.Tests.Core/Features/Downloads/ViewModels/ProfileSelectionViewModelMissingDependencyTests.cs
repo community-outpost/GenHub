@@ -58,6 +58,7 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
     private readonly Mock<IDialogService> _dialogs = new();
     private readonly List<string> _dialogTitles = [];
     private readonly List<string> _dialogContents = [];
+    private readonly List<string> _dialogDetails = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProfileSelectionViewModelMissingDependencyTests"/> class.
@@ -105,7 +106,7 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
 
         Assert.True(vm.WasSuccessful, vm.ErrorMessage);
-        Assert.Equal($"{ContentName} needs GenTool", Assert.Single(_dialogTitles));
+        Assert.Equal("One required item is missing", Assert.Single(_dialogTitles));
         _profileContent.Verify(x => x.InstallMissingDependenciesAsync(It.Is<IReadOnlyList<ContentDependencyGap>>(g => g.Single() == GenToolGap), It.IsAny<CancellationToken>()), Times.Once);
         _profileContent.Verify(x => x.AddContentToProfileAsync(ProfileId, ContentId, It.IsAny<CancellationToken>()), Times.Exactly(2));
         _notifications.Verify(x => x.ShowSuccess("Added to Profile", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
@@ -182,9 +183,9 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         await vm.CreateNewProfileCommand.ExecuteAsync(null);
 
         Assert.True(vm.WasSuccessful, vm.ErrorMessage);
-        Assert.Equal($"{ContentName} needs 3 more items", Assert.Single(_dialogTitles));
+        Assert.Equal("3 required items are missing", Assert.Single(_dialogTitles));
         var content = Assert.Single(_dialogContents);
-        var body = content[..content.IndexOf("#### Details", StringComparison.Ordinal)];
+        var body = content;
         Assert.Contains("**GenTool**", body, StringComparison.Ordinal);
         Assert.Contains("**Control Bar Pro (Core)**", body, StringComparison.Ordinal);
         Assert.Contains("GenHub can't download this", body, StringComparison.Ordinal);
@@ -231,8 +232,8 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         bool? createEnabledDuringDialog = null;
         bool? selectEnabledDuringDialog = null;
         _dialogs
-            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string _, string _, IEnumerable<DialogAction> actions, bool _, CancellationToken _) =>
+            .Setup(x => x.ShowMessageWithDetailsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, IEnumerable<DialogAction> actions, string _, string details, CancellationToken _) =>
             {
                 createEnabledDuringDialog = vm.CreateNewProfileCommand.CanExecute(null);
                 selectEnabledDuringDialog = vm.SelectProfileCommand.CanExecute(vm.CompatibleProfiles[0]);
@@ -245,6 +246,51 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
         Assert.False(selectEnabledDuringDialog);
         Assert.False(vm.IsProfileOperationRunning);
         Assert.True(vm.CreateNewProfileCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// Add and create are mutually exclusive from the first manifest lookup, before any write begins.
+    /// </summary>
+    /// <param name="create">Whether to exercise the create path rather than the add path.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProfileOperation_WhileResolvingManifest_DisablesSiblingAsync(bool create)
+    {
+        var vm = await CreateViewModelAsync();
+        bool? siblingEnabled = null;
+        _manifestPool.Setup(pool => pool.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                siblingEnabled = create
+                    ? vm.SelectProfileCommand.CanExecute(vm.CompatibleProfiles[0])
+                    : vm.CreateNewProfileCommand.CanExecute(null);
+                return OperationResult<ContentManifest?>.CreateSuccess(new ContentManifest
+                {
+                    Id = ManifestId.Create(ContentId),
+                    Name = ContentName,
+                    ContentType = ContentType.Addon,
+                    TargetGame = GameType.ZeroHour,
+                });
+            });
+        _profileContent.Setup(service => service.AddContentToProfileAsync(ProfileId, ContentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AddToProfileResult.CreateSuccess(ContentId, ContentName));
+        _profileContent.Setup(service => service.CreateProfileWithContentAsync(It.IsAny<string>(), ContentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created", Name = ContentName }));
+
+        if (create)
+        {
+            await vm.CreateNewProfileCommand.ExecuteAsync(null);
+        }
+        else
+        {
+            await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+        }
+
+        Assert.False(siblingEnabled);
+        Assert.False(vm.IsProfileOperationRunning);
+        Assert.True(vm.WasSuccessful, vm.ErrorMessage);
     }
 
     /// <summary>
@@ -298,11 +344,12 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
 
     private void ChooseAction(NotificationActionStyle style) =>
         _dialogs
-            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string title, string content, IEnumerable<DialogAction> actions, bool _, CancellationToken _) =>
+            .Setup(x => x.ShowMessageWithDetailsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string title, string content, IEnumerable<DialogAction> actions, string _, string details, CancellationToken _) =>
             {
                 _dialogTitles.Add(title);
                 _dialogContents.Add(content);
+                _dialogDetails.Add(details);
                 return (actions.FirstOrDefault(action => action.Style == style), false);
             });
 

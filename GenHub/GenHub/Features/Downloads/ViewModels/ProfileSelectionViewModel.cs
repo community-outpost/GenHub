@@ -451,6 +451,7 @@ public sealed partial class ProfileSelectionViewModel(
 
         try
         {
+            IsProfileOperationRunning = true;
             if (string.IsNullOrEmpty(ContentManifestId))
             {
                 logger.LogInformation("Profile '{ProfileName}' selected (no content to add)", profile.Name);
@@ -471,7 +472,6 @@ public sealed partial class ProfileSelectionViewModel(
             var (selectedManifestId, _, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
             var addFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile");
 
-            IsProfileOperationRunning = true;
             var result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
             if (result.MissingDependencies.Count > 0)
             {
@@ -562,6 +562,7 @@ public sealed partial class ProfileSelectionViewModel(
 
         try
         {
+            IsProfileOperationRunning = true;
             logger.LogInformation(
                 "Creating new profile for content '{ContentName}' ({ContentId})",
                 ContentName ?? "Unknown",
@@ -570,7 +571,6 @@ public sealed partial class ProfileSelectionViewModel(
             var (selectedManifestId, selectedManifest, selectedContentName, idsToEnable) = await ResolveProfileCreationContentAsync();
             var profileName = await ResolveUniqueProfileNameAsync(selectedManifest, selectedContentName);
             var createFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed");
-            IsProfileOperationRunning = true;
             var result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
             if (result.MissingDependencies.Count > 0)
             {

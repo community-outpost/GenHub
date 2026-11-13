@@ -44,6 +44,25 @@ public interface IDialogService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Shows a message with diagnostic details hidden until the player expands them.
+    /// </summary>
+    /// <param name="title">The dialog title.</param>
+    /// <param name="content">The player-facing Markdown content.</param>
+    /// <param name="actions">The available actions.</param>
+    /// <param name="detailsHeader">The localized label for the collapsed details.</param>
+    /// <param name="detailsContent">The diagnostic text.</param>
+    /// <param name="cancellationToken">A token that closes the dialog without a result.</param>
+    /// <returns>The selected action and checkbox state.</returns>
+    Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageWithDetailsAsync(
+        string title,
+        string content,
+        IEnumerable<DialogAction> actions,
+        string detailsHeader,
+        string detailsContent,
+        CancellationToken cancellationToken = default) =>
+        ShowMessageAsync(title, content, actions, cancellationToken: cancellationToken);
+
+    /// <summary>
     /// Shows a custom update option dialog.
     /// </summary>
     /// <param name="title">The dialog title.</param>

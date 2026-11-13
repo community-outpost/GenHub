@@ -162,7 +162,8 @@
                 </StackPanel>
 
                 <!-- Body Text with Markdown support -->
-                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,32"
+                <StackPanel Grid.Row="1" Spacing="12" Margin="0,0,0,24">
+                <md:MarkdownScrollViewer Markdown="{Binding Content}" MaxHeight="320"
                                          TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
                     <md:MarkdownScrollViewer.Styles>
                          <Style Selector="Border.Note">
@@ -180,6 +181,18 @@
                         </Style>
                     </md:MarkdownScrollViewer.Styles>
                 </md:MarkdownScrollViewer>
+                <Expander Header="{Binding DetailsHeader}"
+                          IsVisible="{Binding HasDetails}"
+                          IsExpanded="False"
+                          HorizontalAlignment="Stretch">
+                    <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled">
+                        <SelectableTextBlock Text="{Binding DetailsContent}"
+                                             TextWrapping="Wrap"
+                                             FontSize="12"
+                                             Foreground="{DynamicResource TextSecondary}" />
+                    </ScrollViewer>
+                </Expander>
+                </StackPanel>
 
                 <!-- Footer with Checkbox and Action Buttons -->
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">

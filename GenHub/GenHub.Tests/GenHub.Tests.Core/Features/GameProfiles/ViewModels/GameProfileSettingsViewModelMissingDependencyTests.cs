@@ -37,6 +37,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     private readonly Dictionary<string, ContentManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _dialogTitles = [];
     private readonly List<string> _dialogContents = [];
+    private readonly List<string> _dialogDetails = [];
     private readonly GameProfileSettingsViewModel _viewModel;
     private readonly List<CreateProfileRequest> _createRequests = [];
 
@@ -77,11 +78,12 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
                 return ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created" });
             });
         _dialogs
-            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string title, string content, IEnumerable<DialogAction> actions, bool _, CancellationToken _) =>
+            .Setup(x => x.ShowMessageWithDetailsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string title, string content, IEnumerable<DialogAction> actions, string _, string details, CancellationToken _) =>
             {
                 _dialogTitles.Add(title);
                 _dialogContents.Add(content);
+                _dialogDetails.Add(details);
                 return (actions.FirstOrDefault(action => action.Style == ChosenStyle), false);
             });
 
@@ -138,12 +140,12 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     {
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
-        Assert.Equal($"{ControlBarProName} needs GenTool", Assert.Single(_dialogTitles));
+        Assert.Equal("One required item is missing", Assert.Single(_dialogTitles));
         var content = Assert.Single(_dialogContents);
-        var body = content[..content.IndexOf("#### Details", StringComparison.Ordinal)];
+        var body = content;
         Assert.Contains("**GenTool**", body, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("1.1.communityoutpost.addon.gent", content[body.Length..], StringComparison.Ordinal);
+        Assert.Contains("1.1.communityoutpost.addon.gent", Assert.Single(_dialogDetails), StringComparison.Ordinal);
         Assert.NotEqual("Error: Missing required dependencies", _viewModel.StatusMessage);
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -203,8 +205,8 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     public async Task Save_EditorClosedDuringDialog_CancelsInstallAsync()
     {
         _dialogs
-            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns((string _, string _, IEnumerable<DialogAction> _, bool _, CancellationToken token) =>
+            .Setup(x => x.ShowMessageWithDetailsAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string _, string _, IEnumerable<DialogAction> _, string _, string _, CancellationToken token) =>
             {
                 _viewModel.CancelPendingOperations();
                 token.ThrowIfCancellationRequested();

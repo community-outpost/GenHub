@@ -19,14 +19,19 @@ public class DialogServiceTests
     /// <summary>
     /// Verifies that canceling an open message dialog closes it and reports cancellation instead of a result.
     /// </summary>
+    /// <param name="withDetails">Whether diagnostic details are present.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [AvaloniaFact]
-    public async Task ShowMessageAsync_Canceled_ClosesDialogAndThrowsAsync()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShowMessageAsync_Canceled_ClosesDialogAndThrowsAsync(bool withDetails)
     {
         var service = new DialogService(Mock.Of<ISessionPreferenceService>());
         using var cts = new CancellationTokenSource();
 
-        var showing = service.ShowMessageAsync("Title", "Content", [], showDoNotAskAgain: true, cts.Token);
+        var showing = withDetails
+            ? service.ShowMessageWithDetailsAsync("Title", "Content", [], "Details", "Diagnostic text", cts.Token)
+            : service.ShowMessageAsync("Title", "Content", [], showDoNotAskAgain: true, cts.Token);
         Dispatcher.UIThread.RunJobs();
         Assert.False(showing.IsCompleted);
 
@@ -40,13 +45,18 @@ public class DialogServiceTests
     /// <summary>
     /// Verifies that an already canceled token never opens a message dialog.
     /// </summary>
+    /// <param name="withDetails">Whether diagnostic details are present.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [AvaloniaFact]
-    public async Task ShowMessageAsync_AlreadyCanceled_DoesNotOpenDialogAsync()
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShowMessageAsync_AlreadyCanceled_DoesNotOpenDialogAsync(bool withDetails)
     {
         var service = new DialogService(Mock.Of<ISessionPreferenceService>());
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => service.ShowMessageAsync("Title", "Content", Array.Empty<DialogAction>(), cancellationToken: new CancellationToken(true)));
+            () => withDetails
+                ? service.ShowMessageWithDetailsAsync("Title", "Content", Array.Empty<DialogAction>(), "Details", "Diagnostic text", new CancellationToken(true))
+                : service.ShowMessageAsync("Title", "Content", Array.Empty<DialogAction>(), cancellationToken: new CancellationToken(true)));
     }
 }
