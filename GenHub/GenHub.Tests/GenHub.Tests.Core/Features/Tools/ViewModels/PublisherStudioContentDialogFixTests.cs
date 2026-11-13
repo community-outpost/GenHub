@@ -23,29 +23,65 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "GenHubContentDialogFix_" + Guid.NewGuid().ToString("N"));
 
     /// <summary>
-    /// A missing dropped file blocks creation until the author removes it or supplies a valid file.
+    /// A missing dropped file is refused with an error and leaves the typed download URL and mode alone.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    [AvaloniaFact]
-    public async Task CreateContent_MissingDroppedArtifact_BlocksUntilRemovedAsync()
+    [Fact]
+    public async Task AddReleaseArtifactsFromPaths_MissingFileInDirectUrlMode_IsRefusedAndKeepsUrlAsync()
     {
-        CatalogContentItem? created = null;
-        using var vm = new AddContentDialogViewModel(item => created = item)
+        using var vm = new AddContentDialogViewModel(_ => { })
         {
             ContentName = "Draft Mod",
             ContentId = "draft-mod",
             Description = "A description that meets the length requirements",
         };
+        vm.UseDirectUrl = true;
+        vm.DownloadUrl = "https://example.invalid/mod.zip";
+
         await vm.AddReleaseArtifactsFromPathsAsync([Path.Combine(_tempDir, "missing.zip")]);
-        vm.CreateContentCommand.Execute(null);
 
-        Assert.Null(created);
+        Assert.Empty(vm.StagedFiles);
+        Assert.True(vm.UseDirectUrl);
+        Assert.Equal("https://example.invalid/mod.zip", vm.DownloadUrl);
         Assert.Contains("does not exist", vm.ValidationError, StringComparison.OrdinalIgnoreCase);
-        vm.RemoveStagedFileCommand.Execute(Assert.Single(vm.StagedFiles));
-        vm.CreateContentCommand.Execute(null);
+    }
 
-        Assert.NotNull(created);
-        Assert.Empty(created.Releases);
+    /// <summary>
+    /// A dropped file whose real name ends in a quote is staged under its exact path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddReleaseArtifactsFromPaths_FileNameEndingInQuote_StagesExactPathAsync()
+    {
+        Directory.CreateDirectory(_tempDir);
+        var file = Path.Combine(_tempDir, "quoted-mod.zip'");
+        File.WriteAllText(file, "payload");
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        await vm.AddReleaseArtifactsFromPathsAsync([file]);
+        await WaitForComputeAsync(vm);
+
+        Assert.Equal(Path.GetFullPath(file), Assert.Single(vm.StagedFiles).LocalPath);
+        Assert.DoesNotContain("does not exist", vm.ValidationError ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Only http and https download URLs are used to fill the package name and fetch the remote size.
+    /// </summary>
+    /// <param name="url">The download URL entered by the author.</param>
+    /// <param name="expectedFilename">The package filename expected afterwards.</param>
+    [Theory]
+    [InlineData("ftp://example.invalid/mod.zip", null)]
+    [InlineData("file:///tmp/mod.zip", null)]
+    [InlineData("https://example.invalid/mod.zip", "mod.zip")]
+    public void DownloadUrl_OnlyHttpSchemesFillPackageFilename(string url, string? expectedFilename)
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+        vm.UseDirectUrl = true;
+
+        vm.DownloadUrl = url;
+
+        Assert.Equal(expectedFilename, string.IsNullOrEmpty(vm.PackageFilename) ? null : vm.PackageFilename);
     }
 
     /// <summary>
@@ -130,6 +166,27 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             Description = "A description that meets the length requirements",
             ReleaseChangelog = "First release",
         };
+
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.Null(created);
+        Assert.False(string.IsNullOrEmpty(vm.ValidationError));
+    }
+
+    /// <summary>
+    /// Release dependencies with no file or URL block the save instead of being dropped.
+    /// </summary>
+    [Fact]
+    public void CreateContent_DependenciesWithoutSource_AreRejected()
+    {
+        CatalogContentItem? created = null;
+        using var vm = new AddContentDialogViewModel(item => created = item)
+        {
+            ContentName = "Dependent Mod",
+            ContentId = "dependent-mod",
+            Description = "A description that meets the length requirements",
+        };
+        vm.ReleaseDependencies.Add(new CatalogDependency { ContentId = "base-mod" });
 
         vm.CreateContentCommand.Execute(null);
 

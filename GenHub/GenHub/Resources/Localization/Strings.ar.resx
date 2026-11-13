@@ -18249,7 +18249,4 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>الإصدار الأولي اختياري. بدونه، يكون هذا العنصر مسودة: يمكنك حفظ المشروع، لكن يجب إضافة إصدار أو إزالة المسودة قبل تصدير الكتالوج أو نشره.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.UnavailableArtifact" xml:space="preserve">
-    <value>الملف غير متاح</value>
-  </data>
 </root>

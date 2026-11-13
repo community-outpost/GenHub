@@ -18249,7 +18249,4 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>Первый выпуск необязателен. Без него элемент остаётся черновиком: проект можно сохранить, но перед экспортом или публикацией каталога нужно добавить выпуск или удалить черновик.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.UnavailableArtifact" xml:space="preserve">
-    <value>Файл недоступен</value>
-  </data>
 </root>

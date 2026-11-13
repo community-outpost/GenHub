@@ -860,14 +860,26 @@ public partial class AddContentDialogViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task AddReleaseArtifactsFromPathsAsync(IEnumerable<string> paths)
     {
+        string? unavailablePath = null;
         foreach (var rawPath in paths)
         {
-            await ProcessReleaseArtifactPathAsync(rawPath);
+            if (!await ProcessReleaseArtifactPathAsync(rawPath))
+            {
+                unavailablePath ??= rawPath;
+            }
         }
 
         IncludeInitialRelease = true;
         SyncPrimaryFromStaged();
         Validate();
+        if (unavailablePath != null)
+        {
+            ValidationError = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                    "Local path does not exist: {0}"),
+                unavailablePath);
+        }
     }
 
     /// <inheritdoc />
@@ -1145,6 +1157,9 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private static string ResolveDroppedPath(string rawPath) =>
+        File.Exists(rawPath) || Directory.Exists(rawPath) ? rawPath : rawPath.Trim('"', '\'', ' ');
+
     private static bool IsRemoteArtworkUrl(string value)
     {
         return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
@@ -1303,8 +1318,7 @@ public partial class AddContentDialogViewModel(
 
     private bool TryStagePath(string? rawPath, bool autofill)
     {
-        var trimmed = rawPath?.Trim('"', '\'', ' ');
-        if (string.IsNullOrWhiteSpace(trimmed))
+        if (string.IsNullOrWhiteSpace(rawPath))
         {
             return false;
         }
@@ -1312,7 +1326,7 @@ public partial class AddContentDialogViewModel(
         string path;
         try
         {
-            path = Path.GetFullPath(trimmed);
+            path = Path.GetFullPath(ResolveDroppedPath(rawPath));
         }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         {
@@ -2769,14 +2783,14 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private async Task ProcessReleaseArtifactPathAsync(string rawPath)
+    private async Task<bool> ProcessReleaseArtifactPathAsync(string rawPath)
     {
         if (string.IsNullOrWhiteSpace(rawPath))
         {
-            return;
+            return true;
         }
 
-        var path = rawPath.Trim('"', '\'', ' ');
+        var path = ResolveDroppedPath(rawPath);
         if (File.Exists(path))
         {
             var sha256 = await ComputeFileSha256SafeAsync(path);
@@ -2796,46 +2810,21 @@ public partial class AddContentDialogViewModel(
                 ReleaseArtifacts.Add(art);
                 IncludeInitialRelease = true;
                 OnPropertyChanged(nameof(HasInitialReleaseFiles));
-                return;
+                return true;
             }
         }
 
         if (!File.Exists(path) && !Directory.Exists(path))
         {
-            RetainUnavailableArtifact(path);
-            return;
+            return false;
         }
 
         if (TryStagePath(path, autofill: false))
         {
             UseDirectUrl = false;
         }
-    }
 
-    private void RetainUnavailableArtifact(string path)
-    {
-        string fullPath = string.Empty;
-        try
-        {
-            fullPath = Path.GetFullPath(path);
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return;
-        }
-
-        if (StagedFiles.All(entry => !string.Equals(entry.LocalPath, fullPath, StringComparison.OrdinalIgnoreCase)))
-        {
-            // Keep the rejected drop visible and removable; it must not silently become a source-free draft.
-            StagedFiles.Add(new StagedContentFile
-            {
-                LocalPath = fullPath,
-                DisplayName = Path.GetFileName(fullPath),
-                FileSizeDisplay = GetLocalizedString("Tools.PublisherStudio.Content.UnavailableArtifact", "File unavailable"),
-            });
-        }
-
-        UseDirectUrl = false;
+        return true;
     }
 
     private string GetLocalizedString(string key, string fallback)

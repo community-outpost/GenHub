@@ -901,6 +901,33 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// A supported publisher type without upstream sync is a draft, so validation rejects it before export would.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_ContentWithZeroReleases_SupportedPublisherTypeWithoutUpstreamSync_FailsAsync()
+    {
+        var item = new CatalogContentItem
+        {
+            Id = "former-upstream",
+            Name = "Former Upstream",
+            ContentType = ContentType.GameClient,
+            PublisherType = "TheSuperHackers",
+            Releases = [],
+        };
+        var project = CreateExportProject(item);
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(project.Catalog));
+
+        var validated = await _service.ValidateCatalogAsync(project.Catalog, allowPendingArtifacts: true);
+        var exported = await _service.ExportCatalogAsync(project);
+
+        Assert.False(validated.Success);
+        Assert.False(exported.Success);
+        Assert.Equal(exported.FirstError, validated.FirstError);
+    }
+
+    /// <summary>
     /// Creates a temporary test file path.
     /// </summary>
     /// <returns>A temporary file path.</returns>

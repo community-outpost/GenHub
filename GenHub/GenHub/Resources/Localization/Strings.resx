@@ -18308,7 +18308,4 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>An initial release is optional. Without one, this item is a draft: you can save the project, but must add a release or remove the draft before exporting or publishing the catalog.</value>
   </data>
-  <data name="Tools.PublisherStudio.Content.UnavailableArtifact" xml:space="preserve">
-    <value>File unavailable</value>
-  </data>
 </root>

@@ -226,11 +226,7 @@ public class PublisherStudioService(
             var itemWithoutReleases = catalogToExport.Content.FirstOrDefault(RequiresReleaseButHasNone);
             if (itemWithoutReleases != null)
             {
-                return Task.FromResult(OperationResult<string>.CreateFailure(
-                    localizationService.GetLocalizedString(
-                        "Tools.PublisherStudio.Validation.ExportDraft",
-                        "'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.",
-                        string.IsNullOrWhiteSpace(itemWithoutReleases.Name) ? itemWithoutReleases.Id : itemWithoutReleases.Name)));
+                return Task.FromResult(OperationResult<string>.CreateFailure(GetDraftError(itemWithoutReleases)));
             }
 
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);
@@ -469,25 +465,6 @@ public class PublisherStudioService(
         content.ContentType != ContentType.ContentBundle &&
         !CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
 
-    private static OperationResult<bool> ValidateContentReleases(
-        PublisherCatalog catalog,
-        bool allowPendingArtifacts,
-        CancellationToken cancellationToken)
-    {
-        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var content in catalog.Content)
-        {
-            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
-            if (!result.Success)
-            {
-                return result;
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
     private static IEnumerable<NamedCatalog> ResolveCandidateCatalogs(
         PublisherStudioProject project,
         PublisherCatalog projectCatalog)
@@ -507,53 +484,6 @@ public class PublisherStudioService(
                 Catalog = projectCatalog,
             },
         ];
-    }
-
-    private static OperationResult<bool> ValidateContentItem(
-        CatalogContentItem content,
-        HashSet<string> seenIds,
-        bool allowPendingArtifacts,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(content.Id))
-        {
-            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
-        }
-
-        if (!seenIds.Add(content.Id))
-        {
-            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
-        }
-
-        var bundleValidation = ValidateContentBundleItem(content);
-        if (!bundleValidation.Success)
-        {
-            return bundleValidation;
-        }
-
-        var upstreamValidation = ValidateUpstreamSyncItem(content);
-        if (!upstreamValidation.Success)
-        {
-            return upstreamValidation;
-        }
-
-        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) ||
-                                CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
-        var isBundle = content.ContentType == ContentType.ContentBundle;
-
-        if (content.Releases.Count == 0)
-        {
-            if (!isUpstreamTracked && !isBundle)
-            {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-
-        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
     }
 
     private static OperationResult<bool> ValidateContentBundleItem(CatalogContentItem content)
@@ -821,6 +751,75 @@ public class PublisherStudioService(
         }
 
         return false;
+    }
+
+    private string GetDraftError(CatalogContentItem content) =>
+        localizationService.GetLocalizedString(
+            "Tools.PublisherStudio.Validation.ExportDraft",
+            "'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.",
+            string.IsNullOrWhiteSpace(content.Name) ? content.Id : content.Name);
+
+    private OperationResult<bool> ValidateContentReleases(
+        PublisherCatalog catalog,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var content in catalog.Content)
+        {
+            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
+            if (!result.Success)
+            {
+                return result;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private OperationResult<bool> ValidateContentItem(
+        CatalogContentItem content,
+        HashSet<string> seenIds,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+        }
+
+        if (!seenIds.Add(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
+        }
+
+        var bundleValidation = ValidateContentBundleItem(content);
+        if (!bundleValidation.Success)
+        {
+            return bundleValidation;
+        }
+
+        var upstreamValidation = ValidateUpstreamSyncItem(content);
+        if (!upstreamValidation.Success)
+        {
+            return upstreamValidation;
+        }
+
+        if (RequiresReleaseButHasNone(content))
+        {
+            return OperationResult<bool>.CreateFailure(GetDraftError(content));
+        }
+
+        var isBundle = content.ContentType == ContentType.ContentBundle;
+        if (content.Releases.Count == 0)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
     }
 
     /// <summary>
