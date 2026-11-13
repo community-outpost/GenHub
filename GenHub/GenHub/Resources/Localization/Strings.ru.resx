@@ -18243,4 +18243,13 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.ExportDraft" xml:space="preserve">
+    <value>У «{0}» нет выпусков. Добавьте выпуск или удалите этот черновик из каталога перед экспортом. Проект по-прежнему можно сохранить.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
+    <value>Первый выпуск необязателен. Без него элемент остаётся черновиком: проект можно сохранить, но перед экспортом или публикацией каталога нужно добавить выпуск или удалить черновик.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UnavailableArtifact" xml:space="preserve">
+    <value>Файл недоступен</value>
+  </data>
 </root>

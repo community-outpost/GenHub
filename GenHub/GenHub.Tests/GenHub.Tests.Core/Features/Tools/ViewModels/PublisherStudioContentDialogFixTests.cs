@@ -23,6 +23,32 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "GenHubContentDialogFix_" + Guid.NewGuid().ToString("N"));
 
     /// <summary>
+    /// A missing dropped file blocks creation until the author removes it or supplies a valid file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [AvaloniaFact]
+    public async Task CreateContent_MissingDroppedArtifact_BlocksUntilRemovedAsync()
+    {
+        CatalogContentItem? created = null;
+        using var vm = new AddContentDialogViewModel(item => created = item)
+        {
+            ContentName = "Draft Mod",
+            ContentId = "draft-mod",
+            Description = "A description that meets the length requirements",
+        };
+        await vm.AddReleaseArtifactsFromPathsAsync([Path.Combine(_tempDir, "missing.zip")]);
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.Null(created);
+        Assert.Contains("does not exist", vm.ValidationError, StringComparison.OrdinalIgnoreCase);
+        vm.RemoveStagedFileCommand.Execute(Assert.Single(vm.StagedFiles));
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(created);
+        Assert.Empty(created.Releases);
+    }
+
+    /// <summary>
     /// A new item with an empty initial release section saves as a draft with no releases.
     /// </summary>
     [Fact]

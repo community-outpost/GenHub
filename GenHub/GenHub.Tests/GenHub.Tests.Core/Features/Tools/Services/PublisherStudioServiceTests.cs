@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
@@ -21,6 +22,8 @@ namespace GenHub.Tests.Core.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioServiceTests
 {
+    private delegate bool LocalizeCallback(string key, out string? result, object?[] arguments);
+
     private readonly Mock<ILogger<PublisherStudioService>> _loggerMock;
     private readonly Mock<IPublisherCatalogParser> _catalogParserMock;
     private readonly PublisherStudioService _service;
@@ -33,6 +36,29 @@ public class PublisherStudioServiceTests
         _loggerMock = new Mock<ILogger<PublisherStudioService>>();
         _catalogParserMock = new Mock<IPublisherCatalogParser>();
         _service = new PublisherStudioService(_loggerMock.Object, _catalogParserMock.Object);
+    }
+
+    /// <summary>
+    /// Export errors use the active localization service and name the draft that blocks export.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_DraftError_UsesLocalizedMessageAsync()
+    {
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(service => service.TryGetString(It.IsAny<string>(), out It.Ref<string?>.IsAny, It.IsAny<object?[]>()))
+            .Returns(new LocalizeCallback((string key, out string? result, object?[] arguments) =>
+            {
+                result = $"Localized draft: {arguments[0]}";
+                return true;
+            }));
+        var service = new PublisherStudioService(_loggerMock.Object, _catalogParserMock.Object, localization.Object);
+        var project = CreateExportProject(new CatalogContentItem { Id = "draft-id", Name = "Draft Mod", ContentType = ContentType.Mod });
+
+        var exported = await service.ExportCatalogAsync(project);
+
+        Assert.False(exported.Success);
+        Assert.Equal("Localized draft: Draft Mod", exported.FirstError);
     }
 
     /// <summary>

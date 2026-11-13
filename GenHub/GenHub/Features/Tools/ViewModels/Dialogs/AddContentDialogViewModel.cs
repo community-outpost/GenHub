@@ -1576,6 +1576,7 @@ public partial class AddContentDialogViewModel(
         CancelStagedCompute(entry);
         StagedFiles.Remove(entry);
         SyncPrimaryFromStaged();
+        Validate();
     }
 
     /// <summary>
@@ -2799,10 +2800,42 @@ public partial class AddContentDialogViewModel(
             }
         }
 
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            RetainUnavailableArtifact(path);
+            return;
+        }
+
         if (TryStagePath(path, autofill: false))
         {
             UseDirectUrl = false;
         }
+    }
+
+    private void RetainUnavailableArtifact(string path)
+    {
+        string fullPath = string.Empty;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return;
+        }
+
+        if (StagedFiles.All(entry => !string.Equals(entry.LocalPath, fullPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            // Keep the rejected drop visible and removable; it must not silently become a source-free draft.
+            StagedFiles.Add(new StagedContentFile
+            {
+                LocalPath = fullPath,
+                DisplayName = Path.GetFileName(fullPath),
+                FileSizeDisplay = GetLocalizedString("Tools.PublisherStudio.Content.UnavailableArtifact", "File unavailable"),
+            });
+        }
+
+        UseDirectUrl = false;
     }
 
     private string GetLocalizedString(string key, string fallback)

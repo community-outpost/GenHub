@@ -1,4 +1,6 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
@@ -21,7 +23,8 @@ namespace GenHub.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioService(
     ILogger<PublisherStudioService> logger,
-    IPublisherCatalogParser catalogParser) : IPublisherStudioService
+    IPublisherCatalogParser catalogParser,
+    ILocalizationService? localizationService = null) : IPublisherStudioService
 {
     private const string DefaultCatalogId = "default";
 
@@ -224,7 +227,10 @@ public class PublisherStudioService(
             if (itemWithoutReleases != null)
             {
                 return Task.FromResult(OperationResult<string>.CreateFailure(
-                    $"Content item '{(string.IsNullOrWhiteSpace(itemWithoutReleases.Name) ? itemWithoutReleases.Id : itemWithoutReleases.Name)}' has no releases"));
+                    localizationService.GetLocalizedString(
+                        "Tools.PublisherStudio.Validation.ExportDraft",
+                        "'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.",
+                        string.IsNullOrWhiteSpace(itemWithoutReleases.Name) ? itemWithoutReleases.Id : itemWithoutReleases.Name)));
             }
 
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);

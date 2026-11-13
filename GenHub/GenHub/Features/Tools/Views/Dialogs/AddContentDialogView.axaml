@@ -578,6 +578,11 @@
                     </StackPanel>
                 </Expander>
 
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DraftHint}"
+                           Classes="hint"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding CanShowInitialRelease}" />
+
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
                 <Expander x:Name="InitialReleaseSection"
                           Background="{DynamicResource GlassFillSubtleBrush}"

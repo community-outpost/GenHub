@@ -18243,4 +18243,13 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
+  <data name="Tools.PublisherStudio.Validation.ExportDraft" xml:space="preserve">
+    <value>لا يحتوي «{0}» على إصدارات. أضف إصدارًا أو أزل هذه المسودة من الكتالوج قبل التصدير. لا يزال بإمكانك حفظ المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
+    <value>الإصدار الأولي اختياري. بدونه، يكون هذا العنصر مسودة: يمكنك حفظ المشروع، لكن يجب إضافة إصدار أو إزالة المسودة قبل تصدير الكتالوج أو نشره.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.UnavailableArtifact" xml:space="preserve">
+    <value>الملف غير متاح</value>
+  </data>
 </root>
