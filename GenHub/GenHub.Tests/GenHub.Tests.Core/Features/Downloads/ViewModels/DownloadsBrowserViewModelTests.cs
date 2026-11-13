@@ -22,8 +22,14 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -3273,6 +3279,536 @@ public class DownloadsBrowserViewModelTests
         Assert.Contains(viewModel.Publishers, p => p.PublisherId == PublisherTypeConstants.TheSuperHackers);
     }
 
+    /// <summary>
+    /// Verifies that only curated catalogs offer the local filter.
+    /// </summary>
+    /// <param name="publisherId">The publisher to select.</param>
+    /// <param name="expected">Whether the local filter should be available.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(PublisherTypeConstants.GeneralsOnline, true)]
+    [InlineData(CommunityOutpostConstants.PublisherType, true)]
+    [InlineData(PublisherTypeConstants.TheSuperHackers, true)]
+    [InlineData(GitHubTopicsConstants.PublisherType, false)]
+    [InlineData(ModDBConstants.PublisherType, false)]
+    public async Task SelectPublisher_CuratedPublisher_OffersLocalFilterAsync(string publisherId, bool expected)
+    {
+        // Arrange
+        using var viewModel = CreateViewModel();
+        await viewModel.InitializeAsync();
+
+        // Act
+        viewModel.SelectedPublisher = viewModel.Publishers.Single(p => p.PublisherId == publisherId);
+
+        // Assert
+        Assert.Equal(expected, viewModel.CanFilterLocally);
+    }
+
+    /// <summary>
+    /// Verifies that typing "control" on a curated catalog keeps the control bars and hides unrelated cards.
+    /// </summary>
+    /// <param name="publisherId">The curated publisher to select.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(PublisherTypeConstants.GeneralsOnline)]
+    [InlineData(CommunityOutpostConstants.PublisherType)]
+    [InlineData(PublisherTypeConstants.TheSuperHackers)]
+    public async Task LocalFilterText_CuratedPublisher_HidesUnrelatedCardsAsync(string publisherId)
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(publisherId);
+
+        // Act
+        viewModel.LocalFilterText = "control";
+
+        // Assert
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], VisibleCardNames(viewModel));
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+    }
+
+    /// <summary>
+    /// Verifies that the filter text matches tags as well as names and categories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilterText_MatchesTagAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.LocalFilterText = "KEYBOARD";
+
+        // Assert
+        Assert.Equal(["Pro Hotkeys"], VisibleCardNames(viewModel));
+    }
+
+    /// <summary>
+    /// Verifies that the chips list "All" first, then only the categories present in the loaded cards.
+    /// Cards without a catalog category fall back to their content type.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_ListOnlyLoadedCategoriesAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        var chips = viewModel.LocalCategoryFilters;
+
+        // Assert
+        Assert.Equal(
+            ["All (4)", "Control Bar (2)", "GameClient (1)", "Hotkeys (1)"],
+            chips.Select(chip => chip.DisplayText));
+        Assert.True(chips[0].IsSelected);
+        Assert.True(viewModel.HasLocalCategoryFilters);
+    }
+
+    /// <summary>
+    /// Verifies that a category chip shows only that category and "All" clears it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectLocalCategory_ShowsOnlyCategoryAndAllClearsAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.SelectLocalCategoryCommand.Execute("ControlBar");
+
+        // Assert
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], VisibleCardNames(viewModel));
+        Assert.Equal("ControlBar", Assert.Single(viewModel.LocalCategoryFilters, chip => chip.IsSelected).Key);
+
+        viewModel.SelectLocalCategoryCommand.Execute(string.Empty);
+        Assert.Equal(4, VisibleCardNames(viewModel).Count);
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+    }
+
+    /// <summary>
+    /// Verifies that an empty result raises the no-matches state and clearing restores every card.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_NoMatches_ShowsMessageUntilClearedAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.SelectLocalCategoryCommand.Execute("Hotkeys");
+
+        // Act
+        viewModel.LocalFilterText = "control";
+
+        // Assert
+        Assert.Empty(VisibleCardNames(viewModel));
+        Assert.True(viewModel.HasNoLocalFilterMatches);
+
+        viewModel.ClearLocalFilterCommand.Execute(null);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.Equal(string.Empty, viewModel.LocalFilterText);
+        Assert.Equal(4, VisibleCardNames(viewModel).Count);
+    }
+
+    /// <summary>
+    /// Verifies that filtering never queries the provider and never replaces the loaded cards.
+    /// Generals Online resolves to a real discoverer whose HTTP traffic is counted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_DoesNotQueryProviderAsync()
+    {
+        // Arrange
+        using var handler = new CountingNotFoundHandler();
+        var discoverer = GeneralsOnlinePlatformTests.CreateDiscoverer([HostPlatform.Current], handler);
+        using var viewModel = await CreateCuratedViewModelAsync(PublisherTypeConstants.GeneralsOnline, discoverer);
+        var requestsAfterLoad = handler.Requests;
+        var loadedItems = viewModel.ContentItems;
+        var loadedSnapshot = loadedItems.ToList();
+
+        // Act
+        viewModel.LocalFilterText = "control";
+        viewModel.SelectLocalCategoryCommand.Execute("ControlBar");
+        viewModel.ClearLocalFilterCommand.Execute(null);
+        await WaitForLoadToSettleAsync(viewModel);
+
+        // Assert
+        Assert.True(requestsAfterLoad > 0);
+        Assert.Equal(requestsAfterLoad, handler.Requests);
+        Assert.Same(loadedItems, viewModel.ContentItems);
+        Assert.Equal(loadedSnapshot, viewModel.ContentItems);
+        Assert.False(viewModel.IsLoading);
+    }
+
+    /// <summary>
+    /// Verifies that chips show localized friendly labels and that typing a displayed label matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_Russian_ShowsAndMatchesLocalizedLabelsAsync()
+    {
+        // Arrange
+        var russian = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("ru"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: russian);
+
+        // Act
+        var labels = viewModel.LocalCategoryFilters.Select(chip => chip.Label).ToList();
+        viewModel.LocalFilterText = "Игровой клиент";
+        var clientMatches = VisibleCardNames(viewModel);
+        viewModel.LocalFilterText = "панели";
+        var controlBarMatches = VisibleCardNames(viewModel);
+
+        // Assert
+        Assert.Equal(["Все", "Панели управления", "Игровой клиент", "Горячие клавиши"], labels);
+        Assert.Equal(["Weekly Build"], clientMatches);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], controlBarMatches);
+    }
+
+    /// <summary>
+    /// Verifies that chips use friendly English labels, fall back to spaced identifiers, and still match the identifier.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_English_UsesFriendlyLabelsAsync()
+    {
+        // Arrange
+        var english = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("en"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: english);
+        viewModel.ContentItems.Add(CreateCuratedCard("Mystery Pack", "SpecialEdition", "mystery"));
+
+        // Act
+        var labels = viewModel.LocalCategoryFilters.Select(chip => chip.Label).ToList();
+        viewModel.LocalFilterText = "controlbar";
+        var identifierMatches = VisibleCardNames(viewModel);
+        viewModel.LocalFilterText = "special edition";
+        var fallbackMatches = VisibleCardNames(viewModel);
+
+        // Assert
+        Assert.Equal(["All", "Control bars", "Game Client", "Hotkeys", "Special Edition"], labels);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], identifierMatches);
+        Assert.Equal(["Mystery Pack"], fallbackMatches);
+    }
+
+    /// <summary>
+    /// Verifies that cards appended by a later page are filtered and counted in the chips.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_AppendedCards_AreFilteredAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(PublisherTypeConstants.TheSuperHackers);
+        viewModel.LocalFilterText = "control";
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Camera Mod", "Camera", "camera"));
+        viewModel.ContentItems.Add(CreateCuratedCard("Control Bar HD", "ControlBar", "control-bar"));
+
+        // Assert
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar", "Control Bar HD"], VisibleCardNames(viewModel));
+        Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.DisplayText == "Camera (1)");
+    }
+
+    /// <summary>
+    /// Verifies that switching publisher clears the filter and leaves non-curated cards visible.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectPublisher_ClearsLocalFilterAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.LocalFilterText = "zzz";
+        var curatedItems = viewModel.ContentItems.ToList();
+
+        // Act
+        viewModel.SelectedPublisher = viewModel.Publishers.Single(p => p.PublisherId == GitHubTopicsConstants.PublisherType);
+        viewModel.ContentItems = new ObservableCollection<ContentGridItemViewModel>(curatedItems);
+
+        // Assert
+        Assert.Equal(string.Empty, viewModel.LocalFilterText);
+        Assert.Empty(viewModel.LocalCategoryFilters);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.All(viewModel.ContentItems, item => Assert.False(item.IsFilteredOut));
+    }
+
+    /// <summary>
+    /// Verifies that the raw content type identifier matches, even when the display name differs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilterText_MatchesRawContentTypeIdentifierAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.ContentItems.Add(CreateCuratedCard("World Builder", "Tools", "tool", ContentType.ModdingTool));
+
+        // Act
+        viewModel.LocalFilterText = "moddingtool";
+
+        // Assert
+        Assert.Equal(["World Builder"], VisibleCardNames(viewModel));
+    }
+
+    /// <summary>
+    /// Verifies that a category that only repeats the content type shares one chip with uncategorized cards of
+    /// that type, and that case variants of a category share one chip with a stable label.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_MergeEquivalentCategoriesAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Badged Build", "Game Client", "weekly", ContentType.GameClient));
+        viewModel.ContentItems.Add(CreateCuratedCard("Lowercase Bar", "controlbar", "control-bar"));
+        var appended = viewModel.LocalCategoryFilters.Select(chip => chip.DisplayText).ToList();
+        viewModel.ContentItems = new ObservableCollection<ContentGridItemViewModel>(viewModel.ContentItems.Reverse());
+        var reversed = viewModel.LocalCategoryFilters.Select(chip => chip.DisplayText).ToList();
+
+        // Assert
+        Assert.Equal(["All (6)", "Control Bar (3)", "GameClient (2)", "Hotkeys (1)"], appended);
+        Assert.Equal(appended, reversed);
+    }
+
+    /// <summary>
+    /// Verifies that unknown categories are split into title-cased words without stray spaces.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_HumanizeUnknownCategoriesAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Odd Pack", "--special_edition--", "odd"));
+
+        // Assert
+        Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.Label == "Special Edition");
+    }
+
+    /// <summary>
+    /// Verifies that reordering cards and typing keep the chips, and appending cards filters only the new ones.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_MoveAndTyping_KeepChipsAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        var chips = viewModel.LocalCategoryFilters;
+
+        // Act
+        viewModel.ContentItems.Move(0, 3);
+        var afterMove = viewModel.LocalCategoryFilters;
+        viewModel.LocalFilterText = "control";
+        var afterTyping = viewModel.LocalCategoryFilters;
+
+        // Assert
+        Assert.Same(chips, afterMove);
+        Assert.Same(chips, afterTyping);
+        Assert.Equal(["Control Bar Pro", "Leikeze Control Bar"], VisibleCardNames(viewModel).Order());
+    }
+
+    /// <summary>
+    /// Verifies that a free-form spelling of a known catalog category joins its chip and keeps the localized label.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalCategoryFilters_CanonicalizeKnownCategorySpellingsAsync()
+    {
+        // Arrange
+        var russian = new CultureResourceLocalizationService(CultureInfo.GetCultureInfo("ru"));
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType, localization: russian);
+
+        // Act
+        viewModel.ContentItems.Add(CreateCuratedCard("Snake Bar", "control_bar", "ui"));
+
+        // Assert
+        Assert.Contains(viewModel.LocalCategoryFilters, chip => chip.DisplayText == "Панели управления (3)");
+        Assert.DoesNotContain(viewModel.LocalCategoryFilters, chip => chip.Key == "control_bar");
+
+        viewModel.LocalFilterText = "control_bar";
+        Assert.Equal(["Snake Bar"], VisibleCardNames(viewModel));
+    }
+
+    /// <summary>
+    /// Verifies that removing the last card of the selected category falls back to all categories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_SelectedCategoryRemoved_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.SelectLocalCategoryCommand.Execute("Hotkeys");
+
+        // Act
+        viewModel.ContentItems.Remove(viewModel.ContentItems.Single(item => item.Name == "Pro Hotkeys"));
+
+        // Assert
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.Equal(3, VisibleCardNames(viewModel).Count);
+    }
+
+    /// <summary>
+    /// Verifies that adding a card that is already tallied does not inflate the counts.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_RepeatedAdd_DoesNotInflateCountsAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+
+        // Act
+        viewModel.ContentItems.Add(viewModel.ContentItems[0]);
+
+        // Assert
+        Assert.Equal("All (4)", viewModel.LocalCategoryFilters[0].DisplayText);
+    }
+
+    /// <summary>
+    /// Verifies that selecting another variant re-applies the filter to the card's new name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_VariantChange_RefiltersCardAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(PublisherTypeConstants.TheSuperHackers);
+        var card = CreateCuratedCard("Weekly Zero Hour", null, "weekly", ContentType.GameClient);
+        var zeroHour = AddCardVariant(card, "1.0.thesuperhackers.gameclient.zh", "Weekly Zero Hour", "1.0", ContentState.NotDownloaded);
+        var generals = AddCardVariant(card, "1.0.thesuperhackers.gameclient.gen", "Weekly Generals", "1.0", ContentState.NotDownloaded);
+        card.SelectedVariant = zeroHour;
+        viewModel.ContentItems.Add(card);
+        viewModel.LocalFilterText = "zero hour";
+        Assert.False(card.IsFilteredOut);
+
+        // Act
+        card.SelectedVariant = generals;
+
+        // Assert
+        Assert.True(card.IsFilteredOut);
+    }
+
+    /// <summary>
+    /// Verifies that a reload whose cards no longer include the selected category falls back to all categories
+    /// once loading finishes, and keeps the selection while the grid is empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_ReloadWithoutSelectedCategory_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.SelectLocalCategoryCommand.Execute("Hotkeys");
+
+        // Act
+        viewModel.IsLoading = true;
+        viewModel.ContentItems.Clear();
+        var chipsWhileEmpty = viewModel.LocalCategoryFilters.Count;
+        viewModel.ContentItems.Add(CreateCuratedCard("Control Bar Pro", "ControlBar", "control-bar"));
+        viewModel.ContentItems.Add(CreateCuratedCard("Camera Mod", "Camera", "camera"));
+        viewModel.IsLoading = false;
+
+        // Assert
+        Assert.Equal(0, chipsWhileEmpty);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.Equal(2, VisibleCardNames(viewModel).Count);
+    }
+
+    /// <summary>
+    /// Verifies that switching the variant of the last card in the selected category falls back to all categories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_VariantLeavesSelectedCategory_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        var card = CreateCuratedCard("Visual Pack", "Visuals", "visuals");
+        var first = new InstallableVariant { Name = "Visual Pack", ManifestId = card.SearchResult.Id };
+        card.AddVariant(first, card.SearchResult);
+        var second = AddCardVariant(card, "1.0.communityoutpost.addon.visualsb", "Visual Pack Lite", "1.0", ContentState.NotDownloaded);
+        card.SelectedVariant = first;
+        viewModel.ContentItems.Add(card);
+        viewModel.SelectLocalCategoryCommand.Execute("Visuals");
+        Assert.Equal(["Visual Pack"], VisibleCardNames(viewModel));
+
+        // Act
+        card.SelectedVariant = second;
+
+        // Assert
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.Equal(5, VisibleCardNames(viewModel).Count);
+    }
+
+    private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
+        string publisherId,
+        IContentDiscoverer? discoverer = null,
+        ILocalizationService? localization = null)
+    {
+        var serviceProvider = new Mock<IServiceProvider>();
+        serviceProvider.Setup(sp => sp.GetService(typeof(ILocalizationService))).Returns(localization);
+        var viewModel = CreateViewModel(
+            serviceProvider: serviceProvider.Object,
+            contentDiscoverers: discoverer == null ? null : [discoverer]);
+        await viewModel.InitializeAsync();
+        viewModel.SelectedPublisher = viewModel.Publishers.Single(p => p.PublisherId == publisherId);
+        await WaitForLoadToSettleAsync(viewModel);
+        viewModel.ContentItems = new ObservableCollection<ContentGridItemViewModel>(
+        [
+            CreateCuratedCard("Control Bar Pro", "ControlBar", "control-bar"),
+            CreateCuratedCard("Leikeze Control Bar", "ControlBar", "control-bar"),
+            CreateCuratedCard("Pro Hotkeys", "Hotkeys", "keyboard"),
+            CreateCuratedCard("Weekly Build", null, "weekly", ContentType.GameClient),
+        ]);
+        return viewModel;
+    }
+
+    private static ContentGridItemViewModel CreateCuratedCard(
+        string name,
+        string? category,
+        string tag,
+        ContentType contentType = ContentType.Addon)
+    {
+        var result = new ContentSearchResult
+        {
+            Id = $"1.0.curated.{contentType.ToString().ToLowerInvariant()}.{name.Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant()}",
+            Name = name,
+            Version = "1.0",
+            ContentType = contentType,
+            TargetGame = GameType.ZeroHour,
+        };
+        result.Tags.Add(tag);
+        if (category != null)
+        {
+            result.ResolverMetadata[ContentConstants.CategoryMetadataKey] = category;
+        }
+
+        return new ContentGridItemViewModel(result, new Mock<IContentStateService>().Object, new Mock<ILogger<ContentGridItemViewModel>>().Object);
+    }
+
+    private static List<string> VisibleCardNames(DownloadsBrowserViewModel viewModel) =>
+        [.. viewModel.ContentItems.Where(item => !item.IsFilteredOut).Select(item => item.Name)];
+
+    private static async Task WaitForLoadToSettleAsync(DownloadsBrowserViewModel viewModel)
+    {
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(25);
+        }
+    }
+
     private static InstallableVariant AddCardVariant(
         ContentGridItemViewModel card,
         string manifestId,
@@ -3344,5 +3880,48 @@ public class DownloadsBrowserViewModelTests
             new Mock<ILoggerFactory>().Object,
             subscriptionStore.Object,
             reconcilerRegistry: reconcilerRegistry);
+    }
+
+    private sealed class CountingNotFoundHandler : HttpMessageHandler
+    {
+        private int _requests;
+
+        public int Requests => Volatile.Read(ref _requests);
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _requests);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        }
+    }
+
+    private sealed class CultureResourceLocalizationService(CultureInfo culture) : ILocalizationService
+    {
+        private readonly ResourceManager _resources = new(
+            LocalizationConstants.StringResourceBaseName,
+            typeof(DownloadsBrowserViewModel).Assembly);
+
+        public IReadOnlyList<CultureInfo> AvailableCultures => [culture];
+
+        public CultureInfo CurrentCulture => culture;
+
+        public string this[string key] => GetString(key);
+
+        public event PropertyChangedEventHandler? PropertyChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public string GetString(string key, params object?[] arguments) =>
+            TryGetString(key, out var value, arguments) ? value : key;
+
+        public bool TryGetString(string key, [NotNullWhen(true)] out string? result, params object?[] arguments)
+        {
+            result = _resources.GetString(key, culture);
+            return result != null;
+        }
+
+        public OperationResult SetCulture(CultureInfo newCulture) => OperationResult.CreateSuccess();
     }
 }

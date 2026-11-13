@@ -1,7 +1,7 @@
 namespace GenHub.Features.Content.ViewModels.Catalog;
 
 /// <summary>
-/// Represents a category filter option for the catalog subscription confirmation dialog.
+/// Represents a category filter chip, used by the subscription confirmation dialog and the curated catalog filter.
 /// </summary>
 /// <param name="key">The filter key (e.g. "All", "GameClient", "MapPack").</param>
 /// <param name="label">The display label.</param>

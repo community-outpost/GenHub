@@ -4141,6 +4141,54 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>بحث</value>
   </data>
+  <data name="Downloads.Browser.Filter.Watermark" xml:space="preserve">
+    <value>التصفية حسب الاسم أو الفئة أو الوسم...</value>
+  </data>
+  <data name="Downloads.Browser.Filter.All" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Downloads.Browser.Filter.NoMatches" xml:space="preserve">
+    <value>لا يوجد محتوى يطابق عامل التصفية الحالي.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.LoadedOnly" xml:space="preserve">
+    <value>تتم تصفية العناصر المحمّلة فقط. حمّل المزيد لتضمين البقية.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
+    <value>مسح عوامل التصفية</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.CommunityPatch" xml:space="preserve">
+    <value>تصحيح المجتمع</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.OfficialPatch" xml:space="preserve">
+    <value>التصحيح الرسمي</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.BaseGame" xml:space="preserve">
+    <value>اللعبة الأساسية</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.ControlBar" xml:space="preserve">
+    <value>أشرطة التحكم</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Hotkeys" xml:space="preserve">
+    <value>مفاتيح الاختصار</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Camera" xml:space="preserve">
+    <value>الكاميرا</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Tools" xml:space="preserve">
+    <value>الأدوات</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Maps" xml:space="preserve">
+    <value>الخرائط</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Visuals" xml:space="preserve">
+    <value>المرئيات</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Prerequisites" xml:space="preserve">
+    <value>المتطلبات المسبقة</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Other" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>تنزيلاتي</value>
   </data>
