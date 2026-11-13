@@ -111,6 +111,13 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="DisplayName">The user-facing localized display name.</param>
     public record ProfileSortOption(ProfileSortMode Mode, string DisplayName);
 
+    private enum BaseProfileOutcome
+    {
+        Created,
+        Existing,
+        Failed,
+    }
+
     /// <summary>
     /// Gets the list of available sorting modes.
     /// </summary>
@@ -1783,7 +1790,7 @@ public partial class GameProfileLauncherViewModel(
 
     /// <summary>
     /// Determines whether a scan that created nothing and had no failed decision found the game
-    /// already set up: every base game client already has its profile.
+    /// already set up: every base game client and host-native build already has its profile.
     /// </summary>
     private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList, CancellationToken cancellationToken)
     {
@@ -1796,7 +1803,7 @@ public partial class GameProfileLauncherViewModel(
         var profiles = profilesResult.Data;
         var baseClients = installationsList
             .SelectMany(installation => (installation.AvailableGameClients ?? [])
-                .Where(client => !client.IsPublisherClient)
+                .Where(client => !client.IsPublisherClient || PublisherProfileOrchestrator.IsHostNativeClient(client))
                 .Select(client => (Installation: installation, Client: client)))
             .ToList();
 
@@ -1969,7 +1976,7 @@ public partial class GameProfileLauncherViewModel(
                     var gameKey = client.GameType == GameType.Generals
                         ? GameClientConstants.WizardLocalizationKeys.GeneralsGameName
                         : GameClientConstants.WizardLocalizationKeys.ZeroHourGameName;
-                    AddIf(!failedComponentKeys.Contains(gameKey), gameKey);
+                    failedComponentKeys.Add(gameKey);
                 }
             }
         }
@@ -3649,12 +3656,5 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return null;
-    }
-
-    private enum BaseProfileOutcome
-    {
-        Created,
-        Existing,
-        Failed,
     }
 }

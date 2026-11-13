@@ -497,6 +497,37 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a re-scan of an installation whose only game is a host-native build with a profile
+    /// says the game is already set up instead of warning that no profile could be created.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [UnixFact]
+    public async Task ScanForGamesCommand_WhenNativeBuildAlreadyHasProfile_SaysAlreadySetUpAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Launcher.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var executablePath = Path.Combine(directory, "generalszh");
+            byte[] header = OperatingSystem.IsLinux()
+                ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
+                : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
+            await File.WriteAllBytesAsync(executablePath, header);
+            var scan = new WizardScanFixture(nativeSuperHackersOnly: true, superHackersExecutablePath: executablePath, existingSuperHackersProfile: true);
+
+            await scan.RunAsync(CreateDeclinedWizardResult());
+
+            Assert.Equal("Your game is already set up. No new profiles were needed.", scan.ViewModel.StatusMessage);
+            scan.Notifications.Verify(
+                x => x.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that a profile matched by client ID from an older installation ID counts as already set up,
     /// the same way profile creation treats it as a duplicate.
     /// </summary>
@@ -553,7 +584,7 @@ public class GameProfileLauncherViewModelTests
 
         Assert.False(scan.ViewModel.IsScanning);
         Assert.True(string.IsNullOrEmpty(scan.ViewModel.ErrorMessage));
-        Assert.NotEqual("Error during scan", scan.ViewModel.StatusMessage);
+        Assert.Equal("Scanning for games...", scan.ViewModel.StatusMessage);
     }
 
     /// <summary>
@@ -2528,6 +2559,7 @@ public class GameProfileLauncherViewModelTests
     {
         public const string ClientId = "zh-client";
         public const string ClientName = "Zero Hour 1.04";
+        public const string SuperHackersClientName = "TheSuperHackers Zero Hour";
 
         private readonly Mock<ISetupWizardService> _setupWizardService = new();
 
@@ -2536,10 +2568,12 @@ public class GameProfileLauncherViewModelTests
             bool existingProfileOnInstallation = false,
             bool nativeSuperHackersOnly = false,
             bool withSuperHackersClient = false,
-            bool withClientlessInstallation = false)
+            bool withClientlessInstallation = false,
+            string? superHackersExecutablePath = null,
+            bool existingSuperHackersProfile = false)
         {
             Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
-            var superHackersClient = new GameClient { Id = "native-tsh", Name = "TheSuperHackers Zero Hour", PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id };
+            var superHackersClient = new GameClient { Id = "native-tsh", Name = SuperHackersClientName, PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id, ExecutablePath = superHackersExecutablePath ?? string.Empty };
             var baseClient = new GameClient { Id = ClientId, Name = ClientName, GameType = GameType.ZeroHour, Version = "1.04", InstallationId = Installation.Id };
             var clients = new List<GameClient>();
             if (!nativeSuperHackersOnly)
@@ -2564,6 +2598,11 @@ public class GameProfileLauncherViewModelTests
             if (otherProfile != null)
             {
                 profiles.Add(otherProfile);
+            }
+
+            if (existingSuperHackersProfile)
+            {
+                profiles.Add(new GameProfile { Id = "existing-tsh", Name = SuperHackersClientName, GameInstallationId = Installation.Id });
             }
 
             if (existingProfileOnInstallation)
