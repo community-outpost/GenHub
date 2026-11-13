@@ -176,6 +176,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly ConcurrentDictionary<string, HashSet<string>> _knownContentItemIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _vmCts = new();
     private readonly CuratedCatalogFilter _localFilter = new();
+    private readonly HashSet<ContentGridItemViewModel> _observedCards = [];
     private CancellationTokenSource? _searchCts;
     private CancellationTokenSource? _catalogsCts;
     private int _activeRequestId;
@@ -495,6 +496,8 @@ public sealed partial class DownloadsBrowserViewModel(
             {
                 _observedContentItems.CollectionChanged -= OnContentItemsCollectionChanged;
             }
+
+            ObserveCards([]);
 
             if (CurrentFilterViewModel != null)
             {
@@ -1554,6 +1557,7 @@ public sealed partial class DownloadsBrowserViewModel(
         ObserveContentItems(items);
         if (!CanFilterLocally)
         {
+            ObserveCards([]);
             foreach (var item in items)
             {
                 item.IsFilteredOut = false;
@@ -1564,6 +1568,7 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
+        ObserveCards(items);
         _localFilter.Reset(items, _localizationService);
         PublishLocalFilterState(rebuildChips: true);
     }
@@ -1580,7 +1585,13 @@ public sealed partial class DownloadsBrowserViewModel(
             return;
         }
 
-        _localFilter.Add(added, _localizationService);
+        var addedCards = added.ToList();
+        foreach (var card in addedCards.Where(_observedCards.Add))
+        {
+            card.PropertyChanged += OnCardPropertyChanged;
+        }
+
+        _localFilter.Add(addedCards, _localizationService);
         PublishLocalFilterState(rebuildChips: true);
     }
 
@@ -1603,6 +1614,29 @@ public sealed partial class DownloadsBrowserViewModel(
         }
 
         HasNoLocalFilterMatches = _localFilter.HasNoMatches;
+    }
+
+    private void ObserveCards(IReadOnlyCollection<ContentGridItemViewModel> cards)
+    {
+        var current = cards.ToHashSet();
+        foreach (var card in _observedCards.Where(card => !current.Contains(card)).ToList())
+        {
+            card.PropertyChanged -= OnCardPropertyChanged;
+            _observedCards.Remove(card);
+        }
+
+        foreach (var card in current.Where(_observedCards.Add))
+        {
+            card.PropertyChanged += OnCardPropertyChanged;
+        }
+    }
+
+    private void OnCardPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ContentGridItemViewModel.SelectedVariant))
+        {
+            ApplyLocalFilter();
+        }
     }
 
     private void ObserveContentItems(ObservableCollection<ContentGridItemViewModel> items)

@@ -93,6 +93,18 @@ Constants used by the application localization foundation.
 
 ---
 
+## CuratedCatalogFilterConstants Class
+
+Resource keys used by the local filter on curated catalogs in the Downloads browser.
+
+| Constant | Value | Description |
+| --- | --- | --- |
+| `AllLabelKey` | `"Downloads.Browser.Filter.All"` | Label of the chip that selects every category |
+| `CategoryLabelKeyPrefix` | `"Downloads.Browser.Filter.Category."` | Prefix of catalog category chip labels, followed by the category identifier |
+| `ContentTypeLabelKeyPrefix` | `"ContentType."` | Prefix of content type labels, followed by the content type identifier |
+
+---
+
 ## AppUpdateConstants Class
 
 Constants related to application updates and Velopack.

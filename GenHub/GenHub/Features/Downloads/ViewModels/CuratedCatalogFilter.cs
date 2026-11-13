@@ -39,10 +39,6 @@ internal sealed class CuratedCatalogFilter
     /// </summary>
     public const string AllCategoriesKey = "";
 
-    private const string AllLabelKey = "Downloads.Browser.Filter.All";
-    private const string CategoryLabelKeyPrefix = "Downloads.Browser.Filter.Category.";
-    private const string ContentTypeLabelKeyPrefix = "ContentType.";
-
     private static readonly ResourceManager NeutralResources = new(LocalizationConstants.StringResourceBaseName, typeof(CuratedCatalogFilter).Assembly);
 
     private static readonly char[] WordSeparators = [' ', '-', '_'];
@@ -109,7 +105,7 @@ internal sealed class CuratedCatalogFilter
         var fallback = Enum.TryParse<ContentType>(category, true, out var contentType) && Enum.IsDefined(contentType)
             ? GetContentTypeLabel(contentType, localization)
             : Humanize(category);
-        return localization.GetLocalizedString(CategoryLabelKeyPrefix + category, fallback);
+        return localization.GetLocalizedString(CuratedCatalogFilterConstants.CategoryLabelKeyPrefix + category, fallback);
     }
 
     /// <summary>
@@ -119,7 +115,7 @@ internal sealed class CuratedCatalogFilter
     /// <param name="localization">The localization service, if any.</param>
     /// <returns>The localized content type label.</returns>
     public static string GetContentTypeLabel(ContentType contentType, ILocalizationService? localization) =>
-        localization.GetLocalizedString(ContentTypeLabelKeyPrefix + contentType, contentType.GetDisplayName());
+        localization.GetLocalizedString(CuratedCatalogFilterConstants.ContentTypeLabelKeyPrefix + contentType, contentType.GetDisplayName());
 
     /// <summary>
     /// Determines whether a card matches the filter text and the selected category.
@@ -225,7 +221,7 @@ internal sealed class CuratedCatalogFilter
 
         List<CatalogCategoryFilter> chips =
         [
-            new(AllCategoriesKey, localization.GetLocalizedString(AllLabelKey, NeutralResources.GetString(AllLabelKey, CultureInfo.InvariantCulture) ?? AllLabelKey), TotalCount, SelectedCategory.Length == 0),
+            new(AllCategoriesKey, ResolveAllLabel(localization), TotalCount, SelectedCategory.Length == 0),
         ];
         chips.AddRange(_categories.Values
             .OrderBy(tally => tally.Key, StringComparer.OrdinalIgnoreCase)
@@ -235,6 +231,12 @@ internal sealed class CuratedCatalogFilter
                 tally.Count,
                 string.Equals(tally.Key, SelectedCategory, StringComparison.OrdinalIgnoreCase))));
         return chips;
+    }
+
+    private static string ResolveAllLabel(ILocalizationService? localization)
+    {
+        const string key = CuratedCatalogFilterConstants.AllLabelKey;
+        return localization.GetLocalizedString(key, NeutralResources.GetString(key, CultureInfo.InvariantCulture) ?? key);
     }
 
     private static bool Contains(string? value, string term) =>

@@ -3673,6 +3673,30 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal("All (4)", viewModel.LocalCategoryFilters[0].DisplayText);
     }
 
+    /// <summary>
+    /// Verifies that selecting another variant re-applies the filter to the card's new name.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_VariantChange_RefiltersCardAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(PublisherTypeConstants.TheSuperHackers);
+        var card = CreateCuratedCard("Weekly Zero Hour", null, "weekly", ContentType.GameClient);
+        var zeroHour = AddCardVariant(card, "1.0.thesuperhackers.gameclient.zh", "Weekly Zero Hour", "1.0", ContentState.NotDownloaded);
+        var generals = AddCardVariant(card, "1.0.thesuperhackers.gameclient.gen", "Weekly Generals", "1.0", ContentState.NotDownloaded);
+        card.SelectedVariant = zeroHour;
+        viewModel.ContentItems.Add(card);
+        viewModel.LocalFilterText = "zero hour";
+        Assert.False(card.IsFilteredOut);
+
+        // Act
+        card.SelectedVariant = generals;
+
+        // Assert
+        Assert.True(card.IsFilteredOut);
+    }
+
     private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
         string publisherId,
         IContentDiscoverer? discoverer = null,
