@@ -130,19 +130,6 @@
             <Setter Property="RenderTransform" Value="scale(0.95)" />
         </Style>
 
-        <!-- Keep the primary action readable over every cover image. -->
-        <Style Selector="Button.launch-button.play-button">
-            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBackground}" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Padding" Value="18,8" />
-            <Setter Property="CornerRadius" Value="18" />
-        </Style>
-        <Style Selector="Button.launch-button.play-button:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-        </Style>
-
         <!-- Tools/Action Button Style -->
         <Style Selector="Button.tool-button, ToggleButton.tool-button">
             <Setter Property="Background" Value="#40000000" />
@@ -201,6 +188,25 @@
         <!-- Ensure icon inside launch button inherits color on hover -->
         <Style Selector="Button.launch-button:pointerover PathIcon" x:CompileBindings="False">
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+        </Style>
+
+        <!-- Keep the primary action readable over every cover image. These follow the launch theming so they win, and the
+             pointer and pressed states target the template because the Fluent theme sets them there. -->
+        <Style Selector="Button.launch-button.play-button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="CornerRadius" Value="18" />
+        </Style>
+        <Style Selector="Button.launch-button.play-button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.launch-button.play-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDarkBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+        </Style>
+        <Style Selector="Button.launch-button.play-button:pointerover PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
         </Style>
 
         <Style Selector="ToggleButton.tool-button:checked">

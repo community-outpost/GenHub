@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Common.Services;
@@ -80,6 +82,43 @@ public class GameProfileCardViewTests
             window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(1, launchCount);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Play keeps the primary button colors at rest and its hover colors under the pointer.
+    /// </summary>
+    [AvaloniaFact]
+    public void PlayButton_UsesPrimaryColorsAtRestAndOnHover()
+    {
+        var viewModel = CreateViewModel();
+        var (window, view) = Show(viewModel);
+
+        try
+        {
+            var playButton = FindButton(view, viewModel.LaunchProfileCommand);
+            var presenter = Assert.Single(
+                playButton.GetVisualDescendants().OfType<ContentPresenter>(),
+                child => child.Name == "PART_ContentPresenter");
+            var icon = Assert.Single(playButton.GetVisualDescendants().OfType<PathIcon>());
+
+            AssertBrush(view, "PrimaryButtonBackground", presenter.Background, "background at rest");
+            AssertBrush(view, "PrimaryButtonBackground", presenter.BorderBrush, "border at rest");
+            AssertBrush(view, "PrimaryButtonForeground", presenter.Foreground, "foreground at rest");
+
+            var playCenter = playButton.TranslatePoint(new Point(playButton.Bounds.Width / 2, playButton.Bounds.Height / 2), window);
+            Assert.True(playCenter.HasValue);
+            window.MouseMove(playCenter.Value, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(playButton.IsPointerOver);
+            AssertBrush(view, "AccentDarkBrush", presenter.Background, "background on hover");
+            AssertBrush(view, "PrimaryButtonForeground", presenter.Foreground, "foreground on hover");
+            AssertBrush(view, "PrimaryButtonForeground", icon.Foreground, "icon on hover");
         }
         finally
         {
@@ -262,6 +301,14 @@ public class GameProfileCardViewTests
             AppContext.BaseDirectory,
             CultureInfo.GetCultureInfo(LocalizationConstants.DefaultCultureName));
         return new LocalizationService(resources, NullLogger<LocalizationService>.Instance);
+    }
+
+    private static void AssertBrush(Control scope, string resourceKey, IBrush? actual, string state)
+    {
+        Assert.True(scope.TryFindResource(resourceKey, scope.ActualThemeVariant, out var resource));
+        var expected = Assert.IsAssignableFrom<ISolidColorBrush>(resource).Color;
+        var actualColor = (actual as ISolidColorBrush)?.Color;
+        Assert.True(actualColor == expected, $"Play {state} is {actualColor?.ToString() ?? "not a solid brush"}, expected {resourceKey} {expected}.");
     }
 
     private static Rect BoundsIn(Visual visual, Visual root)
