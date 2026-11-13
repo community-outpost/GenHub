@@ -32,7 +32,7 @@ public class TemporaryApplicationEnvironmentTests
     /// <summary>
     /// Verifies that disposing does not throw when a file inside the tree cannot be removed.
     /// </summary>
-    [Fact]
+    [NonRootFact]
     public void Dispose_WhenTreeCannotBeDeleted_LeavesTreeWithoutThrowing()
     {
         var originalHome = Environment.GetEnvironmentVariable(HomeVariable);
@@ -140,6 +140,12 @@ public class TemporaryApplicationEnvironmentTests
             File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserExecute);
         }
 
-        public void Dispose() => File.SetUnixFileMode(_path, _originalMode);
+        public void Dispose()
+        {
+            if (Directory.Exists(_path))
+            {
+                File.SetUnixFileMode(_path, _originalMode);
+            }
+        }
     }
 }
