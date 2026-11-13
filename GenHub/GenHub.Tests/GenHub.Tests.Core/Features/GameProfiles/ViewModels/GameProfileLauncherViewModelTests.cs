@@ -2673,10 +2673,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
             CreateLocalizationService(),
-            userSettingsService: settingsService.Object)
-        {
-            SelectedSortMode = ProfileSortMode.Alphabetical,
-        };
+            userSettingsService: settingsService.Object);
 
         foreach (var mode in new[] { ProfileSortMode.Alphabetical, ProfileSortMode.DateCreated })
         {
