@@ -1008,6 +1008,28 @@ public partial class GameProfileLauncherViewModel(
         return !client.IsPublisherClient;
     }
 
+    private static string GetPublisherDecision(GameClient client, SetupWizardResult wizardResult)
+    {
+        if (string.Equals(client.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return wizardResult.GeneralsOnlineAction;
+        }
+
+        if (string.Equals(client.PublisherType, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase))
+        {
+            return wizardResult.SuperHackersAction;
+        }
+
+        if (string.Equals(client.PublisherType, CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommunityOutpostConstants.IsNonRetailIdentifier(client.Id) || CommunityOutpostConstants.IsNonRetailIdentifier(client.Name)
+                ? wizardResult.CommunityPatchNonRetAction
+                : wizardResult.CommunityPatchAction;
+        }
+
+        return GameClientConstants.WizardActionTypes.None;
+    }
+
     private static bool IsDeclined(string decision) =>
         decision == GameClientConstants.WizardActionTypes.Decline || decision == GameClientConstants.WizardActionTypes.None;
 
@@ -1764,7 +1786,7 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
-        if (await IsAlreadySetUpAsync(installationsList, cancellationToken))
+        if (await IsAlreadySetUpAsync(installationsList, wizardResult, cancellationToken))
         {
             var alreadySetUpMessage = localizationService["GameProfiles.Notification.AlreadySetUp.Message"];
             StatusMessage = alreadySetUpMessage;
@@ -1790,9 +1812,14 @@ public partial class GameProfileLauncherViewModel(
 
     /// <summary>
     /// Determines whether a scan that created nothing and had no failed decision found the game
-    /// already set up: every base game client and host-native build already has its profile.
+    /// already set up: every base game client has its profile, every host-native build has its profile
+    /// or was declined in the wizard, and at least one found game has a profile.
     /// </summary>
-    private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList, CancellationToken cancellationToken)
+    /// <param name="installationsList">The scanned installations.</param>
+    /// <param name="wizardResult">The setup wizard result.</param>
+    /// <param name="cancellationToken">Token that cancels the profile lookup.</param>
+    /// <returns>True when the found games are already set up.</returns>
+    private async Task<bool> IsAlreadySetUpAsync(List<GameInstallation> installationsList, SetupWizardResult wizardResult, CancellationToken cancellationToken)
     {
         var profilesResult = await gameProfileManager.GetAllProfilesAsync(cancellationToken);
         if (profilesResult is not { Success: true, Data: not null })
@@ -1807,8 +1834,12 @@ public partial class GameProfileLauncherViewModel(
                 .Select(client => (Installation: installation, Client: client)))
             .ToList();
 
-        return baseClients.Count > 0 &&
-            baseClients.All(entry => profiles.Any(p => ProfileMatchesClient(p, entry.Installation, entry.Client)));
+        var matched = baseClients
+            .Where(entry => profiles.Any(p => ProfileMatchesClient(p, entry.Installation, entry.Client)))
+            .ToList();
+
+        return matched.Count > 0 &&
+            baseClients.Except(matched).All(entry => entry.Client.IsPublisherClient && IsDeclined(GetPublisherDecision(entry.Client, wizardResult)));
     }
 
     private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()

@@ -508,10 +508,7 @@ public class GameProfileLauncherViewModelTests
         try
         {
             var executablePath = Path.Combine(directory, "generalszh");
-            byte[] header = OperatingSystem.IsLinux()
-                ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
-                : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
-            await File.WriteAllBytesAsync(executablePath, header);
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
             var scan = new WizardScanFixture(nativeSuperHackersOnly: true, superHackersExecutablePath: executablePath, existingSuperHackersProfile: true);
 
             await scan.RunAsync(CreateDeclinedWizardResult());
@@ -569,6 +566,52 @@ public class GameProfileLauncherViewModelTests
         scan.Notifications.Verify(
             x => x.ShowWarning("No Profiles Created", scan.ViewModel.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that two failed profiles of the same game name the game once.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenTwoProfilesOfOneGameFail_NamesTheGameOnceAsync()
+    {
+        var scan = new WizardScanFixture(withSecondBaseClient: true);
+        scan.EditorFacade.Setup(x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("workspace failed"));
+
+        await scan.RunAsync(CreateDeclinedWizardResult());
+
+        Assert.Equal("These components could not be set up: Zero Hour. Check the logs for details.", scan.ViewModel.StatusMessage);
+        scan.EditorFacade.Verify(
+            x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// Verifies that a host-native build the user declined does not turn a set-up game into a failure warning.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [UnixFact]
+    public async Task ScanForGamesCommand_WhenNativeBuildDeclinedAndBaseGameSetUp_SaysAlreadySetUpAsync()
+    {
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"GenHub.Launcher.{Guid.NewGuid():N}")).FullName;
+        try
+        {
+            var executablePath = Path.Combine(directory, "generalszh");
+            await File.WriteAllBytesAsync(executablePath, HostNativeExecutableHeader());
+            var scan = new WizardScanFixture(existingProfileOnInstallation: true, withSuperHackersClient: true, superHackersExecutablePath: executablePath);
+
+            await scan.RunAsync(CreateDeclinedWizardResult());
+
+            Assert.Equal("Your game is already set up. No new profiles were needed.", scan.ViewModel.StatusMessage);
+            scan.Notifications.Verify(
+                x => x.ShowWarning(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Never);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     /// <summary>
@@ -2460,6 +2503,10 @@ public class GameProfileLauncherViewModelTests
             CreateLocalizationService());
     }
 
+    private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
+        ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
+        : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
+
     private static SetupWizardResult CreateDeclinedWizardResult() => new()
     {
         Confirmed = true,
@@ -2570,7 +2617,8 @@ public class GameProfileLauncherViewModelTests
             bool withSuperHackersClient = false,
             bool withClientlessInstallation = false,
             string? superHackersExecutablePath = null,
-            bool existingSuperHackersProfile = false)
+            bool existingSuperHackersProfile = false,
+            bool withSecondBaseClient = false)
         {
             Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
             var superHackersClient = new GameClient { Id = "native-tsh", Name = SuperHackersClientName, PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id, ExecutablePath = superHackersExecutablePath ?? string.Empty };
@@ -2579,6 +2627,11 @@ public class GameProfileLauncherViewModelTests
             if (!nativeSuperHackersOnly)
             {
                 clients.Add(baseClient);
+            }
+
+            if (withSecondBaseClient)
+            {
+                clients.Add(new GameClient { Id = "zh-scanned", Name = "Zero Hour (scanned)", GameType = GameType.ZeroHour, InstallationId = Installation.Id });
             }
 
             if (nativeSuperHackersOnly || withSuperHackersClient)
