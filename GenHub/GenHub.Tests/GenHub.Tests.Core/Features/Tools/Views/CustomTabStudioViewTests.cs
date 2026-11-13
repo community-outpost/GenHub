@@ -72,10 +72,52 @@ public class CustomTabStudioViewTests
 
             library.SelectedContent!.CustomTabs.RemoveAt(1);
             library.SelectedContent = null;
+            Assert.Empty(library.SelectedContentCustomTabs);
             library.SelectedContent = item;
             window.UpdateLayout();
             tabs = view.GetLogicalDescendants().OfType<TabControl>().Single(t => t.Name == "DetailTabs");
             Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, tabs.Items.Count);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// A detail panel refresh for the same item, such as after removing a screenshot, keeps the author
+    /// on the custom tab they are viewing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentLibraryView_DetailRefresh_KeepsViewedCustomTabAsync()
+    {
+        const string screenshot = "https://example.com/shot.png";
+        var item = CreateItem();
+        item.Metadata = new ContentRichMetadata { ScreenshotUrls = [screenshot] };
+        item.CustomTabs =
+        [
+            new CatalogTabDefinition { TabId = "notes", Header = "Notes", Order = 10 },
+            new CatalogTabDefinition { TabId = "faq", Header = "FAQ", Order = 20 },
+        ];
+        var library = CreateLibrary(item);
+        var view = new ContentLibraryView { DataContext = library };
+        var window = new Window { Content = view, Width = 1400, Height = 900 };
+        window.Show();
+        try
+        {
+            window.UpdateLayout();
+            var tabs = view.GetLogicalDescendants().OfType<TabControl>().Single(t => t.Name == "DetailTabs");
+            tabs.SelectedIndex = ContentLibraryViewModel.BuiltInDetailTabCount + 1;
+            window.UpdateLayout();
+
+            await library.RemoveMediaFromSelectedContentCommand.ExecuteAsync(screenshot);
+            window.UpdateLayout();
+            tabs = view.GetLogicalDescendants().OfType<TabControl>().Single(t => t.Name == "DetailTabs");
+
+            Assert.Empty(item.Metadata!.ScreenshotUrls);
+            Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, library.SelectedDetailTabIndex);
+            Assert.Equal(ContentLibraryViewModel.BuiltInDetailTabCount + 1, tabs.SelectedIndex);
         }
         finally
         {
@@ -311,14 +353,15 @@ public class CustomTabStudioViewTests
             new Mock<ILogger<PublisherStudioViewModel>>().Object,
             new Mock<IPublisherStudioService>().Object,
             dialogService.Object);
-        var library = new ContentLibraryViewModel(
+        return new ContentLibraryViewModel(
             project,
             project.Catalogs[0],
             parent,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
-            dialogService.Object);
-        library.SelectedContent = item;
-        return library;
+            dialogService.Object)
+        {
+            SelectedContent = item,
+        };
     }
 
     private static CatalogContentItem CreateItem()

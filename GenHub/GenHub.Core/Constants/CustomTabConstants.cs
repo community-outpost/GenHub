@@ -51,6 +51,16 @@ public static class CustomTabConstants
     public const string AvaloniaResourceScheme = "avares";
 
     /// <summary>
+    /// The prefix of a generated tab ID when the header yields no usable characters.
+    /// </summary>
+    public const string GeneratedIdFallbackPrefix = "tab-";
+
+    /// <summary>
+    /// The number of hash characters in a generated fallback tab ID.
+    /// </summary>
+    public const int GeneratedIdFallbackHashLength = 8;
+
+    /// <summary>
     /// The host of Google Drive file viewer links.
     /// </summary>
     public const string GoogleDriveHost = "drive.google.com";

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
 
 namespace GenHub.Common.ViewModels;
 
@@ -21,8 +22,9 @@ public class BatchObservableCollection<T> : ObservableCollection<T>
     {
         ArgumentNullException.ThrowIfNull(items);
         CheckReentrancy();
+        var replacements = items.ToList();
         Items.Clear();
-        foreach (var item in items)
+        foreach (var item in replacements)
         {
             Items.Add(item);
         }

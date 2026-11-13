@@ -267,7 +267,7 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             .ReturnsAsync(new CatalogTabDefinition { TabId = "guide", Header = "Guide", Order = 20 });
         IReadOnlyList<CatalogTabDefinition>? editSiblings = null;
         dialogService
-            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => t != null && t.TabId == "notes"), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => HasTabId(t, "notes")), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
             .Callback<CatalogTabDefinition?, IReadOnlyList<CatalogTabDefinition>>((_, siblings) => editSiblings = siblings)
             .ReturnsAsync(new CatalogTabDefinition { TabId = "notes", Header = "Patch notes", Order = 10 });
 
@@ -518,7 +518,7 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         ];
         var (library, dialogService, _) = CreateLibrary(target);
         dialogService
-            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => t != null && t.TabId == "notes"), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.Is<CatalogTabDefinition?>(t => HasTabId(t, "notes")), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
             .ReturnsAsync(new CatalogTabDefinition { TabId = "notes", Header = "Patch notes", Order = 10 });
         library.SelectedDetailTabIndex = ContentLibraryViewModel.BuiltInDetailTabCount + 1;
 
@@ -573,8 +573,10 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             null!,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
             dialogService.Object,
-            notifications.Object);
-        library.SelectedContent = target;
+            notifications.Object)
+        {
+            SelectedContent = target,
+        };
 
         await library.AddCustomTabCommand.ExecuteAsync(null);
 
@@ -810,18 +812,24 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
             new Mock<ILogger<PublisherStudioViewModel>>().Object,
             studioService.Object,
             dialogService.Object,
-            notificationService: notifications);
-        parent.CurrentProject = project;
+            notificationService: notifications)
+        {
+            CurrentProject = project,
+        };
         var library = new ContentLibraryViewModel(
             project,
             project.Catalogs[0],
             parent,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
             dialogService.Object,
-            notifications);
-        library.SelectedContent = target;
+            notifications)
+        {
+            SelectedContent = target,
+        };
         return (library, dialogService, studioService);
     }
+
+    private static bool HasTabId(CatalogTabDefinition? tab, string tabId) => tab?.TabId == tabId;
 
     private static JsonPublisherCatalogParser CreateParser() => new(NullLogger<JsonPublisherCatalogParser>.Instance);
 

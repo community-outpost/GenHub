@@ -13,9 +13,6 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// </summary>
 public static class CustomTabIdGenerator
 {
-    private const string FallbackPrefix = "tab-";
-    private const int FallbackHashLength = 8;
-
     /// <summary>
     /// Builds a lowercase ASCII slug from a header, such as <c>how-to-play</c> for "How to Play".
     /// </summary>
@@ -62,7 +59,7 @@ public static class CustomTabIdGenerator
         }
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(header.Trim()));
-        return FallbackPrefix + Convert.ToHexString(hash)[..FallbackHashLength].ToLowerInvariant();
+        return CustomTabConstants.GeneratedIdFallbackPrefix + Convert.ToHexString(hash)[..CustomTabConstants.GeneratedIdFallbackHashLength].ToLowerInvariant();
     }
 
     /// <summary>

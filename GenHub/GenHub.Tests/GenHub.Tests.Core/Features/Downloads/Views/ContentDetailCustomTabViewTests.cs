@@ -84,6 +84,7 @@ public class ContentDetailCustomTabViewTests
             tabControl.SelectedIndex = ContentDetailViewModel.BuiltInTabCount + 1;
 
             window.Content = null;
+            Assert.Null(view.GetVisualRoot());
             window.Content = view;
             Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, viewModel.SelectedTabIndex);
             Assert.Equal(ContentDetailViewModel.BuiltInTabCount + 1, tabControl.SelectedIndex);
