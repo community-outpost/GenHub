@@ -18258,6 +18258,9 @@ Error: فشل: {3}
   <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
     <value>عنصر مطلوب</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>محتوى بدون اسم</value>
+  </data>
   <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
     <value>لا يستطيع GenHub تنزيل هذا العنصر. ثبّت اللعبة، ثم دع GenHub يكتشفها.</value>
   </data>

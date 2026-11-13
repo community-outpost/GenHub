@@ -425,6 +425,81 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Empty(_createRequests);
     }
 
+    /// <summary>
+    /// A requirer with no name is shown with a generic name in the missing-items notification.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_StillMissingForUnnamedRequirer_UsesGenericNameAsync()
+    {
+        _manifests[ControlBarProId].Name = string.Empty;
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess([]));
+        var notifications = new List<NotificationMessage>();
+        var subscription = _viewModel.LocalNotifications.Subscribe(new NotificationCollector(notifications));
+        try
+        {
+            await _viewModel.SaveCommand.ExecuteAsync(null);
+        }
+        finally
+        {
+            subscription.Dispose();
+        }
+
+        var error = Assert.Single(notifications, notification => notification.Title == "Missing Dependencies");
+        Assert.Contains("• Unnamed content needs GenTool", error.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An installed item added to the editor while its manifest loads is not listed twice.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_InstalledItemAddedDuringLookup_IsListedOnceAsync()
+    {
+        ChosenStyle = NotificationActionStyle.Primary;
+        _contentLoader
+            .Setup(x => x.CreateManifestDisplayItem(It.IsAny<ContentManifest>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
+            .Returns((ContentManifest manifest, string? _, string? _, bool _) => new GenHub.Core.Models.Content.ContentDisplayItem
+            {
+                Id = manifest.Id.Value,
+                ManifestId = manifest.Id.Value,
+                DisplayName = manifest.Name,
+                ContentType = manifest.ContentType,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Unknown,
+            });
+        var genToolLookups = 0;
+        _manifestPool
+            .Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == GenToolId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (_manifests.ContainsKey(GenToolId) && ++genToolLookups == 1)
+                {
+                    _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+                    {
+                        ManifestId = ManifestId.Create(GenToolId),
+                        DisplayName = "GenTool",
+                        ContentType = ContentType.Addon,
+                        GameType = GameType.ZeroHour,
+                        InstallationType = GameInstallationType.Unknown,
+                        IsEnabled = false,
+                    });
+                }
+
+                return OperationResult<ContentManifest?>.CreateSuccess(_manifests.GetValueOrDefault(GenToolId));
+            });
+        SetupGenToolInstall();
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var genTool = Assert.Single(_viewModel.EnabledContent, item => item.ManifestId.Value == GenToolId);
+        Assert.True(genTool.IsEnabled);
+        Assert.Contains(GenToolId, Assert.Single(_createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+    }
+
     private void SetupGenToolInstall() =>
         _profileContent
             .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))

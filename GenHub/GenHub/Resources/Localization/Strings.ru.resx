@@ -18258,6 +18258,9 @@ Error: не удалось: {3}
   <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
     <value>Обязательный компонент</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>Содержимое без названия</value>
+  </data>
   <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
     <value>GenHub не может это скачать. Установите игру, затем дайте GenHub её обнаружить.</value>
   </data>

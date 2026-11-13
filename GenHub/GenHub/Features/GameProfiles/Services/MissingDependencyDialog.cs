@@ -197,6 +197,17 @@ public static class MissingDependencyDialog
             : gap.DisplayName;
 
     /// <summary>
+    /// Gets the name to show for the content that needs a missing item, with a generic name when it has none.
+    /// </summary>
+    /// <param name="localizationService">The localization service, or null to use English.</param>
+    /// <param name="gap">The missing item.</param>
+    /// <returns>The player-facing name.</returns>
+    public static string GetRequiredByName(ILocalizationService? localizationService, ContentDependencyGap gap) =>
+        string.IsNullOrWhiteSpace(gap.RequiredByName)
+            ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedOwner", "Unnamed content")
+            : gap.RequiredByName;
+
+    /// <summary>
     /// Gets the key that identifies the missing item, so repeated requirements for it are shown once.
     /// </summary>
     /// <param name="gap">The missing item.</param>

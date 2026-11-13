@@ -18317,6 +18317,9 @@ Mapped image texture reference</value>
   <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
     <value>A required item</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>Unnamed content</value>
+  </data>
   <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
     <value>GenHub can't download this. Install the game, then let GenHub detect it.</value>
   </data>
