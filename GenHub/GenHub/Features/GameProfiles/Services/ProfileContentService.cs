@@ -344,34 +344,15 @@ public sealed class ProfileContentService(
 
             List<string> enabledContentIds = resolution.Data.EnabledContentIds;
 
-            // Find a suitable game installation
-            var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
-            if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure("No game installations found. Please configure a game installation first.");
-            }
-
             var requiredGameClient = resolution.Data.RequiredGameClient;
             var requiredGameType = resolution.Data.RequiredGameType ?? manifest.TargetGame;
-
-            // Find an installation that satisfies the reconciled content graph, not merely the
-            // type of the item the user selected.
-            var installation = installationsResult.Data.FirstOrDefault(i =>
-                i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
-
-            if (installation == null)
+            var foundation = await SelectInstallationForNewProfileAsync(requiredGameType, cancellationToken);
+            if (foundation.Failed)
             {
-                return ProfileOperationResult<GameProfile>.CreateFailure(
-                    $"No {requiredGameType} installation is available for the required game client.");
+                return ProfileOperationResult<GameProfile>.CreateFailure(foundation.FirstError ?? "No game installations found. Please configure a game installation first.");
             }
 
-            var gameClient = installation.AvailableGameClients
-                .FirstOrDefault(c => c.GameType == requiredGameType);
-
-            if (gameClient == null)
-            {
-                return ProfileOperationResult<GameProfile>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
-            }
+            var (installation, gameClient) = foundation.Data;
 
             var profileGameClient = requiredGameClient != null
                 ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
@@ -527,6 +508,7 @@ public sealed class ProfileContentService(
 
         var installedIds = new List<string>();
         var failedNames = new List<string>();
+        var installedManifests = new Queue<ContentManifest>();
         foreach (var gap in missingDependencies.Where(gap => gap.CanDownload))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -546,7 +528,30 @@ public sealed class ProfileContentService(
                 gap.DependencyId,
                 manifest.Id.Value,
                 gap.RequiredById);
-            installedIds.Add(manifest.Id.Value);
+            AddInstalled(manifest);
+        }
+
+        // An installed item can need more items. Enable the ones already acquired and download
+        // the rest, so one Install click leaves nothing missing that GenHub can fetch.
+        while (installedManifests.Count > 0)
+        {
+            var installed = installedManifests.Dequeue();
+            foreach (var dependency in (installed.Dependencies ?? []).Where(IsRequiredContentDependency))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var manifest = await FindLocalRequiredDependencyAsync(dependency, cancellationToken)
+                    ?? await GetOrAcquireDependencyManifestAsync(dependency.Id.Value, cancellationToken);
+                if (manifest == null)
+                {
+                    logger.LogWarning(
+                        "Could not install {DependencyId}, which {ManifestId} requires",
+                        dependency.Id.Value,
+                        installed.Id.Value);
+                    continue;
+                }
+
+                AddInstalled(manifest);
+            }
         }
 
         if (failedNames.Count > 0)
@@ -559,6 +564,15 @@ public sealed class ProfileContentService(
         }
 
         return OperationResult<IReadOnlyList<string>>.CreateSuccess(installedIds);
+
+        void AddInstalled(ContentManifest manifest)
+        {
+            if (!installedIds.Contains(manifest.Id.Value, StringComparer.OrdinalIgnoreCase))
+            {
+                installedIds.Add(manifest.Id.Value);
+                installedManifests.Enqueue(manifest);
+            }
+        }
     }
 
     /// <summary>
@@ -659,6 +673,12 @@ public sealed class ProfileContentService(
 
         return null;
     }
+
+    private static bool IsRequiredContentDependency(ContentDependency dependency) =>
+        !dependency.IsOptional &&
+        dependency.InstallBehavior is DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall &&
+        dependency.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient) &&
+        !string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase);
 
     private static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
     {
@@ -1051,6 +1071,37 @@ public sealed class ProfileContentService(
                 logger.LogWarning(ex, "Failed to resolve dependency names for notification on {ManifestId}", primaryManifestId);
             }
         }
+    }
+
+    /// <summary>
+    /// Finds an installation and its client for the game the new profile's content requires.
+    /// The reconciled content graph decides the game, not merely the type of the selected item.
+    /// </summary>
+    private async Task<OperationResult<(Core.Models.GameInstallations.GameInstallation Installation, GameClient Client)>> SelectInstallationForNewProfileAsync(
+        GameType requiredGameType,
+        CancellationToken cancellationToken)
+    {
+        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
+        if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure("No game installations found. Please configure a game installation first.");
+        }
+
+        var installation = installationsResult.Data.FirstOrDefault(i =>
+            i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
+        if (installation == null)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                $"No {requiredGameType} installation is available for the required game client.");
+        }
+
+        var gameClient = installation.AvailableGameClients.FirstOrDefault(c => c.GameType == requiredGameType);
+        if (gameClient == null)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
+        }
+
+        return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateSuccess((installation, gameClient));
     }
 
     private CreateProfileRequest BuildStandaloneCreateProfileRequest(
@@ -1495,7 +1546,11 @@ public sealed class ProfileContentService(
             return existing.Data;
         }
 
-        return await FindEquivalentAcquiredManifestAsync(dependency.Id.Value, cancellationToken);
+        // Match acquired content with the validator's rules, so a non-strict dependency can be
+        // satisfied by another publisher's manifest exactly when Save and launch accept it.
+        var allManifests = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        return allManifests.Data?.FirstOrDefault(manifest =>
+            resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [manifest]));
     }
 
     private async Task<List<string>> GetDependencyNamesAsync(

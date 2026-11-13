@@ -33,11 +33,12 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     private readonly Mock<IContentManifestPool> _manifestPool = new();
     private readonly Mock<IDialogService> _dialogs = new();
     private readonly Mock<IProfileContentService> _profileContent = new();
+    private readonly Mock<IProfileContentLoader> _contentLoader = new();
     private readonly Dictionary<string, ContentManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _dialogTitles = [];
     private readonly List<string> _dialogContents = [];
     private readonly GameProfileSettingsViewModel _viewModel;
-    private CreateProfileRequest? _createRequest;
+    private readonly List<CreateProfileRequest> _createRequests = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsViewModelMissingDependencyTests"/> class.
@@ -72,7 +73,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
             .Setup(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((CreateProfileRequest request, CancellationToken _) =>
             {
-                _createRequest = request;
+                _createRequests.Add(request);
                 return ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created" });
             });
         _dialogs
@@ -88,7 +89,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
             _profileManager.Object,
             Mock.Of<IGameSettingsService>(),
             Mock.Of<IConfigurationProviderService>(),
-            Mock.Of<IProfileContentLoader>(),
+            _contentLoader.Object,
             null,
             Mock.Of<INotificationService>(),
             _manifestPool.Object,
@@ -154,26 +155,65 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     public async Task Save_InstallRequiredItems_SavesProfileWithGenToolAsync()
     {
         ChosenStyle = NotificationActionStyle.Primary;
-        _profileContent
-            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
+        SetupGenToolInstall();
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var request = Assert.Single(_createRequests);
+        Assert.Contains(GenToolId, request.EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(ControlBarProId, request.EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Installed items show as enabled in the editor, so a save that fails after the install
+    /// keeps them for the next attempt.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_InstallThenSaveFails_KeepsInstalledItemEnabledAsync()
+    {
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileManager
+            .Setup(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("disk full"));
+        _contentLoader
+            .Setup(x => x.CreateManifestDisplayItem(It.IsAny<ContentManifest>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>()))
+            .Returns((ContentManifest manifest, string? _, string? _, bool _) => new GenHub.Core.Models.Content.ContentDisplayItem
             {
-                _manifests[GenToolId] = new ContentManifest
-                {
-                    Id = ManifestId.Create(GenToolId),
-                    Name = "GenTool",
-                    ContentType = ContentType.Addon,
-                    Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
-                    Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
-                };
-                return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
+                Id = manifest.Id.Value,
+                ManifestId = manifest.Id.Value,
+                DisplayName = manifest.Name,
+                ContentType = manifest.ContentType,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Unknown,
+            });
+        SetupGenToolInstall();
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Contains(_viewModel.EnabledContent, item => item.ManifestId.Value == GenToolId && item.IsEnabled);
+    }
+
+    /// <summary>
+    /// Closing the editor while the dialog or download is pending cancels the install.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_EditorClosedDuringDialog_CancelsInstallAsync()
+    {
+        _dialogs
+            .Setup(x => x.ShowMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IEnumerable<DialogAction>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns((string _, string _, IEnumerable<DialogAction> _, bool _, CancellationToken token) =>
+            {
+                _viewModel.CancelPendingOperations();
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult<(DialogAction?, bool)>((null, false));
             });
 
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
-        var request = Assert.IsType<CreateProfileRequest>(_createRequest);
-        Assert.Contains(GenToolId, request.EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
-        Assert.Contains(ControlBarProId, request.EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+        _profileContent.Verify(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
@@ -193,4 +233,20 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Equal("Error: Missing required dependencies", _viewModel.StatusMessage);
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    private void SetupGenToolInstall() =>
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                _manifests[GenToolId] = new ContentManifest
+                {
+                    Id = ManifestId.Create(GenToolId),
+                    Name = "GenTool",
+                    ContentType = ContentType.Addon,
+                    Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                    Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
+                };
+                return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
+            });
 }

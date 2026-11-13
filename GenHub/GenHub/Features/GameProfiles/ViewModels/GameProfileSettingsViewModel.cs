@@ -89,6 +89,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
+    private CancellationTokenSource? _dependencyInstallCts;
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
@@ -283,6 +284,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         // Global manifest replacement - update our state surgically to avoid losing unsaved toggles
         // Dispatch to UI thread to ensure ObservableCollection mutations happen safely
         Dispatcher.UIThread.Post(() => _ = HandleManifestReplacementAsync(message.OldId, message.NewId));
+    }
+
+    /// <summary>
+    /// Cancels work started by the editor that should not outlive it, such as installing required items.
+    /// </summary>
+    public void CancelPendingOperations()
+    {
+        _dependencyInstallCts?.Cancel();
     }
 
     /// <summary>

@@ -5,6 +5,7 @@ using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -48,6 +49,10 @@ public sealed class ContentDependencyValidator(
     }
 
     /// <inheritdoc/>
+    public bool IsSatisfiedBy(ContentDependency dependency, IReadOnlyCollection<ContentManifest> manifests) =>
+        IsSatisfied(dependency, manifests);
+
+    /// <inheritdoc/>
     public IReadOnlyList<ContentDependencyGap> FindMissingDependencies(IReadOnlyCollection<ContentManifest> enabledManifests)
     {
         var gaps = new List<ContentDependencyGap>();
@@ -84,8 +89,9 @@ public sealed class ContentDependencyValidator(
     private static bool IsFoundationType(ContentType contentType) =>
         contentType is ContentType.GameInstallation or ContentType.GameClient;
 
-    private static bool IsSatisfied(ContentDependency dependency, IReadOnlyCollection<ContentManifest> manifests)
+    private static bool IsSatisfied(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests)
     {
+        var manifests = enabledManifests.Where(manifest => IsCompatibleCandidate(dependency, manifest)).ToList();
         var declaredId = dependency.Id.Value;
         if (string.Equals(declaredId, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
         {
@@ -105,6 +111,57 @@ public sealed class ContentDependencyValidator(
         }
 
         return !dependency.StrictPublisher && IsSatisfiedByType(dependency, declaredParts, manifests);
+    }
+
+    /// <summary>
+    /// Rejects a candidate for the wrong game or outside the declared version range. A candidate
+    /// without a recorded game or version is not rejected on that basis.
+    /// </summary>
+    private static bool IsCompatibleCandidate(ContentDependency dependency, ContentManifest manifest)
+    {
+        if (dependency.CompatibleGameTypes is { Count: > 0 } &&
+            manifest.TargetGame != GameType.Unknown &&
+            !dependency.CompatibleGameTypes.Contains(manifest.TargetGame))
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(manifest.Version) || IsVersionCompatible(manifest.Version, dependency);
+    }
+
+    private static bool IsVersionCompatible(string version, ContentDependency dependency)
+    {
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
+        {
+            return CatalogManifestIdentity.CompareVersions(version, dependency.ExactVersion) == 0;
+        }
+
+        if (dependency.CompatibleVersions is { Count: > 0 })
+        {
+            return dependency.CompatibleVersions.Any(compatible =>
+                string.Equals(compatible, version, StringComparison.OrdinalIgnoreCase) ||
+                CatalogManifestIdentity.CompareVersions(compatible, version) == 0);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dependency.MinVersion))
+        {
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MinVersion);
+            if (dependency.MinInclusive ? comparison < 0 : comparison <= 0)
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(dependency.MaxVersion))
+        {
+            var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MaxVersion);
+            if (dependency.MaxInclusive ? comparison > 0 : comparison >= 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool IsSatisfiedByType(

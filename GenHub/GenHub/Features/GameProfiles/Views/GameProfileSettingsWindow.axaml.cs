@@ -251,6 +251,10 @@ public partial class GameProfileSettingsWindow : GenHubWindow
     protected override void OnClosed(EventArgs e)
     {
         Activated -= OnWindowActivated;
+        if (DataContext is GameProfileSettingsViewModel viewModel)
+        {
+            viewModel.CancelPendingOperations();
+        }
 
         base.OnClosed(e);
     }
