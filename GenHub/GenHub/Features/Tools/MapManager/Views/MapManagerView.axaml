@@ -53,7 +53,7 @@
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.ImportFromUrl}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize Maps.Button.Import}" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize Maps.Button.Import}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
@@ -89,7 +89,7 @@
           <Button Command="{Binding ToggleMapPackPanelCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Maps.Tooltip.MapPackManager}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize Maps.Button.Pack}" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize Maps.Button.Pack}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
         </StackPanel>
@@ -411,7 +411,7 @@
                           ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.CreateAndAddToProfile}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                       <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="12" Height="12" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Maps.MapPack.Button.CreateAndAddToProfile}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Maps.MapPack.Button.CreateAndAddToProfile}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -447,7 +447,7 @@
                                     ToolTip.Tip="{localization:Localize Maps.MapPack.Tooltip.AddToProfile}">
                               <StackPanel Orientation="Horizontal" Spacing="4">
                                 <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="12" Height="12" VerticalAlignment="Center"/>
-                                <TextBlock Text="{localization:Localize Maps.MapPack.Button.AddToProfile}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Text="{localization:Localize Maps.MapPack.Button.AddToProfile}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                               </StackPanel>
                             </Button>
                             <Button Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).DeleteMapPackCommand}"
@@ -494,7 +494,7 @@
     <!-- Button styles -->
     <Style Selector="ToggleButton.Primary">
       <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Cursor" Value="Hand" />
@@ -512,10 +512,9 @@
     <!-- Shared split-button layout follows the action styles so split corners and height win. -->
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
-
     <Style Selector="ToggleButton.Primary:checked">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
     </Style>
 
   </UserControl.Styles>

@@ -89,14 +89,14 @@
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.OpenFolder}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Command="{Binding SaveCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding HasAtlas}"
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.Save}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize TextureEditor.Button.Save}" VerticalAlignment="Center" FontSize="12"/>
+              <TextBlock Text="{localization:Localize TextureEditor.Button.Save}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}"
@@ -315,7 +315,7 @@
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.AddSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize TextureEditor.Button.Add}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Button.Add}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Grid.Column="1" Command="{Binding DuplicateCommand}" Classes="action-secondary action-compact" Margin="4,0,4,0"
@@ -323,7 +323,7 @@
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DuplicateSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize TextureEditor.Button.Duplicate}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Button.Duplicate}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Grid.Column="2" Command="{Binding DeleteCommand}" Classes="action-danger action-compact" Margin="4,0,0,0"
@@ -332,7 +332,7 @@
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DeleteSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </Grid>
@@ -342,7 +342,7 @@
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Cut}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <material:MaterialIcon Kind="ContentCut" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Cut}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Cut}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Grid.Column="1" Command="{Binding CopyCommand}" Classes="action-secondary action-compact" Margin="4,0,4,0"
@@ -350,7 +350,7 @@
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Copy}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Copy}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Copy}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
               <Button Grid.Column="2" Command="{Binding PasteCommand}" Classes="action-secondary action-compact" Margin="4,0,0,0"
@@ -358,7 +358,7 @@
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Paste}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Paste}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Paste}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </Grid>
@@ -539,7 +539,7 @@
                              Foreground="{DynamicResource AccentBrush}"
                              Background="{DynamicResource SurfaceHoverBrush}"/>
                 <Button Command="{Binding CancelOperationCommand}" Classes="action-secondary action-compact" HorizontalAlignment="Center">
-                  <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center"/>
                 </Button>
               </StackPanel>
             </Border>
@@ -602,17 +602,17 @@
                 <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetLargeCameo}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetLarge}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Large}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Large}"/>
                 </Button>
                 <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetSmallCameo}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetSmall}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Small}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Small}"/>
                 </Button>
                 <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetHudButton}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetHud}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Hud}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Hud}"/>
                 </Button>
               </StackPanel>
             </StackPanel>
