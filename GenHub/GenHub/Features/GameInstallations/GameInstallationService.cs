@@ -1597,6 +1597,11 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                     "Detection failed; holding manually chosen installation at {Path} until detection succeeds",
                     installation.InstallationPath);
             }
+            else if (existingPending.Id == installation.Id)
+            {
+                // The same folder picked again: the new pick carries the current paths, clients and manifests.
+                _pendingManualInstallations[_pendingManualInstallations.IndexOf(existingPending)] = installation;
+            }
             else
             {
                 RecordInstallationAlias(installation.Id, existingPending.Id);

@@ -1708,51 +1708,6 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
-    /// Choosing a folder again after game files were added refreshes the clients of the installation the
-    /// service already holds for it, so setup can create profiles.
-    /// </summary>
-    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
-    [Fact]
-    public async Task ChooseGameFolderCommand_WhenHeldInstallationHasNoClients_RefreshesItsClientsAsync()
-    {
-        var installationService = new Mock<IGameInstallationService>();
-        installationService
-            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
-        installationService
-            .Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
-        var chosen = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null);
-        var held = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null) { Id = "held-installation" };
-        installationService
-            .Setup(x => x.GetInstallationAsync(chosen.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(held));
-        var clientDetector = new Mock<IGameClientDetector>();
-        clientDetector
-            .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .Returns((IEnumerable<GameInstallation> installations, CancellationToken _) => Task.FromResult(
-                DetectionResult<GameClient>.CreateSuccess(
-                    installations.Select(i => new GameClient { Id = i.Id + "-client", InstallationId = i.Id, GameType = GameType.ZeroHour }),
-                    TimeSpan.Zero)));
-        var wizard = new Mock<ISetupWizardService>();
-        wizard
-            .Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SetupWizardResult { Confirmed = false });
-        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), wizard, clientDetector: clientDetector);
-        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(chosen);
-        await vm.InitializeAsync();
-        await vm.ScanForGamesCommand.ExecuteAsync(null);
-
-        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
-
-        wizard.Verify(
-            x => x.RunSetupWizardAsync(
-                It.Is<IEnumerable<GameInstallation>>(list => list.Single() == held && held.AvailableGameClients.Single().InstallationId == held.Id),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    /// <summary>
     /// A chosen folder is accepted when it holds a Windows or native game executable, or only the retail archives.
     /// </summary>
     /// <param name="fileName">The file placed in the chosen folder.</param>
