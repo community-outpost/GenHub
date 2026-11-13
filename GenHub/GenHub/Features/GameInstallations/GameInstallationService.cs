@@ -1561,15 +1561,19 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
-            var alreadyHeld = _pendingManualInstallations.Any(i =>
+            var existingPending = _pendingManualInstallations.FirstOrDefault(i =>
                 i.Id == installation.Id ||
                 PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
-            if (!alreadyHeld)
+            if (existingPending == null)
             {
                 _pendingManualInstallations.Add(installation);
                 logger.LogInformation(
                     "Detection failed; holding manually chosen installation at {Path} until detection succeeds",
                     installation.InstallationPath);
+            }
+            else
+            {
+                RecordInstallationAlias(installation.Id, existingPending.Id);
             }
 
             return OperationResult<bool>.CreateSuccess(true);
@@ -1592,6 +1596,12 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         if (!string.Equals(mergedId, canonicalId, StringComparison.Ordinal))
         {
             _mergedInstallationIds[mergedId] = canonicalId;
+
+            // Keep callers of an earlier pending registration pointing at the recovered installation.
+            foreach (var alias in _mergedInstallationIds.Where(pair => pair.Value == mergedId))
+            {
+                _mergedInstallationIds[alias.Key] = canonicalId;
+            }
         }
     }
 
@@ -1624,7 +1634,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             var cached = _cachedInstallations;
             return cached != null
                 ? FindCachedInstallation(cached, installationId)
-                : _pendingManualInstallations.FirstOrDefault(i => i.Id == installationId);
+                : FindCachedInstallation(_pendingManualInstallations, installationId);
         }
         finally
         {

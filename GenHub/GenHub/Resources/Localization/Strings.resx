@@ -937,7 +937,7 @@
     <value>Looking for Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Command &amp; Conquer Generals and Zero Hour could not be found. You need a valid installation of the game to play. You can purchase the game officially from Steam or the EA App.</value>
+    <value>GenHub could not find an installed game. If you already own it, choose its folder. Otherwise, you can buy it from Steam or the EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Buy on Steam</value>
@@ -961,7 +961,7 @@
     <value>The game scan did not finish</value>
   </data>
   <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
-    <value>GenHub could not search every location. Fix the problem below and scan again, or choose the game folder yourself.</value>
+    <value>GenHub could not check every location. Choose your game folder, or fix the access problem and scan again.</value>
   </data>
   <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
     <value>Choose Game Folder</value>
@@ -18322,5 +18322,8 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>Technical details</value>
   </data>
 </root>

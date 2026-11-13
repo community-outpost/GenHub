@@ -937,7 +937,7 @@
     <value>Ищете Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Установка Command &amp; Conquer: Generals и Zero Hour не найдена. Для игры требуется установленная копия игры. Вы можете официально приобрести игру в Steam или EA App.</value>
+    <value>GenHub не нашёл установленную игру. Если она у вас уже есть, выберите её папку. Иначе её можно купить в Steam или EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Купить в Steam</value>
@@ -961,7 +961,7 @@
     <value>Сканирование игр не завершено</value>
   </data>
   <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
-    <value>GenHub не смог проверить все расположения. Устраните проблему, указанную ниже, и повторите сканирование или выберите папку игры вручную.</value>
+    <value>GenHub не смог проверить все расположения. Выберите папку игры или устраните проблему с доступом и повторите поиск.</value>
   </data>
   <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
     <value>Выбрать папку игры</value>
@@ -18263,5 +18263,8 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>Технические сведения</value>
   </data>
 </root>
