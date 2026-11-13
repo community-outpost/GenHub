@@ -69,23 +69,19 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         var initResult = await TryInitializeCacheAsync(cancellationToken);
         if (!initResult.Success)
         {
-            var pending = await FindPendingManualInstallationAsync(installationId, cancellationToken);
-            return pending != null
-                ? OperationResult<GameInstallation>.CreateSuccess(pending)
+            var fallback = await FindAfterFailedInitializationAsync(installationId, cancellationToken);
+            return fallback != null
+                ? OperationResult<GameInstallation>.CreateSuccess(fallback)
                 : OperationResult<GameInstallation>.CreateFailure(initResult.Errors[0]);
         }
 
-        if (_cachedInstallations == null)
+        var cached = _cachedInstallations;
+        if (cached == null)
         {
             return OperationResult<GameInstallation>.CreateFailure("Failed to detect game installations.");
         }
 
-        var installation = _cachedInstallations.FirstOrDefault(i => i.Id == installationId);
-        if (installation == null && _mergedInstallationIds.TryGetValue(installationId, out var mergedId))
-        {
-            installation = _cachedInstallations.FirstOrDefault(i => i.Id == mergedId);
-        }
-
+        var installation = FindCachedInstallation(cached, installationId);
         if (installation == null)
         {
             return OperationResult<GameInstallation>.CreateFailure($"Game installation with ID '{installationId}' not found.");
@@ -106,14 +102,19 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             var initResult = await TryInitializeCacheAsync(cancellationToken);
             if (!initResult.Success && _cachedInstallations == null)
             {
-                var pending = await GetPendingManualInstallationsAsync(cancellationToken);
-                if (pending.Count > 0)
+                var (recovered, available) = await GetInstallationsAfterFailedInitializationAsync(cancellationToken);
+                if (recovered)
+                {
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(available);
+                }
+
+                if (available.Count > 0)
                 {
                     logger.LogWarning(
                         "Detection is incomplete ({Error}); returning {Count} manually chosen installation(s)",
                         initResult.Errors[0],
-                        pending.Count);
-                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(pending);
+                        available.Count);
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(available);
                 }
 
                 return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
@@ -1594,12 +1595,20 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         }
     }
 
-    private async Task<IReadOnlyList<GameInstallation>> GetPendingManualInstallationsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Returns the installations to use after a failed initialization. Another caller may have
+    /// recovered detection meanwhile and moved held installations into the cache, so the live cache
+    /// is checked under the same lock before the held list.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>Whether detection recovered, and the cached installations if so, otherwise the held ones.</returns>
+    private async Task<(bool Recovered, IReadOnlyList<GameInstallation> Installations)> GetInstallationsAfterFailedInitializationAsync(CancellationToken cancellationToken)
     {
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
-            return [.. _pendingManualInstallations];
+            var cached = _cachedInstallations;
+            return cached != null ? (true, cached) : (false, [.. _pendingManualInstallations]);
         }
         finally
         {
@@ -1607,17 +1616,31 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         }
     }
 
-    private async Task<GameInstallation?> FindPendingManualInstallationAsync(string installationId, CancellationToken cancellationToken)
+    private async Task<GameInstallation?> FindAfterFailedInitializationAsync(string installationId, CancellationToken cancellationToken)
     {
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
-            return _pendingManualInstallations.FirstOrDefault(i => i.Id == installationId);
+            var cached = _cachedInstallations;
+            return cached != null
+                ? FindCachedInstallation(cached, installationId)
+                : _pendingManualInstallations.FirstOrDefault(i => i.Id == installationId);
         }
         finally
         {
             _cacheLock.Release();
         }
+    }
+
+    private GameInstallation? FindCachedInstallation(IReadOnlyList<GameInstallation> cached, string installationId)
+    {
+        var installation = cached.FirstOrDefault(i => i.Id == installationId);
+        if (installation == null && _mergedInstallationIds.TryGetValue(installationId, out var mergedId))
+        {
+            installation = cached.FirstOrDefault(i => i.Id == mergedId);
+        }
+
+        return installation;
     }
 
     /// <summary>
