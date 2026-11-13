@@ -44,6 +44,8 @@ internal static class ContentDetailTabTestHarness
             ProviderName = "Tabs Publisher",
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
+            IconUrl = CommunityOutpostConstants.LogoSource,
+            BannerUrl = CommunityOutpostConstants.LogoSource,
         };
         result.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = contentId;
         return result;
