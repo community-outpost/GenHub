@@ -1477,7 +1477,7 @@ public sealed class ProfileContentService(
 
     private string BuildMissingDependenciesError(string contentName, IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
-        var names = string.Join(", ", missingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap)));
+        var names = string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, missingDependencies));
         return localizationService.GetLocalizedString(
             "GameProfiles.MissingDependencies.Error",
             "{0} needs {1} before it can be added.",
@@ -1548,7 +1548,7 @@ public sealed class ProfileContentService(
             messages.Add(localizationService.GetLocalizedString(
                 "GameProfiles.MissingDependencies.DownloadFailed.Message",
                 "GenHub could not download {0}. Check your connection and try again.",
-                string.Join(", ", failedNames)));
+                string.Join(", ", failedNames.Distinct(StringComparer.OrdinalIgnoreCase))));
         }
 
         if (incompatibleNames.Count > 0)
@@ -1556,7 +1556,7 @@ public sealed class ProfileContentService(
             messages.Add(localizationService.GetLocalizedString(
                 "GameProfiles.MissingDependencies.IncompatibleVersion.Message",
                 "GenHub found {0}, but not a version this content works with.",
-                string.Join(", ", incompatibleNames)));
+                string.Join(", ", incompatibleNames.Distinct(StringComparer.OrdinalIgnoreCase))));
         }
 
         return string.Join(" ", messages);

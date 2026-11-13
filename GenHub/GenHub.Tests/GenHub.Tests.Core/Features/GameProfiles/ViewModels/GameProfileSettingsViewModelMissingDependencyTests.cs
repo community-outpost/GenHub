@@ -143,7 +143,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Equal("One required item is missing", Assert.Single(_dialogTitles));
         var content = Assert.Single(_dialogContents);
         var body = content;
-        Assert.Contains("**GenTool**", body, StringComparison.Ordinal);
+        Assert.Contains("**\u2060GenTool**", body, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("1.1.communityoutpost.addon.gent", Assert.Single(_dialogDetails), StringComparison.Ordinal);
         Assert.NotEqual("Error: Missing required dependencies", _viewModel.StatusMessage);

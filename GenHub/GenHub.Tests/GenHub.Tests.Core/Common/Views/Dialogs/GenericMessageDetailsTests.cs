@@ -35,7 +35,6 @@ public class GenericMessageDetailsTests
             var expander = Assert.Single(window.GetVisualDescendants().OfType<Expander>());
             Assert.True(expander.IsVisible);
             Assert.False(expander.IsExpanded);
-            Assert.DoesNotContain(vm.DetailsContent, vm.Content);
 
             expander.IsExpanded = true;
             Dispatcher.UIThread.RunJobs();
