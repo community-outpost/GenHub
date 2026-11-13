@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Helpers;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -291,7 +292,7 @@ public partial class ContentLibraryViewModel(
     /// Gets the publisher-defined tabs of the selected content item, rendered after the built-in detail tabs
     /// with the same view players see.
     /// </summary>
-    public ObservableCollection<CustomTabDefinition> SelectedContentCustomTabs { get; } = [];
+    public BatchObservableCollection<CustomTabDefinition> SelectedContentCustomTabs { get; } = [];
 
     /// <summary>
     /// Gets filtered content items based on the search query.
@@ -829,12 +830,8 @@ public partial class ContentLibraryViewModel(
     private void RefreshSelectedContentCustomTabs()
     {
         _selectedContentTabSources.Clear();
-        SelectedContentCustomTabs.Clear();
-        foreach (var tab in SelectedContent?.CustomTabs.Where(tab => tab != null).OrderBy(tab => tab.Order) ?? Enumerable.Empty<CatalogTabDefinition>())
-        {
-            _selectedContentTabSources.Add(tab);
-            SelectedContentCustomTabs.Add(CatalogTabMapper.Map(tab));
-        }
+        _selectedContentTabSources.AddRange(SelectedContent?.CustomTabs.Where(tab => tab != null).OrderBy(tab => tab.Order) ?? Enumerable.Empty<CatalogTabDefinition>());
+        SelectedContentCustomTabs.ReplaceAll(_selectedContentTabSources.Select(CatalogTabMapper.Map));
     }
 
     private int FindCustomTabIndex(CustomTabDefinition? tab)
@@ -880,7 +877,7 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
-        await parentViewModel.SaveProjectAsync();
+        await parentViewModel.SaveProjectSilentAsync();
         if (parentViewModel.HasUnsavedChanges)
         {
             return;

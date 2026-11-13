@@ -1134,6 +1134,10 @@ User interface sizing, theme color, and display name constants.
 - `GeneralsThemeColor`: Default theme color for Generals content (`"#BD5A0F"`)
 - `ZeroHourThemeColor`: Default theme color for Zero Hour content (`"#1B6575"`)
 
+### Collection Notifications
+
+- `IndexerPropertyName`: Property name raised when the items of an indexed collection change (`"Item[]"`)
+
 ## ScrollSpyConstants Class
 
 Constants for sidebar section scroll-spy behavior shared by settings-style pages.

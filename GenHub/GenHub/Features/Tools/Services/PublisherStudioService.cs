@@ -254,7 +254,7 @@ public class PublisherStudioService(
             }
 
             var tabErrors = new List<string>();
-            CatalogTabValidator.Validate("Catalog", catalog.CustomTabs, tabErrors);
+            CatalogTabValidator.ValidateStructure("Catalog", catalog.CustomTabs, tabErrors);
             foreach (var item in catalog.Content?.Where(item => item != null) ?? [])
             {
                 CatalogTabValidator.Validate($"Content item '{item.Id}'", item.CustomTabs, tabErrors);

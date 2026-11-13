@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Helpers;
@@ -1006,7 +1007,7 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets the publisher-defined tabs for the selected content item, rendered after the built-in tabs.
     /// </summary>
-    public ObservableCollection<CustomTabDefinition> CustomTabs { get; } = [];
+    public BatchObservableCollection<CustomTabDefinition> CustomTabs { get; } = [];
 
     /// <summary>
     /// Gets a value indicating whether there are custom tabs to display.
@@ -8365,11 +8366,7 @@ public partial class ContentDetailViewModel(
         _isUpdatingCustomTabs = true;
         try
         {
-            CustomTabs.Clear();
-            foreach (var tab in tabs)
-            {
-                CustomTabs.Add(tab);
-            }
+            CustomTabs.ReplaceAll(tabs);
 
             OnPropertyChanged(nameof(HasCustomTabs));
 
