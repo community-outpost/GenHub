@@ -755,8 +755,8 @@ public class PublisherStudioService(
 
     private string GetDraftError(CatalogContentItem content) =>
         localizationService.GetLocalizedString(
-            "Tools.PublisherStudio.Validation.ExportDraft",
-            "'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.",
+            PublisherStudioConstants.ExportDraftMessageKey,
+            PublisherStudioConstants.ExportDraftMessage,
             string.IsNullOrWhiteSpace(content.Name) ? content.Id : content.Name);
 
     private OperationResult<bool> ValidateContentReleases(

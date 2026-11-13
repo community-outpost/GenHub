@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Common;
 using System;
 using System.Collections.ObjectModel;
@@ -88,10 +89,7 @@ public partial class UploadCatalogNodeViewModel : ObservableObject
             var isOne = ContentItemCount == 1;
             var key = isOne ? "Tools.PublisherStudio.Publish.ContentItemsFormatOne" : "Tools.PublisherStudio.Publish.ContentItemsFormat";
             var fallback = isOne ? "{0} item" : "{0} items";
-            var format = _localizationService != null && _localizationService.TryGetString(key, out var localized)
-                ? localized
-                : fallback;
-            return string.Format(format, ContentItemCount);
+            return _localizationService.GetLocalizedString(key, fallback, ContentItemCount);
         }
     }
 

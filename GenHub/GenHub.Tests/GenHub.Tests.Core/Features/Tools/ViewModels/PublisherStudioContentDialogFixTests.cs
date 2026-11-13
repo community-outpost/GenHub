@@ -34,9 +34,9 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             ContentName = "Draft Mod",
             ContentId = "draft-mod",
             Description = "A description that meets the length requirements",
+            UseDirectUrl = true,
+            DownloadUrl = "https://example.invalid/mod.zip",
         };
-        vm.UseDirectUrl = true;
-        vm.DownloadUrl = "https://example.invalid/mod.zip";
 
         await vm.AddReleaseArtifactsFromPathsAsync([Path.Combine(_tempDir, "missing.zip")]);
 
@@ -44,6 +44,26 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
         Assert.True(vm.UseDirectUrl);
         Assert.Equal("https://example.invalid/mod.zip", vm.DownloadUrl);
         Assert.Contains("does not exist", vm.ValidationError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The missing-path error joins the other validation errors, marks the dialog invalid, and clears on the next edit.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddReleaseArtifactsFromPaths_MissingFile_KeepsOtherErrorsAndClearsOnEditAsync()
+    {
+        using var vm = new AddContentDialogViewModel(_ => { });
+
+        await vm.AddReleaseArtifactsFromPathsAsync([Path.Combine(_tempDir, "missing.zip")]);
+
+        Assert.False(vm.IsValid);
+        Assert.Contains("does not exist", vm.ValidationError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("required", vm.ValidationError, StringComparison.OrdinalIgnoreCase);
+
+        vm.ContentName = "Draft Mod";
+
+        Assert.DoesNotContain("does not exist", vm.ValidationError ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -76,8 +96,10 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
     [InlineData("https://example.invalid/mod.zip", "mod.zip")]
     public void DownloadUrl_OnlyHttpSchemesFillPackageFilename(string url, string? expectedFilename)
     {
-        using var vm = new AddContentDialogViewModel(_ => { });
-        vm.UseDirectUrl = true;
+        using var vm = new AddContentDialogViewModel(_ => { })
+        {
+            UseDirectUrl = true,
+        };
 
         vm.DownloadUrl = url;
 
@@ -118,9 +140,9 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             ContentName = "Broken Mod",
             ContentId = "broken-mod",
             Description = "A description that meets the length requirements",
+            UseDirectUrl = true,
+            DownloadUrl = "ftp://example.invalid/mod.zip",
         };
-        vm.UseDirectUrl = true;
-        vm.DownloadUrl = "ftp://example.invalid/mod.zip";
 
         vm.CreateContentCommand.Execute(null);
 
@@ -140,9 +162,9 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             ContentName = "Hosted Mod",
             ContentId = "hosted-mod",
             Description = "A description that meets the length requirements",
+            UseDirectUrl = true,
+            DownloadUrl = "https://example.invalid/hosted-mod.zip",
         };
-        vm.UseDirectUrl = true;
-        vm.DownloadUrl = "https://example.invalid/hosted-mod.zip";
 
         vm.CreateContentCommand.Execute(null);
 
@@ -210,8 +232,8 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
             ContentName = "Dropped Mod",
             ContentId = "dropped-mod",
             Description = "A description that meets the length requirements",
+            UseDirectUrl = true,
         };
-        vm.UseDirectUrl = true;
 
         await vm.AddReleaseArtifactsFromPathsAsync([file]);
         await WaitForComputeAsync(vm);
@@ -303,9 +325,9 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
         var localization = new Mock<ILocalizationService>();
         string? format;
         localization.Setup(l => l.TryGetString(It.IsAny<string>(), out format, It.IsAny<object?[]>()))
-            .Returns(new TryGetStringCallback((string key, out string? result, object?[] _) =>
+            .Returns(new TryGetStringCallback((string key, out string? result, object?[] arguments) =>
             {
-                result = key + ":{0}";
+                result = $"{key}:{arguments[0]}";
                 return true;
             }));
         var node = CreateCatalogNode(count);

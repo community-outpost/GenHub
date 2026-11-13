@@ -871,15 +871,13 @@ public partial class AddContentDialogViewModel(
 
         IncludeInitialRelease = true;
         SyncPrimaryFromStaged();
-        Validate();
-        if (unavailablePath != null)
-        {
-            ValidationError = string.Format(
+        Validate(unavailablePath == null
+            ? null
+            : string.Format(
                 GetLocalizedString(
                     "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
                     "Local path does not exist: {0}"),
-                unavailablePath);
-        }
+                unavailablePath));
     }
 
     /// <inheritdoc />
@@ -1160,6 +1158,26 @@ public partial class AddContentDialogViewModel(
     private static string ResolveDroppedPath(string rawPath) =>
         File.Exists(rawPath) || Directory.Exists(rawPath) ? rawPath : rawPath.Trim('"', '\'', ' ');
 
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+    }
+
     private static bool IsRemoteArtworkUrl(string value)
     {
         return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
@@ -1323,17 +1341,8 @@ public partial class AddContentDialogViewModel(
             return false;
         }
 
-        string path;
-        try
-        {
-            path = Path.GetFullPath(ResolveDroppedPath(rawPath));
-        }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return false;
-        }
-
-        if (!File.Exists(path) && !Directory.Exists(path))
+        var path = TryGetFullPath(ResolveDroppedPath(rawPath));
+        if (path == null || (!File.Exists(path) && !Directory.Exists(path)))
         {
             return false;
         }
@@ -2695,13 +2704,17 @@ public partial class AddContentDialogViewModel(
 
     partial void OnDescriptionChanged(string value) => Validate();
 
-    private void Validate()
+    private void Validate(string? transientError = null)
     {
         ValidateAllProperties();
-        IsValid = !HasErrors;
-        ValidationError = HasErrors
-            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
-            : null;
+        var errors = GetErrors().Select(e => e.ErrorMessage).ToList();
+        if (transientError != null)
+        {
+            errors.Add(transientError);
+        }
+
+        IsValid = errors.Count == 0;
+        ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
     }
 
     private async Task<(string Url, long Size)?> PromptDuplicateAssetAsync(string sha256)

@@ -24,4 +24,14 @@ public static class PublisherStudioConstants
     /// File name of the Publisher Studio settings file under the application data directory.
     /// </summary>
     public const string SettingsFileName = "publisher_studio_settings.json";
+
+    /// <summary>
+    /// Resource key for the error shown when a content item without releases blocks catalog export or publish.
+    /// </summary>
+    public const string ExportDraftMessageKey = "Tools.PublisherStudio.Validation.ExportDraft";
+
+    /// <summary>
+    /// English fallback for <see cref="ExportDraftMessageKey"/>. Placeholder {0} is the item name, or its ID when the name is empty.
+    /// </summary>
+    public const string ExportDraftMessage = "'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.";
 }
