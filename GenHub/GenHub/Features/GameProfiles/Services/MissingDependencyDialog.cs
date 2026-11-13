@@ -19,6 +19,7 @@ namespace GenHub.Features.GameProfiles.Services;
 public static class MissingDependencyDialog
 {
     private const string MarkdownSpecialCharacters = "\\`*_[]<>";
+    private const string MarkdownLineStartCharacters = "#-+=|";
 
     /// <summary>
     /// Shows the dialog and waits for the player's choice.
@@ -184,10 +185,15 @@ public static class MissingDependencyDialog
     /// </summary>
     private static string EscapeMarkdown(string text)
     {
-        var builder = new StringBuilder(text.Length);
-        foreach (var character in text)
+        // A name stays on one line, so it cannot start a heading, list, quote or rule.
+        var singleLine = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        var builder = new StringBuilder(singleLine.Length);
+        for (var index = 0; index < singleLine.Length; index++)
         {
-            if (MarkdownSpecialCharacters.Contains(character))
+            var character = singleLine[index];
+            if (MarkdownSpecialCharacters.Contains(character) ||
+                (index == 0 && MarkdownLineStartCharacters.Contains(character)) ||
+                (character is '.' or ')' && IsOrderedListMarker(singleLine, index)))
             {
                 builder.Append('\\');
             }
@@ -197,6 +203,9 @@ public static class MissingDependencyDialog
 
         return builder.ToString();
     }
+
+    private static bool IsOrderedListMarker(string text, int index) =>
+        index > 0 && text[..index].All(char.IsDigit);
 
     private static List<string> GetOwnerNames(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
         missingDependencies

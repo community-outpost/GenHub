@@ -18294,4 +18294,7 @@ Error: не удалось: {3}
   <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
     <value>Установить доступные компоненты</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>GenHub не удалось установить нужные компоненты.</value>
+  </data>
 </root>

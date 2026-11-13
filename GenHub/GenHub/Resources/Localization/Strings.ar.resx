@@ -18294,4 +18294,7 @@ Error: فشل: {3}
   <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
     <value>تثبيت العناصر المتاحة</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>تعذّر على GenHub تثبيت العناصر المطلوبة.</value>
+  </data>
 </root>

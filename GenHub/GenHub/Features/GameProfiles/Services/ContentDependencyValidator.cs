@@ -243,7 +243,14 @@ public sealed class ContentDependencyValidator(
         };
     }
 
-    private static string GetGapKey(ContentDependency dependency)
+    /// <summary>
+    /// Keys a gap by what it asks for. Two declarations of the same item with different version
+    /// limits stay separate, so the stricter one is not dropped.
+    /// </summary>
+    private static string GetGapKey(ContentDependency dependency) =>
+        $"{GetGapIdentityKey(dependency)}|{dependency.MinVersion}|{dependency.MaxVersion}|{dependency.ExactVersion}|{string.Join(",", dependency.CompatibleVersions)}";
+
+    private static string GetGapIdentityKey(ContentDependency dependency)
     {
         if (CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.Value, out _, out var contentCode))
         {
