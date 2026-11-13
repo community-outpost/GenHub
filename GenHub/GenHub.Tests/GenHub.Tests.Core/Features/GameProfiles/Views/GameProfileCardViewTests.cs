@@ -90,10 +90,10 @@ public class GameProfileCardViewTests
     }
 
     /// <summary>
-    /// Verifies that Play keeps the primary button colors at rest and its hover colors under the pointer.
+    /// Verifies that Play keeps the primary button colors at rest and its hover colors under the pointer and when pressed.
     /// </summary>
     [AvaloniaFact]
-    public void PlayButton_UsesPrimaryColorsAtRestAndOnHover()
+    public void PlayButton_UsesPrimaryColorsAtRestOnHoverAndWhenPressed()
     {
         var viewModel = CreateViewModel();
         var (window, view) = Show(viewModel);
@@ -118,12 +118,46 @@ public class GameProfileCardViewTests
             Assert.True(playButton.IsPointerOver);
             AssertBrush(view, "AccentDarkBrush", presenter.Background, "background on hover");
             AssertBrush(view, "PrimaryButtonForeground", presenter.Foreground, "foreground on hover");
+            AssertBrush(view, "AccentDarkBrush", presenter.BorderBrush, "border on hover");
             AssertBrush(view, "PrimaryButtonForeground", icon.Foreground, "icon on hover");
+
+            window.MouseDown(playCenter.Value, MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(playButton.IsPressed);
+            AssertBrush(view, "AccentDarkBrush", presenter.Background, "background when pressed");
+            AssertBrush(view, "AccentDarkBrush", presenter.BorderBrush, "border when pressed");
+            AssertBrush(view, "PrimaryButtonForeground", presenter.Foreground, "foreground when pressed");
+
+            window.MouseUp(new Point(0, 0), MouseButton.Left, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
         }
         finally
         {
             window.Close();
         }
+    }
+
+    /// <summary>
+    /// Verifies that the accessible name of Play contains its visible label in every shipped culture.
+    /// </summary>
+    /// <param name="cultureName">The culture to check.</param>
+    [Theory]
+    [InlineData("en")]
+    [InlineData("ar")]
+    [InlineData("ru")]
+    public void PlayButton_AccessibleNameContainsVisibleLabel(string cultureName)
+    {
+        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(LocalizationService).Assembly);
+        var culture = CultureInfo.GetCultureInfo(cultureName);
+
+        var label = resources.GetString("GameProfiles.Card.Action.Launch", culture);
+        var name = resources.GetString("GameProfiles.Card.Tooltip.LaunchProfile", culture);
+
+        Assert.False(string.IsNullOrEmpty(label));
+        Assert.NotNull(name);
+        Assert.Equal(cultureName == "en", label == resources.GetString("GameProfiles.Card.Action.Launch", CultureInfo.InvariantCulture));
+        Assert.Contains(label, name, StringComparison.CurrentCultureIgnoreCase);
     }
 
     /// <summary>

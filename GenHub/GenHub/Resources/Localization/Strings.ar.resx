@@ -544,7 +544,7 @@
     <value>تعديل ملف التعريف (تبديل سريع للمحتوى)</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
-    <value>تشغيل ملف التعريف</value>
+    <value>العب بملف التعريف هذا</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>تبديل تكامل Steam</value>

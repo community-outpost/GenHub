@@ -544,7 +544,7 @@
     <value>Редактировать профиль (горячая замена)</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
-    <value>Запустить профиль</value>
+    <value>Играть с этим профилем</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>Переключить интеграцию со Steam</value>
