@@ -1767,10 +1767,13 @@ public partial class GameProfileLauncherViewModel(
 
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installationsList.Count, profilesCreated);
 
-                notificationService.ShowSuccess(
-                    localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                    localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
-                    autoDismissMs: NotificationDurations.VeryLong);
+                if (!detectionIncomplete)
+                {
+                    notificationService.ShowSuccess(
+                        localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                        localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                        autoDismissMs: NotificationDurations.VeryLong);
+                }
             }
             else
             {
@@ -1993,9 +1996,19 @@ public partial class GameProfileLauncherViewModel(
             // The service may already hold this folder under another type. Use that installation so the
             // client IDs offered to setup exist on the installation the profiles will reference.
             var registered = await installationService.GetInstallationAsync(manualInstallation.Id);
-            if (registered is { Success: true, Data: not null })
+            if (registered is { Success: true, Data: not null } && !ReferenceEquals(registered.Data, manualInstallation))
             {
                 manualInstallation = registered.Data;
+
+                // A folder held from an earlier pick may predate the game files now in it.
+                if (manualInstallation.AvailableGameClients.Count == 0)
+                {
+                    var refreshed = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation]);
+                    if (refreshed.Success && refreshed.Items?.Count > 0)
+                    {
+                        manualInstallation.PopulateGameClients(refreshed.Items);
+                    }
+                }
             }
         }
 
