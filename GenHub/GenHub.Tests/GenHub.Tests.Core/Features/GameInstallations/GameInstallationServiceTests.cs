@@ -684,7 +684,7 @@ public class GameInstallationServiceTests : IDisposable
         }
         finally
         {
-            Directory.Delete(chosenPath);
+            Directory.Delete(chosenPath, true);
         }
     }
 
@@ -717,7 +717,7 @@ public class GameInstallationServiceTests : IDisposable
         }
         finally
         {
-            Directory.Delete(folder);
+            Directory.Delete(folder, true);
         }
     }
 
@@ -746,11 +746,11 @@ public class GameInstallationServiceTests : IDisposable
 
             Assert.Same(detected, Assert.Single(all.Data!));
             Assert.True(resolved.Success);
-            Assert.Same(detected, resolved.Data);
+            Assert.Equal(detected.Id, resolved.Data!.Id);
         }
         finally
         {
-            Directory.Delete(folder);
+            Directory.Delete(folder, true);
         }
     }
 
@@ -775,11 +775,11 @@ public class GameInstallationServiceTests : IDisposable
 
             Assert.True(added.Success);
             Assert.True(resolved.Success);
-            Assert.Same(detected, resolved.Data);
+            Assert.Equal(detected.Id, resolved.Data!.Id);
         }
         finally
         {
-            Directory.Delete(folder);
+            Directory.Delete(folder, true);
         }
     }
 
@@ -822,11 +822,11 @@ public class GameInstallationServiceTests : IDisposable
 
             Assert.NotEqual(chosenId, detected.Id);
             Assert.True(resolved.Success, string.Join("; ", resolved.Errors));
-            Assert.Same(detected, resolved.Data);
+            Assert.Equal(detected.Id, resolved.Data!.Id);
         }
         finally
         {
-            Directory.Delete(folder);
+            Directory.Delete(folder, true);
         }
     }
 

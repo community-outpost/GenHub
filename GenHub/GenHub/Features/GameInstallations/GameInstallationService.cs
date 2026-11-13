@@ -69,10 +69,15 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         var initResult = await TryInitializeCacheAsync(cancellationToken);
         if (!initResult.Success)
         {
-            var fallback = await FindAfterFailedInitializationAsync(installationId, cancellationToken);
-            return fallback != null
-                ? OperationResult<GameInstallation>.CreateSuccess(fallback)
-                : OperationResult<GameInstallation>.CreateFailure(initResult.Errors[0]);
+            var (recovered, fallback) = await FindAfterFailedInitializationAsync(installationId, cancellationToken);
+            if (fallback != null)
+            {
+                return OperationResult<GameInstallation>.CreateSuccess(fallback);
+            }
+
+            return OperationResult<GameInstallation>.CreateFailure(recovered
+                ? $"Game installation with ID '{installationId}' not found."
+                : initResult.Errors[0]);
         }
 
         var cached = _cachedInstallations;
@@ -1626,15 +1631,15 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         }
     }
 
-    private async Task<GameInstallation?> FindAfterFailedInitializationAsync(string installationId, CancellationToken cancellationToken)
+    private async Task<(bool Recovered, GameInstallation? Installation)> FindAfterFailedInitializationAsync(string installationId, CancellationToken cancellationToken)
     {
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
             var cached = _cachedInstallations;
             return cached != null
-                ? FindCachedInstallation(cached, installationId)
-                : FindCachedInstallation(_pendingManualInstallations, installationId);
+                ? (true, FindCachedInstallation(cached, installationId))
+                : (false, FindCachedInstallation(_pendingManualInstallations, installationId));
         }
         finally
         {
