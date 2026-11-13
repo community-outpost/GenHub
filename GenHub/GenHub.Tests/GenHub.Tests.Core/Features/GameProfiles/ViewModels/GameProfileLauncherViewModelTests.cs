@@ -751,6 +751,12 @@ public class GameProfileLauncherViewModelTests
         facade.Verify(x => x.LaunchProfileAsync("reconciled-profile", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         notifications.Verify(x => x.ShowSuccess("Game Launched", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
         VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
+        telemetry.Verify(
+            x => x.TrackEvent(
+                TelemetryConstants.Events.ProfileLaunchFailed,
+                It.Is<IReadOnlyDictionary<string, object?>>(p => Equals(p[TelemetryConstants.Properties.ProfileId], "reconciled-profile")),
+                It.IsAny<TelemetryLevel>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -809,6 +815,34 @@ public class GameProfileLauncherViewModelTests
         notifications.Verify(x => x.ShowError("Launch Failed", It.Is<string>(m => m.Contains("GenHub could not download GenTool.")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
         Assert.Equal("GenHub could not download GenTool.", vm.ErrorMessage);
         Assert.Contains("GenHub could not download GenTool.", vm.StatusMessage, StringComparison.Ordinal);
+        VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
+    }
+
+    /// <summary>
+    /// When the retry after installing still reports missing items, the blocked launch is recorded only once.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileCommand_MissingDependencyRetryStillMissing_RecordsOnceAsync()
+    {
+        var notifications = new Mock<INotificationService>();
+        var facade = new Mock<IProfileLauncherFacade>();
+        var dialogs = new Mock<IDialogService>();
+        var content = new Mock<IProfileContentService>();
+        var telemetry = new Mock<ITelemetryService>();
+        facade.Setup(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies("Test Profile can't launch. It needs GenTool.", [GenToolGap], profileId: "profile-1"));
+        SetupDialogChoice(dialogs, NotificationActionStyle.Primary);
+        content.Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess(["1.10.communityoutpost.addon.gent"]));
+        content.Setup(x => x.AddContentToProfileAsync("profile-1", It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AddToProfileResult.CreateSuccess("1.10.communityoutpost.addon.gent", "GenTool"));
+        var vm = CreateLauncherViewModel(facade, notifications, dialogs, content, telemetry);
+
+        await vm.LaunchProfileCommand.ExecuteAsync(CreateProfileItem("profile-1", "Test Profile"));
+
+        facade.Verify(x => x.LaunchProfileAsync("profile-1", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        notifications.Verify(x => x.ShowError("Launch Failed", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
         VerifyLaunchFailedTelemetry(telemetry, TelemetryConstants.ErrorCategories.MissingDependencies);
     }
 

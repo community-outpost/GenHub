@@ -1945,7 +1945,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                     gap.DisplayName)));
             }
 
-            var manifestsById = manifests.DistinctBy(m => m.Id.ToString()).ToDictionary(m => m.Id.ToString(), m => m);
+            var manifestsById = manifests
+                .DistinctBy(m => m.Id.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(m => m.Id.ToString(), m => m, StringComparer.OrdinalIgnoreCase);
             foreach (var manifest in manifests)
             {
                 AddConflictWarnings(manifest, manifestsById, warnings);

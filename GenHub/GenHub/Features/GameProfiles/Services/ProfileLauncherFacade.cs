@@ -1629,6 +1629,14 @@ public class ProfileLauncherFacade(
     /// <returns>True if compatible, false otherwise.</returns>
     private bool IsVersionCompatible(string version, ContentDependency dependency)
     {
+        // Like the shared validator, a manifest without a comparable version is not rejected for it.
+        if (string.IsNullOrWhiteSpace(version) ||
+            string.Equals(version, ManifestConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+            !version.Any(char.IsDigit))
+        {
+            return true;
+        }
+
         // If compatible versions list is specified, check exact match or numeric equivalence
         if (dependency.CompatibleVersions is { Count: > 0 })
         {
@@ -1807,6 +1815,12 @@ public class ProfileLauncherFacade(
             var depParts = dependency.Id.ToString().Split('.');
             var candidateMatch = (manifestsById.TryGetValue(dependency.Id.ToString(), out var exact) ? exact : null)
                 ?? (depParts.Length == 5 ? potentialMatches.FirstOrDefault(m => DependencyResolver.HasCompatibleIdentity(depParts, dependency, m)) : null);
+
+            // A matching manifest without a comparable version is accepted, as the shared validator does.
+            if (candidateMatch != null && IsVersionCompatible(candidateMatch.Version, dependency))
+            {
+                return;
+            }
 
             if (candidateMatch != null)
             {
