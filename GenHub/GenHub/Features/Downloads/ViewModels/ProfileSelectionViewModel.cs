@@ -96,7 +96,7 @@ public sealed partial class ProfileSelectionViewModel(
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SelectProfileCommand))]
     [NotifyCanExecuteChangedFor(nameof(CreateNewProfileCommand))]
-    private bool _isResolvingDependencies;
+    private bool _isProfileOperationRunning;
 
     [ObservableProperty]
     private string? _errorMessage;
@@ -471,27 +471,20 @@ public sealed partial class ProfileSelectionViewModel(
             var (selectedManifestId, _, selectedContentName, idsToAdd) = await ResolveContentToAddAsync();
             var addFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile");
 
+            IsProfileOperationRunning = true;
             var result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
             if (result.MissingDependencies.Count > 0)
             {
-                IsResolvingDependencies = true;
-                try
+                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, addFailedTitle))
                 {
-                    if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, addFailedTitle))
-                    {
-                        return;
-                    }
-
-                    result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
-                    if (result.MissingDependencies.Count > 0)
-                    {
-                        NotifyStillMissing(selectedContentName, result.MissingDependencies, addFailedTitle);
-                        return;
-                    }
+                    return;
                 }
-                finally
+
+                result = await AddContentAsync(profile.Id, selectedManifestId, idsToAdd);
+                if (result.MissingDependencies.Count > 0)
                 {
-                    IsResolvingDependencies = false;
+                    NotifyStillMissing(selectedContentName, result.MissingDependencies, addFailedTitle);
+                    return;
                 }
             }
 
@@ -524,6 +517,10 @@ public sealed partial class ProfileSelectionViewModel(
                 localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Title", "Failed to Add to Profile"),
                 localizationService.GetLocalizedString("Common.Notification.UnexpectedError.Message", $"An error occurred: {ex.Message}", ex.Message));
             WasSuccessful = false;
+        }
+        finally
+        {
+            IsProfileOperationRunning = false;
         }
     }
 
@@ -573,27 +570,20 @@ public sealed partial class ProfileSelectionViewModel(
             var (selectedManifestId, selectedManifest, selectedContentName, idsToEnable) = await ResolveProfileCreationContentAsync();
             var profileName = await ResolveUniqueProfileNameAsync(selectedManifest, selectedContentName);
             var createFailedTitle = localizationService.GetLocalizedString("Downloads.Notification.ProfileCreationFailed.Title", "Profile Creation Failed");
+            IsProfileOperationRunning = true;
             var result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
             if (result.MissingDependencies.Count > 0)
             {
-                IsResolvingDependencies = true;
-                try
+                if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, createFailedTitle))
                 {
-                    if (!await InstallMissingDependenciesAsync(selectedContentName, result.MissingDependencies, createFailedTitle))
-                    {
-                        return;
-                    }
-
-                    result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
-                    if (result.MissingDependencies.Count > 0)
-                    {
-                        NotifyStillMissing(selectedContentName, result.MissingDependencies, createFailedTitle);
-                        return;
-                    }
+                    return;
                 }
-                finally
+
+                result = await CreateProfileWithContentAsync(profileName, selectedManifestId, idsToEnable);
+                if (result.MissingDependencies.Count > 0)
                 {
-                    IsResolvingDependencies = false;
+                    NotifyStillMissing(selectedContentName, result.MissingDependencies, createFailedTitle);
+                    return;
                 }
             }
 
@@ -630,6 +620,10 @@ public sealed partial class ProfileSelectionViewModel(
                 localizationService.GetLocalizedString("Common.Notification.UnexpectedError.Message", $"An error occurred: {ex.Message}", ex.Message));
             WasSuccessful = false;
         }
+        finally
+        {
+            IsProfileOperationRunning = false;
+        }
     }
 
     private async Task<(string SelectedManifestId, ContentManifest? SelectedManifest, string SelectedContentName, IReadOnlyList<string> IdsToEnable)> ResolveProfileCreationContentAsync()
@@ -640,7 +634,7 @@ public sealed partial class ProfileSelectionViewModel(
         return (safeId, selectedManifest, displayName, idsToEnable);
     }
 
-    private bool CanChooseProfile() => !IsResolvingDependencies;
+    private bool CanChooseProfile() => !IsProfileOperationRunning;
 
     private Task<AddToProfileResult> AddContentAsync(
         string profileId,
@@ -690,8 +684,9 @@ public sealed partial class ProfileSelectionViewModel(
             var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies, _cts.Token);
             if (installResult.Failed)
             {
-                ErrorMessage = installResult.FirstError;
-                notificationService.ShowError(failureTitle, ErrorMessage ?? string.Empty);
+                ErrorMessage = installResult.FirstError
+                    ?? localizationService.GetLocalizedString("Downloads.Notification.AddToProfileFailed.Message", "Failed to add content to profile");
+                notificationService.ShowError(failureTitle, ErrorMessage);
                 return false;
             }
 

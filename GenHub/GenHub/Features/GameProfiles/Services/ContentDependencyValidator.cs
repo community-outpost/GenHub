@@ -35,6 +35,7 @@ public sealed class ContentDependencyValidator(
             cancellationToken.ThrowIfCancellationRequested();
             if (!ManifestId.TryCreate(contentId, out var manifestId))
             {
+                logger.LogWarning("Skipping enabled content {ContentId} in dependency validation: the ID is not valid", contentId);
                 continue;
             }
 
@@ -42,6 +43,10 @@ public sealed class ContentDependencyValidator(
             if (manifestResult.Success && manifestResult.Data != null)
             {
                 manifests.Add(manifestResult.Data);
+            }
+            else
+            {
+                logger.LogWarning("Skipping enabled content {ContentId} in dependency validation: its manifest could not be loaded", contentId);
             }
         }
 
@@ -126,23 +131,16 @@ public sealed class ContentDependencyValidator(
             return false;
         }
 
-        return string.IsNullOrWhiteSpace(manifest.Version) || IsVersionCompatible(manifest.Version, dependency);
+        return !HasComparableVersion(manifest.Version) || IsVersionCompatible(manifest.Version, dependency);
     }
 
-    private static bool IsVersionCompatible(string version, ContentDependency dependency)
+    private static bool HasComparableVersion(string? version) =>
+        !string.IsNullOrWhiteSpace(version) &&
+        !string.Equals(version, ManifestConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) &&
+        version.Any(char.IsDigit);
+
+    private static bool IsVersionInRange(string version, ContentDependency dependency)
     {
-        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
-        {
-            return CatalogManifestIdentity.CompareVersions(version, dependency.ExactVersion) == 0;
-        }
-
-        if (dependency.CompatibleVersions is { Count: > 0 })
-        {
-            return dependency.CompatibleVersions.Any(compatible =>
-                string.Equals(compatible, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(compatible, version) == 0);
-        }
-
         if (!string.IsNullOrWhiteSpace(dependency.MinVersion))
         {
             var comparison = CatalogManifestIdentity.CompareVersions(version, dependency.MinVersion);
@@ -162,6 +160,25 @@ public sealed class ContentDependencyValidator(
         }
 
         return true;
+    }
+
+    private static bool IsVersionCompatible(string version, ContentDependency dependency)
+    {
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
+        {
+            return CatalogManifestIdentity.CompareVersions(version, dependency.ExactVersion) == 0;
+        }
+
+        // Like the dependency resolver, a version list and a range must both hold.
+        if (dependency.CompatibleVersions is { Count: > 0 } &&
+            !dependency.CompatibleVersions.Any(compatible =>
+                string.Equals(compatible, version, StringComparison.OrdinalIgnoreCase) ||
+                CatalogManifestIdentity.CompareVersions(compatible, version) == 0))
+        {
+            return false;
+        }
+
+        return IsVersionInRange(version, dependency);
     }
 
     private static bool IsSatisfiedByType(
@@ -236,6 +253,11 @@ public sealed class ContentDependencyValidator(
         if (IsFoundationType(dependency.DependencyType) && !dependency.StrictPublisher)
         {
             return $"{dependency.DependencyType}:{string.Join(",", dependency.CompatibleGameTypes.Order())}";
+        }
+
+        if (string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{dependency.DependencyType}:{dependency.Id.Value}";
         }
 
         return dependency.Id.Value;

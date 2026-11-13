@@ -60,6 +60,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private const string ContentLockedMessage = "This content item is locked and cannot be modified";
     private const string ContentLockedTitle = "Content Locked";
     private const string LiveSyncFailedTitle = "Live Sync Failed";
+    private const string MissingDependenciesStatus = "Error: Missing required dependencies";
     private const string ContentResourceIconFormatKey = "GameProfiles.Resources.IconFormat";
     private const string ContentResourceCoverFormatKey = "GameProfiles.Resources.CoverFormat";
 

@@ -144,6 +144,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Contains("**GenTool**", body, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("1.1.communityoutpost.addon.gent", content[body.Length..], StringComparison.Ordinal);
+        Assert.NotEqual("Error: Missing required dependencies", _viewModel.StatusMessage);
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

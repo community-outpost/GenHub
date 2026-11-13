@@ -136,6 +136,8 @@
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
                             <TextBlock Text="{Binding Title}"
                                        TextWrapping="Wrap"
+                                       MaxHeight="160"
+                                       TextTrimming="CharacterEllipsis"
                                        FontSize="28"
                                        FontWeight="Bold"
                                        Foreground="{DynamicResource TextPrimary}"

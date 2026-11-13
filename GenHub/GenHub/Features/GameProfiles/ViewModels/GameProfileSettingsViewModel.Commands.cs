@@ -657,7 +657,6 @@ public partial class GameProfileSettingsViewModel
 
             if (!await EnsureRequiredDependenciesAsync(enabledContentIds))
             {
-                StatusMessage = "Error: Missing required dependencies";
                 return;
             }
 
@@ -749,9 +748,10 @@ public partial class GameProfileSettingsViewModel
         var installResult = await _profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
         if (installResult.Failed || installResult.Data == null)
         {
+            StatusMessage = MissingDependenciesStatus;
             _localNotificationService.ShowError(
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
-                installResult.FirstError ?? string.Empty);
+                installResult.FirstError ?? _localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item"));
             return false;
         }
 
@@ -784,7 +784,7 @@ public partial class GameProfileSettingsViewModel
         }
 
         var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
-        if (manifestResult.Data == null)
+        if (manifestResult.Failed || manifestResult.Data == null)
         {
             return;
         }
@@ -807,6 +807,7 @@ public partial class GameProfileSettingsViewModel
 
     private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
+        StatusMessage = MissingDependenciesStatus;
         var names = string.Join(
             "\n",
             missingDependencies.Select(gap => _localizationService.GetLocalizedString(
