@@ -972,6 +972,9 @@
   <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
     <value>Could not set up the chosen game folder: {0}</value>
   </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>Setting up the games that were found failed: {0}</value>
+  </data>
   <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
     <value>Some locations could not be searched, so GenHub used the game folder you chose. Fix the access problem and scan again to find other installations.</value>
   </data>

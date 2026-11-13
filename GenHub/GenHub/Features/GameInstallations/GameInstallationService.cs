@@ -1649,10 +1649,14 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
 
     private GameInstallation? FindCachedInstallation(IReadOnlyList<GameInstallation> cached, string installationId)
     {
-        var installation = cached.FirstOrDefault(i => i.Id == installationId);
-        if (installation == null && _mergedInstallationIds.TryGetValue(installationId, out var mergedId))
+        // Follow the alias chain one hop at a time, since any hop may be the ID this list holds.
+        // The walk is bounded by the number of aliases, so a cycle cannot loop forever.
+        var currentId = installationId;
+        var installation = cached.FirstOrDefault(i => i.Id == currentId);
+        for (var hops = 0; installation == null && hops < _mergedInstallationIds.Count && _mergedInstallationIds.TryGetValue(currentId, out var nextId); hops++)
         {
-            installation = cached.FirstOrDefault(i => i.Id == mergedId);
+            currentId = nextId;
+            installation = cached.FirstOrDefault(i => i.Id == currentId);
         }
 
         return installation;

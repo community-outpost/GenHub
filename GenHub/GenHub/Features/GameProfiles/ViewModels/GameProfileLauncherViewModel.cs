@@ -925,6 +925,92 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Builds a Retail installation from a folder the user chose, or returns null when it holds no game.
+    /// The folder is accepted when it, or its Generals and Zero Hour subfolders, hold a Windows or native
+    /// game executable, or when it is a flat native install that holds the retail archives.
+    /// </summary>
+    /// <param name="selectedPath">The chosen folder.</param>
+    /// <param name="logger">The logger for the outcome.</param>
+    /// <returns>The installation, or null when the folder holds no game.</returns>
+    internal static GameInstallation? CreateManualInstallation(string selectedPath, ILogger logger)
+    {
+        string[] zeroHourExecutables =
+        [
+            GameClientConstants.ZeroHourExecutable,
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersZeroHourExecutable,
+            Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable),
+        ];
+
+        string[] generalsExecutables =
+        [
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersGeneralsExecutable,
+            Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersGeneralsExecutable),
+        ];
+
+        // Case-insensitive, matching the nine sibling detectors. Retail data copied
+        // from a disc or a Windows machine is frequently upper-cased (GENERALS.EXE),
+        // and Linux volumes plus case-sensitive APFS will not match it otherwise.
+        bool hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
+        bool hasGenerals = generalsExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
+
+        if (!hasZeroHour && !hasGenerals)
+        {
+            // A flat native install may carry only an engine binary under another name next to the retail archives.
+            var archives = RetailArchiveClassifier.ClassifyArchivesSafely(selectedPath, logger);
+            hasGenerals = archives.HasGeneralsArchives;
+            hasZeroHour = archives.HasZeroHourArchives;
+        }
+
+        if (hasZeroHour || hasGenerals)
+        {
+            var installation = new GameInstallation(selectedPath, GameInstallationType.Retail, null);
+            installation.SetPaths(
+                hasGenerals ? selectedPath : null,
+                hasZeroHour ? selectedPath : null);
+
+            logger.LogInformation(
+                "Created manual Retail installation from selected directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
+                hasGenerals,
+                hasZeroHour);
+
+            return installation;
+        }
+
+        // Check if it's a parent directory with subdirectories
+        var generalsSubdir = Path.Combine(selectedPath, GameClientConstants.GeneralsDirectoryName);
+        var zeroHourSubdir = Path.Combine(selectedPath, GameClientConstants.ZeroHourDirectoryName);
+
+        if (Directory.Exists(generalsSubdir))
+        {
+            hasGenerals = generalsExecutables.Any(exe => Path.Combine(generalsSubdir, exe).FileExistsCaseInsensitive());
+        }
+
+        if (Directory.Exists(zeroHourSubdir))
+        {
+            hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(zeroHourSubdir, exe).FileExistsCaseInsensitive());
+        }
+
+        if (!hasGenerals && !hasZeroHour)
+        {
+            return null;
+        }
+
+        var parentInstallation = new GameInstallation(selectedPath, GameInstallationType.Retail, null);
+        parentInstallation.SetPaths(
+            hasGenerals ? generalsSubdir : null,
+            hasZeroHour ? zeroHourSubdir : null);
+
+        logger.LogInformation(
+            "Created manual Retail installation from parent directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
+            hasGenerals,
+            hasZeroHour);
+
+        return parentInstallation;
+    }
+
+    /// <summary>
     /// Generates a unique profile name by appending a number if needed.
     /// </summary>
     /// <param name="baseName">The base name to use for the profile.</param>
@@ -1643,7 +1729,7 @@ public partial class GameProfileLauncherViewModel(
             if (installations.Success && installations.Data != null)
             {
                 var installationsList = installations.Data.ToList();
-                WarnIfDetectionIncomplete(installationsList.Count);
+                var detectionIncomplete = installationsList.Count > 0 && installationService.CachedInstallations == null;
 
                 if (installationsList.Count == 0)
                 {
@@ -1668,7 +1754,7 @@ public partial class GameProfileLauncherViewModel(
 
                 HasNoDetectedInstallations = false;
                 detectionFinished = true;
-                await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
+                await RecordDetectionOutcomeAsync(detectionIncomplete);
 
                 logger.LogInformation(
                     "Game scan completed. Found {Count} installations ({GeneralsCount} Generals, {ZeroHourCount} Zero Hour)",
@@ -1703,6 +1789,13 @@ public partial class GameProfileLauncherViewModel(
             if (!detectionFinished)
             {
                 await RecordScanFailureAsync(ex.Message);
+            }
+            else
+            {
+                notificationService.ShowError(
+                    localizationService[NotificationErrorTitleKey],
+                    localizationService.GetString("GameProfiles.ScanFailure.SetupFailed", ex.Message),
+                    autoDismissMs: NotificationDurations.Long);
             }
         }
         finally
@@ -1789,20 +1882,20 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
-    /// Tells the player when installations came back only from a folder they chose while detection kept failing.
+    /// Records a scan that found installations. When they came only from a folder chosen while detection
+    /// kept failing, the scan stays failed so the recovery actions remain visible and nothing is persisted
+    /// as a completed scan.
     /// </summary>
-    /// <param name="installationCount">The number of installations the scan returned.</param>
-    private void WarnIfDetectionIncomplete(int installationCount)
+    /// <param name="detectionIncomplete">Whether detection is still failing.</param>
+    private async Task RecordDetectionOutcomeAsync(bool detectionIncomplete)
     {
-        if (installationCount == 0 || installationService.CachedInstallations != null)
+        if (detectionIncomplete)
         {
+            await RecordScanFailureAsync(localizationService["GameProfiles.ScanFailure.IncompleteMessage"]);
             return;
         }
 
-        notificationService.ShowWarning(
-            localizationService["GameProfiles.ScanFailure.Title"],
-            localizationService["GameProfiles.ScanFailure.IncompleteMessage"],
-            autoDismissMs: NotificationDurations.Long);
+        await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
     }
 
     private async Task RecordCompletedScanAsync(InstallationScanOutcome outcome)
@@ -1893,6 +1986,16 @@ public partial class GameProfileLauncherViewModel(
                     localizationService.GetString("GameProfiles.ScanFailure.ChooseFolderFailed", addResult.FirstError ?? string.Empty),
                     autoDismissMs: NotificationDurations.Long);
                 return null;
+            }
+        }
+        else
+        {
+            // The service may already hold this folder under another type. Use that installation so the
+            // client IDs offered to setup exist on the installation the profiles will reference.
+            var registered = await installationService.GetInstallationAsync(manualInstallation.Id);
+            if (registered is { Success: true, Data: not null })
+            {
+                manualInstallation = registered.Data;
             }
         }
 
@@ -3224,77 +3327,9 @@ public partial class GameProfileLauncherViewModel(
             var selectedPath = result[0].Path.LocalPath;
             logger.LogInformation("User selected directory: {Path}", selectedPath);
 
-            // Validate the selected directory contains game executables
-            string[] zeroHourExecutables =
-            [
-                GameClientConstants.ZeroHourExecutable,
-                GameClientConstants.GeneralsExecutable,
-                GameClientConstants.SuperHackersZeroHourExecutable,
-            ];
-
-            string[] generalsExecutables =
-            [
-                GameClientConstants.GeneralsExecutable,
-                GameClientConstants.SuperHackersGeneralsExecutable,
-            ];
-
-            // Case-insensitive, matching the nine sibling detectors. Retail data copied
-            // from a disc or a Windows machine is frequently upper-cased (GENERALS.EXE),
-            // and Linux volumes plus case-sensitive APFS will not match it otherwise.
-            bool hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
-            bool hasGenerals = generalsExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
-
-            if (hasZeroHour || hasGenerals)
+            var installation = CreateManualInstallation(selectedPath, logger);
+            if (installation != null)
             {
-                // Selected directory is the game directory
-                var installation = new GameInstallation(
-                    selectedPath,
-                    GameInstallationType.Retail,
-                    null);
-
-                installation.SetPaths(
-                    hasGenerals ? selectedPath : null,
-                    hasZeroHour ? selectedPath : null);
-
-                logger.LogInformation(
-                    "Created manual Retail installation from selected directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
-                    hasGenerals,
-                    hasZeroHour);
-
-                return installation;
-            }
-
-            // Check if it's a parent directory with subdirectories
-            var generalsSubdir = Path.Combine(selectedPath, GameClientConstants.GeneralsDirectoryName);
-            var zeroHourSubdir = Path.Combine(selectedPath, GameClientConstants.ZeroHourDirectoryName);
-
-            if (Directory.Exists(generalsSubdir))
-            {
-                hasGenerals = generalsExecutables.Any(exe => Path.Combine(generalsSubdir, exe).FileExistsCaseInsensitive());
-            }
-
-            if (Directory.Exists(zeroHourSubdir))
-            {
-                hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(zeroHourSubdir, exe).FileExistsCaseInsensitive());
-            }
-
-            if (hasGenerals || hasZeroHour)
-            {
-                // Use parent directory as base path
-                var installation = new GameInstallation(
-                    selectedPath,
-                    GameInstallationType.Retail,
-                    null);
-
-                installation.SetPaths(
-                    hasGenerals ? generalsSubdir : null,
-                    hasZeroHour ? zeroHourSubdir : null);
-
-                logger.LogInformation(
-                    "Created manual Retail installation from parent directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
-                    hasGenerals,
-                    hasZeroHour);
-
                 return installation;
             }
 
