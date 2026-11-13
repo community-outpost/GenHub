@@ -2866,14 +2866,15 @@ public partial class GameProfileLauncherViewModel(
     private async Task ExecuteLaunchAsync(
         GameProfileItemViewModel profile,
         bool allowDependencyInstall = true,
-        string? launchProfileId = null)
+        string? launchProfileId = null,
+        CancellationToken cancellationToken = default)
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
         var stopwatch = Stopwatch.StartNew();
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
-        var launchResult = await profileLauncherFacade.LaunchProfileAsync(launchProfileId ?? profile.ProfileId, skipUserDataCleanup: false);
+        var launchResult = await profileLauncherFacade.LaunchProfileAsync(launchProfileId ?? profile.ProfileId, skipUserDataCleanup: false, cancellationToken);
         stopwatch.Stop();
         var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
@@ -2938,11 +2939,13 @@ public partial class GameProfileLauncherViewModel(
         {
             if (allowDependencyInstall && launchResult.MissingDependencies.Count > 0 && profileContentService != null)
             {
+                // Record the blocked attempt once, whatever the player chooses next.
+                TrackLaunchFailed(profile, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
                 var targetProfileId = launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId;
-                var installError = await InstallMissingDependenciesAsync(profile, targetProfileId, launchResult.MissingDependencies);
+                var installError = await InstallMissingDependenciesAsync(profile, targetProfileId, launchResult.MissingDependencies, cancellationToken);
                 if (installError == null)
                 {
-                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false, launchProfileId: targetProfileId);
+                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false, launchProfileId: targetProfileId, cancellationToken: cancellationToken);
                     return;
                 }
 
@@ -2956,7 +2959,6 @@ public partial class GameProfileLauncherViewModel(
                     ReportLaunchFailure(profile, installError);
                 }
 
-                TrackLaunchFailed(profile, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
                 return;
             }
 
@@ -3004,6 +3006,7 @@ public partial class GameProfileLauncherViewModel(
     /// <param name="profile">The profile card that was launched.</param>
     /// <param name="targetProfileId">The profile that launch validated. Reconciliation can change it.</param>
     /// <param name="missingDependencies">The missing items reported by launch validation.</param>
+    /// <param name="cancellationToken">A token that stops the dialog, the download and the profile update.</param>
     /// <returns>
     /// <see langword="null"/> when the items are installed and the launch should be retried,
     /// an empty string when the player cancelled, or a player-facing error.
@@ -3011,13 +3014,15 @@ public partial class GameProfileLauncherViewModel(
     private async Task<string?> InstallMissingDependenciesAsync(
         GameProfileItemViewModel profile,
         string targetProfileId,
-        IReadOnlyList<ContentDependencyGap> missingDependencies)
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        CancellationToken cancellationToken)
     {
         var install = await MissingDependencyDialog.ConfirmInstallAsync(
             dialogService,
             localizationService,
             profile.Name,
-            missingDependencies);
+            missingDependencies,
+            cancellationToken);
         if (!install || profileContentService == null)
         {
             return string.Empty;
@@ -3027,20 +3032,20 @@ public partial class GameProfileLauncherViewModel(
             "GameProfiles.Status.InstallingRequiredItems",
             "Installing required items for {0}...",
             profile.Name);
-        var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies);
+        var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
         if (installResult.Failed || installResult.Data == null)
         {
             return installResult.FirstError ?? string.Join(", ", installResult.Errors);
         }
 
-        var addResult = await profileContentService.AddContentToProfileAsync(targetProfileId, installResult.Data);
+        var addResult = await profileContentService.AddContentToProfileAsync(targetProfileId, installResult.Data, cancellationToken);
         if (addResult.MissingDependencies.Count > 0)
         {
             return localizationService.GetLocalizedString(
                 "GameProfiles.MissingDependencies.LaunchError",
                 "{0} can't launch. It needs {1}.",
                 profile.Name,
-                string.Join(", ", addResult.MissingDependencies.Select(gap => gap.DisplayName)));
+                string.Join(", ", addResult.MissingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap))));
         }
 
         if (addResult.Failed)

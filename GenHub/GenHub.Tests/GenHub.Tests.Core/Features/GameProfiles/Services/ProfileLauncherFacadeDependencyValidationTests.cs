@@ -328,7 +328,7 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
 
         var manifests = new[]
         {
-            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
             new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
             new ContentManifest
             {
