@@ -145,8 +145,9 @@
                             Background="{DynamicResource PrimaryButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}" CornerRadius="6" FontWeight="SemiBold" FontSize="15" Padding="28,10"
                             Margin="0,28,0,0" Cursor="Hand" HorizontalAlignment="Left">
                         <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+                            <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                                <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
