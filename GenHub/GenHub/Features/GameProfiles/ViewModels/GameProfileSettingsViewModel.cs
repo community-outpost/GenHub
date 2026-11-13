@@ -233,6 +233,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
 
+    /// <summary>
+    /// Gets the notifications shown in this window. Tests observe it to check warnings.
+    /// </summary>
+    internal IObservable<Core.Models.Notifications.NotificationMessage> LocalNotifications => _localNotificationService.Notifications;
+
     private static bool HasShownFirstLoadNotification { get; set; }
 
     private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }

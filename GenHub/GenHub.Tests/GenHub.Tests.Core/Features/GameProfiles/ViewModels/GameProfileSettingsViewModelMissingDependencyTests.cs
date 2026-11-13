@@ -9,6 +9,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -237,6 +238,86 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    /// <summary>
+    /// Changes made in the editor while items download are saved, not the list from before the dialog.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_EditorChangedDuringInstall_SavesCurrentContentAsync()
+    {
+        const string mapPackId = "1.0.examplepublisher.mappack.tournamentmaps";
+        _manifests[mapPackId] = new ContentManifest
+        {
+            Id = ManifestId.Create(mapPackId),
+            Name = "Tournament Maps",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                _viewModel.EnabledContent.Single(item => item.ManifestId.Value == ControlBarProId).IsEnabled = false;
+                _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+                {
+                    ManifestId = ManifestId.Create(mapPackId),
+                    DisplayName = "Tournament Maps",
+                    ContentType = ContentType.MapPack,
+                    GameType = GameType.ZeroHour,
+                    InstallationType = GameInstallationType.Unknown,
+                    IsEnabled = true,
+                });
+                _manifests[GenToolId] = new ContentManifest
+                {
+                    Id = ManifestId.Create(GenToolId),
+                    Name = "GenTool",
+                    ContentType = ContentType.Addon,
+                    Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                    Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
+                };
+                return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
+            });
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var saved = Assert.Single(_createRequests).EnabledContentIds ?? [];
+        Assert.Contains(mapPackId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(ControlBarProId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An item still missing after the install is listed once, even when it is declared twice.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_SameItemStillMissingTwice_ListsItOnceAsync()
+    {
+        var controlBarPro = _manifests[ControlBarProId];
+        var genTool = controlBarPro.Dependencies.Single(dependency => dependency.Name == "GenTool");
+        controlBarPro.Dependencies.Add(new ContentDependency
+        {
+            Id = genTool.Id,
+            Name = genTool.Name,
+            DependencyType = genTool.DependencyType,
+            InstallBehavior = genTool.InstallBehavior,
+            MinVersion = "9.0",
+        });
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<string>>.CreateSuccess([]));
+        var notifications = new List<NotificationMessage>();
+        using var subscription = _viewModel.LocalNotifications.Subscribe(new NotificationCollector(notifications));
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var error = Assert.Single(notifications, notification => notification.Title == "Missing Dependencies");
+        Assert.Single(error.Message.Split('\n'), line => line.Contains("needs GenTool", StringComparison.Ordinal));
+        _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private void SetupGenToolInstall() =>
         _profileContent
             .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
@@ -252,4 +333,17 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
                 };
                 return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
             });
+
+    private sealed class NotificationCollector(List<NotificationMessage> notifications) : IObserver<NotificationMessage>
+    {
+        public void OnCompleted()
+        {
+        }
+
+        public void OnError(Exception error)
+        {
+        }
+
+        public void OnNext(NotificationMessage value) => notifications.Add(value);
+    }
 }
