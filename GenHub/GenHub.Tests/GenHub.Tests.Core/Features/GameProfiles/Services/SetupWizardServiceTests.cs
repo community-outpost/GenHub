@@ -1318,14 +1318,18 @@ public class SetupWizardServiceTests
 
             var result = await service.RunSetupWizardAsync([installation], CancellationToken.None);
 
-            Assert.True(result.Confirmed);
-            Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
             if (OperatingSystem.IsWindows())
             {
+                Assert.Empty(capturedVm!.FoundGames);
+                Assert.False(capturedVm.UseInstalledGameCommand.CanExecute(null));
+                Assert.False(result.Confirmed);
+                Assert.False(result.UseInstalledGame);
                 Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.SuperHackersAction);
             }
             else
             {
+                Assert.True(result.Confirmed);
+                Assert.Equal(GameClientConstants.WizardActionTypes.Decline, result.CommunityPatchAction);
                 Assert.Equal(GameClientConstants.WizardActionTypes.CreateProfile, result.SuperHackersAction);
                 Assert.Equal(["TheSuperHackers Zero Hour (Retail Installation)"], capturedVm!.FoundGames);
             }
