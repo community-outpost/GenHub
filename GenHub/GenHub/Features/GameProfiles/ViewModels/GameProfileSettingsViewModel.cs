@@ -84,12 +84,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalizationService? _localizationService;
     private readonly IContentDependencyValidator? _dependencyValidator;
     private readonly IProfileContentService? _profileContentService;
+    private readonly List<Action> _pendingInstallCancellations = [];
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
-    private Action? _cancelDependencyInstall;
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
@@ -291,7 +291,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     public void CancelPendingOperations()
     {
-        _cancelDependencyInstall?.Invoke();
+        foreach (var cancel in _pendingInstallCancellations.ToList())
+        {
+            cancel();
+        }
     }
 
     /// <summary>
