@@ -222,9 +222,9 @@ public class UserSettings
     public bool IsNotificationMuted { get; set; }
 
     /// <summary>
-    /// Gets or sets the telemetry collection preference level.
+    /// Gets or sets the telemetry collection preference level. Telemetry stays off until the user turns it on.
     /// </summary>
-    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.AnonymousMetrics;
+    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.Disabled;
 
     /// <summary>
     /// Gets or sets a value indicating whether the telemetry onboarding prompt has been shown.
