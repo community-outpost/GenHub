@@ -388,6 +388,36 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// A non-strict game client requirement with no game list is keyed by type, so two requirers report one gap.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_AnyGameClientWithNullGameTypes_ReportsOneGap()
+    {
+        ContentManifest Mod(string id) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.gameclient.anyclient"),
+                    Name = "Any game client",
+                    DependencyType = ContentType.GameClient,
+                    StrictPublisher = false,
+                    CompatibleGameTypes = null!,
+                },
+            ],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first"), Mod("1.0.examplepublisher.mod.second")]));
+
+        Assert.Equal(ContentType.GameClient, gap.DependencyType);
+    }
+
+    /// <summary>
     /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
     /// </summary>
     /// <returns>A task that completes when validation finishes.</returns>

@@ -608,6 +608,61 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
+    /// One item declared twice with different version limits is named once when the add is blocked.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task AddContentToProfileAsync_SameItemDeclaredTwice_NamesItOnceAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"));
+        var genTool = dependencies.Single(dependency => dependency.Name == "GenTool");
+        dependencies.Add(new ContentDependency
+        {
+            Id = genTool.Id,
+            Name = genTool.Name,
+            DependencyType = genTool.DependencyType,
+            InstallBehavior = genTool.InstallBehavior,
+            MinVersion = "9.0",
+        });
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarProFixture.ControlBarProId),
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+            Dependencies = dependencies,
+        });
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.Equal(2, result.MissingDependencies.Count);
+        Assert.Equal(1, CountOccurrences(result.FirstError, "GenTool"));
+    }
+
+    /// <summary>
+    /// A failed download of one item required twice names it once.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_SameItemFailsTwice_NamesItOnceAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("offline"));
+        var attempt = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+        var gap = Assert.Single(attempt.MissingDependencies);
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync([gap, gap with { RequiredByName = "Other" }]);
+
+        Assert.False(install.Success);
+        Assert.Equal(1, CountOccurrences(install.FirstError, "GenTool"));
+    }
+
+    /// <summary>
     /// Items GenHub cannot download are skipped by the installer instead of being attempted.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
@@ -961,6 +1016,17 @@ public sealed class ProfileContentServiceTests
             Assert.Contains("not a version", install.FirstError, StringComparison.Ordinal);
             Assert.DoesNotContain("connection", install.FirstError, StringComparison.Ordinal);
         }
+    }
+
+    private static int CountOccurrences(string? text, string value)
+    {
+        var count = 0;
+        for (var index = text?.IndexOf(value, StringComparison.Ordinal) ?? -1; index >= 0; index = text!.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
     }
 
     private sealed class ControlBarProFixture

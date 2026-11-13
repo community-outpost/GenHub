@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using GenHub.Common.Services;
@@ -58,5 +59,29 @@ public class DialogServiceTests
             () => withDetails
                 ? service.ShowMessageWithDetailsAsync("Title", "Content", Array.Empty<DialogAction>(), "Details", "Diagnostic text", new CancellationToken(true))
                 : service.ShowMessageAsync("Title", "Content", Array.Empty<DialogAction>(), cancellationToken: new CancellationToken(true)));
+    }
+
+    /// <summary>
+    /// A dialog opened from a modal editor belongs to the editor, so the editor is blocked while it is open.
+    /// </summary>
+    [AvaloniaFact]
+    public void SelectDialogOwner_EditorOpenOverMain_ReturnsEditor()
+    {
+        var main = new Window();
+        var editor = new Window();
+        main.Show();
+        editor.Show();
+        try
+        {
+            Assert.Same(editor, DialogService.SelectDialogOwner([main, editor], main));
+
+            editor.Hide();
+            Assert.Same(main, DialogService.SelectDialogOwner([main, editor], main));
+        }
+        finally
+        {
+            editor.Close();
+            main.Close();
+        }
     }
 }

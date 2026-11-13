@@ -654,10 +654,32 @@ public partial class GameProfileSettingsViewModel
             }
 
             var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
-
-            if (!await EnsureRequiredDependenciesAsync(enabledContentIds))
+            var installedIds = new List<string>();
+            while (true)
             {
-                return;
+                var validatedIds = new List<string>(enabledContentIds);
+                if (!await EnsureRequiredDependenciesAsync(validatedIds))
+                {
+                    return;
+                }
+
+                // The editor stays usable while items download, so save what it shows now.
+                // Installed items the editor could not show are kept. A change made meanwhile
+                // is validated again before saving.
+                installedIds.AddRange(validatedIds.Skip(enabledContentIds.Count));
+                var shownIds = EnabledContent.Select(c => c.ManifestId.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var currentIds = EnabledContent
+                    .Where(c => c.IsEnabled)
+                    .Select(c => c.ManifestId.Value)
+                    .Union(installedIds.Where(id => !shownIds.Contains(id)), StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (currentIds.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(validatedIds))
+                {
+                    enabledContentIds = currentIds;
+                    break;
+                }
+
+                enabledContentIds = currentIds;
             }
 
             _logger?.LogInformation(

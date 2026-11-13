@@ -43,6 +43,9 @@ public sealed class MissingDependencyDialogTests
     [InlineData("%{color:red}Red% :smile:", "%{color:red}Red% :smile:")]
     [InlineData("Back\\slash", "Back\\slash")]
     [InlineData("Line one\n# Line two", "Line one # Line two")]
+    [InlineData("`my_mod:v2`", "\u02CBmy_mod:v2\u02CB")]
+    [InlineData("`Code` a*b", "\u02CBCode\u02CB a*b")]
+    [InlineData("Split `half", "Split \u02CBhalf")]
     public void BuildContent_NameWithMarkdown_RendersAsPlainText(string name, string expected)
     {
         var gap = CreateGap(name, name);
@@ -54,10 +57,29 @@ public sealed class MissingDependencyDialogTests
         Assert.DoesNotContain(intro.Classes, cls => cls.StartsWith("Heading", StringComparison.Ordinal));
         Assert.StartsWith(expected, GetText(intro), StringComparison.Ordinal);
         Assert.Contains(expected, string.Concat(GetTextBlocks(blocks[1]).Select(GetText)), StringComparison.Ordinal);
-        Assert.DoesNotContain(GetInlines(rendered), inline => inline is CHyperlink or CImage or CItalic or CUnderline or CStrikethrough);
+        Assert.DoesNotContain(GetInlines(rendered), inline => inline is CHyperlink or CImage or CItalic or CUnderline or CStrikethrough or CCode);
         var itemName = Assert.Single(GetInlines(rendered).OfType<CBold>());
         Assert.All(Flatten(itemName.Content), inline => Assert.IsType<CRun>(inline));
         Assert.Equal(expected, Strip(string.Concat(Flatten(itemName.Content).OfType<CRun>().Select(run => run.Text))));
+    }
+
+    /// <summary>
+    /// Backticks split between an item name and its requirer cannot pair up into a code span.
+    /// </summary>
+    [AvaloniaFact]
+    public void BuildContent_BackticksAcrossNames_RenderNoCode()
+    {
+        var first = CreateGap("Tool `one", "Mod` two");
+        var second = CreateGap("Other", "Third") with { DependencyId = "1.0.examplepublisher.addon.other" };
+
+        var rendered = new MarkdownEngine { Plugins = new Markdown.Avalonia.Full.MdAvPlugins() }.Transform(
+            MissingDependencyDialog.BuildContent(null, "Content", [first, second]));
+
+        Assert.DoesNotContain(GetInlines(rendered), inline => inline is CCode);
+        Assert.Equal(2, GetInlines(rendered).OfType<CBold>().Count());
+        var text = string.Concat(GetTextBlocks(rendered).Select(GetText));
+        Assert.Contains("Tool \u02CBone", text, StringComparison.Ordinal);
+        Assert.Contains("(needed by Mod\u02CB two)", text, StringComparison.Ordinal);
     }
 
     /// <summary>

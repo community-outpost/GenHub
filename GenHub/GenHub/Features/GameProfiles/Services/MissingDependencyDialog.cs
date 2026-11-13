@@ -20,6 +20,7 @@ public static class MissingDependencyDialog
 {
     private const string RendererEscapedCharacters = "\\*_~%:";
     private const char WordJoiner = '\u2060';
+    private const char GraveAccentLookalike = '\u02CB';
 
     /// <summary>
     /// Shows the dialog and waits for the player's choice.
@@ -199,7 +200,7 @@ public static class MissingDependencyDialog
     /// Neutralizes Markdown in names taken from manifests, so a name cannot add links, images,
     /// formatting or block structure. Markdown.Avalonia removes a backslash only before the
     /// characters in <see cref="RendererEscapedCharacters"/>, so the other markers are broken
-    /// with an invisible word joiner instead.
+    /// with an invisible word joiner instead, and a backtick is shown as a lookalike.
     /// </summary>
     private static string EscapeMarkdown(string text)
     {
@@ -210,6 +211,13 @@ public static class MissingDependencyDialog
         builder.Append(WordJoiner);
         foreach (var character in singleLine)
         {
+            // The renderer has no invisible way to stop a code span, so a backtick becomes a lookalike.
+            if (character == '`')
+            {
+                builder.Append(GraveAccentLookalike);
+                continue;
+            }
+
             if (RendererEscapedCharacters.Contains(character))
             {
                 builder.Append('\\');

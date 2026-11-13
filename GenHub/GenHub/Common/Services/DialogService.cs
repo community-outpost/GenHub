@@ -7,6 +7,8 @@ using GenHub.Common.Views.Dialogs;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Dialogs;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -45,10 +47,10 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             DataContext = viewModel,
         };
 
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
+        var owner = GetDialogOwner();
+        if (owner != null)
         {
-            await window.ShowDialog(mainWindow);
+            await window.ShowDialog(owner);
         }
         else
         {
@@ -100,10 +102,10 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             DataContext = viewModel,
         };
 
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
+        var owner = GetDialogOwner();
+        if (owner != null)
         {
-            await window.ShowDialog(mainWindow);
+            await window.ShowDialog(owner);
         }
         else
         {
@@ -116,11 +118,23 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
         return viewModel.Result;
     }
 
-    private static Window? GetMainWindow()
+    /// <summary>
+    /// Picks the window a dialog belongs to: the active window, else the newest visible one, else the main window.
+    /// A dialog opened from a modal editor then blocks that editor, not only the main window behind it.
+    /// </summary>
+    /// <param name="windows">The open windows, oldest first.</param>
+    /// <param name="mainWindow">The main window.</param>
+    /// <returns>The owner, or <see langword="null"/> when there is no window.</returns>
+    internal static Window? SelectDialogOwner(IReadOnlyList<Window> windows, Window? mainWindow) =>
+        windows.LastOrDefault(window => window.IsActive) ??
+        windows.LastOrDefault(window => window.IsVisible) ??
+        mainWindow;
+
+    private static Window? GetDialogOwner()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            return desktop.MainWindow;
+            return SelectDialogOwner(desktop.Windows, desktop.MainWindow);
         }
 
         return null;
@@ -166,10 +180,10 @@ public class DialogService(ISessionPreferenceService sessionPreferenceService) :
             }
         }));
 
-        var mainWindow = GetMainWindow();
-        if (mainWindow != null)
+        var owner = GetDialogOwner();
+        if (owner != null)
         {
-            await window.ShowDialog(mainWindow);
+            await window.ShowDialog(owner);
         }
         else
         {
