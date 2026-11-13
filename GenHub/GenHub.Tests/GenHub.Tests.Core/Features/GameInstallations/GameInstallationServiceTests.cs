@@ -705,15 +705,56 @@ public class GameInstallationServiceTests : IDisposable
             Assert.NotEqual(first.Id, second.Id);
             Assert.True((await _service.AddInstallationToCacheAsync(first)).Success);
             Assert.True((await _service.AddInstallationToCacheAsync(second)).Success);
-            Assert.Same(first, (await _service.GetInstallationAsync(second.Id)).Data);
-            Assert.Same(first, Assert.Single((await _service.GetAllInstallationsAsync()).Data!));
+            Assert.Equal(first.Id, (await _service.GetInstallationAsync(second.Id)).Data!.Id);
+            Assert.Equal(first.Id, Assert.Single((await _service.GetAllInstallationsAsync()).Data!).Id);
 
             var recovered = new GameInstallation(folder, GameInstallationType.Steam) { Id = "recovered-installation" };
             _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([recovered], TimeSpan.Zero));
-            Assert.Same(recovered, Assert.Single((await _service.GetAllInstallationsAsync()).Data!));
-            Assert.Same(recovered, (await _service.GetInstallationAsync(first.Id)).Data);
-            Assert.Same(recovered, (await _service.GetInstallationAsync(second.Id)).Data);
+            Assert.Equal(recovered.Id, Assert.Single((await _service.GetAllInstallationsAsync()).Data!).Id);
+            Assert.Equal(recovered.Id, (await _service.GetInstallationAsync(first.Id)).Data!.Id);
+            Assert.Equal(recovered.Id, (await _service.GetInstallationAsync(second.Id)).Data!.Id);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// After a cache invalidation, a folder picked again under an ID that is already an alias still
+    /// resolves through the whole alias chain.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetInstallationAsync_WithTwoHopAliasChain_ResolvesCallerIdAsync()
+    {
+        var denied = DetectionResult<GameInstallation>.CreateFailure("denied");
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(denied);
+        var folder = Directory.CreateTempSubdirectory("GenHubChain_").FullName;
+        try
+        {
+            var retail = new GameInstallation(folder, GameInstallationType.Retail);
+            await _service.AddInstallationToCacheAsync(retail);
+            var recovered = new GameInstallation(folder, GameInstallationType.Steam) { Id = "recovered-installation" };
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([recovered], TimeSpan.Zero));
+            await _service.GetAllInstallationsAsync();
+
+            _service.InvalidateCache();
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(denied);
+            await _service.AddInstallationToCacheAsync(new GameInstallation(folder, GameInstallationType.Retail));
+            var eaApp = new GameInstallation(folder, GameInstallationType.EaApp);
+            await _service.AddInstallationToCacheAsync(eaApp);
+
+            Assert.Equal(retail.Id, (await _service.GetInstallationAsync(eaApp.Id)).Data!.Id);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([recovered], TimeSpan.Zero));
+            var resolved = await _service.GetInstallationAsync(eaApp.Id);
+
+            Assert.True(resolved.Success, string.Join("; ", resolved.Errors));
+            Assert.Equal(recovered.Id, resolved.Data!.Id);
         }
         finally
         {
