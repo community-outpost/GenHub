@@ -18,6 +18,8 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 public static class MissingDependencyDialog
 {
+    private const string MarkdownSpecialCharacters = "\\`*_[]<>";
+
     /// <summary>
     /// Shows the dialog and waits for the player's choice.
     /// </summary>
@@ -116,18 +118,18 @@ public static class MissingDependencyDialog
         builder.AppendLine(localizationService.GetLocalizedString(
             "GameProfiles.MissingDependencies.Intro",
             "{0} only works when these items are in the profile:",
-            ownerName));
+            EscapeMarkdown(ownerName)));
         builder.AppendLine();
 
         foreach (var gap in missingDependencies)
         {
-            builder.Append("- **").Append(GetDisplayName(localizationService, gap)).Append("**");
+            builder.Append("- **").Append(EscapeMarkdown(GetDisplayName(localizationService, gap))).Append("**");
             if (showRequiredBy && !string.IsNullOrWhiteSpace(gap.RequiredByName))
             {
                 builder.Append(' ').Append(localizationService.GetLocalizedString(
                     "GameProfiles.MissingDependencies.RequiredBy",
                     "(needed by {0})",
-                    gap.RequiredByName));
+                    EscapeMarkdown(gap.RequiredByName)));
             }
 
             if (!gap.CanDownload)
@@ -182,6 +184,25 @@ public static class MissingDependencyDialog
         string.IsNullOrWhiteSpace(gap.DisplayName)
             ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item")
             : gap.DisplayName;
+
+    /// <summary>
+    /// Escapes Markdown in names taken from manifests, so a name cannot add links or formatting.
+    /// </summary>
+    private static string EscapeMarkdown(string text)
+    {
+        var builder = new StringBuilder(text.Length);
+        foreach (var character in text)
+        {
+            if (MarkdownSpecialCharacters.Contains(character))
+            {
+                builder.Append('\\');
+            }
+
+            builder.Append(character);
+        }
+
+        return builder.ToString();
+    }
 
     private static List<string> GetOwnerNames(IReadOnlyList<ContentDependencyGap> missingDependencies) =>
         missingDependencies

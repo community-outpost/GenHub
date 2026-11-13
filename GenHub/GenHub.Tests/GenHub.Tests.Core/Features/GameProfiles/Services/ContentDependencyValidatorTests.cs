@@ -256,6 +256,69 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// Placeholder dependencies of different types are each reported.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_PlaceholdersOfDifferentTypes_ReportsEach()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsboth"),
+            Name = "Needs Both",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch },
+                new ContentDependency { Name = "Any Map Pack", DependencyType = ContentType.MapPack },
+            ],
+        };
+
+        Assert.Equal(2, _validator.FindMissingDependencies([mod]).Count);
+    }
+
+    /// <summary>
+    /// A version list and a range must both hold, and a version that cannot be compared is not rejected.
+    /// </summary>
+    /// <param name="version">The enabled item's version.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.5", true)]
+    [InlineData("2.5", false)]
+    [InlineData("3.5", true)]
+    [InlineData("unknown", false)]
+    public void FindMissingDependencies_VersionListAndRange_BothApply(string version, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = true,
+                    CompatibleVersions = ["1.5", "2.5", "3.5"],
+                    MinVersion = "2.0",
+                    MaxVersion = "3.0",
+                },
+            ],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = version,
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, basePack]).Count == 1);
+    }
+
+    /// <summary>
     /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
     /// </summary>
     /// <returns>A task that completes when validation finishes.</returns>

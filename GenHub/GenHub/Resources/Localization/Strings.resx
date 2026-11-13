@@ -18347,4 +18347,7 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
     <value>• {0} needs {1}</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>GenHub found {0}, but not a version this content works with.</value>
+  </data>
 </root>

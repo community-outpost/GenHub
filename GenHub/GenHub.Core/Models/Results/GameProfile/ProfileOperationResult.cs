@@ -99,11 +99,15 @@ public class ProfileOperationResult<T> : OperationResult<T>
     /// </summary>
     /// <param name="error">The error message.</param>
     /// <param name="missingDependencies">The missing required items.</param>
+    /// <param name="errorCode">The error code, if any.</param>
+    /// <param name="elapsed">The elapsed time.</param>
     /// <returns>A failed <see cref="ProfileOperationResult{T}"/> that lists the missing items.</returns>
     public static ProfileOperationResult<T> CreateMissingDependencies(
         string error,
-        IReadOnlyList<ContentDependencyGap> missingDependencies)
-        => new(false, default, error)
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        string? errorCode = null,
+        TimeSpan elapsed = default)
+        => new(false, default, error, errorCode, elapsed)
         {
             MissingDependencies = missingDependencies,
         };

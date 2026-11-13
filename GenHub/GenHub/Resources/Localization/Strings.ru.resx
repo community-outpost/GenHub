@@ -18288,4 +18288,7 @@ Error: не удалось: {3}
   <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
     <value>• Для {0} нужен компонент {1}</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>GenHub нашёл {0}, но не ту версию, с которой работает этот контент.</value>
+  </data>
 </root>

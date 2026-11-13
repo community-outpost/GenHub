@@ -958,6 +958,8 @@ public sealed class ProfileContentServiceTests
         else
         {
             Assert.Contains("GenTool", install.FirstError, StringComparison.Ordinal);
+            Assert.Contains("not a version", install.FirstError, StringComparison.Ordinal);
+            Assert.DoesNotContain("connection", install.FirstError, StringComparison.Ordinal);
         }
     }
 

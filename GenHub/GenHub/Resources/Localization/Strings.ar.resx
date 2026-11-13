@@ -18288,4 +18288,7 @@ Error: فشل: {3}
   <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
     <value>• يحتاج {0} إلى {1}</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>عثر GenHub على {0}، لكن ليس بإصدار يعمل مع هذا المحتوى.</value>
+  </data>
 </root>

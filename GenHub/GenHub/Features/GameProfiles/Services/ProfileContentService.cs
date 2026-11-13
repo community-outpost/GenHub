@@ -460,19 +460,20 @@ public sealed class ProfileContentService(
 
         var installedIds = new List<string>();
         var failedNames = new List<string>();
+        var incompatibleNames = new List<string>();
         var installedManifests = new Queue<ContentManifest>();
         foreach (var gap in missingDependencies.Where(gap => gap.CanDownload))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var dependency = await FindDeclaredDependencyAsync(gap, cancellationToken);
-            var manifest = await FindOrAcquireCompatibleDependencyAsync(dependency, gap.DependencyId, cancellationToken);
+            var (manifest, incompatible) = await FindOrAcquireCompatibleDependencyAsync(dependency, gap.DependencyId, cancellationToken);
             if (manifest == null)
             {
                 logger.LogWarning(
-                    "Could not download required item {DependencyId} for {RequiredById}",
+                    "Could not install required item {DependencyId} for {RequiredById}",
                     gap.DependencyId,
                     gap.RequiredById);
-                failedNames.Add(gap.DisplayName);
+                (incompatible ? incompatibleNames : failedNames).Add(MissingDependencyDialog.GetDisplayName(localizationService, gap));
                 continue;
             }
 
@@ -492,7 +493,7 @@ public sealed class ProfileContentService(
             foreach (var dependency in (installed.Dependencies ?? []).Where(IsRequiredContentDependency))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var manifest = await FindOrAcquireCompatibleDependencyAsync(dependency, dependency.Id.Value, cancellationToken);
+                var (manifest, incompatible) = await FindOrAcquireCompatibleDependencyAsync(dependency, dependency.Id.Value, cancellationToken);
                 if (manifest != null)
                 {
                     TryAddInstalled(installedIds, installedManifests, manifest);
@@ -509,18 +510,17 @@ public sealed class ProfileContentService(
                 if (CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.Value, out _, out var contentCode))
                 {
                     var registryName = GenPatcherContentRegistry.GetMetadata(contentCode).DisplayName;
-                    failedNames.Add(string.IsNullOrWhiteSpace(registryName) ? dependency.Name : registryName);
+                    var name = string.IsNullOrWhiteSpace(registryName) ? dependency.Name : registryName;
+                    (incompatible ? incompatibleNames : failedNames).Add(string.IsNullOrWhiteSpace(name)
+                        ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item")
+                        : name);
                 }
             }
         }
 
-        if (failedNames.Count > 0)
+        if (failedNames.Count > 0 || incompatibleNames.Count > 0)
         {
-            return OperationResult<IReadOnlyList<string>>.CreateFailure(
-                localizationService.GetLocalizedString(
-                    "GameProfiles.MissingDependencies.DownloadFailed.Message",
-                    "GenHub could not download {0}. Check your connection and try again.",
-                    string.Join(", ", failedNames)));
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(BuildInstallFailureMessage(failedNames, incompatibleNames));
         }
 
         return OperationResult<IReadOnlyList<string>>.CreateSuccess(installedIds);
@@ -1477,7 +1477,7 @@ public sealed class ProfileContentService(
 
     private string BuildMissingDependenciesError(string contentName, IReadOnlyList<ContentDependencyGap> missingDependencies)
     {
-        var names = string.Join(", ", missingDependencies.Select(gap => gap.DisplayName).Where(name => !string.IsNullOrWhiteSpace(name)));
+        var names = string.Join(", ", missingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap)));
         return localizationService.GetLocalizedString(
             "GameProfiles.MissingDependencies.Error",
             "{0} needs {1} before it can be added.",
@@ -1519,7 +1519,7 @@ public sealed class ProfileContentService(
     /// Returns an acquired manifest that satisfies the dependency, or downloads one. A result that
     /// still fails the dependency's limits counts as not installed.
     /// </summary>
-    private async Task<ContentManifest?> FindOrAcquireCompatibleDependencyAsync(
+    private async Task<(ContentManifest? Manifest, bool Incompatible)> FindOrAcquireCompatibleDependencyAsync(
         ContentDependency? dependency,
         string dependencyId,
         CancellationToken cancellationToken)
@@ -1534,10 +1534,32 @@ public sealed class ProfileContentService(
                 "Acquired {ManifestId} does not meet the limits of required item {DependencyId}",
                 manifest.Id.Value,
                 dependencyId);
-            return null;
+            return (null, true);
         }
 
-        return manifest;
+        return (manifest, false);
+    }
+
+    private string BuildInstallFailureMessage(IReadOnlyList<string> failedNames, IReadOnlyList<string> incompatibleNames)
+    {
+        var messages = new List<string>();
+        if (failedNames.Count > 0)
+        {
+            messages.Add(localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.DownloadFailed.Message",
+                "GenHub could not download {0}. Check your connection and try again.",
+                string.Join(", ", failedNames)));
+        }
+
+        if (incompatibleNames.Count > 0)
+        {
+            messages.Add(localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.IncompatibleVersion.Message",
+                "GenHub found {0}, but not a version this content works with.",
+                string.Join(", ", incompatibleNames)));
+        }
+
+        return string.Join(" ", messages);
     }
 
     private async Task<List<ContentManifest>> LoadManifestsAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken)

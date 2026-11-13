@@ -243,8 +243,52 @@ public sealed class ProfileSelectionViewModelMissingDependencyTests
 
         Assert.False(createEnabledDuringDialog);
         Assert.False(selectEnabledDuringDialog);
-        Assert.False(vm.IsResolvingDependencies);
+        Assert.False(vm.IsProfileOperationRunning);
         Assert.True(vm.CreateNewProfileCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// While the first add is still running, the picker cannot start a create.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task SelectProfile_WhileFirstAddRuns_DisablesCreateAsync()
+    {
+        ProfileSelectionViewModel? vm = null;
+        bool? createEnabledDuringAdd = null;
+        _profileContent
+            .Setup(x => x.AddContentToProfileAsync(ProfileId, ContentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                createEnabledDuringAdd = vm!.CreateNewProfileCommand.CanExecute(null);
+                return AddToProfileResult.CreateSuccess(ContentId, ContentName);
+            });
+        vm = await CreateViewModelAsync();
+
+        await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+
+        Assert.False(createEnabledDuringAdd);
+        Assert.False(vm.IsProfileOperationRunning);
+    }
+
+    /// <summary>
+    /// Names from manifests are escaped, so they cannot add links to the dialog.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task SelectProfile_NameWithMarkdown_IsEscapedInDialogAsync()
+    {
+        var linkGap = GenToolGap with { DisplayName = "[Free Coins](http://example.invalid)" };
+        _profileContent
+            .Setup(x => x.AddContentToProfileAsync(ProfileId, ContentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(AddToProfileResult.CreateMissingDependencies("missing", [linkGap]));
+        ChooseAction(NotificationActionStyle.Secondary);
+        var vm = await CreateViewModelAsync();
+
+        await vm.SelectProfileCommand.ExecuteAsync(vm.CompatibleProfiles[0]);
+
+        var content = Assert.Single(_dialogContents);
+        Assert.Contains("\\[Free Coins\\](http://example.invalid)", content, StringComparison.Ordinal);
     }
 
     private void SetupInstall(OperationResult<IReadOnlyList<string>> result) =>
