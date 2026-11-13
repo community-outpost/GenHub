@@ -408,6 +408,37 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     }
 
     /// <summary>
+    /// An installation with no recorded game passes the game check, as in the shared validator, so launch reaches the missing items.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_InstallationWithUnknownGame_ReportsMissingItemsAsync()
+    {
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        var result = await ValidateProfileAsync(
+            "profile-unknown-game",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.Unknown },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr-1080p"),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies =
+                [
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency(),
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateGenToolDependency(),
+                ],
+            });
+
+        Assert.False(result.Success);
+        Assert.Equal("GenTool", Assert.Single(result.MissingDependencies).DisplayName);
+        Assert.DoesNotContain("different game", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// A missing strict-publisher item is not compared with another publisher's item of the same type.
     /// Launch reports it as missing, so the install dialog can offer it.
     /// </summary>

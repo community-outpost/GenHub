@@ -1938,11 +1938,13 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var warnings = new List<string>();
             if (_dependencyValidator != null)
             {
-                warnings.AddRange(_dependencyValidator.FindMissingDependencies(manifests).Select(gap => _localizationService.GetLocalizedString(
-                    "GameProfiles.Settings.Notification.DependencyWarning.Item",
-                    "{0} needs {1}",
-                    gap.RequiredByName,
-                    MissingDependencyDialog.GetDisplayName(_localizationService, gap))).Distinct(StringComparer.OrdinalIgnoreCase));
+                warnings.AddRange(_dependencyValidator.FindMissingDependencies(manifests)
+                    .DistinctBy(gap => $"{gap.RequiredById}|{MissingDependencyDialog.GetItemKey(gap)}", StringComparer.OrdinalIgnoreCase)
+                    .Select(gap => _localizationService.GetLocalizedString(
+                        "GameProfiles.Settings.Notification.DependencyWarning.Item",
+                        "{0} needs {1}",
+                        gap.RequiredByName,
+                        MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
             }
 
             var manifestsById = manifests
