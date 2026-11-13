@@ -199,6 +199,7 @@
             <Setter Property="FontSize" Value="14" />
             <Setter Property="Padding" Value="18,8" />
             <Setter Property="CornerRadius" Value="18" />
+            <!-- Overrides the 110 MinWidth that GameProfileLauncherView.axaml sets on Button.launch-button. -->
             <Setter Property="MinWidth" Value="0" />
         </Style>
         <Style Selector="Button.launch-button.play-button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.launch-button.play-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
