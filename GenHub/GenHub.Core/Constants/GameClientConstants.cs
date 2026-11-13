@@ -703,7 +703,7 @@ public static class GameClientConstants
             [WizardLocalizationKeys.MissingStatus] = WizardStatuses.Missing,
             [WizardLocalizationKeys.FoundOneGame] = "We found {0}.",
             [WizardLocalizationKeys.FoundManyGames] = "We found these games:",
-            [WizardLocalizationKeys.FoundNoNamedGame] = "Choose a game folder or scan again to find your installed game.",
+            [WizardLocalizationKeys.FoundNoNamedGame] = "GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.",
             [WizardLocalizationKeys.FoundGameEntry] = "{0} ({1})",
             [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1}",
             [WizardLocalizationKeys.GeneralsGameName] = "Generals",

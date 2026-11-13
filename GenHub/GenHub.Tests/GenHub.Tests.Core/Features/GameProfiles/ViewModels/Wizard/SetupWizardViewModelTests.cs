@@ -28,7 +28,7 @@ public class SetupWizardViewModelTests
         Assert.Equal(3, vm.Items.Count);
         Assert.Equal("Setup Detected Content", vm.Title);
         Assert.Equal("Continue (2)", vm.ConfirmLabel);
-        Assert.Equal("Choose a game folder or scan again to find your installed game.", vm.FoundSummary);
+        Assert.Equal("GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.", vm.FoundSummary);
         Assert.False(vm.IsCustomizing);
         Assert.False(vm.Confirmed);
     }

@@ -195,12 +195,12 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that a confirmed scan that creates no profile and finds none for the installations
-    /// warns instead of reporting a successful scan with zero new profiles.
+    /// Verifies that a confirmed scan whose installations have no detected game client, even with an
+    /// install selected, says no installed game was found instead of reporting success.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WhenConfirmedButNoProfileCreated_WarnsInsteadOfSuccessAsync()
+    public async Task ScanForGamesCommand_WhenInstallationsHaveNoGameClient_SaysNoInstalledGameAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var installations = new List<GameInstallation>
@@ -220,7 +220,11 @@ public class GameProfileLauncherViewModelTests
 
         var setupWizardService = new Mock<ISetupWizardService>();
         setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SetupWizardResult { Confirmed = true });
+            .ReturnsAsync(new SetupWizardResult
+            {
+                Confirmed = true,
+                CommunityPatchAction = GameClientConstants.WizardActionTypes.Install,
+            });
 
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
@@ -243,10 +247,20 @@ public class GameProfileLauncherViewModelTests
 
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
-        Assert.Equal("GenHub found your game but could not create a profile for it. Check the logs for details.", vm.StatusMessage);
+        Assert.Equal(
+            "GenHub could not find a game it can set up, so no profiles were created. Add your game folder in Settings under Custom Game Installations, then select SCAN.",
+            vm.StatusMessage);
         notificationService.Verify(
             x => x.ShowWarning("No Profiles Created", vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
+        publisherOrchestrator.Verify(
+            x => x.CreateProfilesForPublisherClientAsync(
+                It.IsAny<GameInstallation>(),
+                It.IsAny<GameClient>(),
+                It.IsAny<bool>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
         notificationService.Verify(
             x => x.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);

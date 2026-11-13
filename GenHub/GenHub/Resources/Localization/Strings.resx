@@ -4568,7 +4568,7 @@ This will modify game files and configuration settings at:
     <value>We found these games:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>Choose a game folder or scan again to find your installed game.</value>
+    <value>GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -4620,6 +4620,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
     <value>GenHub found your game but could not create a profile for it. Check the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>GenHub could not find a game it can set up, so no profiles were created. Add your game folder in Settings under Custom Game Installations, then select SCAN.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>Continue</value>

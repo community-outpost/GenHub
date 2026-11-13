@@ -4568,7 +4568,7 @@
     <value>Мы нашли эти игры:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>Выберите папку игры или повторите поиск установленной игры.</value>
+    <value>GenHub не нашёл здесь игру, которую можно запустить. Добавьте папку игры в настройках в разделе «Пользовательские установки игры», затем нажмите СКАНИРОВАТЬ.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -4620,6 +4620,9 @@
   </data>
   <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
     <value>GenHub нашёл вашу игру, но не смог создать для неё профиль. Подробности смотрите в журнале.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>GenHub не нашёл игру, которую можно настроить, поэтому профили не созданы. Добавьте папку игры в настройках в разделе «Пользовательские установки игры», затем нажмите СКАНИРОВАТЬ.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>Продолжить</value>

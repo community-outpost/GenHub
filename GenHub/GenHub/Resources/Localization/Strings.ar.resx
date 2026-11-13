@@ -4568,7 +4568,7 @@
     <value>وجدنا هذه الألعاب:</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
-    <value>اختر مجلد اللعبة أو أعد الفحص للعثور على لعبتك المثبتة.</value>
+    <value>لم يتعرف GenHub هنا على لعبة يمكن تشغيلها. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
     <value>{0} ({1})</value>
@@ -4620,6 +4620,9 @@
   </data>
   <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
     <value>عثر GenHub على لعبتك لكنه لم يتمكن من إنشاء ملف تعريف لها. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>لم يعثر GenHub على لعبة يمكن إعدادها، لذلك لم يتم إنشاء أي ملفات تعريف. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>متابعة</value>

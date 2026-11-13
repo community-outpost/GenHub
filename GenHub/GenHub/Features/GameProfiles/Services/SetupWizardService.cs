@@ -464,7 +464,7 @@ public class SetupWizardService(
             }
             else
             {
-                logger.LogInformation("[SetupWizard] User chose to set up later");
+                logger.LogInformation("[SetupWizard] Wizard was not confirmed. Set up later chosen: {SetUpLater}", result.SetUpLater);
                 result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
                 result.CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline;
                 result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
