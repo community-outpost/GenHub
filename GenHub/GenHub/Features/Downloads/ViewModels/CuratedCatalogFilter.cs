@@ -200,6 +200,21 @@ internal sealed class CuratedCatalogFilter
     }
 
     /// <summary>
+    /// Falls back to all categories when cards are loaded but none of them is in the selected category.
+    /// </summary>
+    /// <returns><see langword="true"/> when the selection was dropped.</returns>
+    public bool DropMissingSelection()
+    {
+        if (SelectedCategory.Length == 0 || TotalCount == 0 || _categories.ContainsKey(SelectedCategory))
+        {
+            return false;
+        }
+
+        SelectedCategory = AllCategoriesKey;
+        return true;
+    }
+
+    /// <summary>
     /// Re-applies the filter to every card after the text or selected category changed. The tallies are kept.
     /// </summary>
     /// <param name="items">The loaded cards.</param>
@@ -236,7 +251,23 @@ internal sealed class CuratedCatalogFilter
     private static string ResolveAllLabel(ILocalizationService? localization)
     {
         const string key = CuratedCatalogFilterConstants.AllLabelKey;
-        return localization.GetLocalizedString(key, NeutralResources.GetString(key, CultureInfo.InvariantCulture) ?? key);
+        return localization.GetLocalizedString(key, GetNeutralString(key) ?? key);
+    }
+
+    private static string? GetNeutralString(string key)
+    {
+        try
+        {
+            return NeutralResources.GetString(key, CultureInfo.InvariantCulture);
+        }
+        catch (MissingManifestResourceException)
+        {
+            return null;
+        }
+        catch (MissingSatelliteAssemblyException)
+        {
+            return null;
+        }
     }
 
     private static bool Contains(string? value, string term) =>

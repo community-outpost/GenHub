@@ -1514,6 +1514,14 @@ public sealed partial class DownloadsBrowserViewModel(
 
     partial void OnContentItemsChanged(ObservableCollection<ContentGridItemViewModel> value) => ApplyLocalFilter();
 
+    partial void OnIsLoadingChanged(bool value)
+    {
+        if (!value && CanFilterLocally && _localFilter.DropMissingSelection())
+        {
+            RefilterLocally(rebuildChips: true);
+        }
+    }
+
     private void OnContentItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         switch (e.Action)

@@ -3697,6 +3697,60 @@ public class DownloadsBrowserViewModelTests
         Assert.True(card.IsFilteredOut);
     }
 
+    /// <summary>
+    /// Verifies that a reload whose cards no longer include the selected category falls back to all categories
+    /// once loading finishes, and keeps the selection while the grid is empty.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_ReloadWithoutSelectedCategory_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        viewModel.SelectLocalCategoryCommand.Execute("Hotkeys");
+
+        // Act
+        viewModel.IsLoading = true;
+        viewModel.ContentItems.Clear();
+        var chipsWhileEmpty = viewModel.LocalCategoryFilters.Count;
+        viewModel.ContentItems.Add(CreateCuratedCard("Control Bar Pro", "ControlBar", "control-bar"));
+        viewModel.ContentItems.Add(CreateCuratedCard("Camera Mod", "Camera", "camera"));
+        viewModel.IsLoading = false;
+
+        // Assert
+        Assert.Equal(0, chipsWhileEmpty);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.Equal(2, VisibleCardNames(viewModel).Count);
+    }
+
+    /// <summary>
+    /// Verifies that switching the variant of the last card in the selected category falls back to all categories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LocalFilter_VariantLeavesSelectedCategory_FallsBackToAllAsync()
+    {
+        // Arrange
+        using var viewModel = await CreateCuratedViewModelAsync(CommunityOutpostConstants.PublisherType);
+        var card = CreateCuratedCard("Visual Pack", "Visuals", "visuals");
+        var first = new InstallableVariant { Name = "Visual Pack", ManifestId = card.SearchResult.Id };
+        card.AddVariant(first, card.SearchResult);
+        var second = AddCardVariant(card, "1.0.communityoutpost.addon.visualsb", "Visual Pack Lite", "1.0", ContentState.NotDownloaded);
+        card.SelectedVariant = first;
+        viewModel.ContentItems.Add(card);
+        viewModel.SelectLocalCategoryCommand.Execute("Visuals");
+        Assert.Equal(["Visual Pack"], VisibleCardNames(viewModel));
+
+        // Act
+        card.SelectedVariant = second;
+
+        // Assert
+        Assert.True(viewModel.LocalCategoryFilters[0].IsSelected);
+        Assert.False(viewModel.HasNoLocalFilterMatches);
+        Assert.Equal(5, VisibleCardNames(viewModel).Count);
+    }
+
     private static async Task<DownloadsBrowserViewModel> CreateCuratedViewModelAsync(
         string publisherId,
         IContentDiscoverer? discoverer = null,
