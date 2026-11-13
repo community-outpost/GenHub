@@ -1011,9 +1011,6 @@
   <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
     <value>Scan complete. Found {0} game installations</value>
   </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>Scan complete. Found {0} installations, created {1} profiles</value>
-  </data>
   <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
     <value>Scan complete! No new installations found</value>
   </data>
@@ -4560,6 +4557,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
     <value>Game found</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>No installed game found</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
     <value>We found {0}.</value>
@@ -18412,8 +18412,5 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
-  </data>
-  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
-    <value>No installed game found</value>
   </data>
 </root>

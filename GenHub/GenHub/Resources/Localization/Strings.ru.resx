@@ -1011,9 +1011,6 @@
   <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
     <value>Сканирование завершено. Найдено установок игры: {0}</value>
   </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>Сканирование завершено. Найдено установок: {0}, создано профилей: {1}</value>
-  </data>
   <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
     <value>Сканирование завершено! Новых установок не найдено</value>
   </data>
@@ -4560,6 +4557,9 @@
   </data>
   <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
     <value>Игра найдена</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>Установленная игра не найдена</value>
   </data>
   <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
     <value>Мы нашли {0}.</value>
@@ -18353,8 +18353,5 @@ Error: не удалось: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
-  </data>
-  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
-    <value>Установленная игра не найдена</value>
   </data>
 </root>

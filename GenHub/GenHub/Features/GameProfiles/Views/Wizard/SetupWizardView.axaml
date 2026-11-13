@@ -247,12 +247,13 @@
                             </Button.Styles>
                         </Button>
                     
-                        <Button Grid.Column="1" Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}" 
-                                Background="White" Foreground="Black" CornerRadius="6" FontWeight="Medium" Padding="20,8"
+                        <Button Grid.Column="1" Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}"
+                                Background="{DynamicResource PrimaryButtonBackground}" Foreground="{DynamicResource PrimaryButtonForeground}" CornerRadius="6" FontWeight="Medium" Padding="20,8"
                                 Cursor="Hand">
                             <Button.Styles>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="{DynamicResource TextPrimaryBrush}"/>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}"/>
                                 </Style>
                             </Button.Styles>
                         </Button>
