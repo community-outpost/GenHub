@@ -204,6 +204,43 @@ public sealed class CatalogTabProviderTests : IDisposable
     }
 
     /// <summary>
+    /// Ensures tabs read from item metadata are sanitized: extra cards are cut and a tab that cannot render is dropped.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GetTabsAsync_ItemMetadataTabs_TrimsCardsAndDropsOversizedTabAsync()
+    {
+        var provider = CreateProvider(catalog: null);
+        var item = new CatalogContentItem
+        {
+            Id = "mod-a",
+            Name = "Mod A",
+            CustomTabs =
+            [
+                new CatalogTabDefinition
+                {
+                    TabId = "gallery",
+                    Header = "Gallery",
+                    Cards = [.. Enumerable.Range(0, CustomTabConstants.MaxCardsPerTab + 2).Select(i => new CatalogTabCardDefinition { Title = $"Card {i}" })],
+                },
+                new CatalogTabDefinition
+                {
+                    TabId = "notes",
+                    Header = "Notes",
+                    Body = new string('b', CustomTabConstants.MaxBodyLength + 1),
+                },
+            ],
+        };
+
+        var tabs = await provider.GetTabsAsync(CreateSearchResult("mod-a", item));
+
+        var tab = Assert.Single(tabs);
+        Assert.Equal("gallery", tab.TabId);
+        Assert.Equal(CustomTabConstants.MaxCardsPerTab, tab.Cards.Count);
+        Assert.Equal($"Card {CustomTabConstants.MaxCardsPerTab - 1}", tab.Cards[^1].Title);
+    }
+
+    /// <summary>
     /// Ensures item metadata that carries no customTabs field still falls back to the catalog item's tabs.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

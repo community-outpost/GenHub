@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
@@ -678,6 +679,116 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         Assert.Contains(result.Errors, e => e.Contains("'mod-a'") && e.Contains("'gallery'") && e.Contains("invalid image URL"));
     }
 
+    /// <summary>
+    /// Studio has no editor for catalog-level tabs, so their soft issues do not block publishing.
+    /// Structural issues still do.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_RootTabSoftIssues_DoNotBlockAsync()
+    {
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "tabs-pub", Name = "Tabs Publisher" },
+            Content = [CreateItem()],
+            CustomTabs =
+            [
+                new CatalogTabDefinition
+                {
+                    TabId = "gallery",
+                    Header = new string('h', CustomTabConstants.MaxHeaderLength + 1),
+                    AppliesTo = ["mod-a"],
+                    Cards =
+                    [
+                        new CatalogTabCardDefinition { Title = "Card", ImageUrl = "http://example.com/card.png" },
+                        new CatalogTabCardDefinition { Title = string.Empty },
+                    ],
+                },
+            ],
+        };
+        var service = new PublisherStudioService(NullLogger<PublisherStudioService>.Instance, CreateParser());
+
+        var result = await service.ValidateCatalogAsync(catalog);
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+
+        catalog.CustomTabs.Add(new CatalogTabDefinition { TabId = "gallery", Header = "Gallery", AppliesTo = ["mod-a"] });
+
+        var duplicate = await service.ValidateCatalogAsync(catalog);
+
+        Assert.False(duplicate.Success);
+        Assert.Contains(duplicate.Errors, e => e.Contains("Catalog") && e.Contains("'gallery'"));
+    }
+
+    /// <summary>
+    /// When the item leaves the active catalog while the editor or confirmation is open, add, edit and delete
+    /// change nothing and save nothing.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_ItemRemovedWhileDialogOpen_ChangesNothingAsync()
+    {
+        var target = CreateItem();
+        var original = new CatalogTabDefinition { TabId = "notes", Header = "Notes" };
+        target.CustomTabs = [original];
+        var notifications = new Mock<INotificationService>();
+        var (library, dialogService, studioService) = CreateLibrary(target, notifications.Object);
+        var content = library.Project.Catalogs[0].Catalog.Content;
+        var editor = new TaskCompletionSource<CatalogTabDefinition?>();
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(It.IsAny<CatalogTabDefinition?>(), It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .Returns(() => editor.Task);
+        var confirmation = new TaskCompletionSource<bool>();
+        dialogService
+            .Setup(d => d.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns(confirmation.Task);
+        var tab = library.SelectedContentCustomTabs[0];
+
+        var adding = library.AddCustomTabCommand.ExecuteAsync(null);
+        content.Remove(target);
+        editor.SetResult(new CatalogTabDefinition { TabId = "guide", Header = "Guide" });
+        await adding;
+
+        content.Add(target);
+        editor = new TaskCompletionSource<CatalogTabDefinition?>();
+        var editing = library.EditCustomTabCommand.ExecuteAsync(tab);
+        content.Remove(target);
+        editor.SetResult(new CatalogTabDefinition { TabId = "notes", Header = "Patch notes" });
+        await editing;
+
+        content.Add(target);
+        var deleting = library.DeleteCustomTabCommand.ExecuteAsync(tab);
+        content.Remove(target);
+        confirmation.SetResult(true);
+        await deleting;
+
+        Assert.Same(original, Assert.Single(target.CustomTabs));
+        studioService.Verify(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()), Times.Never);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// A custom tab change shows only the custom tab toast, not the project saved toast as well.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentLibrary_AddCustomTab_ShowsOneSuccessToastAsync()
+    {
+        var target = CreateItem();
+        var notifications = new Mock<INotificationService>();
+        var (library, dialogService, studioService) = CreateLibrary(target, notifications.Object);
+        dialogService
+            .Setup(d => d.ShowEditCustomTabDialogAsync(null, It.IsAny<IReadOnlyList<CatalogTabDefinition>>()))
+            .ReturnsAsync(new CatalogTabDefinition { TabId = "guide", Header = "Guide" });
+
+        await library.AddCustomTabCommand.ExecuteAsync(null);
+
+        studioService.Verify(s => s.SaveProjectAsync(It.IsAny<PublisherStudioProject>(), It.IsAny<CancellationToken>()), Times.Once);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        notifications.Verify(n => n.ShowSuccess(It.IsAny<string>(), It.Is<string>(m => m.Contains("Guide")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
     private static (ContentLibraryViewModel Library, Mock<IPublisherStudioDialogService> DialogService, Mock<IPublisherStudioService> StudioService) CreateLibrary(
         CatalogContentItem target,
         INotificationService? notifications = null)
@@ -698,7 +809,8 @@ public sealed class PublisherStudioCustomTabTests : IDisposable
         var parent = new PublisherStudioViewModel(
             new Mock<ILogger<PublisherStudioViewModel>>().Object,
             studioService.Object,
-            dialogService.Object);
+            dialogService.Object,
+            notificationService: notifications);
         parent.CurrentProject = project;
         var library = new ContentLibraryViewModel(
             project,

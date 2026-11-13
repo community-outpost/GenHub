@@ -227,6 +227,7 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
     [Theory]
     [InlineData("missing-header")]
     [InlineData("missing-id-and-header")]
+    [InlineData("long-id")]
     [InlineData("long-header")]
     [InlineData("long-intro")]
     [InlineData("long-body")]
@@ -241,6 +242,9 @@ public sealed class JsonPublisherCatalogParserCustomTabTests
             case "missing-id-and-header":
                 bad.TabId = string.Empty;
                 bad.Header = string.Empty;
+                break;
+            case "long-id":
+                bad.TabId = new string('x', CustomTabConstants.MaxTabIdLength + 1);
                 break;
             case "long-header":
                 bad.Header = new string('h', CustomTabConstants.MaxHeaderLength + 1);
