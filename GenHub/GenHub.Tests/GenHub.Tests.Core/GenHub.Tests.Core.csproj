@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Compile Include="..\Shared\TemporaryApplicationEnvironment.cs" Link="Shared\TemporaryApplicationEnvironment.cs" />
+    <Compile Include="..\Shared\TestEnvironmentConstants.cs" Link="Shared\TestEnvironmentConstants.cs" />
   </ItemGroup>
 
   <ItemGroup>

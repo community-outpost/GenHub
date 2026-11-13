@@ -16,10 +16,6 @@ namespace GenHub.Tests.Shared;
 /// </summary>
 internal sealed class TemporaryApplicationEnvironment : IDisposable
 {
-    private const int DeleteAttempts = 5;
-
-    private static readonly TimeSpan DeleteRetryDelay = TimeSpan.FromMilliseconds(50);
-
     private static readonly JsonSerializerOptions SettingsJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -27,6 +23,8 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
     };
 
     private readonly Dictionary<string, string?> _originalValues = [];
+
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TemporaryApplicationEnvironment"/> class.
@@ -75,6 +73,7 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
 
     /// <summary>
     /// Restores the environment and deletes the test tree on a best-effort basis.
+    /// Later calls do nothing.
     /// </summary>
     /// <remarks>
     /// Services resolved during a test can keep writing under the tree after the test body ends.
@@ -82,25 +81,32 @@ internal sealed class TemporaryApplicationEnvironment : IDisposable
     /// </remarks>
     void IDisposable.Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         foreach (var pair in _originalValues)
         {
             Environment.SetEnvironmentVariable(pair.Key, pair.Value);
         }
 
-        for (var attempt = 1; attempt <= DeleteAttempts; attempt++)
+        for (var attempt = 1; attempt <= TestEnvironmentConstants.DeleteAttempts; attempt++)
         {
             if (TryDeleteRoot(out var failure))
             {
                 return;
             }
 
-            if (attempt == DeleteAttempts)
+            if (attempt == TestEnvironmentConstants.DeleteAttempts)
             {
                 Trace.TraceWarning($"Leaving test tree {RootPath} in place: {failure}");
                 return;
             }
 
-            Thread.Sleep(DeleteRetryDelay * attempt);
+            Trace.TraceInformation($"Retrying delete of test tree {RootPath}: {failure}");
+            Thread.Sleep(TestEnvironmentConstants.DeleteRetryDelay * attempt);
         }
     }
 
