@@ -322,6 +322,8 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     [Theory]
     [InlineData("1.04")]
     [InlineData("")]
+    [InlineData("unknown")]
+    [InlineData("retail")]
     public async Task ValidateLaunchAsync_ControlBarProWithoutGenTool_ReportsGenToolGapAsync(string installationVersion)
     {
         const string profileId = "profile-control-bar";
@@ -373,6 +375,76 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.Equal(profileId, result.MissingDependenciesProfileId);
         Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An installation older than the declared minimum keeps the detailed version error and offers no install.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_InstallationOlderThanMinimum_ReportsVersionErrorAsync()
+    {
+        const string profileId = "profile-old-installation";
+        const string installationManifestId = "1.103.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string controlBarId = "1.0.communityoutpost.addon.cbpr-1080p";
+        var result = await ValidateProfileAsync(
+            profileId,
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = "1.03", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create(controlBarId),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies = [GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency()],
+            });
+
+        Assert.False(result.Success);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains("but version 1.03 is selected", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A missing strict-publisher item is not compared with another publisher's item of the same type.
+    /// Launch reports it as missing, so the install dialog can offer it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_StrictPublisherItemMissingWithOtherPublisherEnabled_ReportsGapAsync()
+    {
+        const string profileId = "profile-strict-publisher";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        var result = await ValidateProfileAsync(
+            profileId,
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest { Id = ManifestId.Create("1.0.examplepublisher.mappack.tournamentmaps"), Name = "Tournament Maps", ContentType = ContentType.MapPack, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "examplepublisher" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.onlinepublisher.mod.onlinemod"),
+                Name = "Online Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "onlinepublisher" },
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.onlinepublisher.mappack.onlinemaps"),
+                        Name = "Online Maps",
+                        DependencyType = ContentType.MapPack,
+                        PublisherType = "onlinepublisher",
+                        StrictPublisher = true,
+                    },
+                ],
+            });
+
+        Assert.False(result.Success);
+        Assert.Equal("Online Maps", Assert.Single(result.MissingDependencies).DisplayName);
+        Assert.DoesNotContain("publisher type", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -971,5 +1043,34 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
             NullLogger<ProfileLauncherFacade>.Instance,
             new DirectRunner(NullLogger<DirectRunner>.Instance),
             localizationService: localization.Object);
+    }
+
+    private async Task<ProfileOperationResult<bool>> ValidateProfileAsync(string profileId, params ContentManifest[] manifests)
+    {
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = manifests.First(m => m.ContentType == ContentType.GameClient).Id.Value,
+                Name = "Community Patch",
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds = [.. manifests.Select(m => m.Id.Value)],
+        };
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        foreach (var manifest in manifests)
+        {
+            _manifestPoolMock
+                .Setup(m => m.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        }
+
+        return await CreateFacade().ValidateLaunchAsync(profileId);
     }
 }

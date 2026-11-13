@@ -1948,7 +1948,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var manifestsById = manifests
                 .DistinctBy(m => m.Id.ToString(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(m => m.Id.ToString(), m => m, StringComparer.OrdinalIgnoreCase);
-            foreach (var manifest in manifests)
+            foreach (var manifest in manifestsById.Values)
             {
                 AddConflictWarnings(manifest, manifestsById, warnings);
             }

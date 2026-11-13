@@ -86,8 +86,33 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
         var warning = await EnableAndWaitForWarningAsync(CreateItem(ControlBarProId, "Control Bar Pro (ExiLe)", ContentType.Addon));
 
         Assert.Equal(WarningTitle, warning.Title);
-        Assert.Contains("GenTool", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("• Control Bar Pro (ExiLe) needs GenTool", warning.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("requires", warning.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("communityoutpost", warning.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An enabled item that is too old for its requirer is reported. The old check accepted any matching ID.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task EnableContent_RequiredItemTooOld_WarnsByNameAsync()
+    {
+        const string widgetId = "1.0.examplepublisher.addon.widget";
+        const string widgetModId = "1.0.examplepublisher.addon.widgetmod";
+        AddManifest(new ContentManifest { Id = ManifestId.Create(widgetId), Name = "Widget", ContentType = ContentType.Addon, Version = "1.0" });
+        AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(widgetModId),
+            Name = "Widget Mod",
+            ContentType = ContentType.Addon,
+            Dependencies = [new ContentDependency { Id = ManifestId.Create(widgetId), Name = "Widget", DependencyType = ContentType.Addon, MinVersion = "2.0" }],
+        });
+        _viewModel.EnabledContent.Add(CreateItem(widgetId, "Widget", ContentType.Addon, isEnabled: true));
+
+        var warning = await EnableAndWaitForWarningAsync(CreateItem(widgetModId, "Widget Mod", ContentType.Addon));
+
+        Assert.Contains("• Widget Mod needs Widget", warning.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -135,10 +160,35 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
         AddControlBarPro();
         _viewModel.EnabledContent.Add(CreateItem(InstallationId, "Zero Hour", ContentType.GameInstallation, isEnabled: true));
         _viewModel.EnabledContent.Add(CreateItem(InstallationId.ToUpperInvariant(), "Zero Hour", ContentType.GameInstallation, isEnabled: true));
+        const string otherId = "1.0.examplepublisher.addon.otherbar";
+        const string conflictingId = "1.0.examplepublisher.addon.conflictbar";
+        AddManifest(new ContentManifest { Id = ManifestId.Create(otherId), Name = "Other Bar", ContentType = ContentType.Addon });
+        AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(conflictingId),
+            Name = "Conflict Bar",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(otherId),
+                    Name = "Other Bar",
+                    DependencyType = ContentType.Addon,
+                    IsOptional = true,
+                    InstallBehavior = DependencyInstallBehavior.Optional,
+                    ConflictsWith = [ManifestId.Create(otherId)],
+                },
+            ],
+        });
+        _viewModel.EnabledContent.Add(CreateItem(otherId, "Other Bar", ContentType.Addon, isEnabled: true));
+        _viewModel.EnabledContent.Add(CreateItem(conflictingId, "Conflict Bar", ContentType.Addon, isEnabled: true));
+        _viewModel.EnabledContent.Add(CreateItem(conflictingId.ToUpperInvariant(), "Conflict Bar", ContentType.Addon, isEnabled: true));
 
         var warning = await EnableAndWaitForWarningAsync(CreateItem(ControlBarProId, "Control Bar Pro (ExiLe)", ContentType.Addon));
 
         Assert.Contains("GenTool", warning.Message, StringComparison.Ordinal);
+        Assert.Single(warning.Message.Split('\n'), line => line.Contains("conflicts with", StringComparison.Ordinal));
     }
 
     private static ViewModelContentDisplayItem CreateItem(string id, string name, ContentType type, bool isEnabled = false) => new()
