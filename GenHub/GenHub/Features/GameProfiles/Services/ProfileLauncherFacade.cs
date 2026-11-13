@@ -581,7 +581,7 @@ public class ProfileLauncherFacade(
     {
         var errors = string.Join(", ", validationResult.Errors);
         return validationResult.MissingDependencies.Count > 0
-            ? ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(errors, validationResult.MissingDependencies, profileId)
+            ? ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(errors, validationResult.MissingDependencies, profileId: profileId)
             : ProfileOperationResult<GameLaunchInfo>.CreateFailure(errors);
     }
 
@@ -1353,7 +1353,7 @@ public class ProfileLauncherFacade(
                     profile.Name,
                     string.Join(", ", missingDependencies.Select(gap => MissingDependencyDialog.GetDisplayName(localizationService, gap)))),
                 missingDependencies,
-                profile.Id);
+                profileId: profile.Id);
         }
 
         try
