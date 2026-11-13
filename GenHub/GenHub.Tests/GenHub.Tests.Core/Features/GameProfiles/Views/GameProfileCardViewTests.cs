@@ -181,7 +181,7 @@ public class GameProfileCardViewTests
                 var editButton = Assert.Single(
                     view.GetVisualDescendants().OfType<Button>(),
                     button => ReferenceEquals(button.Command, viewModel.EditProfileCommand) && button.IsEffectivelyVisible);
-                var toolRow = Assert.IsType<StackPanel>(editButton.GetVisualParent());
+                var toolRow = editButton.GetVisualAncestors().OfType<StackPanel>().First();
 
                 AssertPlayClears(playButton, metadata, toolRow, view, "at rest");
 
@@ -248,7 +248,9 @@ public class GameProfileCardViewTests
             await Task.Delay(TimeSpan.FromMilliseconds(16));
         }
 
-        Assert.Fail($"Transforms did not settle on Play scale {playScale} and metadata offset {metadataOffsetY}.");
+        Assert.Fail(
+            $"Transforms did not settle. Play scale {playButton.RenderTransform?.Value.M11 ?? 1}, target {playScale}. " +
+            $"Metadata offset {metadata.RenderTransform?.Value.M32 ?? 0}, target {metadataOffsetY}.");
     }
 
     private static LocalizationService CreateLocalizationService()
