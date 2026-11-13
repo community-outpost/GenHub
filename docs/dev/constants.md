@@ -718,6 +718,17 @@ Limits, allowlists and link patterns for publisher-defined custom tabs in the co
 | `GeneratedIdFallbackPrefix` | `"tab-"` | Prefix of a generated tab ID when the header has no usable characters |
 | `GeneratedIdFallbackHashLength` | `8` | Hash characters in a generated fallback tab ID       |
 
+### Studio Tab Header Buttons
+
+| Constant                   | Value                                               | Description                                 |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| `EditTabLocalizationKey`   | `"Tools.PublisherStudio.Content.CustomTabs.EditTab"`   | Tooltip key of the tab header edit button   |
+| `DeleteTabLocalizationKey` | `"Tools.PublisherStudio.Content.CustomTabs.DeleteTab"` | Tooltip key of the tab header delete button |
+| `EditIconResourceKey`      | `"EditIcon"`                                        | Icon resource of the tab header edit button |
+| `DeleteIconResourceKey`    | `"DeleteIcon"`                                      | Icon resource of the tab header delete button |
+
+The header buttons use `ThemeResourceKeys.AccentBrush` for edit and `ThemeResourceKeys.StatusErrorBrush` for delete.
+
 ### Publisher Image Links
 
 | Constant                                | Value                                                              | Description                                   |
