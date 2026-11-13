@@ -61,6 +61,26 @@ public static class CustomTabConstants
     public const int GeneratedIdFallbackHashLength = 8;
 
     /// <summary>
+    /// The localization key for the edit button tooltip on a custom tab header.
+    /// </summary>
+    public const string EditTabLocalizationKey = "Tools.PublisherStudio.Content.CustomTabs.EditTab";
+
+    /// <summary>
+    /// The localization key for the delete button tooltip on a custom tab header.
+    /// </summary>
+    public const string DeleteTabLocalizationKey = "Tools.PublisherStudio.Content.CustomTabs.DeleteTab";
+
+    /// <summary>
+    /// The resource key of the edit icon on a custom tab header.
+    /// </summary>
+    public const string EditIconResourceKey = "EditIcon";
+
+    /// <summary>
+    /// The resource key of the delete icon on a custom tab header.
+    /// </summary>
+    public const string DeleteIconResourceKey = "DeleteIcon";
+
+    /// <summary>
     /// The host of Google Drive file viewer links.
     /// </summary>
     public const string GoogleDriveHost = "drive.google.com";

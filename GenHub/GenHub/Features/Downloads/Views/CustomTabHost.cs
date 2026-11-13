@@ -49,13 +49,6 @@ public static class CustomTabHost
     public static readonly AttachedProperty<ICommand?> DeleteCommandProperty =
         AvaloniaProperty.RegisterAttached<TabControl, ICommand?>("DeleteCommand", typeof(CustomTabHost));
 
-    private const string EditTabKey = "Tools.PublisherStudio.Content.CustomTabs.EditTab";
-    private const string DeleteTabKey = "Tools.PublisherStudio.Content.CustomTabs.DeleteTab";
-    private const string EditIconKey = "EditIcon";
-    private const string DeleteIconKey = "DeleteIcon";
-    private const string EditBrushKey = "AccentBrush";
-    private const string DeleteBrushKey = "StatusErrorBrush";
-
     private static readonly AttachedProperty<INotifyCollectionChanged?> SubscribedTabsProperty =
         AvaloniaProperty.RegisterAttached<TabControl, INotifyCollectionChanged?>("SubscribedTabs", typeof(CustomTabHost));
 
@@ -259,12 +252,12 @@ public static class CustomTabHost
         header.Children.Add(new TextBlock { Text = tab.Header, VerticalAlignment = VerticalAlignment.Center });
         if (editCommand != null)
         {
-            header.Children.Add(CreateHeaderButton(EditIconKey, EditBrushKey, editCommand, tab, EditTabKey));
+            header.Children.Add(CreateHeaderButton(CustomTabConstants.EditIconResourceKey, ThemeResourceKeys.AccentBrush, editCommand, tab, CustomTabConstants.EditTabLocalizationKey));
         }
 
         if (deleteCommand != null)
         {
-            header.Children.Add(CreateHeaderButton(DeleteIconKey, DeleteBrushKey, deleteCommand, tab, DeleteTabKey));
+            header.Children.Add(CreateHeaderButton(CustomTabConstants.DeleteIconResourceKey, ThemeResourceKeys.StatusErrorBrush, deleteCommand, tab, CustomTabConstants.DeleteTabLocalizationKey));
         }
 
         return header;
