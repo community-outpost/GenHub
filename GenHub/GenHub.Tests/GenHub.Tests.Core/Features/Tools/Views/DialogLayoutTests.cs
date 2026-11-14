@@ -65,27 +65,20 @@ public class DialogLayoutTests
     public void AuthoringFooter_LongCaptionRemainsVisibleBelowScrollingBody(bool release, double width)
     {
         var validation = "Проверьте обязательные поля. تحقق من الحقول المطلوبة قبل الحفظ.";
-        object viewModel;
-        UserControl view;
-        if (release)
-        {
-            var releaseViewModel = new AddReleaseDialogViewModel(
-                new CatalogContentItem { Id = "sample", Name = "Sample" },
-                new PublisherCatalog(),
-                _ => { },
-                Mock.Of<IPublisherStudioDialogService>())
+        UserControl view = release
+            ? new AddReleaseDialogView
             {
-                ValidationError = validation,
-            };
-            viewModel = releaseViewModel;
-            view = new AddReleaseDialogView { DataContext = releaseViewModel };
-        }
-        else
-        {
-            var contentViewModel = new AddContentDialogViewModel(_ => { }) { ValidationError = validation };
-            viewModel = contentViewModel;
-            view = new AddContentDialogView { DataContext = contentViewModel };
-        }
+                DataContext = new AddReleaseDialogViewModel(
+                    new CatalogContentItem { Id = "sample", Name = "Sample" },
+                    new PublisherCatalog(),
+                    _ => { },
+                    Mock.Of<IPublisherStudioDialogService>())
+                {
+                    ValidationError = validation,
+                },
+            }
+            : new AddContentDialogView { DataContext = new AddContentDialogViewModel(_ => { }) { ValidationError = validation } };
+        var viewModel = view.DataContext;
 
         var window = new Window { Width = width, Height = 540, Content = view };
         window.Show();
