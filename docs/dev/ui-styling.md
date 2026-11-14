@@ -224,18 +224,21 @@ owned by Avalonia. Do not copy the styles into a feature view.
 
 | Class | Use | Metrics |
 |---|---|---|
-| `action-primary` | Main action, usually one per form or dialog | Solid live accent; dark ink; minimum 36px high; 16×8 padding |
+| `action-primary` | Main action, usually one per form or dialog | Darker live accent; white ink; minimum 36px high; 16×8 padding |
 | `action-secondary` | Cancel, browse, retry, and other supporting actions | Elevated surface and subtle border; same metrics |
-| `action-danger` | Delete or replace an existing item | Error surface and dark ink; same metrics |
+| `action-danger` | Delete or replace an existing item | Subtle red tint, red outline and pale red ink; same metrics |
 | `icon-action` | Utility actions with no visible caption | Transparent at rest; minimum 32×32 target; 16px glyph |
 | `action-compact` | Add to a text role in dense toolbars | Minimum 32px high; 12×6 padding; 12px type |
 
-Default action type is 13px semibold and corners use `ButtonCornerRadius` (8px).
+Default action type is 13px medium, with semibold primary actions. Ordinary action
+buttons use `ActionCornerRadius` (999px, clamped to a capsule by Avalonia). Utility
+icons use the same rule to form circular targets. Cards and inputs retain their
+existing radii; pill-shaped actions do not imply pill-shaped containers.
 Use minimum sizes so translated labels can grow. Wrap long captions in a
 `TextBlock` with `TextWrapping="Wrap"` when horizontal space is constrained.
 Do not override a role's background, foreground, font, padding, or interaction
 states locally. Layout properties such as alignment and margins stay with the
-consumer. Specialized split buttons retain their adjoining corners and shared
+consumer. Specialized split buttons form one capsule with square adjoining edges and shared
 `ToolActionBarStyles`; their foreground must match the adjoining action.
 
 ```xml
@@ -250,12 +253,17 @@ consumer. Specialized split buttons retain their adjoining corners and shared
 </Button>
 ```
 
-The new roles deliberately use `ActionOnAccentBrush` rather than the older white
-`PrimaryButtonForeground`. White text does not have sufficient contrast on every
-bright palette. Rest and hover colors are checked against all shipped accent
-palettes at 4.5:1 minimum for normal text. Disabled controls use a subdued surface
-and text; keyboard focus has a visible border. Do not use opacity or scale
-animations as the only state indicator.
+Primary actions use `ActionOnAccentBrush` (white) on dedicated
+`ActionPrimaryRestBrush`, `ActionPrimaryHoverBrush` and
+`ActionPrimaryPressedBrush` shades. These action shades are separate from the
+brighter navigation accent. `ActionButtonPalette` derives readable opaque shades
+for each live palette and preserves the selected purple treatment. Tests verify
+at least 4.5:1 white-text contrast across every shipped palette and state.
+
+Secondary actions are transparent with restrained outlines and medium-weight
+labels. Destructive actions use a red tint and outline rather than a dominant
+solid red fill. Disabled actions mute both captions and glyphs. Keyboard focus
+retains its visible border; opacity or scaling is not the only state indicator.
 
 ### Icons
 
