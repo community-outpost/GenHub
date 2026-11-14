@@ -30,6 +30,7 @@ using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Launching;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -71,7 +72,8 @@ public partial class GameProfileLauncherViewModel(
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null,
     ITelemetryService? telemetryService = null,
-    IUserSettingsService? userSettingsService = null) : ViewModelBase,
+    IUserSettingsService? userSettingsService = null,
+    IServiceScopeFactory? libraryScopeFactory = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -197,6 +199,7 @@ public partial class GameProfileLauncherViewModel(
 
     partial void OnSelectedProfileChanged(GameProfileItemViewModel? value)
     {
+        RefreshDisplayedProfile();
         OnPropertyChanged(nameof(CanEditProfile));
         LaunchProfileCommand.NotifyCanExecuteChanged();
         EditProfileCommand.NotifyCanExecuteChanged();
@@ -320,6 +323,9 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public virtual async Task InitializeAsync()
     {
+        IsLibraryInitializing = true;
+        HasLibraryLoadError = false;
+
         // On app launch, the header is expanded and persists without auto-collapsing
         IsHeaderExpanded = true;
         _isHovering = false;
@@ -478,6 +484,8 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Failed to load profiles: {Errors}", errors);
+                HasLibraryLoadError = true;
+                notificationService.ShowError(localizationService["GameProfiles.Library.MyProfiles"], localizationService["GameProfiles.Library.LoadError"]);
             }
 
             // Register for profile messages on first initialization only
@@ -493,6 +501,12 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
+            HasLibraryLoadError = true;
+            notificationService.ShowError(localizationService["GameProfiles.Library.MyProfiles"], localizationService["GameProfiles.Library.LoadError"]);
+        }
+        finally
+        {
+            IsLibraryInitializing = false;
         }
     }
 
@@ -1530,6 +1544,13 @@ public partial class GameProfileLauncherViewModel(
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
             InitializeSortOptions(forceRefresh: true);
+            foreach (var profile in Profiles.Where(p => p is not AddProfileItemViewModel))
+            {
+                profile.NotifyLibraryPropertiesChanged();
+            }
+
+            OnPropertyChanged(nameof(LibraryContentSummary));
+            OnPropertyChanged(nameof(LibraryProfileCount));
 
             if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
             {
@@ -2602,6 +2623,11 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private async Task EditProfile(GameProfileItemViewModel profile)
     {
+        await EditProfileCoreAsync(profile, null);
+    }
+
+    private async Task EditProfileCoreAsync(GameProfileItemViewModel profile, int? initialTab)
+    {
         try
         {
             // Load the profile using the profile editor facade
@@ -2616,6 +2642,10 @@ public partial class GameProfileLauncherViewModel(
 
             // Initialize the settings view model for this profile
             await settingsViewModel.InitializeForProfileAsync(profile.ProfileId);
+            if (initialTab.HasValue)
+            {
+                settingsViewModel.SelectedTabIndex = initialTab.Value;
+            }
 
             // For now, just show the settings window - profile data loading into view model needs more implementation
             var mainWindow = GetMainWindow();
@@ -2646,12 +2676,14 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error editing profile {ProfileName}", profile.Name);
             StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorEditingProfile", profile.Name);
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
         }
     }
 
@@ -2693,6 +2725,7 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
             }
         }
         catch (Exception ex)
@@ -3274,6 +3307,7 @@ public partial class GameProfileLauncherViewModel(
 
     private void OnProfilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        RefreshLibraryProfiles();
         UpdateHasNoProfiles();
     }
 
