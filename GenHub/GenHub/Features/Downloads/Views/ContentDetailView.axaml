@@ -385,10 +385,9 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Button Margin="4" Padding="0" Width="80" Height="45" Cursor="Hand"
+                                                    <Button Margin="4"
                                                             Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).SetSelectedScreenshotCommand}"
-                                                            CommandParameter="{Binding}"
-                                                            Background="{DynamicResource ButtonBackground}">
+                                                            CommandParameter="{Binding}" Classes="action-secondary action-compact">
                                                         <Image controls:ImageLoader.Source="{Binding}" Stretch="UniformToFill" />
                                                     </Button>
                                                 </DataTemplate>
@@ -462,9 +461,7 @@
                                                 <Button Grid.Column="1" Content="{localization:Localize Downloads.ContentDetail.Download}"
                                                         Command="{Binding $parent[views:ContentDetailView].((vm:ContentDetailViewModel)DataContext).DownloadFileCommand}"
                                                         CommandParameter="{Binding}"
-                                                        Background="{DynamicResource AccentBrush}" Foreground="White"
-                                                        CornerRadius="6" Padding="16,8"
-                                                        VerticalAlignment="Center" />
+                                                        VerticalAlignment="Center"  Classes="action-primary"/>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -499,23 +496,12 @@
                                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
                                                         <!-- Expand Chevron / Pill Button -->
                                                         <Button Grid.Column="0"
-                                                                Command="{Binding ToggleExpandCommand}"
-                                                                Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                CornerRadius="6" Padding="10,6" Margin="0,0,14,0" Cursor="Hand"
+                                                                Command="{Binding ToggleExpandCommand}" Margin="0,0,14,0"
                                                                 VerticalAlignment="Center"
-                                                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ToggleReleaseDetails}">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover">
-                                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                                </Style>
-                                                                <Style Selector="Button:pressed">
-                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                </Style>
-                                                            </Button.Styles>
+                                                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ToggleReleaseDetails}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Downloads.ContentDetail.ToggleReleaseDetails}">
+
                                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}"
-                                                                           Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}" VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </Button>
 
@@ -576,44 +562,22 @@
                                                                 <!-- Select button (when not selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding !IsSelected}"
-                                                                        Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                        Foreground="{DynamicResource TextPrimary}" CornerRadius="6" Padding="14,7" Cursor="Hand"
-                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectTargetTooltip}">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover">
-                                                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-                                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                                                                        </Style>
-                                                                        <Style Selector="Button:pressed">
-                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                        </Style>
-                                                                    </Button.Styles>
+                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectTargetTooltip}" Classes="action-secondary action-compact">
+
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
-                                                                                  Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
-                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Select}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Select}" VerticalAlignment="Center"/>
                                                                     </StackPanel>
                                                                 </Button>
 
                                                                 <!-- Selected button (when selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding IsSelected}"
-                                                                        Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentLightBrush}"
-                                                                        Foreground="White" CornerRadius="6" Padding="14,7" Cursor="Hand"
-                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectedTargetTooltip}">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover">
-                                                                            <Setter Property="Opacity" Value="0.9" />
-                                                                        </Style>
-                                                                        <Style Selector="Button:pressed">
-                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                        </Style>
-                                                                    </Button.Styles>
+                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectedTargetTooltip}" Classes="action-primary action-compact">
+
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
-                                                                                  Width="12" Height="12" Foreground="White"/>
-                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Selected}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        <PathIcon Data="{StaticResource CheckmarkIcon}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Selected}" VerticalAlignment="Center"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </StackPanel>
@@ -621,22 +585,11 @@
                                                             <!-- Add to Profile Button (visible when downloaded) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
                                                                     IsVisible="{Binding IsDownloaded}"
-                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
-                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
-                                                                    Cursor="Hand"
-                                                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover">
-                                                                        <Setter Property="Opacity" Value="0.9" />
-                                                                    </Style>
-                                                                    <Style Selector="Button:pressed">
-                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                    </Style>
-                                                                </Button.Styles>
+                                                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact">
+
                                                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                                                              Width="12" Height="12" Foreground="White"/>
-                                                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -663,7 +616,7 @@
                                                                         <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
                                                                                 IsVisible="{Binding IsDownloaded}">
                                                                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                                                                <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                                                                                <PathIcon Data="{StaticResource CheckmarkIcon}" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                                                                                 <TextBlock Text="{localization:Localize Downloads.ContentDetail.Downloaded}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                             </StackPanel>
                                                                         </Border>
@@ -697,19 +650,11 @@
                                                                     <!-- Copy Link Action -->
                                                                     <Button Grid.Column="1" Command="{Binding CopyLinkCommand}"
                                                                             IsVisible="{Binding HasDownloadUrl}"
-                                                                            Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                            Foreground="{DynamicResource TextSecondary}" CornerRadius="6" Padding="10,5" Cursor="Hand"
-                                                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}">
-                                                                        <Button.Styles>
-                                                                            <Style Selector="Button:pointerover">
-                                                                                <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-                                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                                                                            </Style>
-                                                                        </Button.Styles>
+                                                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}">
+
                                                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
-                                                                                      Width="11" Height="11" Foreground="{DynamicResource AccentBrush}"/>
-                                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.CopyLink}" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.CopyLink}" VerticalAlignment="Center"/>
                                                                         </StackPanel>
                                                                     </Button>
                                                                 </Grid>
@@ -774,8 +719,7 @@
                                                                         <TextBlock Text="{Binding ChecksumTitle}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                                                             <TextBlock Text="{Binding ChecksumDisplay}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                                                                            <Button Content="{localization:Localize Downloads.ContentDetail.Copy}" Command="{Binding CopyChecksumCommand}" Padding="6,2" FontSize="10"
-                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyChecksumTooltip}"/>
+                                                                            <Button Content="{localization:Localize Downloads.ContentDetail.Copy}" Command="{Binding CopyChecksumCommand}" ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyChecksumTooltip}" Classes="action-secondary action-compact"/>
                                                                         </StackPanel>
                                                                     </StackPanel>
                                                                 </Grid>
@@ -909,23 +853,12 @@
                                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto">
                                                         <!-- Expand Chevron / Pill Button -->
                                                         <Button Grid.Column="0"
-                                                                Command="{Binding ToggleExpandCommand}"
-                                                                Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                CornerRadius="6" Padding="10,6" Margin="0,0,14,0" Cursor="Hand"
+                                                                Command="{Binding ToggleExpandCommand}" Margin="0,0,14,0"
                                                                 VerticalAlignment="Center"
-                                                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ToggleAddonDetails}">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover">
-                                                                    <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                                </Style>
-                                                                <Style Selector="Button:pressed">
-                                                                    <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                </Style>
-                                                            </Button.Styles>
+                                                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.ToggleAddonDetails}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Downloads.ContentDetail.ToggleAddonDetails}">
+
                                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}"
-                                                                           Foreground="{DynamicResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding IsExpanded, Converter={StaticResource BoolToExpandTextConverter}}" VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </Button>
 
@@ -982,44 +915,22 @@
                                                                 <!-- Select button (when not selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding !IsSelected}"
-                                                                        Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                        Foreground="{DynamicResource TextPrimary}" CornerRadius="6" Padding="14,7" Cursor="Hand"
-                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectTargetTooltip}">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover">
-                                                                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-                                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-                                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                                                                        </Style>
-                                                                        <Style Selector="Button:pressed">
-                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                        </Style>
-                                                                    </Button.Styles>
+                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectTargetTooltip}" Classes="action-secondary action-compact">
+
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
-                                                                                  Width="12" Height="12" Foreground="{DynamicResource AccentBrush}"/>
-                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Select}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Select}" VerticalAlignment="Center"/>
                                                                     </StackPanel>
                                                                 </Button>
 
                                                                 <!-- Selected button (when selected) -->
                                                                 <Button Command="{Binding SelectCommand}"
                                                                         IsVisible="{Binding IsSelected}"
-                                                                        Background="{DynamicResource AccentBrush}" BorderThickness="1" BorderBrush="{DynamicResource AccentLightBrush}"
-                                                                        Foreground="White" CornerRadius="6" Padding="14,7" Cursor="Hand"
-                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectedTargetTooltip}">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover">
-                                                                            <Setter Property="Opacity" Value="0.9" />
-                                                                        </Style>
-                                                                        <Style Selector="Button:pressed">
-                                                                            <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                        </Style>
-                                                                    </Button.Styles>
+                                                                        ToolTip.Tip="{localization:Localize Downloads.ContentDetail.SelectedTargetTooltip}" Classes="action-primary action-compact">
+
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
-                                                                                  Width="12" Height="12" Foreground="White"/>
-                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Selected}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                        <PathIcon Data="{StaticResource CheckmarkIcon}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                        <TextBlock Text="{localization:Localize Downloads.ContentDetail.Selected}" VerticalAlignment="Center"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </StackPanel>
@@ -1027,22 +938,11 @@
                                                             <!-- Add to Profile Button (visible when downloaded) -->
                                                             <Button Command="{Binding AddToProfileCommand}"
                                                                     IsVisible="{Binding IsDownloaded}"
-                                                                    Background="{DynamicResource SuccessBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
-                                                                    Foreground="White" CornerRadius="6" Padding="14,7"
-                                                                    Cursor="Hand"
-                                                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover">
-                                                                        <Setter Property="Opacity" Value="0.9" />
-                                                                    </Style>
-                                                                    <Style Selector="Button:pressed">
-                                                                        <Setter Property="RenderTransform" Value="scale(0.96)" />
-                                                                    </Style>
-                                                                </Button.Styles>
+                                                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact">
+
                                                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                                                              Width="12" Height="12" Foreground="White"/>
-                                                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                             </Button>
                                                         </StackPanel>
@@ -1069,7 +969,7 @@
                                                                         <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}" CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
                                                                                 IsVisible="{Binding IsDownloaded}">
                                                                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                                                                <PathIcon Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
+                                                                                <PathIcon Data="{StaticResource CheckmarkIcon}" Width="11" Height="11" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                                                                                 <TextBlock Text="{localization:Localize Downloads.ContentDetail.Downloaded}" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                             </StackPanel>
                                                                         </Border>
@@ -1103,19 +1003,11 @@
                                                                     <!-- Copy Link Action -->
                                                                     <Button Grid.Column="1" Command="{Binding CopyLinkCommand}"
                                                                             IsVisible="{Binding HasDownloadUrl}"
-                                                                            Background="{DynamicResource SurfaceHoverBrush}" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                                                                            Foreground="{DynamicResource TextSecondary}" CornerRadius="6" Padding="10,5" Cursor="Hand"
-                                                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}">
-                                                                        <Button.Styles>
-                                                                            <Style Selector="Button:pointerover">
-                                                                                <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-                                                                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-                                                                            </Style>
-                                                                        </Button.Styles>
+                                                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Downloads.ContentDetail.CopyLinkTooltip}">
+
                                                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"
-                                                                                      Width="11" Height="11" Foreground="{DynamicResource AccentBrush}"/>
-                                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.CopyLink}" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                                                            <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.CopyLink}" VerticalAlignment="Center"/>
                                                                         </StackPanel>
                                                                     </Button>
                                                                 </Grid>
@@ -1180,8 +1072,7 @@
                                                                         <TextBlock Text="{Binding ChecksumTitle}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                                                             <TextBlock Text="{Binding ChecksumDisplay}" FontSize="12" FontFamily="Consolas, Monospace" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                                                                            <Button Content="{localization:Localize Downloads.ContentDetail.Copy}" Command="{Binding CopyChecksumCommand}" Padding="6,2" FontSize="10"
-                                                                                    Background="{DynamicResource SurfaceElevatedBrush}" Foreground="{DynamicResource TextPrimary}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Cursor="Hand" ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyChecksumTooltip}"/>
+                                                                            <Button Content="{localization:Localize Downloads.ContentDetail.Copy}" Command="{Binding CopyChecksumCommand}" ToolTip.Tip="{localization:Localize Downloads.ContentDetail.CopyChecksumTooltip}" Classes="action-secondary action-compact"/>
                                                                         </StackPanel>
                                                                     </StackPanel>
                                                                 </Grid>
@@ -1457,159 +1348,61 @@
                         <StackPanel Spacing="16">
                             <!-- Download Button (visible when not downloaded and not update available) -->
                             <Button HorizontalAlignment="Stretch"
-                                    Height="48"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Foreground="White"
-                                    CornerRadius="8"
-                                    FontSize="15"
-                                    FontWeight="SemiBold"
                                     IsVisible="{Binding ShowDownloadButton}"
                                     IsEnabled="{Binding CanDownload}"
-                                    Command="{Binding DownloadCommand}"
-                                    Cursor="Hand"
-                                    Padding="20,0">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="0.9" />
-                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
-                                    </Style>
-                                    <Style Selector="Button:pressed">
-                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    </Style>
-                                    <Style Selector="Button:disabled">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-                                        <Setter Property="Opacity" Value="0.6" />
-                                    </Style>
-                                </Button.Styles>
+                                    Command="{Binding DownloadCommand}" Classes="action-primary" MinHeight="48">
+
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"
-                                              Width="18" Height="18"
-                                              Foreground="White"/>
+                                    <PathIcon Data="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.DownloadNow}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- Update Button (visible when update is available) -->
                             <Button x:Name="UpdateButton" HorizontalAlignment="Stretch"
-                                    Height="48"
-                                    Background="{DynamicResource WarningBrush}"
-                                    Foreground="{DynamicResource WarningForegroundBrush}"
-                                    CornerRadius="8"
-                                    FontSize="15"
-                                    FontWeight="SemiBold"
                                     IsVisible="{Binding ShowUpdateButton}"
                                     IsEnabled="{Binding CanUpdate}"
                                     Command="{Binding UpdateCommand}"
-                                    Cursor="Hand"
-                                    Padding="20,0"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="0.9" />
-                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
-                                    </Style>
-                                    <Style Selector="Button:pressed">
-                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    </Style>
-                                    <Style Selector="Button:disabled">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-                                        <Setter Property="Opacity" Value="0.6" />
-                                    </Style>
-                                </Button.Styles>
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.UpdateAvailableTooltip}" Classes="action-primary" MinHeight="48">
+
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                                              Width="18" Height="18"
-                                              Foreground="{DynamicResource WarningForegroundBrush}"/>
+                                    <PathIcon Data="{StaticResource CheckmarkCircleIcon}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.UpdateAvailable}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- Add to Profile Button (visible when downloaded and not update available) -->
                             <Button x:Name="AddToProfileButton" HorizontalAlignment="Stretch"
-                                    Height="48"
-                                    Background="{DynamicResource SuccessBrush}"
-                                    Foreground="White"
-                                    CornerRadius="8"
-                                    FontSize="15"
-                                    FontWeight="SemiBold"
                                     IsVisible="{Binding ShowAddToProfileButton}"
                                     Command="{Binding AddToProfileCommand}"
-                                    Cursor="Hand"
-                                    Padding="20,0"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="0.9" />
-                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
-                                    </Style>
-                                    <Style Selector="Button:pressed">
-                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    </Style>
-                                </Button.Styles>
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact" MinHeight="48">
+
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                              Width="18" Height="18"
-                                              Foreground="White"/>
+                                    <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.AddToProfile}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- Delete Download Button (visible when stored locally) -->
                             <Button x:Name="DeleteDownloadButton" HorizontalAlignment="Stretch"
-                                    Height="48"
-                                    Background="{DynamicResource ErrorBrush}"
-                                    Foreground="White"
-                                    CornerRadius="8"
-                                    FontSize="15"
-                                    FontWeight="SemiBold"
                                     IsVisible="{Binding ShowDeleteButton}"
                                     Command="{Binding DeleteDownloadCommand}"
-                                    Cursor="Hand"
-                                    Padding="20,0"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="0.9" />
-                                        <Setter Property="RenderTransform" Value="scale(1.02)" />
-                                    </Style>
-                                    <Style Selector="Button:pressed">
-                                        <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    </Style>
-                                </Button.Styles>
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}" Classes="action-danger" MinHeight="48">
+
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
-                                              Width="18" Height="18"
-                                              Foreground="White"/>
+                                    <PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.DeleteDownload}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- View on source website -->
                             <Button x:Name="OpenWebsiteButton" HorizontalAlignment="Stretch"
-                                    Height="38"
-                                    Background="{DynamicResource SurfaceElevatedBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    Foreground="{DynamicResource TextPrimary}"
-                                    CornerRadius="8"
-                                    FontSize="13"
                                     IsVisible="{Binding HasSourceUrl}"
                                     Command="{Binding OpenInBrowserCommand}"
-                                    Cursor="Hand"
-                                    Padding="16,0"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-                                    </Style>
-                                </Button.Styles>
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}" Classes="action-secondary" MinHeight="38">
+
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z"
-                                              Width="14" Height="14"
-                                              Foreground="{DynamicResource TextSecondary}"/>
+                                    <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.ViewOnWebsite}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -1910,24 +1703,9 @@
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" />
                     <Button Grid.Column="1"
-                            Command="{Binding CloseFullScreenMediaCommand}"
-                            Foreground="{DynamicResource TextSecondary}"
-                            Background="{DynamicResource SurfaceElevatedBrush}"
-                            BorderThickness="1"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            CornerRadius="6"
-                            Width="30"
-                            Height="30"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            Cursor="Hand">
-                        <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                        </Button.Styles>
+                            Command="{Binding CloseFullScreenMediaCommand}" Classes="icon-action" ToolTip.Tip="{localization:Localize Common.Button.Close}" AutomationProperties.Name="{localization:Localize Common.Button.Close}">
+                        <PathIcon Data="{StaticResource ToolIcon.Close}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+
                     </Button>
                 </Grid>
 
@@ -2051,47 +1829,18 @@
                                TextTrimming="CharacterEllipsis" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                         <Button Command="{Binding ToggleVideoPlayerFullscreenCommand}"
-                                Foreground="{DynamicResource TextSecondary}"
-                                Background="{DynamicResource SurfaceElevatedBrush}"
-                                BorderThickness="1"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                CornerRadius="6"
-                                Width="30"
-                                Height="30"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Cursor="Hand"
-                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
+                                ToolTip.Tip="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Downloads.ContentDetail.VideoPlayer.Fullscreen}">
                             <Panel>
                                 <PathIcon Data="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
-                                          Width="12"
-                                          Height="12"
-                                          IsVisible="{Binding !IsVideoPlayerFullscreen}" />
+                                          IsVisible="{Binding !IsVideoPlayerFullscreen}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                 <PathIcon Data="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-14v3h3v2h-5V5h2z"
-                                          Width="12"
-                                          Height="12"
-                                          IsVisible="{Binding IsVideoPlayerFullscreen}" />
+                                          IsVisible="{Binding IsVideoPlayerFullscreen}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                             </Panel>
                         </Button>
                         <Button Command="{Binding CloseVideoPlayerCommand}"
-                                Foreground="{DynamicResource TextSecondary}"
-                                Background="{DynamicResource SurfaceElevatedBrush}"
-                                BorderThickness="1"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                CornerRadius="6"
-                                Width="30"
-                                Height="30"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Cursor="Hand"
-                                ToolTip.Tip="{localization:Localize Common.Close}">
-                            <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" />
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-                                    <Setter Property="Foreground" Value="White" />
-                                </Style>
-                            </Button.Styles>
+                                ToolTip.Tip="{localization:Localize Common.Close}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Common.Close}">
+                            <PathIcon Data="{StaticResource ToolIcon.Close}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+
                         </Button>
                     </StackPanel>
                 </Grid>

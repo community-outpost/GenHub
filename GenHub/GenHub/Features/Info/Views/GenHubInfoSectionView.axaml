@@ -64,13 +64,13 @@
               </Grid>
 
               <!-- Main Content -->
-              <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="#CCC"/>
+              <infra:MarkdownTextBlock Grid.Row="1" Markdown="{Binding Content}" Classes="card-content" Margin="0,0,0,24" FontSize="15" Foreground="{DynamicResource TextSecondary}"/>
 
               <!-- Expanded Content -->
               <Border Grid.Row="2"
                       IsVisible="{Binding IsExpanded}"
-                      Background="#CC111111"
-                      BorderBrush="#333"
+                      Background="{DynamicResource SurfaceElevatedBrush}"
+                      BorderBrush="{DynamicResource BorderSubtleBrush}"
                       BorderThickness="1"
                       CornerRadius="8"
                       Padding="20"
@@ -91,13 +91,12 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="models:InfoAction">
-                  <Button Classes="action-btn"
+                  <Button Classes="action-compact"
                           Margin="0,0,10,8"
-                          Classes.primary="{Binding IsPrimary}"
                           Command="{Binding ((vm:GenHubInfoSectionViewModel)DataContext).HandleActionCommand, RelativeSource={RelativeSource AncestorType=views:GenHubInfoSectionView}}"
-                          CommandParameter="{Binding}">
+                          CommandParameter="{Binding}" Classes.action-primary="{Binding IsPrimary}" Classes.action-secondary="{Binding !IsPrimary}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                      <material:MaterialIcon Kind="ChevronRight" Width="16" Height="16" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                      <material:MaterialIcon Kind="ChevronRight" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                       <TextBlock Text="{Binding Label}"/>
                     </StackPanel>
                   </Button>
@@ -185,7 +184,7 @@
     <Style Selector="TextBlock.card-title">
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#F0F0F0"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
@@ -193,13 +192,13 @@
     <Style Selector="TextBlock.demo-title">
        <Setter Property="FontSize" Value="24"/>
        <Setter Property="FontWeight" Value="Bold"/>
-       <Setter Property="Foreground" Value="White"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
      <Style Selector="TextBlock.demo-subtitle">
        <Setter Property="FontSize" Value="15"/>
-       <Setter Property="Foreground" Value="#AAAAAA"/>
+       <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
        <Setter Property="Margin" Value="0,6,0,0"/>
        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
@@ -222,32 +221,6 @@
      </Style>
 
     <!-- Card Action Button Styles -->
-    <Style Selector="Button.action-btn">
-       <Setter Property="FocusAdorner" Value="{x:Null}"/>
-       <Setter Property="Template">
-         <ControlTemplate>
-           <ContentPresenter Content="{TemplateBinding Content}"
-                             Padding="{TemplateBinding Padding}"
-                             HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                             VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-         </ControlTemplate>
-       </Setter>
-       <Setter Property="Opacity" Value="0.8"/>
-       <Setter Property="Transitions">
-         <Transitions>
-           <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-         </Transitions>
-       </Setter>
-    </Style>
-
-    <Style Selector="Button.action-btn:pointerover">
-       <Setter Property="Opacity" Value="1"/>
-    </Style>
-
-    <Style Selector="Button.action-btn.primary">
-       <Setter Property="Opacity" Value="1.0"/>
-       <Setter Property="FontWeight" Value="SemiBold"/>
-    </Style>
 
     <!-- Demo Preset Switcher Button Styles -->
     <Style Selector="Button.preset-btn">
@@ -328,7 +301,7 @@
           <TextBlock Text="{Binding SelectedSection.Title}" Classes="section-header" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding SelectedSection.Description}"
                      FontSize="18"
-                     Foreground="#999999"
+                     Foreground="{DynamicResource TextSecondary}"
                      TextWrapping="Wrap"/>
         </StackPanel>
 
@@ -351,7 +324,7 @@
                     </Viewbox>
 
                   <TextBlock Text="{localization:Localize Info.Demo.ProfileCard.Hint}"
-                             FontSize="13" Foreground="#666666" HorizontalAlignment="Center"/>
+                             FontSize="13" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
                 </StackPanel>
               </Viewbox>
             </Border>
@@ -386,7 +359,7 @@
                          </StackPanel>
 
                         <!-- Arrow -->
-                        <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="32" Height="32" Foreground="#444" VerticalAlignment="Center" Margin="0,25,0,0"/>
+                        <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="32" Height="32" Foreground="{DynamicResource TextMuted}" VerticalAlignment="Center" Margin="0,25,0,0"/>
 
                         <!-- 2. The Result: Desktop Icon -->
                         <StackPanel Spacing="10">
@@ -398,7 +371,7 @@
                                          <Grid Width="48" Height="48" HorizontalAlignment="Center">
                                             <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png" Width="48" Height="48"/>
                                             <!-- Shortcut Overlay Arrow -->
-                                            <Border Background="White" Width="16" Height="16" CornerRadius="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,0" BorderBrush="#888" BorderThickness="1">
+                                            <Border Background="White" Width="16" Height="16" CornerRadius="2" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,0" BorderBrush="{DynamicResource BorderHighlightBrush}" BorderThickness="1">
                                                 <PathIcon Data="M10,2H19V11M19,2L6,15" Width="12" Height="12" Foreground="Black" RenderTransform="rotate(-45deg)" RenderTransformOrigin="50%,50%"/>
                                             </Border>
                                          </Grid>
@@ -452,7 +425,7 @@
             <StackPanel Spacing="20">
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="Auto,*">
-                        <material:MaterialIcon Grid.Column="0" Kind="CloudDownload" Width="24" Height="24" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                        <material:MaterialIcon Grid.Column="0" Kind="CloudDownload" Width="24" Height="24" Foreground="{DynamicResource SystemAccentColorBrush}"/>
                         <TextBlock Grid.Column="1" Text="{localization:Localize Info.Demo.AppUpdates.AutoUpdatesTitle}" Classes="demo-title" VerticalAlignment="Center" Margin="12,0,0,0"/>
                     </Grid>
                     <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.AutoUpdatesSubtitle}"
@@ -465,7 +438,7 @@
                         <update:UpdateNotificationView DataContext="{Binding DemoUpdateNotification}"/>
                     </Border>
                     <TextBlock Text="{localization:Localize Info.Demo.AppUpdates.BrowseBuildsHint}"
-                               FontSize="12" Foreground="#666" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
+                               FontSize="12" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center" FontStyle="Italic" TextWrapping="Wrap" TextAlignment="Center"/>
                   </StackPanel>
                 </Border>
             </StackPanel>
@@ -550,8 +523,8 @@
                             MaxWidth="1040"
                             MinHeight="440"
                             MaxHeight="750"
-                            Background="#0F0F0F"
-                            BorderBrush="#333"
+                            Background="{DynamicResource SurfaceBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             ClipToBounds="True">
@@ -600,8 +573,8 @@
                             MaxWidth="1040"
                             MinHeight="440"
                             MaxHeight="750"
-                            Background="#0F0F0F"
-                            BorderBrush="#333"
+                            Background="{DynamicResource SurfaceBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             ClipToBounds="True">
@@ -625,7 +598,7 @@
                 <!-- Detailed explanations -->
                 <StackPanel Margin="0,12,0,0" Spacing="6">
                     <TextBlock Text="{localization:Localize Info.Demo.ContentSelection.Description}"
-                               FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap" MaxWidth="900"/>
+                               FontSize="13" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="900"/>
                 </StackPanel>
             </StackPanel>
 
@@ -656,8 +629,8 @@
                             MaxWidth="1040"
                             MinHeight="440"
                             MaxHeight="750"
-                            Background="#0F0F0F"
-                            BorderBrush="#333"
+                            Background="{DynamicResource SurfaceBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderSubtleBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             ClipToBounds="True">
@@ -697,7 +670,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1200">
                             <Grid Width="1200" Height="550" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsRep:ReplayManagerView DataContext="{Binding DemoReplayManager}"/>
                                 </Border>
                             </Grid>
@@ -726,7 +699,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" Height="550" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMap:MapManagerView DataContext="{Binding DemoMapManager}"/>
                                 </Border>
                             </Grid>
@@ -755,7 +728,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="800">
                             <Grid Width="800" Height="600" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsHotkeys:GenHotkeysView DataContext="{Binding DemoHotkeyEditor}"/>
                                 </Border>
                             </Grid>
@@ -784,7 +757,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="860">
                             <Grid Width="860" Height="640" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsPub:PublisherStudioView DataContext="{Binding DemoPublisherStudio}"/>
                                 </Border>
                             </Grid>
@@ -814,7 +787,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1040">
                             <Grid Width="1040" Height="620" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsMod:ModBuilderView DataContext="{Binding DemoModBuilder}"/>
                                 </Border>
                             </Grid>
@@ -844,7 +817,7 @@
                     <Border Classes="demo-container">
                         <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Stretch" MaxWidth="1160">
                             <Grid Width="1160" Height="700" HorizontalAlignment="Center">
-                                <Border Background="#0F0F0F" BorderBrush="#333" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                                <Border Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
                                     <toolsWnd:WndEditorView DataContext="{Binding DemoWndEditor}"/>
                                 </Border>
                             </Grid>
@@ -1057,7 +1030,7 @@
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Title}"
-                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                                   FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
                                                    TextWrapping="Wrap" VerticalAlignment="Center"/>
                                     </StackPanel>
 
@@ -1082,10 +1055,10 @@
 
                                 <!-- Expanded Content (Unified with standard cards) -->
                                 <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
-                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
                                     <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
                                                            IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                           FontSize="13" Foreground="#999"/>
+                                                           FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -1117,7 +1090,7 @@
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <material:MaterialIcon Kind="{Binding IconKind}" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Title}"
-                                                   FontSize="16" FontWeight="SemiBold" Foreground="#F0F0F0"
+                                                   FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"
                                                    TextWrapping="Wrap" VerticalAlignment="Center"/>
                                     </StackPanel>
 
@@ -1142,10 +1115,10 @@
 
                                 <!-- Content -->
                                 <StackPanel IsVisible="{Binding IsExpanded}" Margin="0,16,0,0">
-                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="#CCC" Margin="0,0,0,8"/>
+                                    <infra:MarkdownTextBlock Markdown="{Binding Content}" FontSize="14" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
                                     <infra:MarkdownTextBlock Markdown="{Binding DetailedContent}"
                                                            IsVisible="{Binding DetailedContent, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                           FontSize="13" Foreground="#999"/>
+                                                           FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

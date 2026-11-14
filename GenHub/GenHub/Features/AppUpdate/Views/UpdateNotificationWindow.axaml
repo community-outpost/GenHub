@@ -62,7 +62,7 @@
                     <Button VerticalAlignment="Center"
                             HorizontalAlignment="Center"
                             Background="Transparent"
-                            Foreground="#CCCCCC"
+                            Foreground="{DynamicResource TextPrimary}"
                             BorderThickness="0"
                             Width="32" Height="32"
                             ToolTip.Tip="{localization:Localize Common.Tooltip.MaximizeRestore}"
@@ -76,11 +76,11 @@
                         </Viewbox>
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#2A2A2A"/>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Style>
                             <Style Selector="Button:pressed">
-                                <Setter Property="Background" Value="#404040"/>
+                                <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
@@ -89,7 +89,7 @@
                     <Button VerticalAlignment="Center"
                             HorizontalAlignment="Center"
                             Background="Transparent"
-                            Foreground="#CCCCCC"
+                            Foreground="{DynamicResource TextPrimary}"
                             BorderThickness="0"
                             Width="32" Height="32"
                             AutomationProperties.Name="{localization:Localize Window.Close}"
@@ -105,11 +105,11 @@
                         </Viewbox>
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#C42B1C"/>
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Style>
                             <Style Selector="Button:pressed">
-                                <Setter Property="Background" Value="#60FF0000"/>
+                                <Setter Property="Background" Value="{DynamicResource ErrorFillBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
