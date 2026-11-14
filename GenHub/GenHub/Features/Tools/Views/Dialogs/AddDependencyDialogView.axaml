@@ -9,7 +9,6 @@
              x:DataType="vm:AddDependencyDialogViewModel"
              x:Name="Root">
 
-
     <UserControl.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
@@ -40,19 +39,7 @@
         <Style Selector="RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
-        <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-        <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
+
         <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
@@ -71,24 +58,12 @@
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
                        FontSize="22" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <Button Grid.Column="1"
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    Background="Transparent"
-                    Padding="8"
-                    CornerRadius="8"
-                    BorderThickness="0"
-                    VerticalAlignment="Top">
-                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                          Width="12" Height="12"
-                          Foreground="{DynamicResource TextSecondary}"/>
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-                    </Style>
-                    <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                    </Style>
-                </Button.Styles>
+                    VerticalAlignment="Top"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
             </Button>
         </Grid>
 
@@ -146,7 +121,7 @@
                             <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Discover}"
                                     Command="{Binding DiscoverContentCommand}"
                                     Margin="8,0,0,0"
-                                    Classes="small-glass-btn"
+                                    Classes="action-secondary action-compact"
                                     IsEnabled="{Binding !IsBusy}"/>
 
                             <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
@@ -173,7 +148,7 @@
                                          <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Select}"
                                                  Command="{Binding $parent[UserControl].((vm:AddDependencyDialogViewModel)DataContext).SelectDiscoveredContentCommand}"
                                                  CommandParameter="{Binding}"
-                                                 Classes="small-glass-btn"/>
+                                                 Classes="action-secondary action-compact"/>
                                      </Grid>
                                  </DataTemplate>
                              </ListBox.ItemTemplate>
@@ -199,7 +174,7 @@
                                 <Button Content="{Binding}"
                                         Command="{ReflectionBinding DataContext.ApplyVersionConstraintExampleCommand, ElementName=Root}"
                                         CommandParameter="{Binding}"
-                                        Classes="small-glass-btn" Margin="0,0,8,8"/>
+                                        Classes="action-secondary action-compact" Margin="0,0,8,8"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -223,21 +198,8 @@
                         TextWrapping="Wrap"
                         MaxWidth="300"/>
 
-             <Button Content="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
-                     Command="{Binding CreateDependencyCommand}"
-                     Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="{DynamicResource TextPrimary}"
-                     CornerRadius="8"
-                     Padding="40,14"
-                     FontWeight="Bold"
-                     BorderThickness="0">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                        <Setter Property="Opacity" Value="0.85"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
+             <Button Classes="action-primary" Content="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"
+                     Command="{Binding CreateDependencyCommand}"/>
         </StackPanel>
     </Grid>
 </UserControl>

@@ -62,45 +62,45 @@
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PanMode}">
             <material:MaterialIcon Kind="HandBackLeft" Width="16" Height="16"/>
           </ToggleButton>
-          <Button Command="{Binding ZoomOutCommand}" Classes="Secondary" Padding="8" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomOut}">
-            <PathIcon Data="{StaticResource ToolIcon.MagnifyMinus}" Width="16" Height="16"/>
+          <Button Command="{Binding ZoomOutCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomOut}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ZoomOut}">
+            <PathIcon Data="{StaticResource ToolIcon.MagnifyMinus}"/>
           </Button>
           <TextBlock Text="{Binding Zoom, StringFormat='{}{0:P0}'}" VerticalAlignment="Center" MinWidth="48" TextAlignment="Center"
                      Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
-          <Button Command="{Binding ZoomInCommand}" Classes="Secondary" Padding="8" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomIn}">
-            <PathIcon Data="{StaticResource ToolIcon.MagnifyPlus}" Width="16" Height="16"/>
+          <Button Command="{Binding ZoomInCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ZoomIn}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ZoomIn}">
+            <PathIcon Data="{StaticResource ToolIcon.MagnifyPlus}"/>
           </Button>
-          <Button Command="{Binding ResetZoomCommand}" Classes="Secondary" Padding="8" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ResetZoom}">
-            <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
+          <Button Command="{Binding ResetZoomCommand}" Classes="action-secondary icon-action" ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.ResetZoom}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.ResetZoom}">
+            <PathIcon Data="{StaticResource ToolIcon.Refresh}"/>
           </Button>
           <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}" Margin="4,0"/>
-          <Button Command="{Binding UndoCommand}" Classes="Secondary" Padding="8" IsEnabled="{Binding CanUndo}"
-                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Undo}">
+          <Button Command="{Binding UndoCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding CanUndo}"
+                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Undo}" AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.Undo}">
             <material:MaterialIcon Kind="Undo" Width="16" Height="16"/>
           </Button>
-          <Button Command="{Binding RedoCommand}" Classes="Secondary" Padding="8" IsEnabled="{Binding CanRedo}"
-                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Redo}">
+          <Button Command="{Binding RedoCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding CanRedo}"
+                  ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Redo}" AutomationProperties.Name="{localization:Localize Tools.IniEditor.Toolbar.Redo}">
             <material:MaterialIcon Kind="Redo" Width="16" Height="16"/>
           </Button>
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Command="{Binding OpenFolderCommand}" Classes="Primary" IsEnabled="{Binding !IsBusy}"
+          <Button Command="{Binding OpenFolderCommand}" Classes="action-primary action-compact" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.OpenFolder}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center" FontSize="12"/>
+              <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
+              <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Command="{Binding SaveCommand}" Classes="Secondary" IsEnabled="{Binding HasAtlas}"
+          <Button Command="{Binding SaveCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding HasAtlas}"
                   ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.Save}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize TextureEditor.Button.Save}" VerticalAlignment="Center" FontSize="12"/>
+              <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}"/>
+              <TextBlock Text="{localization:Localize TextureEditor.Button.Save}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Button Classes="Secondary" Padding="8" IsEnabled="{Binding !IsBusy}"
-                  ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.Menu}">
+          <Button Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.Menu}" AutomationProperties.Name="{localization:Localize TextureEditor.Tooltip.Menu}">
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.New}" Command="{Binding NewDocumentCommand}"
@@ -118,20 +118,20 @@
                 <MenuItem Header="{localization:Localize TextureEditor.Button.OpenAtlas}" Command="{Binding OpenFileCommand}"
                           InputGesture="Ctrl+Shift+O">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.Save}" Command="{Binding SaveCommand}" IsEnabled="{Binding HasAtlas}"
                           InputGesture="Ctrl+S">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.SaveAs}" Command="{Binding SaveAsCommand}" IsEnabled="{Binding HasAtlas}"
                           InputGesture="Ctrl+Shift+S">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
@@ -151,7 +151,7 @@
                 <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.Copy}" Command="{Binding CopyCommand}" IsEnabled="{Binding CanCopy}"
                           InputGesture="Ctrl+C">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.Cut}" Command="{Binding CutCommand}" IsEnabled="{Binding CanCut}"
@@ -175,29 +175,29 @@
                 <MenuItem Header="{localization:Localize Tools.IniEditor.Toolbar.Delete}" Command="{Binding DeleteCommand}" IsEnabled="{Binding CanDelete}"
                           InputGesture="Delete">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.Scan}" Command="{Binding ScanRegistryCommand}">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.Magnify}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.Magnify}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.AutoPack}" Command="{Binding AutoPackCommand}">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <Separator/>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.ExportIni}" Command="{Binding ExportIniCommand}">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize TextureEditor.Button.ExportSheet}" Command="{Binding ExportSheetCommand}">
                   <MenuItem.Icon>
-                    <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="14" Height="14"/>
+                    <PathIcon Data="{StaticResource ToolIcon.ContentSaveOutline}" Width="16" Height="16"/>
                   </MenuItem.Icon>
                 </MenuItem>
               </MenuFlyout>
@@ -310,55 +310,55 @@
           </TabControl>
           <Grid Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
             <Grid Grid.Row="0" ColumnDefinitions="*,*,*" Margin="0,0,0,4">
-              <Button Grid.Column="0" Command="{Binding AddSliceCommand}" Classes="Secondary" Margin="0,0,4,0"
+              <Button Grid.Column="0" Command="{Binding AddSliceCommand}" Classes="action-secondary action-compact" Margin="0,0,4,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding HasAtlas}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.AddSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize TextureEditor.Button.Add}" VerticalAlignment="Center" FontSize="12"/>
+                  <PathIcon Data="{StaticResource ToolIcon.Plus}"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Button.Add}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Grid.Column="1" Command="{Binding DuplicateCommand}" Classes="Secondary" Margin="4,0,4,0"
+              <Button Grid.Column="1" Command="{Binding DuplicateCommand}" Classes="action-secondary action-compact" Margin="4,0,4,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanDuplicate}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DuplicateSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentDuplicate" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize TextureEditor.Button.Duplicate}" VerticalAlignment="Center" FontSize="12"/>
+                  <material:MaterialIcon Kind="ContentDuplicate" Width="16" Height="16"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Button.Duplicate}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Grid.Column="2" Command="{Binding DeleteCommand}" Classes="Danger" Margin="4,0,0,0"
+              <Button Grid.Column="2" Command="{Binding DeleteCommand}" Classes="action-danger action-compact" Margin="4,0,0,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                       IsEnabled="{Binding CanDelete}"
                       ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.DeleteSlice}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center" FontSize="12"/>
+                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
+                  <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </Grid>
             <Grid Grid.Row="1" ColumnDefinitions="*,*,*">
-              <Button Grid.Column="0" Command="{Binding CutCommand}" Classes="Secondary" Margin="0,0,4,0"
+              <Button Grid.Column="0" Command="{Binding CutCommand}" Classes="action-secondary action-compact" Margin="0,0,4,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanCut}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Cut}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentCut" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Cut}" VerticalAlignment="Center" FontSize="12"/>
+                  <material:MaterialIcon Kind="ContentCut" Width="16" Height="16"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Cut}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Grid.Column="1" Command="{Binding CopyCommand}" Classes="Secondary" Margin="4,0,4,0"
+              <Button Grid.Column="1" Command="{Binding CopyCommand}" Classes="action-secondary action-compact" Margin="4,0,4,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanCopy}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Copy}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Copy}" VerticalAlignment="Center" FontSize="12"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Copy}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Grid.Column="2" Command="{Binding PasteCommand}" Classes="Secondary" Margin="4,0,0,0"
+              <Button Grid.Column="2" Command="{Binding PasteCommand}" Classes="action-secondary action-compact" Margin="4,0,0,0"
                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" IsEnabled="{Binding CanPaste}"
                       ToolTip.Tip="{localization:Localize Tools.IniEditor.Toolbar.Paste}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <material:MaterialIcon Kind="ContentPaste" Width="14" Height="14"/>
-                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Paste}" VerticalAlignment="Center" FontSize="12"/>
+                  <material:MaterialIcon Kind="ContentPaste" Width="16" Height="16"/>
+                  <TextBlock Text="{localization:Localize Tools.IniEditor.Toolbar.Paste}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </Grid>
@@ -511,15 +511,15 @@
             <TextBlock Text="{localization:Localize TextureEditor.Empty.Description}" FontSize="12"
                        Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"/>
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,8,0,0">
-              <Button Command="{Binding OpenFolderCommand}" Classes="Primary">
+              <Button Command="{Binding OpenFolderCommand}" Classes="action-primary action-compact">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
+                  <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.OpenFolder}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-              <Button Command="{Binding OpenFileCommand}" Classes="Secondary">
+              <Button Command="{Binding OpenFileCommand}" Classes="action-secondary action-compact">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <PathIcon Data="{StaticResource ToolIcon.ImageOutline}" Width="16" Height="16"/>
+                  <PathIcon Data="{StaticResource ToolIcon.ImageOutline}"/>
                   <TextBlock Text="{localization:Localize TextureEditor.Button.OpenAtlas}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
@@ -538,8 +538,8 @@
                 <ProgressBar IsIndeterminate="True" Height="6" CornerRadius="3"
                              Foreground="{DynamicResource AccentBrush}"
                              Background="{DynamicResource SurfaceHoverBrush}"/>
-                <Button Command="{Binding CancelOperationCommand}" Classes="Secondary" HorizontalAlignment="Center">
-                  <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center" FontSize="12"/>
+                <Button Command="{Binding CancelOperationCommand}" Classes="action-secondary action-compact" HorizontalAlignment="Center">
+                  <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center"/>
                 </Button>
               </StackPanel>
             </Border>
@@ -599,20 +599,20 @@
               </StackPanel>
               <StackPanel Spacing="6">
                 <TextBlock Text="{localization:Localize TextureEditor.Label.Presets}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetLargeCameo}" Classes="Secondary"
+                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetLargeCameo}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetLarge}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Large}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Large}"/>
                 </Button>
-                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetSmallCameo}" Classes="Secondary"
+                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetSmallCameo}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetSmall}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Small}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Small}"/>
                 </Button>
-                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetHudButton}" Classes="Secondary"
+                <Button Command="{Binding ApplyPresetCommand}" CommandParameter="{x:Static constants:TextureEditorConstants.PresetHudButton}" Classes="action-secondary action-compact"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                         ToolTip.Tip="{localization:Localize TextureEditor.Tooltip.PresetHud}">
-                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Hud}" FontSize="12"/>
+                  <TextBlock Text="{localization:Localize TextureEditor.Preset.Hud}"/>
                 </Button>
               </StackPanel>
             </StackPanel>
@@ -629,38 +629,6 @@
   </Grid>
 
   <UserControl.Styles>
-    <Style Selector="Button.Primary">
-      <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.Primary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
-    <Style Selector="Button.Secondary">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.Secondary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.Danger">
-      <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.Danger:pointerover">
-      <Setter Property="Opacity" Value="0.9" />
-    </Style>
     <Style Selector="Border.slice">
       <Setter Property="BorderBrush" Value="{DynamicResource TextMuted}" />
     </Style>

@@ -23,6 +23,21 @@ public partial class NotificationActionViewModel(NotificationAction action, Acti
     public NotificationActionStyle Style => action.Style;
 
     /// <summary>
+    /// Gets a value indicating whether the action uses the shared primary treatment.
+    /// </summary>
+    public bool IsPrimary => Style is NotificationActionStyle.Primary or NotificationActionStyle.Success;
+
+    /// <summary>
+    /// Gets a value indicating whether the action uses the shared secondary treatment.
+    /// </summary>
+    public bool IsSecondary => !IsPrimary && !IsDanger;
+
+    /// <summary>
+    /// Gets a value indicating whether the action uses the shared destructive treatment.
+    /// </summary>
+    public bool IsDanger => Style == NotificationActionStyle.Danger;
+
+    /// <summary>
     /// Gets the text to display on the action button.
     /// </summary>
     public string Text { get; } = action.Text;

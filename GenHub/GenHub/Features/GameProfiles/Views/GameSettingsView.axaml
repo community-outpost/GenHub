@@ -47,7 +47,7 @@
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Video}}"
                             Command="{Binding SelectCategoryCommand}"
                             CommandParameter="{x:Static vm:SettingsCategory.Video}"
-                            ToolTip.Tip="{localization:Localize GameSettings.Category.Video}">
+                            ToolTip.Tip="{localization:Localize GameSettings.Category.Video}" AutomationProperties.Name="{localization:Localize GameSettings.Category.Video}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16C1,17.11 1.89,18 3,18H10V20H8V22H16V20H14V18H21C22.11,18 23,17.11 23,16V4C23,2.89 22.11,2 21,2Z" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.Video}" VerticalAlignment="Center" />
@@ -58,7 +58,7 @@
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Audio}}"
                             Command="{Binding SelectCategoryCommand}"
                             CommandParameter="{x:Static vm:SettingsCategory.Audio}"
-                            ToolTip.Tip="{localization:Localize GameSettings.Category.Audio}">
+                            ToolTip.Tip="{localization:Localize GameSettings.Category.Audio}" AutomationProperties.Name="{localization:Localize GameSettings.Category.Audio}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.85 14,18.71V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16.03C15.5,15.29 16.5,13.77 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.Audio}" VerticalAlignment="Center" />
@@ -69,7 +69,7 @@
                             Classes.selected="{Binding SelectedCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:SettingsCategory.Controls}}"
                             Command="{Binding SelectCategoryCommand}"
                             CommandParameter="{x:Static vm:SettingsCategory.Controls}"
-                            ToolTip.Tip="{localization:Localize GameSettings.Category.Controls}">
+                            ToolTip.Tip="{localization:Localize GameSettings.Category.Controls}" AutomationProperties.Name="{localization:Localize GameSettings.Category.Controls}">
                         <StackPanel Orientation="Horizontal">
                             <PathIcon Data="M19,10H5A2,2 0 0,0 3,12V16A2,2 0 0,0 5,18H19A2,2 0 0,0 21,16V12C21,10.89 20.1,10 19,10M5,12H7V14H5V12M5,16V15H7V16H5M9,16V15H11V16H9M9,14V12H11V14H9M19,16H13V15H19V16M19,14H13V12H19V14Z" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.Controls}" VerticalAlignment="Center" />
@@ -81,7 +81,7 @@
                             Command="{Binding SelectCategoryCommand}"
                             CommandParameter="{x:Static vm:SettingsCategory.TheSuperHackers}"
                             IsVisible="{Binding IsTheSuperHackersVisible}"
-                            ToolTip.Tip="{localization:Localize GameSettings.Category.TheSuperHackers}">
+                            ToolTip.Tip="{localization:Localize GameSettings.Category.TheSuperHackers}" AutomationProperties.Name="{localization:Localize GameSettings.Category.TheSuperHackers}">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" Width="18" Height="18" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.TheSuperHackers}" VerticalAlignment="Center" />
@@ -93,7 +93,7 @@
                             Command="{Binding SelectCategoryCommand}"
                             CommandParameter="{x:Static vm:SettingsCategory.GeneralsOnline}"
                             IsVisible="{Binding IsGeneralsOnlineVisible}"
-                            ToolTip.Tip="{localization:Localize GameSettings.Category.GeneralsOnline}">
+                            ToolTip.Tip="{localization:Localize GameSettings.Category.GeneralsOnline}" AutomationProperties.Name="{localization:Localize GameSettings.Category.GeneralsOnline}">
                         <StackPanel Orientation="Horizontal">
                             <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" Width="18" Height="18" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.GeneralsOnline}" VerticalAlignment="Center" />
@@ -270,10 +270,14 @@
 
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Classes="section-header" Text="{localization:Localize GameSettings.Camera.Title}" FontSize="15" VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Classes="secondary-btn" Command="{Binding ResetCameraDefaultsCommand}" ToolTip.Tip="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}">
+                                <Button
+                                        Grid.Column="1"
+                                        Classes="action-secondary"
+                                        Command="{Binding ResetCameraDefaultsCommand}"
+                                        ToolTip.Tip="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}" AutomationProperties.Name="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Width="14" Height="14" VerticalAlignment="Center" />
-                                        <TextBlock Text="{localization:Localize GameSettings.Camera.ResetDefaults}" VerticalAlignment="Center" FontSize="12" />
+                                        <PathIcon Data="{StaticResource RefreshIcon}"   VerticalAlignment="Center" />
+                                        <TextBlock Text="{localization:Localize GameSettings.Camera.ResetDefaults}" VerticalAlignment="Center"  />
                                     </StackPanel>
                                 </Button>
                             </Grid>

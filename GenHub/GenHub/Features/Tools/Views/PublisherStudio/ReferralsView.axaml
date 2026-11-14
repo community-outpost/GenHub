@@ -71,30 +71,6 @@
         </Style>
 
         <!-- Button Styles -->
-        <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-
-        <Style Selector="Button.danger-btn">
-            <Setter Property="Background" Value="{DynamicResource StatusErrorBadgeBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-
-        <Style Selector="Button.danger-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource ErrorFillBrush}"/>
-        </Style>
 
         <!-- Label Styles -->
         <Style Selector="TextBlock.field-label">
@@ -121,24 +97,24 @@
                                     Background="{DynamicResource PrimaryGradientBrush}">
                                 <PathIcon Data="{StaticResource LinkIcon}"
                                           Width="16" Height="16"
-                                          Foreground="White"/>
+                                          Foreground="{DynamicResource TextPrimary}"/>
                             </Border>
                             <StackPanel Spacing="1" VerticalAlignment="Center">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.Title}"
                                            FontSize="15"
                                            FontWeight="Bold"
-                                           Foreground="White"/>
+                                           Foreground="{DynamicResource TextPrimary}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.Subtitle}"
                                            FontSize="11"
                                            Foreground="{DynamicResource TextSecondary}"/>
                             </StackPanel>
                         </StackPanel>
                         <Button Grid.Column="1"
-                                Classes="primary-btn"
+                                Classes="action-primary icon-action"
                                 Command="{Binding AddReferralCommand}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Referrals.AddTooltip}"
-                                Padding="8">
-                            <PathIcon Data="{StaticResource AddIcon}" Width="14" Height="14" Foreground="White"/>
+                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Referrals.AddTooltip}">
+                            <PathIcon Data="{StaticResource AddIcon}"/>
                         </Button>
                     </Grid>
                 </Border>
@@ -170,7 +146,7 @@
                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding PublisherId}"
                                                    FontWeight="SemiBold"
-                                                   Foreground="White"
+                                                   Foreground="{DynamicResource TextPrimary}"
                                                    FontSize="13"/>
                                         <TextBlock Text="{Binding CatalogUrl}"
                                                    FontSize="11"
@@ -211,23 +187,22 @@
                         BorderBrush="{DynamicResource GlassFillBrush}">
                     <Grid ColumnDefinitions="*,Auto">
                         <Button Grid.Column="0"
-                                Classes="primary-btn"
+                                Classes="action-primary action-compact"
                                 Command="{Binding AddReferralCommand}"
                                 HorizontalAlignment="Stretch"
                                 Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                <PathIcon Data="{StaticResource AddIcon}"
-                                          Width="12" Height="12"
-                                          Foreground="White"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.AddButton}" FontSize="12"/>
+                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.AddButton}"/>
                             </StackPanel>
                         </Button>
                         <Button Grid.Column="1"
-                                Classes="danger-btn"
+                                Classes="action-danger icon-action"
                                 Command="{Binding DeleteReferralCommand}"
                                 IsEnabled="{Binding SelectedReferral, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Referrals.RemoveTooltip}">
-                            <PathIcon Data="{StaticResource DeleteIcon}" Width="14" Height="14"/>
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Referrals.RemoveTooltip}"
+                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Referrals.RemoveTooltip}">
+                            <PathIcon Data="{StaticResource DeleteIcon}"/>
                         </Button>
                     </Grid>
                 </Border>
@@ -246,7 +221,7 @@
                     <Grid ColumnDefinitions="Auto,*">
                         <PathIcon Data="{StaticResource InfoIcon}" Width="16" Height="16" Foreground="{DynamicResource AccentColorBrush}" Margin="0,2,12,0" VerticalAlignment="Top"/>
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksTitle}" FontWeight="SemiBold" FontSize="12" Foreground="White"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.HowItWorksText}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" LineHeight="16"/>
                         </StackPanel>
@@ -264,19 +239,17 @@
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EditTitle}"
                                            FontSize="16"
                                            FontWeight="Bold"
-                                           Foreground="White"/>
+                                           Foreground="{DynamicResource TextPrimary}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.EditSubtitle}"
                                            FontSize="12"
                                            Foreground="{DynamicResource TextSecondary}"/>
                             </StackPanel>
                             <Button Grid.Column="1"
-                                    Classes="primary-btn"
+                                    Classes="action-primary action-compact"
                                     Command="{Binding SaveEditCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource SaveIcon}"
-                                              Width="13" Height="13"
-                                              Foreground="White"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.SaveChanges}" FontSize="12"/>
+                                    <PathIcon Data="{StaticResource SaveIcon}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.SaveChanges}"/>
                                 </StackPanel>
                             </Button>
                         </Grid>

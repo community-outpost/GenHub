@@ -29,22 +29,7 @@
 
     <Window.Styles>
         <!-- Link button style for header badges -->
-        <Style Selector="Button.header-link-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="9,4"/>
-            <Setter Property="Margin" Value="0,0,6,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style Selector="Button.header-link-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-        </Style>
+
     </Window.Styles>
 
     <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
@@ -111,26 +96,13 @@
 
                     <!-- Close Button -->
                     <Button Grid.Column="1"
+                            Classes="icon-action"
                             VerticalAlignment="Top"
                             HorizontalAlignment="Right"
-                            Background="Transparent"
-                            Foreground="{DynamicResource TextSecondary}"
-                            BorderThickness="0"
-                            Padding="0"
-                            Width="32" Height="32"
+                            AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                            ToolTip.Tip="{localization:Localize Common.Button.Close}"
                             Click="CloseButton_Click">
-                        <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                              Fill="{Binding $parent[Button].Foreground}"
-                              Width="12" Height="12"
-                              Stretch="Uniform"
-                              VerticalAlignment="Center"
-                              HorizontalAlignment="Center" />
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                            </Style>
-                        </Button.Styles>
+                        <PathIcon Data="{StaticResource CloseIcon}" />
                     </Button>
                 </Grid>
 
@@ -174,21 +146,10 @@
                                        FontSize="13"
                                        LineHeight="18" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,8,0,0">
-                                <Button Content="{localization:Localize Downloads.Subscription.Retry}"
-                                        Command="{Binding InitializeCommand}"
-                                        Background="{DynamicResource AccentBrush}"
-                                        Foreground="{DynamicResource TextPrimary}"
-                                        FontWeight="Bold"
-                                        Padding="20,8"
-                                        CornerRadius="8" />
-                                <Button Content="{localization:Localize Downloads.Subscription.Close}"
-                                        Command="{Binding CancelCommand}"
-                                        Background="{DynamicResource SurfaceElevatedBrush}"
-                                        Foreground="{DynamicResource TextPrimary}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        BorderThickness="1"
-                                        Padding="20,8"
-                                        CornerRadius="8" />
+                                <Button Classes="action-primary" Content="{localization:Localize Downloads.Subscription.Retry}"
+                                        Command="{Binding InitializeCommand}" />
+                                <Button Classes="action-secondary" Content="{localization:Localize Downloads.Subscription.Close}"
+                                        Command="{Binding CancelCommand}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -239,38 +200,38 @@
                                     <!-- Interactive Link Badges -->
                                     <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
                                         <!-- Website Link Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherWebsite}"
                                                 ToolTip.Tip="{Binding PublisherWebsite}"
-                                                IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.Web}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Website}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.Web}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Website}" />
                                             </StackPanel>
                                         </Button>
 
                                         <!-- Support & Issues Link Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherSupportUrl}"
                                                 ToolTip.Tip="{Binding PublisherSupportUrl}"
-                                                IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.MessageOutline}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.SupportIssues}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.MessageOutline}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.SupportIssues}" />
                                             </StackPanel>
                                         </Button>
 
                                         <!-- Contact Email Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherContactEmail}"
                                                 ToolTip.Tip="{Binding PublisherContactEmail}"
-                                                IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.EmailOutline}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Contact}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.EmailOutline}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Contact}" />
                                             </StackPanel>
                                         </Button>
                                     </WrapPanel>
@@ -523,54 +484,35 @@
                             <TextBlock Text="{Binding ErrorTitle}" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold" FontSize="12" />
                             <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
-                        <Button Grid.Column="2"
+                        <Button Classes="icon-action" Grid.Column="2"
+                                AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                                ToolTip.Tip="{localization:Localize Common.Button.Close}"
                                 Command="{Binding DismissErrorCommand}"
-                                Background="Transparent"
-                                Foreground="{DynamicResource TextSecondary}"
-                                BorderThickness="0"
-                                Padding="6,2"
                                 Margin="8,0,0,0"
-                                VerticalAlignment="Top"
-                                Cursor="Hand">
-                            <PathIcon Data="{StaticResource ToolIcon.Close}" Width="12" Height="12" VerticalAlignment="Center" />
+                                VerticalAlignment="Top">
+                            <PathIcon Data="{StaticResource CloseIcon}" VerticalAlignment="Center" />
                         </Button>
                     </Grid>
                 </Border>
 
                 <!-- Row 4: Footer Action Buttons -->
                 <Grid Grid.Row="4" ColumnDefinitions="*, Auto" Margin="0,14,0,0">
-                    <Button Grid.Column="0"
+                    <Button Classes="action-secondary" Grid.Column="0"
                             Content="{Binding CancelButtonText}"
                             Command="{Binding CancelCommand}"
-                            Background="{DynamicResource SurfaceElevatedBrush}"
-                            Foreground="{DynamicResource TextPrimary}"
-                            BorderBrush="{DynamicResource BorderBrush}"
-                            BorderThickness="1"
-                            HorizontalAlignment="Left"
-                            Padding="24,9"
-                            CornerRadius="8" />
+                            HorizontalAlignment="Left" />
 
-                    <Button Grid.Column="1"
+                    <Button Classes="action-danger" Grid.Column="1"
                             Content="{localization:Localize Downloads.Subscription.ReplaceExisting}"
                             Command="{Binding ReplaceExistingCommand}"
                             IsEnabled="{Binding CanConfirm}"
-                            IsVisible="{Binding RequiresSourceDecision}"
-                            Background="{DynamicResource WarningBrush}"
-                            Foreground="{DynamicResource TextPrimary}"
-                            FontWeight="Bold"
-                            Padding="28,9"
-                            CornerRadius="8" />
+                            IsVisible="{Binding RequiresSourceDecision}" />
 
-                    <Button Grid.Column="1"
+                    <Button Classes="action-primary" Grid.Column="1"
                             Content="{Binding ConfirmButtonText}"
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
-                            IsVisible="{Binding !RequiresSourceDecision}"
-                            Background="{DynamicResource AccentBrush}"
-                            Foreground="{DynamicResource TextPrimary}"
-                            FontWeight="Bold"
-                            Padding="28,9"
-                            CornerRadius="8" />
+                            IsVisible="{Binding !RequiresSourceDecision}" />
                 </Grid>
             </Grid>
         </Panel>

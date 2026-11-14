@@ -18,24 +18,6 @@
         Background="Transparent">
 
     <Window.Styles>
-        <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="18,10"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.secondary-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="18,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -75,12 +57,10 @@
                 </StackPanel>
                 <Button Grid.Column="2"
                         Command="{Binding CancelCommand}"
-                        Background="Transparent"
-                        Padding="6"
-                        Cursor="Hand">
-                    <PathIcon Data="{StaticResource CloseIcon}"
-                              Width="14" Height="14"
-                              Foreground="{DynamicResource TextMuted}"/>
+                        Classes="icon-action"
+                        AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                        ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                    <PathIcon Data="{StaticResource CloseIcon}"/>
                 </Button>
             </Grid>
 
@@ -126,14 +106,13 @@
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" Margin="0,16,0,0">
                 <Button Command="{Binding CancelCommand}"
                         Content="{localization:Localize Downloads.ImportSubscription.Cancel}"
-                        Classes="secondary-btn"/>
+                        Classes="action-secondary"/>
                 <Button Command="{Binding SubmitCommand}"
-                        Classes="primary-btn"
+                        Classes="action-primary"
                         IsEnabled="{Binding !IsValidating}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PathIcon Data="{StaticResource LinkIcon}"
-                                  Width="14" Height="14"
-                                  Foreground="{DynamicResource TextPrimary}"
+                                  Width="16" Height="16"
                                   VerticalAlignment="Center"/>
                         <TextBlock Text="{localization:Localize Downloads.ImportSubscription.LoadAndSubscribe}" VerticalAlignment="Center"/>
                     </StackPanel>
