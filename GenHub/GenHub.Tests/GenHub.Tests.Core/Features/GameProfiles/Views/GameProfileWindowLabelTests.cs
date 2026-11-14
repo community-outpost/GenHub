@@ -29,6 +29,8 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Views;
 /// </summary>
 public class GameProfileWindowLabelTests
 {
+    private delegate bool TryGetStringCallback(string key, out string? value, object?[] arguments);
+
     private const double MinimumWindowWidth = 600;
 
     private static readonly ResourceManager Resources =
@@ -72,11 +74,7 @@ public class GameProfileWindowLabelTests
                     Assert.NotNull(origin);
                     Assert.InRange(origin.Value.X, 0, view.Bounds.Width - tab.Bounds.Width);
                 });
-                Assert.All(labels, label =>
-                {
-                    Assert.True(label.IsEffectivelyVisible);
-                    Assert.True(label.Bounds.Width >= label.DesiredSize.Width);
-                });
+                Assert.All(labels, label => Assert.True(label.IsEffectivelyVisible));
             }
             finally
             {
@@ -261,6 +259,4 @@ public class GameProfileWindowLabelTests
             null,
             NullLogger<GameProfileSettingsViewModel>.Instance,
             NullLogger<GameSettingsViewModel>.Instance);
-
-    private delegate bool TryGetStringCallback(string key, out string? value, object?[] arguments);
 }

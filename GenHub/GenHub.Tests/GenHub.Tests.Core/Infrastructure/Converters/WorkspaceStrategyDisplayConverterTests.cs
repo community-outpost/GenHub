@@ -16,6 +16,8 @@ namespace GenHub.Tests.Core.Infrastructure.Converters;
 /// </summary>
 public class WorkspaceStrategyDisplayConverterTests
 {
+    private delegate bool TryGetStringCallback(string key, out string? value, object?[] arguments);
+
     private static readonly ResourceManager Resources =
         new(LocalizationConstants.StringResourceBaseName, typeof(LocalizationService).Assembly);
 
@@ -126,6 +128,4 @@ public class WorkspaceStrategyDisplayConverterTests
             }));
         return mock.Object;
     }
-
-    private delegate bool TryGetStringCallback(string key, out string? value, object?[] arguments);
 }

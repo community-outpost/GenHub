@@ -199,7 +199,7 @@
                         ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
-                        MinWidth="420" />
+                        MinWidth="250" />
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Description}"
                          Classes="setting-description" />
             </StackPanel>
