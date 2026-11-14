@@ -523,6 +523,46 @@ public class GameProfileLibraryViewModelTests
     }
 
     /// <summary>
+    /// Verifies that the visible overview does not repeat the selected game and version in several places.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_OverviewShowsOneMetadataLine_AndUpdatesAfterRename()
+    {
+        var vm = CreateViewModel();
+        var profile = CreateProfile("zero-hour", "Zero Hour", GameType.ZeroHour);
+        profile.Description = "PC · v1.04 · Zero Hour";
+        profile.GameVersion = "v1.04";
+        vm.Profiles.Add(profile);
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var visibleText = view.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.IsEffectivelyVisible).Select(text => text.Text).ToList();
+
+            Assert.Equal(2, visibleText.Count(text => text == "Zero Hour"));
+            Assert.Equal(1, visibleText.Count(text => text == "v1.04"));
+            Assert.DoesNotContain(profile.Description, visibleText);
+
+            profile.Name = "LAN night";
+            Dispatcher.UIThread.RunJobs();
+            visibleText = view.GetVisualDescendants().OfType<TextBlock>()
+                .Where(text => text.IsEffectivelyVisible).Select(text => text.Text).ToList();
+
+            Assert.Equal(2, visibleText.Count(text => text == "LAN night"));
+            Assert.Equal(1, visibleText.Count(text => text == "Zero Hour · v1.04"));
+            Assert.DoesNotContain("Zero Hour", visibleText);
+            Assert.DoesNotContain("v1.04", visibleText);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// Verifies that a filtered ListBox does not clear the selected detail through its two-way binding.
     /// </summary>
     [AvaloniaFact]

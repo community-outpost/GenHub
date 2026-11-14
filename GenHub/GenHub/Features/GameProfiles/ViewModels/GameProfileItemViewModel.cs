@@ -179,6 +179,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the name of the game profile.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string _name;
 
     /// <summary>
@@ -198,6 +199,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LibraryVersion))]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string _version;
 
     /// <summary>
@@ -230,6 +232,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             if (SetProperty(ref _gameVersion, displayVersion))
             {
                 OnPropertyChanged(nameof(LibraryVersion));
+                OnPropertyChanged(nameof(LibraryHeaderMetadata));
             }
         }
     }
@@ -299,6 +302,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LibraryGameName))]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string? _sourceTypeName;
 
     /// <summary>

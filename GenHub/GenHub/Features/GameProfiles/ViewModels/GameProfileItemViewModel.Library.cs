@@ -1,6 +1,8 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Infrastructure.Converters;
+using System;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -38,7 +40,31 @@ public partial class GameProfileItemViewModel
     public string LibraryVersion => GameVersion ?? Version;
 
     /// <summary>
-    /// Gets the user's description, with existing derived metadata as a fallback.
+    /// Gets one metadata line, omitting the game name when the profile title already supplies it.
+    /// </summary>
+    public string LibraryHeaderMetadata
+    {
+        get
+        {
+            var gameName = LibraryGameName.Trim();
+            var version = LibraryVersion.Trim();
+            var profileName = Name?.Trim() ?? string.Empty;
+            if (TitleIdentifiesGame(profileName, gameName))
+            {
+                return version;
+            }
+
+            if (string.IsNullOrEmpty(version))
+            {
+                return gameName;
+            }
+
+            return string.Concat(gameName, GameProfileLibraryConstants.MetadataSeparator, version);
+        }
+    }
+
+    /// <summary>
+    /// Gets the saved description without repeating generated game and version metadata.
     /// </summary>
     public string LibraryDescription
     {
@@ -49,14 +75,14 @@ public partial class GameProfileItemViewModel
                 return LibraryProfile.Description;
             }
 
-            if (!string.IsNullOrWhiteSpace(Description))
-            {
-                return Description;
-            }
-
             return GetLibraryText("GameProfiles.Library.NoDescription", "No description has been added to this profile.");
         }
     }
+
+    /// <summary>
+    /// Gets a value indicating whether the profile has a saved description worth displaying.
+    /// </summary>
+    public bool HasLibraryDescription => !string.IsNullOrWhiteSpace(LibraryProfile.Description);
 
     /// <summary>
     /// Gets the current process/preparation state without claiming file validation.
@@ -127,10 +153,22 @@ public partial class GameProfileItemViewModel
     internal void NotifyLibraryCaptionsChanged()
     {
         OnPropertyChanged(nameof(LibraryGameName));
+        OnPropertyChanged(nameof(LibraryHeaderMetadata));
         OnPropertyChanged(nameof(LibraryDescription));
+        OnPropertyChanged(nameof(HasLibraryDescription));
         OnPropertyChanged(nameof(LibraryLaunchStatus));
         OnPropertyChanged(nameof(LibraryLaunchMethod));
         OnPropertyChanged(nameof(LibraryArguments));
+    }
+
+    private static bool TitleIdentifiesGame(string profileName, string gameName)
+    {
+        if (!profileName.StartsWith(gameName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return profileName.Length == gameName.Length || !char.IsLetterOrDigit(profileName[gameName.Length]);
     }
 
     private static string GetLibraryText(string key, string fallback)
