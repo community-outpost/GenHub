@@ -4,6 +4,7 @@ using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -177,6 +178,37 @@ public class ActionButtonStyleTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(BrushColor(button.Foreground), BrushColor(icon.Foreground));
             Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("ActionDisabledInk")!), BrushColor(icon.Foreground));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Mixed icon and caption sizes must align by their actual centers, including compact actions.</summary>
+    /// <param name="role">The action role to exercise.</param>
+    [AvaloniaTheory]
+    [InlineData("action-primary")]
+    [InlineData("action-secondary")]
+    [InlineData("action-danger")]
+    [InlineData("action-danger action-compact")]
+    public void IconCaption_CentersEachChildWithoutStretchingItsLineBox(string role)
+    {
+        var icon = new PathIcon { Data = Geometry.Parse("M0,0 L16,16") };
+        var caption = new TextBlock { Text = "Delete", FontSize = 10 };
+        var group = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { icon, caption } };
+        var button = new Button { Content = group, Height = 48 };
+        button.Classes.AddRange(role.Split(' '));
+        var window = new Window { Width = 320, Height = 120, Content = button };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var iconOrigin = icon.TranslatePoint(default, button)!.Value;
+            var textOrigin = caption.TranslatePoint(default, button)!.Value;
+            Assert.InRange(Math.Abs(textOrigin.Y + (caption.Bounds.Height / 2) - (button.Bounds.Height / 2)), 0, 0.5);
+            Assert.InRange(Math.Abs(iconOrigin.Y + (icon.Bounds.Height / 2) - (button.Bounds.Height / 2)), 0, 0.5);
+            Assert.InRange(Math.Abs(caption.Bounds.Height - caption.DesiredSize.Height), 0, 0.5);
         }
         finally
         {

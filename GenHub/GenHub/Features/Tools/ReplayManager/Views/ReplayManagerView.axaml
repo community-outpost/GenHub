@@ -747,7 +747,7 @@
     <Style Selector="RadioButton.TabButton">
       <Setter Property="Template">
         <ControlTemplate>
-          <Border Name="Root" CornerRadius="8" Padding="16,8" Background="Transparent">
+          <Border Name="Root" CornerRadius="{DynamicResource ActionCornerRadius}" Padding="16,8" Background="Transparent">
             <TextBlock Text="{TemplateBinding Content}" FontWeight="SemiBold"
                        Foreground="{TemplateBinding Foreground}"/>
           </Border>

@@ -1,12 +1,15 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Features.Tools.Views.Dialogs;
+using System;
 using System.Linq;
 using Xunit;
 
@@ -142,6 +145,70 @@ public class FormFieldStyleTests
             Assert.DoesNotContain("form-field", embedded.Classes);
             Assert.NotEqual(36, embedded.MinHeight);
             Assert.Equal(28, number.MinHeight);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Single-line text and watermarks stay centered when a form allocates extra height.</summary>
+    /// <param name="compact">Whether compact field metrics apply.</param>
+    /// <param name="empty">Whether to inspect the watermark instead of entered text.</param>
+    [AvaloniaTheory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SingleLineField_CentersItsRenderedLineWhenHeightGrows(bool compact, bool empty)
+    {
+        var field = new TextBox { Text = empty ? string.Empty : "Catalog gjpq", Watermark = "Enter catalog URL", Height = 56 };
+        field.Classes.Add("form-field");
+        if (compact)
+        {
+            field.Classes.Add("form-compact");
+        }
+
+        var window = new Window { Width = 400, Height = 140, Content = new StackPanel { Children = { field } } };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Control line = empty
+                ? field.GetVisualDescendants().OfType<TextBlock>().Single(item => item.Name == "PART_Watermark")
+                : field.GetVisualDescendants().OfType<TextPresenter>().Single();
+            var inputBorder = field.GetVisualDescendants().OfType<Border>().Single(item => item.Name == "PART_BorderElement");
+            var lineHeight = line is TextPresenter textPresenter ? textPresenter.TextLayout.Height : ((TextBlock)line).TextLayout.Height;
+            var origin = line.TranslatePoint(default, inputBorder)!.Value;
+            Assert.InRange(Math.Abs(origin.Y + (lineHeight / 2) - (inputBorder.Bounds.Height / 2)), 0, 0.5);
+            field.Focus(NavigationMethod.Tab);
+            DataValidationErrors.SetErrors(field, ["Required"]);
+            Dispatcher.UIThread.RunJobs();
+            var errorCaption = field.GetVisualDescendants().OfType<TextBlock>().Single(item => item.Text == "Required");
+            Assert.Equal(ResourceColor("StatusErrorBrush"), BrushColor(errorCaption.Foreground));
+            origin = line.TranslatePoint(default, inputBorder)!.Value;
+            Assert.InRange(Math.Abs(origin.Y + (lineHeight / 2) - (inputBorder.Bounds.Height / 2)), 0, 0.5);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Centering single-line fields must not move the first line of a multiline editor.</summary>
+    [AvaloniaFact]
+    public void MultilineField_KeepsItsFirstLineAtTheTopInset()
+    {
+        var field = new TextBox { Text = "First line\nSecond line", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 120 };
+        field.Classes.Add("form-field");
+        var window = new Window { Width = 400, Height = 180, Content = new StackPanel { Children = { field } } };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var presenter = field.GetVisualDescendants().OfType<TextPresenter>().Single();
+            Assert.Equal(VerticalAlignment.Top, field.VerticalContentAlignment);
+            Assert.Equal(field.Padding.Top + field.BorderThickness.Top, presenter.TranslatePoint(default, field)!.Value.Y);
         }
         finally
         {

@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Common.ViewModels.Dialogs;
@@ -118,6 +120,34 @@ public class DialogLayoutTests
         {
             window.Close();
             (viewModel as IDisposable)?.Dispose();
+        }
+    }
+
+    /// <summary>Overlay scrollbar tracks must not overlap field borders in a constrained artifact form.</summary>
+    /// <param name="width">The available dialog width.</param>
+    [AvaloniaTheory]
+    [InlineData(360)]
+    [InlineData(700)]
+    public void ArtifactForm_ReservesARealGutterBesideTheInputs(double width)
+    {
+        var view = new AddArtifactDialogView();
+        var window = new Window { Width = width, Height = 460, Content = view };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var scroll = view.GetVisualDescendants().OfType<ScrollViewer>().Single(item => item.Classes.Contains("dialog-scroll"));
+            var scrollbar = scroll.GetVisualDescendants().OfType<ScrollBar>().Single(item => ReferenceEquals(item.TemplatedParent, scroll) && item.Orientation == Orientation.Vertical);
+            Assert.True(scroll.Extent.Height > scroll.Viewport.Height);
+            var trackLeft = scrollbar.TranslatePoint(default, scroll)!.Value.X;
+            var fieldRight = scroll.GetVisualDescendants().OfType<TextBox>()
+                .Where(field => field.IsEffectivelyVisible && field.Bounds.Width > 0)
+                .Max(field => field.TranslatePoint(default, scroll)!.Value.X + field.Bounds.Width);
+            Assert.True(fieldRight + 4 <= trackLeft, $"Field right {fieldRight}; scrollbar left {trackLeft}");
+        }
+        finally
+        {
+            window.Close();
         }
     }
 }

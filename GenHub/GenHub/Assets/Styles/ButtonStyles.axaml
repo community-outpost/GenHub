@@ -11,6 +11,10 @@
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <!-- A horizontal icon/caption group must center each child's own line box. -->
+    <Style Selector="Button.action-primary TextBlock, Button.action-secondary TextBlock, Button.action-danger TextBlock, Button.icon-action TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style Selector="Button.action-primary">
         <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
@@ -215,6 +219,7 @@
     </Style>
     <Style Selector="Button.action-primary PathIcon, Button.action-secondary PathIcon, Button.action-danger PathIcon, Button.icon-action PathIcon, Button.action-primary material|MaterialIcon, Button.action-secondary material|MaterialIcon, Button.action-danger material|MaterialIcon, Button.icon-action material|MaterialIcon">
         <Setter Property="Foreground" Value="{ReflectionBinding $parent[Button].Foreground}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Width" Value="{DynamicResource ActionIconSize}" />
         <Setter Property="Height" Value="{DynamicResource ActionIconSize}" />
     </Style>

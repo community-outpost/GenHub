@@ -34,7 +34,7 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer x:Name="DialogBodyScroll" Grid.Row="1">
+        <ScrollViewer Classes="dialog-scroll" x:Name="DialogBodyScroll" Grid.Row="1">
             <StackPanel Spacing="14">
                 <!-- Name -->
                 <StackPanel Spacing="6">

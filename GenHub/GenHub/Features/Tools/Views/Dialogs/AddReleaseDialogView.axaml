@@ -46,7 +46,7 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer x:Name="DialogBodyScroll" Grid.Row="1">
+        <ScrollViewer Classes="dialog-scroll" x:Name="DialogBodyScroll" Grid.Row="1">
             <StackPanel Spacing="14">
                 <!-- Info -->
                 <TextBlock Text="{Binding ContentName}" FontWeight="Bold" Opacity="0.5" Foreground="{DynamicResource TextPrimary}"/>
