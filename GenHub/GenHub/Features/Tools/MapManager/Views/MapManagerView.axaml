@@ -512,10 +512,6 @@
     <!-- Shared split-button layout follows the action styles so split corners and height win. -->
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
-    <Style Selector="ToggleButton.Primary:checked">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-    </Style>
 
   </UserControl.Styles>
 </UserControl>

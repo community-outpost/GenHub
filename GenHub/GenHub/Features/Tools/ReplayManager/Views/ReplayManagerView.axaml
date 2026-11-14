@@ -784,10 +784,6 @@
 
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
-    <Style Selector="ToggleButton.Primary:checked">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-    </Style>
 
     <Style Selector="Button.icon-subtle">
       <Setter Property="Background" Value="Transparent" />
