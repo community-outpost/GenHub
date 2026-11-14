@@ -22,118 +22,14 @@
 
   <UserControl.Styles>
     <!-- Modern Header Action Button -->
-    <Style Selector="Button.header-action-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,7" />
-      <Setter Property="FontSize" Value="12.5" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.header-action-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
 
     <!-- Accent Header Button -->
-    <Style Selector="Button.header-accent-btn">
-      <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,7" />
-      <Setter Property="FontSize" Value="12.5" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.header-accent-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
 
     <!-- Quick Access Navigation Row Button -->
-    <Style Selector="Button.quick-nav-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,9" />
-      <Setter Property="HorizontalAlignment" Value="Stretch" />
-      <Setter Property="HorizontalContentAlignment" Value="Left" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.quick-nav-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
 
     <!-- Execute Build CTA Button -->
-    <Style Selector="Button.build-cta-btn">
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="Padding" Value="16,13" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.build-cta-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-      <Setter Property="RenderTransform" Value="scale(1.01)" />
-    </Style>
-    <Style Selector="Button.build-cta-btn:pressed">
-      <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
-      <Setter Property="RenderTransform" Value="scale(0.99)" />
-    </Style>
 
     <!-- Abort Danger Button -->
-    <Style Selector="Button.abort-danger-btn">
-      <Setter Property="Background" Value="{DynamicResource ErrorBadgeBackgroundBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="14,9" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.abort-danger-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Foreground" Value="White" />
-    </Style>
 
     <!-- Fast Responsive Tooltips & Cursors -->
     <Style Selector="Button">
@@ -182,19 +78,19 @@
 
           <!-- Quick Actions -->
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
+            <Button Command="{Binding SaveProjectCommand}" Classes="action-secondary action-compact"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipSaveProject}">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource IconSave}" VerticalAlignment="Center"/>
                 <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonSave}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding CloseProjectCommand}" Classes="header-action-btn"
+            <Button Command="{Binding CloseProjectCommand}" Classes="action-secondary action-compact"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipCloseProject}">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource IconClear}" VerticalAlignment="Center"/>
                 <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonClose}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
@@ -230,13 +126,12 @@
                 <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="32" FontWeight="Bold"
                            Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,2,0,8"/>
                 <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
-                        Classes="quick-nav-btn"
+                        Classes="action-secondary action-compact"
                         HorizontalContentAlignment="Center"
-                        Padding="10,7"
                         ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipRefreshCount}">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonRefreshCount}" FontSize="12" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconReload}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonRefreshCount}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </Grid>
@@ -250,40 +145,40 @@
               <StackPanel Spacing="10">
                 <TextBlock Text="{localization:Localize Tools.ModBuilder.View.QuickAccessHeader}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
                 <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
-                <Button Command="{Binding OpenProjectFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenProjectFolder}">
+                <Button Command="{Binding OpenProjectFolderCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenProjectFolder}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenProjectFolder}" FontWeight="Medium" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconOpenFolder}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenProjectFolder}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenEditFolderCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenGameFilesEdited}">
+                <Button Command="{Binding OpenEditFolderCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenGameFilesEdited}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenGameFilesEdited}" FontWeight="Medium" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconEdit}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenGameFilesEdited}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenFileManagerCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipGameAssetManager}">
+                <Button Command="{Binding OpenFileManagerCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipGameAssetManager}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonGameAssetManager}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconPackage}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonGameAssetManager}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding ImportBigFilesCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipImportBig}">
+                <Button Command="{Binding ImportBigFilesCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipImportBig}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchive}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonImportBig}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconArchive}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonImportBig}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipEditConfiguration}">
+                <Button Command="{Binding OpenConfigEditorCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipEditConfiguration}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonEditConfiguration}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconSettings}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonEditConfiguration}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenManifestsCommand}" Classes="quick-nav-btn" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipManifests}">
+                <Button Command="{Binding OpenManifestsCommand}" Classes="action-secondary action-compact" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipManifests}">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonManifests}" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <PathIcon Data="{StaticResource IconArchiveFile}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonManifests}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </StackPanel>
@@ -369,10 +264,10 @@
                 </Border>
               </StackPanel>
               <Button Grid.Column="1" Command="{Binding ClearOutputCommand}" ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipClearOutput}"
-                      Classes="header-action-btn" Padding="10,6">
+                      Classes="action-secondary action-compact">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                  <Path Width="11" Height="11" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
-                  <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonClearOutput}" FontSize="12" VerticalAlignment="Center"/>
+                  <PathIcon Data="{StaticResource IconClear}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonClearOutput}" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
             </Grid>
@@ -460,44 +355,38 @@
                 <Grid ColumnDefinitions="*,6,*,6,*">
                   <!-- Execute Build Button -->
                   <Button Grid.Column="0" Command="{Binding BuildCommand}"
-                          Classes="build-cta-btn"
-                          Padding="4,8"
-                          CornerRadius="8"
+                          Classes="action-primary action-compact"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipExecuteBuild}"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" HorizontalAlignment="Center">
-                      <Path Width="13" Height="13" Fill="White" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonExecuteBuild}" FontWeight="SemiBold" FontSize="11.5" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <PathIcon Data="{StaticResource IconPlay}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonExecuteBuild}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Button>
 
                   <!-- Abort Build Button -->
                   <Button Grid.Column="2" Command="{Binding AbortBuildCommand}"
-                          Classes="abort-danger-btn"
-                          Padding="4,8"
-                          CornerRadius="8"
+                          Classes="action-danger action-compact"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipAbortBuild}"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           IsEnabled="{Binding IsBuilding}">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" HorizontalAlignment="Center">
-                      <Path Width="12" Height="12" Fill="{Binding $parent[Button].Foreground}" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonAbortBuild}" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <PathIcon Data="{StaticResource IconStop}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonAbortBuild}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Button>
 
                   <!-- Create Manifest Button -->
                   <Button Grid.Column="4" Command="{Binding CreateManifestCommand}"
-                          Classes="quick-nav-btn"
-                          Padding="4,8"
-                          CornerRadius="8"
+                          Classes="action-secondary action-compact"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipCreateManifest}">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" HorizontalAlignment="Center">
-                      <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonCreateManifest}" FontWeight="SemiBold" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <PathIcon Data="{StaticResource IconArchiveFile}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonCreateManifest}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -507,30 +396,26 @@
                 <!-- Row 2: Open Build Folder, Open Release Folder in one row -->
                 <Grid ColumnDefinitions="*,6,*">
                   <Button Grid.Column="0" Command="{Binding OpenBuildFolderCommand}"
-                          Classes="quick-nav-btn"
-                          Padding="6,8"
-                          CornerRadius="8"
+                          Classes="action-secondary action-compact"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenBuildFolder}"
                           IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Center">
-                      <Path Width="13" Height="13" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenBuildFolder}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <PathIcon Data="{StaticResource IconOpenFolder}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenBuildFolder}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Button>
 
                   <Button Grid.Column="2" Command="{Binding OpenReleaseFolderCommand}"
-                          Classes="quick-nav-btn"
-                          Padding="6,8"
-                          CornerRadius="8"
+                          Classes="action-secondary action-compact"
                           HorizontalAlignment="Stretch"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipOpenReleaseFolder}"
                           IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Center">
-                      <Path Width="13" Height="13" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenReleaseFolder}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                      <PathIcon Data="{StaticResource IconOpenFolder}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Tools.ModBuilder.View.ButtonOpenReleaseFolder}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     </StackPanel>
                   </Button>
                 </Grid>
@@ -552,11 +437,11 @@
                   </StackPanel>
 
                   <Button Grid.Column="2" Command="{Binding OpenManifestsCommand}"
-                          Classes="quick-nav-btn" Padding="8,4" CornerRadius="6"
+                          Classes="action-secondary action-compact"
                           ToolTip.Tip="{localization:Localize Tools.ModBuilder.View.TooltipEditManifests}">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                      <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
-                      <TextBlock Text="{localization:Localize Common.Button.Edit}" FontSize="11" VerticalAlignment="Center"/>
+                      <PathIcon Data="{StaticResource IconEdit}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{localization:Localize Common.Button.Edit}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>

@@ -1,59 +1,154 @@
-<Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-
-  <!-- Shared action bar styles for the map and replay managers. -->
-
-  <!-- Action Bar button height consistency -->
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- One gradient belongs to the enclosing capsule, not to either hit target. -->
+  <Style Selector="Border.split-action">
+    <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
+  </Style>
+  <Style Selector="Border.split-action:disabled">
+    <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+  </Style>
   <Style Selector="Button.ActionBarBtn, ToggleButton.ActionBarBtn">
     <Setter Property="Height" Value="32" />
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
-
-  <!-- Flush split button styles for Upload + Chevron Toggle -->
   <Style Selector="Button.SplitLeft">
     <Setter Property="CornerRadius" Value="999,0,0,999" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Margin" Value="0" />
     <Setter Property="Height" Value="32" />
-    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.SplitLeft">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:pointerover">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:pressed">
+    <Setter Property="Background" Value="{DynamicResource SplitActionPressedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SplitActionPressedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:disabled">
+    <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.SplitLeft:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
   </Style>
   <Style Selector="ToggleButton.SplitRight">
     <Setter Property="CornerRadius" Value="0,999,999,0" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="7,0" />
     <Setter Property="Margin" Value="0" />
     <Setter Property="Height" Value="32" />
-    <Setter Property="VerticalAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="Padding" Value="7,0" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:pointerover">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-  </Style>
-  <Style Selector="ToggleButton.SplitRight:checked /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-  </Style>
-  <Style Selector="ToggleButton.SplitRight:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-  </Style>
-  <Style Selector="ToggleButton.SplitRight:checked">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:pressed">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryPressedBrush}" />
+    <Setter Property="Background" Value="{DynamicResource SplitActionPressedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:pressed /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource ActionPrimaryPressedBrush}" />
+    <Setter Property="Background" Value="{DynamicResource SplitActionPressedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked:pointerover">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:disabled">
     <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
     <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:disabled /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
     <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked:disabled">
+    <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:checked:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="ToggleButton.SplitRight /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+    <Setter Property="BorderThickness" Value="1,0,0,0" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:checked PathIcon">
     <Setter Property="RenderTransform" Value="rotate(90deg)" />

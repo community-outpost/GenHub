@@ -57,51 +57,16 @@
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
         </Style>
 
-        <Style Selector="Button.glass-icon-btn">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.glass-icon-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
-        </Style>
-
-        <Style Selector="Button.glass-icon-btn.upload-pending">
+        <Style Selector="Button.action-secondary.upload-pending /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
             <Setter Property="BorderThickness" Value="1.5"/>
         </Style>
-        <Style Selector="Button.glass-icon-btn.upload-pending:pointerover">
+        <Style Selector="Button.action-secondary.upload-pending:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
         </Style>
 
-        <Style Selector="Button.card-action">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="7"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.card-action:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
-        </Style>
-
-        <Style Selector="Button.accent-glass-btn">
-             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-             <Setter Property="BorderThickness" Value="1"/>
-             <Setter Property="CornerRadius" Value="6"/>
-             <Setter Property="Padding" Value="12,8"/>
-        </Style>
-        <Style Selector="Button.accent-glass-btn:pointerover">
-             <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
-             <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="320,*" Margin="0">
@@ -179,57 +144,36 @@
                         <!-- Action Buttons: Rename, Add, Delete -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <!-- Rename -->
-                            <Button Command="{Binding RenameCatalogCommand}"
+                            <Button Classes="action-secondary icon-action" Command="{Binding RenameCatalogCommand}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RenameCatalogTooltip}"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="6"
-                                    Cursor="Hand">
-                                <PathIcon Data="{StaticResource EditIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.RenameCatalogTooltip}">
+                                <PathIcon Data="{StaticResource EditIcon}"/>
                             </Button>
                             <!-- Add New Catalog -->
-                            <Button Command="{Binding AddCatalogCommand}"
+                            <Button Classes="action-secondary icon-action" Command="{Binding AddCatalogCommand}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddCatalogTooltip}"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="6"
-                                    Cursor="Hand">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.AddCatalogTooltip}">
+                                <PathIcon Data="{StaticResource AddIcon}"/>
                             </Button>
                             <!-- Import Catalog (.json) -->
-                            <Button Command="{Binding ImportCatalogCommand}"
+                            <Button Classes="action-secondary icon-action" Command="{Binding ImportCatalogCommand}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ImportCatalogTooltip}"
-                                    Background="{DynamicResource GlassFillBrush}"
-                                    BorderBrush="{DynamicResource GlassBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="6"
-                                    Cursor="Hand">
-                                <PathIcon Data="{StaticResource FolderOpenIcon}" Width="11" Height="11" Foreground="{DynamicResource AccentColorBrush}"/>
+                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.ImportCatalogTooltip}">
+                                <PathIcon Data="{StaticResource FolderOpenIcon}"/>
                             </Button>
 
                             <!-- Upload Catalog -->
                             <Button Command="{Binding UploadActiveCatalogCommand}"
                                     IsEnabled="{Binding ActiveCatalogNeedsPublish}"
-                                    Classes="glass-icon-btn"
+                                    Classes="action-secondary icon-action"
                                     Classes.upload-pending="{Binding ActiveCatalogNeedsPublish}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadCatalogTooltip}"
-                                    CornerRadius="6"
-                                    Padding="6"
-                                    Cursor="Hand">
+                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.UploadCatalogTooltip}">
                                 <Panel>
                                     <PathIcon Data="{StaticResource PublishIcon}"
-                                              Width="11" Height="11"
-                                              Foreground="{DynamicResource TextMuted}"
                                               IsVisible="{Binding !ActiveCatalogNeedsPublish}"/>
                                     <Grid IsVisible="{Binding ActiveCatalogNeedsPublish}">
-                                        <PathIcon Data="{StaticResource PublishIcon}"
-                                                  Width="11" Height="11"
-                                                  Foreground="{DynamicResource PendingActionBrush}"/>
+                                        <PathIcon Data="{StaticResource PublishIcon}"/>
                                         <Ellipse Width="6" Height="6"
                                                  Fill="{DynamicResource PendingActionBrush}"
                                                  Stroke="{DynamicResource SurfaceBackgroundDarkBrush}"
@@ -257,10 +201,10 @@
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                         <Button Command="{Binding AddContentCommand}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddContentTooltip}"
-                                Classes="accent-glass-btn">
+                                Classes="action-secondary action-compact">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -364,11 +308,10 @@
                                                     Margin="8,0,0,0">
                                             <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditContentCommand}"
                                                     CommandParameter="{Binding}"
-                                                    Classes="card-action"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}">
-                                                <PathIcon Data="{StaticResource EditIcon}"
-                                                          Width="14" Height="14"
-                                                          Foreground="{DynamicResource AccentColorBrush}"/>
+                                                    Classes="action-secondary icon-action"
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}"
+                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.EditContentTooltip}">
+                                                <PathIcon Data="{StaticResource EditIcon}"/>
                                             </Button>
                                         </StackPanel>
                                         </Grid>
@@ -482,7 +425,6 @@
                                             <Run Text="{Binding Id}"/>
                                         </TextBlock>
                                     </StackPanel>
-
 
                                 </Grid>
                             </StackPanel>
@@ -613,10 +555,10 @@
                                         </StackPanel>
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddBundledItemCommand}"
-                                                Classes="accent-glass-btn">
+                                                Classes="action-secondary action-compact">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddItem}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddItem}"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -676,9 +618,10 @@
                                                         <Button Grid.Column="3"
                                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveBundledItemCommand}"
                                                                 CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveFromBundleTooltip}">
-                                                            <PathIcon Data="{StaticResource DeleteIcon}" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
+                                                                Classes="action-danger icon-action"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveFromBundleTooltip}"
+                                                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.RemoveFromBundleTooltip}">
+                                                            <PathIcon Data="{StaticResource DeleteIcon}"/>
                                                         </Button>
                                                     </Grid>
                                                 </Border>
@@ -730,10 +673,8 @@
                                             <Button Grid.Column="2"
                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).GoToHostingCommand}"
                                                     Content="{localization:Localize Tools.PublisherStudio.Library.GoToHosting}"
-                                                    Classes="accent-glass-btn"
-                                                    Margin="12,0,0,0"
-                                                    Padding="12,6"
-                                                    FontSize="11"/>
+                                                    Classes="action-secondary action-compact"
+                                                    Margin="12,0,0,0"/>
                                         </Grid>
                                     </Border>
                                     <Grid ColumnDefinitions="*,Auto">
@@ -744,10 +685,10 @@
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddReleaseCommand}"
                                                 IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).CanAddManualRelease}"
-                                                Classes="accent-glass-btn">
+                                                Classes="action-secondary action-compact">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddRelease}" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddRelease}"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -842,13 +783,11 @@
                                                                            VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                                                <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditReleaseCommand}"
+                                                                <Button Classes="action-secondary icon-action" Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditReleaseCommand}"
                                                                         CommandParameter="{Binding}"
                                                                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditReleaseTooltip}"
-                                                                        Background="Transparent"
-                                                                        Padding="8"
-                                                                        CornerRadius="6">
-                                                                    <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                        AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.EditReleaseTooltip}">
+                                                                    <PathIcon Data="{StaticResource EditIcon}"/>
                                                                 </Button>
                                                             </StackPanel>
                                                         </Grid>
@@ -865,16 +804,13 @@
                                                                     IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleaseArtifacts}">
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Artifacts}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                                                                <Button Grid.Column="1"
+                                                                <Button Classes="action-secondary action-compact" Grid.Column="1"
                                                                         Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddArtifactToReleaseCommand}"
                                                                         CommandParameter="{Binding}"
-                                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddArtifactTooltip}"
-                                                                        Background="Transparent"
-                                                                        Padding="4,2"
-                                                                        CornerRadius="4">
+                                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddArtifactTooltip}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
+                                                                        <PathIcon Data="{StaticResource AddIcon}"/>
+                                                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </Grid>
@@ -890,15 +826,9 @@
                                                                                             <Border Background="{DynamicResource StatusInfoBadgeBackgroundBrush}" CornerRadius="3" Padding="4,1" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.CdnDirectBadge}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
                                                                                             </Border>
-                                                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).UploadArtifactCommand}"
+                                                                                            <Button Classes="action-secondary action-compact" Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).UploadArtifactCommand}"
                                                                                                     CommandParameter="{Binding}"
-                                                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadArtifactTooltip}"
-                                                                                                    Background="{DynamicResource StatusWarningBadgeBackgroundBrush}"
-                                                                                                    BorderBrush="{DynamicResource WarningHighlightBrush}"
-                                                                                                    BorderThickness="1"
-                                                                                                    CornerRadius="3"
-                                                                                                    Padding="6,1"
-                                                                                                    Cursor="Hand">
+                                                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.UploadArtifactTooltip}">
                                                                                                 <Button.IsVisible>
                                                                                                     <MultiBinding Converter="{StaticResource ArtifactPendingUploadConverter}">
                                                                                                         <Binding Path="LocalFilePath"/>
@@ -906,8 +836,8 @@
                                                                                                     </MultiBinding>
                                                                                                 </Button.IsVisible>
                                                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                                                    <PathIcon Data="{StaticResource PublishIcon}" Width="10" Height="10" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UploadButton}" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
+                                                                                                    <PathIcon Data="{StaticResource PublishIcon}"/>
+                                                                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.UploadButton}"/>
                                                                                                 </StackPanel>
                                                                                             </Button>
                                                                                         </StackPanel>
@@ -941,16 +871,13 @@
                                                         <StackPanel Spacing="8">
                                                             <Grid ColumnDefinitions="*,Auto">
                                                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.Dependencies}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                                                                <Button Grid.Column="1"
+                                                                <Button Classes="action-secondary action-compact" Grid.Column="1"
                                                                         Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddDependencyToReleaseCommand}"
                                                                         CommandParameter="{Binding}"
-                                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddDependencyTooltip}"
-                                                                        Background="Transparent"
-                                                                        Padding="4,2"
-                                                                        CornerRadius="4">
+                                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.AddDependencyTooltip}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                        <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}" FontSize="11" Foreground="{DynamicResource AccentColorBrush}" FontWeight="SemiBold"/>
+                                                                        <PathIcon Data="{StaticResource AddIcon}"/>
+                                                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddButton}"/>
                                                                     </StackPanel>
                                                                 </Button>
                                                             </Grid>
@@ -1179,10 +1106,10 @@
                                         </StackPanel>
                                         <Button Grid.Column="1"
                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddAddonCommand}"
-                                                Classes="accent-glass-btn">
+                                                Classes="action-secondary action-compact">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12" Foreground="White"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddAddon}" FontWeight="SemiBold" Foreground="White"/>
+                                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddAddon}"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -1244,9 +1171,10 @@
                                                         <Button Grid.Column="3"
                                                                 Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).EditAddonCommand}"
                                                                 CommandParameter="{Binding}"
-                                                                Classes="glass-icon-btn"
-                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}">
-                                                            <PathIcon Data="{StaticResource EditIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                Classes="action-secondary icon-action"
+                                                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}"
+                                                                AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.EditAddonTooltip}">
+                                                            <PathIcon Data="{StaticResource EditIcon}"/>
                                                         </Button>
                                                     </Grid>
                                                 </Border>
@@ -1330,24 +1258,20 @@
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        FontSize="12"
                                                        VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1"
+                                            <Button Classes="action-secondary action-compact" Grid.Column="1"
                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).PasteScreenshotCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="8,4"
                                                     Margin="0,0,6,0"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.PasteScreenshotTooltip}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v2h10V5h2v14z" Width="12" Height="12"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.PasteScreenshot}" FontSize="12"/>
+                                                    <PathIcon Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v2h10V5h2v14z"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.PasteScreenshot}"/>
                                                 </StackPanel>
                                             </Button>
-                                            <Button Grid.Column="2"
-                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddScreenshotCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="8,4">
+                                            <Button Classes="action-secondary action-compact" Grid.Column="2"
+                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddScreenshotCommand}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddScreenshot}" FontSize="12"/>
+                                                    <PathIcon Data="{StaticResource AddIcon}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddScreenshot}"/>
                                                 </StackPanel>
                                             </Button>
                                         </Grid>
@@ -1377,31 +1301,23 @@
                                                                        Height="90"
                                                                        Stretch="UniformToFill"/>
                                                             </Button>
-                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
+                                                            <Button Classes="action-danger icon-action" Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="{DynamicResource GlassFillBrush}"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    CornerRadius="4"
-                                                                    Cursor="Hand"
                                                                     HorizontalAlignment="Right"
                                                                     VerticalAlignment="Top"
                                                                     Margin="4"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}"
+                                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}"/>
                                                             </Button>
-                                                            <Button Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectScreenshotCommand}"
+                                                            <Button Classes="icon-action" Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectScreenshotCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="{DynamicResource GlassFillBrush}"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    CornerRadius="4"
-                                                                    Cursor="Hand"
                                                                     HorizontalAlignment="Left"
                                                                     VerticalAlignment="Bottom"
                                                                     Margin="4"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}">
-                                                                <PathIcon Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" Width="10" Height="10" Foreground="{DynamicResource TextSecondary}"/>
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}"
+                                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}">
+                                                                <PathIcon Data="{StaticResource EditIcon}"/>
                                                             </Button>
                                                         </Grid>
                                                     </Border>
@@ -1414,11 +1330,9 @@
                                                      Text="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedScreenshotTitle, Mode=TwoWay}"
                                                      Watermark="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameWatermark}"
                                                      ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}"/>
-                                            <Button Grid.Column="1"
-                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ApplyScreenshotTitleCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="10,4">
-                                                <TextBlock Text="{localization:Localize Common.Button.Apply}" FontSize="12"/>
+                                            <Button Classes="action-secondary action-compact" Grid.Column="1"
+                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ApplyScreenshotTitleCommand}">
+                                                <TextBlock Text="{localization:Localize Common.Button.Apply}"/>
                                             </Button>
                                         </Grid>
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.MediaScreenshotsDropHint}"
@@ -1441,24 +1355,20 @@
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        FontSize="12"
                                                        VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1"
+                                            <Button Classes="action-secondary action-compact" Grid.Column="1"
                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).PasteVideoCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="8,4"
                                                     Margin="0,0,6,0"
                                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.PasteVideoTooltip}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v2h10V5h2v14z" Width="12" Height="12"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.PasteVideo}" FontSize="12"/>
+                                                    <PathIcon Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v2h10V5h2v14z"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.PasteVideo}"/>
                                                 </StackPanel>
                                             </Button>
-                                            <Button Grid.Column="2"
-                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddVideoCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="8,4">
+                                            <Button Classes="action-secondary action-compact" Grid.Column="2"
+                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddVideoCommand}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddVideo}" FontSize="12"/>
+                                                    <PathIcon Data="{StaticResource AddIcon}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddVideo}"/>
                                                 </StackPanel>
                                             </Button>
                                         </Grid>
@@ -1475,26 +1385,20 @@
                                                            Foreground="{DynamicResource TextPrimary}"
                                                            TextTrimming="CharacterEllipsis"
                                                            VerticalAlignment="Center"/>
-                                                <Button Grid.Column="1"
+                                                <Button Classes="action-secondary icon-action" Grid.Column="1"
                                                         Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
                                                         CommandParameter="{Binding Metadata.VideoUrl}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="4"
-                                                        Cursor="Hand"
                                                         Margin="0,0,4,0"
-                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
-                                                    <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}"
+                                                        AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                    <PathIcon Data="{StaticResource ToolIcon.Play}"/>
                                                 </Button>
-                                                <Button Grid.Column="2"
+                                                <Button Classes="action-danger icon-action" Grid.Column="2"
                                                         Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
                                                         CommandParameter="{Binding Metadata.VideoUrl}"
-                                                        Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="4"
-                                                        Cursor="Hand"
-                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                    <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                        ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}"
+                                                        AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                    <PathIcon Data="{StaticResource CloseIcon}"/>
                                                 </Button>
                                             </Grid>
                                         </Border>
@@ -1514,26 +1418,20 @@
                                                                        Foreground="{DynamicResource TextPrimary}"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        VerticalAlignment="Center"/>
-                                                            <Button Grid.Column="1"
+                                                            <Button Classes="action-secondary icon-action" Grid.Column="1"
                                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).OpenMediaUrlCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    Cursor="Hand"
                                                                     Margin="0,0,4,0"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
-                                                                <PathIcon Data="M8 5v14l11-7z" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}"
+                                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.OpenVideoTooltip}">
+                                                                <PathIcon Data="{StaticResource ToolIcon.Play}"/>
                                                             </Button>
-                                                            <Button Grid.Column="2"
+                                                            <Button Classes="action-danger icon-action" Grid.Column="2"
                                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).RemoveMediaFromSelectedContentCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="4"
-                                                                    Cursor="Hand"
-                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
-                                                                <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}"
+                                                                    AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Library.RemoveMediaTooltip}">
+                                                                <PathIcon Data="{StaticResource CloseIcon}"/>
                                                             </Button>
                                                         </Grid>
                                                     </Border>
@@ -1550,13 +1448,11 @@
                                                      Watermark="{localization:Localize Tools.PublisherStudio.Library.VideoUrlWatermark}"
                                                      FontSize="12"
                                                      Margin="0,0,6,0"/>
-                                            <Button Grid.Column="1"
-                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddVideoUrlCommand}"
-                                                    Theme="{DynamicResource SecondaryButton}"
-                                                    Padding="8,4">
+                                            <Button Classes="action-secondary action-compact" Grid.Column="1"
+                                                    Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddVideoUrlCommand}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource AddIcon}" Width="12" Height="12"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddVideoUrl}" FontSize="12"/>
+                                                    <PathIcon Data="{StaticResource AddIcon}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Library.AddVideoUrl}"/>
                                                 </StackPanel>
                                             </Button>
                                         </Grid>

@@ -245,6 +245,7 @@
               <TextBlock Text="{localization:Localize Maps.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
+          <Border Classes="split-action">
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
                     Classes="action-primary SplitLeft ActionBarBtn action-compact"
@@ -256,9 +257,9 @@
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary SplitRight ActionBarBtn"
+                    Classes="SplitRight ActionBarBtn"
                     ToolTip.Tip="{localization:Localize Maps.Tooltip.ViewHistory}">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="16" Height="16" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
@@ -336,6 +337,7 @@
               </Border>
             </Popup>
           </StackPanel>
+          </Border>
         </StackPanel>
       </Grid>
     </Border>
@@ -492,22 +494,6 @@
     </Style>
 
     <!-- Button styles -->
-    <Style Selector="ToggleButton.Primary">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="ToggleButton.Primary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-    </Style>
 
     <!-- Shared split-button layout follows the action styles so split corners and height win. -->
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />

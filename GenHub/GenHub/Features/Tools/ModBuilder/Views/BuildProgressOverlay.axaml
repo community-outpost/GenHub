@@ -177,24 +177,14 @@
           </Border>
 
           <!-- Cancel button -->
-          <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
+          <Button Classes="action-danger" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
                   Margin="0,18,0,0"
                   HorizontalAlignment="Center"
                   Command="{Binding CancelCommand}"
-                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.BuildOverlay.TooltipCancel}"
-                  Background="{DynamicResource ErrorBadgeBackgroundBrush}"
-                  Foreground="{DynamicResource ErrorBrush}"
-                  BorderBrush="{DynamicResource ErrorBrush}"
-                  BorderThickness="1"
-                  CornerRadius="8"
-                  Padding="20,10"
-                  Cursor="Hand">
+                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.BuildOverlay.TooltipCancel}">
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Path Data="{StaticResource IconStop}"
-                    Fill="{DynamicResource ErrorBrush}"
-                    Width="14" Height="14"
-                    Stretch="Uniform"/>
-              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.ButtonCancel}" FontWeight="SemiBold"/>
+              <PathIcon Data="{StaticResource IconStop}"/>
+              <TextBlock Text="{localization:Localize Tools.ModBuilder.BuildOverlay.ButtonCancel}"/>
             </StackPanel>
           </Button>
         </Grid>

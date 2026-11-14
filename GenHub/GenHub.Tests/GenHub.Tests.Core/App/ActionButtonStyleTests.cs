@@ -48,11 +48,11 @@ public class ActionButtonStyleTests
             window.MouseMove(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value);
             Dispatcher.UIThread.RunJobs();
             Assert.True(button.IsPointerOver);
-            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource(hover)!), BrushColor(button.Background));
-            Assert.Equal(BrushColor(button.Background), BrushColor(presenter.Background));
+            AssertBrushEqual((IBrush)Avalonia.Application.Current!.FindResource(hover)!, button.Background);
+            AssertBrushEqual(button.Background, presenter.Background);
             window.MouseDown(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value, MouseButton.Left);
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource(pressed)!), BrushColor(presenter.Background));
+            AssertBrushEqual((IBrush)Avalonia.Application.Current!.FindResource(pressed)!, presenter.Background);
             window.MouseUp(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value, MouseButton.Left);
             button.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
@@ -181,6 +181,21 @@ public class ActionButtonStyleTests
         finally
         {
             window.Close();
+        }
+    }
+
+    private static void AssertBrushEqual(IBrush? expected, IBrush? actual)
+    {
+        if (expected is ILinearGradientBrush gradient)
+        {
+            var rendered = Assert.IsAssignableFrom<ILinearGradientBrush>(actual);
+            Assert.Equal(gradient.StartPoint, rendered.StartPoint);
+            Assert.Equal(gradient.EndPoint, rendered.EndPoint);
+            Assert.Equal(gradient.GradientStops.Select(stop => (stop.Color, stop.Offset)), rendered.GradientStops.Select(stop => (stop.Color, stop.Offset)));
+        }
+        else
+        {
+            Assert.Equal(BrushColor(expected), BrushColor(actual));
         }
     }
 

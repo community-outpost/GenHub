@@ -36,50 +36,6 @@
       <Setter Property="CornerRadius" Value="0" />
     </Style>
 
-    <Style Selector="Button.tools-action-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="12,8" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button.tools-action-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    </Style>
-
-    <Style Selector="Button.tools-action-btn:pressed">
-      <Setter Property="RenderTransform" Value="scale(0.98)" />
-    </Style>
-
-    <Style Selector="Button.dialog-close-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="16,8" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
     <Style Selector="TextBlock.header">
       <Setter Property="FontSize" Value="24" />
       <Setter Property="FontWeight" Value="Bold" />
@@ -122,28 +78,6 @@
       <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="Button.dialog-close-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="16,8" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button.dialog-close-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    </Style>
   </UserControl.Styles>
 
   <Grid>
@@ -177,8 +111,8 @@
 
              <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
               <TextBlock Text="{Binding, Converter={StaticResource LocalizedToolNameConverter}}" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
-              <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}" 
-                         FontSize="11.5" Foreground="{DynamicResource TextSecondary}" 
+              <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
+                         FontSize="11.5" Foreground="{DynamicResource TextSecondary}"
                          VerticalAlignment="Center"
                          IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
              </StackPanel>
@@ -188,10 +122,10 @@
 
       <controls:SidebarLayout.PaneHeader>
           <Button Command="{Binding AddToolCommand}"
-                  Classes="tools-action-btn"
+                  Classes="action-primary"
                   HorizontalAlignment="Stretch">
               <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                  <material:MaterialIcon Kind="Plus" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}"/>
+                  <material:MaterialIcon Kind="Plus"/>
                   <TextBlock Text="{localization:Localize Tools.Button.AddToolAction}" VerticalAlignment="Center"/>
               </StackPanel>
           </Button>
@@ -199,10 +133,10 @@
 
       <controls:SidebarLayout.PaneFooter>
           <Button Command="{Binding RefreshToolsCommand}"
-                  Classes="tools-action-btn"
+                  Classes="action-secondary"
                   HorizontalAlignment="Stretch">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-               <material:MaterialIcon Kind="Refresh" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
+               <material:MaterialIcon Kind="Refresh"/>
                <TextBlock Text="{localization:Localize Tools.Button.RefreshToolsAction}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -260,11 +194,11 @@
                                    HorizontalAlignment="Center"
                                    LineHeight="20"/>
                         <Button Command="{Binding OpenToolsInfoCommand}"
-                                Classes="tools-action-btn"
+                                Classes="action-secondary"
                                 HorizontalAlignment="Center"
                                 Margin="0,8,0,0">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <material:MaterialIcon Kind="BookOpenOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}"/>
+                                <material:MaterialIcon Kind="BookOpenOutline"/>
                                 <TextBlock Text="{localization:Localize Tools.Button.ReadInfoTab}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -331,7 +265,7 @@
                 </StackPanel>
                 <Button Command="{Binding CloseDetailsDialogCommand}"
                         Content="{localization:Localize Common.Button.Close}"
-                        Classes="dialog-close-btn"
+                        Classes="action-secondary"
                         HorizontalAlignment="Right"
                         Margin="0,8,0,0"/>
             </StackPanel>

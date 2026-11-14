@@ -53,16 +53,6 @@
             <Setter Property="CornerRadius" Value="12"/>
         </Style>
 
-        <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="24,10"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
     </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -102,12 +92,12 @@
 
                     <!-- Save Profile Button in Header / Top Right -->
                     <Button Grid.Column="2"
-                            Classes="primary-btn"
+                            Classes="action-primary action-compact"
                             Command="{Binding SaveProfileCommand}"
                             VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource SaveIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Save}" FontWeight="SemiBold" FontSize="13"/>
+                            <PathIcon Data="{StaticResource SaveIcon}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Save}"/>
                         </StackPanel>
                     </Button>
                 </Grid>

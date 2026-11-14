@@ -361,6 +361,7 @@
               <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
+          <Border Classes="split-action">
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
                     Classes="action-primary SplitLeft ActionBarBtn action-compact"
@@ -372,9 +373,9 @@
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary SplitRight ActionBarBtn"
+                    Classes="SplitRight ActionBarBtn"
                     ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.UploadHistory}">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="16" Height="16" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
@@ -452,6 +453,7 @@
               </Border>
             </Popup>
           </StackPanel>
+          </Border>
         </StackPanel>
       </Grid>
     </Border>
@@ -489,10 +491,9 @@
                          Foreground="{DynamicResource TextSecondary}"
                          TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-            <Button Grid.Column="1"
-                    Classes="icon-subtle"
+            <Button AutomationProperties.Name="{localization:Localize Common.Close}" Grid.Column="1"
+                    Classes="icon-action"
                     Command="{Binding CloseCheckpointDrawerCommand}"
-                    Padding="6"
                     VerticalAlignment="Top">
               <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
             </Button>
@@ -667,13 +668,12 @@
                                    FontSize="11"
                                    VerticalAlignment="Center"
                                    Margin="12,0"/>
-                        <Button Grid.Column="3"
-                                Classes="icon-subtle"
+                        <Button AutomationProperties.Name="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave}" Grid.Column="3"
+                                Classes="action-danger icon-action"
                                 Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).DeleteCheckpointCommand}"
                                 CommandParameter="{Binding}"
-                                Padding="4"
                                 ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave}">
-                          <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13"/>
+                          <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
                         </Button>
                       </Grid>
                     </DataTemplate>
@@ -765,40 +765,7 @@
     </Style>
 
     <!-- Button styles -->
-    <Style Selector="ToggleButton.Primary">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="ToggleButton.Primary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
-    </Style>
 
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
-
-
-    <Style Selector="Button.icon-subtle">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.icon-subtle:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-    </Style>
   </UserControl.Styles>
 </UserControl>
