@@ -666,6 +666,9 @@ public sealed class ProfileContentServiceTests
         Assert.False(result.Success);
         Assert.Empty(result.MissingDependencies);
         Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
+        fixture.Orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
         fixture.ProfileManager.Verify(
             manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
