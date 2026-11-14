@@ -5198,7 +5198,7 @@
     <value>Категория:</value>
   </data>
   <data name="Tools.GenHotkeys.ClearKeyButton" xml:space="preserve">
-    <value>Очистить клавишу [-]</value>
+    <value>Очистить [-]</value>
   </data>
   <data name="Tools.GenHotkeys.ClearKeyTooltip" xml:space="preserve">
     <value>Удалить горячую клавишу для этого действия</value>
@@ -5294,7 +5294,7 @@
     <value>Переименовать текущий профиль</value>
   </data>
   <data name="Tools.GenHotkeys.ResetToDefaultButton" xml:space="preserve">
-    <value>Сбросить по умолчанию</value>
+    <value>Сбросить</value>
   </data>
   <data name="Tools.GenHotkeys.ResetToDefaultTooltip" xml:space="preserve">
     <value>Сбросить это действие на исходную клавишу по умолчанию</value>
