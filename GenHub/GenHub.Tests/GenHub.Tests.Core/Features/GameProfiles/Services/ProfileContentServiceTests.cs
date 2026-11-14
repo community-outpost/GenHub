@@ -643,6 +643,35 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
+    /// A standalone tool whose auto-install dependency cannot be downloaded fails without creating a profile.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolAutoInstallDownloadFails_CreatesNothingAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var genTool = CreateGenToolDependency();
+        genTool.InstallBehavior = DependencyInstallBehavior.AutoInstall;
+        fixture.AddManifest(CreateStandaloneTool(genTool));
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("offline"));
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.False(result.Success);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
+        fixture.ProfileManager.Verify(
+            manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// A required item that is already downloaded is enabled with the content, so no dialog is needed.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
