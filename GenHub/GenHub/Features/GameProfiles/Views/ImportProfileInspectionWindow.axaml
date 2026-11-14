@@ -84,7 +84,7 @@
                           PointerPressed="OnTitleBarPointerPressed">
                         <StackPanel Grid.Column="0" Spacing="4">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                <PathIcon Data="{StaticResource DownloadIcon}"
                                           Width="20" Height="20"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
@@ -101,18 +101,13 @@
                         </StackPanel>
 
                         <!-- Close Button -->
-                        <Button Grid.Column="1"
+                        <Button
+                                Grid.Column="1"
                                 Command="{Binding CancelCommand}"
-                                Width="30" Height="30"
-                                CornerRadius="15"
-                                Background="{StaticResource FillWhite08}"
-                                Foreground="{DynamicResource TextSecondary}"
-                                Padding="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Cursor="Hand">
-                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                                      Width="12" Height="12" />
+                                Classes="icon-action"
+                                AutomationProperties.Name="{localization:Localize Common.Close}"
+                                ToolTip.Tip="{localization:Localize Common.Close}">
+                            <PathIcon Data="{StaticResource CloseIcon}" />
                         </Button>
                     </Grid>
 
@@ -344,7 +339,7 @@
                                                                         Padding="8,3"
                                                                         IsVisible="{Binding IsCachedLocally}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                                                                        <PathIcon Data="{StaticResource ConfirmationCheckIcon}"
                                                                                   Width="10" Height="10"
                                                                                   Foreground="{DynamicResource SuccessBrush}"
                                                                                   VerticalAlignment="Center" />
@@ -363,7 +358,7 @@
                                                                         Padding="8,3"
                                                                         IsVisible="{Binding !IsCachedLocally}">
                                                                     <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                                        <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                                                        <PathIcon Data="{StaticResource DownloadIcon}"
                                                                                   Width="10" Height="10"
                                                                                   Foreground="{DynamicResource AccentLightBrush}"
                                                                                   VerticalAlignment="Center" />
@@ -378,25 +373,18 @@
                                                             </Panel>
 
                                                             <!-- Expand / Details Button -->
-                                                            <Button Grid.Column="5"
+                                                            <Button
+                                                                    Grid.Column="5"
                                                                     Command="{Binding ToggleExpandCommand}"
-                                                                    Background="{StaticResource FillWhite08}"
-                                                                    BorderBrush="{StaticResource BorderWhite19}"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="6"
-                                                                    Padding="8,4"
                                                                     VerticalAlignment="Center"
-                                                                    Cursor="Hand"
-                                                                    ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}">
+                                                                    ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}"
+                                                                    Classes="action-secondary" AutomationProperties.Name="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                                     <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Button.Details}"
-                                                                               FontSize="10"
-                                                                               FontWeight="SemiBold"
-                                                                               Foreground="{DynamicResource TextSecondary}"
+
                                                                                VerticalAlignment="Center" />
                                                                     <PathIcon Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"
-                                                                              Width="10" Height="10"
-                                                                              Foreground="{DynamicResource TextSecondary}"
+
                                                                               VerticalAlignment="Center" />
                                                                 </StackPanel>
                                                             </Button>
@@ -421,17 +409,14 @@
                                                                 <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding Hash, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                     <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ImportInspection.Sha256Hash}" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding Hash}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                                    <Button Grid.Column="2"
+                                                                    <Button
+                                                                            Grid.Column="2"
                                                                             Command="{Binding CopyHashCommand}"
-                                                                            Padding="6,2"
                                                                             Margin="6,0,0,0"
-                                                                            Background="Transparent"
-                                                                            BorderThickness="0"
-                                                                            Cursor="Hand"
-                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyHash}">
-                                                                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
-                                                                                  Width="11" Height="11"
-                                                                                  Foreground="{DynamicResource TextSecondary}" />
+                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyHash}"
+                                                                            Classes="icon-action"
+                                                                            AutomationProperties.Name="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyHash}">
+                                                                        <PathIcon Data="{StaticResource CopyIcon}" />
                                                                     </Button>
                                                                 </Grid>
 
@@ -439,17 +424,14 @@
                                                                 <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                     <TextBlock Grid.Column="0" Text="{localization:Localize GameProfiles.ImportInspection.DownloadUrl}" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding DownloadUrl}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource AccentLightBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                                    <Button Grid.Column="2"
+                                                                    <Button
+                                                                            Grid.Column="2"
                                                                             Command="{Binding CopyDownloadUrlCommand}"
-                                                                            Padding="6,2"
                                                                             Margin="6,0,0,0"
-                                                                            Background="Transparent"
-                                                                            BorderThickness="0"
-                                                                            Cursor="Hand"
-                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyUrl}">
-                                                                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
-                                                                                  Width="11" Height="11"
-                                                                                  Foreground="{DynamicResource TextSecondary}" />
+                                                                            ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyUrl}"
+                                                                            Classes="icon-action"
+                                                                            AutomationProperties.Name="{localization:Localize GameProfiles.ImportInspection.Tooltip.CopyUrl}">
+                                                                        <PathIcon Data="{StaticResource CopyIcon}" />
                                                                     </Button>
                                                                 </Grid>
 
@@ -616,73 +598,27 @@
                         </StackPanel>
 
                         <!-- Cancel Button -->
-                        <Button Grid.Column="1"
+                        <Button
+                                Grid.Column="1"
                                 Command="{Binding CancelCommand}"
                                 Content="{localization:Localize GameProfiles.ImportInspection.Button.Cancel}"
-                                Width="90" Height="40"
                                 Margin="0,0,12,0"
-                                Background="{StaticResource FillWhite08}"
-                                BorderBrush="{StaticResource BorderWhite19}"
-                                BorderThickness="1"
-                                Foreground="{DynamicResource TextPrimary}"
-                                CornerRadius="8"
-                                FontWeight="Medium"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Cursor="Hand">
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="{StaticResource FillWhite14}" />
-                                    <Setter Property="BorderBrush" Value="{StaticResource BorderWhite31}" />
-                                </Style>
-                                <Style Selector="Button:pressed">
-                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                </Style>
-                            </Button.Styles>
-                        </Button>
+                                Classes="action-secondary"
+                                MinWidth="90" />
 
                         <!-- Import Button -->
-                        <Button Grid.Column="2"
+                        <Button
+                                Grid.Column="2"
                                 Command="{Binding ConfirmImportCommand}"
-                                Height="40"
-                                Padding="24,0"
-                                Background="{DynamicResource PrimaryGradientBrush}"
-                                Foreground="White"
-                                CornerRadius="8"
-                                FontWeight="Bold"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
                                 IsEnabled="{Binding HasValidGameInstallation}"
-                                Cursor="Hand">
-                            <Button.Styles>
-                                <Style Selector="Button">
-                                    <Setter Property="Transitions">
-                                        <Transitions>
-                                            <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
-                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
-                                        </Transitions>
-                                    </Setter>
-                                </Style>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="RenderTransform" Value="translateY(-1px)" />
-                                    <Setter Property="Opacity" Value="0.92" />
-                                </Style>
-                                <Style Selector="Button:pressed">
-                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    <Setter Property="Opacity" Value="0.85" />
-                                </Style>
-                                <Style Selector="Button:disabled">
-                                    <Setter Property="Opacity" Value="0.45" />
-                                </Style>
-                            </Button.Styles>
+                                Classes="action-primary">
+
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
-                                          Width="14" Height="14"
-                                          Foreground="White"
+                                <PathIcon Data="{StaticResource DownloadIcon}"
+
                                           VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding ActionButtonText}"
-                                           FontWeight="Bold"
-                                           FontSize="13"
+
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
@@ -707,7 +643,7 @@
                         <StackPanel Spacing="16">
                             <!-- Header -->
                             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                <PathIcon Data="{StaticResource DownloadIcon}"
                                           Width="20" Height="20"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
@@ -743,18 +679,11 @@
                             </Grid>
 
                             <!-- Cancel -->
-                            <Button Command="{Binding CancelCommand}"
+                            <Button
+                                    Command="{Binding CancelCommand}"
                                     Content="{localization:Localize GameProfiles.ImportInspection.Button.CancelImport}"
-                                    Height="32"
-                                    Padding="16,0"
                                     HorizontalAlignment="Center"
-                                    Background="{StaticResource FillWhite08}"
-                                    BorderBrush="{StaticResource BorderWhite19}"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Foreground="{DynamicResource TextSecondary}"
-                                    FontSize="11"
-                                    Cursor="Hand" />
+                                    Classes="action-secondary"/>
                         </StackPanel>
                     </Border>
                 </Border>

@@ -81,39 +81,6 @@
         </Style>
 
         <!-- Content action buttons -->
-        <Style Selector="Button.btn-add">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="14,6" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Button.btn-remove">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#FF5252" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#FF5252" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="8,5" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.btn-remove:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#FF5252" />
-            <Setter Property="BorderBrush" Value="#FF5252" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
 
         <!-- Content filter pills -->
         <Style Selector="Button.filter-pill">
@@ -206,36 +173,6 @@
         </Style>
 
         <!-- Header action button style -->
-        <Style Selector="Button.header-action-btn">
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#60FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.1" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.header-action-btn:pointerover">
-            <Setter Property="Background" Value="#30FFFFFF" />
-            <Setter Property="BorderBrush" Value="White" />
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-        </Style>
-        <Style Selector="Button.header-action-btn.close-btn">
-            <Setter Property="Background" Value="#20FF5252" />
-            <Setter Property="BorderBrush" Value="#40FF5252" />
-        </Style>
-        <Style Selector="Button.header-action-btn.close-btn:pointerover">
-            <Setter Property="Background" Value="#CCFF5252" />
-            <Setter Property="BorderBrush" Value="#FFFF5252" />
-        </Style>
 
         <!-- New Content Card Styles -->
         <Style Selector="Button.content-card-btn">
@@ -269,11 +206,7 @@
         <!-- Style to show children on hover -->
         <Style Selector="Button.delete-reveal-btn">
             <Setter Property="Opacity" Value="0" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
+
         </Style>
 
         <!-- When parent card is hovered, reveal the delete button -->
@@ -284,7 +217,7 @@
         <!-- Ensure the delete button itself reacts to its own hover -->
         <Style Selector="Button.delete-reveal-btn:pointerover">
             <Setter Property="Opacity" Value="1" />
-            <Setter Property="Background" Value="#D32F2F" />
+
         </Style>
         <!-- Corner Accent Style -->
         <Style Selector="Path.corner-accent">
@@ -324,46 +257,6 @@
         </Style>
 
         <!-- Save FAB Style -->
-        <Style Selector="Button.save-fab">
-            <Setter Property="Height" Value="50" />
-            <Setter Property="MinWidth" Value="130" />
-            <Setter Property="CornerRadius" Value="25" />
-            <Setter Property="Padding" Value="24,0" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="ClipToBounds" Value="False" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
-                    <BrushTransition Property="Background" Duration="0:0:0.2" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.save-fab:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-            <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="15" Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" Opacity="0.5" OffsetX="0" OffsetY="0" />
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.save-fab:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.96)" />
-        </Style>
-
-        <Style Selector="Button.save-fab > StackPanel > PathIcon">
-            <Setter Property="Width" Value="20" />
-            <Setter Property="Height" Value="20" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Button.save-fab TextBlock">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="Heavy" />
-            <Setter Property="LetterSpacing" Value="1.5" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
 
     </Window.Styles>
 
@@ -455,30 +348,30 @@
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <!-- Randomize Color -->
-                            <Button Command="{Binding RandomizeColorCommand}"
-                                    Classes="header-action-btn"
+                            <Button
+                                    Command="{Binding RandomizeColorCommand}"
+                                    Classes="icon-action"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Window.RandomizeColor}"
                                     AutomationProperties.Name="{localization:Localize GameProfiles.Window.RandomizeColor}">
-                                <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
-                                          Width="14" Height="14" />
+                                <PathIcon Data="{StaticResource RefreshIcon}" />
                             </Button>
 
                             <!-- Toggle Fullscreen -->
-                            <Button Click="OnToggleFullscreenClick"
-                                    Classes="header-action-btn"
+                            <Button
+                                    Click="OnToggleFullscreenClick"
+                                    Classes="icon-action"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Window.ToggleFullscreen}"
                                     AutomationProperties.Name="{localization:Localize GameProfiles.Window.ToggleFullscreen}">
-                                <PathIcon Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
-                                          Width="14" Height="14" />
+                                <PathIcon Data="M4,4H20V20H4V4M6,8V18H18V8H6Z" />
                             </Button>
 
                             <!-- Close Button -->
-                            <Button Command="{Binding ExecuteCancelCommand}"
-                                    Classes="header-action-btn close-btn"
+                            <Button
+                                    Command="{Binding ExecuteCancelCommand}"
+                                    Classes="icon-action"
                                     ToolTip.Tip="{localization:Localize Common.CloseEsc}"
                                     AutomationProperties.Name="{localization:Localize Common.CloseEsc}">
-                                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                                          Width="14" Height="14" />
+                                <PathIcon Data="{StaticResource CloseIcon}" />
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -577,25 +470,20 @@
 
                     <!-- Action Buttons -->
                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
-                        <Button Grid.Column="1" Content="{localization:Localize Common.Cancel}"
+                        <Button
+                                Grid.Column="1"
+                                Content="{localization:Localize Common.Cancel}"
                                 Command="{Binding CancelAddLocalContentCommand}"
-                                Background="#25000000"
-                                Foreground="White"
-                                BorderBrush="#40FFFFFF"
-                                BorderThickness="1"
-                                Width="90" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Medium"
-                                Margin="0,0,12,0" />
-                        <Button Grid.Column="2"
+                                Margin="0,0,12,0"
+                                Classes="action-secondary"
+                                MinWidth="90"/>
+                        <Button
+                                Grid.Column="2"
                                 Command="{Binding ConfirmAddLocalContentCommand}"
-                                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                                Foreground="White"
-                                Width="130" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Bold">
+                                Classes="action-primary"
+                                MinWidth="130">
                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="14" Height="14" Foreground="White" VerticalAlignment="Center"/>
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
                                 <TextBlock Text="{localization:Localize GameProfiles.LocalContent.AddContentButton}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -635,7 +523,11 @@
                     <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="18" Height="18" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                     <TextBlock Text="{localization:Localize GameProfiles.Window.LoadError}" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
                 </StackPanel>
-                <Button Content="{localization:Localize Common.Close}" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
+                <Button
+                        Content="{localization:Localize Common.Close}"
+                        HorizontalAlignment="Center"
+                        Command="{Binding ExecuteCancelCommand}"
+                        Classes="action-secondary"/>
             </StackPanel>
         </Border>
 
@@ -657,19 +549,14 @@
                     CornerRadius="25"
                     IsVisible="{Binding !IsSaving}"
                     IsHitTestVisible="True">
-                <Button Classes="save-fab"
+                <Button
+                        Classes="action-primary"
                         Command="{Binding SaveCommand}"
                         ToolTip.Tip="{localization:Localize GameProfiles.Window.SaveTooltip}"
-                        Background="Transparent"
-                        Margin="0">
-                    <Button.Background>
-                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                            <GradientStop Offset="0" Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" />
-                            <GradientStop Offset="1" Color="#40000000" />
-                        </LinearGradientBrush>
-                    </Button.Background>
+                        Margin="0" AutomationProperties.Name="{localization:Localize GameProfiles.Window.SaveTooltip}">
+
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                        <PathIcon Data="{StaticResource ConfirmationCheckIcon}" />
                         <TextBlock Text="{localization:Localize Common.Button.Save}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>

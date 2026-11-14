@@ -121,66 +121,19 @@
                             </CheckBox.Styles>
                         </CheckBox>
 
-                        <!-- Cancel Button (Secondary) - Glass Pill -->
+                        <!-- Shared secondary and primary actions. -->
                         <Button Grid.Column="1"
+                                Classes="action-secondary"
                                 Command="{Binding CancelCommand}"
                                 Content="{Binding CancelButtonText}"
-                                Margin="0,0,12,0"
-                                Padding="24,10"
-                                Background="#10FFFFFF"
-                                BorderBrush="#30FFFFFF"
-                                BorderThickness="1"
-                                Foreground="#DDDDDD"
-                                CornerRadius="20"
-                                Cursor="Hand">
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="#25FFFFFF" />
-                                    <Setter Property="Foreground" Value="White" />
-                                    <Setter Property="BorderBrush" Value="#50FFFFFF" />
-                                </Style>
-                                <Style Selector="Button:pressed">
-                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                </Style>
-                            </Button.Styles>
-                        </Button>
+                                Margin="0,0,12,0" />
 
-                        <!-- Confirm Button (Primary) with Gradient & Glow -->
                         <Button Grid.Column="2"
-                                Command="{Binding ConfirmCommand}"
-                                Padding="24,8"
-                                BorderThickness="0"
-                                Foreground="White"
-                                FontWeight="SemiBold"
-                                CornerRadius="20"
-                                Cursor="Hand">
-                            <Button.Background>
-                                <StaticResource ResourceKey="PrimaryGradientBrush" />
-                            </Button.Background>
-
-                            <Button.Styles>
-                                <Style Selector="Button">
-                                    <Setter Property="Transitions">
-                                        <Transitions>
-                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
-                                            <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
-                                        </Transitions>
-                                    </Setter>
-                                </Style>
-                                <Style Selector="Button:pointerover">
-                                    <Setter Property="RenderTransform" Value="translateY(-1px)" />
-                                    <Setter Property="Opacity" Value="0.9" />
-                                </Style>
-                                <Style Selector="Button:pressed">
-                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
-                                    <Setter Property="Opacity" Value="0.8" />
-                                </Style>
-                            </Button.Styles>
-
+                                Classes="action-primary"
+                                Command="{Binding ConfirmCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="{StaticResource ConfirmationCheckIcon}"
-                                          Width="14" Height="14"
-                                          Foreground="White"
+                                          Width="16" Height="16"
                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding ConfirmButtonText}"
                                            VerticalAlignment="Center" />

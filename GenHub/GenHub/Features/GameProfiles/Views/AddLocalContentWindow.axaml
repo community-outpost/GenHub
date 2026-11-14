@@ -92,44 +92,5 @@
             <Setter Property="Padding" Value="8,6"/>
         </Style>
 
-        <Style Selector="Button.icon-btn">
-             <Setter Property="Background" Value="#10FFFFFF"/>
-             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-             <Setter Property="Padding" Value="10,6"/>
-             <Setter Property="CornerRadius" Value="4"/>
-             <Setter Property="Foreground" Value="White"/>
-             <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.icon-btn:pointerover">
-             <Setter Property="Background" Value="#20FFFFFF"/>
-        </Style>
-
-        <Style Selector="Button.accent">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="20,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.accent:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
-        </Style>
-        <Style Selector="Button.accent:disabled">
-            <Setter Property="Background" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="#50FFFFFF"/>
-            <Setter Property="Cursor" Value="Arrow"/>
-        </Style>
-
-        <Style Selector="Button.ghost">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#AAAAAA"/>
-            <Setter Property="Padding" Value="15,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.ghost:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#10FFFFFF"/>
-        </Style>
     </Window.Styles>
 </controls:GenHubWindow>
