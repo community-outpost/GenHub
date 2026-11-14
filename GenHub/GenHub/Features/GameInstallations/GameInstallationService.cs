@@ -1621,14 +1621,16 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     /// is checked under the same lock before the held list.
     /// </summary>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>Whether detection recovered, and the cached installations if so, otherwise the held ones.</returns>
+    /// <returns>Whether detection recovered, and the cached installations if so, otherwise the held ones whose folders still exist.</returns>
     private async Task<(bool Recovered, IReadOnlyList<GameInstallation> Installations)> GetInstallationsAfterFailedInitializationAsync(CancellationToken cancellationToken)
     {
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
             var cached = _cachedInstallations;
-            return cached != null ? (true, cached) : (false, [.. _pendingManualInstallations]);
+            return cached != null
+                ? (true, cached)
+                : (false, [.. _pendingManualInstallations.Where(p => Directory.Exists(p.InstallationPath))]);
         }
         finally
         {

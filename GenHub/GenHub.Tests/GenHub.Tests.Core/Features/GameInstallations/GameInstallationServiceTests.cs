@@ -957,6 +957,25 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A held folder that vanished while detection keeps failing is not returned as an installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_WhileDetectionFails_SkipsVanishedHeldFolderAsync()
+    {
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("denied"));
+        var missing = new GameInstallation(
+            Path.Combine(Path.GetTempPath(), "GenHubMissing_" + Guid.NewGuid().ToString("N")),
+            GameInstallationType.Retail);
+        await _service.AddInstallationToCacheAsync(missing);
+
+        var result = await _service.GetAllInstallationsAsync();
+
+        Assert.False(result.Success);
+    }
+
+    /// <summary>
     /// Persisted manifests must not turn a failed live scan into a cached partial success.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
