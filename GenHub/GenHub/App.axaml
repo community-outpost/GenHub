@@ -44,6 +44,7 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/FormFieldStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/NavigationStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ExpanderStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/NumericUpDownStyles.axaml" />

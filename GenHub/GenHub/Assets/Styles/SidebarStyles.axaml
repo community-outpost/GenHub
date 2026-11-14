@@ -8,11 +8,9 @@
 
     <!-- Sidebar Button Styles -->
     <Style Selector="Button.sidebar-btn">
-        <Setter Property="Height" Value="46" />
+        <Setter Property="MinHeight" Value="46" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Padding" Value="12,10" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Margin" Value="0,2" />
         <Setter Property="ClipToBounds" Value="True" />
@@ -21,36 +19,15 @@
         <Setter Property="Spacing" Value="12" />
     </Style>
     <Style Selector="Button.sidebar-btn PathIcon">
-        <Setter Property="Width" Value="18" />
-        <Setter Property="Height" Value="18" />
-        <Setter Property="Foreground" Value="White" />
-        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="Width" Value="{DynamicResource SectionIconSize}" />
+        <Setter Property="Height" Value="{DynamicResource SectionIconSize}" />
     </Style>
     <Style Selector="Button.sidebar-btn Image">
-        <Setter Property="Width" Value="18" />
-        <Setter Property="Height" Value="18" />
-        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="Width" Value="{DynamicResource SectionIconSize}" />
+        <Setter Property="Height" Value="{DynamicResource SectionIconSize}" />
     </Style>
     <Style Selector="Button.sidebar-btn TextBlock">
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="White" />
-        <Setter Property="Opacity" Value="0.6" />
-    </Style>
-
-    <Style Selector="Button.sidebar-btn:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="#15FFFFFF" />
-    </Style>
-    <Style Selector="Button.sidebar-btn:pointerover TextBlock, Button.sidebar-btn:pointerover PathIcon, Button.sidebar-btn:pointerover Image">
-        <Setter Property="Opacity" Value="1" />
-    </Style>
-
-    <Style Selector="Button.sidebar-btn.selected /template/ ContentPresenter">
-        <Setter Property="Background" Value="#25FFFFFF" />
-        <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="Button.sidebar-btn.selected TextBlock, Button.sidebar-btn.selected PathIcon, Button.sidebar-btn.selected Image">
-        <Setter Property="Opacity" Value="1" />
     </Style>
 
     <Style Selector="Button.sidebar-btn.selected /template/ ContentPresenter" x:CompileBindings="False">
