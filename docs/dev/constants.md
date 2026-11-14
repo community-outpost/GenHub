@@ -879,6 +879,26 @@ Constants related to game client detection and management.
   - `GeneralsOnline60HzExecutable`
   - `GeneralsOnlineDefaultExecutable`
 
+### Setup Wizard and Publisher Profiles
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherAcquisitionFailedError` | `"Could not download {0} content."` | Error returned when a publisher download failed. The result still carries any profiles created from an older package. `{0}` is the publisher display name |
+
+#### InstallationTypeLocalizationKeys
+
+Resource keys for installation source names in the setup wizard summary. Unknown and custom sources have no key and are left out.
+
+| Constant | Value |
+|----------|-------|
+| `Steam` | `"GameProfiles.InstallationType.Steam"` |
+| `EaApp` | `"GameProfiles.InstallationType.EaApp"` |
+| `TheFirstDecade` | `"GameProfiles.InstallationType.FirstDecade"` |
+| `CdIso` | `"GameProfiles.InstallationType.CdIso"` |
+| `Wine` | `"GameProfiles.InstallationType.Wine"` |
+| `Retail` | `"GameProfiles.InstallationType.Retail"` |
+| `Lutris` | `"GameProfiles.InstallationType.Lutris"` |
+
 ---
 
 ## GameClientName Enum

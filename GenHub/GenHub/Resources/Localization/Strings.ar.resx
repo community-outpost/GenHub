@@ -639,6 +639,9 @@
   <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
     <value>لعبة كمبيوتر (PC)</value>
   </data>
+  <data name="GameProfiles.InstallationType.Lutris" xml:space="preserve">
+    <value>Lutris</value>
+  </data>
   <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
     <value>نسخة التجزئة (Retail)</value>
   </data>
@@ -782,6 +785,9 @@
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
     <value>اكتمل فحص اللعبة! تم إنشاء {0} ملفات تعريف جديدة.</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.MessageSingular" xml:space="preserve">
+    <value>اكتمل فحص اللعبة! تم إنشاء ملف تعريف جديد واحد.</value>
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
     <value>اكتمل الفحص</value>
@@ -1004,9 +1010,6 @@
   </data>
   <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
     <value>اكتمل الفحص. تم العثور على {0} من تثبيتات اللعبة</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>اكتمل الفحص. تم العثور على {0} من التثبيتات، وتم إنشاء {1} من ملفات التعريف</value>
   </data>
   <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
     <value>اكتمل الفحص! لم يتم العثور على تثبيتات جديدة</value>
@@ -4552,8 +4555,74 @@
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>إعداد المحتوى المكتشف</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>تخطي</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>تم العثور على اللعبة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>لم يتم العثور على لعبة مثبتة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>وجدنا {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>وجدنا هذه الألعاب:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>لم يتعرف GenHub هنا على لعبة يمكن تشغيلها. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>استخدام اللعبة المثبتة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>تخصيص الإعداد</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>أضف Generals Online أو TheSuperHackers أو Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>الإعداد لاحقًا</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="GameProfiles.Notification.SetupNotFinished.Message" xml:space="preserve">
+    <value>لم يكتمل الإعداد، لذلك لم يتم إنشاء ملفات تعريف. اختر «فحص» للمحاولة مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Title" xml:space="preserve">
+    <value>لم يتم إعداد بعض المكونات</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Message" xml:space="preserve">
+    <value>تعذر إعداد هذه المكونات: {0}. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>لقد اخترت الإعداد لاحقًا. اختر «فحص» عندما تكون جاهزًا لإنشاء ملف تعريف.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>لعبتك معدّة بالفعل. لم تكن هناك حاجة إلى ملفات تعريف جديدة.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>عثر GenHub على لعبتك لكنه لم يتمكن من إنشاء ملف تعريف لها. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>لم يعثر GenHub على لعبة يمكن إعدادها، لذلك لم يتم إنشاء أي ملفات تعريف. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>متابعة</value>

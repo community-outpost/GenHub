@@ -11,26 +11,24 @@ namespace GenHub.Features.GameProfiles.ViewModels.Wizard;
 
 /// <summary>
 /// ViewModel for the Setup Wizard dialog.
-/// Manages the list of setup items and user confirmation.
+/// Opens on a summary of the installed games and offers the optional components on a customize step.
 /// </summary>
 /// <param name="items">The initial list of setup items.</param>
 /// <param name="localizationService">The localization service used to resolve labels, or null to use English.</param>
-public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemViewModel> items, ILocalizationService? localizationService = null) : ViewModelBase, IRequestCloseViewModel
+/// <param name="foundGames">The display names of the installed games that were found.</param>
+public sealed partial class SetupWizardViewModel(
+    IEnumerable<SetupWizardItemViewModel> items,
+    ILocalizationService? localizationService = null,
+    IReadOnlyList<string>? foundGames = null) : ViewModelBase, IRequestCloseViewModel
 {
     [ObservableProperty]
     private ObservableCollection<SetupWizardItemViewModel> _items = new(items);
 
     /// <summary>
-    /// Gets or sets the title of the wizard window.
+    /// Gets or sets the title of the customize step.
     /// </summary>
     [ObservableProperty]
     private string _title = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Title);
-
-    /// <summary>
-    /// Gets or sets the label for the cancel/skip button.
-    /// </summary>
-    [ObservableProperty]
-    private string _cancelLabel = localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Skip);
 
     /// <summary>
     /// Gets or sets the label for the confirm/continue button.
@@ -38,17 +36,66 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     [ObservableProperty]
     private string _confirmLabel = FormatConfirmLabel(localizationService, items.Count(x => x.IsSelected));
 
-    private bool _confirmed = false;
+    /// <summary>
+    /// Gets or sets a value indicating whether the customize step is shown instead of the summary.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isCustomizing;
+
+    private bool _confirmed;
 
     /// <summary>
     /// Gets a value indicating whether the user confirmed the setup actions.
     /// </summary>
     public bool Confirmed => _confirmed;
 
+    /// <summary>
+    /// Gets a value indicating whether the user chose to use the installed game without optional components.
+    /// </summary>
+    public bool UseInstalledGameChosen { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the user chose to set up later.
+    /// </summary>
+    public bool SetUpLaterChosen { get; private set; }
+
+    /// <summary>
+    /// Gets the installed games that were found.
+    /// </summary>
+    public IReadOnlyList<string> FoundGames { get; } = foundGames ?? [];
+
+    /// <summary>
+    /// Gets a value indicating whether an installed game was identified.
+    /// </summary>
+    public bool HasFoundGames => FoundGames.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether more than one installed game was found.
+    /// </summary>
+    public bool HasMultipleFoundGames => FoundGames.Count > 1;
+
+    /// <summary>
+    /// Gets the sentence describing what was found.
+    /// </summary>
+    public string FoundSummary { get; } = FormatFoundSummary(localizationService, foundGames ?? []);
+
+    /// <summary>
+    /// Event to signal view to close.
+    /// </summary>
+    public event System.EventHandler? RequestClose;
+
     private static string FormatConfirmLabel(ILocalizationService? localizationService, int selectedCount) =>
         selectedCount > 0
             ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, selectedCount)
             : localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.Continue);
+
+    private static string FormatFoundSummary(ILocalizationService? localizationService, IReadOnlyList<string> foundGames) =>
+        foundGames.Count switch
+        {
+            0 => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundNoNamedGame),
+            1 => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundOneGame, foundGames[0]),
+            _ => localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundManyGames),
+        };
 
     [RelayCommand]
     private void ToggleSelection(SetupWizardItemViewModel? item)
@@ -65,18 +112,38 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
         }
     }
 
-    [RelayCommand]
-    private void Confirm()
+    [RelayCommand(CanExecute = nameof(HasFoundGames))]
+    private void UseInstalledGame()
     {
-        _confirmed = true;
+        if (!HasFoundGames)
+        {
+            return;
+        }
 
-        // Close window logic will be handled by the View's close handler binding to this command or interaction
+        UseInstalledGameChosen = true;
+        _confirmed = true;
         OnRequestClose();
     }
 
     [RelayCommand]
-    private void Cancel()
+    private void Customize() => IsCustomizing = true;
+
+    [RelayCommand]
+    private void Back() => IsCustomizing = false;
+
+    [RelayCommand]
+    private void Confirm()
     {
+        UseInstalledGameChosen = false;
+        _confirmed = true;
+        OnRequestClose();
+    }
+
+    [RelayCommand]
+    private void SetUpLater()
+    {
+        SetUpLaterChosen = true;
+        UseInstalledGameChosen = false;
         _confirmed = false;
         OnRequestClose();
     }
@@ -85,11 +152,6 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     {
         ConfirmLabel = FormatConfirmLabel(localizationService, Items.Count(x => x.IsSelected));
     }
-
-    /// <summary>
-    /// Event to signal view to close.
-    /// </summary>
-    public event System.EventHandler? RequestClose;
 
     private void OnRequestClose() => RequestClose?.Invoke(this, System.EventArgs.Empty);
 }

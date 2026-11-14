@@ -27,8 +27,9 @@ public class SetupWizardViewModelTests
 
         Assert.Equal(3, vm.Items.Count);
         Assert.Equal("Setup Detected Content", vm.Title);
-        Assert.Equal("Skip", vm.CancelLabel);
         Assert.Equal("Continue (2)", vm.ConfirmLabel);
+        Assert.Equal("GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.", vm.FoundSummary);
+        Assert.False(vm.IsCustomizing);
         Assert.False(vm.Confirmed);
     }
 
@@ -42,7 +43,6 @@ public class SetupWizardViewModelTests
         var vm = new SetupWizardViewModel([item], new MarkerLocalizationService());
 
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Title), vm.Title);
-        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.Skip), vm.CancelLabel);
         Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.ContinueWithCount, 1), vm.ConfirmLabel);
 
         vm.ToggleSelectionCommand.Execute(item);
@@ -123,19 +123,118 @@ public class SetupWizardViewModelTests
     }
 
     /// <summary>
-    /// Verifies that CancelCommand sets Confirmed to false and signals close.
+    /// Verifies that SetUpLaterCommand closes the wizard without confirming it.
     /// </summary>
     [Fact]
-    public void CancelCommand_SetsConfirmedFalseAndFiresRequestClose()
+    public void SetUpLaterCommand_LeavesWizardUnconfirmedAndFiresRequestClose()
     {
         var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true };
         var vm = new SetupWizardViewModel([item]);
         var closeFired = false;
         vm.RequestClose += (_, _) => closeFired = true;
 
-        vm.CancelCommand.Execute(null);
+        vm.SetUpLaterCommand.Execute(null);
 
         Assert.False(vm.Confirmed);
+        Assert.False(vm.UseInstalledGameChosen);
+        Assert.True(vm.SetUpLaterChosen);
         Assert.True(closeFired);
+    }
+
+    /// <summary>
+    /// Verifies that UseInstalledGameCommand confirms the wizard as a base game choice and signals close.
+    /// </summary>
+    [Fact]
+    public void UseInstalledGameCommand_ConfirmsWithInstalledGameChoiceAndFiresRequestClose()
+    {
+        var item = new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true };
+        var vm = new SetupWizardViewModel([item], foundGames: ["Zero Hour"]);
+        var closeFired = false;
+        vm.RequestClose += (_, _) => closeFired = true;
+
+        vm.UseInstalledGameCommand.Execute(null);
+
+        Assert.True(vm.Confirmed);
+        Assert.True(vm.UseInstalledGameChosen);
+        Assert.False(vm.SetUpLaterChosen);
+        Assert.True(closeFired);
+    }
+
+    /// <summary>
+    /// A missing installation cannot be accepted as an installed game.
+    /// </summary>
+    [Fact]
+    public void UseInstalledGameCommand_WithoutFoundGames_DoesNotConfirmOrClose()
+    {
+        var vm = new SetupWizardViewModel([]);
+        var closed = false;
+        vm.RequestClose += (_, _) => closed = true;
+
+        Assert.False(vm.HasFoundGames);
+        Assert.False(vm.UseInstalledGameCommand.CanExecute(null));
+        vm.UseInstalledGameCommand.Execute(null);
+
+        Assert.False(vm.Confirmed);
+        Assert.False(vm.UseInstalledGameChosen);
+        Assert.False(closed);
+    }
+
+    /// <summary>
+    /// Verifies that Customize opens the component choices and Back returns to the summary without closing.
+    /// </summary>
+    [Fact]
+    public void CustomizeAndBackCommands_SwitchStepsWithoutClosing()
+    {
+        var vm = new SetupWizardViewModel([new SetupWizardItemViewModel { Title = "Item 1" }]);
+        var closeFired = false;
+        vm.RequestClose += (_, _) => closeFired = true;
+
+        vm.CustomizeCommand.Execute(null);
+        Assert.True(vm.IsCustomizing);
+
+        vm.BackCommand.Execute(null);
+        Assert.False(vm.IsCustomizing);
+        Assert.False(closeFired);
+        Assert.False(vm.Confirmed);
+    }
+
+    /// <summary>
+    /// Verifies that ConfirmCommand from the customize step does not count as the installed game choice.
+    /// </summary>
+    [Fact]
+    public void ConfirmCommand_FromCustomizeStep_IsNotInstalledGameChoice()
+    {
+        var vm = new SetupWizardViewModel([new SetupWizardItemViewModel { Title = "Item 1", IsSelected = true }]);
+
+        vm.CustomizeCommand.Execute(null);
+        vm.ConfirmCommand.Execute(null);
+
+        Assert.True(vm.Confirmed);
+        Assert.False(vm.UseInstalledGameChosen);
+    }
+
+    /// <summary>
+    /// Verifies that one found game is named in a sentence.
+    /// </summary>
+    [Fact]
+    public void FoundSummary_WithOneGame_NamesTheGame()
+    {
+        var vm = new SetupWizardViewModel([], null, ["Zero Hour 1.04 (Steam)"]);
+
+        Assert.Equal("We found Zero Hour 1.04 (Steam).", vm.FoundSummary);
+        Assert.False(vm.HasMultipleFoundGames);
+    }
+
+    /// <summary>
+    /// Verifies that several found games are introduced and listed.
+    /// </summary>
+    [Fact]
+    public void FoundSummary_WithSeveralGames_ListsThem()
+    {
+        var vm = new SetupWizardViewModel([], new MarkerLocalizationService(), ["Generals 1.08 (Steam)", "Zero Hour 1.04 (Steam)"]);
+
+        Assert.Equal(MarkerLocalizationService.Marker(GameClientConstants.WizardLocalizationKeys.FoundManyGames), vm.FoundSummary);
+        Assert.True(vm.HasMultipleFoundGames);
+        Assert.Equal(["Generals 1.08 (Steam)", "Zero Hour 1.04 (Steam)"], vm.FoundGames);
     }
 }
