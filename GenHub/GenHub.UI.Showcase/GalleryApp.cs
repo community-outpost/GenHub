@@ -9,8 +9,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
-using GenHub.Core.Constants;
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 
 namespace GenHub.UI.Showcase;
 
