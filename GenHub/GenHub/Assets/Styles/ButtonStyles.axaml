@@ -1,167 +1,203 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
-    <!-- Opt-in action roles. Navigation, filter chips and branded controls keep their own styles. -->
+    <!-- Local design option, not published. Production semantic tokens are kept separate from navigation accent. -->
     <Style Selector="Button.action-primary, Button.action-secondary, Button.action-danger, Button.icon-action">
         <Setter Property="MinHeight" Value="{DynamicResource ActionMinHeight}" />
         <Setter Property="Padding" Value="{DynamicResource ActionPadding}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource ButtonCornerRadius}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
         <Setter Property="FontSize" Value="{DynamicResource ActionFontSize}" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Medium" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="Button.action-primary">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.action-primary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
     </Style>
     <Style Selector="Button.action-primary:pointerover">
-        <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.action-primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
     </Style>
     <Style Selector="Button.action-primary:pressed">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryPressedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.action-primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionPrimaryPressedBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
     </Style>
     <Style Selector="Button.action-primary:disabled">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button.action-primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+    </Style>
+    <Style Selector="Button.action-secondary">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-secondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryBorder}" />
+    </Style>
+    <Style Selector="Button.action-secondary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryHoverBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryHoverBorder}" />
+    </Style>
+    <Style Selector="Button.action-secondary:pressed">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryBorder}" />
+    </Style>
+    <Style Selector="Button.action-secondary:disabled">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+    </Style>
+    <Style Selector="Button.action-danger">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-danger /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+    </Style>
+    <Style Selector="Button.action-danger:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+    </Style>
+    <Style Selector="Button.action-danger:pressed">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDangerPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDangerInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerBorder}" />
+    </Style>
+    <Style Selector="Button.action-danger:disabled">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.action-danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger)">
+        <Setter Property="Background" Value="{DynamicResource ActionUtilityRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger) /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionUtilityRest}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionSecondaryPressed}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionUtilityInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionUtilityBorder}" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource ActionDisabledInk}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ActionDisabledBorder}" />
     </Style>
     <Style Selector="Button.action-primary:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
         <Setter Property="BorderThickness" Value="2" />
     </Style>
-    <Style Selector="Button.action-secondary">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:pressed">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:disabled">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
-    <Style Selector="Button.action-secondary:disabled /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
     <Style Selector="Button.action-secondary:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
         <Setter Property="BorderThickness" Value="2" />
     </Style>
-    <Style Selector="Button.action-danger">
-        <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:pointerover">
-        <Setter Property="Background" Value="{DynamicResource ActionDangerHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource ActionDangerHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:pressed">
-        <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:disabled">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
-    <Style Selector="Button.action-danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
     <Style Selector="Button.action-danger:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
         <Setter Property="BorderThickness" Value="2" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger)">
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-        <Setter Property="BorderBrush" Value="Transparent" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
-    </Style>
-    <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):disabled /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
     </Style>
     <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):focus-visible /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
