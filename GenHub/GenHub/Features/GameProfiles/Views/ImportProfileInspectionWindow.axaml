@@ -74,7 +74,7 @@
                         IsHitTestVisible="False" />
 
                 <!-- Layout -->
-                <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24">
+                <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
 
                     <!-- Header -->
                     <Grid Grid.Row="0"
@@ -88,11 +88,7 @@
                                           Width="20" Height="20"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
-                                <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Title}"
-                                           FontSize="16"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource TextPrimary}"
-                                           LetterSpacing="0.8"
+                                <TextBlock Classes="dialog-title" Text="{localization:Localize GameProfiles.ImportInspection.Title}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                             <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Subtitle}"

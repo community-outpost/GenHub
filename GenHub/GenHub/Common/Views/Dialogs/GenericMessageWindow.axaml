@@ -82,25 +82,17 @@
             </Border>
 
             <!-- Main Content Container -->
-            <Grid RowDefinitions="Auto,*,Auto" Margin="40">
+            <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
 
                 <!-- Header Section -->
-                <StackPanel Grid.Row="0" Spacing="24" Margin="0,0,0,32">
+                <StackPanel Grid.Row="0" Spacing="16" Margin="{DynamicResource DialogHeaderSpacing}">
                     <Grid ColumnDefinitions="Auto, *">
                         <!-- GENHUB OFFICIAL ICON -->
                         <Image Source="avares://GenHub/Assets/Icons/generalshub-icon.png"
-                               Width="48" Height="48" Grid.Column="0" VerticalAlignment="Center" />
+                               Width="32" Height="32" Grid.Column="0" VerticalAlignment="Center" />
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <TextBlock Text="{Binding Title}"
-                                       FontSize="28"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource TextPrimary}"
-                                       LetterSpacing="1.5">
-                                <TextBlock.Effect>
-                                    <DropShadowEffect BlurRadius="10" Opacity="0.5" OffsetX="0" OffsetY="2" Color="Black"/>
-                                </TextBlock.Effect>
-                            </TextBlock>
+                            <TextBlock Classes="dialog-title" Text="{Binding Title}"></TextBlock>
                         </StackPanel>
                     </Grid>
 
@@ -117,8 +109,8 @@
                 </StackPanel>
 
                 <!-- Body Text with Markdown support -->
-                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,32"
-                                         TextElement.Foreground="{DynamicResource TextPrimaryBrush}">
+                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,16"
+                                         TextElement.Foreground="{DynamicResource TextPrimary}" TextElement.FontSize="13">
                     <md:MarkdownScrollViewer.Styles>
                          <Style Selector="Border.Note">
                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
@@ -128,10 +120,10 @@
                             <Setter Property="CornerRadius" Value="6"/>
                         </Style>
                         <Style Selector="TextBlock">
-                            <Setter Property="LineHeight" Value="24"/>
+                            <Setter Property="LineHeight" Value="20"/>
                         </Style>
                         <Style Selector="ctxt|CTextBlock">
-                            <Setter Property="LineHeight" Value="24"/>
+                            <Setter Property="LineHeight" Value="20"/>
                         </Style>
                     </md:MarkdownScrollViewer.Styles>
                 </md:MarkdownScrollViewer>

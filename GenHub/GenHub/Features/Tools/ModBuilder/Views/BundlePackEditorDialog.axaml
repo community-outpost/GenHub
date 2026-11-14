@@ -34,10 +34,7 @@
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
           Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
       <StackPanel Grid.Column="0" Spacing="4">
-        <TextBlock Text="{localization:Localize Tools.ModBuilder.BundleEditor.Title}"
-                   FontSize="20"
-                   FontWeight="Bold"
-                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.ModBuilder.BundleEditor.Title}"/>
 
         <TextBlock Text="{Binding BundlePackName}"
                    FontSize="13.5"

@@ -14,19 +14,13 @@
         <conv:StringEqualityMultiConverter x:Key="StringEqualityMultiConverter"/>
     </UserControl.Resources>
 
-    <UserControl.Styles>
-
-    </UserControl.Styles>
-
-    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+    <Grid RowDefinitions="Auto, *, Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
-            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"
-                       FontSize="20" FontWeight="Bold"
-                       Foreground="{DynamicResource TextPrimary}"/>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"/>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    VerticalAlignment="Top"
+                    VerticalAlignment="Center"
                     AutomationProperties.Name="{localization:Localize Common.Button.Close}"
                     ToolTip.Tip="{localization:Localize Common.Button.Close}">
                 <PathIcon Data="{StaticResource CloseIcon}"/>
