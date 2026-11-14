@@ -33,27 +33,21 @@
     <UserControl.Styles>
         <!-- Pill navigation container style -->
         <Style Selector="Border.pill-container">
-            <Setter Property="Background" Value="#CC111118" />
-            <Setter Property="BorderBrush" Value="#403A3A48" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
             <Setter Property="Padding" Value="4" />
-            <Setter Property="Height" Value="46" />
+            <Setter Property="MinHeight" Value="46" />
             <Setter Property="BoxShadow" Value="0 4 16 0 #20000000" />
         </Style>
 
         <!-- Pill tab button style -->
         <Style Selector="Button.pill-tab">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#9E9EA8" />
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="20" />
-            <Setter Property="Padding" Value="22,0" />
-            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="22,8" />
+            <Setter Property="MinHeight" Value="36" />
             <Setter Property="Margin" Value="0" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="MinWidth" Value="110" />
@@ -96,27 +90,10 @@
         </Style>
 
         <!-- Pill tab hover (unselected) -->
-        <Style Selector="Button.pill-tab:pointerover">
-            <Setter Property="Background" Value="#222228" />
-            <Setter Property="Foreground" Value="#F0F0F5" />
-            <Setter Property="BorderBrush" Value="#20FFFFFF" />
-        </Style>
 
         <!-- Pill tab active / selected -->
-        <Style Selector="Button.pill-tab.active">
-            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
 
         <!-- Pill tab active + hover -->
-        <Style Selector="Button.pill-tab.active:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
-        </Style>
 
         <!-- Header gradient background -->
         <Style Selector="Border.header-background">
@@ -177,7 +154,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-
         <!-- Header -->
         <Border Grid.Row="0" Classes="header-background">
             <Grid ColumnDefinitions="*,Auto,*" Margin="20,0,20,0" Height="68">
@@ -233,7 +209,6 @@
                 </StackPanel>
             </Grid>
         </Border>
-
 
 
         <!-- Main content area -->

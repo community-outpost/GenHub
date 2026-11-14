@@ -27,6 +27,14 @@ public class SplitActionStyleTests
         window.Show();
         try
         {
+            var gameTabs = view.GetVisualDescendants().OfType<RadioButton>().Where(button => button.Classes.Contains("TabButton")).ToArray();
+            Assert.Equal(2, gameTabs.Length);
+            foreach (var tab in gameTabs)
+            {
+                var tabBorder = tab.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "Root");
+                Assert.Equal(new Avalonia.CornerRadius(999), tabBorder.CornerRadius);
+            }
+
             var capsule = Assert.Single(view.GetVisualDescendants().OfType<Border>(), border => border.Classes.Contains("split-action"));
             Assert.IsAssignableFrom<ILinearGradientBrush>(capsule.Background);
             var left = Assert.Single(capsule.GetVisualDescendants().OfType<Button>(), button => button.Classes.Contains("SplitLeft"));

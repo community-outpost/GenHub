@@ -1,0 +1,143 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Navigation families retain their own layout; these shared states express location consistently. -->
+  <Style Selector="Button.pill-tab, Button.nav-pill, Button.sidebar-btn, Button.tab-icon-btn">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource NavRestInk}" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontWeight" Value="Medium" />
+  </Style>
+  <!-- Top-level, Studio and profile navigation use the same pill curvature as actions. -->
+  <Style Selector="Button.pill-tab, Button.nav-pill, Button.tab-icon-btn">
+    <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.pill-tab TextBlock, Button.nav-pill TextBlock, Button.tab-icon-btn TextBlock, Button.nav-pill PathIcon, Button.tab-icon-btn PathIcon">
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <!-- Large icon navigation keeps a visible target even before hover/selection. -->
+  <Style Selector="Button.tab-icon-btn">
+    <Setter Property="Background" Value="{DynamicResource ProfileNavigationRestFill}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ProfileNavigationRestBorder}" />
+  </Style>
+  <Style Selector="Button.tab-icon-btn /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{ReflectionBinding $parent[Button].Background}" />
+    <Setter Property="BorderBrush" Value="{ReflectionBinding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active, Button.pill-tab.selected">
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Button.pill-tab:pointerover, Button.nav-pill:pointerover, Button.sidebar-btn:pointerover, Button.tab-icon-btn:pointerover">
+    <Setter Property="Background" Value="{DynamicResource NavHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavHoverBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavHoverBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab:pressed, Button.nav-pill:pressed, Button.sidebar-btn:pressed, Button.tab-icon-btn:pressed">
+    <Setter Property="Background" Value="{DynamicResource NavPressedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavHoverBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavPressedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavHoverBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active, Button.pill-tab.selected, Button.nav-pill.active, Button.nav-pill.selected, Button.sidebar-btn.active, Button.sidebar-btn.selected, Button.tab-icon-btn.active, Button.tab-icon-btn.selected">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.pill-tab.active /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:pointerover, Button.pill-tab.selected:pointerover, Button.nav-pill.active:pointerover, Button.nav-pill.selected:pointerover, Button.sidebar-btn.active:pointerover, Button.sidebar-btn.selected:pointerover, Button.tab-icon-btn.active:pointerover, Button.tab-icon-btn.selected:pointerover">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:pressed, Button.pill-tab.selected:pressed, Button.nav-pill.active:pressed, Button.nav-pill.selected:pressed, Button.sidebar-btn.active:pressed, Button.sidebar-btn.selected:pressed, Button.tab-icon-btn.active:pressed, Button.tab-icon-btn.selected:pressed">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource NavFocusBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Button.pill-tab:focus-visible /template/ Border#PART_PillBorder">
+    <Setter Property="BorderBrush" Value="{DynamicResource NavFocusBrush}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Button.pill-tab:disabled, Button.nav-pill:disabled, Button.sidebar-btn:disabled, Button.tab-icon-btn:disabled">
+    <Setter Property="Background" Value="{DynamicResource NavDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavDisabledFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:disabled, Button.nav-pill.active:disabled, Button.sidebar-btn.active:disabled, Button.tab-icon-btn.active:disabled">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.selected:disabled, Button.nav-pill.selected:disabled, Button.sidebar-btn.selected:disabled, Button.tab-icon-btn.selected:disabled">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.selected:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:disabled /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:disabled /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource NavSelectedFill}" />
+    <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab PathIcon, Button.nav-pill PathIcon, Button.sidebar-btn PathIcon, Button.tab-icon-btn PathIcon">
+    <Setter Property="Foreground" Value="{ReflectionBinding $parent[Button].Foreground}" />
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+  <Style Selector="Button.pill-tab TextBlock, Button.nav-pill TextBlock, Button.sidebar-btn TextBlock, Button.tab-icon-btn TextBlock">
+    <Setter Property="Foreground" Value="{ReflectionBinding $parent[Button].Foreground}" />
+    <Setter Property="FontWeight" Value="{ReflectionBinding $parent[Button].FontWeight}" />
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+  <Style Selector="Button.tab-icon-btn Panel > Border">
+    <Setter Property="Background" Value="{ReflectionBinding $parent[Button].Foreground}" />
+    <Setter Property="Opacity" Value="1" />
+  </Style>
+  <Style Selector="Button.sidebar-btn:disabled Image">
+    <Setter Property="Opacity" Value="0.45" />
+  </Style>
+  <Style Selector="Button.nav-pill PathIcon">
+    <Setter Property="Width" Value="{DynamicResource ActionIconSize}" />
+    <Setter Property="Height" Value="{DynamicResource ActionIconSize}" />
+  </Style>
+  <Style Selector="Button.tab-icon-btn PathIcon">
+    <Setter Property="Width" Value="{DynamicResource ProfileNavigationIconSize}" />
+    <Setter Property="Height" Value="{DynamicResource ProfileNavigationIconSize}" />
+  </Style>
+</Styles>

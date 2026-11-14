@@ -168,14 +168,8 @@
         <Style Selector="Button.tab-icon-btn">
             <Setter Property="Width" Value="64" />
             <Setter Property="Height" Value="64" />
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#60FFFFFF" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Opacity" Value="1" />
-            <Setter Property="Foreground" Value="White" />
             <Setter Property="Transitions">
                 <Transitions>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
@@ -184,32 +178,12 @@
                 </Transitions>
             </Setter>
         </Style>
-        <Style Selector="Button.tab-icon-btn PathIcon">
-             <Setter Property="Foreground" Value="White" />
-             <Setter Property="Opacity" Value="0.6" />
-        </Style>
+
         <Style Selector="Button.tab-icon-btn Panel > Border">
-             <Setter Property="Background" Value="White" />
-             <Setter Property="Opacity" Value="0.6" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn:pointerover" x:CompileBindings="False">
-            <Setter Property="Background" Value="#25FFFFFF" />
-            <Setter Property="BorderBrush" Value="White" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="RenderTransform" Value="translateY(-4px)" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn:pointerover PathIcon">
-            <Setter Property="Opacity" Value="1.0" />
         </Style>
         <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
-            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="White" />
+            <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn.selected PathIcon">
-            <Setter Property="Opacity" Value="1.0" />
         </Style>
 
         <!-- New Content Card Styles -->
@@ -358,7 +332,7 @@
                             CommandParameter="0"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.TabContent}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabContent}">
                         <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
-                                  Width="32" Height="32" />
+                                  Width="{DynamicResource ProfileNavigationIconSize}" Height="{DynamicResource ProfileNavigationIconSize}" />
                     </Button>
 
                     <!-- Profile Settings Tab Icon -->
@@ -367,8 +341,8 @@
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="1"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.TabProfileSettings}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabProfileSettings}">
-                        <Panel Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
-                            <Border Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
+                        <Panel Width="{DynamicResource ProfileNavigationIconSize}" Height="{DynamicResource ProfileNavigationIconSize}">
+                            <Border Width="{DynamicResource ProfileNavigationIconSize}" Height="{DynamicResource ProfileNavigationIconSize}">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/gameprofilesettings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>
@@ -382,8 +356,8 @@
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="2"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.TabGameSettings}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabGameSettings}">
-                        <Panel Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
-                            <Border Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
+                        <Panel Width="{DynamicResource ProfileNavigationIconSize}" Height="{DynamicResource ProfileNavigationIconSize}">
+                            <Border Width="{DynamicResource ProfileNavigationIconSize}" Height="{DynamicResource ProfileNavigationIconSize}">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/settings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>

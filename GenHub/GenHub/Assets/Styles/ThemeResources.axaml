@@ -260,6 +260,9 @@
     <SolidColorBrush x:Key="FormFieldBorder" Color="#666678" />
     <SolidColorBrush x:Key="FormFieldHoverFill" Color="#242431" />
     <SolidColorBrush x:Key="FormFieldHoverBorder" Color="#848498" />
+    <SolidColorBrush x:Key="ProfileNavigationRestFill" Color="#0DFFFFFF" />
+    <SolidColorBrush x:Key="ProfileNavigationRestBorder" Color="#666678" />
+    <x:Double x:Key="ProfileNavigationIconSize">32</x:Double>
 
 
 
@@ -272,6 +275,19 @@
     <x:Double x:Key="FormCompactFontSize">12</x:Double>
     <Thickness x:Key="FormFieldPadding">10,8</Thickness>
     <Thickness x:Key="FormCompactPadding">8,6</Thickness>
+    <!-- Shared navigation states: geometry remains specific to tabs, rows and icon choices. -->
+    <SolidColorBrush x:Key="NavRestInk" Color="{DynamicResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="NavSelectedInk" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="NavHoverFill" Color="{DynamicResource GlassFillColor}" />
+    <SolidColorBrush x:Key="NavPressedFill" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="NavHoverBorder" Color="{DynamicResource BorderHighlightDark}" />
+    <SolidColorBrush x:Key="NavSelectedFill" Color="{DynamicResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="NavSelectedHoverFill" Color="{DynamicResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="NavSelectedBorder" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="NavFocusBrush" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="NavDisabledFill" Color="Transparent" />
+    <SolidColorBrush x:Key="NavDisabledInk" Color="{DynamicResource TextMutedColor}" />
+    <SolidColorBrush x:Key="NavDisabledBorder" Color="{DynamicResource BorderSubtleDark}" />
 
     <!-- Action dimensions grow with content; never impose a fixed text button height. -->
     <x:Double x:Key="ActionMinHeight">36</x:Double>

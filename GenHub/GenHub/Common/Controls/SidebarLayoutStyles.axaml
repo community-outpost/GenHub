@@ -97,22 +97,31 @@
                       </Style>
 
                       <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource NavHoverFill}"/>
                         <Setter Property="CornerRadius" Value="8"/>
                       </Style>
 
                       <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource NavSelectedFill}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="8"/>
                       </Style>
 
                       <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource NavSelectedFill}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="8"/>
+                      </Style>
+                      <Style Selector="ListBoxItem:focus-visible /template/ ContentPresenter">
+                        <Setter Property="BorderBrush" Value="{DynamicResource NavFocusBrush}"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                      </Style>
+                      <Style Selector="ListBoxItem:disabled /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource NavDisabledFill}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}"/>
                       </Style>
                     </ListBox.Styles>
                   </ListBox>
@@ -148,7 +157,7 @@
                       </Setter>
                     </Style>
                     <Style Selector="Border:pointerover > Rectangle">
-                      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+                      <Setter Property="Fill" Value="{DynamicResource NavSelectedBorder}" />
                     </Style>
                   </Border.Styles>
                   <Rectangle Width="2" HorizontalAlignment="Center" />
@@ -186,7 +195,7 @@
               </Style>
               <Style Selector="Border#PART_TriggerZone:pointerover > Border.expand-tab">
                 <Setter Property="Opacity" Value="1.0" />
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                <Setter Property="Background" Value="{DynamicResource NavSelectedBorder}" />
               </Style>
             </Border.Styles>
 
