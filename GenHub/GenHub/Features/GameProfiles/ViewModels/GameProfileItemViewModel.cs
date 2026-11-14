@@ -212,7 +212,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the description.
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LibraryDescription))]
     private string? _description;
 
     /// <summary>

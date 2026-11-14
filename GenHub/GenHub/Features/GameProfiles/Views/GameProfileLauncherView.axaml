@@ -42,11 +42,26 @@
         </controls:SidebarLayout.ItemTemplate>
         <Grid RowDefinitions="Auto,*">
             <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.MyProfiles}" Command="{Binding #ProfileLibraryLayout.OpenPaneCommand}" IsVisible="{Binding !#ProfileLibraryLayout.IsPaneOpen}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.MyProfiles}" Margin="16,12" />
-        <ScrollViewer Grid.Row="1" x:Name="LibraryDetail" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid>
+        <Grid Grid.Row="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid>
                 <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Center" Margin="30" IsVisible="{Binding IsLibraryInitializing}"/>
                 <TextBlock Text="{localization:Localize GameProfiles.Library.LoadError}" Classes="library-secondary" Margin="30" VerticalAlignment="Center" IsVisible="{Binding HasLibraryLoadError}"/>
-                <StackPanel IsVisible="{Binding HasDisplayedProfile}">
+                <StackPanel IsVisible="{Binding IsLibraryEmpty}" Margin="30" Spacing="16" VerticalAlignment="Center" MaxWidth="560">
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyTitle}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyHelp}" Classes="library-secondary"/>
+                    <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}"/>
+                    <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
+                        <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
+                        <WrapPanel>
+                            <Button Classes="action-secondary library-action" Command="{Binding OpenSteamStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.SteamButton}" Margin="0,0,8,8"/>
+                            <Button Classes="action-secondary library-action" Command="{Binding OpenEaStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.EaAppButton}" Margin="0,0,0,8"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </StackPanel>
+                </Grid>
+            </ScrollViewer>
+                <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding HasDisplayedProfile}">
                     <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" MinHeight="220" ClipToBounds="True">
                         <Border Height="220" ClipToBounds="True" VerticalAlignment="Top">
                             <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" Opacity="0.65"/>
@@ -64,8 +79,7 @@
                             <TextBlock Text="{Binding LibraryHeaderMetadata}" Classes="library-secondary" IsVisible="{Binding LibraryHeaderMetadata, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
                     </Grid>
-                    <StackPanel Margin="30,0,30,30" Spacing="22">
-                        <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ColumnDefinitions="*,Auto">
+                        <Grid Grid.Row="1" Margin="30,0,30,0" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ColumnDefinitions="*,Auto">
                             <WrapPanel Orientation="Horizontal">
                                 <Button Classes="action-primary library-action library-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" Margin="0,0,20,8" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -100,6 +114,8 @@
                                 </Button.Flyout>
                             </Button>
                         </Grid>
+                    <ScrollViewer Grid.Row="2" x:Name="LibraryDetail" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="30,22,30,30" Spacing="22">
                         <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12">
                             <WrapPanel>
                                 <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Overview}" IsChecked="{Binding IsLibraryOverview, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.OverviewTab}"/>
@@ -169,21 +185,9 @@
                             <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.EditSettings}" Command="{Binding EditLibraryProfileCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.SettingsTab}" IsEnabled="{Binding DisplayedProfile.CanEdit}"/>
                         </StackPanel>
                     </StackPanel>
-                </StackPanel>
-                <StackPanel IsVisible="{Binding IsLibraryEmpty}" Margin="30" Spacing="16" VerticalAlignment="Center" MaxWidth="560">
-                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyTitle}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyHelp}" Classes="library-secondary"/>
-                    <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}"/>
-                    <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
-                        <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
-                        <WrapPanel>
-                            <Button Classes="action-secondary library-action" Command="{Binding OpenSteamStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.SteamButton}" Margin="0,0,8,8"/>
-                            <Button Classes="action-secondary library-action" Command="{Binding OpenEaStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.EaAppButton}" Margin="0,0,0,8"/>
-                        </WrapPanel>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-        </ScrollViewer>
+                    </ScrollViewer>
+                </Grid>
+        </Grid>
         </Grid>
     </controls:SidebarLayout>
 </UserControl>
