@@ -40,6 +40,15 @@ public partial class HotkeyProfile : ObservableObject
     /// <summary>Gets or sets the set of hotkey labels explicitly cleared by the user.</summary>
     public HashSet<string> ClearedKeys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Gets or sets custom tooltip descriptions keyed by tooltip or hotkey CSF label.</summary>
+    public Dictionary<string, string> TooltipMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom button display titles keyed by hotkey CSF label.</summary>
+    public Dictionary<string, string> TitleMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets or sets custom cameo image paths keyed by button IconName.</summary>
+    public Dictionary<string, string> CustomCameoMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Gets or sets the creation timestamp.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -48,10 +57,86 @@ public partial class HotkeyProfile : ObservableObject
 
     /// <summary>
     /// Normalizes collections to ensure case-insensitive string lookups even after JSON deserialization.
+    /// Preserves existing dictionary instances if their comparer is already case-insensitive.
     /// </summary>
     public void NormalizeComparers()
     {
-        KeyMappings = new Dictionary<string, char>(KeyMappings, StringComparer.OrdinalIgnoreCase);
-        ClearedKeys = new HashSet<string>(ClearedKeys, StringComparer.OrdinalIgnoreCase);
+        if (KeyMappings.Comparer != StringComparer.OrdinalIgnoreCase)
+        {
+            KeyMappings = ToCaseInsensitiveDictionary(KeyMappings);
+        }
+
+        if (ClearedKeys.Comparer != StringComparer.OrdinalIgnoreCase)
+        {
+            ClearedKeys = ToCaseInsensitiveHashSet(ClearedKeys);
+        }
+
+        if (TooltipMappings.Comparer != StringComparer.OrdinalIgnoreCase)
+        {
+            TooltipMappings = ToCaseInsensitiveDictionary(TooltipMappings);
+        }
+
+        if (TitleMappings.Comparer != StringComparer.OrdinalIgnoreCase)
+        {
+            TitleMappings = ToCaseInsensitiveDictionary(TitleMappings);
+        }
+
+        if (CustomCameoMappings.Comparer != StringComparer.OrdinalIgnoreCase)
+        {
+            CustomCameoMappings = ToCaseInsensitiveDictionary(CustomCameoMappings);
+        }
+    }
+
+    /// <summary>
+    /// Creates a snapshot copy of this profile safe for background serialization or storage.
+    /// </summary>
+    /// <returns>A new <see cref="HotkeyProfile"/> containing cloned mappings.</returns>
+    public HotkeyProfile CreateSnapshot()
+    {
+        return new HotkeyProfile
+        {
+            Id = Id,
+            Name = Name,
+            AddonManifestId = AddonManifestId,
+            TargetGame = TargetGame,
+            BasePreset = BasePreset,
+            OverlayEnabled = OverlayEnabled,
+            OverlayCorner = OverlayCorner,
+            CreatedAt = CreatedAt,
+            UpdatedAt = UpdatedAt,
+            KeyMappings = ToCaseInsensitiveDictionary(KeyMappings),
+            ClearedKeys = ToCaseInsensitiveHashSet(ClearedKeys),
+            TooltipMappings = ToCaseInsensitiveDictionary(TooltipMappings),
+            TitleMappings = ToCaseInsensitiveDictionary(TitleMappings),
+            CustomCameoMappings = ToCaseInsensitiveDictionary(CustomCameoMappings),
+        };
+    }
+
+    private static Dictionary<string, TValue> ToCaseInsensitiveDictionary<TValue>(IDictionary<string, TValue>? source)
+    {
+        var result = new Dictionary<string, TValue>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var kvp in source)
+            {
+                result[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return result;
+    }
+
+    private static HashSet<string> ToCaseInsensitiveHashSet(IEnumerable<string>? source)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (source != null)
+        {
+            foreach (var item in source)
+            {
+                result.Add(item);
+            }
+        }
+
+        return result;
     }
 }

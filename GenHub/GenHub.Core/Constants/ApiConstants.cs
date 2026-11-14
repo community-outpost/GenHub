@@ -292,9 +292,19 @@ public static class ApiConstants
     public const string NuGetFlatContainerBaseUrlEnvVar = "GENHUB_NUGET_BASE_URL";
 
     /// <summary>
+    /// Environment variable to override the NuGet v2 package download base URL.
+    /// </summary>
+    public const string NuGetV2BaseUrlEnvVar = "GENHUB_NUGET_V2_BASE_URL";
+
+    /// <summary>
     /// Default base URL for the NuGet flat container feed.
     /// </summary>
     public const string DefaultNuGetFlatContainerBaseUrl = "https://api.nuget.org/v3-flatcontainer";
+
+    /// <summary>
+    /// Default base URL for NuGet v2 package downloads.
+    /// </summary>
+    public const string DefaultNuGetV2BaseUrl = "https://www.nuget.org/api/v2/package";
 
     /// <summary>
     /// Gets the active base URL for the NuGet flat container feed, checking environment variable overrides first.
@@ -303,6 +313,14 @@ public static class ApiConstants
         Environment.GetEnvironmentVariable(NuGetFlatContainerBaseUrlEnvVar) is { Length: > 0 } customUrl
             ? customUrl.TrimEnd('/')
             : DefaultNuGetFlatContainerBaseUrl;
+
+    /// <summary>
+    /// Gets the active base URL for NuGet v2 package downloads, checking environment variable overrides first.
+    /// </summary>
+    public static string NuGetV2BaseUrl =>
+        Environment.GetEnvironmentVariable(NuGetV2BaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultNuGetV2BaseUrl;
 
     /// <summary>
     /// Builds the direct download URL for a NuGet package archive.
@@ -315,5 +333,18 @@ public static class ApiConstants
         var normalizedId = packageId.ToLowerInvariant();
         var normalizedVersion = version.ToLowerInvariant();
         return $"{NuGetFlatContainerBaseUrl}/{normalizedId}/{normalizedVersion}/{normalizedId}.{normalizedVersion}.nupkg";
+    }
+
+    /// <summary>
+    /// Builds the fallback NuGet v2 download URL for a package archive.
+    /// </summary>
+    /// <param name="packageId">The package id.</param>
+    /// <param name="version">The exact package version.</param>
+    /// <returns>The download URL for the package.</returns>
+    public static string GetNuGetV2PackageDownloadUrl(string packageId, string version)
+    {
+        var normalizedId = packageId.ToLowerInvariant();
+        var normalizedVersion = version.ToLowerInvariant();
+        return $"{NuGetV2BaseUrl}/{normalizedId}/{normalizedVersion}";
     }
 }
