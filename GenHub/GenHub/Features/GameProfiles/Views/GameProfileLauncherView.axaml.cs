@@ -80,7 +80,7 @@ public partial class GameProfileLauncherView : UserControl
 
     private void OnLibrarySizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var compact = e.NewSize.Width < 700;
+        var compact = e.NewSize.Width < GameProfileLibraryConstants.CompactWidthThreshold;
         if (compact == _isCompactLibrary)
         {
             return;

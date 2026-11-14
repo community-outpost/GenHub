@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.GameProfile;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ public partial class GameProfileLauncherViewModel
     private string _profileSearchText = string.Empty;
 
     [ObservableProperty]
-    private string _selectedLibraryTab = "Overview";
+    private string _selectedLibraryTab = GameProfileLibraryConstants.OverviewTab;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLibraryContentEmpty))]
@@ -71,13 +72,13 @@ public partial class GameProfileLauncherViewModel
     public bool HasDisplayedProfile => DisplayedProfile != null;
 
     /// <summary>Gets a value indicating whether the overview is selected.</summary>
-    public bool IsLibraryOverview => SelectedLibraryTab == "Overview";
+    public bool IsLibraryOverview => SelectedLibraryTab == GameProfileLibraryConstants.OverviewTab;
 
     /// <summary>Gets a value indicating whether the content tab is selected.</summary>
-    public bool IsLibraryContent => SelectedLibraryTab == "Content";
+    public bool IsLibraryContent => SelectedLibraryTab == GameProfileLibraryConstants.ContentTab;
 
     /// <summary>Gets a value indicating whether the settings tab is selected.</summary>
-    public bool IsLibrarySettings => SelectedLibraryTab == "Settings";
+    public bool IsLibrarySettings => SelectedLibraryTab == GameProfileLibraryConstants.SettingsTab;
 
     /// <summary>
     /// Gets or sets the displayed profile. A default preview does not overwrite the
@@ -112,7 +113,7 @@ public partial class GameProfileLauncherViewModel
     [RelayCommand]
     private void SelectLibraryTab(string tab)
     {
-        if (tab is "Overview" or "Content" or "Settings")
+        if (tab is GameProfileLibraryConstants.OverviewTab or GameProfileLibraryConstants.ContentTab or GameProfileLibraryConstants.SettingsTab)
         {
             if (SelectedLibraryTab == tab)
             {
@@ -130,7 +131,10 @@ public partial class GameProfileLauncherViewModel
     {
         if (DisplayedProfile is { CanEdit: true } profile)
         {
-            await EditProfileCoreAsync(profile, tab == "Content" ? 0 : 1);
+            var editorTab = tab == GameProfileLibraryConstants.ContentTab
+                ? GameProfileLibraryConstants.ContentEditorTabIndex
+                : GameProfileLibraryConstants.SettingsEditorTabIndex;
+            await EditProfileCoreAsync(profile, editorTab);
         }
     }
 

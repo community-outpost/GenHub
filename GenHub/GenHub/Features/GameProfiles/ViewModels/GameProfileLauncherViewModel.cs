@@ -485,7 +485,7 @@ public partial class GameProfileLauncherViewModel(
                 ErrorMessage = errors;
                 logger.LogWarning("Failed to load profiles: {Errors}", errors);
                 HasLibraryLoadError = true;
-                notificationService.ShowError(localizationService["GameProfiles.Library.MyProfiles"], localizationService["GameProfiles.Library.LoadError"]);
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], localizationService["GameProfiles.Library.LoadError"]);
             }
 
             // Register for profile messages on first initialization only
@@ -502,7 +502,7 @@ public partial class GameProfileLauncherViewModel(
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
             HasLibraryLoadError = true;
-            notificationService.ShowError(localizationService["GameProfiles.Library.MyProfiles"], localizationService["GameProfiles.Library.LoadError"]);
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], localizationService["GameProfiles.Library.LoadError"]);
         }
         finally
         {
@@ -1546,7 +1546,7 @@ public partial class GameProfileLauncherViewModel(
             InitializeSortOptions(forceRefresh: true);
             foreach (var profile in Profiles.Where(p => p is not AddProfileItemViewModel))
             {
-                profile.NotifyLibraryPropertiesChanged();
+                profile.NotifyLibraryCaptionsChanged();
             }
 
             OnPropertyChanged(nameof(LibraryContentSummary));

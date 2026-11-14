@@ -473,6 +473,31 @@ public class GameProfileLibraryViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a caption refresh for a language change does not reload content.
+    /// </summary>
+    /// <returns>A task representing the asynchronous regression check.</returns>
+    [Fact]
+    public async Task LibraryContent_CaptionRefresh_DoesNotReloadContentAsync()
+    {
+        var loader = new Mock<IProfileContentLoader>();
+        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>()))
+            .ReturnsAsync(new ObservableCollection<ContentDisplayItem>());
+        var vm = CreateViewModel(loader.Object);
+        var alpha = CreateProfile("alpha", "Alpha");
+        vm.Profiles.Add(alpha);
+        await vm.LibraryContentLoad;
+        var load = vm.LibraryContentLoad;
+        var notified = false;
+        alpha.PropertyChanged += (_, e) => notified |= e.PropertyName == nameof(GameProfileItemViewModel.LibraryContentCount);
+
+        alpha.NotifyLibraryCaptionsChanged();
+
+        Assert.False(notified);
+        Assert.Same(load, vm.LibraryContentLoad);
+        loader.Verify(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>()), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that mounting the detail fallback does not silently persist a default selection.
     /// </summary>
     [AvaloniaFact]

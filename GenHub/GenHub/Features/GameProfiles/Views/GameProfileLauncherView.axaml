@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:GenHub.Common.Controls" xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels" xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core" xmlns:localization="clr-namespace:GenHub.Common.Markup" xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView" x:DataType="vm:GameProfileLauncherViewModel" x:CompileBindings="True" x:Name="ProfileLibrary" DragDrop.AllowDrop="True" Background="{DynamicResource SurfaceBackgroundBrush}">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:GenHub.Common.Controls" xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels" xmlns:content="clr-namespace:GenHub.Core.Models.Content;assembly=GenHub.Core" xmlns:localization="clr-namespace:GenHub.Common.Markup" xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core" xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView" x:DataType="vm:GameProfileLauncherViewModel" x:CompileBindings="True" x:Name="ProfileLibrary" DragDrop.AllowDrop="True" Background="{DynamicResource SurfaceBackgroundBrush}">
     <controls:SidebarLayout x:Name="ProfileLibraryLayout" PaneTitle="{localization:Localize GameProfiles.Library.MyProfiles}" ItemsSource="{Binding LibraryProfiles}" SelectedItem="{Binding DisplayedProfile, Mode=TwoWay}" OpenPaneLength="260" MinPaneLength="220" MaxPaneLength="360">
         <controls:SidebarLayout.PaneHeader>
             <StackPanel>
@@ -42,8 +42,8 @@
             </DataTemplate>
         </controls:SidebarLayout.ItemTemplate>
         <Grid RowDefinitions="Auto,*">
-            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.MyProfiles}" Command="{Binding #ProfileLibraryLayout.OpenPaneCommand}" IsVisible="{Binding !#ProfileLibraryLayout.IsPaneOpen}" Margin="16,12" />
-        <ScrollViewer Grid.Row="1" x:Name="LibraryDetail" HorizontalScrollBarVisibility="Disabled">
+            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.MyProfiles}" Command="{Binding #ProfileLibraryLayout.OpenPaneCommand}" IsVisible="{Binding !#ProfileLibraryLayout.IsPaneOpen}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.MyProfiles}" Margin="16,12" />
+        <ScrollViewer Grid.Row="1" x:Name="LibraryDetail" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Grid>
                 <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Center" Margin="30" IsVisible="{Binding IsLibraryInitializing}"/>
                 <TextBlock Text="{localization:Localize GameProfiles.Library.LoadError}" Classes="library-secondary" Margin="30" VerticalAlignment="Center" IsVisible="{Binding HasLibraryLoadError}"/>
@@ -86,11 +86,11 @@
                                     <TextBlock Text="{Binding LibraryLaunchMethod}" Classes="library-secondary"/>
                                 </StackPanel>
                             </WrapPanel>
-                            <Button Grid.Column="1" Classes="action-secondary library-action" Padding="10" MinWidth="40" Height="40" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}" IsEnabled="{Binding CanEdit}">
+                            <Button Grid.Column="1" Classes="action-secondary library-action" Padding="10" MinWidth="40" Height="40" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}">
                                 <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18"/>
                                 <Button.Flyout>
                                     <MenuFlyout>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}"/>
+                                        <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
                                         <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
                                         <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
                                         <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
@@ -104,9 +104,9 @@
                         </Grid>
                         <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12">
                             <WrapPanel>
-                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Overview}" IsChecked="{Binding IsLibraryOverview, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="Overview"/>
-                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Content}" IsChecked="{Binding IsLibraryContent, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="Content"/>
-                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Settings}" IsChecked="{Binding IsLibrarySettings, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="Settings"/>
+                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Overview}" IsChecked="{Binding IsLibraryOverview, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.OverviewTab}"/>
+                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Content}" IsChecked="{Binding IsLibraryContent, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}"/>
+                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Settings}" IsChecked="{Binding IsLibrarySettings, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.SettingsTab}"/>
                             </WrapPanel>
                         </Border>
                         <StackPanel IsVisible="{Binding IsLibraryOverview}" Spacing="18">
@@ -134,7 +134,7 @@
                                         <TextBlock Text="{localization:Localize GameProfiles.Library.IncludedContent}" FontWeight="Medium" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding LibraryContentSummary}" Classes="library-secondary"/>
                                     </StackPanel>
-                                    <Button Grid.Column="1" Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.Content}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="Content" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.Content}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}" VerticalAlignment="Center"/>
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -159,7 +159,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.ManageContent}" Command="{Binding EditLibraryProfileCommand}" CommandParameter="Content" IsEnabled="{Binding DisplayedProfile.CanEdit}"/>
+                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.ManageContent}" Command="{Binding EditLibraryProfileCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}" IsEnabled="{Binding DisplayedProfile.CanEdit}"/>
                         </StackPanel>
                         <StackPanel IsVisible="{Binding IsLibrarySettings}" Spacing="16">
                             <TextBlock Classes="library-section" Text="{localization:Localize GameProfiles.Library.LaunchSettings}"/>
@@ -176,7 +176,7 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
-                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.EditSettings}" Command="{Binding EditLibraryProfileCommand}" CommandParameter="Settings" IsEnabled="{Binding DisplayedProfile.CanEdit}"/>
+                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.EditSettings}" Command="{Binding EditLibraryProfileCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.SettingsTab}" IsEnabled="{Binding DisplayedProfile.CanEdit}"/>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
