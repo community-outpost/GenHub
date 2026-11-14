@@ -54,9 +54,7 @@
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
-        <Style Selector="ComboBox.sidebar-variant-combo">
-            <Setter Property="CornerRadius" Value="6" />
-        </Style>
+
         <Style Selector="Button.media-card-btn">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -1439,13 +1437,10 @@
                                                            FontSize="11"
                                                            Foreground="{DynamicResource TextSecondary}"
                                                            IsVisible="{Binding ShowAxisLabel}" />
-                                                <ComboBox Classes="sidebar-variant-combo"
+                                                <ComboBox Classes="sidebar-variant-combo form-compact form-field"
                                                           ItemsSource="{Binding Options}"
                                                           SelectedItem="{Binding SelectedOption}"
-                                                          FontSize="12"
-                                                          HorizontalAlignment="Stretch"
-                                                          MinHeight="28"
-                                                          Padding="8,4">
+                                                          HorizontalAlignment="Stretch">
                                                     <ComboBox.SelectionBoxItemTemplate>
                                                         <DataTemplate x:DataType="vm:InstallableVariant">
                                                             <Grid ColumnDefinitions="Auto,*">
@@ -1508,7 +1503,7 @@
                                      Official providers (Generals Online, Community Outpost, The Super Hackers) are locked. -->
                                 <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
                                     <TextBlock Grid.Column="0" Text="{localization:Localize Downloads.ContentDetail.Type}" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Column="1"
+                                    <ComboBox Classes="form-field" Grid.Column="1"
                                               ItemsSource="{Binding ContentTypeOptions}"
                                               SelectedItem="{Binding SelectedContentType}"
                                               HorizontalAlignment="Right"
@@ -1584,13 +1579,10 @@
                                                                            FontSize="10"
                                                                            Foreground="{DynamicResource TextSecondary}"
                                                                            IsVisible="{Binding ShowAxisLabel}" />
-                                                                <ComboBox Classes="sidebar-variant-combo"
+                                                                <ComboBox Classes="sidebar-variant-combo form-compact form-field"
                                                                           ItemsSource="{Binding Options}"
                                                                           SelectedItem="{Binding SelectedOption}"
-                                                                          FontSize="11"
-                                                                          HorizontalAlignment="Stretch"
-                                                                          MinHeight="26"
-                                                                          Padding="6,2">
+                                                                          HorizontalAlignment="Stretch">
                                                                     <ComboBox.SelectionBoxItemTemplate>
                                                                         <DataTemplate x:DataType="vm:InstallableVariant">
                                                                             <Grid ColumnDefinitions="Auto,*">

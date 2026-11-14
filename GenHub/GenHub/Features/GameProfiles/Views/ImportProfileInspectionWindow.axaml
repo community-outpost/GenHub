@@ -174,16 +174,8 @@
                                     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                         <StackPanel Spacing="4">
                                             <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.ProfileName}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
-                                            <TextBox Text="{Binding ProfileName, Mode=TwoWay}"
-                                                     Height="36"
-                                                     Padding="10,0"
-                                                     VerticalContentAlignment="Center"
-                                                     Background="{StaticResource FillWhite09}"
-                                                     BorderBrush="{StaticResource BorderWhite25}"
-                                                     CornerRadius="6"
-                                                     Foreground="{DynamicResource TextPrimary}"
-                                                     FontWeight="SemiBold"
-                                                     FontSize="13" />
+                                            <TextBox Classes="form-field" Text="{Binding ProfileName, Mode=TwoWay}"
+                                                     VerticalContentAlignment="Center" />
                                         </StackPanel>
 
                                         <WrapPanel Margin="0,4,0,0">
@@ -537,10 +529,9 @@
                                                        Foreground="{DynamicResource TextSecondary}"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
-                                        <ComboBox ItemsSource="{Binding CompatibleInstallations}"
+                                        <ComboBox Classes="form-field" ItemsSource="{Binding CompatibleInstallations}"
                                                   SelectedItem="{Binding SelectedInstallation, Mode=TwoWay}"
-                                                  HorizontalAlignment="Stretch"
-                                                  Height="36">
+                                                  HorizontalAlignment="Stretch">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding DisplayName}" />

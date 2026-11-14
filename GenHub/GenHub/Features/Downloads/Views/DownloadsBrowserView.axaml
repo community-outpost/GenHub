@@ -26,18 +26,6 @@
         </Style>
 
         <!-- Search box style -->
-        <Style Selector="TextBox.search-box">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,8" />
-        </Style>
-
-        <Style Selector="TextBox.search-box:focus">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-        </Style>
 
         <!-- Filter Toggle -->
         <Style Selector="ToggleButton.filter-toggle-btn">
@@ -187,7 +175,7 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBox Grid.Column="0"
-                             Classes="search-box"
+                             Classes="search-box form-field"
                              Text="{Binding SearchTerm}"
                              Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
                              VerticalAlignment="Center"
@@ -226,7 +214,7 @@
                             Spacing="8"
                             Margin="0,0,0,12"
                             IsVisible="{Binding CanFilterLocally}">
-                    <TextBox Classes="search-box clearButton"
+                    <TextBox Classes="search-box clearButton form-field"
                              Text="{Binding LocalFilterText}"
                              Watermark="{localization:Localize Downloads.Browser.Filter.Watermark}"
                              AutomationProperties.Name="{localization:Localize Downloads.Browser.Filter.Watermark}" />
@@ -264,7 +252,7 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondary}"
                                VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding AvailableCatalogs}"
+                    <ComboBox Classes="form-field" ItemsSource="{Binding AvailableCatalogs}"
                               SelectedItem="{Binding SelectedCatalog}"
                               MaxWidth="340"
                               MinWidth="180"

@@ -75,7 +75,7 @@
 
         <Grid RowDefinitions="Auto,Auto,*">
           <!-- Search bar -->
-          <TextBox Grid.Row="0"
+          <TextBox Classes="form-compact form-field" Grid.Row="0"
                    Text="{Binding SearchFilter}"
                    Watermark="{localization:Localize Tools.ModBuilder.BundleEditor.WatermarkSearchFiles}"
                    VerticalContentAlignment="Center"

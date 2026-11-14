@@ -120,18 +120,18 @@
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.Resolution}" />
-                                <ComboBox ItemsSource="{Binding ResolutionPresets}" SelectedItem="{Binding SelectedResolutionPreset}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.ResolutionToolTip}" />
+                                <ComboBox Classes="form-field" ItemsSource="{Binding ResolutionPresets}" SelectedItem="{Binding SelectedResolutionPreset}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.ResolutionToolTip}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.DetailLevel}" />
-                                <ComboBox ItemsSource="{Binding LodOptions}" SelectedItem="{Binding StaticGameLOD}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.DetailLevelToolTip}" />
+                                <ComboBox Classes="form-field" ItemsSource="{Binding LodOptions}" SelectedItem="{Binding StaticGameLOD}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.DetailLevelToolTip}" />
                             </StackPanel>
                         </Grid>
 
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12" >
                             <StackPanel Grid.Column="0">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.TextureQuality}" />
-                                <ComboBox ItemsSource="{x:Static vm:GameSettingsViewModel.TextureQualityValues}" SelectedItem="{Binding TextureQuality}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.TextureQualityToolTip}" />
+                                <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameSettingsViewModel.TextureQualityValues}" SelectedItem="{Binding TextureQuality}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.TextureQualityToolTip}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.Brightness}" />
@@ -145,7 +145,7 @@
                         <Grid ColumnDefinitions="1* ,24 ,1*" Margin="0,0,0,12">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.AntiAliasing}" />
-                                <ComboBox ItemsSource="{Binding AaOptions}" SelectedItem="{Binding AntiAliasing}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.AntiAliasingToolTip}" />
+                                <ComboBox Classes="form-field" ItemsSource="{Binding AaOptions}" SelectedItem="{Binding AntiAliasing}" HorizontalAlignment="Stretch" ToolTip.Tip="{localization:Localize GameSettings.Video.AntiAliasingToolTip}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Video.MaxParticleCount}" />
@@ -498,7 +498,7 @@
 
                             <StackPanel Spacing="8">
                                 <TextBlock Classes="form-label" Text="{localization:Localize GameSettings.Go.GameSpyIpOverride}" ToolTip.Tip="{localization:Localize GameSettings.Go.GameSpyIpOverrideToolTip}" />
-                                <TextBox Text="{Binding GameSpyIPAddress}" Watermark="{localization:Localize GameSettings.Go.GameSpyIpWatermark}" />
+                                <TextBox Classes="form-field" Text="{Binding GameSpyIPAddress}" Watermark="{localization:Localize GameSettings.Go.GameSpyIpWatermark}" />
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

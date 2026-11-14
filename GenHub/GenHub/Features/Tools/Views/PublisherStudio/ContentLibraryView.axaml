@@ -85,15 +85,10 @@
                         Padding="12,8">
                     <Grid ColumnDefinitions="*,Auto">
                         <!-- Catalog Dropdown -->
-                        <ComboBox Grid.Column="0"
+                        <ComboBox Classes="form-field" Grid.Column="0"
                                   SelectedItem="{Binding SelectedCatalog}"
                                   ItemsSource="{Binding Catalogs}"
                                   HorizontalAlignment="Stretch"
-                                  Background="{DynamicResource GlassFillBrush}"
-                                  BorderBrush="{DynamicResource GlassBorderBrush}"
-                                  BorderThickness="1"
-                                  CornerRadius="6"
-                                  Padding="8,6"
                                   Margin="0,0,6,0">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
@@ -190,13 +185,9 @@
 
                 <!-- Search and Add Content Bar -->
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="16,16,16,12">
-                    <TextBox Text="{Binding SearchText, Mode=TwoWay}"
+                    <TextBox Classes="form-field" Text="{Binding SearchText, Mode=TwoWay}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Library.SearchWatermark}"
-                             VerticalAlignment="Center"
-                             Padding="12,8"
-                             CornerRadius="8"
-                             Background="{DynamicResource GlassFillBrush}"
-                             BorderBrush="{DynamicResource GlassBorderBrush}"/>
+                             VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                         <Button Command="{Binding AddContentCommand}"
@@ -1326,7 +1317,7 @@
                                         </ItemsControl>
                                         <Grid ColumnDefinitions="*,Auto"
                                               IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).HasSelectedScreenshot}">
-                                            <TextBox Grid.Column="0"
+                                            <TextBox Classes="form-field" Grid.Column="0"
                                                      Text="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).SelectedScreenshotTitle, Mode=TwoWay}"
                                                      Watermark="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameWatermark}"
                                                      ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}"/>
@@ -1443,10 +1434,9 @@
                                                    FontSize="12"
                                                    IsVisible="{Binding !Metadata.VideoUrls.Count}"/>
                                         <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
-                                            <TextBox Grid.Column="0"
+                                            <TextBox Classes="form-field" Grid.Column="0"
                                                      Text="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).NewVideoUrl, Mode=TwoWay}"
                                                      Watermark="{localization:Localize Tools.PublisherStudio.Library.VideoUrlWatermark}"
-                                                     FontSize="12"
                                                      Margin="0,0,6,0"/>
                                             <Button Classes="action-secondary action-compact" Grid.Column="1"
                                                     Command="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).AddVideoUrlCommand}">

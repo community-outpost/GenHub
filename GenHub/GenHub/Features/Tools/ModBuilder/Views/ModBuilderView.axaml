@@ -67,13 +67,9 @@
               <TextBlock Text="{localization:Localize Tools.ModBuilder.View.CurrentProjectHeader}" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Bold" LetterSpacing="0.5"/>
               <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             </StackPanel>
-            <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
+            <TextBox Classes="form-compact form-field" Text="{Binding CurrentProjectPath}" IsReadOnly="True"
                      Watermark="{localization:Localize Tools.ModBuilder.View.NoProjectLoadedWatermark}" MinWidth="260" MaxWidth="440"
-                     Background="{DynamicResource SurfaceElevatedBrush}"
-                     BorderBrush="{DynamicResource BorderBrush}"
-                     CornerRadius="8" Padding="10,6"
-                     VerticalAlignment="Center" VerticalContentAlignment="Center"
-                     Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
+                     VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
           </StackPanel>
 
           <!-- Quick Actions -->
@@ -278,10 +274,8 @@
                     CornerRadius="8" ClipToBounds="True">
               <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
                             HorizontalScrollBarVisibility="Auto">
-                <TextBox Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
-                         BorderThickness="0" Background="Transparent"
-                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" FontSize="12"
-                         Foreground="{DynamicResource TextPrimary}" Padding="14" AcceptsReturn="True"/>
+                <TextBox Classes="form-compact form-field" Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" AcceptsReturn="True"/>
               </ScrollViewer>
             </Border>
           </Grid>

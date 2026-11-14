@@ -254,6 +254,23 @@
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
 
+    <SolidColorBrush x:Key="FormFieldFill" Color="#1B1B24" />
+    <SolidColorBrush x:Key="FormFieldBorder" Color="#666678" />
+    <SolidColorBrush x:Key="FormFieldHoverFill" Color="#242431" />
+    <SolidColorBrush x:Key="FormFieldHoverBorder" Color="#848498" />
+
+
+
+
+
+    <!-- Form fields share geometry and palette; dense editor fields retain a compact variant. -->
+    <x:Double x:Key="FormFieldMinHeight">36</x:Double>
+    <x:Double x:Key="FormCompactMinHeight">32</x:Double>
+    <x:Double x:Key="FormFieldFontSize">13</x:Double>
+    <x:Double x:Key="FormCompactFontSize">12</x:Double>
+    <Thickness x:Key="FormFieldPadding">10,8</Thickness>
+    <Thickness x:Key="FormCompactPadding">8,6</Thickness>
+
     <!-- Action dimensions grow with content; never impose a fixed text button height. -->
     <x:Double x:Key="ActionMinHeight">36</x:Double>
     <x:Double x:Key="ActionCompactMinHeight">32</x:Double>
@@ -434,7 +451,6 @@
     <SolidColorBrush x:Key="ExpanderChevronBorderBrush" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushPointerOver" Color="Transparent" />
     <SolidColorBrush x:Key="ExpanderChevronBorderBrushPressed" Color="Transparent" />
-
 
     <!-- ==================================================================== -->
     <!-- 11. Elevation & Scrim Tokens                                         -->

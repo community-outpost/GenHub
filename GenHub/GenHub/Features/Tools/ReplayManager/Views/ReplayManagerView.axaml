@@ -43,7 +43,7 @@
 
         <!-- Import Bar Integrated -->
         <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="16,0">
-          <TextBox Grid.Column="0" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ImportUrl}"
+          <TextBox Classes="form-compact form-field" Grid.Column="0" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ImportUrl}"
                    Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
                    HorizontalAlignment="Stretch"
                    ToolTip.Tip="{localization:Localize Replays.Tooltip.ImportUrlFormats}"/>
@@ -63,7 +63,7 @@
         </Grid>
 
         <!-- Search Bar -->
-        <TextBox Grid.Column="2" Watermark="{localization:Localize Tools.ReplayManager.Watermark.SearchReplays}"
+        <TextBox Classes="form-compact form-field" Grid.Column="2" Watermark="{localization:Localize Tools.ReplayManager.Watermark.SearchReplays}"
                  Text="{Binding SearchText}"
                  Width="170"
                  VerticalAlignment="Center">
@@ -112,7 +112,7 @@
               </DataGridTemplateColumn.CellTemplate>
               <DataGridTemplateColumn.CellEditingTemplate>
                 <DataTemplate>
-                  <TextBox Text="{Binding FileName}"
+                  <TextBox Classes="form-compact form-field" Text="{Binding FileName}"
                            VerticalAlignment="Center"
                            Margin="4,0"/>
                 </DataTemplate>
@@ -352,7 +352,7 @@
               <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ZipName}" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipName}"/>
+          <TextBox Classes="form-compact form-field" MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ZipName}" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
                   Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding SelectedReplays.Count}"
                   ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipSelected}">
@@ -514,7 +514,7 @@
                          Foreground="{DynamicResource TextSecondary}"
                          VerticalAlignment="Center"
                          Margin="0,0,16,0"/>
-              <ComboBox Grid.Row="0" Grid.Column="1"
+              <ComboBox Classes="form-compact form-field" Grid.Row="0" Grid.Column="1"
                         ItemsSource="{Binding CompatibleProfiles}"
                         SelectedItem="{Binding SelectedCompatibleProfile}"
                         HorizontalAlignment="Stretch">
@@ -690,7 +690,7 @@
                            Foreground="{DynamicResource TextSecondary}"
                            VerticalAlignment="Center"
                            Margin="0,0,16,0"/>
-                <ComboBox Grid.Column="1"
+                <ComboBox Classes="form-compact form-field" Grid.Column="1"
                           ItemsSource="{Binding AvailableSlots}"
                           SelectedItem="{Binding SelectedSlot}"
                           HorizontalAlignment="Stretch">

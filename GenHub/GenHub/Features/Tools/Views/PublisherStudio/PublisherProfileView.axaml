@@ -12,25 +12,6 @@
              x:DataType="vm:PublisherProfileViewModel">
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
 
         <Style Selector="TextBlock.field-label">
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -112,7 +93,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherId}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Classes="form-field" Text="{Binding PublisherId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdPlaceholder}"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.PublisherIdHint}" Classes="field-hint"/>
                     </StackPanel>
@@ -122,7 +103,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayName}" Classes="field-label"/>
                             <TextBlock Text="*" Classes="required"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Classes="form-field" Text="{Binding PublisherName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.DisplayNamePlaceholder}"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.DisplayNameHint}" Classes="field-hint"/>
                     </StackPanel>
@@ -130,20 +111,20 @@
                     <!-- Row 2: Website & Contact Email -->
                     <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Website}" Classes="field-label"/>
-                        <TextBox Text="{Binding WebsiteUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Classes="form-field" Text="{Binding WebsiteUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="https://community-outpost.org"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Email}" Classes="field-label"/>
-                        <TextBox Text="{Binding ContactEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Classes="form-field" Text="{Binding ContactEmail, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Profile.EmailPlaceholder}"/>
                     </StackPanel>
 
                     <!-- Row 4: Support URL & Avatar URL -->
                     <StackPanel Grid.Row="4" Grid.Column="0" Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.SupportDiscord}" Classes="field-label"/>
-                        <TextBox Text="{Binding SupportUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Classes="form-field" Text="{Binding SupportUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Watermark="https://discord.gg/yourserver"/>
                     </StackPanel>
 
@@ -163,13 +144,13 @@
                 <!-- Tags & Description -->
                 <StackPanel Spacing="4">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Tags}" Classes="field-label"/>
-                    <TextBox Text="{Binding TagsString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Classes="form-field" Text="{Binding TagsString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Profile.TagsPlaceholder}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="4">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Profile.Description}" Classes="field-label"/>
-                    <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox Classes="form-field" Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Profile.DescriptionPlaceholder}"
                              AcceptsReturn="True"
                              Height="70"

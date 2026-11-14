@@ -89,7 +89,7 @@
             <!-- Game Switcher -->
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
               <TextBlock Text="{localization:Localize Tools.GenHotkeys.GameLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-              <ComboBox ItemsSource="{Binding AvailableGames}"
+              <ComboBox Classes="form-compact form-field" ItemsSource="{Binding AvailableGames}"
                         SelectedItem="{Binding SelectedGame}"
                         Width="110"/>
             </StackPanel>
@@ -97,7 +97,7 @@
             <!-- Profile Switcher & Actions -->
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="0,3,10,3">
               <TextBlock Text="{localization:Localize Tools.GenHotkeys.ProfileLabel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
-              <ComboBox ItemsSource="{Binding Profiles}"
+              <ComboBox Classes="form-compact form-field" ItemsSource="{Binding Profiles}"
                         SelectedItem="{Binding SelectedProfile}"
                         Width="150">
                 <ComboBox.SelectionBoxItemTemplate>
@@ -134,14 +134,11 @@
                           </StackPanel>
                         </StackPanel>
 
-                        <TextBox x:Name="NewProfileTextBox"
+                        <TextBox Classes="form-compact form-field" x:Name="NewProfileTextBox"
                                  Text="{Binding NewProfileName, Mode=TwoWay}"
                                  Watermark="{localization:Localize Tools.GenHotkeys.ProfileNameWatermark}"
                                  Tag="Create"
-                                 KeyDown="OnFlyoutTextBoxKeyDown"
-                                 CornerRadius="6"
-                                 Padding="10,8"
-                                 FontSize="13"/>
+                                 KeyDown="OnFlyoutTextBoxKeyDown"/>
 
                         <Grid ColumnDefinitions="*,Auto">
                           <Button
@@ -178,14 +175,11 @@
                           </StackPanel>
                         </StackPanel>
 
-                        <TextBox x:Name="RenameProfileTextBox"
+                        <TextBox Classes="form-compact form-field" x:Name="RenameProfileTextBox"
                                  Text="{Binding RenameProfileText, Mode=TwoWay}"
                                  Watermark="{localization:Localize Tools.GenHotkeys.NewProfileNameWatermark}"
                                  Tag="Rename"
-                                 KeyDown="OnFlyoutTextBoxKeyDown"
-                                 CornerRadius="6"
-                                 Padding="10,8"
-                                 FontSize="13"/>
+                                 KeyDown="OnFlyoutTextBoxKeyDown"/>
 
                         <Grid ColumnDefinitions="*,Auto">
                           <Button
@@ -299,7 +293,7 @@
                       FontWeight="SemiBold"
                       ToolTip.Tip="{localization:Localize Tools.GenHotkeys.OverlayBadgeTooltip}"/>
             <TextBlock Text="{localization:Localize Tools.GenHotkeys.PositionLabel}" VerticalAlignment="Center" IsVisible="{Binding OverlayEnabled}"/>
-            <ComboBox ItemsSource="{Binding AvailableCorners}"
+            <ComboBox Classes="form-compact form-field" ItemsSource="{Binding AvailableCorners}"
                       SelectedItem="{Binding SelectedCorner}"
                       IsVisible="{Binding OverlayEnabled}"
                       Width="130"/>
@@ -308,7 +302,7 @@
           <!-- Faction & Category Filters -->
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
             <TextBlock Text="{localization:Localize Tools.GenHotkeys.CategoryLabel}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,4,0"/>
-            <ComboBox ItemsSource="{Binding AvailableCategories}"
+            <ComboBox Classes="form-compact form-field" ItemsSource="{Binding AvailableCategories}"
                       SelectedItem="{Binding SelectedCategory}"
                       Width="120"/>
           </StackPanel>
@@ -322,7 +316,7 @@
       <Border Grid.Column="0" Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="8" Margin="0,0,8,0">
         <Grid RowDefinitions="Auto,*">
           <!-- Faction Selector with Icons for USA, GLA, China -->
-          <ComboBox Grid.Row="0"
+          <ComboBox Classes="form-compact form-field" Grid.Row="0"
                     ItemsSource="{Binding Factions}"
                     SelectedItem="{Binding SelectedFaction}"
                     HorizontalAlignment="Stretch"

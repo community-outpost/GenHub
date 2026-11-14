@@ -1,0 +1,47 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Keep Fluent's editor template, validation adorners, scrolling and password behavior. -->
+    <Style Selector="TextBox.form-field:not(.code-field)">
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
+        <Setter Property="Padding" Value="{DynamicResource FormFieldPadding}" />
+        <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
+        <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
+        <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field) /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field):pointerover /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FormFieldHoverFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldHoverBorder}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field):focus /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field):error /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="{DynamicResource StatusErrorBrush}" />
+    </Style>
+    <Style Selector="TextBox.form-field[IsReadOnly=true]:not(.code-field)">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field):disabled">
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    </Style>
+    <Style Selector="TextBox.form-field:not(.code-field):disabled /template/ Border#PART_BorderElement">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
+    </Style>
+    <Style Selector="TextBox.form-field.form-compact:not(.code-field)">
+        <Setter Property="MinHeight" Value="{DynamicResource FormCompactMinHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource FormCompactPadding}" />
+        <Setter Property="FontSize" Value="{DynamicResource FormCompactFontSize}" />
+    </Style>
+</Styles>

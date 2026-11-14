@@ -52,23 +52,12 @@
         <!-- Form label -->
         <Style Selector="TextBlock.form-label">
             <Setter Property="Margin" Value="0,0,0,6" />
-            <Setter Property="Opacity" Value="0.85" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
 
         <!-- Input fields -->
-        <Style Selector="TextBox, ComboBox">
-            <Setter Property="MinHeight" Value="36" />
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="TextBox">
-            <Setter Property="CaretBrush" Value="White" />
-        </Style>
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
@@ -429,18 +418,16 @@
                     <!-- Content Name -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentName}" FontSize="12" Opacity="0.8" />
-                        <TextBox Text="{Binding LocalContentName, Mode=TwoWay}"
-                                 Watermark="{localization:Localize GameProfiles.LocalContent.ContentNameWatermark}"
-                                 MinHeight="36" />
+                        <TextBox Classes="form-field" Text="{Binding LocalContentName, Mode=TwoWay}"
+                                 Watermark="{localization:Localize GameProfiles.LocalContent.ContentNameWatermark}" />
                     </StackPanel>
 
                     <!-- Content Type -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentType}" FontSize="12" Opacity="0.8" />
-                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
+                        <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
                                   SelectedItem="{Binding SelectedLocalContentType}"
-                                  HorizontalAlignment="Stretch"
-                                  MinHeight="36">
+                                  HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
@@ -454,10 +441,9 @@
                     <!-- Game Type Selection - Always visible -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize GameProfiles.LocalContent.TargetGame}" FontSize="12" Opacity="0.8" />
-                        <ComboBox ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
+                        <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
                                   SelectedItem="{Binding SelectedLocalGameType}"
-                                  HorizontalAlignment="Stretch"
-                                  MinHeight="36">
+                                  HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />

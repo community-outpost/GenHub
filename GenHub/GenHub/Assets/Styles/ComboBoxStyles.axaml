@@ -14,17 +14,17 @@
 
     <!-- Base ComboBox Style -->
     <Style Selector="ComboBox">
-        <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="12,8" />
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
+        <Setter Property="Padding" Value="{DynamicResource FormFieldPadding}" />
+        <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
         <Setter Property="MaxDropDownHeight" Value="360" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
         <Setter Property="Template">
@@ -50,6 +50,7 @@
                                     Grid.Column="0"
                                     Content="{TemplateBinding SelectionBoxItem}"
                                     ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                    ClipToBounds="True"
                                     Margin="{TemplateBinding Padding}"
                                     HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                     VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
@@ -58,6 +59,7 @@
                     <TextBlock x:Name="PlaceholderTextBlock"
                                Grid.Column="0"
                                Text="{TemplateBinding PlaceholderText}"
+                               TextTrimming="CharacterEllipsis"
                                Foreground="{DynamicResource TextMutedBrush}"
                                Margin="{TemplateBinding Padding}"
                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
@@ -114,8 +116,8 @@
 
     <!-- PointerOver State -->
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldHoverBorder}" />
+        <Setter Property="Background" Value="{DynamicResource FormFieldHoverFill}" />
     </Style>
 
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
@@ -125,7 +127,7 @@
     <!-- Focus State -->
     <Style Selector="ComboBox:focus-visible /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
     </Style>
 
     <!-- Open State -->
@@ -137,6 +139,16 @@
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ PathIcon#DropDownGlyph">
         <Setter Property="RenderTransform" Value="rotate(180deg)" />
         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
+    <Style Selector="ComboBox:disabled">
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    </Style>
+    <Style Selector="ComboBox:disabled /template/ ContentControl#ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+    </Style>
+    <Style Selector="ComboBox:disabled /template/ PathIcon#DropDownGlyph">
+        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
     </Style>
 
     <!-- Disabled State -->
@@ -152,7 +164,7 @@
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="Padding" Value="12,8" />
         <Setter Property="CornerRadius" Value="6" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Cursor" Value="Hand" />
@@ -245,10 +257,10 @@
     </Style>
 
     <!-- Clean / Compact Variant -->
-    <Style Selector="ComboBox.compact">
-        <Setter Property="Padding" Value="8,4" />
-        <Setter Property="MinHeight" Value="30" />
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="CornerRadius" Value="6" />
+    <Style Selector="ComboBox.compact, ComboBox.form-compact">
+        <Setter Property="Padding" Value="{DynamicResource FormCompactPadding}" />
+        <Setter Property="MinHeight" Value="{DynamicResource FormCompactMinHeight}" />
+        <Setter Property="FontSize" Value="{DynamicResource FormCompactFontSize}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
     </Style>
 </Styles>

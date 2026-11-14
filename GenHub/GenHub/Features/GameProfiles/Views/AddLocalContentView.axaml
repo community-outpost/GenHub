@@ -26,26 +26,6 @@
             <Setter Property="LetterSpacing" Value="0.5"/>
         </Style>
 
-        <Style Selector="TextBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="10,8"/>
-        </Style>
-        <Style Selector="TextBox.glass:focus">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-        </Style>
-
-        <Style Selector="ComboBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="10,8"/>
-        </Style>
-
     </UserControl.Styles>
 
     <Panel>
@@ -66,7 +46,7 @@
                     <!-- Content Name -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NameLabel}" Classes="label"/>
-                        <TextBox Text="{Binding ContentName}" Watermark="{localization:Localize Profiles.AddLocalContent.NameWatermark}" Classes="glass"/>
+                        <TextBox Text="{Binding ContentName}" Watermark="{localization:Localize Profiles.AddLocalContent.NameWatermark}" Classes="glass form-field"/>
                     </StackPanel>
 
                     <!-- Content Type -->
@@ -75,7 +55,7 @@
                         <ComboBox ItemsSource="{Binding AllowedContentTypes}"
                                   SelectedItem="{Binding SelectedContentType}"
                                   HorizontalAlignment="Stretch"
-                                  Classes="glass">
+                                  Classes="glass form-field">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}"/>
@@ -90,14 +70,14 @@
                         <ComboBox ItemsSource="{Binding AvailableGameTypes}"
                                   SelectedItem="{Binding SelectedGameType}"
                                   HorizontalAlignment="Stretch"
-                                  Classes="glass"/>
+                                  Classes="glass form-field"/>
                     </StackPanel>
 
                     <!-- Source -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Profiles.AddLocalContent.SourceLabel}" Classes="label"/>
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="{localization:Localize Profiles.AddLocalContent.NoContentSelected}" Classes="glass" Margin="0,0,6,0"/>
+                            <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="{localization:Localize Profiles.AddLocalContent.NoContentSelected}" Classes="glass form-field" Margin="0,0,6,0"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                 <Button
                                         Command="{Binding BrowseFolderCommand}"

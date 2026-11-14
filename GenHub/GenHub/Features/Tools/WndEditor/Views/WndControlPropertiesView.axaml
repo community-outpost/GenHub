@@ -59,7 +59,7 @@
           </Grid>
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.List.ColumnWidths}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding ListColumnWidths, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.Control.List.ColumnWidthsHint}"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding ListColumnWidths, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Watermark="{localization:Localize Tools.WndEditor.Control.List.ColumnWidthsHint}"/>
           </Grid>
           <CheckBox Content="{localization:Localize Tools.WndEditor.Control.List.ForceSelect}" IsChecked="{Binding ListForceSelect, Mode=TwoWay}" FontSize="11"/>
         </StackPanel>
@@ -116,7 +116,7 @@
           </Grid>
           <Grid ColumnDefinitions="120,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.Control.Tab.PaneDisabled}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding TabPaneDisabled, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Watermark="{localization:Localize Tools.WndEditor.Control.Tab.PaneDisabledHint}"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding TabPaneDisabled, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Watermark="{localization:Localize Tools.WndEditor.Control.Tab.PaneDisabledHint}"/>
           </Grid>
         </StackPanel>
       </Expander>

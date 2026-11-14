@@ -10,29 +10,7 @@
              x:Name="Root">
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
 
-        <Style Selector="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-        </Style>
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
@@ -83,7 +61,7 @@
                 <StackPanel Spacing="16" IsVisible="{Binding IsFromMyCatalog}">
                      <StackPanel Spacing="8">
                          <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.SelectContentItem}" Classes="label"/>
-                         <ComboBox ItemsSource="{Binding AvailableContent}"
+                         <ComboBox Classes="form-field" ItemsSource="{Binding AvailableContent}"
                                    SelectedItem="{Binding SelectedContent}"
                                    HorizontalAlignment="Stretch"
                                    PlaceholderText="{localization:Localize Tools.PublisherStudio.Dependency.SelectContentItem}">
@@ -104,19 +82,19 @@
                              <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.PublisherId}" Classes="label"/>
                              <TextBlock Text="*" Foreground="{DynamicResource ErrorBrush}"/>
                          </StackPanel>
-                         <TextBox Text="{Binding ExternalPublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.PublisherIdPlaceholder}"/>
+                         <TextBox Classes="form-field" Text="{Binding ExternalPublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.PublisherIdPlaceholder}"/>
                      </StackPanel>
                      <StackPanel Spacing="8">
                          <StackPanel Orientation="Horizontal" Spacing="4">
                              <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ContentId}" Classes="label"/>
                              <TextBlock Text="*" Foreground="{DynamicResource ErrorBrush}"/>
                          </StackPanel>
-                         <TextBox Text="{Binding ExternalContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ContentIdPlaceholder}"/>
+                         <TextBox Classes="form-field" Text="{Binding ExternalContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ContentIdPlaceholder}"/>
                      </StackPanel>
                      <StackPanel Spacing="8">
                          <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrl}" Classes="label"/>
                          <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
-                            <TextBox Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
+                            <TextBox Classes="form-field" Grid.Column="0" Text="{Binding ExternalCatalogUrl}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Dependency.CatalogUrlPlaceholder}"/>
                             <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Dependency.Discover}"
                                     Command="{Binding DiscoverContentCommand}"
@@ -161,7 +139,7 @@
                 <!-- Version Constraints -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraint}" Classes="label"/>
-                    <TextBox Text="{Binding VersionConstraint}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder}"/>
+                    <TextBox Classes="form-field" Text="{Binding VersionConstraint}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.VersionConstraintPlaceholder}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.Examples}" Classes="hint"/>
                     <ItemsControl ItemsSource="{Binding VersionConstraintExamples}">
                         <ItemsControl.ItemsPanel>
@@ -184,7 +162,7 @@
 
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWith}" Classes="label"/>
-                    <TextBox Text="{Binding ConflictsWithIds}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder}"/>
+                    <TextBox Classes="form-field" Text="{Binding ConflictsWithIds}" Watermark="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithPlaceholder}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Dependency.ConflictsWithHint}" Classes="hint"/>
                 </StackPanel>
             </StackPanel>

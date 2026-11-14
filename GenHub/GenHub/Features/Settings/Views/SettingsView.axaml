@@ -54,14 +54,6 @@
       <Setter Property="Margin" Value="0,2,0,0" />
     </Style>
 
-    <Style Selector="TextBox">
-      <Setter Property="Background" Value="{DynamicResource TextBoxBackground}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="8" />
-    </Style>
-
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     </Style>
@@ -116,7 +108,7 @@
             <!-- Default Workspace Strategy -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Label}" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableWorkspaceStrategies}"
+              <ComboBox Classes="form-field" ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
                         MinWidth="250" />
@@ -230,7 +222,7 @@
             <!-- Download User-Agent -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding DownloadUserAgent}"
+              <TextBox Classes="form-field" Text="{Binding DownloadUserAgent}"
                        Width="300"
                        LostFocus="OnTextBoxLostFocus" />
               <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
@@ -371,7 +363,7 @@
                 <TextBlock Text="{localization:Localize Settings.Appearance.Language.Label}" Classes="setting-label" />
                 <TextBlock Text="{localization:Localize Settings.Appearance.Language.Description}"
                            Classes="setting-description" />
-                <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                <ComboBox Classes="form-field" ItemsSource="{Binding AvailableLanguages}"
                           SelectedItem="{Binding SelectedLanguage}"
                           MinWidth="220"
                           HorizontalAlignment="Left"
@@ -435,7 +427,7 @@
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.DataDirectories.SettingsFilePath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding SettingsFilePath}"
                          Watermark="{localization:Localize Settings.DataDirectories.SettingsFilePath.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
@@ -469,7 +461,7 @@
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding MigrationTargetPath}"
                          Watermark="{localization:Localize Settings.MigrateInstallation.TargetPath.Watermark}"
                          AutomationProperties.Name="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}"
@@ -530,7 +522,7 @@
             <!-- Telemetry Consent Level -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.DiagnosticsPrivacy.TelemetryLevel.Label}" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableTelemetryLevels}"
+              <ComboBox Classes="form-field" ItemsSource="{Binding AvailableTelemetryLevels}"
                         SelectedItem="{Binding TelemetryPreference}"
                         HorizontalAlignment="Left"
                         MinWidth="280">
@@ -631,7 +623,7 @@
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.Cas.RootDirectory.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding CasRootPath}"
                          Watermark="{localization:Localize Settings.Cas.RootDirectory.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
@@ -734,7 +726,7 @@
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.LocalContent.Directories.Watermark}" />
+              <TextBox Classes="form-field" Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.LocalContent.Directories.Watermark}" />
               <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -754,7 +746,7 @@
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.GitHubDiscovery.Repositories.Watermark}" />
+              <TextBox Classes="form-field" Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.GitHubDiscovery.Repositories.Watermark}" />
               <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>

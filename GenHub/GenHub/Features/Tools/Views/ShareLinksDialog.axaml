@@ -96,16 +96,9 @@
                                        Foreground="{DynamicResource TextSecondary}"
                                        TextWrapping="Wrap" />
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Grid.Column="0"
+                                <TextBox Classes="form-field" Grid.Column="0"
                                          Text="{Binding NormalUrl, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Height="38"
-                                         Background="{DynamicResource CardBackground}"
-                                         BorderBrush="{DynamicResource BorderBrush}"
-                                         CornerRadius="8"
-                                         Foreground="{DynamicResource TextPrimary}"
-                                         FontSize="11"
-                                         Padding="10,0"
                                          VerticalContentAlignment="Center" />
                                 <Button Classes="action-primary action-compact" Grid.Column="1" Margin="8,0,0,0"
                                         Command="{Binding CopyLinkCommand}"
@@ -136,16 +129,9 @@
                                        Foreground="{DynamicResource TextSecondary}"
                                        TextWrapping="Wrap" />
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Grid.Column="0"
+                                <TextBox Classes="form-field" Grid.Column="0"
                                          Text="{Binding GenHubUrl, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Height="38"
-                                         Background="{DynamicResource CardBackground}"
-                                         BorderBrush="{DynamicResource BorderBrush}"
-                                         CornerRadius="8"
-                                         Foreground="{DynamicResource TextPrimary}"
-                                         FontSize="11"
-                                         Padding="10,0"
                                          VerticalContentAlignment="Center" />
                                 <Button Classes="action-primary action-compact" Grid.Column="1" Margin="8,0,0,0"
                                         Command="{Binding CopyLinkCommand}"

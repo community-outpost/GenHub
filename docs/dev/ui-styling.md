@@ -127,6 +127,26 @@ Item templates inside sidebars must use inset rounded rows:
 </DataTemplate>
 ```
 
+## Text inputs and form density
+
+Ordinary text inputs opt into `FormFieldStyles.axaml` with `Classes="form-field"`.
+Use `FormFieldFill` and `FormFieldBorder` so inputs remain visible at rest, with semantic text colors and 8px input corners,
+36px minimum height, 13px type and `10,8` padding. Hover lifts the fill and strengthens the border. Focus and validation states
+retain the original Fluent editor template; password, selection, read-only and
+multiline behavior stay with the consumer.
+
+Use `Classes="form-field form-compact"` for dense editor/search fields: 32px
+minimum height, 12px type and `8,6` padding. Dropdowns use the same form metrics,
+with `form-compact` for dense contexts. Do not duplicate field paint or template
+state styles in individual views. Layout, multiline height, maximum dropdown
+height and semantic option templates stay with the consumer.
+
+The text style is deliberately opt-in so embedded text editors inside numeric
+scrubbers and code-editor controls keep their component templates and geometry.
+Code/raw-text editors, numeric scrubbing and special item previews are distinct
+families, not ordinary text forms. Never remove their behavior to match form
+presentation.
+
 ## Selection dropdowns (ComboBox)
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:

@@ -232,16 +232,9 @@
                                        Foreground="{DynamicResource TextSecondary}"
                                        FontWeight="Medium" />
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Grid.Column="0"
+                                <TextBox Classes="form-field" Grid.Column="0" Margin="0,0,8,0"
                                          Text="{Binding ShareUri, Mode=OneWay}"
                                          IsReadOnly="True"
-                                         Height="38"
-                                         Background="{StaticResource FillWhite08}"
-                                         BorderBrush="{StaticResource BorderWhite19}"
-                                         CornerRadius="8,0,0,8"
-                                         Foreground="{DynamicResource TextPrimary}"
-                                         FontSize="11"
-                                         Padding="10,0"
                                          VerticalContentAlignment="Center" />
                                 <Button
                                         Grid.Column="1"
