@@ -94,7 +94,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
-    private int _loadContentVersion;
+    private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
 
@@ -1163,13 +1163,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}");
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
-        else
-        {
-            var color = UiConstants.ZeroHourThemeColor;
-            var icon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"), UriConstants.ZeroHourIconUri);
-            var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
-        }
+
+        var zeroHourColor = UiConstants.ZeroHourThemeColor;
+        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"), UriConstants.ZeroHourIconUri);
+        var zeroHourCover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
+        return new ProfileBranding(displayName, zeroHourColor, zeroHourIcon, zeroHourCover, gameType);
     }
 
     /// <summary>Returns the enabled client and installation used for branding and persistence.</summary>
