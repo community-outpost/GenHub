@@ -710,6 +710,21 @@ Constants for publisher endpoint names and keys used in JSON serialization and l
 
 ---
 
+## PublisherStudioConstants Class
+
+Constants for Publisher Studio project storage and catalog export messages.
+
+| Constant                 | Value                                           | Description                                                        |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------ |
+| `StudioFolderName`       | `"PublisherStudio"`                             | Studio data folder under the application data directory            |
+| `ProjectsFolderName`     | `"projects"`                                    | Projects folder under the studio folder                            |
+| `DefaultProjectFileName` | `"default-publisher.json"`                      | File name of the default publisher project                         |
+| `SettingsFileName`       | `"publisher_studio_settings.json"`              | Publisher Studio settings file name                                |
+| `ExportDraftMessageKey`  | `"Tools.PublisherStudio.Validation.ExportDraft"` | Resource key for the error when an item without releases blocks export or publish |
+| `ExportDraftMessage`     | Message string                                  | English fallback for `ExportDraftMessageKey`; `{0}` is the item name or ID |
+
+---
+
 ## PublisherInfoConstants Class
 
 Constants for publisher information including display names, websites, and support URLs.
