@@ -498,8 +498,32 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 > [!IMPORTANT]
 > **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.
 
-### Alignment and curvature
+## Neutral reading surfaces and cards
 
+Use `Border.surface-card` for an opaque card shell with semantic background,
+border and `CardCornerRadius`. Add `surface-content` for the standard 16px inset,
+`surface-section` for a 24px form-section inset, and `surface-interactive` only
+when the whole card is an interactive target. Media and whole-card buttons may
+keep their padding on the inner content/target so the shell does not double it.
+
+Artwork and profile identity belong in previews, headers, selection indicators
+and accent stripes. Form reading surfaces stay opaque and neutral when the
+profile color changes, including very bright colors. Do not apply opacity to a
+whole form header: it also fades its text and actions. Use `TextPrimary` and
+`TextSecondary` for labels/help instead of reducing text opacity over artwork.
+
+Catalog cards retain their existing restrained shading and depth. Shared surface
+roles do not require flattening an established component that already looks good.
+Profile artwork and a light identity tint remain in a bounded header; reading
+panels stay opaque. Form fills and borders remain visible at rest, and profile
+navigation retains large icons and clear inactive targets.
+
+Visual consistency is a quality constraint, not a reason to flatten a successful component.
+Keep the original catalog-card depth, crisp main selection outline and 32px profile
+navigation glyphs with visible inactive targets. Preserve improved dialog layout
+and readable form panels while keeping restrained artwork and tint in profile headers.
+
+### Alignment and curvature
 
 Single-line, non-wrapping `form-field` editors center both text and watermark in the allocated height. Multiline and wrapped editors keep their first line at the top inset. Preserve local layout overrides for specialized editors.
 

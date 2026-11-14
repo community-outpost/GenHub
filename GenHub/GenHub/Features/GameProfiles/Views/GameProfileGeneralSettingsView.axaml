@@ -23,16 +23,6 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
-    <UserControl.Styles>
-        <!-- Transparent glass cards matching the Content tab -->
-        <Style Selector="Border.settings-card">
-            <Setter Property="Background" Value="{DynamicResource GlassCardBackgroundBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
-        </Style>
-        <Style Selector="Border.settings-card:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassCardBorderBrush}" />
-        </Style>
-    </UserControl.Styles>
 
     <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
@@ -42,8 +32,8 @@
         </Grid.ColumnDefinitions>
         <!-- Sidebar Navigation -->
         <Border Grid.Column="0"
-                Background="#10000000"
-                BorderBrush="#20FFFFFF"
+                Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,0,1,0"
                 Padding="12,24"
                 ClipToBounds="True">

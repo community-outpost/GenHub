@@ -258,6 +258,7 @@
     <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
+    <Thickness x:Key="SurfaceSectionPadding">24</Thickness>
 
     <SolidColorBrush x:Key="FormFieldFill" Color="#1B1B24" />
     <SolidColorBrush x:Key="FormFieldBorder" Color="#666678" />
@@ -266,10 +267,6 @@
     <SolidColorBrush x:Key="ProfileNavigationRestFill" Color="#0DFFFFFF" />
     <SolidColorBrush x:Key="ProfileNavigationRestBorder" Color="#666678" />
     <x:Double x:Key="ProfileNavigationIconSize">32</x:Double>
-
-
-
-
 
     <!-- Form fields share geometry and palette; dense editor fields retain a compact variant. -->
     <x:Double x:Key="FormFieldMinHeight">36</x:Double>
