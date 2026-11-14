@@ -39,9 +39,134 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// </summary>
 public class GameProfileLauncherViewModelTests
 {
-    private readonly object _savedModesLock = new();
-
     private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
+
+    /// <summary>
+    /// A scan with one detected Zero Hour installation and mocks able to create its profile.
+    /// </summary>
+    private sealed class WizardScanFixture
+    {
+        public const string ClientId = "zh-client";
+        public const string ClientName = "Zero Hour 1.04";
+        public const string SuperHackersClientName = "TheSuperHackers Zero Hour";
+
+        private readonly Mock<ISetupWizardService> _setupWizardService = new();
+
+        public WizardScanFixture(
+            GameProfile? otherProfile = null,
+            bool existingProfileOnInstallation = false,
+            bool nativeSuperHackersOnly = false,
+            bool withSuperHackersClient = false,
+            bool withClientlessInstallation = false,
+            string? superHackersExecutablePath = null,
+            bool existingSuperHackersProfile = false,
+            bool withSecondBaseClient = false)
+        {
+            Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+            var superHackersClient = new GameClient { Id = "native-tsh", Name = SuperHackersClientName, PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id, ExecutablePath = superHackersExecutablePath ?? string.Empty };
+            var baseClient = new GameClient { Id = ClientId, Name = ClientName, GameType = GameType.ZeroHour, Version = "1.04", InstallationId = Installation.Id };
+            var clients = new List<GameClient>();
+            if (!nativeSuperHackersOnly)
+            {
+                clients.Add(baseClient);
+            }
+
+            if (withSecondBaseClient)
+            {
+                clients.Add(new GameClient { Id = "zh-scanned", Name = "Zero Hour (scanned)", GameType = GameType.ZeroHour, InstallationId = Installation.Id });
+            }
+
+            if (nativeSuperHackersOnly || withSuperHackersClient)
+            {
+                clients.Add(superHackersClient);
+            }
+
+            Installation.PopulateGameClients(clients);
+
+            var installationService = new Mock<IGameInstallationService>();
+            installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(withClientlessInstallation
+                    ? [Installation, new GameInstallation(Path.Combine("C:", "Empty"), GameInstallationType.Unknown, new Mock<ILogger<GameInstallation>>().Object)]
+                    : [Installation]));
+
+            var profiles = new List<GameProfile>();
+            if (otherProfile != null)
+            {
+                profiles.Add(otherProfile);
+            }
+
+            if (existingSuperHackersProfile)
+            {
+                profiles.Add(new GameProfile { Id = "existing-tsh", Name = SuperHackersClientName, GameInstallationId = Installation.Id });
+            }
+
+            if (existingProfileOnInstallation)
+            {
+                profiles.Add(new GameProfile { Id = "existing", Name = ClientName, GameInstallationId = Installation.Id });
+            }
+
+            var profileManager = new Mock<IGameProfileManager>();
+            profileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles));
+
+            var configService = new Mock<IConfigurationProviderService>();
+            configService.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
+
+            EditorFacade.Setup(x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CreateProfileRequest request, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(
+                    new GameProfile { Id = "created", Name = request.Name, GameInstallationId = request.GameInstallationId }));
+
+            ViewModel = new GameProfileLauncherViewModel(
+                installationService.Object,
+                profileManager.Object,
+                null!,
+                null!,
+                EditorFacade.Object,
+                configService.Object,
+                null!,
+                new Mock<IShortcutService>().Object,
+                Orchestrator.Object,
+                new Mock<ISteamManifestPatcher>().Object,
+                CreateProfileResourceService(),
+                new Mock<IGameClientDetector>().Object,
+                Notifications.Object,
+                _setupWizardService.Object,
+                new Mock<IDialogService>().Object,
+                NullLogger<GameProfileLauncherViewModel>.Instance,
+                CreateLocalizationService());
+        }
+
+        public GameInstallation Installation { get; }
+
+        public Mock<IProfileEditorFacade> EditorFacade { get; } = new();
+
+        public Mock<IPublisherProfileOrchestrator> Orchestrator { get; } = new();
+
+        public Mock<INotificationService> Notifications { get; } = new();
+
+        public GameProfileLauncherViewModel ViewModel { get; }
+
+        public Task RunCancelledAsync()
+        {
+            _setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+                .Returns((IEnumerable<GameInstallation> _, CancellationToken token) =>
+                {
+                    ViewModel.ScanForGamesCommand.Cancel();
+                    token.ThrowIfCancellationRequested();
+                    return Task.FromResult(new SetupWizardResult());
+                });
+            return ViewModel.ScanForGamesCommand.ExecuteAsync(null);
+        }
+
+        public Task RunAsync(SetupWizardResult wizardResult)
+        {
+            _setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(wizardResult);
+            return ViewModel.ScanForGamesCommand.ExecuteAsync(null);
+        }
+    }
+
+    private readonly object _savedModesLock = new();
 
     /// <summary>
     /// Verifies that the constructor initializes properties correctly.
@@ -2597,130 +2722,5 @@ public class GameProfileLauncherViewModelTests
     private static GameProfileLauncherViewModel CreateViewModel()
     {
         return CreateViewModelWithMockDependencies();
-    }
-
-    /// <summary>
-    /// A scan with one detected Zero Hour installation and mocks able to create its profile.
-    /// </summary>
-    private sealed class WizardScanFixture
-    {
-        public const string ClientId = "zh-client";
-        public const string ClientName = "Zero Hour 1.04";
-        public const string SuperHackersClientName = "TheSuperHackers Zero Hour";
-
-        private readonly Mock<ISetupWizardService> _setupWizardService = new();
-
-        public WizardScanFixture(
-            GameProfile? otherProfile = null,
-            bool existingProfileOnInstallation = false,
-            bool nativeSuperHackersOnly = false,
-            bool withSuperHackersClient = false,
-            bool withClientlessInstallation = false,
-            string? superHackersExecutablePath = null,
-            bool existingSuperHackersProfile = false,
-            bool withSecondBaseClient = false)
-        {
-            Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
-            var superHackersClient = new GameClient { Id = "native-tsh", Name = SuperHackersClientName, PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id, ExecutablePath = superHackersExecutablePath ?? string.Empty };
-            var baseClient = new GameClient { Id = ClientId, Name = ClientName, GameType = GameType.ZeroHour, Version = "1.04", InstallationId = Installation.Id };
-            var clients = new List<GameClient>();
-            if (!nativeSuperHackersOnly)
-            {
-                clients.Add(baseClient);
-            }
-
-            if (withSecondBaseClient)
-            {
-                clients.Add(new GameClient { Id = "zh-scanned", Name = "Zero Hour (scanned)", GameType = GameType.ZeroHour, InstallationId = Installation.Id });
-            }
-
-            if (nativeSuperHackersOnly || withSuperHackersClient)
-            {
-                clients.Add(superHackersClient);
-            }
-
-            Installation.PopulateGameClients(clients);
-
-            var installationService = new Mock<IGameInstallationService>();
-            installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(withClientlessInstallation
-                    ? [Installation, new GameInstallation(Path.Combine("C:", "Empty"), GameInstallationType.Unknown, new Mock<ILogger<GameInstallation>>().Object)]
-                    : [Installation]));
-
-            var profiles = new List<GameProfile>();
-            if (otherProfile != null)
-            {
-                profiles.Add(otherProfile);
-            }
-
-            if (existingSuperHackersProfile)
-            {
-                profiles.Add(new GameProfile { Id = "existing-tsh", Name = SuperHackersClientName, GameInstallationId = Installation.Id });
-            }
-
-            if (existingProfileOnInstallation)
-            {
-                profiles.Add(new GameProfile { Id = "existing", Name = ClientName, GameInstallationId = Installation.Id });
-            }
-
-            var profileManager = new Mock<IGameProfileManager>();
-            profileManager.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(profiles));
-
-            var configService = new Mock<IConfigurationProviderService>();
-            configService.Setup(x => x.GetDefaultWorkspaceStrategy()).Returns(WorkspaceStrategy.HardLink);
-
-            EditorFacade.Setup(x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync((CreateProfileRequest request, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(
-                    new GameProfile { Id = "created", Name = request.Name, GameInstallationId = request.GameInstallationId }));
-
-            ViewModel = new GameProfileLauncherViewModel(
-                installationService.Object,
-                profileManager.Object,
-                null!,
-                null!,
-                EditorFacade.Object,
-                configService.Object,
-                null!,
-                new Mock<IShortcutService>().Object,
-                Orchestrator.Object,
-                new Mock<ISteamManifestPatcher>().Object,
-                CreateProfileResourceService(),
-                new Mock<IGameClientDetector>().Object,
-                Notifications.Object,
-                _setupWizardService.Object,
-                new Mock<IDialogService>().Object,
-                NullLogger<GameProfileLauncherViewModel>.Instance,
-                CreateLocalizationService());
-        }
-
-        public GameInstallation Installation { get; }
-
-        public Mock<IProfileEditorFacade> EditorFacade { get; } = new();
-
-        public Mock<IPublisherProfileOrchestrator> Orchestrator { get; } = new();
-
-        public Mock<INotificationService> Notifications { get; } = new();
-
-        public GameProfileLauncherViewModel ViewModel { get; }
-
-        public Task RunCancelledAsync()
-        {
-            _setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-                .Returns((IEnumerable<GameInstallation> _, CancellationToken token) =>
-                {
-                    ViewModel.ScanForGamesCommand.Cancel();
-                    token.ThrowIfCancellationRequested();
-                    return Task.FromResult(new SetupWizardResult());
-                });
-            return ViewModel.ScanForGamesCommand.ExecuteAsync(null);
-        }
-
-        public Task RunAsync(SetupWizardResult wizardResult)
-        {
-            _setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(wizardResult);
-            return ViewModel.ScanForGamesCommand.ExecuteAsync(null);
-        }
     }
 }
