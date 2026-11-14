@@ -35,7 +35,6 @@ public class NavigationStyleTests
     public void NavigationConsumer_SelectionAndDisabledStatesRemainDistinct(string family)
     {
         var profile = family is "sidebar" or "profile" ? GenHub.Features.Info.ViewModels.DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab() : null;
-        using var fixture = profile as IDisposable;
         UserControl view = family switch
         {
             "main" => new MainView { DataContext = null },
@@ -96,13 +95,14 @@ public class NavigationStyleTests
             foreach (var glyph in button.GetVisualDescendants().OfType<PathIcon>())
             {
                 Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(glyph.Foreground));
-                Assert.Equal(family == "studio" ? 16 : family == "sidebar" ? 20 : family == "profile" ? 32 : 24, glyph.Width);
+                Assert.Equal(family switch { "studio" => 16, "sidebar" => 20, "profile" => 32, _ => 24 }, glyph.Width);
                 Assert.Equal(glyph.Width, glyph.Height);
             }
         }
         finally
         {
             window.Close();
+            (profile as IDisposable)?.Dispose();
         }
     }
 
@@ -111,7 +111,6 @@ public class NavigationStyleTests
     public void ProfileIconMasks_InheritNavigationInk()
     {
         var profile = GenHub.Features.Info.ViewModels.DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
-        using var fixture = profile as IDisposable;
         var view = new GameProfileSettingsContentView { DataContext = profile };
         var window = new Window { Width = 1400, Height = 900, Content = view };
         window.Show();
@@ -131,6 +130,7 @@ public class NavigationStyleTests
         finally
         {
             window.Close();
+            (profile as IDisposable)?.Dispose();
         }
     }
 
