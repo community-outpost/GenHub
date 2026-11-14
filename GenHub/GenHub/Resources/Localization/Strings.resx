@@ -12937,6 +12937,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
     <value>{0} items</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>{0} Catalogs</value>
   </data>
@@ -13296,6 +13299,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
     <value>{0} items in catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
+    <value>{0} item in catalog</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Parsed: {0}</value>
@@ -13795,8 +13801,8 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>At least one bundle component is required.</value>
   </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>A release item is required. Please provide a valid download URL or local file.</value>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>Add a file or download URL for the initial release, or clear its changelog and dependencies.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>Download URL must be a valid HTTP or HTTPS link.</value>
@@ -18343,5 +18349,11 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ExportDraft" xml:space="preserve">
+    <value>'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
+    <value>An initial release is optional. Without one, this item is a draft: you can save the project, but must add a release or remove the draft before exporting or publishing the catalog.</value>
   </data>
 </root>

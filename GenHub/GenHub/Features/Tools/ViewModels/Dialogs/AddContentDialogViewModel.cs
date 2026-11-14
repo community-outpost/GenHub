@@ -860,14 +860,24 @@ public partial class AddContentDialogViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task AddReleaseArtifactsFromPathsAsync(IEnumerable<string> paths)
     {
+        string? unavailablePath = null;
         foreach (var rawPath in paths)
         {
-            await ProcessReleaseArtifactPathAsync(rawPath);
+            if (!await ProcessReleaseArtifactPathAsync(rawPath))
+            {
+                unavailablePath ??= rawPath;
+            }
         }
 
         IncludeInitialRelease = true;
         SyncPrimaryFromStaged();
-        Validate();
+        Validate(unavailablePath == null
+            ? null
+            : string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                    "Local path does not exist: {0}"),
+                unavailablePath));
     }
 
     /// <inheritdoc />
@@ -1145,6 +1155,29 @@ public partial class AddContentDialogViewModel(
         }
     }
 
+    private static string ResolveDroppedPath(string rawPath) =>
+        File.Exists(rawPath) || Directory.Exists(rawPath) ? rawPath : rawPath.Trim('"', '\'', ' ');
+
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+    }
+
     private static bool IsRemoteArtworkUrl(string value)
     {
         return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
@@ -1241,7 +1274,8 @@ public partial class AddContentDialogViewModel(
     partial void OnDownloadUrlChanged(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
-        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+        if (Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
             var name = Path.GetFileName(uri.LocalPath);
             if (!string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(PackageFilename))
@@ -1307,8 +1341,8 @@ public partial class AddContentDialogViewModel(
             return false;
         }
 
-        var path = rawPath.Trim('"', '\'', ' ');
-        if (!File.Exists(path) && !Directory.Exists(path))
+        var path = TryGetFullPath(ResolveDroppedPath(rawPath));
+        if (path == null || (!File.Exists(path) && !Directory.Exists(path)))
         {
             return false;
         }
@@ -1565,6 +1599,7 @@ public partial class AddContentDialogViewModel(
         CancelStagedCompute(entry);
         StagedFiles.Remove(entry);
         SyncPrimaryFromStaged();
+        Validate();
     }
 
     /// <summary>
@@ -2118,9 +2153,8 @@ public partial class AddContentDialogViewModel(
         return $"{contentId}-{version}.zip";
     }
 
-    private bool ValidateDownloadUrl(out bool hasValidUrl)
+    private bool ValidateDownloadUrl()
     {
-        hasValidUrl = false;
         if (string.IsNullOrWhiteSpace(DownloadUrl))
         {
             return true;
@@ -2136,13 +2170,11 @@ public partial class AddContentDialogViewModel(
             return false;
         }
 
-        hasValidUrl = true;
         return true;
     }
 
-    private bool ValidateStagedOrLocalFiles(out bool hasValidFile)
+    private bool ValidateStagedOrLocalFiles()
     {
-        hasValidFile = false;
         if (StagedFiles.Count > 0)
         {
             var missing = StagedFiles.FirstOrDefault(e => !File.Exists(e.LocalPath) && !Directory.Exists(e.LocalPath));
@@ -2157,24 +2189,18 @@ public partial class AddContentDialogViewModel(
                 return false;
             }
 
-            hasValidFile = true;
             return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(LocalFilePath))
+        if (!string.IsNullOrWhiteSpace(LocalFilePath) && !File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
         {
-            if (!File.Exists(LocalFilePath) && !Directory.Exists(LocalFilePath))
-            {
-                ValidationError = string.Format(
-                    GetLocalizedString(
-                        "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
-                        "Local path does not exist: {0}"),
-                    LocalFilePath);
-                IsValid = false;
-                return false;
-            }
-
-            hasValidFile = true;
+            ValidationError = string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Validation.LocalPathMissingFormat",
+                    "Local path does not exist: {0}"),
+                LocalFilePath);
+            IsValid = false;
+            return false;
         }
 
         return true;
@@ -2201,23 +2227,22 @@ public partial class AddContentDialogViewModel(
             return true;
         }
 
-        if (!ValidateDownloadUrl(out var hasValidUrl))
+        if (!ValidateDownloadUrl())
         {
             return false;
         }
 
-        if (!ValidateStagedOrLocalFiles(out var hasValidFile))
+        if (!ValidateStagedOrLocalFiles())
         {
             return false;
         }
 
-        var hasExistingArtifacts = ReleaseArtifacts.Count > 0;
-
-        if (!hasValidUrl && !hasValidFile && !hasExistingArtifacts)
+        if (!HasInitialReleaseSource() &&
+            (!string.IsNullOrWhiteSpace(ReleaseChangelog) || ReleaseDependencies.Count > 0))
         {
             ValidationError = GetLocalizedString(
-                "Tools.PublisherStudio.Validation.ReleaseItemRequired",
-                "A release item is required. Please provide a local file, folder, or download URL.");
+                "Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource",
+                "Add a file or download URL for the initial release, or clear its changelog and dependencies.");
             IsValid = false;
             return false;
         }
@@ -2400,7 +2425,7 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        if (IsUpstreamSource)
+        if (IsUpstreamSource || !HasInitialReleaseSource())
         {
             return;
         }
@@ -2441,6 +2466,18 @@ public partial class AddContentDialogViewModel(
         {
             contentItem.EntryPoint = release.EntryPoint;
         }
+    }
+
+    private bool HasInitialReleaseSource()
+    {
+        if (ReleaseArtifacts.Count > 0 || StagedFiles.Count > 0)
+        {
+            return true;
+        }
+
+        return UseDirectUrl
+            ? !string.IsNullOrWhiteSpace(DownloadUrl)
+            : !string.IsNullOrWhiteSpace(LocalFilePath);
     }
 
     private void MirrorBundleComponentsIntoReleases(CatalogContentItem contentItem)
@@ -2667,13 +2704,17 @@ public partial class AddContentDialogViewModel(
 
     partial void OnDescriptionChanged(string value) => Validate();
 
-    private void Validate()
+    private void Validate(string? transientError = null)
     {
         ValidateAllProperties();
-        IsValid = !HasErrors;
-        ValidationError = HasErrors
-            ? string.Join(Environment.NewLine, GetErrors().Select(e => e.ErrorMessage))
-            : null;
+        var errors = GetErrors().Select(e => e.ErrorMessage).ToList();
+        if (transientError != null)
+        {
+            errors.Add(transientError);
+        }
+
+        IsValid = errors.Count == 0;
+        ValidationError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
     }
 
     private async Task<(string Url, long Size)?> PromptDuplicateAssetAsync(string sha256)
@@ -2755,14 +2796,14 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private async Task ProcessReleaseArtifactPathAsync(string rawPath)
+    private async Task<bool> ProcessReleaseArtifactPathAsync(string rawPath)
     {
         if (string.IsNullOrWhiteSpace(rawPath))
         {
-            return;
+            return true;
         }
 
-        var path = rawPath.Trim('"', '\'', ' ');
+        var path = ResolveDroppedPath(rawPath);
         if (File.Exists(path))
         {
             var sha256 = await ComputeFileSha256SafeAsync(path);
@@ -2782,11 +2823,21 @@ public partial class AddContentDialogViewModel(
                 ReleaseArtifacts.Add(art);
                 IncludeInitialRelease = true;
                 OnPropertyChanged(nameof(HasInitialReleaseFiles));
-                return;
+                return true;
             }
         }
 
-        TryStagePath(path, autofill: false);
+        if (!File.Exists(path) && !Directory.Exists(path))
+        {
+            return false;
+        }
+
+        if (TryStagePath(path, autofill: false))
+        {
+            UseDirectUrl = false;
+        }
+
+        return true;
     }
 
     private string GetLocalizedString(string key, string fallback)
