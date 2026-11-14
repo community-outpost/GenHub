@@ -55,9 +55,10 @@ explicitly; do not describe the entire application as migrated after this batch.
 ## Design decisions
 
 - Opt-in styles on Avalonia Button, no additional widget framework or icon package.
-- Solid primary/danger surfaces with dark text; support every current accent.
+- Pill actions: darker primary surfaces with white text; outlined/tinted secondary
+  and destructive actions; readable state colors for every current accent.
 - Default 36px and compact 32px minimum height; content may grow for translation.
-- Shared 8px corners and 16px action glyphs, with 20/24px section/navigation tokens.
+- Shared capsule corners and 16px action glyphs, with 20/24px section/navigation tokens.
 - Common semantic geometry resources first; inherit action foreground.
 - Localized accessible name plus tooltip for icon-only actions.
 - Keep branding, faction identity and purposeful component roles distinct.
