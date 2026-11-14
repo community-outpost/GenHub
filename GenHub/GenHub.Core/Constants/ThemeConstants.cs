@@ -8,6 +8,27 @@ namespace GenHub.Core.Constants;
 /// </summary>
 public static class ThemeConstants
 {
+    /// <summary>Approved resting fill for primary actions under the default theme.</summary>
+    public const string DefaultActionRestHex = "#7540B8";
+
+    /// <summary>Approved pointer-over fill for primary actions under the default theme.</summary>
+    public const string DefaultActionHoverHex = "#8651C9";
+
+    /// <summary>Approved pressed fill for primary actions under the default theme.</summary>
+    public const string DefaultActionPressedHex = "#65339F";
+
+    /// <summary>Start of the default resting primary action gradient.</summary>
+    public const string DefaultActionRestGradientStartHex = "#8241CF";
+
+    /// <summary>End of the default resting primary action gradient.</summary>
+    public const string DefaultActionRestGradientEndHex = "#6930B3";
+
+    /// <summary>Start of the default pressed primary action gradient.</summary>
+    public const string DefaultActionPressedGradientStartHex = "#7135BC";
+
+    /// <summary>End of the default pressed primary action gradient.</summary>
+    public const string DefaultActionPressedGradientEndHex = "#592696";
+
     /// <summary>
     /// Default Void Purple theme.
     /// </summary>
