@@ -766,7 +766,7 @@
 
     <!-- Button styles -->
     <Style Selector="ToggleButton.Primary">
-      <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+      <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="CornerRadius" Value="6" />
@@ -779,13 +779,13 @@
       </Setter>
     </Style>
     <Style Selector="ToggleButton.Primary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
     </Style>
 
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
 
     <Style Selector="ToggleButton.Primary:checked">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ActionPrimaryHoverBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
     </Style>
 
