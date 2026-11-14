@@ -1839,10 +1839,13 @@ public partial class GameProfileLauncherViewModel(
             var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installations, wizardResult);
 
             StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installations.Count, profilesCreated);
-            notificationService.ShowSuccess(
-                localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
-                autoDismissMs: NotificationDurations.VeryLong);
+            if (profilesCreated > 0)
+            {
+                notificationService.ShowSuccess(
+                    localizationService["GameProfiles.Notification.ScanComplete.Title"],
+                    localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
+                    autoDismissMs: NotificationDurations.VeryLong);
+            }
         }
         catch (Exception ex)
         {

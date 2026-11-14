@@ -1635,6 +1635,9 @@ public class GameProfileLauncherViewModelTests : IDisposable
         notifications.Verify(
             n => n.ShowInfo("Select Game Directory", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>

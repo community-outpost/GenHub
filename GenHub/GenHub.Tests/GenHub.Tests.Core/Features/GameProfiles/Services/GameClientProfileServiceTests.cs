@@ -124,25 +124,33 @@ public sealed class GameClientProfileServiceTests
             detection.Object,
             new Mock<IGameClientDetectionOrchestrator>().Object,
             NullLogger<GenHub.Features.GameInstallations.GameInstallationService>.Instance);
-        var chosen = new GameInstallation(InstallationPath, GameInstallationType.Retail, null)
+        var folder = Directory.CreateTempSubdirectory("GenHubChosen_").FullName;
+        try
         {
-            HasZeroHour = true,
-            ZeroHourPath = InstallationPath,
-        };
-        Assert.True((await installationService.AddInstallationToCacheAsync(chosen)).Success);
-        var service = new GameClientProfileService(
-            _profileManagerMock.Object,
-            installationService,
-            _configServiceMock.Object,
-            _manifestPoolMock.Object,
-            NullLogger<GameClientProfileService>.Instance);
-        var nativeName = Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+            var chosen = new GameInstallation(folder, GameInstallationType.Retail, null)
+            {
+                HasZeroHour = true,
+                ZeroHourPath = folder,
+            };
+            Assert.True((await installationService.AddInstallationToCacheAsync(chosen)).Success);
+            var service = new GameClientProfileService(
+                _profileManagerMock.Object,
+                installationService,
+                _configServiceMock.Object,
+                _manifestPoolMock.Object,
+                NullLogger<GameClientProfileService>.Instance);
+            var nativeName = Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
 
-        var result = await service.CreateProfileFromManifestAsync(
-            CreateManifest(new ManifestFile { RelativePath = nativeName, IsExecutable = true }));
+            var result = await service.CreateProfileFromManifestAsync(
+                CreateManifest(new ManifestFile { RelativePath = nativeName, IsExecutable = true }));
 
-        Assert.True(result.Success, string.Join("; ", result.Errors));
-        Assert.Equal(chosen.Id, _capturedRequest!.GameInstallationId);
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal(chosen.Id, _capturedRequest!.GameInstallationId);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 
     /// <summary>
