@@ -8,45 +8,24 @@
              x:DataType="editors:FileExplorerViewModel">
   <Grid RowDefinitions="Auto,Auto,*">
     <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="0,4,0,4">
-      <Button Grid.Column="0"
+      <Button Classes="action-secondary action-compact" Grid.Column="0"
               Command="{Binding BrowseCommand}"
               IsVisible="{Binding CanBrowse}"
-              Padding="8,4"
-              Background="{DynamicResource SurfaceElevatedBrush}"
-              BorderBrush="{DynamicResource BorderBrush}"
-              BorderThickness="1" CornerRadius="6"
-              Content="{localization:Localize Common.Editors.Files.Browse}"
-              FontSize="11" FontWeight="SemiBold"/>
-      <Button Grid.Column="1"
-              Command="{Binding RefreshTreeCommand}"
-              Padding="8,4" Margin="6,0,0,0"
-              Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}"
-              BorderThickness="1"
-              CornerRadius="6"
-              Content="{localization:Localize Common.Editors.Files.Refresh}"
-              FontSize="11"/>
-      <Button Grid.Column="3"
-              Command="{Binding ExpandAllCommand}"
-              Padding="5,4" Margin="4,0,0,0"
-              Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}"
-              BorderThickness="1"
-              CornerRadius="6"
+              Content="{localization:Localize Common.Editors.Files.Browse}"/>
+      <Button Classes="action-secondary action-compact" Grid.Column="1"
+              Command="{Binding RefreshTreeCommand}" Margin="6,0,0,0"
+              Content="{localization:Localize Common.Editors.Files.Refresh}"/>
+      <Button Classes="icon-action" Grid.Column="3"
+              Command="{Binding ExpandAllCommand}" Margin="4,0,0,0"
               AutomationProperties.Name="{localization:Localize Common.Editors.Files.ExpandAll}"
               ToolTip.Tip="{localization:Localize Common.Editors.Files.ExpandAll}">
-        <material:MaterialIcon Kind="ArrowExpandAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+        <material:MaterialIcon Kind="ArrowExpandAll" Width="16" Height="16"/>
       </Button>
-      <Button Grid.Column="4"
-              Command="{Binding CollapseAllCommand}"
-              Padding="5,4" Margin="4,0,0,0"
-              Background="Transparent"
-              BorderBrush="{DynamicResource BorderBrush}"
-              BorderThickness="1"
-              CornerRadius="6"
+      <Button Classes="icon-action" Grid.Column="4"
+              Command="{Binding CollapseAllCommand}" Margin="4,0,0,0"
               AutomationProperties.Name="{localization:Localize Common.Editors.Files.CollapseAll}"
               ToolTip.Tip="{localization:Localize Common.Editors.Files.CollapseAll}">
-        <material:MaterialIcon Kind="ArrowCollapseAll" Width="13" Height="13" Foreground="{DynamicResource TextSecondary}"/>
+        <material:MaterialIcon Kind="ArrowCollapseAll" Width="16" Height="16"/>
       </Button>
     </Grid>
     <Border Grid.Row="1"

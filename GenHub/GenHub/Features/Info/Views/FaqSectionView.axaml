@@ -12,7 +12,7 @@
     <Style Selector="TextBlock.category-header">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="HorizontalAlignment" Value="Stretch"/>
-      <Setter Property="Foreground" Value="{StaticResource SystemAccentColorBrush}"/>
+      <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorBrush}"/>
       <Setter Property="FontSize" Value="22"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Margin" Value="0,20,0,15"/>
@@ -123,7 +123,7 @@
 
            <TextBlock Text="{Binding StatusMessage}"
                       VerticalAlignment="Center"
-                      Foreground="#FF5555"
+                      Foreground="{DynamicResource ErrorBrush}"
                       Margin="20,0,0,0"
                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
          </StackPanel>

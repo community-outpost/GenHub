@@ -20,10 +20,9 @@
          <TextBlock Text="{localization:Localize Info.Changelog.LatestUpdatesFromGitHub}" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
        </StackPanel>
        <Button Grid.Column="1" Command="{Binding LoadChangelogsCommand}"
-               IsEnabled="{Binding !IsLoading}"
-               Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4">
+               IsEnabled="{Binding !IsLoading}" Classes="action-secondary action-compact">
            <StackPanel Orientation="Horizontal" Spacing="6">
-               <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+               <material:MaterialIcon Kind="Refresh" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                <TextBlock Text="{localization:Localize Info.Changelog.Refresh}"/>
            </StackPanel>
        </Button>
@@ -72,7 +71,7 @@
                     <!-- Header -->
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Release.TagName}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                            <TextBlock Text="{Binding Release.TagName}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColorBrush}"/>
                             <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsLatest}">
                                 <TextBlock Text="{localization:Localize Info.Changelog.LatestRelease}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource PrimaryButtonForeground}"/>
                             </Border>
@@ -84,17 +83,15 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <Button Command="{Binding OpenReleaseUrlCommand}"
-                                    Background="Transparent" Padding="4" ToolTip.Tip="{localization:Localize Info.Changelog.ViewOnGitHub}">
-                                <material:MaterialIcon Kind="OpenInNew" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}"/>
+                            <Button Command="{Binding OpenReleaseUrlCommand}" ToolTip.Tip="{localization:Localize Info.Changelog.ViewOnGitHub}" Classes="icon-action" AutomationProperties.Name="{localization:Localize Info.Changelog.ViewOnGitHub}">
+                                <material:MaterialIcon Kind="OpenInNew" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                             </Button>
-                            <Button Command="{Binding ToggleExpandedCommand}"
-                                    Background="Transparent" Padding="6,4" ToolTip.Tip="{localization:Localize Info.Changelog.ToggleDetails}">
+                            <Button Command="{Binding ToggleExpandedCommand}" ToolTip.Tip="{localization:Localize Info.Changelog.ToggleDetails}" Classes="action-secondary action-compact">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="{localization:Localize Info.Changelog.Collapse}" IsVisible="{Binding IsExpanded}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                                    <TextBlock Text="{localization:Localize Info.Changelog.Expand}" IsVisible="{Binding !IsExpanded}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                                    <material:MaterialIcon Kind="ChevronUp" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding IsExpanded}"/>
-                                    <material:MaterialIcon Kind="ChevronDown" Width="16" Height="16" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding !IsExpanded}"/>
+                                    <TextBlock Text="{localization:Localize Info.Changelog.Collapse}" IsVisible="{Binding IsExpanded}"/>
+                                    <TextBlock Text="{localization:Localize Info.Changelog.Expand}" IsVisible="{Binding !IsExpanded}"/>
+                                    <material:MaterialIcon Kind="ChevronUp" IsVisible="{Binding IsExpanded}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                    <material:MaterialIcon Kind="ChevronDown" IsVisible="{Binding !IsExpanded}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>

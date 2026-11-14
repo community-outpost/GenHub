@@ -29,22 +29,7 @@
 
     <Window.Styles>
         <!-- Link button style for header badges -->
-        <Style Selector="Button.header-link-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="9,4"/>
-            <Setter Property="Margin" Value="0,0,6,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-        <Style Selector="Button.header-link-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-        </Style>
+
     </Window.Styles>
 
     <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
@@ -215,38 +200,38 @@
                                     <!-- Interactive Link Badges -->
                                     <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
                                         <!-- Website Link Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherWebsite}"
                                                 ToolTip.Tip="{Binding PublisherWebsite}"
-                                                IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherWebsite, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.Web}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Website}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.Web}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Website}" />
                                             </StackPanel>
                                         </Button>
 
                                         <!-- Support & Issues Link Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherSupportUrl}"
                                                 ToolTip.Tip="{Binding PublisherSupportUrl}"
-                                                IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherSupportUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.MessageOutline}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.SupportIssues}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.MessageOutline}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.SupportIssues}" />
                                             </StackPanel>
                                         </Button>
 
                                         <!-- Contact Email Button -->
-                                        <Button Classes="header-link-btn"
+                                        <Button Classes="action-secondary action-compact"
                                                 Command="{Binding OpenUrlCommand}"
                                                 CommandParameter="{Binding PublisherContactEmail}"
                                                 ToolTip.Tip="{Binding PublisherContactEmail}"
-                                                IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                IsVisible="{Binding PublisherContactEmail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Margin="0,0,6,4">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <PathIcon Data="{StaticResource ToolIcon.EmailOutline}" Width="12" Height="12" VerticalAlignment="Center" />
-                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Contact}" FontWeight="SemiBold" />
+                                                <PathIcon Data="{StaticResource ToolIcon.EmailOutline}" VerticalAlignment="Center" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                                <TextBlock Text="{localization:Localize Downloads.Subscription.Contact}" />
                                             </StackPanel>
                                         </Button>
                                     </WrapPanel>
