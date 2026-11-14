@@ -637,37 +637,41 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var hasLaunchableContent = enabledItems.Any(c =>
-                c.ContentType == ContentType.GameInstallation ||
-                c.ContentType == ContentType.GameClient ||
-                c.ContentType == ContentType.Executable ||
-                c.ContentType == ContentType.ModdingTool);
-
-            if (!hasLaunchableContent)
+            if (!EnsureLaunchableContent(enabledItems))
             {
-                StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
-                _localNotificationService.ShowError(
-                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Title", "Missing Launchable Content"),
-                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Message", "Please enable a Game, Executable, or Tool before saving."));
-                _logger?.LogWarning("Profile save blocked: No launchable content enabled");
                 return;
             }
 
             var enabledContentIds = enabledItems.Select(c => c.ManifestId.Value).ToList();
-
-            if (_manifestPool != null)
+            var unshownInstalledIds = new List<string>();
+            while (true)
             {
-                var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);
-                if (validationErrors.Count > 0)
+                var validatedIds = new List<string>(enabledContentIds);
+                if (!await EnsureRequiredDependenciesAsync(validatedIds, unshownInstalledIds))
                 {
-                    var errorMessage = string.Join("\n", validationErrors);
-                    StatusMessage = "Error: Missing required dependencies";
-                    _localNotificationService.ShowError(
-                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
-                        _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", $"Cannot save profile with missing dependencies:\n\n{errorMessage}", errorMessage));
-                    _logger?.LogWarning("Profile save blocked: {Errors}", errorMessage);
                     return;
                 }
+
+                // The editor stays usable while items download, so save what it shows now.
+                // Installed items the editor could not show are kept. A change made meanwhile
+                // is validated again before saving.
+                var currentIds = EnabledContent
+                    .Where(c => c.IsEnabled)
+                    .Select(c => c.ManifestId.Value)
+                    .Union(unshownInstalledIds, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (currentIds.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(validatedIds))
+                {
+                    enabledContentIds = currentIds;
+                    break;
+                }
+
+                if (!EnsureLaunchableContent(EnabledContent.Where(c => c.IsEnabled)))
+                {
+                    return;
+                }
+
+                enabledContentIds = currentIds;
             }
 
             _logger?.LogInformation(
@@ -693,6 +697,195 @@ public partial class GameProfileSettingsViewModel
         {
             IsSaving = false;
         }
+    }
+
+    private bool EnsureLaunchableContent(IEnumerable<ContentDisplayItem> enabledItems)
+    {
+        var hasLaunchableContent = enabledItems.Any(c =>
+            c.ContentType == ContentType.GameInstallation ||
+            c.ContentType == ContentType.GameClient ||
+            c.ContentType == ContentType.Executable ||
+            c.ContentType == ContentType.ModdingTool);
+
+        if (!hasLaunchableContent)
+        {
+            StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
+            _localNotificationService.ShowError(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Title", "Missing Launchable Content"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Message", "Please enable a Game, Executable, or Tool before saving."));
+            _logger?.LogWarning("Profile save blocked: No launchable content enabled");
+        }
+
+        return hasLaunchableContent;
+    }
+
+    /// <summary>
+    /// Blocks the save while required content is missing. Offers to install the missing items,
+    /// adds them to <paramref name="enabledContentIds"/>, and allows the save once nothing is missing.
+    /// </summary>
+    /// <param name="enabledContentIds">The content IDs to save. Installed items are appended.</param>
+    /// <param name="unshownInstalledIds">Installed items the editor could not show. They are appended.</param>
+    /// <returns><see langword="true"/> when nothing required is missing.</returns>
+    private async Task<bool> EnsureRequiredDependenciesAsync(List<string> enabledContentIds, List<string> unshownInstalledIds)
+    {
+        if (_dependencyValidator == null)
+        {
+            return true;
+        }
+
+        using var installCancellation = new CancellationTokenSource();
+        Action cancel = installCancellation.Cancel;
+        _pendingInstallCancellations.Add(cancel);
+        try
+        {
+            return await EnsureRequiredDependenciesAsync(enabledContentIds, unshownInstalledIds, installCancellation.Token);
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger?.LogInformation(ex, "Installing required items was cancelled because the editor closed");
+            return false;
+        }
+        finally
+        {
+            _pendingInstallCancellations.Remove(cancel);
+        }
+    }
+
+    private async Task<bool> EnsureRequiredDependenciesAsync(
+        List<string> enabledContentIds,
+        List<string> unshownInstalledIds,
+        CancellationToken cancellationToken)
+    {
+        var missingDependencies = await _dependencyValidator!.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
+        if (missingDependencies.Count == 0)
+        {
+            return true;
+        }
+
+        _logger?.LogWarning(
+            "Profile save blocked: missing required items {DependencyIds}",
+            string.Join(", ", missingDependencies.Select(gap => $"{gap.DependencyId} (required by {gap.RequiredById})")));
+
+        if (_dialogService == null || _profileContentService == null)
+        {
+            ShowMissingDependenciesError(missingDependencies);
+            return false;
+        }
+
+        var install = await MissingDependencyDialog.ConfirmInstallAsync(
+            _dialogService,
+            _localizationService,
+            Name,
+            missingDependencies,
+            cancellationToken);
+        if (!install)
+        {
+            StatusMessage = string.Empty;
+            return false;
+        }
+
+        var installResult = await _profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
+        if (installResult.Failed || installResult.Data == null)
+        {
+            StatusMessage = MissingDependenciesStatus;
+            _localNotificationService.ShowError(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
+                installResult.FirstError ?? _localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item"));
+            return false;
+        }
+
+        foreach (var installedId in installResult.Data.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+        {
+            enabledContentIds.Add(installedId);
+            if (!await ShowInstalledItemAsEnabledAsync(installedId, cancellationToken))
+            {
+                unshownInstalledIds.Add(installedId);
+            }
+        }
+
+        var stillMissing = await _dependencyValidator.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
+        if (stillMissing.Count > 0)
+        {
+            ShowMissingDependenciesError(stillMissing);
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Shows an installed item as enabled, so a later save keeps it even when this save fails.
+    /// </summary>
+    /// <returns><see langword="false"/> when the editor cannot show the item.</returns>
+    private async Task<bool> ShowInstalledItemAsEnabledAsync(string manifestId, CancellationToken cancellationToken)
+    {
+        if (TryCheckListedItem(manifestId))
+        {
+            return true;
+        }
+
+        if (_manifestPool == null || _profileContentLoader == null)
+        {
+            return false;
+        }
+
+        var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
+        if (manifestResult.Failed || manifestResult.Data == null)
+        {
+            return false;
+        }
+
+        // The editor stays usable during the lookup, so the item may have been added meanwhile.
+        if (TryCheckListedItem(manifestId))
+        {
+            return true;
+        }
+
+        var coreItem = _profileContentLoader.CreateManifestDisplayItem(manifestResult.Data);
+        if (coreItem == null)
+        {
+            return false;
+        }
+
+        var item = ConvertToViewModelContentDisplayItem(coreItem);
+        item.IsEnabled = true;
+        EnabledContent.Add(item);
+        var available = AvailableContent.FirstOrDefault(candidate => string.Equals(candidate.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
+        if (available != null)
+        {
+            AvailableContent.Remove(available);
+        }
+
+        return true;
+    }
+
+    private bool TryCheckListedItem(string manifestId)
+    {
+        var listed = EnabledContent.FirstOrDefault(item => string.Equals(item.ManifestId.Value, manifestId, StringComparison.OrdinalIgnoreCase));
+        if (listed == null)
+        {
+            return false;
+        }
+
+        listed.IsEnabled = true;
+        return true;
+    }
+
+    private void ShowMissingDependenciesError(IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        StatusMessage = MissingDependenciesStatus;
+        var names = string.Join(
+            "\n",
+            missingDependencies
+                .DistinctBy(gap => $"{gap.RequiredById}|{MissingDependencyDialog.GetItemKey(gap)}", StringComparer.OrdinalIgnoreCase)
+                .Select(gap => _localizationService.GetLocalizedString(
+                    "GameProfiles.Settings.Notification.MissingDependencies.Item",
+                    "• {0} needs {1}",
+                    MissingDependencyDialog.GetRequiredByName(_localizationService, gap),
+                    MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
+        _localNotificationService.ShowError(
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Title", "Missing Dependencies"),
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingDependencies.Message", "Cannot save profile with missing dependencies:\n\n{0}", names));
     }
 
     private async Task CreateProfileAsync(List<string> enabledContentIds, CancellationToken cancellationToken = default)
@@ -1418,6 +1611,7 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private void ExecuteCancel()
     {
+        CancelPendingOperations();
         StatusMessage = "Cancelled";
         RequestClose?.Invoke(this, EventArgs.Empty);
     }

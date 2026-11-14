@@ -1,3 +1,5 @@
+using GenHub.Core.Models.GameProfile;
+
 namespace GenHub.Core.Models.Results;
 
 /// <summary>
@@ -46,6 +48,11 @@ public class ProfileOperationResult<T> : OperationResult<T>
     public string? LiveRollbackError { get; init; }
 
     /// <summary>
+    /// Gets the required items that blocked the operation. Empty unless it failed for missing dependencies.
+    /// </summary>
+    public IReadOnlyList<ContentDependencyGap> MissingDependencies { get; private init; } = [];
+
+    /// <summary>
     /// Creates a successful profile operation result.
     /// </summary>
     /// <param name="data">The data returned by the operation.</param>
@@ -85,5 +92,23 @@ public class ProfileOperationResult<T> : OperationResult<T>
             LiveRollbackAttempted = liveRollbackAttempted,
             LiveRollbackSucceeded = liveRollbackSucceeded,
             LiveRollbackError = liveRollbackError,
+        };
+
+    /// <summary>
+    /// Creates a failed result for content whose required items are missing. Nothing was saved.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="missingDependencies">The missing required items.</param>
+    /// <param name="errorCode">The error code, if any.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="ProfileOperationResult{T}"/> that lists the missing items.</returns>
+    public static ProfileOperationResult<T> CreateMissingDependencies(
+        string error,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        string? errorCode = null,
+        TimeSpan elapsed = default)
+        => new(false, default, error, errorCode, elapsed)
+        {
+            MissingDependencies = missingDependencies,
         };
 }

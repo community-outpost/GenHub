@@ -18285,4 +18285,67 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Название снимка (необязательно)</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
+    <value>Отсутствует необходимый компонент</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
+    <value>Отсутствуют необходимые компоненты: {0}</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
+    <value>{0} работает, только если в профиле есть эти компоненты:</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.RequiredBy" xml:space="preserve">
+    <value>(нужен для {0})</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
+    <value>Технические сведения</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
+    <value>Установить нужные компоненты</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
+    <value>Обязательный компонент</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>Содержимое без названия</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
+    <value>GenHub не может это скачать. Установите игру, затем дайте GenHub её обнаружить.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameClient" xml:space="preserve">
+    <value>GenHub не может это скачать. Получите его в разделе загрузок или у издателя.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.Content" xml:space="preserve">
+    <value>GenHub не может это скачать. Получите его у издателя, затем добавьте в GenHub.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Install" xml:space="preserve">
+    <value>Кнопка «Установить нужные компоненты» сначала скачает и включит их. Отмена ничего не сохраняет.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
+    <value>GenHub может установить часть компонентов. Остальные установите вручную, затем повторите попытку.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
+    <value>Ничего не сохранится, пока эти компоненты не появятся.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Error" xml:space="preserve">
+    <value>Для добавления {0} нужно: {1}.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.StillMissing.Message" xml:space="preserve">
+    <value>{0} не добавлен. Ещё нужно: {1}.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.DownloadFailed.Message" xml:space="preserve">
+    <value>GenHub не удалось скачать {0}. Проверьте подключение и попробуйте снова.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
+    <value>• Для {0} нужен компонент {1}</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>GenHub нашёл {0}, но не ту версию, с которой работает этот контент.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>Установить доступные компоненты</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>GenHub не удалось установить нужные компоненты.</value>
+  </data>
 </root>

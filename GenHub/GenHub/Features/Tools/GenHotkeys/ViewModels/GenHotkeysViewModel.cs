@@ -794,7 +794,8 @@ public partial class GenHotkeysViewModel(
                 manifestPool,
                 notificationService,
                 localizationService,
-                userSettingsService);
+                userSettingsService,
+                dialogService);
 
             await profileSelectionVm.LoadProfilesAsync(
                 targetManifest.TargetGame,

@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -375,6 +376,8 @@ public sealed class SuperHackersBundleIntegrationTests
             ExecutablePath = "C:\\ZH\\generals.exe",
         });
 
+        RegisterInstallationManifest(manifestsById, testInstallation, GameType.ZeroHour);
+
         var installationServiceMock = new Mock<IGameInstallationService>();
         installationServiceMock.Setup(i => i.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([testInstallation]));
@@ -384,7 +387,10 @@ public sealed class SuperHackersBundleIntegrationTests
             manifestPoolMock.Object,
             new ProfileContentResolutionServices(
                 dependencyResolver,
-                installationServiceMock.Object),
+                installationServiceMock.Object,
+                new ContentDependencyValidator(
+                    manifestPoolMock.Object,
+                    NullLogger<ContentDependencyValidator>.Instance)),
             Mock.Of<IContentOrchestrator>(),
             Mock.Of<INotificationService>(),
             NullLogger<ProfileContentService>.Instance);
@@ -563,6 +569,8 @@ public sealed class SuperHackersBundleIntegrationTests
             ExecutablePath = "C:\\Generals\\generals.exe",
         });
 
+        RegisterInstallationManifest(manifestsById, testInstallation, GameType.Generals);
+
         var installationServiceMock = new Mock<IGameInstallationService>();
         installationServiceMock.Setup(i => i.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([testInstallation]));
@@ -572,7 +580,10 @@ public sealed class SuperHackersBundleIntegrationTests
             manifestPoolMock.Object,
             new ProfileContentResolutionServices(
                 dependencyResolver,
-                installationServiceMock.Object),
+                installationServiceMock.Object,
+                new ContentDependencyValidator(
+                    manifestPoolMock.Object,
+                    NullLogger<ContentDependencyValidator>.Instance)),
             Mock.Of<IContentOrchestrator>(),
             Mock.Of<INotificationService>(),
             NullLogger<ProfileContentService>.Instance);
@@ -587,5 +598,27 @@ public sealed class SuperHackersBundleIntegrationTests
         Assert.True(resolutionResult.Success);
         Assert.NotNull(resolutionResult.Data);
         Assert.Equal("SuperHackers - Generals", resolutionResult.Data.Name);
+    }
+
+    /// <summary>
+    /// Pools the installation manifest that detection registers for a game installation.
+    /// </summary>
+    private static void RegisterInstallationManifest(
+        Dictionary<string, ContentManifest> manifestsById,
+        GameInstallation installation,
+        GameType gameType)
+    {
+        var client = installation.AvailableGameClients.First(candidate => candidate.GameType == gameType);
+        var installationId = ManifestIdGenerator.GenerateGameInstallationId(
+            installation,
+            gameType,
+            GameVersionHelper.ResolveInstallationVersion(client.Version, gameType));
+        manifestsById[installationId] = new ContentManifest
+        {
+            Id = ManifestId.Create(installationId),
+            Name = $"{gameType} Installation",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = gameType,
+        };
     }
 }

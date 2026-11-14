@@ -18285,4 +18285,67 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
+    <value>أحد العناصر المطلوبة مفقود</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
+    <value>هناك {0} عناصر مطلوبة مفقودة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
+    <value>لا يعمل {0} إلا عند وجود هذه العناصر في الملف الشخصي:</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.RequiredBy" xml:space="preserve">
+    <value>(يحتاجه {0})</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
+    <value>التفاصيل التقنية</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
+    <value>تثبيت العناصر المطلوبة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
+    <value>عنصر مطلوب</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>محتوى بدون اسم</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. ثبّت اللعبة، ثم دع GenHub يكتشفها.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameClient" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. احصل عليه من التنزيلات أو من ناشره.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.Content" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. احصل عليه من ناشره، ثم أضفه إلى GenHub.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Install" xml:space="preserve">
+    <value>يقوم زر تثبيت العناصر المطلوبة بتنزيلها وتفعيلها أولاً. الإلغاء لا يحفظ أي شيء.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
+    <value>يمكن لـ GenHub تثبيت بعض هذه العناصر. ثبّت العناصر الأخرى يدويًا، ثم حاول مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
+    <value>لن يُحفظ أي شيء حتى تتوفر هذه العناصر.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Error" xml:space="preserve">
+    <value>يحتاج {0} إلى {1} قبل إضافته.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.StillMissing.Message" xml:space="preserve">
+    <value>لم تتم إضافة {0}. لا يزال يحتاج إلى {1}.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.DownloadFailed.Message" xml:space="preserve">
+    <value>تعذّر على GenHub تنزيل {0}. تحقق من اتصالك وحاول مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
+    <value>• يحتاج {0} إلى {1}</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>عثر GenHub على {0}، لكن ليس بإصدار يعمل مع هذا المحتوى.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>تثبيت العناصر المتاحة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>تعذّر على GenHub تثبيت العناصر المطلوبة.</value>
+  </data>
 </root>
