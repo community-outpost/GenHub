@@ -48,19 +48,17 @@
                    HorizontalAlignment="Stretch"
                    ToolTip.Tip="{localization:Localize Replays.Tooltip.ImportUrlFormats}"/>
           <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
-                  Classes="Primary" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
-                  Padding="10,6"
+                  Classes="action-primary action-compact" Margin="0,0,4,0" IsEnabled="{Binding !IsBusy}"
                   ToolTip.Tip="{localization:Localize Replays.Tooltip.ImportFromUrl}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
-              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Import}" VerticalAlignment="Center" FontSize="12"/>
+              <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}"/>
+              <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Import}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <Button Grid.Column="2" Command="{Binding BrowseAndImportCommand}"
-                  Classes="Secondary" IsEnabled="{Binding !IsBusy}"
-                  Padding="10,6"
-                  ToolTip.Tip="{localization:Localize Replays.Tooltip.BrowseFiles}">
-            <PathIcon Data="{StaticResource ToolIcon.Paperclip}" Width="16" Height="16"/>
+                  Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}"
+                  ToolTip.Tip="{localization:Localize Replays.Tooltip.BrowseFiles}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.BrowseFiles}">
+            <PathIcon Data="{StaticResource ToolIcon.Paperclip}"/>
           </Button>
         </Grid>
 
@@ -78,11 +76,11 @@
 
         <!-- Utilities -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
-          <Button Command="{Binding LoadReplaysCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.RefreshList}" Padding="8">
-            <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
+          <Button Command="{Binding LoadReplaysCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.RefreshList}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.RefreshList}">
+            <PathIcon Data="{StaticResource ToolIcon.Refresh}"/>
           </Button>
-          <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.OpenFolder}" Padding="8">
-            <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
+          <Button Command="{Binding OpenFolderCommand}" Classes="action-secondary icon-action" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="{localization:Localize Replays.Tooltip.OpenFolder}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.OpenFolder}">
+            <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"/>
           </Button>
         </StackPanel>
       </Grid>
@@ -197,7 +195,7 @@
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <!-- Launch Button: Visible ONLY when CanPlay (profile is configured and ready) -->
-                    <Button Classes="Primary" Padding="8,4"
+                    <Button Classes="action-primary action-compact"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
@@ -214,13 +212,13 @@
                         </MenuFlyout>
                       </Button.ContextFlyout>
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.Play}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Launch}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Play}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Launch}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
                     <!-- Checkpoint Recovery Button (When client supports checkpoints) -->
-                    <Button Classes="Secondary" Padding="8,4"
+                    <Button Classes="action-secondary action-compact"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).OpenCheckpointDrawerCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding SupportsCheckpoints}"
@@ -233,34 +231,34 @@
                         </MenuFlyout>
                       </Button.ContextFlyout>
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Recovery}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Restore}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Recovery}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
                     <!-- Setup Button: Primary action when client/patch download is required (Launch is hidden) -->
-                    <Button Classes="Primary" Padding="8,4"
+                    <Button Classes="action-primary action-compact"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).ExecuteDirectProfileCreationCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding IsDownloadRequired}"
                             ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.DownloadAndSetup}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.Download}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Setup}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Download}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Setup}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
                     <!-- Profile Button: Primary when a profile is needed/missing, or secondary when replay can already launch -->
-                    <Button Classes="Secondary" Padding="8,4"
+                    <Button Classes="action-secondary action-compact"
                             Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).SelectClientAndCreateProfileCommand}"
                             CommandParameter="{Binding}"
                             IsEnabled="{Binding !$parent[UserControl].((vm:ReplayManagerViewModel)DataContext).IsBusy}"
                             IsVisible="{Binding !IsDownloadRequired}"
                             ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.ViewClientsAndCreate}">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Profile}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Plus}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize Tools.ReplayManager.Action.Profile}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
                   </StackPanel>
@@ -332,10 +330,10 @@
             <TextBlock Text="{Binding SelectedReplays.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
-                  Classes="Danger ActionBarBtn" IsEnabled="{Binding SelectedReplays.Count}"
+                  Classes="action-danger ActionBarBtn action-compact" IsEnabled="{Binding SelectedReplays.Count}"
                   ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
               <TextBlock Text="{localization:Localize Common.Button.Delete}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -347,36 +345,37 @@
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
           <Button Command="{Binding UncompressSelectedCommand}"
-                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding HasSelectedZips}"
+                  Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding HasSelectedZips}"
                   ToolTip.Tip="{localization:Localize Replays.Tooltip.UncompressSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"/>
               <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
           <TextBox MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Tools.ReplayManager.Watermark.ZipName}" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
-                  Classes="Secondary ActionBarBtn" IsEnabled="{Binding SelectedReplays.Count}"
+                  Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding SelectedReplays.Count}"
                   ToolTip.Tip="{localization:Localize Replays.Tooltip.ZipSelected}">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <PathIcon Data="{StaticResource ToolIcon.ArchiveOutline}" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ArchiveOutline}"/>
               <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
+          <Border Classes="split-action">
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary SplitLeft ActionBarBtn"
+                    Classes="action-primary SplitLeft ActionBarBtn action-compact"
                     ToolTip.Tip="{localization:Localize Replays.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
+                <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}"/>
                 <TextBlock Text="{localization:Localize Tools.ReplayManager.Button.Upload}" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <ToggleButton
                     IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
-                    Classes="Primary SplitRight ActionBarBtn"
+                    Classes="SplitRight ActionBarBtn"
                     ToolTip.Tip="{localization:Localize Tools.ReplayManager.Tooltip.UploadHistory}">
-              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="14" Height="14" VerticalAlignment="Center"/>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronRight}" Width="16" Height="16" VerticalAlignment="Center"/>
             </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
@@ -407,28 +406,25 @@
                                   </StackPanel>
                                 </StackPanel>
 
-                                <Button Grid.Column="1" Classes="Secondary"
+                                <Button Grid.Column="1" Classes="action-secondary icon-action"
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).CopyUrlCommand}"
-                                        CommandParameter="{Binding Url}"
-                                        Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyLink}">
-                                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
+                                        CommandParameter="{Binding Url}" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyLink}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.CopyLink}">
+                                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}"/>
                                 </Button>
 
-                                <Button Grid.Column="2" Classes="Secondary"
+                                <Button Grid.Column="2" Classes="action-secondary icon-action"
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).CopyGenHubLinkCommand}"
-                                        CommandParameter="{Binding}"
-                                        Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyGenHubLink}">
-                                  <PathIcon Data="{StaticResource ToolIcon.ShareOutline}" Width="14" Height="14"/>
+                                        CommandParameter="{Binding}" Margin="4,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.CopyGenHubLink}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.CopyGenHubLink}">
+                                  <PathIcon Data="{StaticResource ToolIcon.ShareOutline}"/>
                                 </Button>
 
-                                <Button Grid.Column="3" Classes="Danger"
+                                <Button Grid.Column="3" Classes="action-danger icon-action"
                                         Command="{Binding #Root.((vm:ReplayManagerViewModel)DataContext).RemoveHistoryItemCommand}"
-                                        CommandParameter="{Binding}"
-                                        Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteHistoryItem}">
-                                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
+                                        CommandParameter="{Binding}" Margin="4,0,0,0" VerticalAlignment="Center"
+                                        ToolTip.Tip="{localization:Localize Replays.Tooltip.DeleteHistoryItem}" AutomationProperties.Name="{localization:Localize Replays.Tooltip.DeleteHistoryItem}">
+                                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}"/>
                                 </Button>
                               </Grid>
                             </Border>
@@ -443,13 +439,13 @@
 
                   <!-- Clear All Button -->
                   <Button Command="{Binding ClearHistoryCommand}"
-                          Classes="Danger"
+                          Classes="action-danger action-compact"
                           HorizontalAlignment="Stretch"
                           Margin="0,10,0,0"
                           IsVisible="{Binding UploadHistory.Count}"
                           ToolTip.Tip="{localization:Localize Replays.Tooltip.ClearHistory}">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                      <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}" Width="16" Height="16"/>
+                      <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}"/>
                       <TextBlock Text="{localization:Localize Replays.Button.ClearAllHistory}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
@@ -457,10 +453,10 @@
               </Border>
             </Popup>
           </StackPanel>
+          </Border>
         </StackPanel>
       </Grid>
     </Border>
-
 
     <!-- Checkpoint Recovery Modal Dialog Overlay -->
     <Border Grid.Row="0" Grid.RowSpan="4"
@@ -495,10 +491,9 @@
                          Foreground="{DynamicResource TextSecondary}"
                          TextTrimming="CharacterEllipsis"/>
             </StackPanel>
-            <Button Grid.Column="1"
-                    Classes="icon-subtle"
+            <Button AutomationProperties.Name="{localization:Localize Common.Close}" Grid.Column="1"
+                    Classes="icon-action"
                     Command="{Binding CloseCheckpointDrawerCommand}"
-                    Padding="6"
                     VerticalAlignment="Top">
               <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
             </Button>
@@ -601,24 +596,22 @@
 
               <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
                 <Button Grid.Column="1"
-                        Classes="Secondary"
+                        Classes="action-secondary action-compact"
                         Command="{Binding CreateCheckpointCommand}"
                         IsEnabled="{Binding CanMintCheckpoint}"
-                        IsVisible="{Binding !IsMintingCheckpoint}"
-                        Padding="14,6">
+                        IsVisible="{Binding !IsMintingCheckpoint}">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <PathIcon Data="{StaticResource ToolIcon.Restore}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.CreateButton}" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <PathIcon Data="{StaticResource ToolIcon.Restore}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.CreateButton}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2"
-                        Classes="Secondary"
+                        Classes="action-secondary action-compact"
                         Command="{Binding CancelMintCheckpointCommand}"
-                        IsVisible="{Binding IsMintingCheckpoint}"
-                        Padding="14,6">
+                        IsVisible="{Binding IsMintingCheckpoint}">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <PathIcon Data="{StaticResource ToolIcon.Close}" Width="14" Height="14" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
+                    <PathIcon Data="{StaticResource ToolIcon.Close}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{localization:Localize Common.Button.Cancel}" VerticalAlignment="Center" FontWeight="SemiBold"/>
                   </StackPanel>
                 </Button>
               </Grid>
@@ -675,13 +668,12 @@
                                    FontSize="11"
                                    VerticalAlignment="Center"
                                    Margin="12,0"/>
-                        <Button Grid.Column="3"
-                                Classes="icon-subtle"
+                        <Button AutomationProperties.Name="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave}" Grid.Column="3"
+                                Classes="action-danger icon-action"
                                 Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).DeleteCheckpointCommand}"
                                 CommandParameter="{Binding}"
-                                Padding="4"
                                 ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.DeleteSave}">
-                          <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="13" Height="13"/>
+                          <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
                         </Button>
                       </Grid>
                     </DataTemplate>
@@ -715,32 +707,29 @@
           <!-- Footer Actions -->
           <Grid Grid.Row="4" ColumnDefinitions="*,Auto,Auto">
             <Button Grid.Column="0"
-                    Classes="Secondary"
+                    Classes="action-secondary action-compact"
                     Command="{Binding CloseCheckpointDrawerCommand}"
-                    HorizontalAlignment="Left"
-                    Padding="14,8">
+                    HorizontalAlignment="Left">
               <TextBlock Text="{localization:Localize Common.Button.Cancel}"/>
             </Button>
             <Button Grid.Column="1"
-                    Classes="Secondary"
+                    Classes="action-secondary action-compact"
                     Command="{Binding ResumeReplayFromCheckpointCommand}"
                     IsEnabled="{Binding CanResumeFromCheckpoint}"
-                    Padding="14,8"
                     Margin="0,0,8,0"
                     ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.Resume}">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <PathIcon Data="{StaticResource ToolIcon.Play}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource ToolIcon.Play}" VerticalAlignment="Center"/>
                 <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.Button.Resume}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
             <Button Grid.Column="2"
-                    Classes="Primary"
+                    Classes="action-primary action-compact"
                     Command="{Binding TakeoverMatchFromCheckpointCommand}"
                     IsEnabled="{Binding CanTakeoverFromCheckpoint}"
-                    Padding="14,8"
                     ToolTip.Tip="{localization:Localize Tools.ReplayManager.Checkpoint.Tooltip.Takeover}">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <PathIcon Data="{StaticResource ToolIcon.Gamepad}" Width="14" Height="14" VerticalAlignment="Center"/>
+                <PathIcon Data="{StaticResource ToolIcon.Gamepad}" VerticalAlignment="Center"/>
                 <TextBlock Text="{localization:Localize Tools.ReplayManager.Checkpoint.Button.Takeover}" VerticalAlignment="Center" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
@@ -776,81 +765,7 @@
     </Style>
 
     <!-- Button styles -->
-    <Style Selector="Button.Primary, ToggleButton.Primary">
-      <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-    </Style>
 
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
-
-    <Style Selector="Button.Secondary">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.Secondary:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
-    </Style>
-
-    <Style Selector="Button.Danger">
-      <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.Danger:pointerover">
-      <Setter Property="Opacity" Value="0.9" />
-    </Style>
-
-    <Style Selector="ToggleButton.Primary:checked">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
-    </Style>
-
-    <Style Selector="Button.icon-subtle">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.icon-subtle:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-    </Style>
   </UserControl.Styles>
 </UserControl>

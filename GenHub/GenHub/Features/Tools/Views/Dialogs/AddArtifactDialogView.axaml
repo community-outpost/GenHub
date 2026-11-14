@@ -28,19 +28,7 @@
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
-        <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-        <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
+
         <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
@@ -58,24 +46,12 @@
             <TextBlock Text="{Binding DialogTitle}"
                        FontSize="22" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <Button Grid.Column="1"
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    Background="Transparent"
-                    Padding="8"
-                    CornerRadius="8"
-                    BorderThickness="0"
-                    VerticalAlignment="Top">
-                <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                          Width="12" Height="12"
-                          Foreground="{DynamicResource TextSecondary}"/>
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-                    </Style>
-                    <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                    </Style>
-                </Button.Styles>
+                    VerticalAlignment="Top"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
             </Button>
         </Grid>
 
@@ -107,15 +83,13 @@
                             <Button Grid.Column="1"
                                     Command="{Binding BrowseLocalFileCommand}"
                                     Content="{localization:Localize Tools.PublisherStudio.Artifact.Browse}"
-                                    Classes="small-glass-btn"
-                                    Margin="8,0,0,0"
-                                    Padding="16,8"/>
+                                    Classes="action-secondary action-compact"
+                                    Margin="8,0,0,0"/>
                             <Button Grid.Column="2"
                                     Command="{Binding BrowseLocalFolderCommand}"
                                     Content="{localization:Localize Tools.PublisherStudio.Artifact.BrowseFolder}"
-                                    Classes="small-glass-btn"
-                                    Margin="8,0,0,0"
-                                    Padding="16,8"/>
+                                    Classes="action-secondary action-compact"
+                                    Margin="8,0,0,0"/>
                         </Grid>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DragDropHint}" Classes="hint"/>
                         <TextBlock Text="{Binding FileSizeDisplay}" Classes="hint"
@@ -195,7 +169,7 @@
                                 Command="{Binding ComputeHashCommand}"
                                 IsEnabled="{Binding !IsComputingHash}"
                                 IsVisible="{Binding UseLocalFile}"
-                                Classes="small-glass-btn"/>
+                                Classes="action-secondary action-compact"/>
                     </Grid>
                     <TextBox Text="{Binding Sha256Hash}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Artifact.HashPlaceholder}"
@@ -263,21 +237,8 @@
                         MaxWidth="300"
                         Margin="0,0,12,0"/>
 
-             <Button Content="{Binding SubmitButtonText}"
-                     Command="{Binding CreateArtifactCommand}"
-                     Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="{DynamicResource TextPrimary}"
-                     CornerRadius="8"
-                     Padding="40,14"
-                     FontWeight="Bold"
-                     BorderThickness="0">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                        <Setter Property="Opacity" Value="0.85"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
+             <Button Classes="action-primary" Content="{Binding SubmitButtonText}"
+                     Command="{Binding CreateArtifactCommand}"/>
         </StackPanel>
     </Grid>
 </UserControl>

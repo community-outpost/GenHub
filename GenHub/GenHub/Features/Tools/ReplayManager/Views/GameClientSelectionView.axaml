@@ -157,13 +157,11 @@
 
                     <!-- Toggle Filter on Right -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6" IsVisible="{Binding !IsLoading}">
-                        <Button Command="{Binding ToggleShowAllCommand}"
-                                Padding="12,6"
-                                CornerRadius="6"
+                        <Button Classes="action-secondary action-compact" Command="{Binding ToggleShowAllCommand}"
                                 HorizontalAlignment="Right">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowAll}" IsVisible="{Binding !ShowAllClients}" FontSize="11" FontWeight="Medium" />
-                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowCrcOnly}" IsVisible="{Binding ShowAllClients}" FontSize="11" FontWeight="Medium" />
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowAll}" IsVisible="{Binding !ShowAllClients}" />
+                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.ShowCrcOnly}" IsVisible="{Binding ShowAllClients}" />
                             </StackPanel>
                         </Button>
                         <TextBlock Text="{Binding CompatibleCount, StringFormat='{}{0} compatible client(s) found'}"
@@ -210,11 +208,9 @@
                                 <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.NoClientsMatchFilter}"
                                            Foreground="{DynamicResource TextSecondary}" FontSize="12" HorizontalAlignment="Center"
                                            IsVisible="{Binding !HasCrcInfo}" />
-                                <Button Command="{Binding ToggleShowAllCommand}"
+                                <Button Classes="action-secondary action-compact" Command="{Binding ToggleShowAllCommand}"
                                         Content="{localization:Localize Tools.ReplayManager.ClientSelection.ShowAllAnyway}"
                                         HorizontalAlignment="Center"
-                                        Padding="14,6"
-                                        CornerRadius="6"
                                         IsVisible="{Binding !ShowAllClients}" />
                             </StackPanel>
                         </Border>
@@ -255,13 +251,10 @@
                                                        Margin="0,2,16,0" />
 
                                             <!-- Action Button -->
-                                            <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
-                                                    Classes="Primary"
+                                            <Button Classes="action-primary" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
                                                     Command="{Binding SelectCommand}"
-                                                    VerticalAlignment="Center"
-                                                    Padding="16,9"
-                                                    CornerRadius="6">
-                                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.SelectAndCreate}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{localization:Localize Tools.ReplayManager.ClientSelection.SelectAndCreate}" VerticalAlignment="Center" />
                                             </Button>
                                         </Grid>
                                     </Border>
