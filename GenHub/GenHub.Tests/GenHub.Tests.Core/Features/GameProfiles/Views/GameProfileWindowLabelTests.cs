@@ -131,6 +131,57 @@ public class GameProfileWindowLabelTests
     }
 
     /// <summary>
+    /// Verifies the strategy description below the picker shows the new language without a new selection.
+    /// </summary>
+    [AvaloniaFact]
+    public void WorkspaceStrategyDescription_RefreshesWhenLanguageChanges()
+    {
+        var culture = CultureInfo.GetCultureInfo("en");
+        var localization = new Mock<ILocalizationService>();
+        localization.SetupGet(service => service.CurrentCulture).Returns(() => culture);
+        localization.Setup(service => service[It.IsAny<string>()]).Returns((string key) => key);
+        localization.Setup(service => service.TryGetString(It.IsAny<string>(), out It.Ref<string?>.IsAny, It.IsAny<object?[]>()))
+            .Returns(new TryGetStringCallback((string key, out string? value, object?[] arguments) =>
+            {
+                value = $"{culture.Name}:{key}";
+                return true;
+            }));
+
+        WithLocalization(localization.Object, () =>
+        {
+            var viewModel = CreateViewModel();
+            viewModel.SelectedTabIndex = 1;
+            viewModel.SelectedWorkspaceStrategy = WorkspaceStrategy.HardLink;
+            var view = new GameProfileSettingsContentView { DataContext = viewModel };
+            var window = new Window { Width = 1100, Height = 900, Content = view };
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            try
+            {
+                const string descriptionKey = "WorkspaceStrategy.HardLink.Description";
+                Assert.Single(DescriptionTexts(view), text => text.StartsWith("en:" + descriptionKey, StringComparison.Ordinal));
+
+                culture = CultureInfo.GetCultureInfo("ru");
+                localization.Raise(service => service.PropertyChanged += null, new PropertyChangedEventArgs(nameof(ILocalizationService.CurrentCulture)));
+                Dispatcher.UIThread.RunJobs();
+
+                Assert.Single(DescriptionTexts(view), text => text.StartsWith("ru:" + descriptionKey, StringComparison.Ordinal));
+                Assert.DoesNotContain(DescriptionTexts(view), text => text.StartsWith("en:", StringComparison.Ordinal));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
+        static IEnumerable<string> DescriptionTexts(Control root) =>
+            root.GetVisualDescendants().OfType<TextBlock>()
+                .Select(block => block.Text ?? string.Empty)
+                .Where(text => text.Contains("WorkspaceStrategy.HardLink.Description", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// Verifies the workspace strategy field shows why it is locked while the profile is running.
     /// </summary>
     /// <param name="isRunning">Whether the profile's game is running.</param>
