@@ -32,13 +32,15 @@
         </controls:SidebarLayout.PaneFooter>
         <controls:SidebarLayout.ItemTemplate>
             <DataTemplate x:DataType="vm:GameProfileItemViewModel">
-                <Grid ColumnDefinitions="42,*">
-                    <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding LibraryGameName}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                    </StackPanel>
-                </Grid>
+                <Border BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
+                    <Grid ColumnDefinitions="42,*">
+                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding LibraryGameName}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </DataTemplate>
         </controls:SidebarLayout.ItemTemplate>
         <Grid RowDefinitions="Auto,*">

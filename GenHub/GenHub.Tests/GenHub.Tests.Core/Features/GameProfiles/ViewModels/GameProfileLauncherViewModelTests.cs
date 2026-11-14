@@ -258,6 +258,7 @@ public class GameProfileLauncherViewModelTests
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(expectedError));
 
         var shortcutService = new Mock<IShortcutService>();
+        var notificationService = new Mock<INotificationService>();
 
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
@@ -272,7 +273,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISteamManifestPatcher>().Object,
             CreateProfileResourceService(),
             new Mock<IGameClientDetector>().Object,
-            new Mock<INotificationService>().Object,
+            notificationService.Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
@@ -281,6 +282,7 @@ public class GameProfileLauncherViewModelTests
         await vm.ScanForGamesCommand.ExecuteAsync(null);
 
         Assert.Equal($"Scan failed: {expectedError}", vm.StatusMessage);
+        notificationService.Verify(x => x.ShowError(It.IsAny<string>(), vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>
@@ -295,6 +297,7 @@ public class GameProfileLauncherViewModelTests
             .ThrowsAsync(new InvalidOperationException("Test exception"));
 
         var shortcutService = new Mock<IShortcutService>();
+        var notificationService = new Mock<INotificationService>();
 
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,
@@ -309,7 +312,7 @@ public class GameProfileLauncherViewModelTests
             new Mock<ISteamManifestPatcher>().Object,
             CreateProfileResourceService(),
             new Mock<IGameClientDetector>().Object,
-            new Mock<INotificationService>().Object,
+            notificationService.Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
@@ -319,6 +322,7 @@ public class GameProfileLauncherViewModelTests
 
         // Should handle exception gracefully by setting an error message
         Assert.Contains("Error during scan", vm.StatusMessage);
+        notificationService.Verify(x => x.ShowError(It.IsAny<string>(), vm.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>

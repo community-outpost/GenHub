@@ -1672,6 +1672,7 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
             }
         }
         catch (Exception ex)
@@ -1679,6 +1680,7 @@ public partial class GameProfileLauncherViewModel(
             logger.LogError(ex, "Error scanning for games");
             StatusMessage = localizationService["GameProfiles.Status.ErrorDuringScan"];
             ErrorMessage = ex.Message;
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
         }
         finally
         {
@@ -2811,6 +2813,7 @@ public partial class GameProfileLauncherViewModel(
             if (!profileResult.Success || profileResult.Data == null)
             {
                 StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", string.Join(", ", profileResult.Errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.ShortcutFailed.Title"], StatusMessage);
                 return;
             }
 
