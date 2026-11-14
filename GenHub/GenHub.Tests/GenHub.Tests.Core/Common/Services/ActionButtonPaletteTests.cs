@@ -20,7 +20,7 @@ public class ActionButtonPaletteTests
     /// <summary>Gets every shipped accent and a few custom edge cases.</summary>
     public static IEnumerable<object[]> AccentColors => ThemeConstants.AllThemes
         .Select(theme => new object[] { theme.PrimaryHex })
-        .Concat(new[] { "#000000", "#FFFFFF", "#101020", "#00FFFFFF" }.Select(hex => new object[] { hex }));
+        .Concat(new[] { "#000000", "#FFFFFF", "#0000FF", "#101020", "#00FFFFFF" }.Select(hex => new object[] { hex }));
 
     /// <summary>White ink remains readable and states remain distinct for every palette.</summary>
     /// <param name="accentHex">The primary theme accent.</param>
