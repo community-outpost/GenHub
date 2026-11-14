@@ -45,7 +45,7 @@
                           OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}">
 
     <controls:SidebarLayout.PaneHeader>
-        <ComboBox ItemsSource="{Binding Modules}"
+        <ComboBox Classes="form-field" ItemsSource="{Binding Modules}"
                   SelectedItem="{Binding SelectedModule}"
                   HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>

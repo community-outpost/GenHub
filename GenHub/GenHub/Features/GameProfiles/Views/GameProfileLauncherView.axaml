@@ -191,7 +191,7 @@
                                             IsVisible="{Binding !IsScanning}"/>
 
                                     <!-- Sort Dropdown -->
-                                    <ComboBox x:Name="SortModeComboBox"
+                                    <ComboBox Classes="form-field" x:Name="SortModeComboBox"
                                               ItemsSource="{Binding AvailableSortModes}"
                                               SelectedItem="{Binding SelectedSortModeItem}"
                                               ToolTip.Tip="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}"

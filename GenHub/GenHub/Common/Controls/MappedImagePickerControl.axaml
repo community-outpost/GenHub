@@ -8,7 +8,7 @@
              x:Class="GenHub.Common.Controls.MappedImagePickerControl"
              x:Name="Root">
   <Grid RowDefinitions="Auto,*,Auto">
-    <TextBox Grid.Row="0" Name="SearchBox"
+    <TextBox Classes="form-field" Grid.Row="0" Name="SearchBox"
              Watermark="{localization:Localize TextureEditor.Picker.Watermark.Search}"
              Margin="0,0,0,8"
              VerticalContentAlignment="Center">

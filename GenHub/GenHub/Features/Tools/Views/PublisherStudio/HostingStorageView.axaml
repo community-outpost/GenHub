@@ -78,18 +78,7 @@
             <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
+
         <Style Selector="Border.glass-card">
             <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
             <Setter Property="CornerRadius" Value="12"/>
@@ -133,13 +122,7 @@
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="Padding" Value="8,3"/>
         </Style>
-        <Style Selector="ComboBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-        </Style>
+
     </UserControl.Styles>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -387,7 +370,7 @@
                     <!-- Provider Selector Dropdown -->
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.SelectProvider}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                        <ComboBox ItemsSource="{Binding HostingProviders}"
+                        <ComboBox Classes="form-field" ItemsSource="{Binding HostingProviders}"
                                   SelectedItem="{Binding SelectedHostingProvider}"
                                   HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
@@ -456,12 +439,12 @@
                                 <!-- Inputs -->
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,6,0,0">
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientId}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="0,0,6,4"/>
-                                    <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder}" FontSize="12" Margin="0,0,6,0"/>
+                                    <TextBox Classes="form-field" Grid.Row="1" Grid.Column="0" Text="{Binding GoogleClientId}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientIdPlaceholder}" Margin="0,0,6,0"/>
 
                                     <!-- skipcq: SCT-A000 -->
                                     <TextBlock Grid.Row="0" Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Hosting.GoogleClientSecret}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="6,0,0,4"/>
                                     <!-- skipcq: SCT-A000 -->
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" FontSize="12" Margin="6,0,0,0"/>
+                                    <TextBox Classes="form-field" Grid.Row="1" Grid.Column="1" Text="{Binding GoogleClientSecret}" PasswordChar="●" RevealPassword="True" Margin="6,0,0,0"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -501,7 +484,7 @@
                                 <StackPanel Spacing="4" Margin="0,2,0,0">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBox Text="{Binding DropboxRedirectUri, Mode=OneWay}" IsReadOnly="True" FontSize="11" FontFamily="Consolas,Menlo,monospace"/>
+                                        <TextBox Classes="form-field" Text="{Binding DropboxRedirectUri, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas,Menlo,monospace"/>
                                         <Button Grid.Column="1" Command="{Binding CopyDropboxRedirectUriCommand}" Classes="action-secondary action-compact" Margin="8,0,0,0"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -532,7 +515,7 @@
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
-                                    <TextBox Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}" FontSize="12"/>
+                                    <TextBox Classes="form-field" Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}"/>
                                     <Button Command="{Binding ConnectDropboxOAuthCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding !IsAuthenticating}" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
                                             <PathIcon Data="{StaticResource ExternalLinkIcon}"/>
@@ -545,7 +528,7 @@
                                 <StackPanel Spacing="4" Margin="0,6,0,0">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxManualTokenTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxTokenPrompt}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                                    <TextBox Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True" FontSize="12"/>
+                                    <TextBox Classes="form-field" Text="{Binding DropboxAccessToken}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxFullTokenPlaceholder}" PasswordChar="●" RevealPassword="True"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -705,12 +688,10 @@
                         </WrapPanel>
 
                         <!-- Search Filter -->
-                        <TextBox Grid.Column="1"
+                        <TextBox Classes="form-field" Grid.Column="1"
                                  Text="{Binding InventorySearchText, Mode=TwoWay}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Hosting.SearchAssetsWatermark}"
                                  Width="200"
-                                 FontSize="11"
-                                 Padding="8,4"
                                  VerticalAlignment="Center"/>
                     </Grid>
 

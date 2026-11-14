@@ -65,10 +65,9 @@
               <material:MaterialIcon Kind="DeleteOutline" />
             </Button>
           </Grid>
-          <TextBox Grid.Row="1"
+          <TextBox Classes="form-compact form-field" Grid.Row="1"
                    Text="{Binding Value, Mode=TwoWay}"
-                   IsVisible="{Binding HasSuggestions, Converter={x:Static BoolConverters.Not}}"
-                   FontSize="11" Margin="0,4,0,0"/>
+                   IsVisible="{Binding HasSuggestions, Converter={x:Static BoolConverters.Not}}" Margin="0,4,0,0"/>
           <AutoCompleteBox Grid.Row="1" x:CompileBindings="False"
                            Text="{Binding Value, Mode=TwoWay}"
                            ItemsSource="{Binding Suggestions}"
@@ -255,11 +254,10 @@
           <TabControl SelectedIndex="{Binding LeftSidebarTabIndex, Mode=TwoWay}" Padding="0">
             <TabItem Header="{localization:Localize Tools.IniEditor.Tabs.Blocks}">
               <Grid RowDefinitions="Auto,Auto,*,Auto">
-                <TextBox Grid.Row="0"
+                <TextBox Classes="form-compact form-field" Grid.Row="0"
                          Text="{Binding BlockFilter, Mode=TwoWay}"
                          Watermark="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
-                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}"
-                         FontSize="11" Margin="0,4,0,4"/>
+                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.FilterWatermark}" Margin="0,4,0,4"/>
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,4">
                   <TextBlock Grid.Column="0"
                              Text="{localization:Localize Tools.IniEditor.Tree.Hint}"
@@ -320,16 +318,15 @@
                 </Border>
                 <Grid Grid.Row="3" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
                   <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                    <TextBox Grid.Column="0"
+                    <TextBox Classes="form-compact form-field" Grid.Column="0"
                              Text="{Binding NewBlockName, Mode=TwoWay}"
                              Watermark="{localization:Localize Tools.IniEditor.Tree.NewBlockWatermark}"
-                             ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.NewBlockWatermark}"
-                             FontSize="11" Margin="0,0,6,0"/>
-                    <ComboBox Grid.Column="1"
+                             ToolTip.Tip="{localization:Localize Tools.IniEditor.Tree.NewBlockWatermark}" Margin="0,0,6,0"/>
+                    <ComboBox Classes="form-compact form-field" Grid.Column="1"
                               ItemsSource="{Binding AvailableBlockTypes}"
                               SelectedItem="{Binding NewBlockType, Mode=TwoWay}"
                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.TypeLabel}"
-                              MinWidth="120" FontSize="11"/>
+                              MinWidth="120"/>
                   </Grid>
                   <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6">
                     <Button
@@ -357,11 +354,10 @@
                            FontSize="10" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextSecondary}"
                            Margin="0,4,0,2"/>
-                <ComboBox Grid.Row="1"
+                <ComboBox Classes="form-compact form-field" Grid.Row="1"
                           ItemsSource="{Binding AvailableInstallations}"
                           SelectedItem="{Binding SelectedInstallation, Mode=TwoWay}"
-                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.InstallationLabel}"
-                          FontSize="11" HorizontalAlignment="Stretch">
+                          ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.InstallationLabel}" HorizontalAlignment="Stretch">
                   <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="modBuilderModels:GameInstallationOption">
                       <TextBlock Text="{Binding DisplayName}" FontSize="11"/>
@@ -374,11 +370,10 @@
                            Foreground="{DynamicResource TextSecondary}"
                            Margin="0,6,0,2"/>
                 <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
-                  <ComboBox Grid.Column="0"
+                  <ComboBox Classes="form-compact form-field" Grid.Column="0"
                             ItemsSource="{Binding ReferenceTypeOptions}"
                             SelectedItem="{Binding ReferenceTypeFilter, Mode=TwoWay}"
-                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.TypeLabel}"
-                            FontSize="11" HorizontalAlignment="Stretch"/>
+                            ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.TypeLabel}" HorizontalAlignment="Stretch"/>
                   <Button
                           Grid.Column="1"
                           Command="{Binding ClearReferenceTypeFilterCommand}"
@@ -391,11 +386,10 @@
                   </Button>
                 </Grid>
                 <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,6,0,4">
-                  <TextBox Grid.Column="0"
+                  <TextBox Classes="form-compact form-field" Grid.Column="0"
                            Text="{Binding ReferenceFilter, Mode=TwoWay}"
                            Watermark="{localization:Localize Tools.IniEditor.Reference.SearchWatermark}"
-                           ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.SearchWatermark}"
-                           FontSize="11" Margin="0,0,6,0"/>
+                           ToolTip.Tip="{localization:Localize Tools.IniEditor.Reference.SearchWatermark}" Margin="0,0,6,0"/>
                   <Button
                           Grid.Column="1"
                           Command="{Binding RefreshReferenceIndexCommand}"
@@ -623,16 +617,14 @@
                                   ItemTemplate="{StaticResource IniFieldRowTemplate}"
                                   Margin="4,4,4,0"/>
                     <Grid ColumnDefinitions="*,*" Margin="4,4,4,0">
-                      <TextBox Grid.Column="0"
+                      <TextBox Classes="form-compact form-field" Grid.Column="0"
                                Text="{Binding NewGlobalFieldKey, Mode=TwoWay}"
                                Watermark="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                               FontSize="11" Margin="0,0,6,0"/>
-                      <TextBox Grid.Column="1"
+                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}" Margin="0,0,6,0"/>
+                      <TextBox Classes="form-compact form-field" Grid.Column="1"
                                Text="{Binding NewGlobalFieldValue, Mode=TwoWay}"
                                Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                               FontSize="11"/>
+                               ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"/>
                     </Grid>
                     <Button
                             Command="{Binding AddGlobalFieldCommand}"
@@ -657,16 +649,14 @@
             </Border>
             <Grid Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
               <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,6">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-compact form-field" Grid.Column="0"
                          Text="{Binding NewFieldKey, Mode=TwoWay}"
                          Watermark="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}"
-                         FontSize="11" Margin="0,0,6,0"/>
-                <TextBox Grid.Column="1"
+                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewKeyWatermark}" Margin="0,0,6,0"/>
+                <TextBox Classes="form-compact form-field" Grid.Column="1"
                          Text="{Binding NewFieldValue, Mode=TwoWay}"
                          Watermark="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"
-                         FontSize="11"/>
+                         ToolTip.Tip="{localization:Localize Tools.IniEditor.Properties.NewValueWatermark}"/>
               </Grid>
               <Button
                       Grid.Row="1"

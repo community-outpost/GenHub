@@ -20,13 +20,11 @@
     </UserControl.Styles>
 
     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
-        <TextBox Name="InputTextBox"
+        <TextBox Classes="form-field" Name="InputTextBox"
                  Grid.Column="0"
                  DragDrop.AllowDrop="True"
                  Text="{Binding Text, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}, Mode=TwoWay}"
-                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"
-                 FontSize="13"
-                 Padding="10,8"/>
+                 Watermark="{Binding Watermark, RelativeSource={RelativeSource AncestorType=local:ImageInputBox}}"/>
         <Button AutomationProperties.Name="{localization:Localize Common.Tooltip.Clear}" Classes="icon-action" Name="ClearButton"
                 Grid.Column="1"
                 Margin="6,0,0,0"

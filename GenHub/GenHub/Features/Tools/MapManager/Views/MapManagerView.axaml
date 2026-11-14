@@ -45,7 +45,7 @@
 
         <!-- Import Bar Integrated -->
         <Grid Grid.Column="1" ColumnDefinitions="*,Auto,Auto" Margin="16,0">
-          <TextBox Grid.Column="0" Watermark="{localization:Localize Maps.Watermark.ImportUrl}"
+          <TextBox Classes="form-compact form-field" Grid.Column="0" Watermark="{localization:Localize Maps.Watermark.ImportUrl}"
                    Text="{Binding ImportUrl}" Margin="0,0,8,0" VerticalContentAlignment="Center"
                    HorizontalAlignment="Stretch"/>
           <Button Grid.Column="1" Command="{Binding ImportFromUrlCommand}"
@@ -64,7 +64,7 @@
         </Grid>
 
         <!-- Search Bar -->
-        <TextBox Grid.Column="2" Watermark="{localization:Localize Maps.Watermark.Search}"
+        <TextBox Classes="form-compact form-field" Grid.Column="2" Watermark="{localization:Localize Maps.Watermark.Search}"
                  Text="{Binding SearchText}"
                  Width="170"
                  VerticalAlignment="Center">
@@ -236,7 +236,7 @@
               <TextBlock Text="{localization:Localize Maps.Button.Uncompress}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <TextBox MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Maps.Watermark.ZipName}" Text="{Binding ZipName}" Height="32" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipName}"/>
+          <TextBox Classes="form-compact form-field" MinWidth="110" MaxWidth="160" Watermark="{localization:Localize Maps.Watermark.ZipName}" Text="{Binding ZipName}" VerticalAlignment="Center" ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipName}"/>
           <Button Command="{Binding ExportToZipCommand}"
                   Classes="action-secondary ActionBarBtn action-compact" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="{localization:Localize Maps.Tooltip.ZipSelected}">
@@ -399,7 +399,7 @@
 
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Localize Maps.MapPack.PackName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Watermark="{localization:Localize Maps.MapPack.Watermark}" Text="{Binding NewMapPackName}"/>
+                    <TextBox Classes="form-compact form-field" Watermark="{localization:Localize Maps.MapPack.Watermark}" Text="{Binding NewMapPackName}"/>
                 </StackPanel>
 
                 <Grid ColumnDefinitions="*,*">
@@ -497,7 +497,6 @@
 
     <!-- Shared split-button layout follows the action styles so split corners and height win. -->
     <StyleInclude Source="avares://GenHub/Features/Tools/Views/ToolActionBarStyles.axaml" />
-
 
   </UserControl.Styles>
 </UserControl>
