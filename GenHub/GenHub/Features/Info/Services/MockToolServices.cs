@@ -783,6 +783,17 @@ public class MockLocalContentService : ILocalContentService
     public Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.CreateSuccess());
 
     /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> RegisterLiveSourceAsync(string sourceRoot, string name, ContentType contentType, GameType targetGame, LocalContentOptions? options, CancellationToken cancellationToken = default)
+        => Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+        {
+            Name = name,
+            ContentType = contentType,
+            TargetGame = targetGame,
+            SourcePath = sourceRoot,
+            SourceMode = ContentSourceMode.Live,
+        }));
+
+    /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
         => UpdateLocalContentManifestAsync(existingManifestId, name, directoryPath, contentType, targetGame, new LocalContentOptions { SourcePath = sourcePath, Progress = progress, CancellationToken = cancellationToken, EntryPoint = entryPoint });
 
@@ -1186,6 +1197,13 @@ public class MockContentStorageService : IContentStorageService
         ContentManifest manifest,
         string sourceDirectory,
         IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+    /// <inheritdoc/>
+    public Task<OperationResult<ContentManifest>> RegisterExternalContentAsync(
+        ContentManifest manifest,
+        string sourceDirectory,
         CancellationToken cancellationToken = default)
         => Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
 

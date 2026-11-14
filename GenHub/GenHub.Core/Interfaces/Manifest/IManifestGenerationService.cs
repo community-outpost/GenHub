@@ -136,6 +136,27 @@ public interface IManifestGenerationService
         params ContentDependency[] dependencies);
 
     /// <summary>
+    /// Creates a manifest builder for live local content. Files are indexed but not hashed
+    /// and stay in the supplied folder.
+    /// </summary>
+    /// <param name="contentDirectory">The folder that is mounted into workspaces.</param>
+    /// <param name="publisherId">The publisher identifier.</param>
+    /// <param name="contentName">The content name.</param>
+    /// <param name="contentType">The content type.</param>
+    /// <param name="targetGame">The target game.</param>
+    /// <param name="progress">Optional progress reporter for the directory scan.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The manifest builder for the live content.</returns>
+    Task<IContentManifestBuilder> CreateLiveContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        ContentType contentType,
+        GameType targetGame,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Creates a manifest builder for a game client.
     /// </summary>
     /// <param name="installationPath">Path to the game client installation.</param>

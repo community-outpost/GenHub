@@ -1,6 +1,6 @@
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Utilities;
 using System;
-using System.IO;
 using System.Runtime.Versioning;
 
 namespace GenHub.Windows.Features.Workspace;
@@ -21,46 +21,5 @@ public sealed class WindowsSymlinkCapabilityProvider : ISymlinkCapabilityProvide
     /// <inheritdoc/>
     public bool CanCreateSymlinks => _cachedCapability.Value;
 
-    private static bool ProbeCapability()
-    {
-        var probeId = Guid.NewGuid().ToString("N");
-        var targetPath = Path.Combine(Path.GetTempPath(), $"genhub-symlink-target-{probeId}.tmp");
-        var linkPath = Path.Combine(Path.GetTempPath(), $"genhub-symlink-link-{probeId}.tmp");
-
-        try
-        {
-            File.WriteAllText(targetPath, string.Empty);
-            File.CreateSymbolicLink(linkPath, targetPath);
-            return new FileInfo(linkPath).LinkTarget is not null;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        finally
-        {
-            DeleteIfExists(linkPath);
-            DeleteIfExists(targetPath);
-        }
-    }
-
-    private static void DeleteIfExists(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-            // Best-effort cleanup of a uniquely named temporary probe.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Best-effort cleanup of a uniquely named temporary probe.
-        }
-    }
+    private static bool ProbeCapability() => SymbolicLinkCreator.CanCreateFileLink();
 }

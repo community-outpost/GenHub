@@ -204,3 +204,6 @@ __pycache__/
 # ModBuilder cache and serialization files
 *.msgpack
 .modbuilder_cache/
+
+# Localized resource build output
+/zh-Hans/

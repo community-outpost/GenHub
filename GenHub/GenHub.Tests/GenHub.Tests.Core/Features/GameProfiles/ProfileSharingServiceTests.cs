@@ -89,6 +89,44 @@ public class ProfileSharingServiceTests
             NullLogger<ProfileSharingService>.Instance);
     }
 
+    /// <summary>Profiles containing live content are refused before packaging.</summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfileToJsonAsync_WithLiveManifest_IsRefusedAsync()
+    {
+        var liveManifest = CreateTestManifest("1.0.local.addon.live-share", "Live Addon", ContentType.Addon);
+        liveManifest.SourceMode = ContentSourceMode.Live;
+        liveManifest.SourcePath = @"D:\mods\live-addon";
+
+        var profile = CreateTestProfile("live-profile", "Live Profile");
+        profile.EnabledContentIds = [liveManifest.Id.Value];
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(liveManifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(liveManifest));
+
+        const string liveContentSentinel = "SENTINEL:LiveContent";
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(l => l.GetString(
+                ProfileSharingConstants.LiveContentCannotBeSharedErrorKey,
+                It.IsAny<object[]>()))
+            .Returns(liveContentSentinel);
+        using var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            localizationService: localization.Object);
+
+        var result = await service.ExportProfileToJsonAsync(profile.Id);
+
+        Assert.False(result.Success);
+        Assert.Equal(liveContentSentinel, Assert.Single(result.Errors));
+    }
+
     /// <summary>Missing manifest errors use the injected localization service.</summary>
     /// <returns>A task representing the test.</returns>
     [Fact]

@@ -18285,4 +18285,91 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
   </data>
+  <data name="GameProfiles.Content.LiveBadge" xml:space="preserve">
+    <value>LIVE</value>
+  </data>
+  <data name="GameProfiles.Share.Error.LiveContent" xml:space="preserve">
+    <value>This profile contains local live-linked content and cannot be exported or shared.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveEntryPointInvalid" xml:space="preserve">
+    <value>Entry point '{0}' is invalid. It must be a relative path without parent directory traversal ('..').</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveEntryPointMissing" xml:space="preserve">
+    <value>Entry point '{0}' was not found among the files in the directory.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveFolderMissing" xml:space="preserve">
+    <value>Live content folder was not found: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveInsideStorage" xml:space="preserve">
+    <value>A live content folder cannot be inside the content storage directory.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveNetworkDrive" xml:space="preserve">
+    <value>Live content must be on a local drive. Network folders are not supported.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveRegistrationFailed" xml:space="preserve">
+    <value>Failed to register live content: {0}</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveReparsePoint" xml:space="preserve">
+    <value>A live content folder cannot be a symbolic link or junction.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveSymlinkUnavailable" xml:space="preserve">
+    <value>Windows cannot create symbolic links in this session. Enable Developer Mode or run GenHub as an administrator, then register the folder again.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.Error.LiveUnsupportedType" xml:space="preserve">
+    <value>Content type '{0}' cannot be registered as live content. Supported types: Mod, Addon, Patch.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveFolderOnly" xml:space="preserve">
+    <value>Live mode needs an unpacked folder. Select the folder that contains Data/ or Art/.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveModeLabel" xml:space="preserve">
+    <value>Developer mode: link this folder live</value>
+  </data>
+  <data name="Profiles.AddLocalContent.LiveModeWarning" xml:space="preserve">
+    <value>The folder is linked into the workspace, not copied. GenHub never owns it: moving or deleting it breaks every profile that uses it. On Windows, enable Developer Mode or run GenHub as an administrator so links can be created.</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressLiveAnalyzing" xml:space="preserve">
+    <value>Indexing live content...</value>
+  </data>
+  <data name="Profiles.AddLocalContent.ProgressLiveIndexing" xml:space="preserve">
+    <value>{0} of {1} files indexed{2}</value>
+  </data>
+  <data name="Workspace.Live.Error.Clear" xml:space="preserve">
+    <value>Could not clear live entries: {0}</value>
+  </data>
+  <data name="Workspace.Live.Error.Copy" xml:space="preserve">
+    <value>Cannot copy '{0}' to '{1}': {2}</value>
+  </data>
+  <data name="Workspace.Live.Error.Hole" xml:space="preserve">
+    <value>Removing live entry '{0}' would leave a snapshot path empty; a full rebuild is required.</value>
+  </data>
+  <data name="Workspace.Live.Error.MissingSource" xml:space="preserve">
+    <value>The live content folder for '{0}' is missing: {1}</value>
+  </data>
+  <data name="Workspace.Live.Error.Mount" xml:space="preserve">
+    <value>Failed to mount live content: {0}</value>
+  </data>
+  <data name="Workspace.Live.Error.NoWorkspace" xml:space="preserve">
+    <value>Cannot mount live content without a workspace path.</value>
+  </data>
+  <data name="Workspace.Live.Error.Resync" xml:space="preserve">
+    <value>Live content resync failed: {0}</value>
+  </data>
+  <data name="Workspace.Live.Error.SymlinkCreate" xml:space="preserve">
+    <value>Cannot create a symbolic link at '{0}'. Enable Developer Mode or run GenHub as an administrator.</value>
+  </data>
+  <data name="Workspace.Live.Error.SymlinkCreateDetail" xml:space="preserve">
+    <value>Cannot create a symbolic link at '{0}': {1}. Enable Developer Mode or run GenHub as an administrator.</value>
+  </data>
+  <data name="Workspace.Live.Error.Watch" xml:space="preserve">
+    <value>Failed to watch live content: {0}</value>
+  </data>
+  <data name="Workspace.Live.Error.Overlap" xml:space="preserve">
+    <value>يتداخل مجلد المحتوى المباشر '{0}' مع جذر مساحة العمل '{1}'. انقل المحتوى المباشر خارج مساحة تخزين مساحة العمل قبل تحضير الملف الشخصي.</value>
+  </data>
+  <data name="Workspace.Live.Error.CleanupOverlap" xml:space="preserve">
+    <value>تم رفض تنظيف مساحة العمل '{0}': المصدر المباشر '{1}' يتداخل معها. أزل المحتوى المباشر من الملف الشخصي أولاً، ثم احذف الملف الشخصي.</value>
+  </data>
+  <data name="Workspace.Live.Error.ResyncCancelled" xml:space="preserve">
+    <value>تم إلغاء إعادة مزامنة المحتوى المباشر.</value>
+  </data>
 </root>

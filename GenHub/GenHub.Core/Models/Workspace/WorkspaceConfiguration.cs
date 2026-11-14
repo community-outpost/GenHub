@@ -19,6 +19,12 @@ public class WorkspaceConfiguration
     /// <summary>Gets or sets the list of manifests to include in the workspace.</summary>
     public List<ContentManifest> Manifests { get; set; } = new();
 
+    /// <summary>
+    /// Gets a value indicating whether any manifest sources its files from a live
+    /// local folder instead of content-addressable storage.
+    /// </summary>
+    public bool HasLiveSources => Manifests.Any(m => m.SourceMode == ContentSourceMode.Live);
+
     /// <summary>Gets a value indicating whether the workspace configuration is valid.</summary>
     public bool IsValid => Manifests?.Count > 0;
 
@@ -86,6 +92,34 @@ public class WorkspaceConfiguration
     /// </summary>
     [JsonIgnore]
     public IReadOnlyCollection<string> SkippedSourceFiles => _skippedSourceFiles;
+
+    /// <summary>
+    /// Creates a copy of this configuration that carries only the supplied manifests.
+    /// Used to run a strategy over snapshot content while live manifests are overlaid
+    /// separately.
+    /// </summary>
+    /// <param name="manifests">The manifests the copy should carry.</param>
+    /// <returns>A configuration sharing every other setting with this instance.</returns>
+    public WorkspaceConfiguration WithManifests(IEnumerable<ContentManifest> manifests)
+    {
+        ArgumentNullException.ThrowIfNull(manifests);
+
+        return new WorkspaceConfiguration
+        {
+            Id = Id,
+            Manifests = [.. manifests],
+            GameClient = GameClient,
+            WorkspaceRootPath = WorkspaceRootPath,
+            BaseInstallationPath = BaseInstallationPath,
+            ManifestSourcePaths = new Dictionary<string, string>(ManifestSourcePaths),
+            SupplementalArchiveRoot = SupplementalArchiveRoot,
+            Strategy = Strategy,
+            ForceRecreate = ForceRecreate,
+            ValidateAfterPreparation = ValidateAfterPreparation,
+            ReconciliationDeltas = ReconciliationDeltas == null ? null : [.. ReconciliationDeltas],
+            SkipCleanup = SkipCleanup,
+        };
+    }
 
     /// <summary>
     /// Records a workspace file that preparation skipped because its source file was missing.

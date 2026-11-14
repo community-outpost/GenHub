@@ -1335,7 +1335,7 @@ public class GameProfileManager(
         if (contentChanged && !isRunning && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
         {
             logger.LogDebug(
-                "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",
+                "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' so the next prepare reconciles the workspace",
                 profile.Name,
                 profile.ActiveWorkspaceId);
             profile.ActiveWorkspaceId = string.Empty;

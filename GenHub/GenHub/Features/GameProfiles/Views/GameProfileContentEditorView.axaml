@@ -246,6 +246,10 @@
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
                                                         <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                     </Border>
+                                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                            IsVisible="{Binding IsLive}">
+                                                        <TextBlock Text="{localization:Localize GameProfiles.Content.LiveBadge}" FontSize="10" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
+                                                    </Border>
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding HasDisplayVersion}">
                                                         <TextBlock Text="{Binding DisplayVersion}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
@@ -358,6 +362,10 @@
                                                     </Border>
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
                                                         <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                                    </Border>
+                                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
+                                                            IsVisible="{Binding IsLive}">
+                                                        <TextBlock Text="{localization:Localize GameProfiles.Content.LiveBadge}" FontSize="10" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                                                     </Border>
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                             IsVisible="{Binding HasDisplayVersion}">

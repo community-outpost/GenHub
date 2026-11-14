@@ -498,6 +498,10 @@ public partial class ContentManifestBuilder(
     /// <param name="isExecutable">Is executable.</param>
     /// <param name="progress">Optional progress reporter receiving file hashing progress updates.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="computeHash">Whether to hash each file. Live content sets this to false.</param>
+    /// <param name="useRelativeSourcePaths">Whether to store the path relative to the source directory
+    /// in <see cref="ManifestFile.SourcePath"/> instead of the absolute directory. Live content sets
+    /// this to true so the source root stays relocatable.</param>
     /// <returns>A task that yields the <see cref="IContentManifestBuilder"/> instance for chaining upon completion.</returns>
     public async Task<IContentManifestBuilder> AddFilesFromDirectoryAsync(
         string sourceDirectory,
@@ -505,7 +509,9 @@ public partial class ContentManifestBuilder(
         string fileFilter = "*",
         bool isExecutable = false,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool computeHash = true,
+        bool useRelativeSourcePaths = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!Directory.Exists(sourceDirectory))
@@ -519,7 +525,7 @@ public partial class ContentManifestBuilder(
         // Future implementation will use a CSV file from GitHub as the source of truth,
         // specific to each installation type (EA/Steam) and language.
         // For now, we skip hashing for GameInstallation files to improve performance.
-        var shouldComputeHash = sourceType != ContentSourceType.GameInstallation;
+        var shouldComputeHash = computeHash && sourceType != ContentSourceType.GameInstallation;
 
         logger.LogDebug("Adding files from directory: {Directory} (ComputeHash: {ComputeHash})", sourceDirectory, shouldComputeHash);
         var searchPattern = fileFilter == "*" ? "*.*" : fileFilter;
@@ -544,6 +550,7 @@ public partial class ContentManifestBuilder(
                     sourceType,
                     isExecutable,
                     shouldComputeHash,
+                    useRelativeSourcePaths,
                     ct).ConfigureAwait(false);
                 slots[item.index] = manifestFile;
 
@@ -1020,6 +1027,7 @@ public partial class ContentManifestBuilder(
     /// <param name="sourceType">How the file should be handled during workspace preparation.</param>
     /// <param name="isExecutable">Whether the file should be marked as executable.</param>
     /// <param name="shouldComputeHash">Whether to compute the content hash.</param>
+    /// <param name="useRelativeSourcePaths">Whether to store the path relative to the source directory.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The created manifest file entry.</returns>
     private async Task<ManifestFile> CreateDirectoryManifestFileAsync(
@@ -1028,6 +1036,7 @@ public partial class ContentManifestBuilder(
         ContentSourceType sourceType,
         bool isExecutable,
         bool shouldComputeHash,
+        bool useRelativeSourcePaths,
         CancellationToken cancellationToken)
     {
         var relativePath = Path.GetRelativePath(sourceDirectory, filePath);
@@ -1045,11 +1054,14 @@ public partial class ContentManifestBuilder(
 
         return new ManifestFile
         {
-            RelativePath = relativePath,
+            RelativePath = useRelativeSourcePaths ? relativePath.Replace('\\', '/') : relativePath,
             Size = fileInfo.Length,
-            Hash = hash ?? string.Empty, // Empty for GameInstallation files (CSV authority planned)
+            Hash = hash ?? string.Empty, // Empty for GameInstallation and live content
             SourceType = sourceType,
-            SourcePath = sourceDirectory, // Set the source directory path for workspace preparation
+
+            // Live content keeps a path relative to the manifest source root so the
+            // folder can be moved and the manifest stays portable.
+            SourcePath = useRelativeSourcePaths ? relativePath.Replace('\\', '/') : sourceDirectory,
             InstallTarget = installTarget,
             IsExecutable = isExecutable || IsExecutableFile(filePath),
             Permissions = new FilePermissions

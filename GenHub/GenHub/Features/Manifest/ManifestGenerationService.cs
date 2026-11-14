@@ -333,6 +333,84 @@ public class ManifestGenerationService(
     }
 
     /// <summary>
+    /// Creates a manifest for live local content. Files are indexed but not hashed and stay
+    /// in the supplied folder; no CAS copy is produced.
+    /// </summary>
+    /// <param name="contentDirectory">The folder that is mounted into workspaces.</param>
+    /// <param name="publisherId">Publisher identifier recorded on the manifest.</param>
+    /// <param name="contentName">Display name of the content.</param>
+    /// <param name="contentType">Content type.</param>
+    /// <param name="targetGame">Target game.</param>
+    /// <param name="progress">Optional progress reporter for the directory scan.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A builder containing the live file list.</returns>
+    public async Task<IContentManifestBuilder> CreateLiveContentManifestAsync(
+        string contentDirectory,
+        string publisherId,
+        string contentName,
+        ContentType contentType,
+        GameType targetGame,
+        IProgress<ContentStorageProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(contentDirectory);
+            ArgumentException.ThrowIfNullOrWhiteSpace(contentName);
+
+            logger.LogInformation(
+                "Indexing live content directory for {ContentType} manifest '{ContentName}' at {ContentDirectory}",
+                contentType,
+                contentName,
+                contentDirectory);
+
+            var builderLogger = NullLogger<ContentManifestBuilder>.Instance;
+            var builder = new ContentManifestBuilder(builderLogger, hashProvider, manifestIdService, downloadService, configurationProvider)
+                .WithBasicInfo(publisherId, contentName, "0")
+                .WithContentType(contentType, targetGame);
+
+            await builder.AddFilesFromDirectoryAsync(
+                contentDirectory,
+                ContentSourceType.LocalFile,
+                progress: progress,
+                cancellationToken: cancellationToken,
+                computeHash: false,
+                useRelativeSourcePaths: true);
+
+            return builder;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (NotSupportedException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            logger.LogError(ex, "Error creating live content manifest for {ContentName}", contentName);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Creates a content bundle from multiple content items.
     /// </summary>
     /// <param name="publisherId">The publisher identifier used to generate the bundle id.</param>

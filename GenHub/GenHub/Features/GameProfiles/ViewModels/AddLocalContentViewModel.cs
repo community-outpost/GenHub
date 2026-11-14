@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Common;
 using GenHub.Infrastructure.Converters;
@@ -74,6 +75,7 @@ public partial class AddLocalContentViewModel(
     private string? _originalManifestId;
     private string? _pendingEntryPoint;
     private CancellationTokenSource? _cts;
+    private bool _suppressLiveRefresh;
 
     /// <summary>
     /// Gets or sets the name of the content.
@@ -93,6 +95,42 @@ public partial class AddLocalContentViewModel(
     /// </summary>
     [ObservableProperty]
     private bool _isSourceZip;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the selected folder is registered as live
+    /// content (developer mode). The folder is linked into workspaces and never copied to CAS.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLiveSource;
+
+    partial void OnIsLiveSourceChanged(bool value)
+    {
+        if (_suppressLiveRefresh)
+        {
+            Validate();
+            return;
+        }
+
+        if (value)
+        {
+            CleanupStaging();
+
+            if (!string.IsNullOrWhiteSpace(SourcePath) && Directory.Exists(SourcePath))
+            {
+                _ = RefreshTreeAsync(SourcePath);
+            }
+        }
+        else
+        {
+            // The staging copy was deleted when live mode was enabled; switching back
+            // requires a fresh import so the preview never points at a missing folder.
+            FileTree.Clear();
+            SelectedExecutableItem = null;
+            ExecutableCount = 0;
+        }
+
+        Validate();
+    }
 
     /// <summary>
     /// Gets or sets the selected content type.
@@ -226,6 +264,8 @@ public partial class AddLocalContentViewModel(
     /// </summary>
     internal string StagingPath => _stagingPath;
 
+    private string CurrentTreeRoot => IsLiveSource ? SourcePath : _stagingPath;
+
     /// <summary>
     /// Event triggered when the window should be closed.
     /// </summary>
@@ -279,11 +319,43 @@ public partial class AddLocalContentViewModel(
             ContentName = item.DisplayName ?? string.Empty;
             SelectedContentType = item.ContentType;
             SelectedGameType = item.GameType;
-            SourcePath = item.SourcePath ?? string.Empty;
+            SourcePath = item.SourcePath ?? item.Manifest?.SourcePath ?? string.Empty;
+
+            var isLive = item.Manifest?.SourceMode == ContentSourceMode.Live;
+            _suppressLiveRefresh = true;
+            try
+            {
+                IsLiveSource = isLive;
+            }
+            finally
+            {
+                _suppressLiveRefresh = false;
+            }
 
             OnPropertyChanged(nameof(IsEditing));
             OnPropertyChanged(nameof(DialogTitle));
             OnPropertyChanged(nameof(ActionButtonText));
+
+            if (isLive)
+            {
+                CleanupStaging();
+
+                if (string.IsNullOrWhiteSpace(SourcePath) || !Directory.Exists(SourcePath))
+                {
+                    StatusMessage = GetLocalizedString(
+                        "Profiles.AddLocalContent.StatusLoadFailed",
+                        "Failed to load content: the live folder is missing ({0}).",
+                        SourcePath);
+                }
+                else
+                {
+                    StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusLoadSuccess", "Success!");
+                    await RefreshTreeAsync(SourcePath);
+                }
+
+                Validate();
+                return;
+            }
 
             // Prepare staging directory
             if (Directory.Exists(_stagingPath))
@@ -333,6 +405,23 @@ public partial class AddLocalContentViewModel(
         if (string.IsNullOrWhiteSpace(path))
         {
             logger?.LogWarning("ImportContentAsync: Path is null or whitespace.");
+            return;
+        }
+
+        if (IsLiveSource)
+        {
+            if (!Directory.Exists(path))
+            {
+                StatusMessage = GetLocalizedString(
+                    "Profiles.AddLocalContent.LiveFolderOnly",
+                    "Live mode needs an unpacked folder. Select the folder that contains Data/ or Art/.");
+                return;
+            }
+
+            SourcePath = path;
+            SetDefaultContentName(path);
+            await RefreshTreeAsync(path);
+            Validate();
             return;
         }
 
@@ -457,6 +546,43 @@ public partial class AddLocalContentViewModel(
 
     private static bool FilesHaveIdenticalContent(string file1, string file2) =>
         ArchivePayloadProcessor.FilesHaveIdenticalContent(file1, file2);
+
+    private static bool IsUnder(string path, string root)
+    {
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(root))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullPath = Path.GetFullPath(path);
+            var fullRoot = Path.GetFullPath(root)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            return fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
 
     private static bool IsBigArchiveFile(string filePath) =>
         ArchivePayloadProcessor.IsBigArchiveFile(filePath);
@@ -909,6 +1035,20 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
+        if (IsLiveSource)
+        {
+            // Live items point at the developer's source folder. Removing them from the
+            // preview must never delete source files.
+            logger?.LogWarning("DeleteItemAsync: Refusing to delete live source '{Path}'.", item.FullPath);
+            return;
+        }
+
+        if (!IsUnder(item.FullPath, _stagingPath))
+        {
+            logger?.LogWarning("DeleteItemAsync: Refusing to delete '{Path}' outside the staging folder.", item.FullPath);
+            return;
+        }
+
         try
         {
             IsBusy = true;
@@ -1066,7 +1206,18 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
-        if (!Directory.Exists(_stagingPath) || !Directory.EnumerateFileSystemEntries(_stagingPath).Any())
+        var contentRoot = IsLiveSource ? SourcePath : _stagingPath;
+        if (IsLiveSource)
+        {
+            if (!Directory.Exists(contentRoot))
+            {
+                StatusMessage = GetLocalizedString(
+                    "Profiles.AddLocalContent.LiveFolderOnly",
+                    "Live mode needs an unpacked folder. Select the folder that contains Data/ or Art/.");
+                return;
+            }
+        }
+        else if (!Directory.Exists(_stagingPath) || !Directory.EnumerateFileSystemEntries(_stagingPath).Any())
         {
             StatusMessage = GetLocalizedString("Profiles.AddLocalContent.StatusNoContent", "No content to add. Please import files or folders.");
             return;
@@ -1077,7 +1228,9 @@ public partial class AddLocalContentViewModel(
             IsBusy = true;
             IsProgressIndeterminate = true;
             ProgressPercentage = 0;
-            ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressAnalyzingFiles", "Analyzing files and computing hashes...");
+            ProgressDetailMessage = IsLiveSource
+                ? GetLocalizedString("Profiles.AddLocalContent.ProgressLiveAnalyzing", "Indexing live content...")
+                : GetLocalizedString("Profiles.AddLocalContent.ProgressAnalyzingFiles", "Analyzing files and computing hashes...");
             StatusMessage = IsEditing
                 ? GetLocalizedString("Profiles.AddLocalContent.StatusUpdatingManifest", "Updating content manifest...")
                 : GetLocalizedString("Profiles.AddLocalContent.StatusScanningContent", "Scanning local content...");
@@ -1091,7 +1244,9 @@ public partial class AddLocalContentViewModel(
                     ProgressPercentage = p.Percentage;
                     IsProgressIndeterminate = false;
                     var fileLabel = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? $" ({Path.GetFileName(p.CurrentFileName)})" : string.Empty;
-                    ProgressDetailMessage = GetLocalizedString("Profiles.AddLocalContent.ProgressCasStorage", "{0} of {1} files stored in CAS pool{2}", p.ProcessedCount, p.TotalCount, fileLabel);
+                    ProgressDetailMessage = IsLiveSource
+                        ? GetLocalizedString("Profiles.AddLocalContent.ProgressLiveIndexing", "{0} of {1} files indexed{2}", p.ProcessedCount, p.TotalCount, fileLabel)
+                        : GetLocalizedString("Profiles.AddLocalContent.ProgressCasStorage", "{0} of {1} files stored in CAS pool{2}", p.ProcessedCount, p.TotalCount, fileLabel);
                     var actionKey = IsEditing ? "Profiles.AddLocalContent.StatusCasProgressUpdating" : "Profiles.AddLocalContent.StatusCasProgressImporting";
                     var fallback = IsEditing ? "Updating {0}: {1:0}% ({2}/{3} files)" : "Importing {0}: {1:0}% ({2}/{3} files)";
                     StatusMessage = string.Format(
@@ -1120,7 +1275,7 @@ public partial class AddLocalContentViewModel(
             {
                 try
                 {
-                    entryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                    entryPoint = Path.GetRelativePath(contentRoot, SelectedExecutableItem.FullPath).Replace('\\', '/');
                 }
                 catch (Exception ex)
                 {
@@ -1139,22 +1294,44 @@ public partial class AddLocalContentViewModel(
                 CancellationToken = _cts.Token,
                 EntryPoint = entryPoint,
                 NormalizeInactiveArchives = false,
+                SourceMode = IsLiveSource ? ContentSourceMode.Live : ContentSourceMode.Snapshot,
             };
 
-            var result = IsEditing && _originalManifestId != null
-                ? await localContentService.UpdateLocalContentManifestAsync(
-                    _originalManifestId,
-                    ContentName,
-                    _stagingPath,
-                    SelectedContentType,
-                    targetGame,
-                    options)
-                : await localContentService.CreateLocalContentManifestAsync(
-                    _stagingPath,
-                    ContentName,
-                    SelectedContentType,
-                    targetGame,
-                    options);
+            OperationResult<ContentManifest> result;
+            if (IsLiveSource)
+            {
+                result = IsEditing && _originalManifestId != null
+                    ? await localContentService.UpdateLocalContentManifestAsync(
+                        _originalManifestId,
+                        ContentName,
+                        contentRoot,
+                        SelectedContentType,
+                        targetGame,
+                        options)
+                    : await localContentService.RegisterLiveSourceAsync(
+                        contentRoot,
+                        ContentName,
+                        SelectedContentType,
+                        targetGame,
+                        options);
+            }
+            else
+            {
+                result = IsEditing && _originalManifestId != null
+                    ? await localContentService.UpdateLocalContentManifestAsync(
+                        _originalManifestId,
+                        ContentName,
+                        contentRoot,
+                        SelectedContentType,
+                        targetGame,
+                        options)
+                    : await localContentService.CreateLocalContentManifestAsync(
+                        contentRoot,
+                        ContentName,
+                        SelectedContentType,
+                        targetGame,
+                        options);
+            }
 
             if (result.Success)
             {
@@ -1266,14 +1443,14 @@ public partial class AddLocalContentViewModel(
         }
     }
 
-    private FileTreeItem? FindFileItemByRelativePath(IEnumerable<FileTreeItem> items, string relativePath)
+    private FileTreeItem? FindFileItemByRelativePath(string root, IEnumerable<FileTreeItem> items, string relativePath)
     {
         var normalizedTarget = relativePath.Replace('\\', '/').TrimStart('/');
         foreach (var item in items)
         {
             if (item.IsFile)
             {
-                var itemRel = Path.GetRelativePath(_stagingPath, item.FullPath).Replace('\\', '/').TrimStart('/');
+                var itemRel = Path.GetRelativePath(root, item.FullPath).Replace('\\', '/').TrimStart('/');
                 if (ManifestVariantResolver.PathsMatch(itemRel, normalizedTarget))
                 {
                     return item;
@@ -1281,7 +1458,7 @@ public partial class AddLocalContentViewModel(
             }
             else
             {
-                var found = FindFileItemByRelativePath(item.Children, relativePath);
+                var found = FindFileItemByRelativePath(root, item.Children, relativePath);
                 if (found != null) return found;
             }
         }
@@ -1289,7 +1466,9 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
-    private async Task RefreshStagingTreeAsync()
+    private Task RefreshStagingTreeAsync() => RefreshTreeAsync(_stagingPath);
+
+    private async Task RefreshTreeAsync(string root)
     {
         bool wasBusy = IsBusy;
         try
@@ -1301,7 +1480,7 @@ public partial class AddLocalContentViewModel(
             {
                 try
                 {
-                    previousRelativePath = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                    previousRelativePath = Path.GetRelativePath(root, SelectedExecutableItem.FullPath).Replace('\\', '/');
                 }
                 catch
                 {
@@ -1315,9 +1494,9 @@ public partial class AddLocalContentViewModel(
 
             FileTree.Clear();
             SelectedExecutableItem = null; // Clear previous selection on refresh
-            if (Directory.Exists(_stagingPath))
+            if (Directory.Exists(root))
             {
-                var dirInfo = new DirectoryInfo(_stagingPath);
+                var dirInfo = new DirectoryInfo(root);
                 var items = await Task.Run(() => BuildDirectoryTree(dirInfo), _cts?.Token ?? CancellationToken.None);
                 foreach (var item in items)
                 {
@@ -1333,7 +1512,7 @@ public partial class AddLocalContentViewModel(
                 FileTreeItem? matchedItem = null;
                 if (!string.IsNullOrWhiteSpace(previousRelativePath))
                 {
-                    matchedItem = FindFileItemByRelativePath(FileTree, previousRelativePath);
+                    matchedItem = FindFileItemByRelativePath(root, FileTree, previousRelativePath);
                 }
 
                 if (matchedItem != null && matchedItem.IsExecutable)
@@ -1371,12 +1550,13 @@ public partial class AddLocalContentViewModel(
         var hasFiles = FileTree.Any();
         var stagingExists = Directory.Exists(_stagingPath);
         var stagingHasEntries = stagingExists && Directory.EnumerateFileSystemEntries(_stagingPath).Any();
+        var hasLiveFolder = IsLiveSource && Directory.Exists(SourcePath);
 
         // For GameClient, ModdingTool (Tool), and Executable, we also need an executable selected
         var requiresExecutable = RequiresExecutable(SelectedContentType);
         var hasExecutableIfNeeded = !requiresExecutable || SelectedExecutableItem != null;
 
-        CanAdd = hasName && (hasFiles || stagingHasEntries) && hasExecutableIfNeeded;
+        CanAdd = hasName && (hasFiles || stagingHasEntries || hasLiveFolder) && hasExecutableIfNeeded;
 
         logger?.LogDebug(
             "Validate: CanAdd={CanAdd} (HasName={HasName}, HasFiles={HasFiles}, StagingExists={StagingExists}, StagingHasEntries={StagingHasEntries}, HasExecutableIfNeeded={HasExecutableIfNeeded})", CanAdd, hasName, hasFiles, stagingExists, stagingHasEntries, hasExecutableIfNeeded);
@@ -1448,7 +1628,7 @@ public partial class AddLocalContentViewModel(
                 FileTreeItem? matchedItem = null;
                 if (!string.IsNullOrWhiteSpace(_pendingEntryPoint))
                 {
-                    matchedItem = FindFileItemByRelativePath(FileTree, _pendingEntryPoint);
+                    matchedItem = FindFileItemByRelativePath(CurrentTreeRoot, FileTree, _pendingEntryPoint);
                 }
 
                 if (matchedItem != null && matchedItem.IsExecutable)
@@ -1468,7 +1648,7 @@ public partial class AddLocalContentViewModel(
             {
                 try
                 {
-                    _pendingEntryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                    _pendingEntryPoint = Path.GetRelativePath(CurrentTreeRoot, SelectedExecutableItem.FullPath).Replace('\\', '/');
                 }
                 catch
                 {

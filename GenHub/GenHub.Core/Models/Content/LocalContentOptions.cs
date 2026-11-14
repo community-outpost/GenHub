@@ -1,3 +1,4 @@
+using GenHub.Core.Models.Enums;
 using System;
 using System.Threading;
 
@@ -33,6 +34,11 @@ public record LocalContentOptions
     /// Defaults to true.
     /// </summary>
     public bool NormalizeInactiveArchives { get; init; } = true;
+
+    /// <summary>
+    /// Gets how the content's files are sourced. Live keeps the folder in place and skips CAS.
+    /// </summary>
+    public ContentSourceMode SourceMode { get; init; } = ContentSourceMode.Snapshot;
 
     /// <summary>
     /// Gets the publisher identifier recorded on the manifest. Null selects the default local publisher.
