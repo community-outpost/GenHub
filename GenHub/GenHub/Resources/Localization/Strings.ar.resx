@@ -18379,7 +18379,7 @@ Error: فشل: {3}
     <value>يربط ملفات اللعبة بدلاً من نسخها. لا يستخدم تقريباً أي مساحة إضافية على القرص.</value>
   </data>
   <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
-    <value>إذا كانت اللعبة ومساحة العمل على محركي أقراص مختلفين، يتطلب صلاحيات المسؤول أو وضع المطور.</value>
+    <value>إذا كانت اللعبة أو تجمع CAS على محرك أقراص غير محرك مساحة العمل، يتطلب صلاحيات المسؤول أو وضع المطور.</value>
   </data>
   <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
     <value>روابط رمزية</value>

@@ -18438,7 +18438,7 @@ Mapped image texture reference</value>
     <value>Links game files instead of copying them. Uses almost no extra disk space.</value>
   </data>
   <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
-    <value>If the game and workspace are on different drives, needs administrator rights or Developer Mode.</value>
+    <value>If the game or the CAS pool is on a different drive than the workspace, needs administrator rights or Developer Mode.</value>
   </data>
   <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
     <value>Symbolic links</value>

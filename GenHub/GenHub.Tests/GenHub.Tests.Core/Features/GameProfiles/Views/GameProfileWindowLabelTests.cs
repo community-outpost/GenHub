@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
@@ -68,6 +69,7 @@ public class GameProfileWindowLabelTests
                 }).ToList();
 
                 Assert.Equal(keys.Select(resourceSet.GetString), labels.Select(label => label.Text));
+                Assert.Equal(keys.Select(resourceSet.GetString), tabs.Select(AutomationProperties.GetName));
                 Assert.All(tabs, tab =>
                 {
                     var origin = tab.TranslatePoint(default, view);

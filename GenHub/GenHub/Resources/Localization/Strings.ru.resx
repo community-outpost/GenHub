@@ -18379,7 +18379,7 @@ Error: не удалось: {3}
     <value>Связывает файлы игры вместо копирования. Почти не занимает дополнительного места на диске.</value>
   </data>
   <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
-    <value>Если игра и рабочая область находятся на разных дисках, нужны права администратора или режим разработчика.</value>
+    <value>Если игра или хранилище CAS находятся на другом диске, чем рабочая область, нужны права администратора или режим разработчика.</value>
   </data>
   <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
     <value>Символические ссылки</value>
