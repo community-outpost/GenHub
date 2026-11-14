@@ -7,7 +7,8 @@
       "GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj",
       "GenHub.Tests/GenHub.Tests.Integration/GenHub.Tests.Integration.csproj",
       "GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj",
-      "GenHub/GenHub.csproj"
+      "GenHub/GenHub.csproj",
+      "GenHub.UI.Showcase/GenHub.UI.Showcase.csproj"
     ]
   }
 }

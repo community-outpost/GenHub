@@ -1,0 +1,203 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
+using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using GenHub.Core.Constants;
+using System;
+using System.Linq;
+using Xunit;
+
+namespace GenHub.Tests.Core.App;
+
+/// <summary>Exercises the rendered shared action roles and live palette resources.</summary>
+public class ActionButtonStyleTests
+{
+    /// <summary>Fluent template states must preserve the role foreground and disabled treatment.</summary>
+    /// <param name="role">The shared role class.</param>
+    /// <param name="hover">The pointer-over brush resource.</param>
+    /// <param name="pressed">The pressed brush resource.</param>
+    /// <param name="foreground">The rest-state foreground resource.</param>
+    [AvaloniaTheory]
+    [InlineData("action-primary", "ActionPrimaryHoverBrush", "ActionPrimaryPressedBrush", "ActionOnAccentBrush")]
+    [InlineData("action-secondary", "ActionSecondaryHover", "ActionSecondaryPressed", "ActionSecondaryInk")]
+    [InlineData("action-danger", "ActionDangerHover", "ActionDangerPressed", "ActionDangerInk")]
+    [InlineData("action-danger icon-action", "ActionDangerHover", "ActionDangerPressed", "ActionDangerInk")]
+    [InlineData("icon-action", "ActionSecondaryHover", "ActionSecondaryPressed", "ActionUtilityInk")]
+    public void ActionButton_PointerAndDisabledStatesUseSharedPalette(string role, string hover, string pressed, string foreground)
+    {
+        var button = new Button { Content = "Install" };
+        button.Classes.AddRange(role.Split(' '));
+        var window = new Window { Width = 320, Height = 160, Content = button };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var presenter = button.GetVisualDescendants().OfType<ContentPresenter>()
+                .Single(p => p.Name == "PART_ContentPresenter");
+
+            // Inspect final state brushes without Fluent's interpolation clock.
+            presenter.Transitions = null;
+            Assert.Equal(role.Contains("icon-action", StringComparison.Ordinal) ? 32 : 36, button.MinHeight);
+            Assert.Equal(new CornerRadius(999), button.CornerRadius);
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource(foreground)!), BrushColor(presenter.Foreground));
+            window.MouseMove(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(button.IsPointerOver);
+            AssertBrushEqual((IBrush)Avalonia.Application.Current!.FindResource(hover)!, button.Background);
+            AssertBrushEqual(button.Background, presenter.Background);
+            window.MouseDown(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            AssertBrushEqual((IBrush)Avalonia.Application.Current!.FindResource(pressed)!, presenter.Background);
+            window.MouseUp(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value, MouseButton.Left);
+            button.IsEnabled = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("ActionDisabledFill")!), BrushColor(presenter.Background));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Keyboard navigation must reach the button and activate its command once.</summary>
+    [AvaloniaFact]
+    public void PrimaryButton_KeyboardFocusAndActivationRemainAvailable()
+    {
+        var clicks = 0;
+        var button = new Button { Content = "Install" };
+        button.Classes.Add("action-primary");
+        button.Click += (_, _) => clicks++;
+        var window = new Window { Width = 320, Height = 160, Content = button };
+        window.Show();
+        try
+        {
+            window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(button.IsKeyboardFocusWithin);
+            var presenter = button.GetVisualDescendants().OfType<ContentPresenter>()
+                .Single(p => p.Name == "PART_ContentPresenter");
+            Assert.Equal(new Thickness(2), presenter.BorderThickness);
+            window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+            window.KeyReleaseQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+            Assert.Equal(1, clicks);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Changing the application palette updates mounted controls.</summary>
+    [AvaloniaFact]
+    public void PrimaryButton_UpdatesWhenAccentResourceChanges()
+    {
+        var app = Avalonia.Application.Current!;
+        var hadOverride = app.Resources.TryGetValue("ActionPrimaryRestBrush", out var previous);
+        var button = new Button { Content = "Install" };
+        button.Classes.Add("action-primary");
+        var window = new Window { Width = 320, Height = 160, Content = button };
+        window.Show();
+        try
+        {
+            var replacement = new SolidColorBrush(Colors.Cyan);
+            app.Resources["ActionPrimaryRestBrush"] = replacement;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.Cyan, BrushColor(button.Background));
+        }
+        finally
+        {
+            if (hadOverride)
+            {
+                app.Resources["ActionPrimaryRestBrush"] = previous;
+            }
+            else
+            {
+                app.Resources.Remove("ActionPrimaryRestBrush");
+            }
+
+            window.Close();
+        }
+    }
+
+    /// <summary>Wrapped translations can grow vertically instead of clipping at a fixed height.</summary>
+    [AvaloniaFact]
+    public void LongCaption_GrowsAtNarrowWidthAndUtilityIconKeepsItsTarget()
+    {
+        var caption = new TextBlock
+        {
+            Text = "Установить необходимые компоненты تثبيت العناصر المطلوبة",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        var button = new Button { Width = 180, Content = caption };
+        button.Classes.Add("action-primary");
+        var icon = new PathIcon { Data = Geometry.Parse("M0,0 L16,16") };
+        var utility = new Button { Content = icon };
+        utility.Classes.Add("icon-action");
+        var panel = new StackPanel();
+        panel.Children.Add(button);
+        panel.Children.Add(utility);
+        var window = new Window { Width = 240, Height = 300, Content = panel };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(button.Bounds.Height > button.MinHeight);
+            Assert.True(caption.Bounds.Height >= caption.DesiredSize.Height);
+            Assert.True(utility.Bounds.Height >= 32);
+            Assert.True(utility.Bounds.Width >= 32);
+            Assert.Equal(Colors.Transparent, BrushColor(utility.Background));
+            Assert.Equal(16, icon.Width);
+            Assert.Equal(16, icon.Height);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>Action glyphs follow semantic ink and command-disabled foreground.</summary>
+    [AvaloniaFact]
+    public void ActionIcon_FollowsButtonForegroundWhenDisabled()
+    {
+        var icon = new PathIcon { Data = Geometry.Parse("M0,0 L16,16") };
+        var button = new Button { Content = icon };
+        button.Classes.Add("action-primary");
+        var window = new Window { Width = 240, Height = 160, Content = button };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(Colors.White, BrushColor(icon.Foreground));
+            button.IsEnabled = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(BrushColor(button.Foreground), BrushColor(icon.Foreground));
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("ActionDisabledInk")!), BrushColor(icon.Foreground));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static void AssertBrushEqual(IBrush? expected, IBrush? actual)
+    {
+        if (expected is ILinearGradientBrush gradient)
+        {
+            var rendered = Assert.IsAssignableFrom<ILinearGradientBrush>(actual);
+            Assert.Equal(gradient.StartPoint, rendered.StartPoint);
+            Assert.Equal(gradient.EndPoint, rendered.EndPoint);
+            Assert.Equal(gradient.GradientStops.Select(stop => (stop.Color, stop.Offset)), rendered.GradientStops.Select(stop => (stop.Color, stop.Offset)));
+        }
+        else
+        {
+            Assert.Equal(BrushColor(expected), BrushColor(actual));
+        }
+    }
+
+    private static Color BrushColor(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
+}

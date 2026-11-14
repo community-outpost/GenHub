@@ -1,0 +1,156 @@
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Markup.Xaml.Styling;
+using Avalonia.Media;
+using Avalonia.Threading;
+using GenHub.Common.Services;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Xunit;
+
+namespace GenHub.Tests.Core.Common.Services;
+
+/// <summary>Checks action contrast independently from the navigation accent palette.</summary>
+public class ActionButtonPaletteTests
+{
+    /// <summary>Gets every shipped accent and a few custom edge cases.</summary>
+    public static IEnumerable<object[]> AccentColors => ThemeConstants.AllThemes
+        .Select(theme => new object[] { theme.PrimaryHex })
+        .Concat(new[] { "#000000", "#FFFFFF", "#0000FF", "#101020", "#00FFFFFF" }.Select(hex => new object[] { hex }));
+
+    /// <summary>White ink remains readable and states remain distinct for every palette.</summary>
+    /// <param name="accentHex">The primary theme accent.</param>
+    [Theory]
+    [MemberData(nameof(AccentColors))]
+    public void Create_AllStatesHaveWhiteTextContrast(string accentHex)
+    {
+        var palette = ActionButtonPalette.Create(Color.Parse(accentHex));
+        foreach (var fill in new[] { palette.Rest, palette.Hover, palette.Pressed })
+        {
+            Assert.Equal(255, fill.A);
+            Assert.True(WhiteContrast(fill) >= 4.5, $"{accentHex}: {fill} does not provide 4.5:1 white contrast.");
+        }
+
+        Assert.True(WhiteContrast(palette.Hover) >= 5.2);
+        Assert.True(WhiteContrast(palette.Pressed) > WhiteContrast(palette.Rest));
+        Assert.True(WhiteContrast(palette.Rest) > WhiteContrast(palette.Hover));
+        Assert.NotEqual(palette.Rest, palette.Hover);
+        Assert.NotEqual(palette.Rest, palette.Pressed);
+        Assert.NotEqual(palette.Hover, palette.Pressed);
+    }
+
+    /// <summary>The approved default purple treatment retains the exact reviewed values.</summary>
+    [Fact]
+    public void Create_DefaultPurpleUsesApprovedFills()
+    {
+        var palette = ActionButtonPalette.Create(Color.Parse(ThemeConstants.DefaultTheme.PrimaryHex));
+        Assert.Equal(Color.Parse("#7540B8"), palette.Rest);
+        Assert.Equal(Color.Parse("#8651C9"), palette.Hover);
+        Assert.Equal(Color.Parse("#65339F"), palette.Pressed);
+    }
+
+    /// <summary>The XAML default action gradients match the default palette built in code.</summary>
+    [AvaloniaFact]
+    public void ThemeResources_DefaultActionGradientsMatchDefaultPalette()
+    {
+        var resources = new ResourceInclude(new Uri("avares://GenHub/"))
+        {
+            Source = new Uri("avares://GenHub/Assets/Styles/ThemeResources.axaml"),
+        };
+        var expected = ActionButtonPalette.CreateBrushes(Color.Parse(ThemeConstants.DefaultTheme.PrimaryHex));
+        Assert.True(resources.TryGetResource("ActionPrimaryRestBrush", null, out var rest));
+        Assert.True(resources.TryGetResource("ActionPrimaryHoverBrush", null, out var hover));
+        Assert.True(resources.TryGetResource("ActionPrimaryPressedBrush", null, out var pressed));
+        AssertGradientEqual(expected.Normal, rest);
+        AssertGradientEqual(expected.Hover, hover);
+        AssertGradientEqual(expected.Pressed, pressed);
+    }
+
+    /// <summary>Custom theme IDs cannot bypass action contrast or change the navigation accent.</summary>
+    [AvaloniaFact]
+    public void ApplyTheme_UpdatesActionResourcesFromColorAndPreservesAccent()
+    {
+        var application = Avalonia.Application.Current!;
+        var previous = application.Resources.ToDictionary(entry => entry.Key, entry => entry.Value);
+        var service = new ThemeService(Mock.Of<IConfigurationProviderService>(), NullLogger<ThemeService>.Instance);
+        var icon = new PathIcon { Data = Geometry.Parse("M0,0 L8,4 L0,8 Z") };
+        var button = new Button { Content = icon };
+        button.Classes.Add("action-primary");
+        var window = new Window { Width = 320, Height = 160, Content = button };
+        try
+        {
+            window.Show();
+            foreach (var preset in ThemeConstants.AllThemes)
+            {
+                service.ApplyTheme(preset with { Id = "custom-preview" });
+                Dispatcher.UIThread.RunJobs();
+                var expected = ActionButtonPalette.CreateBrushes(Color.Parse(preset.PrimaryHex));
+                AssertGradientEqual(expected.Normal, application.FindResource("ActionPrimaryRestBrush"));
+                AssertGradientEqual(expected.Hover, application.FindResource("ActionPrimaryHoverBrush"));
+                AssertGradientEqual(expected.Pressed, application.FindResource("ActionPrimaryPressedBrush"));
+                Assert.Equal(Color.Parse(preset.PrimaryHex), BrushColor(application.FindResource("AccentBrush")));
+                AssertGradientEqual(expected.Normal, button.Background);
+                Assert.Equal(Colors.White, BrushColor(icon.Foreground));
+            }
+        }
+        finally
+        {
+            window.Close();
+            foreach (var key in application.Resources.Keys.Except(previous.Keys).ToArray())
+            {
+                application.Resources.Remove(key);
+            }
+
+            foreach (var entry in previous)
+            {
+                application.Resources[entry.Key] = entry.Value;
+            }
+        }
+    }
+
+    /// <summary>Every actual gradient stop and intermediate shade keeps white labels readable.</summary>
+    /// <param name="accentHex">The theme accent.</param>
+    [Theory]
+    [MemberData(nameof(AccentColors))]
+    public void CreateBrushes_GradientsKeepReadableWhiteInk(string accentHex)
+    {
+        var palette = ActionButtonPalette.CreateBrushes(Color.Parse(accentHex));
+        foreach (var brush in new[] { palette.Normal, palette.Hover, palette.Pressed })
+        {
+            var gradient = Assert.IsAssignableFrom<ILinearGradientBrush>(brush);
+            Assert.Equal(2, gradient.GradientStops.Count);
+            var from = gradient.GradientStops[0].Color;
+            var to = gradient.GradientStops[1].Color;
+            for (var sample = 0; sample <= 10; sample++)
+            {
+                var t = sample / 10.0;
+                var color = Color.FromRgb((byte)(from.R + ((to.R - from.R) * t)), (byte)(from.G + ((to.G - from.G) * t)), (byte)(from.B + ((to.B - from.B) * t)));
+                Assert.True(WhiteContrast(color) >= 4.5, $"{accentHex}: gradient sample {sample} has insufficient white contrast.");
+            }
+        }
+    }
+
+    private static void AssertGradientEqual(IBrush expected, object? actual)
+    {
+        var expectedGradient = Assert.IsAssignableFrom<ILinearGradientBrush>(expected);
+        var actualGradient = Assert.IsAssignableFrom<ILinearGradientBrush>(actual);
+        Assert.Equal(expectedGradient.GradientStops.Select(stop => (stop.Color, stop.Offset)), actualGradient.GradientStops.Select(stop => (stop.Color, stop.Offset)));
+    }
+
+    private static Color BrushColor(object? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
+
+    private static double WhiteContrast(Color color)
+    {
+        // WCAG relative luminance: deliberately computed here rather than calling the production helper.
+        var channels = new[] { color.R, color.G, color.B }
+            .Select(channel => channel / 255.0)
+            .Select(channel => channel <= 0.04045 ? channel / 12.92 : Math.Pow((channel + 0.055) / 1.055, 2.4))
+            .ToArray();
+        return 1.05 / ((channels[0] * 0.2126) + (channels[1] * 0.7152) + (channels[2] * 0.0722) + 0.05);
+    }
+}
