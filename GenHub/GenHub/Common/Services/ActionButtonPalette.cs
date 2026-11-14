@@ -22,10 +22,10 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
             return new(Color.Parse("#7540B8"), Color.Parse("#8651C9"), Color.Parse("#65339F"));
         }
 
-        return new(CreateFill(accent, 6.2), CreateFill(accent, 5.2), CreateFill(accent, 7.5));
+        return new(CreateFill(accent, 6.2, 0.82), CreateFill(accent, 5.2, 1.0), CreateFill(accent, 7.5, 0.68));
     }
 
-    private static Color CreateFill(Color accent, double minimumContrast)
+    private static Color CreateFill(Color accent, double minimumContrast, double maximumScale)
     {
         // Scaling channels together preserves the hue, including custom theme colors.
         // Normalize first so very dark accents can still have distinct interaction states.
@@ -34,7 +34,9 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         var green = maximum == 0 ? 1 : (double)accent.G / maximum;
         var blue = maximum == 0 ? 1 : (double)accent.B / maximum;
         var low = 0.0;
-        var high = 1.0;
+
+        // Cap each state separately: saturated blue already has high white contrast at full intensity.
+        var high = maximumScale;
         var result = Colors.Black;
         for (var iteration = 0; iteration < 24; iteration++)
         {
