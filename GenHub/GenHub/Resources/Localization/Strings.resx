@@ -18359,4 +18359,13 @@ Mapped image texture reference</value>
   <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
     <value>GenHub could not install the required items.</value>
   </data>
+  <data name="GameProfiles.MissingDependencies.LaunchError" xml:space="preserve">
+    <value>{0} can't launch. It needs {1}.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
+    <value>{0} needs {1}</value>
+  </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>Installing required items for {0}...</value>
+  </data>
 </root>

@@ -2006,6 +2006,10 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 
 Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ErrorCategory`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `ProfilesUpdated`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
 
+### Telemetry Error Categories (`TelemetryConstants.ErrorCategories`)
+
+Values for the `ErrorCategory` property: `LaunchFailed` (`launch_failed`) when a launch reports failure without an exception, and `MissingDependencies` (`missing_dependencies`) when launch is blocked by missing required content.
+
 ---
 
 ## Reject List (Literals That Must Be Constants)

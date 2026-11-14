@@ -71,7 +71,8 @@ public partial class GameProfileLauncherViewModel(
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null,
     ITelemetryService? telemetryService = null,
-    IUserSettingsService? userSettingsService = null) : ViewModelBase,
+    IUserSettingsService? userSettingsService = null,
+    IProfileContentService? profileContentService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -408,7 +409,7 @@ public partial class GameProfileLauncherViewModel(
                         iconPath,
                         coverPath)
                     {
-                        LaunchAction = LaunchProfileAsync,
+                        LaunchAction = card => LaunchProfileAsync(card, CancellationToken.None),
                         EditProfileAction = EditProfile,
                         DeleteProfileAction = DeleteProfile,
                         CreateShortcutAction = CreateShortcut,
@@ -2194,7 +2195,7 @@ public partial class GameProfileLauncherViewModel(
                 iconPath,
                 coverPath)
             {
-                LaunchAction = LaunchProfileAsync,
+                LaunchAction = card => LaunchProfileAsync(card, CancellationToken.None),
                 EditProfileAction = EditProfile,
                 DeleteProfileAction = DeleteProfile,
                 CreateShortcutAction = CreateShortcut,
@@ -2228,11 +2229,12 @@ public partial class GameProfileLauncherViewModel(
     /// Launches the specified game profile.
     /// </summary>
     /// <param name="profile">The game profile to launch.</param>
+    /// <param name="cancellationToken">A token that cancels the launch, including any required-item install.</param>
     [RelayCommand]
-    private async Task LaunchProfileAsync(GameProfileItemViewModel profile)
+    private async Task LaunchProfileAsync(GameProfileItemViewModel profile, CancellationToken cancellationToken)
     {
         // Try without blocking
-        if (!await _launchSemaphore.WaitAsync(0))
+        if (!await _launchSemaphore.WaitAsync(0, CancellationToken.None))
         {
             StatusMessage = localizationService["GameProfiles.Status.AlreadyLaunching"];
             return;
@@ -2251,7 +2253,13 @@ public partial class GameProfileLauncherViewModel(
                 logger.LogDebug("[Launch] Launching profile {ProfileName} (ID: {ProfileId})", profile.Name, profile.ProfileId);
 
                 // Normal launch
-                await ExecuteLaunchAsync(profile);
+                await ExecuteLaunchAsync(profile, cancellationToken: cancellationToken);
+            }
+            catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation(ex, "Launch of {ProfileName} was cancelled", profile.Name);
+                StatusMessage = string.Empty;
+                ErrorMessage = string.Empty;
             }
             catch (Exception ex)
             {
@@ -2293,14 +2301,18 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Executes the actual launch operation.
     /// </summary>
-    private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
+    private async Task ExecuteLaunchAsync(
+        GameProfileItemViewModel profile,
+        bool allowDependencyInstall = true,
+        string? launchProfileId = null,
+        CancellationToken cancellationToken = default)
     {
         StatusMessage = localizationService.GetString("GameProfiles.Status.LaunchingProfile", profile.Name);
 
         var stopwatch = Stopwatch.StartNew();
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
-        var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
+        var launchResult = await profileLauncherFacade.LaunchProfileAsync(launchProfileId ?? profile.ProfileId, skipUserDataCleanup: false, cancellationToken);
         stopwatch.Stop();
         var timeToLaunchMs = stopwatch.ElapsedMilliseconds;
 
@@ -2363,29 +2375,134 @@ public partial class GameProfileLauncherViewModel(
         }
         else
         {
-            var errors = string.Join(", ", launchResult.Errors);
-            StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
-            ErrorMessage = errors;
-            notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
-
-            var gameClient = profile.Profile.GameClient;
-            var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
-            telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+            if (allowDependencyInstall && launchResult.MissingDependencies.Count > 0 && profileContentService != null)
             {
-                [TelemetryConstants.Properties.ProfileId] = profile.ProfileId,
-                [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
-                [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
-                [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
-                [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
-                [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
-                [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
-                [TelemetryConstants.Properties.PublisherId] = clientPublisher,
-                [TelemetryConstants.Properties.Publisher] = clientPublisher,
-                [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
-                [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
-                [TelemetryConstants.Properties.ErrorCategory] = TelemetryConstants.ErrorCategories.LaunchFailed,
-            });
+                // Record the blocked attempt once, whatever the player chooses next.
+                var targetProfileId = launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId;
+                TrackLaunchFailed(profile, targetProfileId, timeToLaunchMs, TelemetryConstants.ErrorCategories.MissingDependencies);
+                var installError = await InstallMissingDependenciesAsync(profile, targetProfileId, launchResult.MissingDependencies, cancellationToken);
+                if (installError == null)
+                {
+                    await ExecuteLaunchAsync(profile, allowDependencyInstall: false, launchProfileId: targetProfileId, cancellationToken: cancellationToken);
+                    return;
+                }
+
+                if (installError.Length == 0)
+                {
+                    StatusMessage = string.Empty;
+                    ErrorMessage = string.Empty;
+                }
+                else
+                {
+                    ReportLaunchFailure(profile, installError);
+                }
+
+                return;
+            }
+
+            var errors = string.Join(", ", launchResult.Errors);
+            var isMissingDependencies = launchResult.MissingDependencies.Count > 0;
+            ReportLaunchFailure(profile, errors);
+
+            // A retry after installing items was already recorded as blocked before the dialog.
+            if (allowDependencyInstall || !isMissingDependencies)
+            {
+                var errorCategory = isMissingDependencies
+                    ? TelemetryConstants.ErrorCategories.MissingDependencies
+                    : TelemetryConstants.ErrorCategories.LaunchFailed;
+                TrackLaunchFailed(profile, launchResult.MissingDependenciesProfileId ?? launchProfileId ?? profile.ProfileId, timeToLaunchMs, errorCategory);
+            }
         }
+    }
+
+    private void ReportLaunchFailure(GameProfileItemViewModel profile, string errors)
+    {
+        StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLaunchProfile", profile.Name, errors);
+        ErrorMessage = errors;
+        notificationService.ShowError(localizationService["GameProfiles.Notification.LaunchFailed.Title"], localizationService.GetString("GameProfiles.Notification.LaunchFailed.Message", profile.Name, errors));
+    }
+
+    private void TrackLaunchFailed(GameProfileItemViewModel profile, string launchedProfileId, long timeToLaunchMs, string errorCategory)
+    {
+        // Reconciliation can launch another profile, so describe the client of the profile that was validated.
+        var launchedProfile = string.Equals(launchedProfileId, profile.ProfileId, StringComparison.OrdinalIgnoreCase)
+            ? profile
+            : Profiles.FirstOrDefault(p => p is not AddProfileItemViewModel && string.Equals(p.ProfileId, launchedProfileId, StringComparison.OrdinalIgnoreCase)) ?? profile;
+        var gameClient = launchedProfile.Profile.GameClient;
+        var clientPublisher = GameClientTelemetryHelper.ResolvePublisher(gameClient);
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ProfileLaunchFailed, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.ProfileId] = launchedProfileId,
+            [TelemetryConstants.Properties.GameType] = gameClient?.GameType.ToString(),
+            [TelemetryConstants.Properties.GameClientId] = gameClient?.Id,
+            [TelemetryConstants.Properties.GameClientName] = gameClient?.Name,
+            [TelemetryConstants.Properties.GameClient] = gameClient?.Name,
+            [TelemetryConstants.Properties.GameClientVersion] = gameClient?.Version,
+            [TelemetryConstants.Properties.GameClientPublisher] = clientPublisher,
+            [TelemetryConstants.Properties.PublisherId] = clientPublisher,
+            [TelemetryConstants.Properties.Publisher] = clientPublisher,
+            [TelemetryConstants.Properties.LaunchSource] = TelemetryConstants.LaunchSources.Launcher,
+            [TelemetryConstants.Properties.TimeToLaunchMs] = timeToLaunchMs,
+            [TelemetryConstants.Properties.ErrorCategory] = errorCategory,
+        });
+    }
+
+    /// <summary>
+    /// Asks to install the items a profile needs before it can launch, downloads them, and
+    /// enables them in the profile that launch validated. Nothing changes when the player cancels.
+    /// </summary>
+    /// <param name="profile">The profile card that was launched.</param>
+    /// <param name="targetProfileId">The profile that launch validated. Reconciliation can change it.</param>
+    /// <param name="missingDependencies">The missing items reported by launch validation.</param>
+    /// <param name="cancellationToken">A token that stops the dialog, the download and the profile update.</param>
+    /// <returns>
+    /// <see langword="null"/> when the items are installed and the launch should be retried,
+    /// an empty string when the player cancelled, or a player-facing error.
+    /// </returns>
+    private async Task<string?> InstallMissingDependenciesAsync(
+        GameProfileItemViewModel profile,
+        string targetProfileId,
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
+        CancellationToken cancellationToken)
+    {
+        var install = await MissingDependencyDialog.ConfirmInstallAsync(
+            dialogService,
+            localizationService,
+            profile.Name,
+            missingDependencies,
+            cancellationToken);
+        if (!install || profileContentService == null)
+        {
+            return string.Empty;
+        }
+
+        StatusMessage = localizationService.GetLocalizedString(
+            "GameProfiles.Status.InstallingRequiredItems",
+            "Installing required items for {0}...",
+            profile.Name);
+        var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
+        if (installResult.Failed || installResult.Data == null)
+        {
+            return installResult.FirstError ?? string.Join(", ", installResult.Errors);
+        }
+
+        var addResult = await profileContentService.AddContentToProfileAsync(targetProfileId, installResult.Data, cancellationToken);
+        if (addResult.MissingDependencies.Count > 0)
+        {
+            return localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.LaunchError",
+                "{0} can't launch. It needs {1}.",
+                profile.Name,
+                string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, addResult.MissingDependencies)));
+        }
+
+        if (addResult.Failed)
+        {
+            return addResult.FirstError
+                ?? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.InstallFailed.Message", "GenHub could not install the required items.");
+        }
+
+        return null;
     }
 
     private void RestoreSelectedProfile(string? profileId)

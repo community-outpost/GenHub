@@ -640,6 +640,9 @@ public static class TelemetryConstants
     {
         /// <summary>Profile launch reported failure without an exception.</summary>
         public const string LaunchFailed = "launch_failed";
+
+        /// <summary>Profile launch was blocked because required content is missing.</summary>
+        public const string MissingDependencies = "missing_dependencies";
     }
 
     /// <summary>
