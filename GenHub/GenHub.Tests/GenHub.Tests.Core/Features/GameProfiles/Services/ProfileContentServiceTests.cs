@@ -540,10 +540,7 @@ public sealed class ProfileContentServiceTests
     public async Task CreateProfileWithContentAsync_StandaloneToolWithoutGenTool_ReportsGenToolAndCreatesNothingAsync()
     {
         var fixture = new ControlBarProFixture();
-        var genTool = GenPatcherDependencyBuilder
-            .GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
-            .Single(dependency => dependency.Name == "GenTool");
-        fixture.AddManifest(CreateStandaloneTool(genTool));
+        fixture.AddManifest(CreateStandaloneTool(CreateGenToolDependency()));
 
         var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
 
@@ -577,6 +574,72 @@ public sealed class ProfileContentServiceTests
 
         Assert.True(result.Success, result.FirstError);
         Assert.Empty(result.MissingDependencies);
+    }
+
+    /// <summary>
+    /// A standalone tool's required add-on that is already downloaded is enabled in the new profile.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolWithDownloadedGenTool_EnablesGenToolAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(CreateStandaloneTool(CreateGenToolDependency()));
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+        var createRequests = CaptureCreateRequests(fixture);
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.Single(createRequests).EnabledContentIds ?? [];
+        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(StandaloneToolId, saved, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// After the missing-items dialog installs GenTool, creating the standalone profile again succeeds.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolAfterInstallingGenTool_CreatesProfileAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(CreateStandaloneTool(CreateGenToolDependency()));
+        SetUpGenToolDownload(fixture);
+        var createRequests = CaptureCreateRequests(fixture);
+
+        var firstAttempt = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+        var install = await fixture.Service.InstallMissingDependenciesAsync(firstAttempt.MissingDependencies);
+        var secondAttempt = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.Equal("GenTool", Assert.Single(firstAttempt.MissingDependencies).DisplayName);
+        Assert.True(install.Success, install.FirstError);
+        Assert.True(secondAttempt.Success, secondAttempt.FirstError);
+        Assert.Contains(ControlBarProFixture.GenToolId, Assert.Single(createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// A standalone tool's auto-install dependency is downloaded and enabled instead of blocking the profile.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolWithAutoInstallGenTool_AcquiresAndEnablesItAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var genTool = CreateGenToolDependency();
+        genTool.InstallBehavior = DependencyInstallBehavior.AutoInstall;
+        fixture.AddManifest(CreateStandaloneTool(genTool));
+        SetUpGenToolDownload(fixture);
+        var createRequests = CaptureCreateRequests(fixture);
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains(ControlBarProFixture.GenToolId, Assert.Single(createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+        fixture.Orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -1075,6 +1138,39 @@ public sealed class ProfileContentServiceTests
         TargetGame = GameType.ZeroHour,
         Dependencies = [dependency],
     };
+
+    private static ContentDependency CreateGenToolDependency() => GenPatcherDependencyBuilder
+        .GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
+        .Single(dependency => dependency.Name == "GenTool");
+
+    private static List<CreateProfileRequest> CaptureCreateRequests(ControlBarProFixture fixture)
+    {
+        var requests = new List<CreateProfileRequest>();
+        fixture.ProfileManager
+            .Setup(manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CreateProfileRequest request, CancellationToken _) =>
+            {
+                requests.Add(request);
+                return ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created" });
+            });
+        return requests;
+    }
+
+    private static void SetUpGenToolDownload(ControlBarProFixture fixture)
+    {
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                fixture.AddManifest(genTool);
+                return OperationResult<ContentManifest>.CreateSuccess(genTool);
+            });
+    }
 
     private static int CountOccurrences(string? text, string value)
     {

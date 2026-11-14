@@ -307,7 +307,18 @@ public sealed class ProfileContentService(
 
             if (manifest.ContentType.IsStandalone())
             {
-                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+                var standaloneAcquisition = await AcquireRequiredDependenciesAsync(
+                    [manifestId],
+                    [manifest],
+                    skipFoundationDependencies: true,
+                    cancellationToken);
+                if (standaloneAcquisition.Failed || standaloneAcquisition.Data == null)
+                {
+                    return ProfileOperationResult<GameProfile>.CreateFailure(
+                        standaloneAcquisition.FirstError ?? "A required dependency could not be acquired.");
+                }
+
+                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, standaloneAcquisition.Data);
                 return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, isStandalone: true, cancellationToken);
             }
 
@@ -1195,7 +1206,7 @@ public sealed class ProfileContentService(
         try
         {
             var enabledManifests = await LoadManifestsAsync(contentIds, cancellationToken);
-            var acquisition = await AcquireRequiredDependenciesAsync(requestedContentIds, enabledManifests, cancellationToken);
+            var acquisition = await AcquireRequiredDependenciesAsync(requestedContentIds, enabledManifests, skipFoundationDependencies: false, cancellationToken);
             if (acquisition.Failed || acquisition.Data == null)
             {
                 return OperationResult<ProfileContentResolution>.CreateFailure(
@@ -1310,10 +1321,12 @@ public sealed class ProfileContentService(
     /// before resolving the profile closure. The dependency resolver can only include manifests
     /// that are already present in the pool, so acquiring after resolution made transitive content
     /// such as Control Bar Pro Core invisible to the resolver and produced broken launch profiles.
+    /// A standalone profile runs without a game, so it skips game installation and client dependencies.
     /// </summary>
     private async Task<OperationResult<List<string>>> AcquireRequiredDependenciesAsync(
         IEnumerable<string> rootManifestIds,
         IReadOnlyCollection<ContentManifest> enabledManifests,
+        bool skipFoundationDependencies,
         CancellationToken cancellationToken)
     {
         var pendingIds = new Queue<string>(rootManifestIds);
@@ -1341,6 +1354,12 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
+                if (skipFoundationDependencies &&
+                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient)
+                {
+                    continue;
+                }
+
                 if (dependency.InstallBehavior == DependencyInstallBehavior.RequireExisting)
                 {
                     if (resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, enabledManifests))
