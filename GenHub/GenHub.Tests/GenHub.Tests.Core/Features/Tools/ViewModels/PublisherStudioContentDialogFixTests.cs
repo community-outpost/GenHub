@@ -20,6 +20,8 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// </summary>
 public sealed class PublisherStudioContentDialogFixTests : IDisposable
 {
+    private delegate bool TryGetStringCallback(string key, out string? result, object?[] arguments);
+
     private readonly string _tempDir = Path.Combine(Path.GetTempPath(), "GenHubContentDialogFix_" + Guid.NewGuid().ToString("N"));
 
     /// <summary>
@@ -400,6 +402,4 @@ public sealed class PublisherStudioContentDialogFixTests : IDisposable
 
         return node;
     }
-
-    private delegate bool TryGetStringCallback(string key, out string? result, object?[] arguments);
 }
