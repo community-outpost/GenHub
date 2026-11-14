@@ -55,27 +55,13 @@
                              TextTrimming="CharacterEllipsis" />
 
                   <!-- Close Button -->
-                  <Button Grid.Column="1"
+                  <Button Classes="icon-action" AutomationProperties.Name="{localization:Localize Common.Tooltip.CloseSidebar}" Grid.Column="1"
                           Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1"
-                          Width="26" Height="26"
-                          CornerRadius="6"
-                          Padding="0"
                           VerticalAlignment="Center"
                           HorizontalContentAlignment="Center"
                           VerticalContentAlignment="Center"
-                          Cursor="Hand"
                           ToolTip.Tip="{localization:Localize Common.Tooltip.CloseSidebar}">
-                    <Button.Styles>
-                      <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                      </Style>
-                    </Button.Styles>
-                    <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                              Width="9" Height="9" Foreground="{DynamicResource TextSecondary}"/>
+                    <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                   </Button>
                 </Grid>
 

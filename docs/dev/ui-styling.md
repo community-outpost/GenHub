@@ -225,7 +225,7 @@ owned by Avalonia. Do not copy the styles into a feature view.
 | Class | Use | Metrics |
 |---|---|---|
 | `action-primary` | Main action, usually one per form or dialog | Darker live accent; white ink; minimum 36px high; 16×8 padding |
-| `action-secondary` | Cancel, browse, retry, and other supporting actions | Elevated surface and subtle border; same metrics |
+| `action-secondary` | Cancel, browse, retry, and other supporting actions | Transparent surface and subtle border; same metrics |
 | `action-danger` | Delete or replace an existing item | Subtle red tint, red outline and pale red ink; same metrics |
 | `icon-action` | Utility actions with no visible caption | Transparent at rest; minimum 32×32 target; 16px glyph |
 | `action-compact` | Add to a text role in dense toolbars | Minimum 32px high; 12×6 padding; 12px type |
@@ -239,7 +239,10 @@ Use minimum sizes so translated labels can grow. Wrap long captions in a
 Do not override a role's background, foreground, font, padding, or interaction
 states locally. Layout properties such as alignment and margins stay with the
 consumer. Specialized split buttons form one capsule with square adjoining edges and shared
-`ToolActionBarStyles`; their foreground must match the adjoining action.
+`ToolActionBarStyles`. Put the gradient on a `Border.split-action` around both
+hit targets; the segments remain transparent at rest. Their hover/pressed
+overlays preserve the continuous gradient. Keep each target independently
+focusable and retain the arrow divider.
 
 ```xml
 <Button Classes="action-primary"
@@ -255,10 +258,11 @@ consumer. Specialized split buttons form one capsule with square adjoining edges
 
 Primary actions use `ActionOnAccentBrush` (white) on dedicated
 `ActionPrimaryRestBrush`, `ActionPrimaryHoverBrush` and
-`ActionPrimaryPressedBrush` shades. These action shades are separate from the
-brighter navigation accent. `ActionButtonPalette` derives readable opaque shades
-for each live palette and preserves the selected purple treatment. Tests verify
-at least 4.5:1 white-text contrast across every shipped palette and state.
+`ActionPrimaryPressedBrush` gradients. These action fills are separate from the
+brighter navigation accent. `ActionButtonPalette.CreateBrushes` derives restrained
+two-stop gradients for each live palette and preserves the selected purple
+treatment. Tests verify at least 4.5:1 white-text contrast at both stops and
+intermediate shades across every shipped palette and state.
 
 Secondary actions are transparent with restrained outlines and medium-weight
 labels. Destructive actions use a red tint and outline rather than a dominant
