@@ -1644,9 +1644,13 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         try
         {
             var cached = _cachedInstallations;
-            return cached != null
-                ? (true, FindCachedInstallation(cached, installationId))
-                : (false, FindCachedInstallation(_pendingManualInstallations, installationId));
+            if (cached != null)
+            {
+                return (true, FindCachedInstallation(cached, installationId));
+            }
+
+            var held = FindCachedInstallation(_pendingManualInstallations, installationId);
+            return (false, held != null && Directory.Exists(held.InstallationPath) ? held : null);
         }
         finally
         {
