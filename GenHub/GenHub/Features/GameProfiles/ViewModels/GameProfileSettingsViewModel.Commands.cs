@@ -637,19 +637,8 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var hasLaunchableContent = enabledItems.Any(c =>
-                c.ContentType == ContentType.GameInstallation ||
-                c.ContentType == ContentType.GameClient ||
-                c.ContentType == ContentType.Executable ||
-                c.ContentType == ContentType.ModdingTool);
-
-            if (!hasLaunchableContent)
+            if (!EnsureLaunchableContent(enabledItems))
             {
-                StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
-                _localNotificationService.ShowError(
-                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Title", "Missing Launchable Content"),
-                    _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Message", "Please enable a Game, Executable, or Tool before saving."));
-                _logger?.LogWarning("Profile save blocked: No launchable content enabled");
                 return;
             }
 
@@ -675,6 +664,11 @@ public partial class GameProfileSettingsViewModel
                 {
                     enabledContentIds = currentIds;
                     break;
+                }
+
+                if (!EnsureLaunchableContent(EnabledContent.Where(c => c.IsEnabled)))
+                {
+                    return;
                 }
 
                 enabledContentIds = currentIds;
@@ -703,6 +697,26 @@ public partial class GameProfileSettingsViewModel
         {
             IsSaving = false;
         }
+    }
+
+    private bool EnsureLaunchableContent(IEnumerable<ContentDisplayItem> enabledItems)
+    {
+        var hasLaunchableContent = enabledItems.Any(c =>
+            c.ContentType == ContentType.GameInstallation ||
+            c.ContentType == ContentType.GameClient ||
+            c.ContentType == ContentType.Executable ||
+            c.ContentType == ContentType.ModdingTool);
+
+        if (!hasLaunchableContent)
+        {
+            StatusMessage = "Error: A Game, Executable, or Tool must be enabled.";
+            _localNotificationService.ShowError(
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Title", "Missing Launchable Content"),
+                _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.MissingLaunchableContent.Message", "Please enable a Game, Executable, or Tool before saving."));
+            _logger?.LogWarning("Profile save blocked: No launchable content enabled");
+        }
+
+        return hasLaunchableContent;
     }
 
     /// <summary>
