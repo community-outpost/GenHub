@@ -1991,8 +1991,9 @@ public partial class GameProfileLauncherViewModel(
     /// <summary>
     /// Lets the user pick the game folder after a failed scan and creates profiles for it.
     /// </summary>
+    /// <param name="cancellationToken">Token that cancels setup for the chosen folder.</param>
     [RelayCommand]
-    private async Task ChooseGameFolderAsync()
+    private async Task ChooseGameFolderAsync(CancellationToken cancellationToken)
     {
         if (IsScanning)
         {
@@ -2016,17 +2017,13 @@ public partial class GameProfileLauncherViewModel(
             await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
 
             List<GameInstallation> installations = [installation];
-            var wizardResult = await setupWizardService.RunSetupWizardAsync(installations);
-            var profilesCreated = await ApplyInstallationWizardDecisionsAsync(installations, wizardResult);
-
-            StatusMessage = localizationService.GetString("GameProfiles.Status.ScanCompleteFound", installations.Count, profilesCreated);
-            if (profilesCreated > 0)
-            {
-                notificationService.ShowSuccess(
-                    localizationService["GameProfiles.Notification.ScanComplete.Title"],
-                    localizationService.GetString("GameProfiles.Notification.ScanComplete.Message", profilesCreated),
-                    autoDismissMs: NotificationDurations.VeryLong);
-            }
+            var wizardResult = await setupWizardService.RunSetupWizardAsync(installations, cancellationToken);
+            var (profilesCreated, failedComponentKeys, skippedInstallations) = await ApplyInstallationWizardDecisionsAsync(installations, wizardResult, cancellationToken);
+            await ReportSetupOutcomeAsync(installations, wizardResult, profilesCreated, failedComponentKeys, skippedInstallations, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

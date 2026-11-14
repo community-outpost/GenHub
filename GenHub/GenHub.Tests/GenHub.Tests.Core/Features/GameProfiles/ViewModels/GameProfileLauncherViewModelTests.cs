@@ -40,8 +40,6 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// </summary>
 public class GameProfileLauncherViewModelTests : IDisposable
 {
-    private readonly List<GameProfileLauncherViewModel> _initializedViewModels = [];
-
     private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
 
     /// <summary>
@@ -86,11 +84,13 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
             Installation.PopulateGameClients(clients);
 
+            IReadOnlyList<GameInstallation> detected = withClientlessInstallation
+                ? [Installation, new GameInstallation(Path.Combine("C:", "Empty"), GameInstallationType.Unknown, new Mock<ILogger<GameInstallation>>().Object)]
+                : [Installation];
             var installationService = new Mock<IGameInstallationService>();
             installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(withClientlessInstallation
-                    ? [Installation, new GameInstallation(Path.Combine("C:", "Empty"), GameInstallationType.Unknown, new Mock<ILogger<GameInstallation>>().Object)]
-                    : [Installation]));
+                .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(detected));
+            installationService.Setup(x => x.CachedInstallations).Returns(detected);
 
             var profiles = new List<GameProfile>();
             if (otherProfile != null)
@@ -168,6 +168,8 @@ public class GameProfileLauncherViewModelTests : IDisposable
             return ViewModel.ScanForGamesCommand.ExecuteAsync(null);
         }
     }
+
+    private readonly List<GameProfileLauncherViewModel> _initializedViewModels = [];
 
     /// <summary>
     /// Unregisters view models created by the scan state tests from the shared messenger, so profile
@@ -351,6 +353,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+        installationService.Setup(x => x.CachedInstallations).Returns(installations);
 
         var shortcutService = new Mock<IShortcutService>();
         var notificationService = new Mock<INotificationService>();
@@ -1055,6 +1058,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+        installationService.Setup(x => x.CachedInstallations).Returns(installations);
 
         var shortcutService = new Mock<IShortcutService>();
         var notificationService = new Mock<INotificationService>();
@@ -1129,6 +1133,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
 
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+        installationService.Setup(x => x.CachedInstallations).Returns(installations);
 
         var shortcutService = new Mock<IShortcutService>();
         var notificationService = new Mock<INotificationService>();
@@ -2497,8 +2502,11 @@ public class GameProfileLauncherViewModelTests : IDisposable
             n => n.ShowWarning("The game scan did not finish", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             detectionComplete ? Times.Never() : Times.Once());
         notifications.Verify(
-            n => n.ShowSuccess("Scan Complete", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            n => n.ShowWarning("No Profiles Created", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             detectionComplete ? Times.Once() : Times.Never());
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
         Assert.Equal(!detectionComplete, vm.ShouldShowScanFailure);
         Assert.Equal(
             detectionComplete ? InstallationScanOutcome.FoundInstallations : InstallationScanOutcome.NotScanned,
@@ -3116,6 +3124,16 @@ public class GameProfileLauncherViewModelTests : IDisposable
             CreateLocalizationService());
     }
 
+    private static Mock<IUserSettingsService> CreateSettingsService(UserSettings settings)
+    {
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(settings);
+        settingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply => Task.FromResult(apply(settings)));
+        return settingsService;
+    }
+
     private static byte[] HostNativeExecutableHeader() => OperatingSystem.IsLinux()
         ? [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]
         : [0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01];
@@ -3128,16 +3146,6 @@ public class GameProfileLauncherViewModelTests : IDisposable
         GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline,
         SuperHackersAction = GameClientConstants.WizardActionTypes.Decline,
     };
-
-    private static Mock<IUserSettingsService> CreateSettingsService(UserSettings settings)
-    {
-        var settingsService = new Mock<IUserSettingsService>();
-        settingsService.Setup(x => x.Get()).Returns(settings);
-        settingsService
-            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
-            .Returns<Func<UserSettings, bool>>(apply => Task.FromResult(apply(settings)));
-        return settingsService;
-    }
 
     private static ILocalizationService CreateLocalizationService()
     {
