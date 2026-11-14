@@ -1,5 +1,9 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Keep overlay scrollbars outside input borders and text. -->
+    <Style Selector="ScrollViewer.dialog-scroll">
+        <Setter Property="Padding" Value="0,0,12,0" />
+    </Style>
     <!-- Opt-in hierarchy for dialog content; native chrome and dense editor panes stay separate. -->
     <Style Selector="TextBlock.dialog-title">
         <Setter Property="FontSize" Value="{DynamicResource DialogTitleFontSize}" />

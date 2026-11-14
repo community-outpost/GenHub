@@ -20,7 +20,6 @@
         <Style Selector="Button.tab-icon-btn">
             <Setter Property="Width" Value="56" />
             <Setter Property="Height" Value="56" />
-            <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
@@ -34,12 +33,7 @@
             </Setter>
         </Style>
 
-        <Style Selector="Button.tab-icon-btn:pointerover">
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
-        </Style>
-
         <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>

@@ -168,7 +168,6 @@
         <Style Selector="Button.tab-icon-btn">
             <Setter Property="Width" Value="64" />
             <Setter Property="Height" Value="64" />
-            <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
@@ -182,12 +181,7 @@
 
         <Style Selector="Button.tab-icon-btn Panel > Border">
         </Style>
-        <Style Selector="Button.tab-icon-btn:pointerover" x:CompileBindings="False">
-            <Setter Property="RenderTransform" Value="translateY(-4px)" />
-        </Style>
-
         <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
