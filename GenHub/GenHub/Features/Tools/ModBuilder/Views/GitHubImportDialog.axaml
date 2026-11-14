@@ -29,14 +29,12 @@
     </ResourceDictionary>
   </Window.Resources>
 
-  <Grid RowDefinitions="Auto,*,Auto" Margin="18">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
     <!-- Header -->
-    <Grid Grid.Row="0" Margin="0,0,0,12"
+    <Grid Grid.Row="0" Margin="{DynamicResource DialogHeaderSpacing}"
           Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
       <StackPanel Spacing="4">
-        <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Header}"
-                   FontSize="17" FontWeight="Bold"
-                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.ModBuilder.GitHubImport.Header}"/>
         <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.Subtitle}"
                    FontSize="12" Foreground="{DynamicResource TextSecondary}"
                    TextWrapping="Wrap"/>

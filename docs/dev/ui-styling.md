@@ -289,6 +289,29 @@ labels. Destructive actions use a red tint and outline rather than a dominant
 solid red fill. Disabled actions mute both captions and glyphs. Keyboard focus
 retains its visible border; opacity or scaling is not the only state indicator.
 
+### Dialog hierarchy and layout
+
+Normal dialogs use `DialogPadding` (24px) around content and
+`DialogHeaderSpacing` (16px below the header). Keep exterior shadow margins
+separate from content padding. Use the opt-in roles from `DialogStyles.axaml`:
+
+| Class | Role |
+|---|---|
+| `dialog-title` | 20px semibold primary title, wrapping when translated |
+| `dialog-section` | 15px semibold section heading |
+| `dialog-label` | 13px semibold secondary field label |
+| `dialog-body` | 13px primary explanatory copy |
+| `dialog-hint` | 12px secondary supporting copy |
+| `dialog-error` | 12px wrapping semantic validation error |
+
+Use a header/body/footer grid. The body scrolls independently; validation and
+actions occupy real footer rows, with 12px between actions. Do not float framed
+button bars over the form or reserve arbitrary bottom padding to hide overlap.
+Constrained action captions must wrap within their targets. Small confirmation
+dialogs grow for translated titles while keeping long message bodies bounded
+and scrollable. Native title bars and dense editor workspaces remain separate
+component families rather than inheriting dialog content titles.
+
 ### Icons
 
 Use existing semantic geometry resources in `ThemeResources.axaml` for common

@@ -26,7 +26,7 @@
             BorderThickness="1"
             CornerRadius="16"
             BoxShadow="0 16 48 0 #80000000"
-            Padding="28">
+            Padding="{DynamicResource DialogPadding}">
         <Grid RowDefinitions="Auto,*,Auto">
             <!-- Header -->
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,20">
@@ -41,10 +41,7 @@
                               VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{localization:Localize Downloads.ImportSubscription.Title}"
-                               FontSize="18"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Classes="dialog-title" Text="{localization:Localize Downloads.ImportSubscription.Title}"/>
                     <TextBlock Text="{localization:Localize Downloads.ImportSubscription.Subtitle}"
                                FontSize="12"
                                Foreground="{DynamicResource TextMuted}"/>

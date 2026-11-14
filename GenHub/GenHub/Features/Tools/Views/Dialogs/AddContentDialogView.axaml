@@ -20,28 +20,13 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
-    <UserControl.Styles>
-
-        <Style Selector="TextBlock.label">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-        <Style Selector="TextBlock.hint">
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-    </UserControl.Styles>
-
-    <Grid RowDefinitions="Auto,*" Margin="20,14,20,14">
+    <Grid x:Name="DialogLayoutRoot" RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
-            <TextBlock Text="{Binding DialogTitle}"
-                       FontSize="18" FontWeight="Bold"
-                       Foreground="{DynamicResource TextPrimary}"/>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{Binding DialogTitle}"/>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    VerticalAlignment="Top"
+                    VerticalAlignment="Center"
                     AutomationProperties.Name="{localization:Localize Common.Button.Close}"
                     ToolTip.Tip="{localization:Localize Common.Button.Close}">
                 <PathIcon Data="{StaticResource CloseIcon}"/>
@@ -49,12 +34,12 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1">
-            <StackPanel Spacing="14" Margin="0,0,0,80">
+        <ScrollViewer x:Name="DialogBodyScroll" Grid.Row="1">
+            <StackPanel Spacing="14">
                 <!-- Name -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Name}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Name}" Classes="dialog-label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Classes="form-field" Text="{Binding ContentName}" Watermark="{localization:Localize Tools.PublisherStudio.Content.NamePlaceholder}"/>
@@ -67,29 +52,29 @@
                 <!-- ID -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Id}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Id}" Classes="dialog-label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Classes="form-field" Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
                              IsReadOnly="{Binding IsContentIdReadOnly}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IdHint}"
-                               Classes="hint"
+                               Classes="dialog-hint"
                                IsVisible="{Binding !IsUpstreamSource}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamIdHint}"
-                               Classes="hint"
+                               Classes="dialog-hint"
                                IsVisible="{Binding IsUpstreamSource}"/>
                 </StackPanel>
 
                 <!-- Type & Target -->
                 <Grid ColumnDefinitions="*,16,*">
                     <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Type}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Type}" Classes="dialog-label"/>
                         <ComboBox Classes="form-field" ItemsSource="{Binding AvailableContentTypes}"
                                   SelectedItem="{Binding SelectedContentType}"
                                   HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.TargetGame}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.TargetGame}" Classes="dialog-label"/>
                         <ComboBox Classes="form-field" ItemsSource="{Binding AvailableTargetGames}"
                                   SelectedItem="{Binding SelectedTargetGame}"
                                   HorizontalAlignment="Stretch"/>
@@ -98,11 +83,11 @@
 
                 <!-- Addon Parent Selection (only visible when ContentType is Addon) -->
                 <StackPanel Spacing="6" IsVisible="{Binding ShowAddonParentSelection}">
-                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsContent}" Classes="label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsContent}" Classes="dialog-label"/>
                     <TextBox Classes="form-field" Text="{Binding ExtendsContentId}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.ExtendsPlaceholder}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsHint}"
-                               Classes="hint"/>
+                               Classes="dialog-hint"/>
                 </StackPanel>
 
                 <!-- Featured + Upstream toggles -->
@@ -117,11 +102,11 @@
                                       IsChecked="{Binding IsFeatured}"
                                       FontWeight="SemiBold"/>
                             <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
                             </StackPanel>
                             <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedColor}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedColor}" Classes="dialog-label"/>
                                 <Button HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
                                         Padding="8,6"
@@ -182,7 +167,7 @@
                         IsVisible="{Binding IsBundleType}">
                     <StackPanel Spacing="8">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrix}" FontWeight="Bold" FontSize="14"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrixDesc}" Classes="hint"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BundleComponentMatrixDesc}" Classes="dialog-hint"/>
 
                         <ItemsControl ItemsSource="{Binding BundleComponentOptions}">
                             <ItemsControl.ItemTemplate>
@@ -197,9 +182,9 @@
                                             <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{Binding ContentTypeDisplay}" Classes="hint"/>
+                                                <TextBlock Text="{Binding ContentTypeDisplay}" Classes="dialog-hint"/>
                                             </StackPanel>
-                                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="hint" IsVisible="{Binding HasVariants}"/>
+                                            <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="dialog-hint" IsVisible="{Binding HasVariants}"/>
                                             <ComboBox Classes="form-field" Grid.Column="3"
                                                       ItemsSource="{Binding AvailableVariants}"
                                                       SelectedItem="{Binding SelectedVariant}"
@@ -223,30 +208,30 @@
                         IsVisible="{Binding IsUpstreamSource}">
                     <StackPanel Spacing="8">
                         <StackPanel Spacing="8">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="dialog-label"/>
                             <ComboBox Classes="form-field" ItemsSource="{Binding AvailableUpstreamProviders}"
                                       SelectedItem="{Binding SelectedUpstreamProvider}"
                                       HorizontalAlignment="Stretch"/>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamRepository}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepo}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepo}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding UpstreamRepository}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepoPlaceholder}"/>
                             </StackPanel>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamContentCode}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCode}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCode}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding UpstreamContentCode}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodeHint}"
-                                           Classes="hint"
+                                           Classes="dialog-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamChannel}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannel}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannel}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding UpstreamChannel}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannelPlaceholder}"/>
                             </StackPanel>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="dialog-label"/>
                                 <ComboBox Classes="form-field" ItemsSource="{Binding UpstreamVariantAxisSelector.Options}"
                                           SelectedItem="{Binding UpstreamVariantAxisSelector.SelectedOption}"
                                           HorizontalAlignment="Stretch">
@@ -276,7 +261,7 @@
                 <!-- Description -->
                 <StackPanel Spacing="6" Margin="0,0,0,4">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="dialog-label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <TextBox Classes="form-field" Text="{Binding Description}"
@@ -288,7 +273,7 @@
 
                 <!-- Tags -->
                 <StackPanel Spacing="6">
-                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Tags}" Classes="label"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Tags}" Classes="dialog-label"/>
                     <TextBox Classes="form-field" Text="{Binding TagsInput}" Watermark="{localization:Localize Tools.PublisherStudio.Content.TagsPlaceholder}"/>
                 </StackPanel>
 
@@ -303,49 +288,49 @@
                           HorizontalContentAlignment="Stretch">
                     <Expander.Header>
                         <StackPanel Spacing="2">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkTitle}" Classes="label"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkHint}" Classes="hint" TextWrapping="Wrap"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkTitle}" Classes="dialog-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkHint}" Classes="dialog-hint" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Expander.Header>
                     <StackPanel Spacing="12">
 
                         <!-- Icon -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IconArtwork}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IconArtwork}" Classes="dialog-label"/>
                             <commonControls:ImageInputBox Text="{Binding IconArtwork, Mode=TwoWay}"
                                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
                                                          FallbackIconData="{StaticResource ContentIcon}"
                                                          PreviewCornerRadius="6"
                                                          PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="dialog-hint"/>
                         </StackPanel>
 
                         <!-- Banner -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BannerArtwork}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BannerArtwork}" Classes="dialog-label"/>
                             <commonControls:ImageInputBox Text="{Binding BannerArtwork, Mode=TwoWay}"
                                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
                                                          FallbackIconData="{StaticResource ContentIcon}"
                                                          PreviewCornerRadius="6"
                                                          PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="dialog-hint"/>
                         </StackPanel>
 
                         <!-- Backdrop cover -->
                         <StackPanel Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BackdropArtwork}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.BackdropArtwork}" Classes="dialog-label"/>
                             <commonControls:ImageInputBox Text="{Binding BackdropArtwork, Mode=TwoWay}"
                                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.ArtworkUrlPlaceholder}"
                                                          FallbackIconData="{StaticResource ContentIcon}"
                                                          PreviewCornerRadius="6"
                                                          PreviewToolTip="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="hint"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ArtworkDropHint}" Classes="dialog-hint"/>
                         </StackPanel>
 
                         <!-- Accent color -->
                         <StackPanel Spacing="8">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColor}" Classes="label"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColorPresetsHint}" Classes="hint" TextWrapping="Wrap"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColor}" Classes="dialog-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.AccentColorPresetsHint}" Classes="dialog-hint" TextWrapping="Wrap"/>
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <Border Width="40" Height="40"
                                         CornerRadius="8"
@@ -394,7 +379,7 @@
 
                         <!-- Screenshots Section -->
                         <StackPanel Spacing="6" Margin="0,4,0,0">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Screenshots}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Screenshots}" Classes="dialog-label"/>
                             <Border x:Name="ContentMediaDropZone"
                                     IsVisible="{Binding !Screenshots.Count}"
                                     DragDrop.AllowDrop="True"
@@ -486,8 +471,8 @@
 
                         <!-- Videos Section -->
                         <StackPanel x:Name="VideoDropTarget" Spacing="6" Margin="0,4,0,0" DragDrop.AllowDrop="True">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoUrl}" Classes="label"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoDropHint}" Classes="hint"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoUrl}" Classes="dialog-label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.VideoDropHint}" Classes="dialog-hint"/>
                             <!-- Videos List -->
                             <ItemsControl ItemsSource="{Binding Videos}" IsVisible="{Binding Videos.Count}">
                                 <ItemsControl.ItemTemplate>
@@ -538,25 +523,25 @@
                           HorizontalContentAlignment="Stretch"
                           IsVisible="{Binding CanShowInitialRelease}">
                     <Expander.Header>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.InitialRelease}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.InitialRelease}" Classes="dialog-label"/>
                     </Expander.Header>
                     <StackPanel Spacing="12">
                         <StackPanel Spacing="12">
                             <!-- Version and Filename -->
                             <Grid ColumnDefinitions="*,16,*">
                                 <StackPanel Grid.Column="0" Spacing="4">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseVersion}" Classes="label"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseVersion}" Classes="dialog-label"/>
                                     <TextBox Classes="form-field" Text="{Binding InitialVersion}" Watermark="1.0.0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4" IsVisible="{Binding !IsMultiFileStaging}">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PackageFilename}" Classes="label"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PackageFilename}" Classes="dialog-label"/>
                                     <TextBox Classes="form-field" Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
                                 </StackPanel>
                             </Grid>
 
                             <!-- Changelog -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding ReleaseChangelog, Mode=TwoWay}"
                                          AcceptsReturn="True"
                                          Height="60"
@@ -565,7 +550,7 @@
 
                             <!-- Delivery Mode -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactDeliveryMode}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ArtifactDeliveryMode}" Classes="dialog-label"/>
                                 <StackPanel Orientation="Horizontal" Spacing="24">
                                     <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.SingleBundleOption}"
                                                  IsChecked="{Binding BundleArtifacts, Mode=TwoWay}"
@@ -574,7 +559,7 @@
                                                  IsChecked="{Binding IsVariantsMode, Mode=TwoWay}"
                                                  Foreground="{DynamicResource TextPrimary}"/>
                                 </StackPanel>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DeliveryModeHint}" Classes="hint" TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.DeliveryModeHint}" Classes="dialog-hint" TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Drop Zone for Initial Release -->
@@ -596,12 +581,12 @@
                             <!-- Explicit Artifacts Section -->
                             <StackPanel Spacing="6" Margin="0,4,0,0">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Artifacts}" Classes="label" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Artifacts}" Classes="dialog-label" VerticalAlignment="Center"/>
                                     <Button Classes="action-secondary" Grid.Column="1"
                                             Content="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}"
                                             Command="{Binding AddArtifactCommand}"/>
                                 </Grid>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ExplicitArtifactsHint}" Classes="hint" TextWrapping="Wrap"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ExplicitArtifactsHint}" Classes="dialog-hint" TextWrapping="Wrap"/>
                                 <ItemsControl ItemsSource="{Binding ReleaseArtifacts}" IsVisible="{Binding ReleaseArtifacts.Count}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -631,7 +616,7 @@
                             </StackPanel>
 
                             <!-- Hosting Mode Radio Buttons -->
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSource}" Classes="label" Margin="0,4,0,0"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSource}" Classes="dialog-label" Margin="0,4,0,0"/>
                             <StackPanel Orientation="Horizontal" Spacing="24">
                                 <RadioButton Content="{localization:Localize Tools.PublisherStudio.Content.DirectUrlOption}"
                                              IsChecked="{Binding UseDirectUrl, Mode=TwoWay}"
@@ -640,22 +625,22 @@
                                              IsChecked="{Binding !UseDirectUrl, Mode=TwoWay}"
                                              Foreground="{DynamicResource TextPrimary}"/>
                             </StackPanel>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSourceHint}" Classes="hint" TextWrapping="Wrap"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadSourceHint}" Classes="dialog-hint" TextWrapping="Wrap"/>
 
                             <!-- Direct URL Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}" Classes="label"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}" Classes="dialog-label"/>
                                 <TextBox Classes="form-field" Text="{Binding DownloadUrl, Mode=TwoWay}"
                                          AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}"
                                          Watermark="https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrlHint}" Classes="hint"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrlHint}" Classes="dialog-hint"/>
                             </StackPanel>
 
                             <!-- Local File Mode -->
                             <StackPanel Spacing="8" IsVisible="{Binding !UseDirectUrl}">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.LocalFileOrFolder}" Classes="label"/>
-                                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.DragDropHint}" Classes="hint" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.LocalFileOrFolder}" Classes="dialog-label"/>
+                                    <TextBlock Grid.Column="1" Text="{localization:Localize Tools.PublisherStudio.Content.DragDropHint}" Classes="dialog-hint" VerticalAlignment="Center"/>
                                 </Grid>
                                 <ItemsControl ItemsSource="{Binding StagedFiles}">
                                     <ItemsControl.ItemTemplate>
@@ -707,7 +692,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.NoFileSelected}"
-                                           Classes="hint"
+                                           Classes="dialog-hint"
                                            IsVisible="{Binding !HasStagedFiles}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Button Classes="action-secondary" Content="{localization:Localize Tools.PublisherStudio.Content.BrowseFiles}"
@@ -716,7 +701,7 @@
                                             Command="{Binding BrowseLocalFolderCommand}"/>
                                 </StackPanel>
                                 <TextBlock Text="{Binding MultiFileBundleNote}"
-                                           Classes="hint"
+                                           Classes="dialog-hint"
                                            TextWrapping="Wrap"
                                            IsVisible="{Binding IsMultiFileStaging}"/>
                                 <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsComputingHash}" Margin="0,4,0,0"/>
@@ -725,7 +710,7 @@
                             <!-- Release Dependencies -->
                             <StackPanel Spacing="6" Margin="0,4,0,0">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="dialog-label" VerticalAlignment="Center"/>
                                     <Button Classes="action-secondary" Grid.Column="1"
                                             Content="{localization:Localize Tools.PublisherStudio.Release.AddDependency}"
                                             Command="{Binding AddReleaseDependencyCommand}"/>
@@ -763,40 +748,14 @@
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Floating Validation Error Badge (Bottom Left) -->
-        <Border Grid.Row="1"
-                VerticalAlignment="Bottom"
-                HorizontalAlignment="Left"
-                Margin="0,0,0,8"
-                Padding="12,6"
-                Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
-                BorderBrush="{DynamicResource StatusErrorBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                MaxWidth="320"
-                IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                BoxShadow="{DynamicResource FlyoutElevationShadow}">
-            <TextBlock Text="{Binding ValidationError}"
-                       Foreground="{DynamicResource StatusErrorBrush}"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"
-                       FontSize="11"/>
-        </Border>
-
-        <!-- Floating Action Button Bar (Bottom Right) -->
-        <Border Grid.Row="1"
-                VerticalAlignment="Bottom"
-                HorizontalAlignment="Right"
-                Margin="0,0,0,8"
-                Padding="4"
-                Background="{DynamicResource CardBackground}"
-                BorderBrush="{DynamicResource GlassBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="10"
-                BoxShadow="{DynamicResource FlyoutElevationShadow}">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+        <!-- Validation and actions occupy their own row, outside the scrolling form. -->
+        <Grid x:Name="DialogFooter" Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Row="0" Classes="dialog-error"
+                       Text="{Binding ValidationError}"
+                       IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="-12,0,0,0">
                 <!-- Delete Button (Only in Edit Mode) -->
-                <Button Classes="action-danger" Command="{Binding DeleteContentCommand}"
+                <Button Margin="12,6,0,0" Classes="action-danger" Command="{Binding DeleteContentCommand}"
                         IsVisible="{Binding IsEditMode}"
                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteContentTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -806,9 +765,10 @@
                 </Button>
 
                 <!-- Save / Create Button -->
-                <Button Classes="action-primary" Content="{Binding SubmitButtonText}"
-                        Command="{Binding CreateContentCommand}"/>
-            </StackPanel>
-        </Border>
+                <Button Margin="12,6,0,0" Classes="action-primary" Command="{Binding CreateContentCommand}">
+                    <TextBlock Text="{Binding SubmitButtonText}" TextWrapping="Wrap" TextAlignment="Center"/>
+                </Button>
+            </WrapPanel>
+        </Grid>
     </Grid>
 </UserControl>

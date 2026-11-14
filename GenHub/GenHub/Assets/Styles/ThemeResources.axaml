@@ -248,6 +248,9 @@
     <!-- ==================================================================== -->
     <!-- 5. Component Dimensions and Radii                                    -->
     <!-- ==================================================================== -->
+    <Thickness x:Key="DialogPadding">24</Thickness>
+    <Thickness x:Key="DialogHeaderSpacing">0,0,0,16</Thickness>
+    <x:Double x:Key="DialogTitleFontSize">20</x:Double>
     <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
     <CornerRadius x:Key="InputCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
@@ -273,6 +276,7 @@
     <x:Double x:Key="FormCompactFontSize">12</x:Double>
     <Thickness x:Key="FormFieldPadding">10,8</Thickness>
     <Thickness x:Key="FormCompactPadding">8,6</Thickness>
+
     <!-- Shared navigation states: geometry remains specific to tabs, rows and icon choices. -->
     <SolidColorBrush x:Key="NavRestInk" Color="{DynamicResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="NavSelectedInk" Color="{DynamicResource TextPrimaryColor}" />

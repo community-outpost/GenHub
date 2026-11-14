@@ -8,31 +8,17 @@
              x:Class="GenHub.Features.Tools.Views.Dialogs.PublisherSetupWizardView"
              x:DataType="vm:PublisherSetupWizardViewModel">
 
-    <UserControl.Styles>
-
-        <Style Selector="TextBlock.label">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-        <Style Selector="TextBlock.hint">
-            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
-            <Setter Property="FontSize" Value="11"/>
-        </Style>
-
-    </UserControl.Styles>
-
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
             <StackPanel Spacing="4">
-                <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
-                <TextBlock Text="{Binding StepTitle}" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
+                <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" />
+                <TextBlock Classes="dialog-title" Text="{Binding StepTitle}"/>
             </StackPanel>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CancelCommand}"
-                    VerticalAlignment="Top"
+                    VerticalAlignment="Center"
                     AutomationProperties.Name="{localization:Localize Common.Button.Close}"
                     ToolTip.Tip="{localization:Localize Common.Button.Close}">
                 <PathIcon Data="{StaticResource CloseIcon}"/>
@@ -48,16 +34,16 @@
 
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherId}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherId}" Classes="dialog-label"/>
                             <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                         </StackPanel>
                         <TextBox Classes="form-field" Text="{Binding PublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder}"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdHint}" Classes="hint"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdHint}" Classes="dialog-hint"/>
                     </StackPanel>
 
                     <StackPanel Spacing="8">
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayName}" Classes="label"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayName}" Classes="dialog-label"/>
                             <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                         </StackPanel>
                         <TextBox Classes="form-field" Text="{Binding PublisherName}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder}"/>
@@ -69,12 +55,12 @@
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactInfo}" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
 
                     <StackPanel Spacing="8">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Website}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Website}" Classes="dialog-label"/>
                         <TextBox Classes="form-field" Text="{Binding WebsiteUrl}" Watermark="https://example.com"/>
                     </StackPanel>
 
                     <StackPanel Spacing="8">
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmail}" Classes="label"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmail}" Classes="dialog-label"/>
                         <TextBox Classes="form-field" Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
                     </StackPanel>
 
