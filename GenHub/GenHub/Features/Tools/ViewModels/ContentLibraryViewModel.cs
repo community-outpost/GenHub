@@ -312,9 +312,13 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets the localized catalog item count summary for the footer.
     /// </summary>
-    public string CatalogSummaryText => string.Format(
-        localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalog") ?? "{0} items in catalog",
-        ContentItems.Count);
+    public string CatalogSummaryText => ContentItems.Count == 1
+        ? string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalogOne") ?? "{0} item in catalog",
+            ContentItems.Count)
+        : string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalog") ?? "{0} items in catalog",
+            ContentItems.Count);
 
     /// <summary>
     /// Gets filtered content items based on the search query.
