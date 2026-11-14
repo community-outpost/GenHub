@@ -36,7 +36,7 @@
             <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
             <Setter Property="Padding" Value="4" />
             <Setter Property="MinHeight" Value="46" />
             <Setter Property="BoxShadow" Value="0 4 16 0 #20000000" />
@@ -44,7 +44,6 @@
 
         <!-- Pill tab button style -->
         <Style Selector="Button.pill-tab">
-            <Setter Property="CornerRadius" Value="20" />
             <Setter Property="Padding" Value="22,8" />
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Margin" Value="0" />

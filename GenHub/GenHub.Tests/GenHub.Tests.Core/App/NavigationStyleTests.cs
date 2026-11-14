@@ -55,6 +55,11 @@ public class NavigationStyleTests
 
             var role = family switch { "main" => "pill-tab", "studio" => "nav-pill", "profile" => "tab-icon-btn", _ => "sidebar-btn" };
             var button = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains(role));
+            if (family != "sidebar")
+            {
+                Assert.Equal((CornerRadius)Avalonia.Application.Current!.FindResource("ActionCornerRadius")!, button.CornerRadius);
+            }
+
             button.Command = new RelayCommand(() => { });
             button.IsEnabled = true;
             var presenter = button.GetVisualDescendants().OfType<ContentPresenter>().First();
