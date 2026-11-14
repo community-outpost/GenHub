@@ -937,7 +937,7 @@
     <value>تبحث عن Command &amp; Conquer Generals؟</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>تعذر العثور على تثبيت Command &amp; Conquer Generals و Zero Hour. تحتاج إلى نسخة مثبتة من اللعبة للعب. يمكنك شراء اللعبة رسميًا من Steam أو تطبيق EA.</value>
+    <value>لم يعثر GenHub على لعبة مثبتة. إذا كنت تملكها، فاختر مجلدها. وإلا يمكنك شراؤها من Steam أو تطبيق EA.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>شراء عبر Steam</value>
@@ -947,6 +947,36 @@
   </data>
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>فشل في فتح صفحة المتجر: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>دع GenHub يعثر على لعبتك</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>لم يفحص GenHub هذا الكمبيوتر بعد. ابدأ الفحص للعثور على Command &amp; Conquer Generals و Zero Hour وإعداد ملفات تعريف لهما.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>البحث عن الألعاب</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>لم يكتمل فحص اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>تعذر على GenHub فحص جميع المواقع. اختر مجلد اللعبة، أو أصلح مشكلة الوصول وأعد الفحص.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>اختيار مجلد اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>إعادة الفحص</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>تعذّر إعداد مجلد اللعبة المختار: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>فشل إعداد الألعاب التي تم العثور عليها: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>تعذّر البحث في بعض المواقع، لذلك استخدم GenHub مجلد اللعبة الذي اخترته. أصلح مشكلة الوصول ثم أعد الفحص للعثور على تثبيتات أخرى.</value>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>
@@ -18284,5 +18314,8 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>التفاصيل التقنية</value>
   </data>
 </root>

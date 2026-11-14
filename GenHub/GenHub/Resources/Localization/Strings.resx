@@ -937,7 +937,7 @@
     <value>Looking for Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Command &amp; Conquer Generals and Zero Hour could not be found. You need a valid installation of the game to play. You can purchase the game officially from Steam or the EA App.</value>
+    <value>GenHub could not find an installed game. If you already own it, choose its folder. Otherwise, you can buy it from Steam or the EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Buy on Steam</value>
@@ -947,6 +947,36 @@
   </data>
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>Failed to open store page: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>Let GenHub find your game</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>GenHub has not scanned this computer yet. Scan to find Command &amp; Conquer Generals and Zero Hour and set up profiles for them.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>Scan for Games</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>The game scan did not finish</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>GenHub could not check every location. Choose your game folder, or fix the access problem and scan again.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>Choose Game Folder</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>Scan Again</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>Could not set up the chosen game folder: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>Setting up the games that were found failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>Some locations could not be searched, so GenHub used the game folder you chose. Fix the access problem and scan again to find other installations.</value>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>No game installations found</value>
@@ -18343,5 +18373,8 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>Technical details</value>
   </data>
 </root>

@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -106,6 +107,50 @@ public sealed class GameClientProfileServiceTests
 
         Assert.True(result.Success, string.Join("; ", result.Errors));
         Assert.Equal(Path.Combine(InstallationPath, nativeName), _capturedRequest!.GameClient!.ExecutablePath);
+    }
+
+    /// <summary>
+    /// A game folder chosen while detection keeps failing must still reach publisher profile creation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateProfileFromManifestAsync_WithFolderChosenDuringDetectionFailure_UsesChosenInstallationAsync()
+    {
+        var detection = new Mock<IGameInstallationDetectionOrchestrator>();
+        detection
+            .Setup(d => d.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateFailure("Could not search /Users/test/Downloads because macOS denied access"));
+        using var installationService = new GenHub.Features.GameInstallations.GameInstallationService(
+            detection.Object,
+            new Mock<IGameClientDetectionOrchestrator>().Object,
+            NullLogger<GenHub.Features.GameInstallations.GameInstallationService>.Instance);
+        var folder = Directory.CreateTempSubdirectory("GenHubChosen_").FullName;
+        try
+        {
+            var chosen = new GameInstallation(folder, GameInstallationType.Retail, null)
+            {
+                HasZeroHour = true,
+                ZeroHourPath = folder,
+            };
+            Assert.True((await installationService.AddInstallationToCacheAsync(chosen)).Success);
+            var service = new GameClientProfileService(
+                _profileManagerMock.Object,
+                installationService,
+                _configServiceMock.Object,
+                _manifestPoolMock.Object,
+                NullLogger<GameClientProfileService>.Instance);
+            var nativeName = Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable);
+
+            var result = await service.CreateProfileFromManifestAsync(
+                CreateManifest(new ManifestFile { RelativePath = nativeName, IsExecutable = true }));
+
+            Assert.True(result.Success, string.Join("; ", result.Errors));
+            Assert.Equal(chosen.Id, _capturedRequest!.GameInstallationId);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
     }
 
     /// <summary>

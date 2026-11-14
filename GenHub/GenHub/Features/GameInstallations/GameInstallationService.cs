@@ -14,6 +14,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -44,6 +45,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     private const string GeneralsContentName = ManifestConstants.GeneralsContentName;
 
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly List<GameInstallation> _pendingManualInstallations = [];
+    private readonly ConcurrentDictionary<string, string> _mergedInstallationIds = new(StringComparer.Ordinal);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
     private bool _disposed = false;
 
@@ -66,16 +69,24 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         var initResult = await TryInitializeCacheAsync(cancellationToken);
         if (!initResult.Success)
         {
-            return OperationResult<GameInstallation>.CreateFailure(initResult.Errors[0]);
+            var (recovered, fallback) = await FindAfterFailedInitializationAsync(installationId, cancellationToken);
+            if (fallback != null)
+            {
+                return OperationResult<GameInstallation>.CreateSuccess(fallback);
+            }
+
+            return OperationResult<GameInstallation>.CreateFailure(recovered
+                ? $"Game installation with ID '{installationId}' not found."
+                : initResult.Errors[0]);
         }
 
-        if (_cachedInstallations == null)
+        var cached = _cachedInstallations;
+        if (cached == null)
         {
             return OperationResult<GameInstallation>.CreateFailure("Failed to detect game installations.");
         }
 
-        var installation = _cachedInstallations.FirstOrDefault(i => i.Id == installationId);
-
+        var installation = FindCachedInstallation(cached, installationId);
         if (installation == null)
         {
             return OperationResult<GameInstallation>.CreateFailure($"Game installation with ID '{installationId}' not found.");
@@ -96,6 +107,21 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             var initResult = await TryInitializeCacheAsync(cancellationToken);
             if (!initResult.Success && _cachedInstallations == null)
             {
+                var (recovered, available) = await GetInstallationsAfterFailedInitializationAsync(cancellationToken);
+                if (recovered)
+                {
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(available);
+                }
+
+                if (available.Count > 0)
+                {
+                    logger.LogWarning(
+                        "Detection is incomplete ({Error}); returning {Count} manually chosen installation(s)",
+                        initResult.Errors[0],
+                        available.Count);
+                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(available);
+                }
+
                 return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
             }
 
@@ -138,7 +164,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
             var initResult = await TryInitializeCacheAsync(cancellationToken);
             if (!initResult.Success && _cachedInstallations == null)
             {
-                return OperationResult<bool>.CreateFailure("Failed to initialize installation cache");
+                return await AddPendingManualInstallationAsync(installation, cancellationToken);
             }
 
             await _cacheLock.WaitAsync(cancellationToken);
@@ -157,6 +183,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                     logger.LogDebug(
                         "Installation already exists in cache: {Path}",
                         installation.InstallationPath);
+                    RecordInstallationAlias(installation.Id, existing.Id);
                     return OperationResult<bool>.CreateSuccess(true);
                 }
 
@@ -424,6 +451,27 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
     {
         Dispose(true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Lets an installation ID that lost a same-path merge keep resolving to the installation that won it.
+    /// Profiles store the ID they were created with, and the manual folder's manifests rebuild that ID on
+    /// every start, so the alias is recreated after a restart too.
+    /// </summary>
+    /// <param name="mergedId">The ID of the installation that was not cached.</param>
+    /// <param name="canonicalId">The ID of the cached installation at the same path.</param>
+    internal void RecordInstallationAlias(string mergedId, string canonicalId)
+    {
+        if (!string.Equals(mergedId, canonicalId, StringComparison.Ordinal))
+        {
+            _mergedInstallationIds[mergedId] = canonicalId;
+
+            // Keep callers of an earlier pending registration pointing at the recovered installation.
+            foreach (var alias in _mergedInstallationIds.Where(pair => pair.Value == mergedId))
+            {
+                _mergedInstallationIds[alias.Key] = canonicalId;
+            }
+        }
     }
 
     /// <summary>
@@ -1402,6 +1450,7 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
                         logger.LogDebug(
                             "[DIAGNOSTIC] Skipping manifest installation - path already exists from auto-detection: {Path}",
                             manifestInstall.InstallationPath);
+                        RecordInstallationAlias(manifestInstall.Id, existingByPath.Id);
                     }
                 }
             }
@@ -1492,6 +1541,8 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
 
             UpdateCustomInstallationDisplayNames(installations);
 
+            MergePendingManualInstallations(installations);
+
             Volatile.Write(ref _cachedInstallations, installations.AsReadOnly());
 
             logger.LogInformation(
@@ -1504,6 +1555,148 @@ IEnumerable<IGameClientIdentifier>? gameClientIdentifiers = null) : IGameInstall
         {
             _cacheLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Keeps a user-chosen installation while detection fails, so profiles can still be created for it.
+    /// </summary>
+    /// <param name="installation">The installation the user chose.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A successful result once the installation is held.</returns>
+    private async Task<OperationResult<bool>> AddPendingManualInstallationAsync(GameInstallation installation, CancellationToken cancellationToken)
+    {
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            var cached = _cachedInstallations;
+            if (cached != null)
+            {
+                // Detection recovered on another caller before this lock was taken.
+                var existing = cached.FirstOrDefault(i =>
+                    i.Id == installation.Id ||
+                    PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
+                if (existing == null)
+                {
+                    Volatile.Write(ref _cachedInstallations, cached.Append(installation).ToList().AsReadOnly());
+                }
+                else
+                {
+                    RecordInstallationAlias(installation.Id, existing.Id);
+                }
+
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            var existingPending = _pendingManualInstallations.FirstOrDefault(i =>
+                i.Id == installation.Id ||
+                PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
+            if (existingPending == null)
+            {
+                _pendingManualInstallations.Add(installation);
+                logger.LogInformation(
+                    "Detection failed; holding manually chosen installation at {Path} until detection succeeds",
+                    installation.InstallationPath);
+            }
+            else if (existingPending.Id == installation.Id)
+            {
+                // The same folder picked again: the new pick carries the current paths, clients and manifests.
+                _pendingManualInstallations[_pendingManualInstallations.IndexOf(existingPending)] = installation;
+            }
+            else
+            {
+                RecordInstallationAlias(installation.Id, existingPending.Id);
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Returns the installations to use after a failed initialization. Another caller may have
+    /// recovered detection meanwhile and moved held installations into the cache, so the live cache
+    /// is checked under the same lock before the held list.
+    /// </summary>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>Whether detection recovered, and the cached installations if so, otherwise the held ones whose folders still exist.</returns>
+    private async Task<(bool Recovered, IReadOnlyList<GameInstallation> Installations)> GetInstallationsAfterFailedInitializationAsync(CancellationToken cancellationToken)
+    {
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            var cached = _cachedInstallations;
+            return cached != null
+                ? (true, cached)
+                : (false, [.. _pendingManualInstallations.Where(p => Directory.Exists(p.InstallationPath))]);
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    private async Task<(bool Recovered, GameInstallation? Installation)> FindAfterFailedInitializationAsync(string installationId, CancellationToken cancellationToken)
+    {
+        await _cacheLock.WaitAsync(cancellationToken);
+        try
+        {
+            var cached = _cachedInstallations;
+            if (cached != null)
+            {
+                return (true, FindCachedInstallation(cached, installationId));
+            }
+
+            var held = FindCachedInstallation(_pendingManualInstallations, installationId);
+            return (false, held != null && Directory.Exists(held.InstallationPath) ? held : null);
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    private GameInstallation? FindCachedInstallation(IReadOnlyList<GameInstallation> cached, string installationId)
+    {
+        // Follow the alias chain one hop at a time, since any hop may be the ID this list holds.
+        // The walk is bounded by the number of aliases, so a cycle cannot loop forever.
+        var currentId = installationId;
+        var installation = cached.FirstOrDefault(i => i.Id == currentId);
+        var maxHops = _mergedInstallationIds.Count;
+        for (var hops = 0; installation == null && hops < maxHops && _mergedInstallationIds.TryGetValue(currentId, out var nextId); hops++)
+        {
+            currentId = nextId;
+            installation = cached.FirstOrDefault(i => i.Id == currentId);
+        }
+
+        return installation;
+    }
+
+    /// <summary>
+    /// Moves manually chosen installations held during a failed detection into the cache, then releases them.
+    /// When detection found the same folder under another ID, the held ID keeps resolving to it,
+    /// so profiles created while detection failed still find their installation.
+    /// Must be called under the cache lock.
+    /// </summary>
+    /// <param name="installations">The installations about to be cached.</param>
+    private void MergePendingManualInstallations(List<GameInstallation> installations)
+    {
+        foreach (var pending in _pendingManualInstallations.Where(p => Directory.Exists(p.InstallationPath)))
+        {
+            var samePath = installations.Find(i => PathHelper.AreSamePath(i.InstallationPath, pending.InstallationPath));
+            if (samePath == null)
+            {
+                installations.Add(pending);
+            }
+            else
+            {
+                RecordInstallationAlias(pending.Id, samePath.Id);
+            }
+        }
+
+        _pendingManualInstallations.Clear();
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
@@ -37,9 +38,25 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 /// <summary>
 /// Contains unit tests for <see cref="GameProfileLauncherViewModel"/>.
 /// </summary>
-public class GameProfileLauncherViewModelTests
+public class GameProfileLauncherViewModelTests : IDisposable
 {
+    private readonly List<GameProfileLauncherViewModel> _initializedViewModels = [];
+
     private delegate bool TryGetLocalizedString(string key, out string? value, object?[] arguments);
+
+    /// <summary>
+    /// Unregisters view models created by the scan state tests from the shared messenger, so profile
+    /// messages sent by other tests on background threads never reach them.
+    /// </summary>
+    public void Dispose()
+    {
+        foreach (var vm in _initializedViewModels)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(vm);
+        }
+
+        GC.SuppressFinalize(this);
+    }
 
     /// <summary>
     /// Verifies that the constructor initializes properties correctly.
@@ -1364,6 +1381,9 @@ public class GameProfileLauncherViewModelTests
         var toolItem = new GameProfileItemViewModel("tool-1", toolProfile, string.Empty, string.Empty);
         vm.Profiles.Add(toolItem);
         Assert.True(vm.HasNoProfiles);
+
+        vm.Profiles.Add(new AddProfileItemViewModel());
+        Assert.True(vm.HasNoProfiles);
     }
 
     /// <summary>
@@ -1388,31 +1408,514 @@ public class GameProfileLauncherViewModelTests
     }
 
     /// <summary>
-    /// Verifies that ShouldShowStorefrontBanner displays when no profiles exist or when no installations were detected.
+    /// Verifies that the storefront banner needs a completed empty scan and no playable profiles.
     /// </summary>
     [Fact]
-    public void ShouldShowStorefrontBanner_ShowsWhenNoProfilesOrNoDetectedInstallations()
+    public void ShouldShowStorefrontBanner_RequiresEmptyScanAndNoProfiles()
     {
         var vm = CreateViewModelWithMockDependencies();
         vm.HasLoadedProfilesSuccessfully = true;
 
-        // When HasNoProfiles is true (no profiles loaded)
         Assert.True(vm.HasNoProfiles);
-        Assert.True(vm.ShouldShowStorefrontBanner);
-
-        // When a profile exists
-        var profileItem = CreateProfileItem("Test Profile");
-        vm.Profiles.Add(profileItem);
-        Assert.False(vm.HasNoProfiles);
         Assert.False(vm.ShouldShowStorefrontBanner);
 
-        // When scan detected no installations, banner shows even if profiles exist
         vm.HasNoDetectedInstallations = true;
         Assert.True(vm.ShouldShowStorefrontBanner);
 
-        // When installations detected, banner hides
+        var profile = CreateProfileItem("Test Profile");
+        vm.Profiles.Add(profile);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+
+        vm.Profiles.Remove(profile);
+        Assert.True(vm.ShouldShowStorefrontBanner);
+
         vm.HasNoDetectedInstallations = false;
         Assert.False(vm.ShouldShowStorefrontBanner);
+    }
+
+    /// <summary>
+    /// A fresh install must prompt for a scan instead of telling the player the game is missing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_BeforeAnyScan_ShowsScanPromptInsteadOfStorefrontBannerAsync()
+    {
+        var settings = new UserSettings();
+        var vm = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+
+        await vm.InitializeAsync();
+
+        Assert.True(vm.HasLoadedProfilesSuccessfully);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.True(vm.ShouldShowScanPrompt);
+        Assert.False(vm.ShouldShowScanFailure);
+    }
+
+    /// <summary>
+    /// A completed scan that finds nothing shows the banner and remembers it for the next launch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenScanFindsNothing_ShowsBannerAndPersistsOutcomeAsync()
+    {
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(null);
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowStorefrontBanner);
+        Assert.False(vm.ShouldShowScanPrompt);
+        Assert.False(vm.ShouldShowScanFailure);
+        Assert.Equal(InstallationScanOutcome.FoundNothing, settings.LastInstallationScanOutcome);
+    }
+
+    /// <summary>
+    /// A failed scan shows the failure and the folder choice, never the purchase banner.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenScanFails_ShowsFailureInsteadOfBannerAsync()
+    {
+        const string reason = "Could not search /Users/test/Documents because macOS denied access";
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(reason));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, new Mock<ISetupWizardService>());
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.Equal(reason, vm.ScanFailureMessage);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.False(vm.ShouldShowScanPrompt);
+        Assert.True(vm.ChooseGameFolderCommand.CanExecute(null));
+        Assert.Equal(InstallationScanOutcome.NotScanned, settings.LastInstallationScanOutcome);
+        notifications.Verify(
+            n => n.ShowWarning("The game scan did not finish", reason, It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// An exception during detection is a failed scan, not an empty one.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenDetectionThrows_ShowsFailureInsteadOfBannerAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Disk unavailable"));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.Equal("Disk unavailable", vm.ScanFailureMessage);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+    }
+
+    /// <summary>
+    /// A later scan that succeeds clears the failure panel.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_AfterFailure_SuccessfulRescanClearsFailureAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .SetupSequence(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(null);
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+        Assert.True(vm.ShouldShowScanFailure);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ShouldShowScanFailure);
+        Assert.Equal(string.Empty, vm.ScanFailureMessage);
+        Assert.True(vm.ShouldShowStorefrontBanner);
+    }
+
+    /// <summary>
+    /// The scan outcome from a previous session decides what a returning player sees.
+    /// </summary>
+    /// <param name="outcome">The persisted outcome of the last completed scan.</param>
+    /// <param name="expectBanner">Whether the storefront banner is expected.</param>
+    /// <param name="expectPrompt">Whether the scan prompt is expected.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(InstallationScanOutcome.NotScanned, false, true)]
+    [InlineData(InstallationScanOutcome.FoundNothing, true, false)]
+    [InlineData(InstallationScanOutcome.FoundInstallations, false, false)]
+    public async Task InitializeAsync_RestoresPersistedScanOutcomeAsync(InstallationScanOutcome outcome, bool expectBanner, bool expectPrompt)
+    {
+        var settings = new UserSettings { LastInstallationScanOutcome = outcome };
+        var vm = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+
+        await vm.InitializeAsync();
+
+        Assert.Equal(expectBanner, vm.ShouldShowStorefrontBanner);
+        Assert.Equal(expectPrompt, vm.ShouldShowScanPrompt);
+        Assert.False(vm.ShouldShowScanFailure);
+    }
+
+    /// <summary>
+    /// A persisted empty outcome does not show the banner once the player has playable profiles.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_PersistedEmptyScanWithProfiles_HidesBannerAsync()
+    {
+        var settings = new UserSettings { LastInstallationScanOutcome = InstallationScanOutcome.FoundNothing };
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "p1", Name = "Zero Hour" }]));
+        var vm = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>(), profileManager);
+
+        await vm.InitializeAsync();
+
+        Assert.False(vm.HasNoProfiles);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.False(vm.ShouldShowScanPrompt);
+    }
+
+    /// <summary>
+    /// Choosing the game folder after a failed scan runs setup for that folder and clears the failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_AfterFailedScan_RunsSetupForChosenFolderAsync()
+    {
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        installationService
+            .Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var wizard = new Mock<ISetupWizardService>();
+        wizard
+            .Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult { Confirmed = false });
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard);
+        var chosen = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(chosen);
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        installationService.Verify(x => x.AddInstallationToCacheAsync(chosen, It.IsAny<CancellationToken>()), Times.Once);
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.Is<IEnumerable<GameInstallation>>(list => list.Single() == chosen), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.False(vm.ShouldShowScanFailure);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.False(vm.IsScanning);
+        Assert.Equal(InstallationScanOutcome.FoundInstallations, settings.LastInstallationScanOutcome);
+        notifications.Verify(
+            n => n.ShowInfo("Select Game Directory", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A chosen folder that could not be registered does not clear the failure or run setup.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_WhenRegistrationFails_KeepsFailureAsync()
+    {
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        installationService
+            .Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("cache unavailable"));
+        var wizard = new Mock<ISetupWizardService>();
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null));
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.Equal(InstallationScanOutcome.NotScanned, settings.LastInstallationScanOutcome);
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("cache unavailable")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// When the service already holds the chosen folder under another type, setup runs against that
+    /// installation so the offered client IDs exist on it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_WhenFolderIsHeldUnderAnotherType_RunsSetupForRegisteredInstallationAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        installationService
+            .Setup(x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        var chosen = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null);
+        var registered = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, null);
+        installationService
+            .Setup(x => x.GetInstallationAsync(chosen.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(registered));
+        var wizard = new Mock<ISetupWizardService>();
+        wizard
+            .Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult { Confirmed = false });
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), wizard);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(chosen);
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.Is<IEnumerable<GameInstallation>>(list => list.Single() == registered), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A chosen folder is accepted when it holds a Windows or native game executable, or only the retail archives.
+    /// </summary>
+    /// <param name="fileName">The file placed in the chosen folder.</param>
+    /// <param name="expectZeroHour">Whether Zero Hour is expected.</param>
+    /// <param name="expectGenerals">Whether Generals is expected.</param>
+    [Theory]
+    [InlineData("generalszh.exe", true, false)]
+    [InlineData("generalszh", true, false)]
+    [InlineData("GENERALSZH", true, false)]
+    [InlineData("generalsv", false, true)]
+    [InlineData("INIZH.big", true, false)]
+    public void CreateManualInstallation_AcceptsWindowsNativeAndArchiveOnlyFolders(string fileName, bool expectZeroHour, bool expectGenerals)
+    {
+        var folder = Directory.CreateTempSubdirectory("GenHubManual_").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Combine(folder, fileName), []);
+
+            var installation = GameProfileLauncherViewModel.CreateManualInstallation(folder, NullLogger.Instance);
+
+            Assert.NotNull(installation);
+            Assert.Equal(expectZeroHour ? folder : string.Empty, installation.ZeroHourPath ?? string.Empty);
+            Assert.Equal(expectGenerals ? folder : string.Empty, installation.GeneralsPath ?? string.Empty);
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// A chosen folder with no game executable and no retail archives is rejected.
+    /// </summary>
+    [Fact]
+    public void CreateManualInstallation_WithoutGameFiles_ReturnsNull()
+    {
+        var folder = Directory.CreateTempSubdirectory("GenHubManualEmpty_").FullName;
+        try
+        {
+            File.WriteAllBytes(Path.Combine(folder, "readme.txt"), []);
+
+            Assert.Null(GameProfileLauncherViewModel.CreateManualInstallation(folder, NullLogger.Instance));
+        }
+        finally
+        {
+            Directory.Delete(folder, true);
+        }
+    }
+
+    /// <summary>
+    /// Cancelling the folder picker keeps the failure visible.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_WhenPickerCancelled_KeepsFailureAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        var wizard = new Mock<ISetupWizardService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), wizard);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(null);
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Each scan state input raises the visibility property that depends on it.
+    /// </summary>
+    [Fact]
+    public void ScanStateChanges_RaiseVisibilityNotificationsPerInput()
+    {
+        var vm = CreateViewModelWithMockDependencies();
+        var raised = new HashSet<string>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName ?? string.Empty);
+
+        void AssertRaises(Action change, string expected)
+        {
+            raised.Clear();
+            change();
+            Assert.Contains(expected, raised);
+        }
+
+        AssertRaises(() => vm.HasLoadedProfilesSuccessfully = true, nameof(GameProfileLauncherViewModel.ShouldShowScanPrompt));
+        AssertRaises(() => vm.HasNoDetectedInstallations = true, nameof(GameProfileLauncherViewModel.ShouldShowStorefrontBanner));
+        AssertRaises(() => vm.HasCompletedScan = true, nameof(GameProfileLauncherViewModel.ShouldShowScanPrompt));
+        AssertRaises(() => vm.HasScanFailed = true, nameof(GameProfileLauncherViewModel.ShouldShowScanFailure));
+        AssertRaises(() => vm.IsScanning = true, nameof(GameProfileLauncherViewModel.ShouldShowScanFailure));
+        AssertRaises(() => vm.Profiles.Add(CreateProfileItem("Test Profile")), nameof(GameProfileLauncherViewModel.ShouldShowScanPrompt));
+    }
+
+    /// <summary>
+    /// A failed scan replaces an older empty result, so the buy banner does not return after a restart.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_FailureAfterEarlierEmptyScan_DoesNotRestoreBannerAsync()
+    {
+        var settings = new UserSettings { LastInstallationScanOutcome = InstallationScanOutcome.FoundNothing };
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        await vm.InitializeAsync();
+        Assert.True(vm.ShouldShowStorefrontBanner);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.Equal(InstallationScanOutcome.NotScanned, settings.LastInstallationScanOutcome);
+
+        var restarted = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(settings), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        await restarted.InitializeAsync();
+
+        Assert.False(restarted.ShouldShowStorefrontBanner);
+        Assert.True(restarted.ShouldShowScanPrompt);
+    }
+
+    /// <summary>
+    /// A wizard error after detection found the game is not reported as a failed scan.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ScanForGamesAsync_WhenWizardThrowsAfterDetection_DoesNotShowScanFailureAsync()
+    {
+        var settings = new UserSettings();
+        var detected = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([detected]));
+        installationService
+            .Setup(x => x.CachedInstallations)
+            .Returns([detected]);
+        var wizard = new Mock<ISetupWizardService>();
+        wizard
+            .Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Wizard failed"));
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard);
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ShouldShowScanFailure);
+        Assert.False(vm.ShouldShowStorefrontBanner);
+        Assert.Equal(InstallationScanOutcome.FoundInstallations, settings.LastInstallationScanOutcome);
+        notifications.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("Wizard failed")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A scan that only returns the folder chosen during a detection failure still runs setup, but stays
+    /// a failed scan so the recovery actions remain visible and nothing is saved as a completed scan.
+    /// </summary>
+    /// <param name="detectionComplete">Whether the installation cache was populated by a full detection.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ScanForGamesAsync_WithHeldInstallationOnly_KeepsScanFailedAsync(bool detectionComplete)
+    {
+        var settings = new UserSettings();
+        var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+        installationService
+            .Setup(x => x.CachedInstallations)
+            .Returns(detectionComplete ? [installation] : null);
+        var wizard = new Mock<ISetupWizardService>();
+        wizard
+            .Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult { Confirmed = false });
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard);
+        await vm.InitializeAsync();
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        notifications.Verify(
+            n => n.ShowWarning("The game scan did not finish", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            detectionComplete ? Times.Never() : Times.Once());
+        notifications.Verify(
+            n => n.ShowSuccess("Scan Complete", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            detectionComplete ? Times.Once() : Times.Never());
+        Assert.Equal(!detectionComplete, vm.ShouldShowScanFailure);
+        Assert.Equal(
+            detectionComplete ? InstallationScanOutcome.FoundInstallations : InstallationScanOutcome.NotScanned,
+            settings.LastInstallationScanOutcome);
     }
 
     /// <summary>
@@ -1658,7 +2161,7 @@ public class GameProfileLauncherViewModelTests
     [Fact]
     public async Task SelectedSortMode_RapidChanges_PersistsFinalSelectionAsync()
     {
-        var savedModes = new List<ProfileSortMode>();
+        var savedModes = new System.Collections.Concurrent.ConcurrentQueue<ProfileSortMode>();
         var settingsService = new Mock<IUserSettingsService>();
         settingsService.Setup(x => x.Get()).Returns(new UserSettings { ProfileSortMode = ProfileSortMode.LastPlayed });
         settingsService
@@ -1668,10 +2171,7 @@ public class GameProfileLauncherViewModelTests
                 var settings = new UserSettings();
                 if (apply(settings))
                 {
-                    lock (savedModes)
-                    {
-                        savedModes.Add(settings.ProfileSortMode);
-                    }
+                    savedModes.Enqueue(settings.ProfileSortMode);
                 }
             })
             .ReturnsAsync(true);
@@ -1695,29 +2195,21 @@ public class GameProfileLauncherViewModelTests
             CreateLocalizationService(),
             userSettingsService: settingsService.Object);
 
-        vm.SelectedSortMode = ProfileSortMode.Alphabetical;
-        vm.SelectedSortMode = ProfileSortMode.DateCreated;
-
-        for (var attempt = 0; attempt < 200; attempt++)
+        foreach (var mode in new[] { ProfileSortMode.Alphabetical, ProfileSortMode.DateCreated })
         {
-            lock (savedModes)
-            {
-                if (savedModes.Contains(ProfileSortMode.DateCreated))
-                {
-                    break;
-                }
-            }
+            vm.SelectedSortMode = mode;
+        }
 
+        for (var attempt = 0; attempt < 200 && !savedModes.Contains(ProfileSortMode.DateCreated); attempt++)
+        {
             await Task.Delay(20);
         }
 
         await Task.Delay(200);
 
-        lock (savedModes)
-        {
-            Assert.NotEmpty(savedModes);
-            Assert.Equal(ProfileSortMode.DateCreated, savedModes[^1]);
-        }
+        var persisted = savedModes.ToArray();
+        Assert.NotEmpty(persisted);
+        Assert.Equal(ProfileSortMode.DateCreated, persisted[^1]);
     }
 
     /// <summary>
@@ -2037,6 +2529,16 @@ public class GameProfileLauncherViewModelTests
             CreateLocalizationService());
     }
 
+    private static Mock<IUserSettingsService> CreateSettingsService(UserSettings settings)
+    {
+        var settingsService = new Mock<IUserSettingsService>();
+        settingsService.Setup(x => x.Get()).Returns(settings);
+        settingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply => Task.FromResult(apply(settings)));
+        return settingsService;
+    }
+
     private static ILocalizationService CreateLocalizationService()
     {
         var resourceManager = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GenHub.Common.Services.LocalizationService).Assembly);
@@ -2046,7 +2548,7 @@ public class GameProfileLauncherViewModelTests
             .Returns<string, object?[]>((key, args) =>
             {
                 var val = resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key;
-                return args != null && args.Length > 0 ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
+                return args is { Length: > 0 } ? string.Format(System.Globalization.CultureInfo.InvariantCulture, val, args) : val;
             });
         mock.Setup(m => m[It.IsAny<string>()])
             .Returns<string>(key => resourceManager.GetString(key, System.Globalization.CultureInfo.InvariantCulture) ?? key);
@@ -2118,5 +2620,48 @@ public class GameProfileLauncherViewModelTests
     private static GameProfileLauncherViewModel CreateViewModel()
     {
         return CreateViewModelWithMockDependencies();
+    }
+
+    private GameProfileLauncherViewModel CreateViewModelForScanState(
+        Mock<IGameInstallationService> installationService,
+        Mock<IUserSettingsService> settingsService,
+        Mock<INotificationService> notificationService,
+        Mock<ISetupWizardService> setupWizardService,
+        Mock<IGameProfileManager>? profileManager = null)
+    {
+        if (profileManager == null)
+        {
+            profileManager = new Mock<IGameProfileManager>();
+            profileManager
+                .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        }
+
+        var clientDetector = new Mock<IGameClientDetector>();
+        clientDetector
+            .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            profileManager.Object,
+            new Mock<IProfileLauncherFacade>().Object,
+            null!,
+            new Mock<IProfileEditorFacade>().Object,
+            new Mock<IConfigurationProviderService>().Object,
+            new Mock<IGameProcessManager>().Object,
+            new Mock<IShortcutService>().Object,
+            new Mock<IPublisherProfileOrchestrator>().Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            clientDetector.Object,
+            notificationService.Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance,
+            CreateLocalizationService(),
+            userSettingsService: settingsService.Object);
+        _initializedViewModels.Add(vm);
+        return vm;
     }
 }
