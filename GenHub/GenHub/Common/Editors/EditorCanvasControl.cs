@@ -154,6 +154,33 @@ public class EditorCanvasControl : ContentControl
         _scrollViewer.LayoutUpdated += OnScrollLayoutUpdated;
     }
 
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == ZoomProperty)
+        {
+            CoerceZoom();
+        }
+    }
+
+    private void CoerceZoom()
+    {
+        var zoom = Zoom;
+        var min = Math.Min(MinZoom, MaxZoom);
+        var max = Math.Max(MinZoom, MaxZoom);
+        if (!double.IsFinite(zoom) || zoom <= 0 || max <= 0 || !double.IsFinite(max) || min <= 0 || !double.IsFinite(min))
+        {
+            Zoom = EditorConstants.ZoomDefault;
+            return;
+        }
+
+        if (zoom < min || zoom > max)
+        {
+            Zoom = Math.Clamp(zoom, min, max);
+        }
+    }
+
     private void DetachScrollViewer()
     {
         if (_scrollViewer is null)
@@ -205,6 +232,7 @@ public class EditorCanvasControl : ContentControl
 
     private void OnScrollPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        e.Pointer.Capture(null);
         EndPan();
     }
 
@@ -241,11 +269,15 @@ public class EditorCanvasControl : ContentControl
             return;
         }
 
+        if (Zoom <= 0 || !double.IsFinite(Zoom))
+        {
+            Zoom = EditorConstants.ZoomDefault;
+        }
+
         double factor = e.Delta.Y > 0 ? WheelZoomFactor : 1.0 / WheelZoomFactor;
         double newZoom = Math.Clamp(Zoom * factor, MinZoom, MaxZoom);
-        if (Math.Abs(newZoom - Zoom) < 0.0001)
+        if (newZoom <= 0 || !double.IsFinite(newZoom) || Math.Abs(newZoom - Zoom) < 0.0001)
         {
-            e.Handled = true;
             return;
         }
 
@@ -257,7 +289,6 @@ public class EditorCanvasControl : ContentControl
         _pendingZoomScale = newZoom / Zoom;
         _pendingFrameOffset = null;
         Zoom = newZoom;
-        e.Handled = true;
     }
 
     private void OnScrollLayoutUpdated(object? sender, EventArgs e)

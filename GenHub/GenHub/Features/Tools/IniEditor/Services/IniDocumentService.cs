@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.IniEditor;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.IniEditor;
@@ -19,7 +20,7 @@ namespace GenHub.Features.Tools.IniEditor.Services;
 /// <summary>
 /// Service for parsing, writing, formatting, and validating Generals and Zero Hour INI documents.
 /// </summary>
-public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIniDocumentService
+public sealed class IniDocumentService(ILogger<IniDocumentService> logger, ILocalizationService localizationService) : IIniDocumentService
 {
     /// <summary>
     /// An open block and the indentation of its opening line.
@@ -52,11 +53,18 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
 
         if (errors.Count > 0)
         {
-            logger.LogWarning("Failed to parse INI {Source}: {Error}", sourcePath ?? "(memory)", errors[0]);
-            return OperationResult<IniDocument>.CreateFailure(errors, stopwatch.Elapsed);
+            document.ParseErrors.AddRange(errors);
+            logger.LogWarning(
+                "Parsed INI {Source} with {Count} recovered error(s): {Error}",
+                sourcePath ?? "(memory)",
+                errors.Count,
+                errors[0]);
+        }
+        else
+        {
+            logger.LogInformation("Parsed INI {Source} with {Count} blocks", sourcePath ?? "(memory)", document.Blocks.Count);
         }
 
-        logger.LogInformation("Parsed INI {Source} with {Count} blocks", sourcePath ?? "(memory)", document.Blocks.Count);
         return OperationResult<IniDocument>.CreateSuccess(document, stopwatch.Elapsed);
     }
 
@@ -140,6 +148,15 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return OperationResult<bool>.CreateFailure(parseResult.Errors, stopwatch.Elapsed);
         }
 
+        if (parseResult.Data.HasDiscardedContent)
+        {
+            logger.LogWarning("Refusing to format INI file {Path}: recovery discarded source lines", filePath);
+            return OperationResult<bool>.CreateFailure(
+                parseResult.Data.ParseErrors.Prepend(
+                    localizationService.GetString("Tools.IniEditor.Format.RefusedDiscardedContent")),
+                stopwatch.Elapsed);
+        }
+
         var canonical = WriteDocument(parseResult.Data);
         try
         {
@@ -166,6 +183,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         ArgumentNullException.ThrowIfNull(validatedTargetId);
         var stopwatch = Stopwatch.StartNew();
         var issues = new List<ValidationIssue>();
+
+        foreach (var parseError in document.ParseErrors)
+        {
+            issues.Add(new ValidationIssue(parseError, ValidationSeverity.Error, validatedTargetId)
+            {
+                IssueType = ValidationIssueType.CorruptedFile,
+            });
+        }
 
         if (document.Blocks.Count == 0 && document.GlobalFields.Count == 0)
         {
@@ -250,13 +275,36 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         IniConstants.ModuleKeys.All.Any(moduleKey => string.Equals(moduleKey, key, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Checks if a token represents a recognized block type or module key.
+    /// Checks if a token represents a recognized block type, module key, or
+    /// parameterized engine sub-block.
     /// </summary>
     /// <param name="token">The token to check.</param>
     /// <returns>True if the token is a recognized block or module keyword; otherwise, false.</returns>
     internal static bool IsBlockType(string token) =>
         IniConstants.BlockTypes.All.Any(blockType => string.Equals(blockType, token, StringComparison.OrdinalIgnoreCase)) ||
-        IsModuleKey(token);
+        IniConstants.SubBlockTypes.All.Any(subType => string.Equals(subType, token, StringComparison.OrdinalIgnoreCase)) ||
+        IsModuleKey(token) ||
+        IsChallengePersonaBlock(token) ||
+        IsRadiusCursorBlock(token);
+
+    /// <summary>
+    /// Checks if a token is a numbered challenge mode general persona block.
+    /// </summary>
+    /// <param name="token">The token to check.</param>
+    /// <returns>True for GeneralPersona followed by digits; otherwise, false.</returns>
+    internal static bool IsChallengePersonaBlock(string token) =>
+        token.StartsWith(IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix, StringComparison.OrdinalIgnoreCase) &&
+        token.Length > IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix.Length &&
+        token[IniConstants.SubBlockTypePatterns.GeneralPersonaPrefix.Length..].All(char.IsAsciiDigit);
+
+    /// <summary>
+    /// Checks if a token is an interface radius cursor block.
+    /// </summary>
+    /// <param name="token">The token to check.</param>
+    /// <returns>True for tokens ending in RadiusCursor with a non-empty stem; otherwise, false.</returns>
+    internal static bool IsRadiusCursorBlock(string token) =>
+        token.EndsWith(IniConstants.SubBlockTypePatterns.RadiusCursorSuffix, StringComparison.OrdinalIgnoreCase) &&
+        token.Length > IniConstants.SubBlockTypePatterns.RadiusCursorSuffix.Length;
 
     /// <summary>
     /// Calculates the number of leading spaces in a line.
@@ -266,40 +314,34 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     internal static int GetIndent(string raw)
     {
         var indent = 0;
-        while (indent < raw.Length && raw[indent] == ' ')
+        foreach (var c in raw)
         {
-            indent++;
+            if (c == ' ')
+            {
+                indent++;
+            }
+            else if (c == '\t')
+            {
+                indent += 4 - (indent % 4);
+            }
+            else
+            {
+                break;
+            }
         }
 
         return indent;
     }
 
     /// <summary>
-    /// Determines whether a line opens an indented module block.
+    /// Determines whether a <c>Key = Value</c> line opens a nested module block.
+    /// Only engine module slot keys open modules. Indentation alone never opens a
+    /// module: real-world map overrides use ragged alignment inside flat sections,
+    /// and treating an indent increase as nesting swallows the section <c>End</c>.
     /// </summary>
     /// <param name="key">The key of the current line.</param>
-    /// <param name="parentIndent">The indentation depth of the parent block.</param>
-    /// <param name="indent">The indentation depth of the current line.</param>
-    /// <param name="lines">The full set of lines in the document.</param>
-    /// <param name="index">The 0-based index of the current line.</param>
     /// <returns>True if the line opens a module block; otherwise, false.</returns>
-    internal static bool OpensModuleBlock(string key, int parentIndent, int indent, string[] lines, int index)
-    {
-        if (IsModuleKey(key))
-        {
-            return true;
-        }
-
-        if (indent <= parentIndent)
-        {
-            return false;
-        }
-
-        var next = FindNextSignificant(lines, index + 1);
-        return next != null &&
-            !string.Equals(next.Value.Text, IniConstants.BlockTags.End, StringComparison.OrdinalIgnoreCase) &&
-            next.Value.Indent > indent;
-    }
+    internal static bool OpensModuleBlock(string key) => IsModuleKey(key);
 
     private sealed record IniParseContext(
         string[] Lines,
@@ -313,11 +355,6 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         var raw = context.Lines[index];
         var lineNumber = index + 1;
         var (code, comment) = SplitComment(raw);
-        if (code.Contains('\t'))
-        {
-            context.Errors.Add($"Line {lineNumber}: Tab characters are not allowed in INI files.");
-            return;
-        }
 
         var line = code.Trim();
         if (line.Length == 0)
@@ -366,7 +403,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return;
         }
 
-        OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document);
+        OpenBlock(context, line, GetIndent(raw), lineNumber, comment);
     }
 
     private static void ParseBlockContentLine(
@@ -382,10 +419,28 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             return;
         }
 
-        var firstToken = line.Split(' ', 2)[0];
+        if (line.StartsWith(IniConstants.MapDirectives.RemoveModule, StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries);
+            var key = parts[0];
+            var value = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+            var field = new IniField(key, value, comment) { IsBare = true };
+            field.LeadingComments.AddRange(context.PendingComments);
+            context.PendingComments.Clear();
+            context.Stack.Peek().Block.Fields.Add(field);
+            return;
+        }
+
+        var firstToken = line.Split([' ', '\t'], 2, StringSplitOptions.RemoveEmptyEntries)[0];
+        if (IsParticleSystemReference(firstToken, context, lineNumber - 1, GetIndent(raw))
+            && TryAddWhitespaceField(line, comment, context.Stack, context.PendingComments))
+        {
+            return;
+        }
+
         if (IsBlockType(firstToken))
         {
-            OpenBlock(line, GetIndent(raw), lineNumber, comment, context.Stack, context.PendingComments, context.Document);
+            OpenBlock(context, line, GetIndent(raw), lineNumber, comment);
             return;
         }
 
@@ -403,7 +458,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         Stack<BlockFrame> stack,
         List<IniComment> pendingComments)
     {
-        var spaceIndex = line.IndexOf(' ');
+        var spaceIndex = line.IndexOfAny([' ', '\t']);
         if (spaceIndex <= 0)
         {
             return false;
@@ -435,6 +490,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (key.Length == 0)
         {
             context.Errors.Add($"Line {lineNumber}: Field is missing a key.");
+            context.Document.HasDiscardedContent = true;
             return;
         }
 
@@ -475,11 +531,12 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (key.Length == 0)
         {
             context.Errors.Add($"Line {lineNumber}: Field is missing a key.");
+            context.Document.HasDiscardedContent = true;
             return;
         }
 
         var indent = GetIndent(context.Lines[index]);
-        if (OpensModuleBlock(key, context.Stack.Peek().Indent, indent, context.Lines, index))
+        if (OpensModuleBlock(key) || OpensAnimationBlock(key, context, index, indent))
         {
             OpenModuleBlock(key, value, indent, lineNumber, comment, context.Stack, context.PendingComments);
             return;
@@ -491,18 +548,115 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         context.Stack.Peek().Block.Fields.Add(field);
     }
 
-    private static (string Text, int Indent)? FindNextSignificant(string[] lines, int start)
+    /// <summary>
+    /// Determines whether an <c>Animation = Name</c> line opens a nested animation
+    /// sub-block. Animation lines are only structural inside AnimationState and
+    /// TransitionState parents that continue with animation block fields; everywhere
+    /// else (notably ConditionState modules) they stay plain fields.
+    /// </summary>
+    /// <param name="key">The key of the current line.</param>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="index">The zero-based index of the current line.</param>
+    /// <param name="indent">The indentation of the current line.</param>
+    /// <returns>True if the line opens an animation sub-block; otherwise, false.</returns>
+    private static bool OpensAnimationBlock(string key, IniParseContext context, int index, int indent)
     {
-        for (var i = start; i < lines.Length; i++)
+        if (!string.Equals(key, IniConstants.ModuleKeys.Animation, StringComparison.OrdinalIgnoreCase))
         {
-            var (code, _) = SplitComment(lines[i]);
-            var text = code.Trim();
-            if (text.Length == 0 || text.StartsWith('#'))
+            return false;
+        }
+
+        if (context.Stack.Count == 0)
+        {
+            return false;
+        }
+
+        var parentType = context.Stack.Peek().Block.BlockType;
+        var isAnimationParent =
+            string.Equals(parentType, IniConstants.ModuleKeys.AnimationState, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(parentType, IniConstants.ModuleKeys.TransitionState, StringComparison.OrdinalIgnoreCase);
+        if (!isAnimationParent)
+        {
+            return false;
+        }
+
+        return HasAnimationBlockFields(context.Lines, index, indent);
+    }
+
+    /// <summary>
+    /// Determines whether a bare <c>ParticleSystem Name</c> line references an
+    /// emitter instead of opening a nested definition. Effect lists carry their
+    /// emitters as bare references with no closing <c>End</c>; only a line that
+    /// continues with deeper-indented <c>Key = Value</c> content opens a block.
+    /// </summary>
+    /// <param name="firstToken">The first token of the current line.</param>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="index">The zero-based index of the current line.</param>
+    /// <param name="indent">The indentation of the current line.</param>
+    /// <returns>True when the line is an emitter reference; otherwise, false.</returns>
+    private static bool IsParticleSystemReference(string firstToken, IniParseContext context, int index, int indent)
+    {
+        if (!string.Equals(firstToken, IniConstants.SubBlockTypes.ParticleSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return FindNestedContentKey(context.Lines, index, indent) == null;
+    }
+
+    /// <summary>
+    /// Looks ahead past blank lines and comments to decide whether an Animation
+    /// line heads a nested sub-block: the next significant line must be deeper
+    /// indented and carry an animation block field key.
+    /// </summary>
+    /// <param name="lines">All document lines.</param>
+    /// <param name="index">The zero-based index of the Animation line.</param>
+    /// <param name="indent">The indentation of the Animation line.</param>
+    /// <returns>True when a nested animation sub-block follows; otherwise, false.</returns>
+    private static bool HasAnimationBlockFields(string[] lines, int index, int indent)
+    {
+        var nextKey = FindNestedContentKey(lines, index, indent);
+        return nextKey != null && IniConstants.AnimationBlockFields.All.Any(field =>
+            string.Equals(field, nextKey, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Finds the key of the first deeper-indented <c>Key = Value</c> line after
+    /// the given index, stopping at <c>End</c>, dedent, or content without a
+    /// separator.
+    /// </summary>
+    /// <param name="lines">All document lines.</param>
+    /// <param name="index">The zero-based index of the anchor line.</param>
+    /// <param name="indent">The indentation of the anchor line.</param>
+    /// <returns>The nested content key, or null when no nested fields follow.</returns>
+    private static string? FindNestedContentKey(string[] lines, int index, int indent)
+    {
+        for (var j = index + 1; j < lines.Length; j++)
+        {
+            var (code, _) = SplitComment(lines[j]);
+            var candidate = code.Trim();
+            if (candidate.Length == 0 || candidate.StartsWith('#'))
             {
                 continue;
             }
 
-            return (text, GetIndent(lines[i]));
+            if (string.Equals(candidate, IniConstants.BlockTags.End, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (GetIndent(lines[j]) <= indent)
+            {
+                return null;
+            }
+
+            var separatorIndex = candidate.IndexOf(IniConstants.Syntax.KeyValueSeparator);
+            if (separatorIndex < 0)
+            {
+                return null;
+            }
+
+            return candidate[..separatorIndex].Trim();
         }
 
         return null;
@@ -539,6 +693,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         if (stack.Count == 0)
         {
             errors.Add($"Line {lineNumber}: Unexpected 'End' without an open block.");
+            document.HasDiscardedContent = true;
             return;
         }
 
@@ -556,15 +711,14 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     }
 
     private static void OpenBlock(
+        IniParseContext context,
         string line,
         int indent,
         int lineNumber,
-        string? comment,
-        Stack<BlockFrame> stack,
-        List<IniComment> pendingComments,
-        IniDocument document)
+        string? comment)
     {
-        var tokens = line.Split([' '], StringSplitOptions.RemoveEmptyEntries);
+        var tokens = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
+        ReportAmbiguousNesting(context, lineNumber, tokens[0]);
         var block = new IniBlock
         {
             BlockType = tokens[0],
@@ -572,14 +726,36 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
             TrailingComment = comment,
             LineNumber = lineNumber,
         };
-        block.LeadingComments.AddRange(pendingComments);
-        pendingComments.Clear();
-        if (stack.Count == 0 && document.Blocks.Count == 0)
+        block.LeadingComments.AddRange(context.PendingComments);
+        context.PendingComments.Clear();
+        if (context.Stack.Count == 0 && context.Document.Blocks.Count == 0)
         {
-            DrainDocumentHeader(document, block);
+            DrainDocumentHeader(context.Document, block);
         }
 
-        stack.Push(new BlockFrame(block, indent));
+        context.Stack.Push(new BlockFrame(block, indent));
+    }
+
+    /// <summary>
+    /// Flags a block header that repeats an ancestor's type. Same-type blocks never
+    /// nest legitimately, so this shape means a sibling boundary was lost to a
+    /// missing <c>End</c> and serializing would bake in the wrong nesting.
+    /// </summary>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="lineNumber">The 1-based line number of the new header.</param>
+    /// <param name="blockType">The block type being opened.</param>
+    private static void ReportAmbiguousNesting(
+        IniParseContext context,
+        int lineNumber,
+        string blockType)
+    {
+        var conflictingFrame = context.Stack.FirstOrDefault(frame =>
+            string.Equals(frame.Block.BlockType, blockType, StringComparison.OrdinalIgnoreCase));
+        if (conflictingFrame is not null)
+        {
+            context.Errors.Add($"Line {lineNumber}: Block '{blockType}' opens inside unclosed '{conflictingFrame.Block.DisplayHeader}' (missing 'End'?).");
+            context.Document.HasDiscardedContent = true;
+        }
     }
 
     private static void DrainDocumentHeader(IniDocument document, IniBlock block)
@@ -674,8 +850,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         foreach (var field in block.Fields)
         {
             WriteComments(builder, field.LeadingComments, indent + 1);
-            var fieldText = field.IsBare ? field.Key : $"{field.Key} = {field.Value}";
-            AppendLine(builder, indent + 1, AppendTrailingComment(fieldText, field.TrailingComment));
+            AppendLine(builder, indent + 1, AppendTrailingComment(FormatFieldText(field), field.TrailingComment));
         }
 
         foreach (var child in block.Children)
@@ -705,6 +880,17 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
     private static string AppendTrailingComment(string code, string? comment)
     {
         return comment == null ? code : $"{code} ; {comment}";
+    }
+
+    private static string FormatFieldText(IniField field)
+    {
+        if (!field.IsBare &&
+            !string.Equals(field.Key, IniConstants.MapDirectives.RemoveModule, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{field.Key} = {field.Value}";
+        }
+
+        return string.IsNullOrEmpty(field.Value) ? field.Key : $"{field.Key} {field.Value}";
     }
 
     private static void AppendLine(StringBuilder builder, int indent, string text)
@@ -746,9 +932,8 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
 
     private (string Content, Encoding Encoding) DecodeContent(byte[] bytes, string filePath)
     {
-        var hasBom = bytes.Length >= Utf8Bom.Length &&
-            bytes[0] == Utf8Bom[0] && bytes[1] == Utf8Bom[1] && bytes[2] == Utf8Bom[2];
         var contentBytes = StripUtf8Bom(bytes);
+        var hasBom = contentBytes.Length != bytes.Length;
         try
         {
             var encoding = new UTF8Encoding(hasBom, throwOnInvalidBytes: true);
@@ -757,7 +942,7 @@ public sealed class IniDocumentService(ILogger<IniDocumentService> logger) : IIn
         catch (DecoderFallbackException ex)
         {
             logger.LogWarning(ex, "File {Path} is not valid UTF-8; decoding as single byte ANSI text", filePath);
-            return (Encoding.Latin1.GetString(contentBytes).TrimStart('\uFEFF'), Encoding.Latin1);
+            return (Encoding.Latin1.GetString(contentBytes), Encoding.Latin1);
         }
     }
 }

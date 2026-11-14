@@ -1,5 +1,7 @@
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.Tools.IniEditor;
+using GenHub.Core.Interfaces.Tools.ModelViewer;
+using GenHub.Core.Services.Tools.ModelViewer;
 using GenHub.Features.Tools.IniEditor;
 using GenHub.Features.Tools.IniEditor.Services;
 using GenHub.Features.Tools.IniEditor.ViewModels;
@@ -22,6 +24,8 @@ public static class IniEditorModule
         services.AddSingleton<IIniDocumentService, IniDocumentService>();
         services.AddSingleton<IIniSchemaService, IniSchemaService>();
         services.AddSingleton<IIniReferenceService, IniReferenceService>();
+        services.AddSingleton<IW3dParser, W3dParser>();
+        services.AddSingleton<IW3dModelResolver, W3dModelResolver>();
         services.AddTransient<IniEditorViewModel>();
         services.AddSingleton<IToolPlugin, IniEditorToolPlugin>();
 

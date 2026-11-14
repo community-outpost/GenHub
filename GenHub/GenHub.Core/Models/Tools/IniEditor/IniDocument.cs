@@ -40,4 +40,27 @@ public sealed class IniDocument
     /// Gets full line comments written after the last block.
     /// </summary>
     public List<IniComment> TrailingComments { get; } = [];
+
+    /// <summary>
+    /// Gets non-fatal parse diagnostics collected while reading the source text
+    /// (missing <c>End</c> markers, unexpected <c>End</c> lines, fields without keys).
+    /// The parser recovers from these so editors can open and repair real-world
+    /// files such as map overrides instead of refusing to open them.
+    /// </summary>
+    public List<string> ParseErrors { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether the parser recovered from any content errors.
+    /// </summary>
+    public bool HasParseErrors => ParseErrors.Count > 0;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether recovery discarded source lines
+    /// (keyless fields, unexpected <c>End</c> markers) or repaired a missing
+    /// <c>End</c> ambiguously. Serializing such a document would silently drop
+    /// content or bake in the wrong block nesting, so format and save paths must
+    /// refuse until the parse errors are resolved. Missing-<c>End</c> repairs
+    /// that only append markers never set this flag.
+    /// </summary>
+    public bool HasDiscardedContent { get; set; }
 }
