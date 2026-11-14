@@ -266,10 +266,22 @@
     <Thickness x:Key="ActionCompactPadding">12,6</Thickness>
     <!-- Selected pill treatment: dedicated action shades do not change navigation accents. -->
     <CornerRadius x:Key="ActionCornerRadius">999</CornerRadius>
+    <SolidColorBrush x:Key="SplitActionHoverBrush" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="SplitActionPressedBrush" Color="#20000000" />
+    <SolidColorBrush x:Key="SplitActionDividerBrush" Color="#28FFFFFF" />
 
-    <SolidColorBrush x:Key="ActionPrimaryRestBrush" Color="#7540B8" />
-    <SolidColorBrush x:Key="ActionPrimaryHoverBrush" Color="#8651C9" />
-    <SolidColorBrush x:Key="ActionPrimaryPressedBrush" Color="#65339F" />
+    <LinearGradientBrush x:Key="ActionPrimaryRestBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8241CF" Offset="0" />
+        <GradientStop Color="#6930B3" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8651C9" Offset="0" />
+        <GradientStop Color="#7540B8" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryPressedBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#7135BC" Offset="0" />
+        <GradientStop Color="#592696" Offset="1" />
+    </LinearGradientBrush>
     <SolidColorBrush x:Key="ActionOnAccentBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ActionSecondaryRest" Color="Transparent" />
     <SolidColorBrush x:Key="ActionSecondaryHover" Color="#1B1A25" />

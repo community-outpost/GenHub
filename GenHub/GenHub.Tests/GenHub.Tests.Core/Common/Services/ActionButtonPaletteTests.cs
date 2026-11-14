@@ -71,12 +71,12 @@ public class ActionButtonPaletteTests
             {
                 service.ApplyTheme(preset with { Id = "custom-preview" });
                 Dispatcher.UIThread.RunJobs();
-                var expected = ActionButtonPalette.Create(Color.Parse(preset.PrimaryHex));
-                Assert.Equal(expected.Rest, BrushColor(application.FindResource("ActionPrimaryRestBrush")));
-                Assert.Equal(expected.Hover, BrushColor(application.FindResource("ActionPrimaryHoverBrush")));
-                Assert.Equal(expected.Pressed, BrushColor(application.FindResource("ActionPrimaryPressedBrush")));
+                var expected = ActionButtonPalette.CreateBrushes(Color.Parse(preset.PrimaryHex));
+                AssertGradientEqual(expected.Normal, application.FindResource("ActionPrimaryRestBrush"));
+                AssertGradientEqual(expected.Hover, application.FindResource("ActionPrimaryHoverBrush"));
+                AssertGradientEqual(expected.Pressed, application.FindResource("ActionPrimaryPressedBrush"));
                 Assert.Equal(Color.Parse(preset.PrimaryHex), BrushColor(application.FindResource("AccentBrush")));
-                Assert.Equal(expected.Rest, BrushColor(button.Background));
+                AssertGradientEqual(expected.Normal, button.Background);
                 Assert.Equal(Colors.White, BrushColor(icon.Foreground));
             }
         }
@@ -93,6 +93,35 @@ public class ActionButtonPaletteTests
                 application.Resources[entry.Key] = entry.Value;
             }
         }
+    }
+
+    /// <summary>Every actual gradient stop and intermediate shade keeps white labels readable.</summary>
+    /// <param name="accentHex">The theme accent.</param>
+    [Theory]
+    [MemberData(nameof(AccentColors))]
+    public void CreateBrushes_GradientsKeepReadableWhiteInk(string accentHex)
+    {
+        var palette = ActionButtonPalette.CreateBrushes(Color.Parse(accentHex));
+        foreach (var brush in new[] { palette.Normal, palette.Hover, palette.Pressed })
+        {
+            var gradient = Assert.IsAssignableFrom<ILinearGradientBrush>(brush);
+            Assert.Equal(2, gradient.GradientStops.Count);
+            var from = gradient.GradientStops[0].Color;
+            var to = gradient.GradientStops[1].Color;
+            for (var sample = 0; sample <= 10; sample++)
+            {
+                var t = sample / 10.0;
+                var color = Color.FromRgb((byte)(from.R + ((to.R - from.R) * t)), (byte)(from.G + ((to.G - from.G) * t)), (byte)(from.B + ((to.B - from.B) * t)));
+                Assert.True(WhiteContrast(color) >= 4.5, $"{accentHex}: gradient sample {sample} has insufficient white contrast.");
+            }
+        }
+    }
+
+    private static void AssertGradientEqual(IBrush expected, object? actual)
+    {
+        var expectedGradient = Assert.IsAssignableFrom<ILinearGradientBrush>(expected);
+        var actualGradient = Assert.IsAssignableFrom<ILinearGradientBrush>(actual);
+        Assert.Equal(expectedGradient.GradientStops.Select(stop => (stop.Color, stop.Offset)), actualGradient.GradientStops.Select(stop => (stop.Color, stop.Offset)));
     }
 
     private static Color BrushColor(object? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;

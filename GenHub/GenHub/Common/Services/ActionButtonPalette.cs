@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Media;
 using GenHub.Core.Constants;
 using System;
@@ -24,6 +25,32 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
 
         return new(CreateFill(accent, 6.2, 0.82), CreateFill(accent, 5.2, 1.0), CreateFill(accent, 7.5, 0.68));
     }
+
+    /// <summary>Creates shared gradient fills with readable white ink for every interaction state.</summary>
+    /// <param name="accent">The navigation accent used to derive the action hue.</param>
+    /// <returns>The resting, pointer-over and pressed gradients.</returns>
+    public static (IBrush Normal, IBrush Hover, IBrush Pressed) CreateBrushes(Color accent)
+    {
+        var palette = Create(accent);
+        var defaultAccent = Color.Parse(ThemeConstants.DefaultTheme.PrimaryHex);
+        if (accent.R == defaultAccent.R && accent.G == defaultAccent.G && accent.B == defaultAccent.B)
+        {
+            return (
+                Gradient(Color.Parse("#8241CF"), Color.Parse("#6930B3")),
+                Gradient(Color.Parse("#8651C9"), Color.Parse("#7540B8")),
+                Gradient(Color.Parse("#7135BC"), Color.Parse("#592696")));
+        }
+
+        var deeper = Color.FromRgb((byte)(palette.Pressed.R * 0.85), (byte)(palette.Pressed.G * 0.85), (byte)(palette.Pressed.B * 0.85));
+        return (Gradient(palette.Rest, palette.Pressed), Gradient(palette.Hover, palette.Rest), Gradient(palette.Pressed, deeper));
+    }
+
+    private static IBrush Gradient(Color start, Color end) => new LinearGradientBrush
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative),
+        GradientStops = { new GradientStop(start, 0), new GradientStop(end, 1) },
+    };
 
     private static Color CreateFill(Color accent, double minimumContrast, double maximumScale)
     {

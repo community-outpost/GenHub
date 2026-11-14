@@ -88,3 +88,35 @@ implicit in this plan. Re-check current base and active PRs immediately before
 publication; preserve concurrent functional changes when rebasing. Generic
 Message overlaps dependency-validation PRs; launcher/card/wizard and Studio work
 also have active owners. Never edit those other worktrees as part of this rollout.
+
+## Application action rollout
+
+The local continuation covers ordinary actions in all 101 application AXAML
+files, including profile flows, Downloads/content detail, Studio and authoring
+dialogs, ModBuilder, INI/WND editors, GenHotkeys, Info, notifications, app updates
+and common editor/media fallback controls. Shared roles replace local action
+presentation; command and state bindings remain with each consumer.
+
+Intentional component families remain distinct:
+
+| Family | Consumers and reason |
+|---|---|
+| Hero launch | Profile Play/Stop uses larger emphasis appropriate to launching a game |
+| Navigation and selection | Main tabs, sidebars, catalog/category/filter chips, language presets and selected profile cards communicate location or selection |
+| Visual choices | Theme cards, cover/icon tiles, color swatches, publisher cards and WND image choices preview the selected value |
+| Editor controls | Hotkey keys, canvas pan/zoom toggles, tree disclosure and file rows retain spatial or editor-specific affordances |
+| Media | Transport and full-screen navigation retain their established media-control family |
+| Window chrome and links | Native window buttons and inline links retain their platform/text behavior |
+| Dashboard cards | ModBuilder whole-card project choices and recent-project rows retain card geometry |
+
+Do not add ordinary action paint to these families to make every clickable
+surface pill-shaped. New ordinary actions must use the shared roles rather
+than introducing another local primary/secondary button style. The developer
+showcase and mounted consumer tests exercise the shared foundation; visual
+review must also include dense layouts, long translations and disabled states.
+
+Primary gradients belong to the shared theme resources. Upload uses one
+`Border.split-action` gradient across both independently focusable segments.
+Notifications use semantic status surfaces and shared action roles; action
+labels and glyphs inherit enabled/disabled ink. Content-card captions and
+notification action rows wrap when available space is constrained.

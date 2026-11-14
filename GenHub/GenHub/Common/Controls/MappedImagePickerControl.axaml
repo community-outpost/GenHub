@@ -73,12 +73,12 @@
       </Grid>
     </Border>
 
-    <Button Grid.Row="2" Name="EditButton" Margin="0,8,0,0"
+    <Button Classes="action-secondary action-compact" Grid.Row="2" Name="EditButton" Margin="0,8,0,0"
             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
             IsEnabled="{Binding #Root.SelectedImage, Converter={x:Static ObjectConverters.IsNotNull}}"
             ToolTip.Tip="{localization:Localize TextureEditor.Picker.Tooltip.EditInTextureEditor}">
       <StackPanel Orientation="Horizontal" Spacing="6">
-        <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="14" Height="14"/>
+        <PathIcon Data="{StaticResource ToolIcon.PencilOutline}" Width="16" Height="16"/>
         <TextBlock Text="{localization:Localize TextureEditor.Picker.Button.EditInTextureEditor}" VerticalAlignment="Center"/>
       </StackPanel>
     </Button>
