@@ -474,3 +474,14 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 > [!IMPORTANT]
 > **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.
+
+### Alignment and curvature
+
+
+Single-line, non-wrapping `form-field` editors center both text and watermark in the allocated height. Multiline and wrapped editors keep their first line at the top inset. Preserve local layout overrides for specialized editors.
+
+Action captions and glyphs center their own line/icon boxes within the shared action content. Avoid per-screen baseline nudges or transforms. Profile navigation no longer lifts selected/hovered targets above their row.
+
+Top-level tabs, Studio tabs and profile icon navigation use `ActionCornerRadius` like pill actions. Square profile targets therefore become circles. Fields retain `InputCornerRadius` and reading cards retain `CardCornerRadius`; inset sidebar rows and editor underlines remain distinct layouts. Preview boards must use the app's bundled Inter font and the same scale when comparing navigation families.
+
+Scrolling authoring dialogs opt into `dialog-scroll` to reserve a 12px right gutter beside input borders. Fluent validation captions use the same error brush as field outlines and dialog error hints.

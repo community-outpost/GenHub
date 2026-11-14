@@ -10,9 +10,14 @@
         <Setter Property="Padding" Value="{DynamicResource FormFieldPadding}" />
         <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
         <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
+        <Setter Property="VerticalContentAlignment" Value="Top" />
         <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}" />
         <Setter Property="SelectionBrush" Value="{DynamicResource ActionPrimaryRestBrush}" />
         <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}" />
+    </Style>
+    <!-- Center both entered text and the watermark; multiline/wrapped editors keep their top origin. -->
+    <Style Selector="TextBox.form-field[AcceptsReturn=False][TextWrapping=NoWrap]:not(.code-field)">
+        <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="TextBox.form-field:not(.code-field) /template/ Border#PART_BorderElement">
         <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />

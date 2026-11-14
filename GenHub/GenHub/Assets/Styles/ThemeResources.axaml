@@ -139,6 +139,8 @@
     <Color x:Key="ErrorTextColor">#FF5252</Color>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+    <!-- Fluent validation captions use the same semantic color as error outlines and hints. -->
+    <SolidColorBrush x:Key="SystemControlErrorTextForegroundBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="ErrorFillBrush" Color="{StaticResource ErrorFillColor}" />
     <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}" />
     <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#20EF4444" />
