@@ -20,7 +20,10 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         if (accent.R == defaultAccent.R && accent.G == defaultAccent.G && accent.B == defaultAccent.B)
         {
             // Keep the approved purple treatment independent of a theme's identifier.
-            return new(Color.Parse("#7540B8"), Color.Parse("#8651C9"), Color.Parse("#65339F"));
+            return new(
+                Color.Parse(ThemeConstants.DefaultActionRestHex),
+                Color.Parse(ThemeConstants.DefaultActionHoverHex),
+                Color.Parse(ThemeConstants.DefaultActionPressedHex));
         }
 
         return new(CreateFill(accent, 6.2, 0.82), CreateFill(accent, 5.2, 1.0), CreateFill(accent, 7.5, 0.68));
@@ -36,9 +39,9 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         if (accent.R == defaultAccent.R && accent.G == defaultAccent.G && accent.B == defaultAccent.B)
         {
             return (
-                Gradient(Color.Parse("#8241CF"), Color.Parse("#6930B3")),
-                Gradient(Color.Parse("#8651C9"), Color.Parse("#7540B8")),
-                Gradient(Color.Parse("#7135BC"), Color.Parse("#592696")));
+                Gradient(Color.Parse(ThemeConstants.DefaultActionRestGradientStartHex), Color.Parse(ThemeConstants.DefaultActionRestGradientEndHex)),
+                Gradient(Color.Parse(ThemeConstants.DefaultActionHoverHex), Color.Parse(ThemeConstants.DefaultActionRestHex)),
+                Gradient(Color.Parse(ThemeConstants.DefaultActionPressedGradientStartHex), Color.Parse(ThemeConstants.DefaultActionPressedGradientEndHex)));
         }
 
         var deeper = Color.FromRgb((byte)(palette.Pressed.R * 0.85), (byte)(palette.Pressed.G * 0.85), (byte)(palette.Pressed.B * 0.85));

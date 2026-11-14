@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Threading;
 using GenHub.Common.Services;
@@ -51,6 +52,23 @@ public class ActionButtonPaletteTests
         Assert.Equal(Color.Parse("#7540B8"), palette.Rest);
         Assert.Equal(Color.Parse("#8651C9"), palette.Hover);
         Assert.Equal(Color.Parse("#65339F"), palette.Pressed);
+    }
+
+    /// <summary>The XAML default action gradients match the default palette built in code.</summary>
+    [AvaloniaFact]
+    public void ThemeResources_DefaultActionGradientsMatchDefaultPalette()
+    {
+        var resources = new ResourceInclude(new Uri("avares://GenHub/"))
+        {
+            Source = new Uri("avares://GenHub/Assets/Styles/ThemeResources.axaml"),
+        };
+        var expected = ActionButtonPalette.CreateBrushes(Color.Parse(ThemeConstants.DefaultTheme.PrimaryHex));
+        Assert.True(resources.TryGetResource("ActionPrimaryRestBrush", null, out var rest));
+        Assert.True(resources.TryGetResource("ActionPrimaryHoverBrush", null, out var hover));
+        Assert.True(resources.TryGetResource("ActionPrimaryPressedBrush", null, out var pressed));
+        AssertGradientEqual(expected.Normal, rest);
+        AssertGradientEqual(expected.Hover, hover);
+        AssertGradientEqual(expected.Pressed, pressed);
     }
 
     /// <summary>Custom theme IDs cannot bypass action contrast or change the navigation accent.</summary>
