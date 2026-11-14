@@ -10,6 +10,7 @@ using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
 using GenHub.Core.Constants;
+using GenHub.Common.Services;
 
 namespace GenHub.UI.Showcase;
 
@@ -62,6 +63,10 @@ internal sealed class GalleryApp : Application
         {
             var theme = ThemeConstants.AllThemes.FirstOrDefault(t => t.Id == themes.SelectedItem as string)
                 ?? ThemeConstants.DefaultTheme;
+            var actionColors = ActionButtonPalette.Create(Color.Parse(theme.PrimaryHex));
+            application.Resources["ActionPrimaryRestBrush"] = new SolidColorBrush(actionColors.Rest);
+            application.Resources["ActionPrimaryHoverBrush"] = new SolidColorBrush(actionColors.Hover);
+            application.Resources["ActionPrimaryPressedBrush"] = new SolidColorBrush(actionColors.Pressed);
             application.Resources["AccentBrush"] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
             application.Resources["AccentLightBrush"] = new SolidColorBrush(Color.Parse(theme.LightHex));
         };

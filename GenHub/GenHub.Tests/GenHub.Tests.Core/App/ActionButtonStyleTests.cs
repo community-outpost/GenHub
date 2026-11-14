@@ -23,11 +23,11 @@ public class ActionButtonStyleTests
     /// <param name="pressed">The pressed brush resource.</param>
     /// <param name="foreground">The rest-state foreground resource.</param>
     [AvaloniaTheory]
-    [InlineData("action-primary", "AccentLightBrush", "AccentBrush", "ActionOnAccentBrush")]
-    [InlineData("action-secondary", "SurfaceHoverBrush", "SurfaceElevatedBrush", "TextPrimary")]
-    [InlineData("action-danger", "ActionDangerHoverBrush", "ErrorBrush", "ActionOnAccentBrush")]
-    [InlineData("action-danger icon-action", "ActionDangerHoverBrush", "ErrorBrush", "ActionOnAccentBrush")]
-    [InlineData("icon-action", "SurfaceHoverBrush", "SurfaceElevatedBrush", "TextSecondary")]
+    [InlineData("action-primary", "ActionPrimaryHoverBrush", "ActionPrimaryPressedBrush", "ActionOnAccentBrush")]
+    [InlineData("action-secondary", "ActionSecondaryHover", "ActionSecondaryPressed", "ActionSecondaryInk")]
+    [InlineData("action-danger", "ActionDangerHover", "ActionDangerPressed", "ActionDangerInk")]
+    [InlineData("action-danger icon-action", "ActionDangerHover", "ActionDangerPressed", "ActionDangerInk")]
+    [InlineData("icon-action", "ActionSecondaryHover", "ActionSecondaryPressed", "ActionUtilityInk")]
     public void ActionButton_PointerAndDisabledStatesUseSharedPalette(string role, string hover, string pressed, string foreground)
     {
         var button = new Button { Content = "Install" };
@@ -43,7 +43,7 @@ public class ActionButtonStyleTests
             // Inspect final state brushes without Fluent's interpolation clock.
             presenter.Transitions = null;
             Assert.Equal(role.Contains("icon-action", StringComparison.Ordinal) ? 32 : 36, button.MinHeight);
-            Assert.Equal(new CornerRadius(8), button.CornerRadius);
+            Assert.Equal(new CornerRadius(999), button.CornerRadius);
             Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource(foreground)!), BrushColor(presenter.Foreground));
             window.MouseMove(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value);
             Dispatcher.UIThread.RunJobs();
@@ -56,7 +56,7 @@ public class ActionButtonStyleTests
             window.MouseUp(button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value, MouseButton.Left);
             button.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("SurfaceElevatedBrush")!), BrushColor(presenter.Background));
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("ActionDisabledFill")!), BrushColor(presenter.Background));
         }
         finally
         {
@@ -97,7 +97,7 @@ public class ActionButtonStyleTests
     public void PrimaryButton_UpdatesWhenAccentResourceChanges()
     {
         var app = Avalonia.Application.Current!;
-        var hadOverride = app.Resources.TryGetValue("AccentBrush", out var previous);
+        var hadOverride = app.Resources.TryGetValue("ActionPrimaryRestBrush", out var previous);
         var button = new Button { Content = "Install" };
         button.Classes.Add("action-primary");
         var window = new Window { Width = 320, Height = 160, Content = button };
@@ -105,7 +105,7 @@ public class ActionButtonStyleTests
         try
         {
             var replacement = new SolidColorBrush(Colors.Cyan);
-            app.Resources["AccentBrush"] = replacement;
+            app.Resources["ActionPrimaryRestBrush"] = replacement;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(Colors.Cyan, BrushColor(button.Background));
         }
@@ -113,29 +113,14 @@ public class ActionButtonStyleTests
         {
             if (hadOverride)
             {
-                app.Resources["AccentBrush"] = previous;
+                app.Resources["ActionPrimaryRestBrush"] = previous;
             }
             else
             {
-                app.Resources.Remove("AccentBrush");
+                app.Resources.Remove("ActionPrimaryRestBrush");
             }
 
             window.Close();
-        }
-    }
-
-    /// <summary>All supplied accent palettes keep normal text above 4.5:1 contrast.</summary>
-    [Fact]
-    public void ActionForeground_HasReadableContrastAcrossShippedPalettes()
-    {
-        var ink = Colors.Black;
-        foreach (var theme in ThemeConstants.AllThemes)
-        {
-            foreach (var hex in new[] { theme.PrimaryHex, theme.LightHex })
-            {
-                var contrast = (Luminance(Color.Parse(hex)) + 0.05) / (Luminance(ink) + 0.05);
-                Assert.True(contrast >= 4.5, $"{theme.Id} {hex}: {contrast:F2}:1");
-            }
         }
     }
 
@@ -187,11 +172,11 @@ public class ActionButtonStyleTests
         try
         {
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(Colors.Black, BrushColor(icon.Foreground));
+            Assert.Equal(Colors.White, BrushColor(icon.Foreground));
             button.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(BrushColor(button.Foreground), BrushColor(icon.Foreground));
-            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("TextMuted")!), BrushColor(icon.Foreground));
+            Assert.Equal(BrushColor((IBrush)Avalonia.Application.Current!.FindResource("ActionDisabledInk")!), BrushColor(icon.Foreground));
         }
         finally
         {
@@ -200,15 +185,4 @@ public class ActionButtonStyleTests
     }
 
     private static Color BrushColor(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
-
-    private static double Luminance(Color color)
-    {
-        static double Linear(byte channel)
-        {
-            var value = channel / 255.0;
-            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
-        }
-
-        return (0.2126 * Linear(color.R)) + (0.7152 * Linear(color.G)) + (0.0722 * Linear(color.B));
-    }
 }

@@ -264,9 +264,30 @@
     <x:Double x:Key="NavigationIconSize">24</x:Double>
     <Thickness x:Key="ActionPadding">16,8</Thickness>
     <Thickness x:Key="ActionCompactPadding">12,6</Thickness>
-    <!-- Dark ink remains legible on all shipped bright accent palettes. -->
-    <SolidColorBrush x:Key="ActionOnAccentBrush" Color="Black" />
-    <SolidColorBrush x:Key="ActionDangerHoverBrush" Color="#F87171" />
+    <!-- Selected pill treatment: dedicated action shades do not change navigation accents. -->
+    <CornerRadius x:Key="ActionCornerRadius">999</CornerRadius>
+
+    <SolidColorBrush x:Key="ActionPrimaryRestBrush" Color="#7540B8" />
+    <SolidColorBrush x:Key="ActionPrimaryHoverBrush" Color="#8651C9" />
+    <SolidColorBrush x:Key="ActionPrimaryPressedBrush" Color="#65339F" />
+    <SolidColorBrush x:Key="ActionOnAccentBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ActionSecondaryRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionSecondaryHover" Color="#1B1A25" />
+    <SolidColorBrush x:Key="ActionSecondaryPressed" Color="#252331" />
+    <SolidColorBrush x:Key="ActionSecondaryInk" Color="#D2D0DC" />
+    <SolidColorBrush x:Key="ActionSecondaryBorder" Color="#42404F" />
+    <SolidColorBrush x:Key="ActionSecondaryHoverBorder" Color="#6A627B" />
+    <SolidColorBrush x:Key="ActionDisabledFill" Color="#0BFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledBorder" Color="#1EFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledInk" Color="#777383" />
+    <SolidColorBrush x:Key="ActionDangerRest" Color="#18EF4444" />
+    <SolidColorBrush x:Key="ActionDangerHover" Color="#32EF4444" />
+    <SolidColorBrush x:Key="ActionDangerPressed" Color="#48EF4444" />
+    <SolidColorBrush x:Key="ActionDangerInk" Color="#FCA5A5" />
+    <SolidColorBrush x:Key="ActionDangerBorder" Color="#66EF4444" />
+    <SolidColorBrush x:Key="ActionUtilityRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionUtilityInk" Color="#B6B2C5" />
+    <SolidColorBrush x:Key="ActionUtilityBorder" Color="Transparent" />
     <SolidColorBrush x:Key="ActionFocusBrush" Color="{StaticResource TextPrimaryColor}" />
 
     <!-- ==================================================================== -->

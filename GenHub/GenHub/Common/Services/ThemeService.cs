@@ -125,6 +125,10 @@ public class ThemeService(
             resources["PurpleGlow"] = glowColor;
 
             // Update Brushes
+            var actionPalette = ActionButtonPalette.Create(primaryColor);
+            resources["ActionPrimaryRestBrush"] = new SolidColorBrush(actionPalette.Rest);
+            resources["ActionPrimaryHoverBrush"] = new SolidColorBrush(actionPalette.Hover);
+            resources["ActionPrimaryPressedBrush"] = new SolidColorBrush(actionPalette.Pressed);
             resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentColorBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentLightBrush] = new SolidColorBrush(lightColor);
