@@ -288,6 +288,57 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
     }
 
     /// <summary>
+    /// Disabling every launchable item while items download blocks the save.
+    /// </summary>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Fact]
+    public async Task Save_LaunchableContentDisabledDuringInstall_IsNotSavedAsync()
+    {
+        const string mapPackId = "1.0.examplepublisher.mappack.tournamentmaps";
+        _manifests[mapPackId] = new ContentManifest
+        {
+            Id = ManifestId.Create(mapPackId),
+            Name = "Tournament Maps",
+            ContentType = ContentType.MapPack,
+            TargetGame = GameType.ZeroHour,
+        };
+        ChosenStyle = NotificationActionStyle.Primary;
+        _profileContent
+            .Setup(x => x.InstallMissingDependenciesAsync(It.IsAny<IReadOnlyList<ContentDependencyGap>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                foreach (var item in _viewModel.EnabledContent)
+                {
+                    item.IsEnabled = false;
+                }
+
+                _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+                {
+                    ManifestId = ManifestId.Create(mapPackId),
+                    DisplayName = "Tournament Maps",
+                    ContentType = ContentType.MapPack,
+                    GameType = GameType.ZeroHour,
+                    InstallationType = GameInstallationType.Unknown,
+                    IsEnabled = true,
+                });
+                _manifests[GenToolId] = new ContentManifest
+                {
+                    Id = ManifestId.Create(GenToolId),
+                    Name = "GenTool",
+                    ContentType = ContentType.Addon,
+                    Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                    Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
+                };
+                return OperationResult<IReadOnlyList<string>>.CreateSuccess([GenToolId]);
+            });
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        Assert.Equal("Error: A Game, Executable, or Tool must be enabled.", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
     /// An item still missing after the install is listed once, even when it is declared twice.
     /// </summary>
     /// <returns>A task that completes when the test finishes.</returns>
