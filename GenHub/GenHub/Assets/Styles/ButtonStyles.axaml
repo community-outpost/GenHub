@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
-    <!-- Local design option, not published. Production semantic tokens are kept separate from navigation accent. -->
+    <!-- Shared pill actions. Their contrast-checked gradients are independent of navigation accents. -->
     <Style Selector="Button.action-primary, Button.action-secondary, Button.action-danger, Button.icon-action">
         <Setter Property="MinHeight" Value="{DynamicResource ActionMinHeight}" />
         <Setter Property="Padding" Value="{DynamicResource ActionPadding}" />

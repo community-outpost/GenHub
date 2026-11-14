@@ -34,11 +34,7 @@
         </Style>
         <Style Selector="Button.edit-content-btn">
             <Setter Property="Opacity" Value="0" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
-                </Transitions>
-            </Setter>
+
         </Style>
         <Style Selector="Grid.content-card:pointerover Button.delete-reveal-btn, Button.delete-reveal-btn:focus-visible">
             <Setter Property="Opacity" Value="1" />
@@ -59,15 +55,13 @@
                     <StackPanel Spacing="16">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Classes="section-header" Text="{localization:Localize GameProfiles.Content.EnabledContentTitle}" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
-                            <Button Grid.Column="1"
+                            <Button
+                                    Grid.Column="1"
                                     Command="{Binding LoadAvailableContentCommand}"
-                                    Background="Transparent"
-                                    Padding="10,6"
-                                    FontSize="12"
-                                    FontWeight="SemiBold"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center"
+                                    Classes="action-secondary">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+                                    <material:MaterialIcon Kind="Refresh"  />
                                     <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -104,7 +98,7 @@
                                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip.Tip="{Binding RemoveToolTip}">
+                                                    ToolTip.Tip="{Binding RemoveToolTip}" AutomationProperties.Name="{Binding RemoveToolTip}">
                                                 <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                     <WrapPanel Orientation="Horizontal">
@@ -117,15 +111,16 @@
                                             </Button>
 
                                             <!-- Edit Button (Only for Local/Editable content) -->
-                                            <Button Grid.Column="1" Classes="delete-reveal-btn edit-content-btn"
+                                            <Button
+                                                    Grid.Column="1"
+                                                    Classes="delete-reveal-btn edit-content-btn icon-action"
                                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding IsEditable}"
-                                                    Background="Transparent"
-                                                    Padding="8" Margin="8,0,12,0"
+                                                    Margin="8,0,12,0"
                                                     AutomationProperties.Name="{localization:Localize Common.Edit}"
                                                     ToolTip.Tip="{localization:Localize Common.Edit}">
-                                                <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                                <material:MaterialIcon Kind="PencilOutline"   />
                                             </Button>
                                         </Grid>
                                     </Border>
@@ -165,12 +160,13 @@
 
                         <!-- Filter Row -->
                         <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
-                            <Button Grid.Column="0" Classes="filter-pill"
+                            <Button
+                                    Grid.Column="0"
+                                    Classes="action-secondary"
                                     Command="{Binding AddLocalContentCommand}"
-                                    Padding="16,8"
-                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
+                                    <material:MaterialIcon Kind="FolderPlusOutline"  />
                                     <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
@@ -205,7 +201,7 @@
                                                          Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
                                                          CommandParameter="{Binding}"
                                                          IsVisible="{Binding IsEnabled, Converter={x:Static conv:InvertedBoolToVisibilityConverter.Instance}}"
-                                                         ToolTip.Tip="{Binding AddToolTip}">
+                                                         ToolTip.Tip="{Binding AddToolTip}" AutomationProperties.Name="{Binding AddToolTip}">
                                                      <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                          <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                          <WrapPanel Orientation="Horizontal">
@@ -217,23 +213,27 @@
                                                      </StackPanel>
                                                  </Button>
 
-                                                 <Button Grid.Column="1" Classes="delete-reveal-btn edit-content-btn"
+                                                 <Button
+                                                         Grid.Column="1"
+                                                         Classes="delete-reveal-btn edit-content-btn icon-action"
                                                          Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
                                                          CommandParameter="{Binding}"
                                                          IsVisible="{Binding IsEditable}"
-                                                         Background="Transparent"
-                                                         Padding="8" Margin="8,0,0,0"
-                                                         ToolTip.Tip="{localization:Localize Common.Edit}">
-                                                     <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                                         Margin="8,0,0,0"
+                                                         ToolTip.Tip="{localization:Localize Common.Edit}"
+                                                         AutomationProperties.Name="{localization:Localize Common.Edit}">
+                                                     <material:MaterialIcon Kind="PencilOutline"   />
                                                  </Button>
 
-                                                 <Button Grid.Column="2" Classes="delete-reveal-btn edit-content-btn"
+                                                 <Button
+                                                         Grid.Column="2"
+                                                         Classes="delete-reveal-btn edit-content-btn action-danger icon-action"
                                                          Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DeleteContentCommand}"
                                                          CommandParameter="{Binding}"
-                                                         Background="Transparent"
-                                                         Padding="8" Margin="4,0,0,0"
-                                                         ToolTip.Tip="{localization:Localize Common.Delete}">
-                                                     <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16" Foreground="{DynamicResource ErrorBrush}"/>
+                                                         Margin="4,0,0,0"
+                                                         ToolTip.Tip="{localization:Localize Common.Delete}"
+                                                         AutomationProperties.Name="{localization:Localize Common.Delete}">
+                                                     <material:MaterialIcon Kind="DeleteOutline"   />
                                                  </Button>
                                             </Grid>
                                         </Border>

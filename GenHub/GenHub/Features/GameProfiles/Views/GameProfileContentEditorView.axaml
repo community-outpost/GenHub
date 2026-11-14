@@ -116,23 +116,14 @@
         <!-- Action reveal button on card -->
         <Style Selector="Button.action-reveal-btn">
             <Setter Property="Opacity" Value="0.6" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
+
         </Style>
         <Style Selector="Grid.content-card:pointerover Button.action-reveal-btn">
             <Setter Property="Opacity" Value="1" />
         </Style>
         <Style Selector="Button.action-reveal-btn:pointerover">
             <Setter Property="Opacity" Value="1" />
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+
         </Style>
     </UserControl.Styles>
 
@@ -155,7 +146,7 @@
                             Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.EnabledContent}}"
                             Command="{Binding SelectContentEditorCategoryCommand}"
                             CommandParameter="{x:Static vm:ContentEditorCategory.EnabledContent}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabEnabled}">
+                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabEnabled}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.TabEnabled}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="CheckCircleOutline" Width="18" Height="18" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize GameProfiles.Content.TabEnabled}" VerticalAlignment="Center" FontSize="13.5"/>
@@ -166,7 +157,7 @@
                             Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.AvailableContent}}"
                             Command="{Binding SelectContentEditorCategoryCommand}"
                             CommandParameter="{x:Static vm:ContentEditorCategory.AvailableContent}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabAvailable}">
+                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabAvailable}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.TabAvailable}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <material:MaterialIcon Kind="PlusCircleOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize GameProfiles.Content.TabAvailable}" VerticalAlignment="Center" FontSize="13.5"/>
@@ -195,15 +186,15 @@
                                 <material:MaterialIcon Kind="CheckDecagramOutline" Width="20" Height="20" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Classes="section-title" Text="{localization:Localize GameProfiles.Content.EnabledContentTitle}" Margin="0" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <Button Grid.Column="1"
+                            <Button
+                                    Grid.Column="1"
                                     Command="{Binding LoadAvailableContentCommand}"
-                                    Classes="sidebar-btn"
-                                    Padding="10,6"
+                                    Classes="action-secondary"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Content.RefreshInstalledTip}"
-                                    VerticalAlignment="Center">
+                                    VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameProfiles.Content.RefreshInstalledTip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
-                                    <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center" FontSize="12"/>
+                                    <material:MaterialIcon Kind="Refresh"  />
+                                    <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -235,7 +226,7 @@
                                                 Classes="content-card-btn"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="{Binding RemoveToolTip}">
+                                                ToolTip.Tip="{Binding RemoveToolTip}" AutomationProperties.Name="{Binding RemoveToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
@@ -255,16 +246,17 @@
                                         </Button>
 
                                         <!-- Edit Button (Only for Local/Editable content) -->
-                                        <Button Grid.Column="1"
-                                                Classes="action-reveal-btn"
+                                        <Button
+                                                Grid.Column="1"
+                                                Classes="action-reveal-btn icon-action"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
                                                 CommandParameter="{Binding}"
                                                 IsVisible="{Binding IsEditable}"
-                                                Padding="8" Margin="0,0,12,0"
+                                                Margin="0,0,12,0"
                                                 VerticalAlignment="Center"
                                                 AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
                                                 ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
-                                            <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                            <material:MaterialIcon Kind="PencilOutline"   />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
@@ -311,13 +303,15 @@
 
                         <!-- Action Row: Add Local and Game Type Toggle -->
                         <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,12">
-                            <Button Grid.Column="0" Classes="filter-pill"
+                            <Button
+                                    Grid.Column="0"
+                                    Classes="action-secondary"
                                     Command="{Binding AddLocalContentCommand}"
                                     AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalButton}"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="FolderPlusOutline" Width="16" Height="16"/>
-                                    <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center" FontSize="12.5"/>
+                                    <material:MaterialIcon Kind="FolderPlusOutline"  />
+                                    <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
 
@@ -348,7 +342,7 @@
                                                 Classes="content-card-btn"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="{Binding AddToolTip}">
+                                                ToolTip.Tip="{Binding AddToolTip}" AutomationProperties.Name="{Binding AddToolTip}">
                                             <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                                                 <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
@@ -368,16 +362,17 @@
                                         </Button>
 
                                         <!-- Edit Button (Only for Local/Editable content) -->
-                                        <Button Grid.Column="1"
-                                                Classes="action-reveal-btn"
+                                        <Button
+                                                Grid.Column="1"
+                                                Classes="action-reveal-btn icon-action"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
                                                 CommandParameter="{Binding}"
                                                 IsVisible="{Binding IsEditable}"
-                                                Padding="8" Margin="0,0,12,0"
+                                                Margin="0,0,12,0"
                                                 VerticalAlignment="Center"
                                                 AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
                                                 ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
-                                            <material:MaterialIcon Kind="PencilOutline" Width="16" Height="16" Foreground="{DynamicResource AccentLightBrush}"/>
+                                            <material:MaterialIcon Kind="PencilOutline"   />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>

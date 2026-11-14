@@ -75,8 +75,8 @@
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="28" />
+            <Setter Property="Width" Value="{DynamicResource NavigationIconSize}" />
+            <Setter Property="Height" Value="{DynamicResource NavigationIconSize}" />
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="CornerRadius" Value="14" />
@@ -84,39 +84,6 @@
         </Style>
 
         <!-- Content action buttons -->
-        <Style Selector="Button.btn-add">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="14,6" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Button.btn-remove">
-            <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#FF5252" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#FF5252" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="8,5" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-        <Style Selector="Button.btn-remove:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#FF5252" />
-            <Setter Property="BorderBrush" Value="#FF5252" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
 
         <!-- Content filter pills -->
         <Style Selector="Button.filter-pill">
@@ -288,11 +255,7 @@
         <!-- Style to show children on hover -->
         <Style Selector="Button.delete-reveal-btn">
             <Setter Property="Opacity" Value="0" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
+
         </Style>
 
         <!-- When parent card is hovered, reveal the delete button -->
@@ -303,7 +266,7 @@
         <!-- Ensure the delete button itself reacts to its own hover -->
         <Style Selector="Button.delete-reveal-btn:pointerover">
             <Setter Property="Opacity" Value="1" />
-            <Setter Property="Background" Value="#D32F2F" />
+
         </Style>
     </UserControl.Styles>
 
@@ -354,47 +317,30 @@
 
                 <!-- Action Buttons -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Button Content="{localization:Localize Common.Cancel}"
+                    <Button
+                            Content="{localization:Localize Common.Cancel}"
                             Command="{Binding ExecuteCancelCommand}"
-                            Background="#40000000"
-                            Foreground="White"
-                            BorderBrush="#80FFFFFF"
-                            BorderThickness="2"
-                            Width="90" Height="38"
-                            CornerRadius="19"
-                            FontWeight="SemiBold"
-                            FontSize="13"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center" />
+                            Classes="action-secondary"
+                            MinWidth="90"/>
 
-                    <Button Command="{Binding SaveCommand}"
-                            Background="White"
-                            Foreground="{DynamicResource AccentBrush}"
-                            Width="100" Height="38"
-                            CornerRadius="19"
-                            FontWeight="Bold"
-                            FontSize="14"
+                    <Button
+                            Command="{Binding SaveCommand}"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.SaveTooltip}"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center">
+                            Classes="action-primary"
+                            MinWidth="100" AutomationProperties.Name="{localization:Localize Profiles.Settings.SaveTooltip}">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="14" Height="14" Foreground="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"/>
+                            <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize Common.Save}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Command="{Binding RandomizeColorCommand}"
-                            Background="#25000000"
-                            BorderBrush="White"
-                            BorderThickness="1"
-                            Width="34" Height="34"
-                            CornerRadius="17"
-                            Padding="0"
-                            ToolTip.Tip="{localization:Localize Profiles.Settings.RandomizeColorTooltip}">
+                    <Button
+                            Command="{Binding RandomizeColorCommand}"
+                            ToolTip.Tip="{localization:Localize Profiles.Settings.RandomizeColorTooltip}"
+                            Classes="icon-action"
+                            AutomationProperties.Name="{localization:Localize Profiles.Settings.RandomizeColorTooltip}">
                         <PathIcon
-                            Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
-                            Width="16" Height="16"
-                            Foreground="White" />
+                            Data="{StaticResource RefreshIcon}" />
                     </Button>
                 </StackPanel>
             </Grid>
@@ -421,7 +367,7 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=0}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="0"
-                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabContent}">
+                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabContent}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabContent}">
                         <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
                                   Width="32" Height="32" />
                     </Button>
@@ -431,9 +377,9 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=1}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="1"
-                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabProfileSettings}">
-                        <Panel Width="40" Height="40">
-                            <Border Width="40" Height="40">
+                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabProfileSettings}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabProfileSettings}">
+                        <Panel Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
+                            <Border Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/gameprofilesettings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>
@@ -446,9 +392,9 @@
                             Classes.selected="{Binding SelectedTabIndex, Converter={x:Static conv:TabIndexToVisibilityConverter.Instance}, ConverterParameter=2}"
                             Command="{Binding SelectTabCommand}"
                             CommandParameter="2"
-                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabGameSettings}">
-                        <Panel Width="40" Height="40">
-                            <Border Width="40" Height="40">
+                            ToolTip.Tip="{localization:Localize Profiles.Settings.TabGameSettings}" AutomationProperties.Name="{localization:Localize Profiles.Settings.TabGameSettings}">
+                        <Panel Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
+                            <Border Width="{DynamicResource NavigationIconSize}" Height="{DynamicResource NavigationIconSize}">
                                 <Border.OpacityMask>
                                     <ImageBrush Source="avares://GenHub/Assets/Icons/settings-icon.png" Stretch="Uniform" />
                                 </Border.OpacityMask>
@@ -506,12 +452,11 @@
                             <StackPanel Classes="form-field">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Grid.Column="0" Classes="form-label" Text="{localization:Localize Profiles.Settings.ProfileIcon}" />
-                                    <Button Grid.Column="1" Content="{localization:Localize Common.BrowseEllipsis}"
+                                    <Button
+                                            Grid.Column="1"
+                                            Content="{localization:Localize Common.BrowseEllipsis}"
                                             Command="{Binding BrowseForCustomIconCommand}"
-                                            Background="#15FFFFFF"
-                                            Padding="12,4"
-                                            FontSize="11"
-                                            CornerRadius="5" />
+                                            Classes="action-secondary"/>
                                 </Grid>
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="100"
                                               Background="Transparent">
@@ -562,12 +507,11 @@
                             <StackPanel Classes="form-field">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Grid.Column="0" Classes="form-label" Text="{localization:Localize Profiles.Settings.ProfileCover}" />
-                                    <Button Grid.Column="1" Content="{localization:Localize Common.BrowseEllipsis}"
+                                    <Button
+                                            Grid.Column="1"
+                                            Content="{localization:Localize Common.BrowseEllipsis}"
                                             Command="{Binding BrowseForCustomCoverCommand}"
-                                            Background="#15FFFFFF"
-                                            Padding="12,4"
-                                            FontSize="11"
-                                            CornerRadius="5" />
+                                            Classes="action-secondary"/>
                                 </Grid>
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Height="140"
                                               Background="Transparent">
@@ -673,42 +617,41 @@
                         <StackPanel>
                             <TextBlock Classes="section-title" Text="{localization:Localize Profiles.Settings.ThemeColor}" />
                             <WrapPanel>
-                                <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" ToolTip.Tip="{localization:Localize Color.Red}" />
-                                <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="{localization:Localize Color.Pink}" />
-                                <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" ToolTip.Tip="{localization:Localize Color.DeepPink}" />
-                                <Button Classes="color-btn" Background="#9C27B0" Command="{Binding SelectThemeColorCommand}" CommandParameter="#9C27B0" ToolTip.Tip="{localization:Localize Color.Purple}" />
-                                <Button Classes="color-btn" Background="#5E35B1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#5E35B1" ToolTip.Tip="{localization:Localize Color.DeepPurple}" />
-                                <Button Classes="color-btn" Background="#673AB7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#673AB7" ToolTip.Tip="{localization:Localize Color.Indigo}" />
-                                <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" ToolTip.Tip="{localization:Localize Color.DeepIndigo}" />
-                                <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="{localization:Localize Color.Blue}" />
-                                <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="{localization:Localize Color.DarkBlue}" />
-                                <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="{localization:Localize Color.LightBlue}" />
-                                <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Color.Blue}" />
-                                <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="{localization:Localize Color.CyanBlue}" />
-                                <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="{localization:Localize Color.Cyan}" />
-                                <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="{localization:Localize Color.DarkCyan}" />
-                                <Button Classes="color-btn" Background="#009688" Command="{Binding SelectThemeColorCommand}" CommandParameter="#009688" ToolTip.Tip="{localization:Localize Color.Teal}" />
-                                <Button Classes="color-btn" Background="#00796B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00796B" ToolTip.Tip="{localization:Localize Color.DarkTeal}" />
-                                <Button Classes="color-btn" Background="#4CAF50" Command="{Binding SelectThemeColorCommand}" CommandParameter="#4CAF50" ToolTip.Tip="{localization:Localize Color.Green}" />
-                                <Button Classes="color-btn" Background="#388E3C" Command="{Binding SelectThemeColorCommand}" CommandParameter="#388E3C" ToolTip.Tip="{localization:Localize Color.DarkGreen}" />
-                                <Button Classes="color-btn" Background="#8BC34A" Command="{Binding SelectThemeColorCommand}" CommandParameter="#8BC34A" ToolTip.Tip="{localization:Localize Color.LightGreen}" />
-                                <Button Classes="color-btn" Background="#689F38" Command="{Binding SelectThemeColorCommand}" CommandParameter="#689F38" ToolTip.Tip="{localization:Localize Color.OliveGreen}" />
-                                <Button Classes="color-btn" Background="#CDDC39" Command="{Binding SelectThemeColorCommand}" CommandParameter="#CDDC39" ToolTip.Tip="{localization:Localize Color.Lime}" />
-                                <Button Classes="color-btn" Background="#FFEB3B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFEB3B" ToolTip.Tip="{localization:Localize Color.Yellow}" />
-                                <Button Classes="color-btn" Background="#FFC107" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFC107" ToolTip.Tip="{localization:Localize Color.Amber}" />
-                                <Button Classes="color-btn" Background="#FF9800" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF9800" ToolTip.Tip="{localization:Localize Color.Orange}" />
-                                <Button Classes="color-btn" Background="#FFA000" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFA000" ToolTip.Tip="{localization:Localize Color.DarkOrange}" />
-                                <Button Classes="color-btn" Background="#FF5722" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF5722" ToolTip.Tip="{localization:Localize Color.DeepOrange}" />
-                                <Button Classes="color-btn" Background="#E64A19" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E64A19" ToolTip.Tip="{localization:Localize Color.DarkOrangeRed}" />
-                                <Button Classes="color-btn" Background="#795548" Command="{Binding SelectThemeColorCommand}" CommandParameter="#795548" ToolTip.Tip="{localization:Localize Color.Brown}" />
-                                <Button Classes="color-btn" Background="#BD5A0F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#BD5A0F" ToolTip.Tip="{localization:Localize Color.Generals}" />
-                                <Button Classes="color-btn" Background="#2D4963" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2D4963" ToolTip.Tip="{localization:Localize Color.ZeroHour}" />
-                                <Button Classes="color-btn" Background="#607D8B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#607D8B" ToolTip.Tip="{localization:Localize Color.BlueGrey}" />
-                                <Button Classes="color-btn" Background="#455A64" Command="{Binding SelectThemeColorCommand}" CommandParameter="#455A64" ToolTip.Tip="{localization:Localize Color.DarkGrey}" />
+                                <Button Classes="color-btn" Background="#D32F2F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#D32F2F" ToolTip.Tip="{localization:Localize Color.Red}" AutomationProperties.Name="{localization:Localize Color.Red}"/>
+                                <Button Classes="color-btn" Background="#E91E63" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E91E63" ToolTip.Tip="{localization:Localize Color.Pink}" AutomationProperties.Name="{localization:Localize Color.Pink}"/>
+                                <Button Classes="color-btn" Background="#C2185B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#C2185B" ToolTip.Tip="{localization:Localize Color.DeepPink}" AutomationProperties.Name="{localization:Localize Color.DeepPink}"/>
+                                <Button Classes="color-btn" Background="#9C27B0" Command="{Binding SelectThemeColorCommand}" CommandParameter="#9C27B0" ToolTip.Tip="{localization:Localize Color.Purple}" AutomationProperties.Name="{localization:Localize Color.Purple}"/>
+                                <Button Classes="color-btn" Background="#5E35B1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#5E35B1" ToolTip.Tip="{localization:Localize Color.DeepPurple}" AutomationProperties.Name="{localization:Localize Color.DeepPurple}"/>
+                                <Button Classes="color-btn" Background="#673AB7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#673AB7" ToolTip.Tip="{localization:Localize Color.Indigo}" AutomationProperties.Name="{localization:Localize Color.Indigo}"/>
+                                <Button Classes="color-btn" Background="#512DA8" Command="{Binding SelectThemeColorCommand}" CommandParameter="#512DA8" ToolTip.Tip="{localization:Localize Color.DeepIndigo}" AutomationProperties.Name="{localization:Localize Color.DeepIndigo}"/>
+                                <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="{localization:Localize Color.Blue}" AutomationProperties.Name="{localization:Localize Color.Blue}"/>
+                                <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="{localization:Localize Color.DarkBlue}" AutomationProperties.Name="{localization:Localize Color.DarkBlue}"/>
+                                <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="{localization:Localize Color.LightBlue}" AutomationProperties.Name="{localization:Localize Color.LightBlue}"/>
+                                <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Color.Blue}" AutomationProperties.Name="{localization:Localize Color.Blue}"/>
+                                <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="{localization:Localize Color.CyanBlue}" AutomationProperties.Name="{localization:Localize Color.CyanBlue}"/>
+                                <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="{localization:Localize Color.Cyan}" AutomationProperties.Name="{localization:Localize Color.Cyan}"/>
+                                <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="{localization:Localize Color.DarkCyan}" AutomationProperties.Name="{localization:Localize Color.DarkCyan}"/>
+                                <Button Classes="color-btn" Background="#009688" Command="{Binding SelectThemeColorCommand}" CommandParameter="#009688" ToolTip.Tip="{localization:Localize Color.Teal}" AutomationProperties.Name="{localization:Localize Color.Teal}"/>
+                                <Button Classes="color-btn" Background="#00796B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00796B" ToolTip.Tip="{localization:Localize Color.DarkTeal}" AutomationProperties.Name="{localization:Localize Color.DarkTeal}"/>
+                                <Button Classes="color-btn" Background="#4CAF50" Command="{Binding SelectThemeColorCommand}" CommandParameter="#4CAF50" ToolTip.Tip="{localization:Localize Color.Green}" AutomationProperties.Name="{localization:Localize Color.Green}"/>
+                                <Button Classes="color-btn" Background="#388E3C" Command="{Binding SelectThemeColorCommand}" CommandParameter="#388E3C" ToolTip.Tip="{localization:Localize Color.DarkGreen}" AutomationProperties.Name="{localization:Localize Color.DarkGreen}"/>
+                                <Button Classes="color-btn" Background="#8BC34A" Command="{Binding SelectThemeColorCommand}" CommandParameter="#8BC34A" ToolTip.Tip="{localization:Localize Color.LightGreen}" AutomationProperties.Name="{localization:Localize Color.LightGreen}"/>
+                                <Button Classes="color-btn" Background="#689F38" Command="{Binding SelectThemeColorCommand}" CommandParameter="#689F38" ToolTip.Tip="{localization:Localize Color.OliveGreen}" AutomationProperties.Name="{localization:Localize Color.OliveGreen}"/>
+                                <Button Classes="color-btn" Background="#CDDC39" Command="{Binding SelectThemeColorCommand}" CommandParameter="#CDDC39" ToolTip.Tip="{localization:Localize Color.Lime}" AutomationProperties.Name="{localization:Localize Color.Lime}"/>
+                                <Button Classes="color-btn" Background="#FFEB3B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFEB3B" ToolTip.Tip="{localization:Localize Color.Yellow}" AutomationProperties.Name="{localization:Localize Color.Yellow}"/>
+                                <Button Classes="color-btn" Background="#FFC107" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFC107" ToolTip.Tip="{localization:Localize Color.Amber}" AutomationProperties.Name="{localization:Localize Color.Amber}"/>
+                                <Button Classes="color-btn" Background="#FF9800" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF9800" ToolTip.Tip="{localization:Localize Color.Orange}" AutomationProperties.Name="{localization:Localize Color.Orange}"/>
+                                <Button Classes="color-btn" Background="#FFA000" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FFA000" ToolTip.Tip="{localization:Localize Color.DarkOrange}" AutomationProperties.Name="{localization:Localize Color.DarkOrange}"/>
+                                <Button Classes="color-btn" Background="#FF5722" Command="{Binding SelectThemeColorCommand}" CommandParameter="#FF5722" ToolTip.Tip="{localization:Localize Color.DeepOrange}" AutomationProperties.Name="{localization:Localize Color.DeepOrange}"/>
+                                <Button Classes="color-btn" Background="#E64A19" Command="{Binding SelectThemeColorCommand}" CommandParameter="#E64A19" ToolTip.Tip="{localization:Localize Color.DarkOrangeRed}" AutomationProperties.Name="{localization:Localize Color.DarkOrangeRed}"/>
+                                <Button Classes="color-btn" Background="#795548" Command="{Binding SelectThemeColorCommand}" CommandParameter="#795548" ToolTip.Tip="{localization:Localize Color.Brown}" AutomationProperties.Name="{localization:Localize Color.Brown}"/>
+                                <Button Classes="color-btn" Background="#BD5A0F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#BD5A0F" ToolTip.Tip="{localization:Localize Color.Generals}" AutomationProperties.Name="{localization:Localize Color.Generals}"/>
+                                <Button Classes="color-btn" Background="#2D4963" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2D4963" ToolTip.Tip="{localization:Localize Color.ZeroHour}" AutomationProperties.Name="{localization:Localize Color.ZeroHour}"/>
+                                <Button Classes="color-btn" Background="#607D8B" Command="{Binding SelectThemeColorCommand}" CommandParameter="#607D8B" ToolTip.Tip="{localization:Localize Color.BlueGrey}" AutomationProperties.Name="{localization:Localize Color.BlueGrey}"/>
+                                <Button Classes="color-btn" Background="#455A64" Command="{Binding SelectThemeColorCommand}" CommandParameter="#455A64" ToolTip.Tip="{localization:Localize Color.DarkGrey}" AutomationProperties.Name="{localization:Localize Color.DarkGrey}"/>
                             </WrapPanel>
                         </StackPanel>
                     </Border>
-
 
                     <Panel Height="200" /> <!-- Bottom Spacer -->
                 </StackPanel>
@@ -797,25 +740,20 @@
 
                     <!-- Action Buttons -->
                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
-                        <Button Grid.Column="1" Content="{localization:Localize Common.Cancel}"
+                        <Button
+                                Grid.Column="1"
+                                Content="{localization:Localize Common.Cancel}"
                                 Command="{Binding CancelAddLocalContentCommand}"
-                                Background="#25000000"
-                                Foreground="White"
-                                BorderBrush="#40FFFFFF"
-                                BorderThickness="1"
-                                Width="90" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Medium"
-                                Margin="0,0,12,0" />
-                        <Button Grid.Column="2"
+                                Margin="0,0,12,0"
+                                Classes="action-secondary"
+                                MinWidth="90"/>
+                        <Button
+                                Grid.Column="2"
                                 Command="{Binding ConfirmAddLocalContentCommand}"
-                                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                                Foreground="White"
-                                Width="130" Height="36"
-                                CornerRadius="8"
-                                FontWeight="Bold">
+                                Classes="action-primary"
+                                MinWidth="130">
                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="14" Height="14" Foreground="White" VerticalAlignment="Center"/>
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
                                 <TextBlock Text="{localization:Localize Profiles.Settings.AddContentButton}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -855,7 +793,11 @@
                     <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="18" Height="18" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
                     <TextBlock Text="{localization:Localize Profiles.Settings.FailedToLoadSettings}" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
                 </StackPanel>
-                <Button Content="{localization:Localize Common.Close}" HorizontalAlignment="Center" Command="{Binding ExecuteCancelCommand}" />
+                <Button
+                        Content="{localization:Localize Common.Close}"
+                        HorizontalAlignment="Center"
+                        Command="{Binding ExecuteCancelCommand}"
+                        Classes="action-secondary"/>
             </StackPanel>
         </Border>
 

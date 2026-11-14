@@ -65,73 +65,11 @@
         </Style>
 
         <!-- Button styles -->
-        <Style Selector="Button.profile-action">
-            <Setter Property="Padding" Value="14 8" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="#44000000" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#50FFFFFF" />
-            <!-- Use Button Template with Border supporting BoxShadow -->
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border BoxShadow="0 1 3 #40000000"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                            Padding="{TemplateBinding Padding}"
-                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-        </Style>
 
         <Style Selector="Button.launch-button">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="MinWidth" Value="110" />
             <Setter Property="Background" Value="#44000000" />
-        </Style>
-
-        <Style Selector="Button.edit-button">
-            <Setter Property="Background" Value="#44444444" />
-            <Setter Property="Width" Value="34" />
-            <Setter Property="Height" Value="34" />
-            <Setter Property="Padding" Value="5" />
-            <Setter Property="CornerRadius" Value="17" />
-            <Setter Property="ToolTip.Tip" Value="{localization:Localize Tooltips.Profile.Edit}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#30FFFFFF" />
-            <!-- Use Button Template with Border supporting BoxShadow -->
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border BoxShadow="0 1 3 #40000000"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                            Padding="{TemplateBinding Padding}"
-                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <BrushTransition Property="Background" Duration="0:0:0.2" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style Selector="Button.edit-button:pointerover">
-            <Setter Property="Background" Value="#66555555" />
         </Style>
 
         <!-- Plus button style -->
@@ -163,15 +101,6 @@
         </Style>
 
         <!-- Delete button style - make it use accent red -->
-        <Style Selector="Button.delete-button">
-            <Setter Property="Background" Value="#EF4444" /> <!-- Red accent -->
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="#B91C1C" /> <!-- Darker red border -->
-            <Setter Property="BorderThickness" Value="1" />
-        </Style>
-        <Style Selector="Button.delete-button:pointerover">
-            <Setter Property="Background" Value="#B91C1C" /> <!-- Even darker red on hover -->
-        </Style>
 
         <!-- Enhanced badge style for profile cards -->
         <Style Selector="Border.profile-badge" x:CompileBindings="False">
@@ -247,17 +176,19 @@
                             <Panel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <!-- Import Profile Button -->
-                                    <Button Command="{Binding ImportProfileCommand}"
+                                    <Button
+                                            Command="{Binding ImportProfileCommand}"
                                             Content="{localization:Localize GameProfiles.Launcher.Button.Import}"
-                                            Classes="outline"
+                                            Classes="action-secondary"
                                             ToolTip.Tip="{localization:Localize GameProfiles.Launcher.Tooltip.Import}"
-                                            IsVisible="{Binding !IsScanning}" />
+                                            IsVisible="{Binding !IsScanning}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Import}"/>
 
                                     <!-- Scan Button -->
-                                    <Button Command="{Binding ScanForGamesCommand}"
+                                    <Button
+                                            Command="{Binding ScanForGamesCommand}"
                                             Content="{localization:Localize GameProfiles.Button.Scan}"
-                                            Classes="outline"
-                                            IsVisible="{Binding !IsScanning}" />
+                                            Classes="action-secondary"
+                                            IsVisible="{Binding !IsScanning}"/>
 
                                     <!-- Sort Dropdown -->
                                     <ComboBox x:Name="SortModeComboBox"
@@ -324,19 +255,17 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <Button Classes="accent"
+                            <Button
+                                    Classes="action-secondary"
                                     Command="{Binding OpenSteamStoreCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center"
-                                    Padding="14,8">
+                                    HorizontalAlignment="Stretch">
                                 <TextBlock Text="{localization:Localize GameProfiles.Storefront.SteamButton}" VerticalAlignment="Center" />
                             </Button>
 
-                            <Button Classes="outline"
+                            <Button
+                                    Classes="action-secondary"
                                     Command="{Binding OpenEaStoreCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center"
-                                    Padding="14,8">
+                                    HorizontalAlignment="Stretch">
                                 <TextBlock Text="{localization:Localize GameProfiles.Storefront.EaAppButton}" VerticalAlignment="Center" />
                             </Button>
                         </StackPanel>
@@ -359,7 +288,7 @@
                                     Command="{Binding $parent[ItemsControl].((vm:GameProfileLauncherViewModel)DataContext).CreateNewProfileCommand}">
                                 <StackPanel Spacing="12">
                                     <Border Width="48" Height="48" CornerRadius="24" Background="#1A000000" BorderBrush="#30FFFFFF" BorderThickness="1">
-                                        <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                                        <PathIcon Data="{StaticResource AddIcon}"
                                             Foreground="White"
                                             Opacity="0.7"
                                             Width="24"
