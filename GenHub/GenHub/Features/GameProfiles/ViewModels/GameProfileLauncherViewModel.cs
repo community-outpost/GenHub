@@ -3052,7 +3052,8 @@ public partial class GameProfileLauncherViewModel(
         var installResult = await profileContentService.InstallMissingDependenciesAsync(missingDependencies, cancellationToken);
         if (installResult.Failed || installResult.Data == null)
         {
-            return installResult.FirstError ?? string.Join(", ", installResult.Errors);
+            return installResult.FirstError
+                ?? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.InstallFailed.Message", "GenHub could not install the required items.");
         }
 
         var addResult = await profileContentService.AddContentToProfileAsync(targetProfileId, installResult.Data, cancellationToken);

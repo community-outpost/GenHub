@@ -651,6 +651,50 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     }
 
     /// <summary>
+    /// An enabled item that misses an exact or listed version keeps the detailed version error and offers no install.
+    /// </summary>
+    /// <param name="exactVersion">The exact version the dependency requires.</param>
+    /// <param name="compatibleVersion">A listed compatible version.</param>
+    /// <param name="maxVersion">The highest version the dependency accepts.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("2.0.0", null, null)]
+    [InlineData(null, "1.0.0", "0.9.0")]
+    public async Task ValidateLaunchAsync_EnabledItemMissesExactOrListedVersion_ReportsVersionErrorAsync(string? exactVersion, string? compatibleVersion, string? maxVersion)
+    {
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string addonManifestId = "1.0.ea.addon.sampleaddon";
+        var result = await ValidateProfileAsync(
+            "profile-exact-version",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create(addonManifestId),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = exactVersion,
+                        CompatibleVersions = compatibleVersion == null ? [] : [compatibleVersion],
+                        MaxVersion = maxVersion,
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create(addonManifestId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" });
+
+        Assert.False(result.Success);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains("but version 1.0.0 is selected", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Verifies that when a profile contains content with missing required CAS objects, launch validation fails.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

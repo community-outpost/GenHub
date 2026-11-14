@@ -1637,12 +1637,18 @@ public class ProfileLauncherFacade(
             return true;
         }
 
-        // If compatible versions list is specified, check exact match or numeric equivalence
-        if (dependency.CompatibleVersions is { Count: > 0 })
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
         {
-            return dependency.CompatibleVersions.Any(cv =>
+            return CatalogManifestIdentity.CompareVersions(version, dependency.ExactVersion) == 0;
+        }
+
+        // Like the shared validator, a version list and a range must both hold.
+        if (dependency.CompatibleVersions is { Count: > 0 } &&
+            !dependency.CompatibleVersions.Any(cv =>
                 string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(cv, version) == 0);
+                CatalogManifestIdentity.CompareVersions(cv, version) == 0))
+        {
+            return false;
         }
 
         if (!string.IsNullOrEmpty(dependency.MinVersion))
@@ -1673,6 +1679,11 @@ public class ProfileLauncherFacade(
     /// <returns>A string describing the version requirements.</returns>
     private string BuildVersionRequirementString(ContentDependency dependency)
     {
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
+        {
+            return $"(version: {dependency.ExactVersion})";
+        }
+
         if (dependency.CompatibleVersions is { Count: > 0 })
         {
             return $"(version: {string.Join(" or ", dependency.CompatibleVersions)})";
@@ -1862,7 +1873,7 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        if ((!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
+        if ((!string.IsNullOrEmpty(dependency.ExactVersion) || !string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
             && !IsVersionCompatible(requiredManifest.Version, dependency))
         {
             var versionInfo = BuildVersionRequirementString(dependency);
