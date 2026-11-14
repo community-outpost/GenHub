@@ -1644,9 +1644,9 @@ public class ProfileLauncherFacade(
 
         // Like the shared validator, a version list and a range must both hold.
         if (dependency.CompatibleVersions is { Count: > 0 } &&
-            !dependency.CompatibleVersions.Any(cv =>
-                string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(cv, version) == 0))
+            dependency.CompatibleVersions.All(cv =>
+                !string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) &&
+                CatalogManifestIdentity.CompareVersions(cv, version) != 0))
         {
             return false;
         }
@@ -1814,18 +1814,7 @@ public class ProfileLauncherFacade(
         List<ContentManifest> potentialMatches,
         List<string> errors)
     {
-        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(
-            dependency.Id.ToString(),
-            dependency,
-            potentialMatches);
-
-        ContentManifest? requiredManifest = null;
-        if (!string.IsNullOrEmpty(matchedCatalogId))
-        {
-            requiredManifest = potentialMatches.FirstOrDefault(m =>
-                string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
-                ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
-        }
+        var requiredManifest = FindCatalogMatch(dependency, manifestsById, potentialMatches);
 
         if (requiredManifest == null &&
             manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch) &&
@@ -1893,6 +1882,38 @@ public class ProfileLauncherFacade(
         }
 
         return requiredManifest;
+    }
+
+    /// <summary>
+    /// Finds the enabled manifest that matches a dependency's catalog identity.
+    /// </summary>
+    /// <returns>A match that meets the version requirement when one is enabled, else the newest match, else <see langword="null"/>.</returns>
+    private ContentManifest? FindCatalogMatch(
+        ContentDependency dependency,
+        Dictionary<string, ContentManifest> manifestsById,
+        List<ContentManifest> potentialMatches)
+    {
+        var dependencyId = dependency.Id.ToString();
+        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(dependencyId, dependency, potentialMatches);
+        if (string.IsNullOrEmpty(matchedCatalogId))
+        {
+            return null;
+        }
+
+        var match = potentialMatches.FirstOrDefault(m =>
+            string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
+            ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
+        if (match == null || IsVersionCompatible(match.Version, dependency))
+        {
+            return match;
+        }
+
+        // The resolver picks the newest match without checking an exact version, so an older enabled match can still satisfy it.
+        var dependencyParts = dependencyId.Split('.');
+        return potentialMatches.FirstOrDefault(m =>
+            DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, m) &&
+            IsVersionCompatible(m.Version, dependency))
+            ?? match;
     }
 
     private void ValidateDependencyGameType(

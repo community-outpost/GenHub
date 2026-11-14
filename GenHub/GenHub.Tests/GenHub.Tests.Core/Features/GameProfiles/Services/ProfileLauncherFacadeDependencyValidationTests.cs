@@ -695,6 +695,41 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     }
 
     /// <summary>
+    /// A newer enabled version does not hide an older enabled version that the dependency requires exactly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_ExactVersionEnabledBesideNewerVersion_PassesValidationAsync()
+    {
+        const string requiredAddonId = "1.0.ea.addon.sampleaddon";
+        var result = await ValidateProfileAsync(
+            "profile-exact-version-beside-newer",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create(requiredAddonId),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = "1.0.0",
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create(requiredAddonId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" },
+            new ContentManifest { Id = ManifestId.Create("1.1.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0" });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
     /// Verifies that when a profile contains content with missing required CAS objects, launch validation fails.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
