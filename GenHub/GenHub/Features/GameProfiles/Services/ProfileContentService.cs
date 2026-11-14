@@ -308,7 +308,7 @@ public sealed class ProfileContentService(
             if (manifest.ContentType.IsStandalone())
             {
                 var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
-                return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, validateDependencies: false, cancellationToken);
+                return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, isStandalone: true, cancellationToken);
             }
 
             var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
@@ -345,7 +345,7 @@ public sealed class ProfileContentService(
                 ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
                 : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
 
-            return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, validateDependencies: true, cancellationToken);
+            return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, isStandalone: false, cancellationToken);
         }
         catch (ManifestNotFoundException ex)
         {
@@ -1034,32 +1034,31 @@ public sealed class ProfileContentService(
     }
 
     /// <summary>
-    /// Creates the profile and announces it. With <paramref name="validateDependencies"/>, nothing is
-    /// created while required content is missing.
+    /// Creates the profile and announces it. Nothing is created while required content is missing.
+    /// A standalone profile runs without a game, so its game installation and client requirements are not checked.
     /// </summary>
     private async Task<ProfileOperationResult<GameProfile>> SaveNewProfileAsync(
         string profileName,
         ContentManifest manifest,
         string manifestId,
         CreateProfileRequest createRequest,
-        bool validateDependencies,
+        bool isStandalone,
         CancellationToken cancellationToken)
     {
-        if (validateDependencies)
-        {
-            var missingDependencies = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
+        var missingDependencies = (await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
                 createRequest.EnabledContentIds ?? [],
-                cancellationToken);
-            if (missingDependencies.Count > 0)
-            {
-                logger.LogWarning(
-                    "Not creating profile '{ProfileName}': {Count} required item(s) are missing",
-                    profileName,
-                    missingDependencies.Count);
-                return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
-                    BuildMissingDependenciesError(manifest.Name ?? manifestId, missingDependencies),
-                    missingDependencies);
-            }
+                cancellationToken))
+            .Where(gap => !isStandalone || gap.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient))
+            .ToList();
+        if (missingDependencies.Count > 0)
+        {
+            logger.LogWarning(
+                "Not creating profile '{ProfileName}': {Count} required item(s) are missing",
+                profileName,
+                missingDependencies.Count);
+            return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
+                BuildMissingDependenciesError(manifest.Name ?? manifestId, missingDependencies),
+                missingDependencies);
         }
 
         var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);

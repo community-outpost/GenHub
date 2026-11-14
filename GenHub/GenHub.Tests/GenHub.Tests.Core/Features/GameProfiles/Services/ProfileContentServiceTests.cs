@@ -26,6 +26,8 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Services;
 /// </summary>
 public sealed class ProfileContentServiceTests
 {
+    private const string StandaloneToolId = "1.0.examplepublisher.moddingtool.replaytool";
+
     /// <summary>
     /// Verifies that an add-on with only an installation requirement preserves a compatible publisher client.
     /// </summary>
@@ -531,6 +533,53 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
+    /// A standalone tool that requires a missing item is not created.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolWithoutGenTool_ReportsGenToolAndCreatesNothingAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var genTool = GenPatcherDependencyBuilder
+            .GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
+            .Single(dependency => dependency.Name == "GenTool");
+        fixture.AddManifest(CreateStandaloneTool(genTool));
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.False(result.Success);
+        Assert.Equal("GenTool", Assert.Single(result.MissingDependencies).DisplayName);
+        fixture.ProfileManager.Verify(
+            manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A standalone tool runs without a game, so a game installation requirement does not block it.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task CreateProfileWithContentAsync_StandaloneToolRequiringGameInstallation_CreatesProfileAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(CreateStandaloneTool(new ContentDependency
+        {
+            Name = "Zero Hour",
+            DependencyType = ContentType.GameInstallation,
+            CompatibleGameTypes = [GameType.ZeroHour],
+            InstallBehavior = DependencyInstallBehavior.RequireExisting,
+        }));
+        fixture.ProfileManager
+            .Setup(manager => manager.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "created" }));
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Replay Tool Profile", StandaloneToolId);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Empty(result.MissingDependencies);
+    }
+
+    /// <summary>
     /// A required item that is already downloaded is enabled with the content, so no dialog is needed.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
@@ -1017,6 +1066,15 @@ public sealed class ProfileContentServiceTests
             Assert.DoesNotContain("connection", install.FirstError, StringComparison.Ordinal);
         }
     }
+
+    private static ContentManifest CreateStandaloneTool(ContentDependency dependency) => new()
+    {
+        Id = ManifestId.Create(StandaloneToolId),
+        Name = "Replay Tool",
+        ContentType = ContentType.ModdingTool,
+        TargetGame = GameType.ZeroHour,
+        Dependencies = [dependency],
+    };
 
     private static int CountOccurrences(string? text, string value)
     {
