@@ -508,7 +508,7 @@
     <value>SCAN</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>LAUNCH</value>
+    <value>Play</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>STOP</value>
@@ -542,6 +542,9 @@
   </data>
   <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
     <value>Edit Profile (Hotswap Content)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
+    <value>Play this profile</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>Toggle Steam Integration</value>

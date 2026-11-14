@@ -508,7 +508,7 @@
     <value>СКАНИРОВАТЬ</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>ЗАПУСК</value>
+    <value>Играть</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>СТОП</value>
@@ -542,6 +542,9 @@
   </data>
   <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
     <value>Редактировать профиль (горячая замена)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
+    <value>Играть с этим профилем</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>Переключить интеграцию со Steam</value>
