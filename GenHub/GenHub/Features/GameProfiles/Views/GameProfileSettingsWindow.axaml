@@ -249,8 +249,8 @@
 
     </Window.Styles>
 
-    <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
+    <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1">
         <Panel>
             <!-- Background Artwork Overlay -->
@@ -388,7 +388,7 @@
                 IsVisible="{Binding IsAddLocalContentDialogOpen}"
                 Background="#CC000000"
                 ZIndex="1002">
-            <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+            <Border Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
                     BorderThickness="2"
                     CornerRadius="16"

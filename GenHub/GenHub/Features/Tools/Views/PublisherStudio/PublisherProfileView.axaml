@@ -27,18 +27,10 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
-        <Style Selector="Border.glass-card">
-            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-        </Style>
-
     </UserControl.Styles>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <Border Classes="glass-card"
-                Padding="24"
+        <Border Classes="glass-card surface-card surface-section"
                 Margin="16"
                 HorizontalAlignment="Center"
                 MaxWidth="840">

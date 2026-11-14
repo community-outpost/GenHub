@@ -31,13 +31,7 @@
     <UserControl.Styles>
         <!-- Section card style -->
         <Style Selector="Border.section-card">
-            <Setter Property="Background" Value="#50FFFFFF" />
-            <Setter Property="BorderBrush" Value="#60FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="16" />
             <Setter Property="Margin" Value="0,0,0,12" />
-            <Setter Property="TextElement.Foreground" Value="White" />
         </Style>
 
         <!-- Section title -->
@@ -61,6 +55,9 @@
         </Style>
 
         <!-- Input fields -->
+
+
+
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
@@ -239,23 +236,23 @@
         </Style>
     </UserControl.Styles>
 
-    <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}">
+    <Border Background="{DynamicResource SurfaceBackgroundBrush}">
         <Grid RowDefinitions="Auto,Auto,*,Auto">
-            <!-- Cover Image Backdrop -->
-            <Image Grid.RowSpan="3"
-                   Source="{Binding CoverPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                   Stretch="UniformToFill"
-                   Opacity="0.15"
-                   HorizontalAlignment="Stretch"
-                   VerticalAlignment="Stretch" />
         <!-- Header with profile preview and action buttons -->
         <Border x:Name="HeaderBorder"
                 Grid.Row="0"
-                Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
-                CornerRadius="0,0,16,16"
-                Height="70"
-                Opacity="0.7">
+                Background="{DynamicResource SurfaceElevatedBrush}"
+                BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}, Mode=OneWay}"
+                BorderThickness="4,0,0,0"
+                CornerRadius="0,0,12,12"
+                MinHeight="70" ClipToBounds="True">
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0">
+                <!-- Identity remains in a bounded header, away from the editable reading panels. -->
+                <Image x:Name="ProfileHeaderArtwork" Grid.ColumnSpan="3" Height="70"
+                       Source="{Binding CoverPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                       Stretch="UniformToFill" Opacity="0.18" IsHitTestVisible="False" />
+                <Border Grid.ColumnSpan="3" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                        Opacity="0.10" IsHitTestVisible="False" />
                 <!-- Profile Icon -->
                 <Border Grid.Column="0"
                         Width="44" Height="44"
@@ -277,10 +274,10 @@
                                TextWrapping="NoWrap"
                                ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}" />
                     <TextBlock Text="{Binding Description, Mode=OneWay, FallbackValue=''}"
-                               Foreground="White"
-                               Opacity="0.75"
+                               Foreground="{DynamicResource TextPrimary}"
                                FontSize="11"
                                TextWrapping="Wrap"
+                               MaxLines="2"
                                TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
@@ -317,7 +314,7 @@
 
         <!-- Tab Navigation Icons -->
         <Border Grid.Row="1"
-                Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+                Background="{DynamicResource CardBackground}"
                 Margin="12,12,12,0"
                 Padding="16"
                 CornerRadius="12">
@@ -387,9 +384,7 @@
                 <StackPanel Spacing="0">
 
                     <!-- Basic Info Section -->
-                    <Border Classes="section-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                    <Border Classes="section-card surface-card surface-content">
                         <StackPanel>
                             <TextBlock Classes="section-title" Text="{localization:Localize Profiles.Settings.BasicInformation}" />
 
@@ -411,9 +406,7 @@
                     </Border>
 
                     <!-- Icon & Cover Section -->
-                    <Border Classes="section-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                    <Border Classes="section-card surface-card surface-content">
                         <StackPanel>
                             <TextBlock Classes="section-title" Text="{localization:Localize Profiles.Settings.IconAndCover}" />
 
@@ -530,9 +523,7 @@
                     </Border>
 
                     <!-- Launch Options Section -->
-                    <Border Classes="section-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                    <Border Classes="section-card surface-card surface-content">
                         <StackPanel>
                             <TextBlock Classes="section-title" Text="{localization:Localize Profiles.Settings.LaunchOptions}" />
 
@@ -559,7 +550,7 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <TextBlock FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap">
+                                <TextBlock Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap">
                                     <TextBlock.Text>
                                         <MultiBinding StringFormat="{}{0}">
                                             <Binding Path="SelectedWorkspaceStrategy" />
@@ -573,16 +564,14 @@
                                 <TextBox Classes="form-field" Text="{Binding CommandLineArguments, Mode=TwoWay}"
                                          IsEnabled="{Binding CanEditImmutableMetadata}"
                                          Watermark="-win -quickstart" />
-                                <TextBlock Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}"
-                                           FontSize="11" Opacity="0.6" Margin="0,4,0,0" />
+                                <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.CommandLineArgumentsHint}"
+                                           FontSize="11" Margin="0,4,0,0" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Theme Section -->
-                    <Border Classes="section-card"
-                            Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
-                            BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}">
+                    <Border Classes="section-card surface-card surface-content">
                         <StackPanel>
                             <TextBlock Classes="section-title" Text="{localization:Localize Profiles.Settings.ThemeColor}" />
                             <WrapPanel>
@@ -638,7 +627,7 @@
                 IsVisible="{Binding IsAddLocalContentDialogOpen}"
                 Background="#CC000000"
                 ZIndex="1002">
-            <Border Background="{Binding ColorValue, Converter={StaticResource ThemeBackgroundConverter}, Mode=OneWay}"
+            <Border Background="{DynamicResource SurfaceElevatedBrush}"
                     BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
                     BorderThickness="2"
                     CornerRadius="16"
@@ -656,7 +645,7 @@
 
                     <!-- Selected Folder -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Profiles.Settings.SelectedFolder}" FontSize="12" Opacity="0.8" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.SelectedFolder}" FontSize="12" />
                         <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
                             <TextBlock Text="{Binding LocalContentDirectoryPath}"
                                        FontSize="11"
@@ -667,14 +656,14 @@
 
                     <!-- Content Name -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Profiles.Settings.ContentName}" FontSize="12" Opacity="0.8" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.ContentName}" FontSize="12" />
                         <TextBox Classes="form-field" Text="{Binding LocalContentName, Mode=TwoWay}"
                                  Watermark="{localization:Localize Profiles.Settings.ContentNameWatermark}" />
                     </StackPanel>
 
                     <!-- Content Type -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Profiles.Settings.ContentType}" FontSize="12" Opacity="0.8" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.ContentType}" FontSize="12" />
                         <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
                                   SelectedItem="{Binding SelectedLocalContentType}"
                                   HorizontalAlignment="Stretch">
@@ -684,13 +673,13 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <TextBlock Text="{localization:Localize Profiles.Settings.PublisherLocalHint}"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.PublisherLocalHint}"
+                                   FontSize="10" FontStyle="Italic" />
                     </StackPanel>
 
                     <!-- Game Type Selection - Always visible -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize Profiles.Settings.TargetGame}" FontSize="12" Opacity="0.8" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.TargetGame}" FontSize="12" />
                         <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
                                   SelectedItem="{Binding SelectedLocalGameType}"
                                   HorizontalAlignment="Stretch">
@@ -700,8 +689,8 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <TextBlock Text="{localization:Localize Profiles.Settings.TargetGameHint}"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        <TextBlock Foreground="{DynamicResource TextSecondary}" Text="{localization:Localize Profiles.Settings.TargetGameHint}"
+                                   FontSize="10" FontStyle="Italic" />
                     </StackPanel>
 
                     <!-- Action Buttons -->
