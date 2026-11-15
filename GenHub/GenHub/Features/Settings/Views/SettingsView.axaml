@@ -200,6 +200,14 @@
                 <Button Classes="action-secondary library-action" Command="{Binding ScanForGamesCommand}" Content="{localization:Localize GameProfiles.Button.Scan}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
               </WrapPanel>
               <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding ProfileLibraryActions.IsScanning}"/>
+              <StackPanel DataContext="{Binding ProfileLibraryActions}" x:DataType="profiles:GameProfileLauncherViewModel" IsVisible="{Binding ShouldShowScanFailure}" Spacing="8">
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="setting-description"/>
+                <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
+                  <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                </Expander>
+                <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" HorizontalAlignment="Left"/>
+              </StackPanel>
             </StackPanel>
 
             <!-- Default Workspace Strategy -->
