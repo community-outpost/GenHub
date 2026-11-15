@@ -67,8 +67,8 @@ internal sealed class GalleryApp : Application
             application.Resources[ThemeResourceKeys.ActionPrimaryRestBrush] = actionColors.Normal;
             application.Resources[ThemeResourceKeys.ActionPrimaryHoverBrush] = actionColors.Hover;
             application.Resources[ThemeResourceKeys.ActionPrimaryPressedBrush] = actionColors.Pressed;
-            application.Resources["AccentBrush"] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
-            application.Resources["AccentLightBrush"] = new SolidColorBrush(Color.Parse(theme.LightHex));
+            application.Resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
+            application.Resources[ThemeResourceKeys.AccentLightBrush] = new SolidColorBrush(Color.Parse(theme.LightHex));
         };
         body.Children.Add(themes);
         body.Children.Add(Label("Actions · hover, press, Tab and Enter to inspect states", 16));
