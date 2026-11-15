@@ -100,7 +100,9 @@ public sealed class ContentDependencyValidator(
         var declaredId = dependency.Id.Value;
         if (string.Equals(declaredId, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
         {
-            return manifests.Any(manifest => manifest.ContentType == dependency.DependencyType);
+            return manifests.Any(manifest =>
+                manifest.ContentType == dependency.DependencyType &&
+                MatchesStrictPublisher(dependency, manifest));
         }
 
         if (manifests.Any(manifest => string.Equals(manifest.Id.Value, declaredId, StringComparison.OrdinalIgnoreCase)))
@@ -117,6 +119,11 @@ public sealed class ContentDependencyValidator(
 
         return !dependency.StrictPublisher && IsSatisfiedByType(dependency, declaredParts, manifests);
     }
+
+    private static bool MatchesStrictPublisher(ContentDependency dependency, ContentManifest manifest) =>
+        !dependency.StrictPublisher ||
+        string.IsNullOrEmpty(dependency.PublisherType) ||
+        string.Equals(manifest.Publisher?.PublisherType, dependency.PublisherType, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Rejects a candidate for the wrong game or outside the declared version range. A candidate
@@ -241,6 +248,7 @@ public sealed class ContentDependencyValidator(
             RequiredByName = requiredBy.Name ?? string.Empty,
             RequiredById = requiredBy.Id.Value,
             ItemKey = GetGapIdentityKey(dependency),
+            Dependency = dependency,
         };
     }
 

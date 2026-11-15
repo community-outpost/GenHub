@@ -476,7 +476,7 @@ public sealed class ProfileContentService(
         foreach (var gap in missingDependencies.Where(gap => gap.CanDownload))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var dependency = await FindDeclaredDependencyAsync(gap, cancellationToken);
+            var dependency = gap.Dependency ?? await FindDeclaredDependencyAsync(gap, cancellationToken);
             var (manifest, incompatible) = await FindOrAcquireCompatibleDependencyAsync(dependency, gap.DependencyId, cancellationToken);
             if (manifest == null)
             {

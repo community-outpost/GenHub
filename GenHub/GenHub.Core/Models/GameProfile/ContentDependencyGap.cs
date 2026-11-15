@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Models.GameProfile;
 
@@ -41,4 +42,9 @@ public sealed record ContentDependencyGap
     /// Gets the key of the missing item. Requirements for the same item with different version limits share it.
     /// </summary>
     public string? ItemKey { get; init; }
+
+    /// <summary>
+    /// Gets the declaration that produced the gap, with the version and game limits it asks for.
+    /// </summary>
+    public ContentDependency? Dependency { get; init; }
 }

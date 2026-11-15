@@ -183,6 +183,84 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// A strict placeholder dependency is satisfied only by its publisher's content.
+    /// </summary>
+    /// <param name="publisherType">The enabled patch's publisher type.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("otherpublisher", true)]
+    [InlineData("examplepublisher", false)]
+    public void FindMissingDependencies_StrictPlaceholder_AppliesPublisher(string publisherType, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needspatch"),
+            Name = "Needs Patch",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Name = "Example Patch",
+                    DependencyType = ContentType.Patch,
+                    StrictPublisher = true,
+                    PublisherType = "examplepublisher",
+                },
+            ],
+        };
+        var patch = new ContentManifest
+        {
+            Id = ManifestId.Create($"1.0.{publisherType}.patch.somepatch"),
+            Name = "Some Patch",
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = publisherType },
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, patch]).Count == 1);
+    }
+
+    /// <summary>
+    /// A gap carries the declaration that produced it, so installing honors that declaration's limits.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SameIdDifferentLimits_GapCarriesUnmetDeclaration()
+    {
+        var looseLimit = new ContentDependency
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            DependencyType = ContentType.Addon,
+            StrictPublisher = true,
+            MinVersion = "1.0",
+        };
+        var strictLimit = new ContentDependency
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            DependencyType = ContentType.Addon,
+            StrictPublisher = true,
+            MinVersion = "2.0",
+        };
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies = [looseLimit, strictLimit],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = "1.0",
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod, basePack]));
+        Assert.Same(strictLimit, gap.Dependency);
+    }
+
+    /// <summary>
     /// A matching item outside the declared version range does not satisfy the dependency.
     /// An item without a recorded version is not rejected for its version.
     /// </summary>
