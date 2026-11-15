@@ -64,6 +64,7 @@
                         <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}" Margin="0,0,8,8"/>
                         <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Button.Scan}" Command="{Binding ScanForGamesCommand}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
                     </WrapPanel>
+                    <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsScanning}"/>
                     <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
                         <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
                         <WrapPanel>

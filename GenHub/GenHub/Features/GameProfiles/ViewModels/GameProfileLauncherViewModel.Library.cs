@@ -1,15 +1,10 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Core.Constants;
-using GenHub.Core.Models.GameProfile;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -19,8 +14,6 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileLauncherViewModel
 {
     private readonly HashSet<GameProfileItemViewModel> _librarySubscriptions = [];
-    private GameProfileItemViewModel? _displayedLibraryProfile;
-    private int _libraryContentRevision;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLibraryEmpty))]
@@ -33,31 +26,14 @@ public partial class GameProfileLauncherViewModel
     [ObservableProperty]
     private string _profileSearchText = string.Empty;
 
-    [ObservableProperty]
-    private string _selectedLibraryTab = GameProfileLibraryConstants.OverviewTab;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLibraryContentEmpty))]
-    private bool _isLibraryContentLoading;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLibraryContentEmpty))]
-    private bool _hasLibraryContentError;
-
     /// <summary>Gets a value indicating whether the library has loaded without any profiles.</summary>
     public bool IsLibraryEmpty => !HasDisplayedProfile && !IsLibraryInitializing && !HasLibraryLoadError;
-
-    /// <summary>Gets a value indicating whether no content rows are available.</summary>
-    public bool IsLibraryContentEmpty => !IsLibraryContentLoading && !HasLibraryContentError && LibraryContent.Count == 0;
 
     /// <summary>Gets the total profile count in a localized caption.</summary>
     public string LibraryProfileCount => localizationService.GetString("GameProfiles.Library.MyProfilesCount", ProfileCount);
 
     /// <summary>Gets profiles matching the search in the user's existing sort order.</summary>
     public ObservableCollection<GameProfileItemViewModel> LibraryProfiles { get; } = [];
-
-    /// <summary>Gets the enabled content of the currently displayed profile.</summary>
-    public ObservableCollection<Core.Models.Content.ContentDisplayItem> LibraryContent { get; } = [];
 
     /// <summary>Gets the number of real profiles, excluding the former Add card.</summary>
     public int ProfileCount => Profiles.Count(p => p is not AddProfileItemViewModel);
@@ -67,15 +43,6 @@ public partial class GameProfileLauncherViewModel
 
     /// <summary>Gets a value indicating whether a profile is available for the detail pane.</summary>
     public bool HasDisplayedProfile => DisplayedProfile != null;
-
-    /// <summary>Gets a value indicating whether the overview is selected.</summary>
-    public bool IsLibraryOverview => SelectedLibraryTab == GameProfileLibraryConstants.OverviewTab;
-
-    /// <summary>Gets a value indicating whether the content tab is selected.</summary>
-    public bool IsLibraryContent => SelectedLibraryTab == GameProfileLibraryConstants.ContentTab;
-
-    /// <summary>Gets a value indicating whether the settings tab is selected.</summary>
-    public bool IsLibrarySettings => SelectedLibraryTab == GameProfileLibraryConstants.SettingsTab;
 
     /// <summary>
     /// Gets or sets the displayed profile. A default preview does not overwrite the
@@ -95,17 +62,7 @@ public partial class GameProfileLauncherViewModel
         }
     }
 
-    /// <summary>Gets the current content load for deterministic completion checks.</summary>
-    internal Task LibraryContentLoad { get; private set; } = Task.CompletedTask;
-
     partial void OnProfileSearchTextChanged(string value) => RefreshLibraryProfiles();
-
-    partial void OnSelectedLibraryTabChanged(string value)
-    {
-        OnPropertyChanged(nameof(IsLibraryOverview));
-        OnPropertyChanged(nameof(IsLibraryContent));
-        OnPropertyChanged(nameof(IsLibrarySettings));
-    }
 
     [RelayCommand]
     private void SetLibrarySortMode(Core.Models.Enums.ProfileSortMode mode)
@@ -114,34 +71,6 @@ public partial class GameProfileLauncherViewModel
         if (option != null)
         {
             SelectedSortModeItem = option;
-        }
-    }
-
-    [RelayCommand]
-    private void SelectLibraryTab(string tab)
-    {
-        if (tab is GameProfileLibraryConstants.OverviewTab or GameProfileLibraryConstants.ContentTab or GameProfileLibraryConstants.SettingsTab)
-        {
-            if (SelectedLibraryTab == tab)
-            {
-                OnSelectedLibraryTabChanged(tab);
-            }
-            else
-            {
-                SelectedLibraryTab = tab;
-            }
-        }
-    }
-
-    [RelayCommand]
-    private async Task EditLibraryProfileAsync(string tab)
-    {
-        if (DisplayedProfile is { CanEdit: true } profile)
-        {
-            var editorTab = tab == GameProfileLibraryConstants.ContentTab
-                ? GameProfileLibraryConstants.ContentEditorTabIndex
-                : GameProfileLibraryConstants.SettingsEditorTabIndex;
-            await EditProfileCoreAsync(profile, editorTab);
         }
     }
 
@@ -194,11 +123,6 @@ public partial class GameProfileLauncherViewModel
         {
             RefreshLibraryProfiles();
         }
-
-        if (ReferenceEquals(sender, DisplayedProfile) && e.PropertyName == nameof(GameProfileItemViewModel.LibraryContentCount))
-        {
-            LibraryContentLoad = LoadLibraryContentAsync(DisplayedProfile);
-        }
     }
 
     private void RefreshDisplayedProfile()
@@ -206,66 +130,5 @@ public partial class GameProfileLauncherViewModel
         OnPropertyChanged(nameof(DisplayedProfile));
         OnPropertyChanged(nameof(HasDisplayedProfile));
         OnPropertyChanged(nameof(IsLibraryEmpty));
-        var profile = DisplayedProfile;
-        if (!ReferenceEquals(_displayedLibraryProfile, profile))
-        {
-            _displayedLibraryProfile = profile;
-            LibraryContentLoad = LoadLibraryContentAsync(profile);
-        }
-    }
-
-    private void ShowLibraryContentError()
-    {
-        HasLibraryContentError = true;
-        notificationService.ShowWarning(localizationService["GameProfiles.Library.Content"], localizationService["GameProfiles.Library.ContentError"]);
-    }
-
-    private async Task LoadLibraryContentAsync(GameProfileItemViewModel? item)
-    {
-        var revision = ++_libraryContentRevision;
-        LibraryContent.Clear();
-        OnPropertyChanged(nameof(IsLibraryContentEmpty));
-        HasLibraryContentError = false;
-        IsLibraryContentLoading = false;
-        if (item?.LibraryProfile is not GameProfile profile || libraryScopeFactory == null)
-        {
-            return;
-        }
-
-        IsLibraryContentLoading = true;
-        try
-        {
-            using var scope = libraryScopeFactory.CreateScope();
-            var loader = scope.ServiceProvider.GetRequiredService<Core.Interfaces.GameProfiles.IProfileContentLoader>();
-            var content = await loader.LoadEnabledContentForProfileAsync(profile);
-            if (revision == _libraryContentRevision && content != null)
-            {
-                foreach (var entry in content)
-                {
-                    LibraryContent.Add(entry);
-                }
-
-                if (content.Count < (profile.EnabledContentIds?.Count ?? 0))
-                {
-                    ShowLibraryContentError();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to load library content for profile {ProfileId}", profile.Id);
-            if (revision == _libraryContentRevision)
-            {
-                ShowLibraryContentError();
-            }
-        }
-        finally
-        {
-            if (revision == _libraryContentRevision)
-            {
-                IsLibraryContentLoading = false;
-                OnPropertyChanged(nameof(IsLibraryContentEmpty));
-            }
-        }
     }
 }

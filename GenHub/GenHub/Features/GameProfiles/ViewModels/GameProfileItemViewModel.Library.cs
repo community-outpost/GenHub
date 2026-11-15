@@ -125,12 +125,7 @@ public partial class GameProfileItemViewModel
     }
 
     /// <summary>
-    /// Gets the number of enabled content entries in the saved profile.
-    /// </summary>
-    public int LibraryContentCount => LibraryProfile.EnabledContentIds?.Count ?? 0;
-
-    /// <summary>
-    /// Gets the latest profile snapshot for loading the library's content metadata.
+    /// Gets the latest saved profile snapshot behind the library captions.
     /// </summary>
     internal IGameProfile LibraryProfile => _libraryProfile ?? Profile;
 
@@ -141,7 +136,6 @@ public partial class GameProfileItemViewModel
     {
         NotifyLibraryCaptionsChanged();
         OnPropertyChanged(nameof(LibraryVersion));
-        OnPropertyChanged(nameof(LibraryContentCount));
         OnPropertyChanged(nameof(LibraryProfile));
     }
 

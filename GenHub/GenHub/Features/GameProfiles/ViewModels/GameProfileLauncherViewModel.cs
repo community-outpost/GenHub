@@ -31,7 +31,6 @@ using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using GenHub.Features.GameProfiles.Views;
 using GenHub.Features.Launching;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -73,8 +72,7 @@ public partial class GameProfileLauncherViewModel(
     IUploadHistoryService? uploadHistoryService = null,
     Func<IProfileSharingService>? profileSharingServiceFactory = null,
     ITelemetryService? telemetryService = null,
-    IUserSettingsService? userSettingsService = null,
-    IServiceScopeFactory? libraryScopeFactory = null) : ViewModelBase,
+    IUserSettingsService? userSettingsService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>,
@@ -2855,11 +2853,6 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private async Task EditProfile(GameProfileItemViewModel profile)
     {
-        await EditProfileCoreAsync(profile, null);
-    }
-
-    private async Task EditProfileCoreAsync(GameProfileItemViewModel profile, int? initialTab)
-    {
         try
         {
             // Load the profile using the profile editor facade
@@ -2874,10 +2867,6 @@ public partial class GameProfileLauncherViewModel(
 
             // Initialize the settings view model for this profile
             await settingsViewModel.InitializeForProfileAsync(profile.ProfileId);
-            if (initialTab.HasValue)
-            {
-                settingsViewModel.SelectedTabIndex = initialTab.Value;
-            }
 
             // For now, just show the settings window - profile data loading into view model needs more implementation
             var mainWindow = GetMainWindow();

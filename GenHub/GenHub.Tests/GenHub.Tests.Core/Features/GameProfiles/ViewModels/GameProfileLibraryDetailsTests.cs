@@ -18,11 +18,9 @@ public class GameProfileLibraryDetailsTests
     public void UpdateFromProfile_RefreshesSavedLibraryDetails()
     {
         var original = CreateProfile("Original description", "-window");
-        original.EnabledContentIds.Add("original-content");
         var item = CreateItem(original);
         var refreshed = CreateProfile("Updated description", "-quickstart");
         refreshed.GameClient!.Name = "Updated game name";
-        refreshed.EnabledContentIds.AddRange(["first-content", "second-content"]);
 
         item.UpdateFromProfile(refreshed);
 
@@ -33,7 +31,6 @@ public class GameProfileLibraryDetailsTests
         Assert.Equal("Updated game name", item.LibraryGameName);
         Assert.Equal("Updated game name · v1.04", item.LibraryHeaderMetadata);
         Assert.Equal("-quickstart", item.LibraryArguments);
-        Assert.Equal(2, item.LibraryContentCount);
     }
 
     /// <summary>

@@ -18396,51 +18396,6 @@ Error: فشل: {3}
   <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
     <value>نقل إلى الأسفل</value>
   </data>
-  <data name="GameProfiles.Library.Overview" xml:space="preserve">
-    <value>نظرة عامة</value>
-  </data>
-  <data name="GameProfiles.Library.Content" xml:space="preserve">
-    <value>المحتوى</value>
-  </data>
-  <data name="GameProfiles.Library.Settings" xml:space="preserve">
-    <value>الإعدادات</value>
-  </data>
-  <data name="GameProfiles.Library.About" xml:space="preserve">
-    <value>حول ملف التعريف هذا</value>
-  </data>
-  <data name="GameProfiles.Library.Game" xml:space="preserve">
-    <value>اللعبة</value>
-  </data>
-  <data name="GameProfiles.Library.Version" xml:space="preserve">
-    <value>الإصدار</value>
-  </data>
-  <data name="GameProfiles.Library.Compatibility" xml:space="preserve">
-    <value>التوافق</value>
-  </data>
-  <data name="GameProfiles.Library.IncludedContent" xml:space="preserve">
-    <value>المحتوى المضمّن</value>
-  </data>
-  <data name="GameProfiles.Library.ContentHelp" xml:space="preserve">
-    <value>عند اللعب، يُحمَّل المحتوى المفعّل لهذا الملف التعريفي فقط. افتح «إدارة المحتوى» لعرض الإعداد الكامل أو تغييره.</value>
-  </data>
-  <data name="GameProfiles.Library.ContentError" xml:space="preserve">
-    <value>تعذر تحميل بعض تفاصيل المحتوى. افتح إدارة المحتوى لمراجعة ملف التعريف هذا.</value>
-  </data>
-  <data name="GameProfiles.Library.ManageContent" xml:space="preserve">
-    <value>إدارة المحتوى</value>
-  </data>
-  <data name="GameProfiles.Library.LaunchSettings" xml:space="preserve">
-    <value>إعدادات التشغيل</value>
-  </data>
-  <data name="GameProfiles.Library.LaunchMethod" xml:space="preserve">
-    <value>طريقة التشغيل</value>
-  </data>
-  <data name="GameProfiles.Library.Arguments" xml:space="preserve">
-    <value>وسائط تشغيل إضافية</value>
-  </data>
-  <data name="GameProfiles.Library.EditSettings" xml:space="preserve">
-    <value>تحرير إعدادات ملف التعريف</value>
-  </data>
   <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
     <value>لعبتك التالية تبدأ هنا</value>
   </data>
@@ -18470,15 +18425,6 @@ Error: فشل: {3}
   </data>
   <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
     <value>ملف تعريف اللعبة</value>
-  </data>
-  <data name="GameProfiles.Library.ContentCount" xml:space="preserve">
-    <value>عناصر المحتوى المفعّلة: {0}</value>
-  </data>
-  <data name="GameProfiles.Library.NoContent" xml:space="preserve">
-    <value>لا يوجد محتوى مفعّل لعرضه. افتح «إدارة المحتوى» لمراجعة الإعداد الكامل.</value>
-  </data>
-  <data name="GameProfiles.Library.ProfileCount" xml:space="preserve">
-    <value>{0} ملفات تعريف</value>
   </data>
   <data name="GameProfiles.Library.LoadError" xml:space="preserve">
     <value>تعذر تحميل ملفات التعريف. أعد فتح قسم ملفات التعريف أو أعد تشغيل GenHub.</value>

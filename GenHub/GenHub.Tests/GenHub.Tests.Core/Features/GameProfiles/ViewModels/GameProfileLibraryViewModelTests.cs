@@ -24,8 +24,6 @@ using GenHub.Features.GameProfiles.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
-using System.Collections.ObjectModel;
-using ContentDisplayItem = GenHub.Core.Models.Content.ContentDisplayItem;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -265,239 +263,6 @@ public class GameProfileLibraryViewModelTests
     }
 
     /// <summary>
-    /// Verifies that the selected content tab changes only for supported tab names.
-    /// </summary>
-    [Fact]
-    public void SelectLibraryTabCommand_IgnoresUnknownTab()
-    {
-        var vm = CreateViewModel();
-        Assert.Equal("Overview", vm.SelectedLibraryTab);
-
-        vm.SelectLibraryTabCommand.Execute("Content");
-        Assert.Equal("Content", vm.SelectedLibraryTab);
-
-        vm.SelectLibraryTabCommand.Execute("Settings");
-        Assert.Equal("Settings", vm.SelectedLibraryTab);
-
-        vm.SelectLibraryTabCommand.Execute("Unknown");
-        Assert.Equal("Settings", vm.SelectedLibraryTab);
-
-        vm.SelectLibraryTabCommand.Execute("Overview");
-        Assert.Equal("Overview", vm.SelectedLibraryTab);
-    }
-
-    /// <summary>
-    /// Verifies that a slower previous selection cannot replace the current content or loading state.
-    /// </summary>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Fact]
-    public async Task LibraryContent_LatePreviousSelection_DoesNotOverwriteCurrentProfileAsync()
-    {
-        var loader = new Mock<IProfileContentLoader>();
-        var alphaCompletion = new TaskCompletionSource<ObservableCollection<ContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var bravoCompletion = new TaskCompletionSource<ObservableCollection<ContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.Is<GameProfile>(p => p.Id == "alpha"))).Returns(alphaCompletion.Task);
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.Is<GameProfile>(p => p.Id == "bravo"))).Returns(bravoCompletion.Task);
-        var vm = CreateViewModel(loader.Object);
-        vm.Profiles.Add(CreateProfile("alpha", "Alpha"));
-        var alphaLoad = vm.LibraryContentLoad;
-        var bravo = CreateProfile("bravo", "Bravo");
-        vm.Profiles.Add(bravo);
-        vm.DisplayedProfile = bravo;
-        var bravoLoad = vm.LibraryContentLoad;
-        Assert.True(vm.IsLibraryContentLoading);
-
-        bravoCompletion.SetResult([new ContentDisplayItem { Id = "bravo-content", DisplayName = "Bravo content" }]);
-        await bravoLoad;
-        alphaCompletion.SetResult([new ContentDisplayItem { Id = "alpha-content", DisplayName = "Alpha content" }]);
-        await alphaLoad;
-
-        Assert.Equal("bravo-content", Assert.Single(vm.LibraryContent).Id);
-        Assert.False(vm.IsLibraryContentLoading);
-        Assert.False(vm.HasLibraryContentError);
-    }
-
-    /// <summary>
-    /// Verifies that a loader failure is visible and completes the loading state.
-    /// </summary>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Fact]
-    public async Task LibraryContent_LoaderFails_ShowsErrorInsteadOfEmptySuccessAsync()
-    {
-        var completion = new TaskCompletionSource<ObservableCollection<ContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>())).Returns(completion.Task);
-        var vm = CreateViewModel(loader.Object);
-        vm.Profiles.Add(CreateProfile("alpha", "Alpha"));
-        var load = vm.LibraryContentLoad;
-
-        completion.SetException(new IOException("Content metadata unavailable"));
-        await load;
-
-        Assert.True(vm.HasLibraryContentError);
-        Assert.False(vm.IsLibraryContentLoading);
-        Assert.Empty(vm.LibraryContent);
-    }
-
-    /// <summary>
-    /// Verifies that completion for a removed final profile cannot repopulate the empty detail pane.
-    /// </summary>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Fact]
-    public async Task LibraryContent_ProfileRemoved_IgnoresLateCompletionAsync()
-    {
-        var completion = new TaskCompletionSource<ObservableCollection<ContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>())).Returns(completion.Task);
-        var vm = CreateViewModel(loader.Object);
-        var alpha = CreateProfile("alpha", "Alpha");
-        vm.Profiles.Add(alpha);
-        var load = vm.LibraryContentLoad;
-
-        vm.Profiles.Remove(alpha);
-        completion.SetResult([new ContentDisplayItem { Id = "removed-content", DisplayName = "Removed content" }]);
-        await load;
-
-        Assert.Null(vm.DisplayedProfile);
-        Assert.Empty(vm.LibraryContent);
-        Assert.False(vm.IsLibraryContentLoading);
-        Assert.False(vm.HasLibraryContentError);
-    }
-
-    /// <summary>
-    /// Verifies that unresolved saved content is reported even when the loader returns a partial list.
-    /// </summary>
-    /// <param name="resolvedCount">The number of content entries the loader resolves.</param>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    public async Task LibraryContent_PartialMetadata_ShowsErrorAndRetainsResolvedRowsAsync(int resolvedCount)
-    {
-        var resolved = new ObservableCollection<ContentDisplayItem>();
-        if (resolvedCount > 0)
-        {
-            resolved.Add(new ContentDisplayItem { Id = "first-content", DisplayName = "First content" });
-        }
-
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>())).ReturnsAsync(resolved);
-        var vm = CreateViewModel(loader.Object);
-        var alpha = CreateProfile("alpha", "Alpha");
-        ((GameProfile)alpha.Profile).EnabledContentIds = ["first-content", "missing-content"];
-        vm.Profiles.Add(alpha);
-
-        await vm.LibraryContentLoad;
-
-        Assert.True(vm.HasLibraryContentError);
-        Assert.False(vm.IsLibraryContentEmpty);
-        Assert.False(vm.IsLibraryContentLoading);
-        Assert.Equal(resolvedCount, vm.LibraryContent.Count);
-        Assert.Equal(resolved, vm.LibraryContent);
-    }
-
-    /// <summary>
-    /// Verifies that the scoped content service remains alive during loading and is disposed afterward.
-    /// </summary>
-    /// <param name="fails">Whether the loader completes with an error.</param>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task LibraryContent_DisposesOwnedScopeAfterLoadAsync(bool fails)
-    {
-        var completion = new TaskCompletionSource<ObservableCollection<ContentDisplayItem>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>())).Returns(completion.Task);
-        var provider = new Mock<IServiceProvider>();
-        provider.Setup(x => x.GetService(typeof(IProfileContentLoader))).Returns(loader.Object);
-        var scope = new Mock<IServiceScope>();
-        scope.SetupGet(x => x.ServiceProvider).Returns(provider.Object);
-        var scopeFactory = new Mock<IServiceScopeFactory>();
-        scopeFactory.Setup(x => x.CreateScope()).Returns(scope.Object);
-        var vm = CreateViewModel(libraryScopeFactory: scopeFactory.Object);
-        vm.Profiles.Add(CreateProfile("alpha", "Alpha"));
-        var load = vm.LibraryContentLoad;
-        scope.Verify(x => x.Dispose(), Times.Never);
-
-        if (fails)
-        {
-            completion.SetException(new IOException("Content metadata unavailable"));
-        }
-        else
-        {
-            completion.SetResult([]);
-        }
-
-        await load;
-
-        scope.Verify(x => x.Dispose(), Times.Once);
-        Assert.Equal(fails, vm.HasLibraryContentError);
-    }
-
-    /// <summary>
-    /// Verifies that replacing content with the same entry count still reloads saved metadata.
-    /// </summary>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Fact]
-    public async Task LibraryContent_ProfileUpdatedWithSameCount_ReloadsCurrentSnapshotAsync()
-    {
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>()))
-            .Returns((GameProfile p) => Task.FromResult(new ObservableCollection<ContentDisplayItem>
-            {
-                new() { Id = p.EnabledContentIds.Single(), DisplayName = p.EnabledContentIds.Single() },
-            }));
-        var vm = CreateViewModel(loader.Object);
-        var alpha = CreateProfile("alpha", "Alpha");
-        var original = (GameProfile)alpha.Profile;
-        original.EnabledContentIds = ["old-content"];
-        vm.Profiles.Add(alpha);
-        await vm.LibraryContentLoad;
-        var notified = false;
-        alpha.PropertyChanged += (_, e) => notified |= e.PropertyName == nameof(GameProfileItemViewModel.LibraryContentCount);
-
-        alpha.UpdateFromProfile(new GameProfile
-        {
-            Id = original.Id,
-            Name = original.Name,
-            GameClient = original.GameClient,
-            EnabledContentIds = ["new-content"],
-        });
-        await vm.LibraryContentLoad;
-
-        Assert.True(notified);
-        Assert.Equal(1, alpha.LibraryContentCount);
-        Assert.Equal("new-content", Assert.Single(vm.LibraryContent).Id);
-        loader.Verify(x => x.LoadEnabledContentForProfileAsync(It.Is<GameProfile>(p => p.EnabledContentIds.Contains("new-content"))), Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that a caption refresh for a language change does not reload content.
-    /// </summary>
-    /// <returns>A task representing the asynchronous regression check.</returns>
-    [Fact]
-    public async Task LibraryContent_CaptionRefresh_DoesNotReloadContentAsync()
-    {
-        var loader = new Mock<IProfileContentLoader>();
-        loader.Setup(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>()))
-            .ReturnsAsync(new ObservableCollection<ContentDisplayItem>());
-        var vm = CreateViewModel(loader.Object);
-        var alpha = CreateProfile("alpha", "Alpha");
-        vm.Profiles.Add(alpha);
-        await vm.LibraryContentLoad;
-        var load = vm.LibraryContentLoad;
-        var notified = false;
-        alpha.PropertyChanged += (_, e) => notified |= e.PropertyName == nameof(GameProfileItemViewModel.LibraryContentCount);
-
-        alpha.NotifyLibraryCaptionsChanged();
-
-        Assert.False(notified);
-        Assert.Same(load, vm.LibraryContentLoad);
-        loader.Verify(x => x.LoadEnabledContentForProfileAsync(It.IsAny<GameProfile>()), Times.Once);
-    }
-
-    /// <summary>
     /// Verifies that mounting the detail fallback does not silently persist a default selection.
     /// </summary>
     [AvaloniaFact]
@@ -671,6 +436,13 @@ public class GameProfileLibraryViewModelTests
             Assert.True(vm.IsLibraryEmpty);
             var scan = view.GetVisualDescendants().OfType<Button>().Single(control => ReferenceEquals(control.Command, vm.ScanForGamesCommand));
             Assert.True(scan.IsEffectivelyVisible);
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<ProgressBar>(), bar => bar.IsEffectivelyVisible);
+
+            vm.IsScanning = true;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.False(scan.IsEnabled);
+            Assert.Single(view.GetVisualDescendants().OfType<ProgressBar>(), bar => bar.IsEffectivelyVisible);
         }
         finally
         {
@@ -790,26 +562,13 @@ public class GameProfileLibraryViewModelTests
         return new GameProfileItemViewModel(id, profile, string.Empty, string.Empty);
     }
 
-    private static GameProfileLauncherViewModel CreateViewModel(IProfileContentLoader? contentLoader = null, IServiceScopeFactory? libraryScopeFactory = null)
+    private static GameProfileLauncherViewModel CreateViewModel()
     {
         var localization = new Mock<ILocalizationService>();
         localization.Setup(x => x[It.IsAny<string>()]).Returns((string key) => key);
         localization.Setup(x => x.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
             .Returns((string key, object[] values) => key + ":" + string.Join(",", values));
         localization.SetupGet(x => x.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
-        Mock<IServiceScopeFactory>? scopeFactory = null;
-        if (contentLoader != null)
-        {
-            var provider = new Mock<IServiceProvider>();
-            provider.Setup(x => x.GetService(typeof(IProfileContentLoader))).Returns(contentLoader);
-            scopeFactory = new Mock<IServiceScopeFactory>();
-            scopeFactory.Setup(x => x.CreateScope()).Returns(() =>
-            {
-                var scope = new Mock<IServiceScope>();
-                scope.SetupGet(x => x.ServiceProvider).Returns(provider.Object);
-                return scope.Object;
-            });
-        }
 
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
@@ -828,7 +587,6 @@ public class GameProfileLibraryViewModelTests
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance,
-            localization.Object,
-            libraryScopeFactory: libraryScopeFactory ?? scopeFactory?.Object);
+            localization.Object);
     }
 }
