@@ -657,6 +657,27 @@ public sealed class JsonPublisherCatalogParserTests
         Assert.Equal(ContentType.UnknownContentType, item.ContentType);
     }
 
+    /// <summary>
+    /// The sample catalog declares its publisher tabs on specific items, not at the catalog root.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ParseCatalogAsync_SampleCatalog_DeclaresTabsPerItemAsync()
+    {
+        var parser = new JsonPublisherCatalogParser(NullLogger<JsonPublisherCatalogParser>.Instance);
+        var result = await parser.ParseCatalogAsync(await File.ReadAllTextAsync(FindSampleCatalogPath()));
+
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+        Assert.Empty(result.Data!.CustomTabs);
+        var zeroHour = Assert.Single(result.Data.Content, c => c.Id == "zerohour");
+        var briefing = Assert.Single(zeroHour.CustomTabs);
+        Assert.Equal("release-briefing", briefing.TabId);
+        Assert.False(string.IsNullOrWhiteSpace(briefing.Body));
+        Assert.Equal("community-guide", Assert.Single(Assert.Single(result.Data.Content, c => c.Id == "community-patch-retail").CustomTabs).TabId);
+        Assert.Equal("addons-utilities", Assert.Single(Assert.Single(result.Data.Content, c => c.Id == "l3m-controlbar").CustomTabs).TabId);
+        Assert.Empty(Assert.Single(result.Data.Content, c => c.Id == "60hz").CustomTabs);
+    }
+
     private static void AssertUpstream(
         System.Collections.Generic.IReadOnlyList<CatalogContentItem> content,
         string id,

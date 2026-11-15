@@ -103,6 +103,7 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
     private bool _isRestoringSelection;
+    private bool _hasRestoredScanOutcome;
 
     /// <summary>
     /// Represents a profile sorting option.
@@ -265,27 +266,51 @@ public partial class GameProfileLauncherViewModel(
     private bool _hasNoDetectedInstallations;
 
     /// <summary>
-    /// Gets a value indicating whether the storefront purchase banner should be displayed.
-    /// Visible when profiles have been loaded successfully and either no playable profiles exist
-    /// or no game installations were detected on the system.
+    /// Gets a value indicating whether a game installation scan has completed, in this session or a previous one.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property bound to Avalonia view")]
-    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && (HasNoProfiles || HasNoDetectedInstallations);
+    [ObservableProperty]
+    private bool _hasCompletedScan;
 
-    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets a value indicating whether the most recent game installation scan failed.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasScanFailed;
 
-    partial void OnHasNoProfilesChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets the reason the most recent game installation scan failed.
+    /// </summary>
+    [ObservableProperty]
+    private string _scanFailureMessage = string.Empty;
 
-    partial void OnHasNoDetectedInstallationsChanged(bool value)
-    {
-        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
-    }
+    /// <summary>
+    /// Gets a value indicating whether the storefront purchase banner should be displayed.
+    /// Visible only after a completed scan found no game installation and while there are no playable profiles.
+    /// </summary>
+    public bool ShouldShowStorefrontBanner => HasLoadedProfilesSuccessfully && HasNoDetectedInstallations && HasNoProfiles;
+
+    /// <summary>
+    /// Gets a value indicating whether the prompt to scan for games should be displayed.
+    /// Visible when there are no playable profiles and no scan has completed or failed yet.
+    /// </summary>
+    public bool ShouldShowScanPrompt => HasLoadedProfilesSuccessfully && HasNoProfiles && !HasCompletedScan && !HasScanFailed && !IsScanning;
+
+    /// <summary>
+    /// Gets a value indicating whether the failed-scan panel should be displayed.
+    /// </summary>
+    public bool ShouldShowScanFailure => HasLoadedProfilesSuccessfully && HasScanFailed && !IsScanning;
+
+    partial void OnHasLoadedProfilesSuccessfullyChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasNoProfilesChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasNoDetectedInstallationsChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasCompletedScanChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnHasScanFailedChanged(bool value) => NotifyScanStateChanged();
+
+    partial void OnIsScanningChanged(bool value) => NotifyScanStateChanged();
 
     /// <summary>
     /// Gets the collection of game profiles.
@@ -443,6 +468,7 @@ public partial class GameProfileLauncherViewModel(
                 RestoreSelectedProfile(selectedProfileId);
 
                 ApplySorting();
+                RestoreScanOutcome();
 
                 var profileCount = Profiles.Count - 1;
                 HasLoadedProfilesSuccessfully = true;
@@ -904,6 +930,92 @@ public partial class GameProfileLauncherViewModel(
 
         var unescaped = Uri.UnescapeDataString(urlValue);
         return Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) ? uri.Host : null;
+    }
+
+    /// <summary>
+    /// Builds a Retail installation from a folder the user chose, or returns null when it holds no game.
+    /// The folder is accepted when it, or its Generals and Zero Hour subfolders, hold a Windows or native
+    /// game executable, or when it is a flat native install that holds the retail archives.
+    /// </summary>
+    /// <param name="selectedPath">The chosen folder.</param>
+    /// <param name="logger">The logger for the outcome.</param>
+    /// <returns>The installation, or null when the folder holds no game.</returns>
+    internal static GameInstallation? CreateManualInstallation(string selectedPath, ILogger logger)
+    {
+        string[] zeroHourExecutables =
+        [
+            GameClientConstants.ZeroHourExecutable,
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersZeroHourExecutable,
+            Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersZeroHourExecutable),
+        ];
+
+        string[] generalsExecutables =
+        [
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersGeneralsExecutable,
+            Path.GetFileNameWithoutExtension(GameClientConstants.SuperHackersGeneralsExecutable),
+        ];
+
+        // Case-insensitive, matching the nine sibling detectors. Retail data copied
+        // from a disc or a Windows machine is frequently upper-cased (GENERALS.EXE),
+        // and Linux volumes plus case-sensitive APFS will not match it otherwise.
+        bool hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
+        bool hasGenerals = generalsExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
+
+        if (!hasZeroHour && !hasGenerals)
+        {
+            // A flat native install may carry only an engine binary under another name next to the retail archives.
+            var archives = RetailArchiveClassifier.ClassifyArchivesSafely(selectedPath, logger);
+            hasGenerals = archives.HasGeneralsArchives;
+            hasZeroHour = archives.HasZeroHourArchives;
+        }
+
+        if (hasZeroHour || hasGenerals)
+        {
+            var installation = new GameInstallation(selectedPath, GameInstallationType.Retail, null);
+            installation.SetPaths(
+                hasGenerals ? selectedPath : null,
+                hasZeroHour ? selectedPath : null);
+
+            logger.LogInformation(
+                "Created manual Retail installation from selected directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
+                hasGenerals,
+                hasZeroHour);
+
+            return installation;
+        }
+
+        // Check if it's a parent directory with subdirectories
+        var generalsSubdir = Path.Combine(selectedPath, GameClientConstants.GeneralsDirectoryName);
+        var zeroHourSubdir = Path.Combine(selectedPath, GameClientConstants.ZeroHourDirectoryName);
+
+        if (Directory.Exists(generalsSubdir))
+        {
+            hasGenerals = generalsExecutables.Any(exe => Path.Combine(generalsSubdir, exe).FileExistsCaseInsensitive());
+        }
+
+        if (Directory.Exists(zeroHourSubdir))
+        {
+            hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(zeroHourSubdir, exe).FileExistsCaseInsensitive());
+        }
+
+        if (!hasGenerals && !hasZeroHour)
+        {
+            return null;
+        }
+
+        var parentInstallation = new GameInstallation(selectedPath, GameInstallationType.Retail, null);
+        parentInstallation.SetPaths(
+            hasGenerals ? generalsSubdir : null,
+            hasZeroHour ? zeroHourSubdir : null);
+
+        logger.LogInformation(
+            "Created manual Retail installation from parent directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
+            hasGenerals,
+            hasZeroHour);
+
+        return parentInstallation;
     }
 
     /// <summary>
@@ -1536,17 +1648,9 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>The classified types, or null when no executable is recognized.</returns>
     private async Task<(GameType GameType, ContentType ContentType)?> ClassifyDirectoryExecutableAsync(string directoryPath, CancellationToken cancellationToken)
     {
-        List<string> candidates = [];
-        try
+        var candidates = TryListExecutableCandidates(directoryPath);
+        if (candidates == null)
         {
-            candidates = Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
-                .Where(IsExecutableCandidate)
-                .Take(MaxDirectoryExecutablesToInspect)
-                .ToList();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
             return null;
         }
 
@@ -1576,6 +1680,22 @@ public partial class GameProfileLauncherViewModel(
 
             var profileCount = Math.Max(0, Profiles.Count - 1);
             StatusMessage = localizationService.GetString("GameProfiles.Status.LoadedProfiles", profileCount);
+        }
+    }
+
+    private List<string>? TryListExecutableCandidates(string directoryPath)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsExecutableCandidate)
+                .Take(MaxDirectoryExecutablesToInspect)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to enumerate executables in dropped directory {Path}", directoryPath);
+            return null;
         }
     }
 
@@ -1630,12 +1750,14 @@ public partial class GameProfileLauncherViewModel(
             return; // Prevent multiple concurrent scans
         }
 
+        var detectionFinished = false;
         try
         {
             IsScanning = true;
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop(); // Ensure header stays open during scan
             HasNoDetectedInstallations = false;
+            ClearScanFailure();
 
             StatusMessage = localizationService["GameProfiles.Status.ScanningForGames"];
             ErrorMessage = string.Empty;
@@ -1645,16 +1767,19 @@ public partial class GameProfileLauncherViewModel(
             if (installations.Success && installations.Data != null)
             {
                 var installationsList = installations.Data.ToList();
+                var detectionIncomplete = installationsList.Count > 0 && installationService.CachedInstallations == null;
 
                 if (installationsList.Count == 0)
                 {
-                    var manualInstallation = await PromptAndRegisterManualInstallationAsync();
+                    var manualInstallation = await PromptAndRegisterManualInstallationAsync(cancellationToken);
                     if (manualInstallation != null)
                     {
                         installationsList.Add(manualInstallation);
                     }
                     else
                     {
+                        detectionFinished = true;
+                        await RecordCompletedScanAsync(InstallationScanOutcome.FoundNothing);
                         HasNoDetectedInstallations = true;
                         StatusMessage = localizationService["GameProfiles.Status.NoInstallationsFound"];
                         notificationService.ShowWarning(
@@ -1666,6 +1791,8 @@ public partial class GameProfileLauncherViewModel(
                 }
 
                 HasNoDetectedInstallations = false;
+                detectionFinished = true;
+                await RecordDetectionOutcomeAsync(detectionIncomplete);
 
                 logger.LogInformation(
                     "Game scan completed. Found {Count} installations ({GeneralsCount} Generals, {ZeroHourCount} Zero Hour)",
@@ -1675,7 +1802,14 @@ public partial class GameProfileLauncherViewModel(
 
                 var wizardResult = await setupWizardService.RunSetupWizardAsync(installationsList, cancellationToken);
                 var (profilesCreated, failedComponentKeys, skippedInstallations) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult, cancellationToken);
-                await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys, skippedInstallations, cancellationToken);
+                if (detectionIncomplete)
+                {
+                    ReportIncompleteScanSetupOutcome(failedComponentKeys);
+                }
+                else
+                {
+                    await ReportSetupOutcomeAsync(installationsList, wizardResult, profilesCreated, failedComponentKeys, skippedInstallations, cancellationToken);
+                }
             }
             else
             {
@@ -1683,6 +1817,7 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.ScanFailed", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Game scan failed: {Errors}", errors);
+                await RecordScanFailureAsync(errors);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1694,6 +1829,17 @@ public partial class GameProfileLauncherViewModel(
             logger.LogError(ex, "Error scanning for games");
             StatusMessage = localizationService["GameProfiles.Status.ErrorDuringScan"];
             ErrorMessage = ex.Message;
+            if (!detectionFinished)
+            {
+                await RecordScanFailureAsync(ex.Message);
+            }
+            else
+            {
+                notificationService.ShowError(
+                    localizationService[NotificationErrorTitleKey],
+                    localizationService.GetString("GameProfiles.ScanFailure.SetupFailed", ex.Message),
+                    autoDismissMs: NotificationDurations.Long);
+            }
         }
         finally
         {
@@ -1805,6 +1951,23 @@ public partial class GameProfileLauncherViewModel(
             autoDismissMs: NotificationDurations.VeryLong);
     }
 
+    /// <summary>
+    /// Reports setup after a scan whose detection is still failing. The scan failure stays in the status line,
+    /// and any setup choice that failed is still reported.
+    /// </summary>
+    /// <param name="failedComponentKeys">The localization keys of the components that could not be set up.</param>
+    private void ReportIncompleteScanSetupOutcome(IReadOnlyList<string> failedComponentKeys)
+    {
+        StatusMessage = ScanFailureMessage;
+        if (failedComponentKeys.Count > 0)
+        {
+            notificationService.ShowWarning(
+                localizationService["GameProfiles.Notification.ComponentsFailed.Title"],
+                FormatFailedComponentsMessage(failedComponentKeys),
+                autoDismissMs: NotificationDurations.VeryLong);
+        }
+    }
+
     private string FormatFailedComponentsMessage(IReadOnlyList<string> failedComponentKeys) =>
         localizationService.GetString(
             "GameProfiles.Notification.ComponentsFailed.Message",
@@ -1842,14 +2005,160 @@ public partial class GameProfileLauncherViewModel(
             baseClients.Except(matched).All(entry => entry.Client.IsPublisherClient && IsDeclined(GetPublisherDecision(entry.Client, wizardResult)));
     }
 
-    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync()
+    /// <summary>
+    /// Lets the user pick the game folder after a failed scan and creates profiles for it.
+    /// </summary>
+    /// <param name="cancellationToken">Token that cancels setup for the chosen folder.</param>
+    [RelayCommand]
+    private async Task ChooseGameFolderAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("No game installations found, prompting user for manual directory selection");
+        if (IsScanning)
+        {
+            return;
+        }
 
-        notificationService.ShowInfo(
-            localizationService["GameProfiles.Notification.ManualSelection.Title"],
-            localizationService["GameProfiles.Notification.ManualSelection.Message"],
-            autoDismissMs: NotificationDurations.VeryLong);
+        try
+        {
+            IsScanning = true;
+            IsHeaderExpanded = true;
+            _headerCollapseTimer.Stop();
+            var installation = await PromptAndRegisterManualInstallationAsync(cancellationToken, announceMissingInstallations: false, requireRegistration: true);
+            if (installation == null)
+            {
+                return;
+            }
+
+            ClearScanFailure();
+            ErrorMessage = string.Empty;
+            HasNoDetectedInstallations = false;
+            await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
+
+            List<GameInstallation> installations = [installation];
+            var wizardResult = await setupWizardService.RunSetupWizardAsync(installations, cancellationToken);
+            var (profilesCreated, failedComponentKeys, skippedInstallations) = await ApplyInstallationWizardDecisionsAsync(installations, wizardResult, cancellationToken);
+            await ReportSetupOutcomeAsync(installations, wizardResult, profilesCreated, failedComponentKeys, skippedInstallations, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error registering the chosen game folder");
+            notificationService.ShowError(
+                localizationService[NotificationErrorTitleKey],
+                localizationService.GetString("GameProfiles.ScanFailure.ChooseFolderFailed", ex.Message),
+                autoDismissMs: NotificationDurations.Long);
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    private void NotifyScanStateChanged()
+    {
+        OnPropertyChanged(nameof(ShouldShowStorefrontBanner));
+        OnPropertyChanged(nameof(ShouldShowScanPrompt));
+        OnPropertyChanged(nameof(ShouldShowScanFailure));
+    }
+
+    private void ClearScanFailure()
+    {
+        HasScanFailed = false;
+        ScanFailureMessage = string.Empty;
+    }
+
+    private async Task RecordScanFailureAsync(string reason)
+    {
+        ScanFailureMessage = reason;
+        HasScanFailed = true;
+        notificationService.ShowWarning(
+            localizationService["GameProfiles.ScanFailure.Title"],
+            reason,
+            autoDismissMs: NotificationDurations.Long);
+
+        // A failed scan says nothing about whether the game is installed, so an older empty result must not survive it.
+        await PersistScanOutcomeAsync(InstallationScanOutcome.NotScanned);
+    }
+
+    /// <summary>
+    /// Records a scan that found installations. When they came only from a folder chosen while detection
+    /// kept failing, the scan stays failed so the recovery actions remain visible and nothing is persisted
+    /// as a completed scan.
+    /// </summary>
+    /// <param name="detectionIncomplete">Whether detection is still failing.</param>
+    private async Task RecordDetectionOutcomeAsync(bool detectionIncomplete)
+    {
+        if (detectionIncomplete)
+        {
+            await RecordScanFailureAsync(localizationService["GameProfiles.ScanFailure.IncompleteMessage"]);
+            return;
+        }
+
+        await RecordCompletedScanAsync(InstallationScanOutcome.FoundInstallations);
+    }
+
+    private async Task RecordCompletedScanAsync(InstallationScanOutcome outcome)
+    {
+        HasCompletedScan = true;
+        await PersistScanOutcomeAsync(outcome);
+    }
+
+    private async Task PersistScanOutcomeAsync(InstallationScanOutcome outcome)
+    {
+        if (userSettingsService == null)
+        {
+            return;
+        }
+
+        var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
+        {
+            s.LastInstallationScanOutcome = outcome;
+            return true;
+        });
+        if (!saved)
+        {
+            logger.LogWarning("Failed to persist installation scan outcome {Outcome}", outcome);
+        }
+    }
+
+    /// <summary>
+    /// Restores the outcome of a scan from a previous session, so a player whose last scan
+    /// found nothing still sees the storefront banner instead of the first-run scan prompt.
+    /// </summary>
+    private void RestoreScanOutcome()
+    {
+        if (_hasRestoredScanOutcome || userSettingsService == null)
+        {
+            return;
+        }
+
+        _hasRestoredScanOutcome = true;
+        if (HasCompletedScan || HasScanFailed)
+        {
+            return;
+        }
+
+        var outcome = userSettingsService.Get().LastInstallationScanOutcome;
+        HasCompletedScan = outcome != InstallationScanOutcome.NotScanned;
+        HasNoDetectedInstallations = outcome == InstallationScanOutcome.FoundNothing;
+    }
+
+    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(
+        CancellationToken cancellationToken,
+        bool announceMissingInstallations = true,
+        bool requireRegistration = false)
+    {
+        if (announceMissingInstallations)
+        {
+            logger.LogInformation("No game installations found, prompting user for manual directory selection");
+
+            notificationService.ShowInfo(
+                localizationService["GameProfiles.Notification.ManualSelection.Title"],
+                localizationService["GameProfiles.Notification.ManualSelection.Message"],
+                autoDismissMs: NotificationDurations.VeryLong);
+        }
 
         var manualInstallation = ManualDirectoryPrompter != null
             ? await ManualDirectoryPrompter()
@@ -1860,20 +2169,49 @@ public partial class GameProfileLauncherViewModel(
             return null;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         manualInstallation.Fetch();
 
-        var detectionResult = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation]);
+        var detectionResult = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation], cancellationToken);
         if (detectionResult.Success && detectionResult.Items?.Count > 0)
         {
             manualInstallation.PopulateGameClients(detectionResult.Items);
         }
 
-        await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation);
+        if (requireRegistration && manualInstallation.AvailableGameClients.Count == 0)
+        {
+            logger.LogWarning("Chosen folder has no detectable game client: {Path}", manualInstallation.InstallationPath);
+            notificationService.ShowWarning(
+                localizationService["GameProfiles.Notification.InvalidDirectory.Title"],
+                localizationService["GameProfiles.Notification.InvalidDirectory.Message"]);
+            return null;
+        }
 
-        var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation);
+        await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation, cancellationToken);
         if (!addResult.Success)
         {
             logger.LogWarning("Failed to add manual installation to cache: {Error}", addResult.FirstError);
+            if (requireRegistration)
+            {
+                notificationService.ShowError(
+                    localizationService[NotificationErrorTitleKey],
+                    localizationService.GetString("GameProfiles.ScanFailure.ChooseFolderFailed", addResult.FirstError ?? string.Empty),
+                    autoDismissMs: NotificationDurations.Long);
+                return null;
+            }
+        }
+        else
+        {
+            // The service may already hold this folder under another type. Use that installation so the
+            // client IDs offered to setup exist on the installation the profiles will reference.
+            var registered = await installationService.GetInstallationAsync(manualInstallation.Id, cancellationToken);
+            if (registered is { Success: true, Data: not null })
+            {
+                manualInstallation = registered.Data;
+            }
         }
 
         logger.LogInformation("User provided manual installation, proceeding with profile creation");
@@ -3258,77 +3596,9 @@ public partial class GameProfileLauncherViewModel(
             var selectedPath = result[0].Path.LocalPath;
             logger.LogInformation("User selected directory: {Path}", selectedPath);
 
-            // Validate the selected directory contains game executables
-            string[] zeroHourExecutables =
-            [
-                GameClientConstants.ZeroHourExecutable,
-                GameClientConstants.GeneralsExecutable,
-                GameClientConstants.SuperHackersZeroHourExecutable,
-            ];
-
-            string[] generalsExecutables =
-            [
-                GameClientConstants.GeneralsExecutable,
-                GameClientConstants.SuperHackersGeneralsExecutable,
-            ];
-
-            // Case-insensitive, matching the nine sibling detectors. Retail data copied
-            // from a disc or a Windows machine is frequently upper-cased (GENERALS.EXE),
-            // and Linux volumes plus case-sensitive APFS will not match it otherwise.
-            bool hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
-            bool hasGenerals = generalsExecutables.Any(exe => Path.Combine(selectedPath, exe).FileExistsCaseInsensitive());
-
-            if (hasZeroHour || hasGenerals)
+            var installation = CreateManualInstallation(selectedPath, logger);
+            if (installation != null)
             {
-                // Selected directory is the game directory
-                var installation = new GameInstallation(
-                    selectedPath,
-                    GameInstallationType.Retail,
-                    null);
-
-                installation.SetPaths(
-                    hasGenerals ? selectedPath : null,
-                    hasZeroHour ? selectedPath : null);
-
-                logger.LogInformation(
-                    "Created manual Retail installation from selected directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
-                    hasGenerals,
-                    hasZeroHour);
-
-                return installation;
-            }
-
-            // Check if it's a parent directory with subdirectories
-            var generalsSubdir = Path.Combine(selectedPath, GameClientConstants.GeneralsDirectoryName);
-            var zeroHourSubdir = Path.Combine(selectedPath, GameClientConstants.ZeroHourDirectoryName);
-
-            if (Directory.Exists(generalsSubdir))
-            {
-                hasGenerals = generalsExecutables.Any(exe => Path.Combine(generalsSubdir, exe).FileExistsCaseInsensitive());
-            }
-
-            if (Directory.Exists(zeroHourSubdir))
-            {
-                hasZeroHour = zeroHourExecutables.Any(exe => Path.Combine(zeroHourSubdir, exe).FileExistsCaseInsensitive());
-            }
-
-            if (hasGenerals || hasZeroHour)
-            {
-                // Use parent directory as base path
-                var installation = new GameInstallation(
-                    selectedPath,
-                    GameInstallationType.Retail,
-                    null);
-
-                installation.SetPaths(
-                    hasGenerals ? generalsSubdir : null,
-                    hasZeroHour ? zeroHourSubdir : null);
-
-                logger.LogInformation(
-                    "Created manual Retail installation from parent directory: Generals={HasGenerals}, ZeroHour={HasZeroHour}",
-                    hasGenerals,
-                    hasZeroHour);
-
                 return installation;
             }
 

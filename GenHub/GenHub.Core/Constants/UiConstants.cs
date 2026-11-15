@@ -341,4 +341,9 @@ public static class UiConstants
     /// Generic loading text displayed during async operations.
     /// </summary>
     public const string LoadingText = "Loading...";
+
+    /// <summary>
+    /// The property name raised when the items of an indexed collection change.
+    /// </summary>
+    public const string IndexerPropertyName = "Item[]";
 }
