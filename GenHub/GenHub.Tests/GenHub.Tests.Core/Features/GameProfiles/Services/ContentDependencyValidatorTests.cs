@@ -399,6 +399,42 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// The base item itself does not satisfy its dependency through its output file when its
+    /// version is outside the declared range.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_BaseItemOutsideVersionRangeShipsPayload_ReportsGap()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needscore"),
+            Name = "Needs Core",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(ControlBarCoreId),
+                    Name = "Control Bar Pro (Core)",
+                    DependencyType = ContentType.Addon,
+                    MinVersion = "2.0",
+                },
+            ],
+        };
+        var oldCore = new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarCoreId),
+            Name = "Control Bar Pro (Core)",
+            ContentType = ContentType.Addon,
+            Version = "1.0",
+            Files = [new ManifestFile { RelativePath = $"Data/{GameContentConstants.ControlBarProCoreFileName}" }],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod, oldCore]));
+        Assert.Equal(ControlBarCoreId, gap.DependencyId);
+    }
+
+    /// <summary>
     /// Placeholder dependencies of different types are each reported.
     /// </summary>
     [Fact]

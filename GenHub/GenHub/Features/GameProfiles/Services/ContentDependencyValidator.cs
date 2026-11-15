@@ -145,8 +145,9 @@ public sealed class ContentDependencyValidator(
 
     /// <summary>
     /// Accepts content that already ships a Community Outpost base item's output file, the same rule
-    /// the acquired-manifest lookup uses. The bundle's own version is unrelated to the base item's,
-    /// so only the game and strict publisher rules apply.
+    /// the acquired-manifest lookup uses. A different bundle's own version is unrelated to the base
+    /// item's, so only the game and strict publisher rules apply to it. The base item itself must
+    /// still meet the version rules.
     /// </summary>
     private static bool IsSatisfiedByBundledBasePayload(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests)
     {
@@ -164,11 +165,16 @@ public sealed class ContentDependencyValidator(
         return enabledManifests.Any(manifest =>
             MatchesStrictPublisher(dependency, manifest) &&
             IsCompatibleGame(dependency, manifest) &&
+            (!IsSameCommunityOutpostItem(manifest, contentCode) || IsCompatibleCandidate(dependency, manifest)) &&
             ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
                 System.IO.Path.GetFileName(file.RelativePath),
                 metadata.OutputFilename,
                 StringComparison.OrdinalIgnoreCase)));
     }
+
+    private static bool IsSameCommunityOutpostItem(ContentManifest manifest, string contentCode) =>
+        TryParseCommunityOutpostContentCode(manifest.Id.Value, out var manifestCode) &&
+        string.Equals(manifestCode, contentCode, StringComparison.OrdinalIgnoreCase);
 
     private static bool MatchesStrictPublisher(ContentDependency dependency, ContentManifest manifest) =>
         !dependency.StrictPublisher ||
