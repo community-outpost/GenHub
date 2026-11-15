@@ -82,8 +82,10 @@ public class PublisherStudioArtifactHeuristicsTests
                 },
             },
         };
-        var vm = new AddContentDialogViewModel(existing, item => saved = item);
-        vm.IncludeInitialRelease = false;
+        var vm = new AddContentDialogViewModel(existing, item => saved = item)
+        {
+            IncludeInitialRelease = false,
+        };
 
         vm.SelectScreenshotCommand.Execute("https://cdn.example.com/lobby.jpg");
         vm.SelectedScreenshotTitle = string.Empty;
@@ -297,8 +299,10 @@ public class PublisherStudioArtifactHeuristicsTests
                 new Mock<ILogger<PublishShareViewModel>>().Object,
                 null,
                 new Mock<IHostingStateManager>().Object,
-                notifications.Object);
-            vm.SelectedHostingProvider = provider.Object;
+                notifications.Object)
+            {
+                SelectedHostingProvider = provider.Object,
+            };
             var persistCount = 0;
             vm.SaveProjectCallback = () =>
             {
@@ -351,8 +355,10 @@ public class PublisherStudioArtifactHeuristicsTests
             new Mock<ILogger<PublishShareViewModel>>().Object,
             null,
             new Mock<IHostingStateManager>().Object,
-            notifications.Object);
-        vm.SelectedHostingProvider = provider.Object;
+            notifications.Object)
+        {
+            SelectedHostingProvider = provider.Object,
+        };
 
         var asset = new HostedAssetItemViewModel
         {
@@ -393,9 +399,10 @@ public class PublisherStudioArtifactHeuristicsTests
             project.Catalogs[0],
             parent,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
-            new Mock<IPublisherStudioDialogService>().Object);
-
-        vm.SelectedContent = project.Catalogs[0].Catalog.Content[0];
+            new Mock<IPublisherStudioDialogService>().Object)
+        {
+            SelectedContent = project.Catalogs[0].Catalog.Content[0],
+        };
 
         Assert.Equal(1, vm.PendingUploadCount);
         Assert.False(vm.IsHostingConnected);
@@ -447,16 +454,20 @@ public class PublisherStudioArtifactHeuristicsTests
                 new Mock<ILogger<PublisherStudioViewModel>>().Object,
                 studioService.Object,
                 dialogService.Object,
-                configurationProvider: configProvider.Object);
-            parent.CurrentProject = project;
+                configurationProvider: configProvider.Object)
+            {
+                CurrentProject = project,
+            };
             var vm = new ContentLibraryViewModel(
                 project,
                 project.Catalogs[0],
                 parent,
                 new Mock<ILogger<ContentLibraryViewModel>>().Object,
                 dialogService.Object,
-                notifications.Object);
-            vm.SelectedContent = project.Catalogs[0].Catalog.Content[0];
+                notifications.Object)
+            {
+                SelectedContent = project.Catalogs[0].Catalog.Content[0],
+            };
 
             await vm.DeleteReleaseCommand.ExecuteAsync(release);
 
@@ -501,15 +512,19 @@ public class PublisherStudioArtifactHeuristicsTests
         var parent = new PublisherStudioViewModel(
             new Mock<ILogger<PublisherStudioViewModel>>().Object,
             studioService.Object,
-            dialogService.Object);
-        parent.CurrentProject = project;
+            dialogService.Object)
+        {
+            CurrentProject = project,
+        };
         var vm = new ContentLibraryViewModel(
             project,
             project.Catalogs[0],
             parent,
             new Mock<ILogger<ContentLibraryViewModel>>().Object,
-            dialogService.Object);
-        vm.SelectedContent = project.Catalogs[0].Catalog.Content[0];
+            dialogService.Object)
+        {
+            SelectedContent = project.Catalogs[0].Catalog.Content[0],
+        };
 
         await vm.DeleteReleaseCommand.ExecuteAsync(release);
 
