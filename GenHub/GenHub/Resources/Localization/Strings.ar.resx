@@ -18369,6 +18369,12 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>الإصدار الأولي اختياري. بدونه، يكون هذا العنصر مسودة: يمكنك حفظ المشروع، لكن يجب إضافة إصدار أو إزالة المسودة قبل تصدير الكتالوج أو نشره.</value>
   </data>
+  <data name="Settings.Downloads.Advanced" xml:space="preserve"><value>إعدادات التنزيل المتقدمة</value></data>
+  <data name="Downloads.ContentDetail.MoreActions" xml:space="preserve"><value>إجراءات أخرى</value></data>
+  <data name="Tools.PublisherStudio.Publish.ConnectionSettings" xml:space="preserve"><value>الاتصال بالاستضافة</value></data>
+  <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>الملفات والتبعيات</value></data>
+  <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>الملفات: {0}</value></data>
+  <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>التبعيات: {0}</value></data>
   <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
     <value>هذه الإعدادات مقفلة أثناء تشغيل اللعبة. أغلق اللعبة لتغييرها.</value>
   </data>

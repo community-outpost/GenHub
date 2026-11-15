@@ -18369,6 +18369,12 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>Первый выпуск необязателен. Без него элемент остаётся черновиком: проект можно сохранить, но перед экспортом или публикацией каталога нужно добавить выпуск или удалить черновик.</value>
   </data>
+  <data name="Settings.Downloads.Advanced" xml:space="preserve"><value>Дополнительные настройки загрузки</value></data>
+  <data name="Downloads.ContentDetail.MoreActions" xml:space="preserve"><value>Другие действия</value></data>
+  <data name="Tools.PublisherStudio.Publish.ConnectionSettings" xml:space="preserve"><value>Подключение к хостингу</value></data>
+  <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Файлы и зависимости</value></data>
+  <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Файлы: {0}</value></data>
+  <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Зависимости: {0}</value></data>
   <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
     <value>Эти настройки заблокированы, пока игра запущена. Закройте игру, чтобы изменить их.</value>
   </data>

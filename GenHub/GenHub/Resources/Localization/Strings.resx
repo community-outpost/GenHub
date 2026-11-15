@@ -18428,6 +18428,12 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
     <value>An initial release is optional. Without one, this item is a draft: you can save the project, but must add a release or remove the draft before exporting or publishing the catalog.</value>
   </data>
+  <data name="Settings.Downloads.Advanced" xml:space="preserve"><value>Advanced download settings</value></data>
+  <data name="Downloads.ContentDetail.MoreActions" xml:space="preserve"><value>More actions</value></data>
+  <data name="Tools.PublisherStudio.Publish.ConnectionSettings" xml:space="preserve"><value>Hosting connection</value></data>
+  <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Files and dependencies</value></data>
+  <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Files: {0}</value></data>
+  <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Dependencies: {0}</value></data>
   <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
     <value>These settings are locked while the game is running. Close the game to change them.</value>
   </data>
