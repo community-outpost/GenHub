@@ -61,8 +61,13 @@
                 </StackPanel>
                 </Grid>
             </ScrollViewer>
-                <Grid RowDefinitions="Auto,Auto,*" IsVisible="{Binding HasDisplayedProfile}">
-                    <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" MinHeight="220" ClipToBounds="True">
+                <Grid IsVisible="{Binding HasDisplayedProfile}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" MaxHeight="220"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ClipToBounds="True">
                         <Border Height="220" ClipToBounds="True" VerticalAlignment="Top">
                             <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" Opacity="0.65"/>
                         </Border>
