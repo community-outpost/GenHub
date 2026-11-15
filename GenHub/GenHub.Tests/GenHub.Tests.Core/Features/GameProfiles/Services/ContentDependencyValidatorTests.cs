@@ -220,6 +220,47 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// A strict dependency with a declared ID is satisfied only by its publisher's content, even when
+    /// the ID matches any publisher.
+    /// </summary>
+    /// <param name="declaredId">The declared dependency ID.</param>
+    /// <param name="publisherType">The enabled patch's publisher type.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.0.any.patch.somepatch", "otherpublisher", true)]
+    [InlineData("1.0.any.patch.somepatch", "examplepublisher", false)]
+    [InlineData("1.0.otherpublisher.patch.somepatch", "otherpublisher", true)]
+    public void FindMissingDependencies_StrictDeclaredId_AppliesPublisher(string declaredId, string publisherType, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needspatch"),
+            Name = "Needs Patch",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(declaredId),
+                    Name = "Example Patch",
+                    DependencyType = ContentType.Patch,
+                    StrictPublisher = true,
+                    PublisherType = "examplepublisher",
+                },
+            ],
+        };
+        var patch = new ContentManifest
+        {
+            Id = ManifestId.Create($"1.0.{publisherType}.patch.somepatch"),
+            Name = "Some Patch",
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = publisherType },
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, patch]).Count == 1);
+    }
+
+    /// <summary>
     /// A gap carries the declaration that produced it, so installing honors that declaration's limits.
     /// </summary>
     [Fact]

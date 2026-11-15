@@ -1785,6 +1785,10 @@ public sealed class ProfileContentService(
         var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
         if (allManifestsResult.Failed || allManifestsResult.Data == null)
         {
+            logger.LogWarning(
+                "Could not read the manifest pool to find a manifest bundling {DeclaredManifestId}: {Error}",
+                manifestId,
+                allManifestsResult.FirstError);
             return null;
         }
 

@@ -96,13 +96,13 @@ public sealed class ContentDependencyValidator(
 
     private static bool IsSatisfied(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests)
     {
-        var manifests = enabledManifests.Where(manifest => IsCompatibleCandidate(dependency, manifest)).ToList();
+        var manifests = enabledManifests
+            .Where(manifest => IsCompatibleCandidate(dependency, manifest) && MatchesStrictPublisher(dependency, manifest))
+            .ToList();
         var declaredId = dependency.Id.Value;
         if (string.Equals(declaredId, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
         {
-            return manifests.Any(manifest =>
-                manifest.ContentType == dependency.DependencyType &&
-                MatchesStrictPublisher(dependency, manifest));
+            return manifests.Any(manifest => manifest.ContentType == dependency.DependencyType);
         }
 
         if (manifests.Any(manifest => string.Equals(manifest.Id.Value, declaredId, StringComparison.OrdinalIgnoreCase)))
