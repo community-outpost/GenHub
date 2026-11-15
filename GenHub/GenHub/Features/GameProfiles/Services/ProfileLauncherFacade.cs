@@ -605,6 +605,13 @@ public class ProfileLauncherFacade(
         return profile.IsCommunityOutpostProfile();
     }
 
+    /// <summary>
+    /// Matches a dependency the way the shared validator does: by catalog identity, or by type and name when the publisher is not strict.
+    /// </summary>
+    private static bool MatchesDependencyIdentity(string[] dependencyParts, ContentDependency dependency, ContentManifest manifest) =>
+        DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, manifest) ||
+        (!dependency.StrictPublisher && ContentDependencyValidator.MatchesByType(dependency, dependencyParts, manifest));
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         string profileId,
@@ -1911,7 +1918,7 @@ public class ProfileLauncherFacade(
         // The resolver picks the newest match without checking an exact version, so an older enabled match can still satisfy it.
         var dependencyParts = dependencyId.Split('.');
         return potentialMatches.FirstOrDefault(m =>
-            DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, m) &&
+            MatchesDependencyIdentity(dependencyParts, dependency, m) &&
             IsVersionCompatible(m.Version, dependency))
             ?? match;
     }
@@ -1927,7 +1934,7 @@ public class ProfileLauncherFacade(
     {
         var dependencyParts = dependency.Id.ToString().Split('.');
         var satisfying = potentialMatches
-            .Where(m => DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, m) && IsVersionCompatible(m.Version, dependency))
+            .Where(m => MatchesDependencyIdentity(dependencyParts, dependency, m) && IsVersionCompatible(m.Version, dependency))
             .ToList();
         return satisfying.Count > 0 ? satisfying : [match];
     }

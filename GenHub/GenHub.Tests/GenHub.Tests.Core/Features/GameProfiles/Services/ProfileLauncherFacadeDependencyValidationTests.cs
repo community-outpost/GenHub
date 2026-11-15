@@ -730,6 +730,43 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     }
 
     /// <summary>
+    /// An enabled exact version from another publisher or schema version satisfies a dependency that is not publisher strict.
+    /// </summary>
+    /// <param name="rescuerId">The ID of the enabled item at the exact version.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("1.0.otherpub.addon.sampleaddon")]
+    [InlineData("2.0.ea.addon.sampleaddon")]
+    public async Task ValidateLaunchAsync_ExactVersionFromOtherIdentityBesideNewerVersion_PassesValidationAsync(string rescuerId)
+    {
+        var result = await ValidateProfileAsync(
+            "profile-exact-version-other-identity",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.ea.addon.sampleaddon"),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = "1.0.0",
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create("1.1.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0" },
+            new ContentManifest { Id = ManifestId.Create(rescuerId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
     /// A newer enabled item from another publisher does not hide an enabled item from the required publisher.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
