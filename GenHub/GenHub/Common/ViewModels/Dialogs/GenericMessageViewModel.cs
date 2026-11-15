@@ -26,6 +26,24 @@ public partial class GenericMessageViewModel : ObservableObject
     private string _content = string.Empty;
 
     /// <summary>
+    /// Gets or sets the localized label for optional diagnostic details.
+    /// </summary>
+    [ObservableProperty]
+    private string _detailsHeader = string.Empty;
+
+    /// <summary>
+    /// Gets or sets diagnostic text, displayed in a collapsed expander.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDetails))]
+    private string _detailsContent = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether diagnostic details are available.
+    /// </summary>
+    public bool HasDetails => !string.IsNullOrWhiteSpace(DetailsContent);
+
+    /// <summary>
     /// Gets or sets a value indicating whether to show the "Do not show again" checkbox.
     /// </summary>
     [ObservableProperty]
