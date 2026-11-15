@@ -637,22 +637,6 @@ public sealed class ProfileContentService(
         dependency.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient) &&
         !string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase);
 
-    private static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
-    {
-        contentCode = string.Empty;
-        var parts = manifestId.Split('.');
-
-        if (parts.Length < 5 ||
-            !parts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var codePart = parts[4];
-        contentCode = codePart.Length >= 4 ? codePart[..4] : codePart;
-        return !string.IsNullOrEmpty(contentCode);
-    }
-
     /// <summary>
     /// Checks whether two five-segment manifest identifiers address the same publisher content
     /// while allowing a publisher to revise the release-version segment.
@@ -1701,7 +1685,7 @@ public sealed class ProfileContentService(
             else
             {
                 logger.LogWarning("Dependency {DependencyId} could not be auto-acquired", dependencyId);
-                if (TryParseCommunityOutpostContentCode(dependencyId, out var contentCode))
+                if (ContentDependencyValidator.TryParseCommunityOutpostContentCode(dependencyId, out var contentCode))
                 {
                     var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
                     dependencyNames.Add(string.IsNullOrEmpty(metadata.DisplayName) ? "Required dependency" : metadata.DisplayName);
@@ -1782,7 +1766,7 @@ public sealed class ProfileContentService(
             return equivalentManifest;
         }
 
-        if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        if (!ContentDependencyValidator.TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
         {
             return null;
         }
@@ -1825,7 +1809,7 @@ public sealed class ProfileContentService(
         string manifestId,
         CancellationToken cancellationToken)
     {
-        if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        if (!ContentDependencyValidator.TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
         {
             return null;
         }
@@ -1900,7 +1884,7 @@ public sealed class ProfileContentService(
             return null;
         }
 
-        if (TryParseCommunityOutpostContentCode(declaredManifestId, out var contentCode))
+        if (ContentDependencyValidator.TryParseCommunityOutpostContentCode(declaredManifestId, out var contentCode))
         {
             return manifestsResult.Data.FirstOrDefault(manifest =>
                 string.Equals(

@@ -87,6 +87,28 @@ public sealed class ContentDependencyValidator(
         return gaps;
     }
 
+    /// <summary>
+    /// Gets the four-character content code from a Community Outpost manifest ID.
+    /// </summary>
+    /// <param name="manifestId">The manifest ID.</param>
+    /// <param name="contentCode">The content code, or an empty string.</param>
+    /// <returns>True when the ID is a Community Outpost manifest ID with a content code.</returns>
+    internal static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
+    {
+        contentCode = string.Empty;
+        var parts = manifestId.Split('.');
+
+        if (parts.Length < 5 ||
+            !parts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var codePart = parts[4];
+        contentCode = codePart.Length >= 4 ? codePart[..4] : codePart;
+        return !string.IsNullOrEmpty(contentCode);
+    }
+
     private static bool IsRequired(ContentDependency dependency) =>
         !dependency.IsOptional &&
         dependency.InstallBehavior is DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall;
@@ -117,7 +139,35 @@ public sealed class ContentDependencyValidator(
             return true;
         }
 
-        return !dependency.StrictPublisher && IsSatisfiedByType(dependency, declaredParts, manifests);
+        return (!dependency.StrictPublisher && IsSatisfiedByType(dependency, declaredParts, manifests)) ||
+            IsSatisfiedByBundledBasePayload(dependency, enabledManifests);
+    }
+
+    /// <summary>
+    /// Accepts content that already ships a Community Outpost base item's output file, the same rule
+    /// the acquired-manifest lookup uses. The bundle's own version is unrelated to the base item's,
+    /// so only the game and strict publisher rules apply.
+    /// </summary>
+    private static bool IsSatisfiedByBundledBasePayload(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests)
+    {
+        if (!TryParseCommunityOutpostContentCode(dependency.Id.Value, out var contentCode))
+        {
+            return false;
+        }
+
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+        if (!metadata.IsBaseDependency || string.IsNullOrWhiteSpace(metadata.OutputFilename))
+        {
+            return false;
+        }
+
+        return enabledManifests.Any(manifest =>
+            MatchesStrictPublisher(dependency, manifest) &&
+            IsCompatibleGame(dependency, manifest) &&
+            ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
+                System.IO.Path.GetFileName(file.RelativePath),
+                metadata.OutputFilename,
+                StringComparison.OrdinalIgnoreCase)));
     }
 
     private static bool MatchesStrictPublisher(ContentDependency dependency, ContentManifest manifest) =>
@@ -129,17 +179,14 @@ public sealed class ContentDependencyValidator(
     /// Rejects a candidate for the wrong game or outside the declared version range. A candidate
     /// without a recorded game or version is not rejected on that basis.
     /// </summary>
-    private static bool IsCompatibleCandidate(ContentDependency dependency, ContentManifest manifest)
-    {
-        if (dependency.CompatibleGameTypes is { Count: > 0 } &&
-            manifest.TargetGame != GameType.Unknown &&
-            !dependency.CompatibleGameTypes.Contains(manifest.TargetGame))
-        {
-            return false;
-        }
+    private static bool IsCompatibleCandidate(ContentDependency dependency, ContentManifest manifest) =>
+        IsCompatibleGame(dependency, manifest) &&
+        (!HasComparableVersion(manifest.Version) || IsVersionCompatible(manifest.Version, dependency));
 
-        return !HasComparableVersion(manifest.Version) || IsVersionCompatible(manifest.Version, dependency);
-    }
+    private static bool IsCompatibleGame(ContentDependency dependency, ContentManifest manifest) =>
+        dependency.CompatibleGameTypes is not { Count: > 0 } ||
+        manifest.TargetGame == GameType.Unknown ||
+        dependency.CompatibleGameTypes.Contains(manifest.TargetGame);
 
     private static bool HasComparableVersion(string? version) =>
         !string.IsNullOrWhiteSpace(version) &&

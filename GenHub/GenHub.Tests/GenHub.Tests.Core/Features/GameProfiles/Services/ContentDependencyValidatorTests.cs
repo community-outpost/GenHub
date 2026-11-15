@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
@@ -372,6 +373,29 @@ public sealed class ContentDependencyValidatorTests
         };
 
         Assert.Empty(_validator.FindMissingDependencies([mod, variant]));
+    }
+
+    /// <summary>
+    /// Content from another publisher that ships a base item's output file satisfies that base item,
+    /// matching the acquired-manifest lookup.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_OtherPublisherBundlesBasePayload_ReportsNothing()
+    {
+        var bundle = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publisherb.gameclient.bundledclient"),
+            Name = "Bundled Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "publisherb" },
+            Files = [new ManifestFile { RelativePath = $"Data/{GameContentConstants.ControlBarProCoreFileName}" }],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [CreateControlBarPro(), bundle, CreateAddon(ControlBarLanguageId, "cben"), CreateAddon(GenToolId, "gent"), CreateInstallation()]);
+
+        Assert.Empty(gaps);
     }
 
     /// <summary>
