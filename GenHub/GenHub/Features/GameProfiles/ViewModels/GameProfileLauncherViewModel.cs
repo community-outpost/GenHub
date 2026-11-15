@@ -1771,7 +1771,7 @@ public partial class GameProfileLauncherViewModel(
 
                 if (installationsList.Count == 0)
                 {
-                    var manualInstallation = await PromptAndRegisterManualInstallationAsync();
+                    var manualInstallation = await PromptAndRegisterManualInstallationAsync(cancellationToken);
                     if (manualInstallation != null)
                     {
                         installationsList.Add(manualInstallation);
@@ -2022,7 +2022,7 @@ public partial class GameProfileLauncherViewModel(
             IsScanning = true;
             IsHeaderExpanded = true;
             _headerCollapseTimer.Stop();
-            var installation = await PromptAndRegisterManualInstallationAsync(announceMissingInstallations: false, requireRegistration: true);
+            var installation = await PromptAndRegisterManualInstallationAsync(cancellationToken, announceMissingInstallations: false, requireRegistration: true);
             if (installation == null)
             {
                 return;
@@ -2145,7 +2145,10 @@ public partial class GameProfileLauncherViewModel(
         HasNoDetectedInstallations = outcome == InstallationScanOutcome.FoundNothing;
     }
 
-    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(bool announceMissingInstallations = true, bool requireRegistration = false)
+    private async Task<GameInstallation?> PromptAndRegisterManualInstallationAsync(
+        CancellationToken cancellationToken,
+        bool announceMissingInstallations = true,
+        bool requireRegistration = false)
     {
         if (announceMissingInstallations)
         {
@@ -2166,9 +2169,10 @@ public partial class GameProfileLauncherViewModel(
             return null;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         manualInstallation.Fetch();
 
-        var detectionResult = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation]);
+        var detectionResult = await gameClientDetector.DetectGameClientsFromInstallationsAsync([manualInstallation], cancellationToken);
         if (detectionResult.Success && detectionResult.Items?.Count > 0)
         {
             manualInstallation.PopulateGameClients(detectionResult.Items);
@@ -2183,9 +2187,10 @@ public partial class GameProfileLauncherViewModel(
             return null;
         }
 
-        await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation);
+        await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation);
+        var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation, cancellationToken);
         if (!addResult.Success)
         {
             logger.LogWarning("Failed to add manual installation to cache: {Error}", addResult.FirstError);
@@ -2202,7 +2207,7 @@ public partial class GameProfileLauncherViewModel(
         {
             // The service may already hold this folder under another type. Use that installation so the
             // client IDs offered to setup exist on the installation the profiles will reference.
-            var registered = await installationService.GetInstallationAsync(manualInstallation.Id);
+            var registered = await installationService.GetInstallationAsync(manualInstallation.Id, cancellationToken);
             if (registered is { Success: true, Data: not null })
             {
                 manualInstallation = registered.Data;
