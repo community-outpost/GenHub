@@ -94,7 +94,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
-    private int _loadContentVersion;
+    private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
 
@@ -525,53 +525,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (gameSettings != null) GameSettingsMapper.PopulateRequest(request, gameSettings);
     }
 
-    private static void ValidateSingleDependencyWarning(
+    private static void AddConflictWarnings(
         ContentManifest manifest,
-        ContentDependency dependency,
         Dictionary<string, ContentManifest> manifestsById,
-        Dictionary<ContentType, List<ContentManifest>> manifestsByType,
-        Dictionary<ContentType, List<ContentDisplayItem>> enabledContentByType,
         List<string> warnings)
     {
-        if (dependency.DependencyType == ContentType.GameInstallation || dependency.DependencyType == ContentType.GameClient)
-        {
-            if (!enabledContentByType.TryGetValue(dependency.DependencyType, out var enabledOfType) || enabledOfType.Count == 0)
-            {
-                warnings.Add(dependency.DependencyType == ContentType.GameInstallation
-                    ? $"'{manifest.Name}' requires a Game Installation to be selected."
-                    : $"'{manifest.Name}' requires a Game Client to be selected.");
-            }
-
-            return;
-        }
-
-        if (!manifestsByType.TryGetValue(dependency.DependencyType, out var potentialMatches) || potentialMatches.Count == 0)
-        {
-            if (!dependency.IsOptional) warnings.Add($"'{manifest.Name}' requires {dependency.DependencyType} content, but none is enabled.");
-            return;
-        }
-
-        if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
-        {
-            var declaredId = dependency.Id.ToString();
-            bool found = manifestsById.ContainsKey(declaredId);
-            if (!found)
-            {
-                var depIdSegments = declaredId.Split('.');
-                found = potentialMatches.Any(m =>
-                {
-                    var segments = m.Id.ToString().Split('.');
-                    return HasCompatibleCatalogMatch(declaredId, m.Id.ToString()) ||
-                        (!dependency.StrictPublisher && segments.Length >= 5 && depIdSegments.Length >= 5 &&
-                         segments[3].Equals(depIdSegments[3], StringComparison.OrdinalIgnoreCase) &&
-                         segments[4].Equals(depIdSegments[4], StringComparison.OrdinalIgnoreCase));
-                });
-            }
-
-            if (!found && !dependency.IsOptional) warnings.Add($"'{manifest.Name}' requires '{dependency.Name}' which is not enabled.");
-        }
-
-        foreach (var conflictId in dependency.ConflictsWith)
+        foreach (var conflictId in (manifest.Dependencies ?? []).SelectMany(dependency => dependency.ConflictsWith))
         {
             if (manifestsById.TryGetValue(conflictId.ToString(), out var conflicting))
                 warnings.Add($"'{manifest.Name}' conflicts with '{conflicting.Name}' - these cannot be used together.");
@@ -1204,13 +1163,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("Generals"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.GeneralsCoverFilename}");
             return new ProfileBranding(displayName, color, icon, cover, gameType);
         }
-        else
-        {
-            var color = UiConstants.ZeroHourThemeColor;
-            var icon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"), UriConstants.ZeroHourIconUri);
-            var cover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
-            return new ProfileBranding(displayName, color, icon, cover, gameType);
-        }
+
+        var zeroHourColor = UiConstants.ZeroHourThemeColor;
+        var zeroHourIcon = NormalizeResourcePath(_profileResourceService?.GetDefaultIconPath("ZeroHour"), UriConstants.ZeroHourIconUri);
+        var zeroHourCover = NormalizeResourcePath(_profileResourceService?.GetDefaultCoverPath("ZeroHour"), $"{UriConstants.AvarUriScheme}GenHub{UriConstants.CoversDirectoryPath}{UriConstants.ZeroHourCoverFilename}");
+        return new ProfileBranding(displayName, zeroHourColor, zeroHourIcon, zeroHourCover, gameType);
     }
 
     /// <summary>Returns the enabled client and installation used for branding and persistence.</summary>
@@ -1977,17 +1934,23 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             }
 
             var warnings = new List<string>();
-            var manifestsById = manifests.ToDictionary(m => m.Id.ToString(), m => m);
-            var manifestsByType = manifests.GroupBy(m => m.ContentType).ToDictionary(g => g.Key, g => g.ToList());
-            var enabledContentByType = EnabledContent.GroupBy(e => e.ContentType).ToDictionary(g => g.Key, g => g.ToList());
-
-            foreach (var manifest in manifests)
+            if (_dependencyValidator != null)
             {
-                if (manifest.Dependencies == null) continue;
-                foreach (var dependency in manifest.Dependencies)
-                {
-                    ValidateSingleDependencyWarning(manifest, dependency, manifestsById, manifestsByType, enabledContentByType, warnings);
-                }
+                warnings.AddRange(_dependencyValidator.FindMissingDependencies(manifests)
+                    .DistinctBy(gap => $"{gap.RequiredById}|{MissingDependencyDialog.GetItemKey(gap)}", StringComparer.OrdinalIgnoreCase)
+                    .Select(gap => _localizationService.GetLocalizedString(
+                        "GameProfiles.Settings.Notification.DependencyWarning.Item",
+                        "{0} needs {1}",
+                        MissingDependencyDialog.GetRequiredByName(_localizationService, gap),
+                        MissingDependencyDialog.GetDisplayName(_localizationService, gap))));
+            }
+
+            var manifestsById = manifests
+                .DistinctBy(m => m.Id.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(m => m.Id.ToString(), m => m, StringComparer.OrdinalIgnoreCase);
+            foreach (var manifest in manifestsById.Values)
+            {
+                AddConflictWarnings(manifest, manifestsById, warnings);
             }
 
             if (warnings.Count > 0)
