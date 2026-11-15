@@ -362,11 +362,9 @@ public static class GenPatcherDependencyBuilder
             dependencies.Add(CreateControlBarProCoreDependency());
             dependencies.Add(CreateControlBarLanguageDependency());
 
-            // Pro variants require GenTool (replaces the optional one added above)
-            // Filter by content code to avoid fragile name matching
-            var gentDependencyId = CreateOptionalGenToolDependency().Id;
-            dependencies.RemoveAll(d => d.Id.Equals(gentDependencyId));
-            dependencies.Add(CreateGenToolDependency());
+            // GenTool stays recommended for Pro variants. Their GenTool\fullviewport.dat flag
+            // extends the 3D view behind the bar. GenTool reads it on the original game, and the
+            // TheSuperHackers client reads it natively, so neither needs GenTool to be installed.
         }
 
         // cbpc requires cbbs (HD Base)

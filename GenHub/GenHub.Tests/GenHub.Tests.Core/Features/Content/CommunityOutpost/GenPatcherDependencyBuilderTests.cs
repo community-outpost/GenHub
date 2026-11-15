@@ -31,6 +31,25 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
+    /// Verifies that Control Bar Pro recommends GenTool without requiring it. The TheSuperHackers
+    /// client reads the add-on's full viewport flag natively, so GenTool must not block it.
+    /// </summary>
+    /// <param name="contentCode">The Control Bar Pro content code.</param>
+    [Theory]
+    [InlineData("cbpr")]
+    [InlineData("cbpx")]
+    public void GetDependencies_ControlBarPro_RecommendsGenTool(string contentCode)
+    {
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
+
+        var genTool = Assert.Single(dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
+        Assert.True(genTool.IsOptional);
+        Assert.Equal(DependencyInstallBehavior.Suggest, genTool.InstallBehavior);
+    }
+
+    /// <summary>
     /// Verifies that control bar addons have Zero Hour 1.04 dependency.
     /// </summary>
     /// <param name="contentCode">The control bar content code.</param>
