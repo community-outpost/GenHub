@@ -703,6 +703,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ColorValue = ResolveInitialColorValue(gameProfile, ColorValue);
 
             UpdateDescription(gameProfile);
+            RefreshSteamLaunchState(gameProfile);
         }
 
         ResolveCompatibilityBadge(updatedProfile);
@@ -1398,13 +1399,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
         IsProcessRunning = false; // Will be updated by LauncherViewModel
-
-        // Determine if this is a Steam installation by checking the publisher in the manifest ID
-        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
-
-        // Initialize Steam launch mode settings
-        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
-        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
+        RefreshSteamLaunchState(gameProfile);
 
         WorkspaceStatus = string.IsNullOrEmpty(gameProfile.ActiveWorkspaceId)
             ? "Not Prepared"
@@ -1416,5 +1411,13 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 WorkspaceStrategy.HardLink => "Hard Linked",
                 _ => "Prepared",
             };
+    }
+
+    private void RefreshSteamLaunchState(GameProfile gameProfile)
+    {
+        // Determine if this is a Steam installation by checking the publisher in the manifest ID
+        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
+        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
     }
 }
