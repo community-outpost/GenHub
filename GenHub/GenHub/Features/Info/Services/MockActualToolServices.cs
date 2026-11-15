@@ -723,6 +723,10 @@ public sealed class MockPublisherStudioDialogService : IPublisherStudioDialogSer
     public Task<PublisherReferral?> ShowAddReferralDialogAsync() => Task.FromResult<PublisherReferral?>(null);
 
     /// <inheritdoc/>
+    public Task<CatalogTabDefinition?> ShowEditCustomTabDialogAsync(CatalogTabDefinition? existing, IReadOnlyList<CatalogTabDefinition> siblings) =>
+        Task.FromResult<CatalogTabDefinition?>(null);
+
+    /// <inheritdoc/>
     public Task<string?> ShowProjectOpenPromptAsync(string title) => Task.FromResult<string?>(null);
 
     /// <inheritdoc/>

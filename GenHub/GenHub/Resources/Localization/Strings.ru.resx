@@ -946,7 +946,7 @@
     <value>Ищете Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Установка Command &amp; Conquer: Generals и Zero Hour не найдена. Для игры требуется установленная копия игры. Вы можете официально приобрести игру в Steam или EA App.</value>
+    <value>GenHub не нашёл установленную игру. Если она у вас уже есть, выберите её папку. Иначе её можно купить в Steam или EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Купить в Steam</value>
@@ -956,6 +956,36 @@
   </data>
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>Не удалось открыть страницу магазина: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>Позвольте GenHub найти вашу игру</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>GenHub ещё не сканировал этот компьютер. Запустите сканирование, чтобы найти Command &amp; Conquer Generals и Zero Hour и создать для них профили.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>Найти игры</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>Сканирование игр не завершено</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>GenHub не смог проверить все расположения. Выберите папку игры или устраните проблему с доступом и повторите поиск.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>Выбрать папку игры</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>Сканировать снова</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>Не удалось настроить выбранную папку игры: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>Не удалось настроить найденные игры: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>Некоторые расположения не удалось проверить, поэтому GenHub использовал выбранную вами папку игры. Устраните проблему с доступом и повторите сканирование, чтобы найти другие установки.</value>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>Установленные игры не найдены</value>
@@ -4965,6 +4995,12 @@
   </data>
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>Издатель</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>Не удалось загрузить изображение. Откройте ссылку:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>Открыть ссылку на изображение в браузере</value>
   </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Контент предоставлен сторонними издателями. GenHub не гарантирует совместимость.</value>
@@ -13725,6 +13761,123 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>Вставьте ссылку на изображение или выберите локальный файл. Локальные файлы загружаются к хостинг-провайдеру при публикации каталога.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>ID вкладки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>Создаётся из заголовка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>Пользовательские вкладки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>Пользовательская вкладка '{0}' добавлена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>Пользовательская вкладка '{0}' сохранена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>Пользовательская вкладка '{0}' удалена.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>Заголовок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>Примечания к выпуску</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>Порядок</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>Удалить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>Удалить пользовательскую вкладку '{0}'? Её вступление, содержимое и карточки будут удалены из этого элемента.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>Вступление</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>Содержимое (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>Ссылки открываются только для адресов HTTP и HTTPS. Изображения загружаются только с удалённых адресов HTTP и HTTPS.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>Видимая</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>Предпросмотр</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>У элемента контента может быть не более {0} пользовательских вкладок.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>Каждой пользовательской вкладке нужен ID длиной от 1 до {0} символов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>ID пользовательской вкладки '{0}' используется несколько раз.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>У пользовательской вкладки '{0}' есть карточка, нарушающая правила каталога.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>Ссылки на вложения Discord истекают примерно через сутки и перестают загружаться. Разместите изображение на постоянном хостинге.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>Изменить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>Добавить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>Карточки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>Заголовок карточки</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>Метка</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>Описание</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>Ссылка на изображение</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>Добавить карточку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>Удалить карточку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>Изменить вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>Удалить вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>Добавить пользовательскую вкладку</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>У пользовательской вкладки '{0}' может быть не более {1} карточек.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>Карточке {0} на пользовательской вкладке '{1}' нужен заголовок.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>У карточки {0} на пользовательской вкладке '{1}' заголовок или метка длиннее {2} символов или описание длиннее {3} символов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>Карточке {0} на пользовательской вкладке '{1}' нужна ссылка на изображение, начинающаяся с https:// или avares://.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>Пользовательской вкладке '{0}' нужен заголовок длиной от 1 до {1} символов.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>У пользовательской вкладки '{0}' вступление длиннее {1} символов или содержимое длиннее {2} символов.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>Значок</value>
   </data>
@@ -18375,6 +18528,9 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Файлы и зависимости</value></data>
   <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Файлы: {0}</value></data>
   <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Зависимости: {0}</value></data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>Технические сведения</value>
+  </data>
   <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
     <value>Эти настройки заблокированы, пока игра запущена. Закройте игру, чтобы изменить их.</value>
   </data>
