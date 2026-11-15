@@ -276,46 +276,6 @@
                          Classes="setting-description" />
             </StackPanel>
 
-            <!-- Download Buffer Size -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
-                             Minimum="4"
-                             Maximum="1024"
-                             Increment="4"
-                             HorizontalAlignment="Left"
-                             Width="160"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download Timeout -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
-                             Minimum="10"
-                             Maximum="3600"
-                             Increment="10"
-                             HorizontalAlignment="Left"
-                             Width="120"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download User-Agent -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding DownloadUserAgent}"
-                       Width="300"
-                       LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
             <!-- Background Downloads -->
             <StackPanel Spacing="8">
               <CheckBox Content="{localization:Localize Settings.Downloads.AllowBackground.Label}"
@@ -323,6 +283,52 @@
               <TextBlock Text="{localization:Localize Settings.Downloads.AllowBackground.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
+
+            <Expander x:Name="AdvancedDownloadSettings" Header="{localization:Localize Settings.Downloads.Advanced}" IsExpanded="False" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="20" Margin="16">
+                <!-- Download Buffer Size -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
+                  <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
+                                 Minimum="4"
+                                 Maximum="1024"
+                                 Increment="4"
+                                 HorizontalAlignment="Left"
+                                 Width="160"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download Timeout -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
+                  <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
+                                 Minimum="10"
+                                 Maximum="3600"
+                                 Increment="10"
+                                 HorizontalAlignment="Left"
+                                 Width="120"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download User-Agent -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
+                  <TextBox Text="{Binding DownloadUserAgent}"
+                           HorizontalAlignment="Left"
+                           Width="300"
+                           LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+              </StackPanel>
+            </Expander>
 
             <Separator Margin="0,8" />
 

@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -34,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
+using Image = GenHub.Core.Models.Parsers.Image;
 
 namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
 
@@ -42,6 +44,36 @@ namespace GenHub.Tests.Core.Features.Downloads.ViewModels;
 /// </summary>
 public sealed class ContentDetailViewModelTests
 {
+    /// <summary>
+    /// Verifies that source actions are reachable through the collapsed disclosure.
+    /// </summary>
+    [AvaloniaFact]
+    public void SecondaryActions_RevealSourceActionWithoutChangingItsCommand()
+    {
+        using var viewModel = CreateViewModel(
+            new ContentSearchResult { Id = "sample", Name = "Sample", SourceUrl = "https://example.invalid/sample" },
+            new Mock<IContentDownloadCoordinator>().Object);
+        var view = new GenHub.Features.Downloads.Views.ContentDetailView { DataContext = viewModel };
+        var window = new Avalonia.Controls.Window { Width = 1200, Height = 850, Content = view };
+        try
+        {
+            window.Show();
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var actions = view.FindControl<Avalonia.Controls.Expander>("SecondaryDownloadActions")!;
+            Assert.True(actions.IsVisible);
+            Assert.False(actions.IsExpanded);
+            actions.IsExpanded = true;
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var website = view.FindControl<Avalonia.Controls.Button>("OpenWebsiteButton")!;
+            Assert.True(website.IsVisible);
+            Assert.Same(viewModel.OpenInBrowserCommand, website.Command);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>
     /// Verifies that downloading a release row preserves the typed Data payload and sets parentContentId.
     /// </summary>
