@@ -87,15 +87,21 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
     }
 
     /// <inheritdoc />
-    public void NormalizeCatalog(PublisherCatalog catalog)
+    public void NormalizeCatalog(PublisherCatalog catalog) => NormalizeCatalog(catalog, CatalogTabHandling.Sanitize);
+
+    /// <inheritdoc />
+    public void NormalizeCatalog(PublisherCatalog catalog, CatalogTabHandling tabHandling)
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        NormalizeCatalogCollections(catalog, logger);
+        NormalizeCatalogCollections(catalog, logger, tabHandling == CatalogTabHandling.Sanitize);
     }
 
     /// <inheritdoc />
-    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog)
+    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog) => ValidateCatalog(catalog, CatalogTabHandling.Sanitize);
+
+    /// <inheritdoc />
+    public OperationResult<bool> ValidateCatalog(PublisherCatalog catalog, CatalogTabHandling tabHandling)
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
@@ -108,6 +114,10 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
         ValidatePublisherInfo(catalog, errors);
         ValidateContentItems(catalog, errors);
+        if (tabHandling == CatalogTabHandling.Sanitize)
+        {
+            ValidateCatalogTabs(catalog, errors);
+        }
 
         if (errors.Count > 0)
         {
@@ -238,9 +248,15 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private static void NormalizeCatalogCollections(PublisherCatalog catalog, ILogger logger)
+    private static void NormalizeCatalogCollections(PublisherCatalog catalog, ILogger logger, bool sanitizeTabs)
     {
         catalog.Content ??= [];
+        catalog.CustomTabs = CatalogTabValidator.Normalize(catalog.CustomTabs);
+        if (sanitizeTabs)
+        {
+            SanitizeTabs("Catalog", catalog.CustomTabs, logger);
+        }
+
         var seenNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var itemsById = catalog.Content
             .Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id))
@@ -250,7 +266,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
 
         foreach (var content in catalog.Content.Where(content => content != null))
         {
-            NormalizeContentItem(content, seenNames, logger);
+            NormalizeContentItem(content, seenNames, logger, sanitizeTabs);
 
             if (!string.IsNullOrWhiteSpace(hostPubId))
             {
@@ -316,7 +332,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private static void NormalizeContentItem(CatalogContentItem content, Dictionary<string, string> seenNames, ILogger logger)
+    private static void NormalizeContentItem(CatalogContentItem content, Dictionary<string, string> seenNames, ILogger logger, bool sanitizeTabs)
     {
         if (!string.IsNullOrWhiteSpace(content.Name))
         {
@@ -342,6 +358,11 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
 
         NormalizeReleases(content.Releases);
+        content.CustomTabs = CatalogTabValidator.Normalize(content.CustomTabs);
+        if (sanitizeTabs)
+        {
+            SanitizeTabs($"Content item '{content.Id}'", content.CustomTabs, logger);
+        }
     }
 
     private static void NormalizeReleases(IList<ContentRelease>? releases)
@@ -356,6 +377,15 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             release.Artifacts ??= [];
             release.Dependencies ??= [];
         }
+    }
+
+    private static void SanitizeTabs(string scope, List<CatalogTabDefinition> tabs, ILogger logger)
+    {
+        CatalogTabValidator.Sanitize(
+            tabs,
+            issue => logger.LogWarning(
+                "Dropped publisher tab content: {Issue}",
+                CatalogTabValidator.Describe(scope, issue)));
     }
 
     private static void ValidateBasicProperties(CatalogContentItem content, int index, List<string> errors)
@@ -446,6 +476,58 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             {
                 errors.Add($"Upstream GitHub item '{content.Id}' must declare a valid repository in 'owner/repo' format");
             }
+        }
+    }
+
+    private void ValidateCatalogTabs(PublisherCatalog catalog, List<string> errors)
+    {
+        foreach (var content in catalog.Content?.Where(content => content != null) ?? [])
+        {
+            CatalogTabValidator.ValidateStructure($"Content item '{content.Id}'", content.CustomTabs, errors);
+            WarnUnsupportedTabContentTypes($"content item '{content.Id}'", content.CustomTabs);
+        }
+
+        CatalogTabValidator.ValidateStructure("Catalog", catalog.CustomTabs, errors);
+        WarnUnsupportedTabContentTypes("catalog", catalog.CustomTabs);
+
+        if (catalog.CustomTabs == null || catalog.CustomTabs.Count == 0)
+        {
+            return;
+        }
+
+        var knownIds = new HashSet<string>(
+            catalog.Content?.Where(c => c != null && !string.IsNullOrWhiteSpace(c.Id)).Select(c => c.Id) ?? [],
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tab in catalog.CustomTabs.Where(tab => tab != null))
+        {
+            if (tab.AppliesTo is not { Count: > 0 })
+            {
+                logger.LogWarning(
+                    "Catalog-level custom tab '{TabId}' has no appliesTo entries and is not shown on any item. Declare it in the item's customTabs or list content IDs in appliesTo.",
+                    tab.TabId);
+                continue;
+            }
+
+            foreach (var contentId in tab.AppliesTo.Where(id => id != null && !knownIds.Contains(id)))
+            {
+                logger.LogWarning(
+                    "Catalog-level custom tab '{TabId}' applies to unknown content ID '{ContentId}'",
+                    tab.TabId,
+                    contentId);
+            }
+        }
+    }
+
+    private void WarnUnsupportedTabContentTypes(string scope, IEnumerable<CatalogTabDefinition>? tabs)
+    {
+        foreach (var tab in tabs?.Where(tab => tab != null && !CatalogTabMapper.TryParseContentType(tab.ContentType, out _)) ?? [])
+        {
+            logger.LogWarning(
+                "Custom tab '{TabId}' in {Scope} has unsupported contentType '{ContentType}'; it renders as custom",
+                tab.TabId,
+                scope,
+                tab.ContentType);
         }
     }
 
