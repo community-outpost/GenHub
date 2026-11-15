@@ -8,6 +8,7 @@
 
   <Style Selector="controls|SidebarLayout">
     <Setter Property="Background" Value="Transparent" />
+    <Setter Property="PaneTitleForeground" Value="{DynamicResource TextPrimary}" />
     <Setter Property="Template">
       <ControlTemplate>
         <Grid x:Name="PART_RootGrid">
@@ -47,21 +48,21 @@
               <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14,18,14,14">
                 <!-- Header title & Close Button -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,2">
-                  <TextBlock Text="{TemplateBinding PaneTitle}"
+                  <TextBlock x:Name="PART_PaneTitle" Text="{TemplateBinding PaneTitle}"
                              FontSize="16"
                              FontWeight="Bold"
-                             Foreground="{DynamicResource TextPrimary}"
+                             Foreground="{TemplateBinding PaneTitleForeground}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis" />
 
                   <!-- Close Button -->
-                  <Button Grid.Column="1"
+                  <Button Grid.Column="1" IsVisible="{TemplateBinding IsPaneCollapsible}"
                           Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
                           Background="{DynamicResource SurfaceElevatedBrush}"
                           BorderBrush="{DynamicResource BorderBrush}"
                           BorderThickness="1"
                           Width="26" Height="26"
-                          CornerRadius="6"
+                          CornerRadius="{DynamicResource ActionCornerRadius}"
                           Padding="0"
                           VerticalAlignment="Center"
                           HorizontalContentAlignment="Center"

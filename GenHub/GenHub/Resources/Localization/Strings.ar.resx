@@ -18483,5 +18483,6 @@ Error: فشل: {3}
   <data name="GameProfiles.Library.LoadError" xml:space="preserve">
     <value>تعذر تحميل ملفات التعريف. أعد فتح قسم ملفات التعريف أو أعد تشغيل GenHub.</value>
   </data>
-  <data name="GameProfiles.Library.ContentTabCount" xml:space="preserve"><value>المحتوى · {0}</value></data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>ملفاتي الشخصية ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>إعدادات الملف الشخصي</value></data>
 </root>

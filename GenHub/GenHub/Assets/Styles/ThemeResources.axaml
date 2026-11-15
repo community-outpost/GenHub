@@ -409,4 +409,6 @@
     <BoxShadows x:Key="FlyoutBoxShadow">0 10 28 0 #99000000</BoxShadows>
     <BoxShadows x:Key="BannerPillRestBoxShadow">0 4 14 0 #80000000</BoxShadows>
     <BoxShadows x:Key="BannerPillHoverBoxShadow">0 6 20 0 #A0000000</BoxShadows>
+    <!-- Shared action geometry, also used by the application button style system. -->
+    <CornerRadius x:Key="ActionCornerRadius">999</CornerRadius>
 </ResourceDictionary>

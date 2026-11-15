@@ -1,6 +1,5 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using GenHub.Common.Controls;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
@@ -16,15 +15,12 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class GameProfileLauncherView : UserControl
 {
-    private bool _isCompactLibrary;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileLauncherView"/> class.
     /// </summary>
     public GameProfileLauncherView()
     {
         InitializeComponent();
-        SizeChanged += OnLibrarySizeChanged;
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
@@ -76,37 +72,6 @@ public partial class GameProfileLauncherView : UserControl
     private void InitializeComponent()
     {
         Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
-    }
-
-    private void OnLibrarySizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        var compact = e.NewSize.Width < GameProfileLibraryConstants.CompactWidthThreshold;
-        if (compact == _isCompactLibrary)
-        {
-            return;
-        }
-
-        _isCompactLibrary = compact;
-        var layout = this.FindControl<SidebarLayout>("ProfileLibraryLayout")!;
-        layout.IsPaneOpen = !compact;
-    }
-
-    private void SortModeComboBox_DropDownOpened(object? sender, EventArgs e)
-    {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.IsSortDropdownOpen = true;
-            vm.ExpandHeaderCommand.Execute(null);
-        }
-    }
-
-    private void SortModeComboBox_DropDownClosed(object? sender, EventArgs e)
-    {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.IsSortDropdownOpen = false;
-            vm.StartHeaderTimerCommand.Execute(null);
-        }
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

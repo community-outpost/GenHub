@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
         <Style Selector="Button.library-action, ToggleButton.library-tab, RadioButton.library-tab">
-            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
             <Setter Property="Padding" Value="16,9" />
             <Setter Property="MinHeight" Value="38" />
             <Setter Property="VerticalContentAlignment" Value="Center" />

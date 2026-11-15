@@ -50,11 +50,8 @@ public partial class GameProfileLauncherViewModel
     /// <summary>Gets a value indicating whether no content rows are available.</summary>
     public bool IsLibraryContentEmpty => !IsLibraryContentLoading && !HasLibraryContentError && LibraryContent.Count == 0;
 
-    /// <summary>Gets the content tab caption with the selected profile's enabled content count.</summary>
-    public string LibraryContentTabHeader => localizationService.GetString("GameProfiles.Library.ContentTabCount", DisplayedProfile?.LibraryContentCount ?? 0);
-
     /// <summary>Gets the total profile count in a localized caption.</summary>
-    public string LibraryProfileCount => localizationService.GetString("GameProfiles.Library.ProfileCount", ProfileCount);
+    public string LibraryProfileCount => localizationService.GetString("GameProfiles.Library.MyProfilesCount", ProfileCount);
 
     /// <summary>Gets profiles matching the search in the user's existing sort order.</summary>
     public ObservableCollection<GameProfileItemViewModel> LibraryProfiles { get; } = [];
@@ -108,6 +105,16 @@ public partial class GameProfileLauncherViewModel
         OnPropertyChanged(nameof(IsLibraryOverview));
         OnPropertyChanged(nameof(IsLibraryContent));
         OnPropertyChanged(nameof(IsLibrarySettings));
+    }
+
+    [RelayCommand]
+    private void SetLibrarySortMode(Core.Models.Enums.ProfileSortMode mode)
+    {
+        var option = AvailableSortModes.FirstOrDefault(item => item.Mode == mode);
+        if (option != null)
+        {
+            SelectedSortModeItem = option;
+        }
     }
 
     [RelayCommand]
@@ -190,7 +197,6 @@ public partial class GameProfileLauncherViewModel
 
         if (ReferenceEquals(sender, DisplayedProfile) && e.PropertyName == nameof(GameProfileItemViewModel.LibraryContentCount))
         {
-            OnPropertyChanged(nameof(LibraryContentTabHeader));
             LibraryContentLoad = LoadLibraryContentAsync(DisplayedProfile);
         }
     }
@@ -200,7 +206,6 @@ public partial class GameProfileLauncherViewModel
         OnPropertyChanged(nameof(DisplayedProfile));
         OnPropertyChanged(nameof(HasDisplayedProfile));
         OnPropertyChanged(nameof(IsLibraryEmpty));
-        OnPropertyChanged(nameof(LibraryContentTabHeader));
         var profile = DisplayedProfile;
         if (!ReferenceEquals(_displayedLibraryProfile, profile))
         {

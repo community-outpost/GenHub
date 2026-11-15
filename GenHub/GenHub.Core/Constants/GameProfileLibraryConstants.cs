@@ -34,9 +34,4 @@ public static class GameProfileLibraryConstants
     /// Separates the game name and version in a compact metadata caption.
     /// </summary>
     public const string MetadataSeparator = " · ";
-
-    /// <summary>
-    /// View width in pixels below which the profile pane starts closed.
-    /// </summary>
-    public const double CompactWidthThreshold = 700.0;
 }

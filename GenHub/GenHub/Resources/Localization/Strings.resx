@@ -18538,5 +18538,6 @@ Mapped image texture reference</value>
   <data name="GameProfiles.Library.LoadError" xml:space="preserve">
     <value>Profiles could not be loaded. Try reopening Game Profiles or restart GenHub.</value>
   </data>
-  <data name="GameProfiles.Library.ContentTabCount" xml:space="preserve"><value>Content · {0}</value></data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>My profiles ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Profile settings</value></data>
 </root>
