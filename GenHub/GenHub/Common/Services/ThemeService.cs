@@ -126,9 +126,9 @@ public class ThemeService(
 
             // Update Brushes
             var actionPalette = ActionButtonPalette.CreateBrushes(primaryColor);
-            resources["ActionPrimaryRestBrush"] = actionPalette.Normal;
-            resources["ActionPrimaryHoverBrush"] = actionPalette.Hover;
-            resources["ActionPrimaryPressedBrush"] = actionPalette.Pressed;
+            resources[ThemeResourceKeys.ActionPrimaryRestBrush] = actionPalette.Normal;
+            resources[ThemeResourceKeys.ActionPrimaryHoverBrush] = actionPalette.Hover;
+            resources[ThemeResourceKeys.ActionPrimaryPressedBrush] = actionPalette.Pressed;
             resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentColorBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentLightBrush] = new SolidColorBrush(lightColor);

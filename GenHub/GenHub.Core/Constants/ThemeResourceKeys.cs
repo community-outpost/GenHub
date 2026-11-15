@@ -46,6 +46,21 @@ public static class ThemeResourceKeys
     public const string PrimaryGradientEnd = "PrimaryGradientEnd";
 
     /// <summary>
+    /// Primary action button rest brush resource key.
+    /// </summary>
+    public const string ActionPrimaryRestBrush = "ActionPrimaryRestBrush";
+
+    /// <summary>
+    /// Primary action button hover brush resource key.
+    /// </summary>
+    public const string ActionPrimaryHoverBrush = "ActionPrimaryHoverBrush";
+
+    /// <summary>
+    /// Primary action button pressed brush resource key.
+    /// </summary>
+    public const string ActionPrimaryPressedBrush = "ActionPrimaryPressedBrush";
+
+    /// <summary>
     /// Accent brush resource key.
     /// </summary>
     public const string AccentBrush = "AccentBrush";
