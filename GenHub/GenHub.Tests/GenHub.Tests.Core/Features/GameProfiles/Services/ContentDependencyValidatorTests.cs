@@ -663,7 +663,7 @@ public sealed class ContentDependencyValidatorTests
         TargetGame = GameType.ZeroHour,
         Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
         Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
-        Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+        Dependencies = RequiredGenToolDependencies.ForControlBarPro(),
     };
 
     private static ContentManifest CreateAddon(string id, string contentCode) => new()
