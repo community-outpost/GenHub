@@ -1545,7 +1545,7 @@ public sealed class ProfileContentService(
         var manifest = dependency != null
             ? await FindLocalRequiredDependencyAsync(dependency, cancellationToken)
             : null;
-        manifest ??= await GetOrAcquireDependencyManifestAsync(dependencyId, cancellationToken);
+        manifest ??= await GetOrAcquireDependencyManifestAsync(dependencyId, dependency, cancellationToken);
         if (manifest != null && dependency != null && !resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [manifest]))
         {
             logger.LogWarning(
@@ -1709,108 +1709,32 @@ public sealed class ProfileContentService(
     /// A dependency declaration's version segment is not always the stored artifact's release
     /// version, so this returns the canonical manifest rather than a boolean success flag.
     /// </summary>
+    private Task<Core.Models.Manifest.ContentManifest?> GetOrAcquireDependencyManifestAsync(
+        string manifestId,
+        CancellationToken cancellationToken) =>
+        GetOrAcquireDependencyManifestAsync(manifestId, null, cancellationToken);
+
+    /// <summary>
+    /// Gets an acquired dependency, or acquires it from its publisher. When an acquired manifest
+    /// fails the limits of <paramref name="dependency"/>, the publisher is asked for one that fits,
+    /// and the acquired manifest is returned only if that fails.
+    /// </summary>
     private async Task<Core.Models.Manifest.ContentManifest?> GetOrAcquireDependencyManifestAsync(
         string manifestId,
+        ContentDependency? dependency,
         CancellationToken cancellationToken)
     {
+        ContentManifest? acquired = null;
         try
         {
-            var existing = await manifestPool.GetManifestAsync(
-                Core.Models.Manifest.ManifestId.Create(manifestId),
-                cancellationToken);
-
-            if (existing.Success && existing.Data != null)
+            acquired = await FindAcquiredDependencyManifestAsync(manifestId, cancellationToken);
+            if (acquired != null &&
+                (dependency == null || resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [acquired])))
             {
-                return existing.Data;
+                return acquired;
             }
 
-            var equivalentManifest = await FindEquivalentAcquiredManifestAsync(manifestId, cancellationToken);
-            if (equivalentManifest != null)
-            {
-                logger.LogInformation(
-                    "Using acquired manifest {ResolvedManifestId} to satisfy dependency {DeclaredManifestId}",
-                    equivalentManifest.Id,
-                    manifestId);
-                return equivalentManifest;
-            }
-
-            if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
-            {
-                return null;
-            }
-
-            var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
-            if (metadata.IsBaseDependency && !string.IsNullOrWhiteSpace(metadata.OutputFilename))
-            {
-                var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                if (allManifestsResult.Success && allManifestsResult.Data != null)
-                {
-                    var bundlingManifest = allManifestsResult.Data.FirstOrDefault(manifest =>
-                        ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
-                            System.IO.Path.GetFileName(file.RelativePath),
-                            metadata.OutputFilename,
-                            StringComparison.OrdinalIgnoreCase)));
-
-                    if (bundlingManifest != null)
-                    {
-                        logger.LogInformation(
-                            "Satisfied base dependency {DeclaredManifestId} using acquired manifest {ResolvedManifestId} containing payload {Filename}",
-                            manifestId,
-                            bundlingManifest.Id,
-                            metadata.OutputFilename);
-                        return bundlingManifest;
-                    }
-                }
-
-                // Base deps are hidden from catalog search — acquire them directly.
-                var directAcquire = await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-                if (directAcquire != null)
-                {
-                    return directAcquire;
-                }
-            }
-
-            // Provider discoverers match on PublisherType ("communityoutpost"), not
-            // PublisherId ("community-outpost"). Using the wrong id yields
-            // "No enabled providers available for search".
-            var query = new ContentSearchQuery
-            {
-                ProviderName = CommunityOutpostConstants.PublisherType,
-                SearchTerm = contentCode,
-                IncludeInstalled = true,
-                Take = 50,
-            };
-
-            var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
-            if (searchResult.Failed || searchResult.Data == null)
-            {
-                // Catalog search can still miss base deps; fall back to a direct acquire.
-                return await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-            }
-
-            var match = searchResult.Data.FirstOrDefault(r =>
-                r.Id?.EndsWith($".{contentCode}", StringComparison.OrdinalIgnoreCase) == true ||
-                (r.ResolverMetadata?.TryGetValue("contentCode", out var discoveredCode) == true &&
-                 discoveredCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase)));
-
-            if (match == null)
-            {
-                return await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-            }
-
-            // Silent by design: dependency auto-acquire is a sub-step of the profile operation,
-            // whose overall outcome already notifies the user. Per-dependency toasts would duplicate it.
-            var acquireResult = await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
-            return acquireResult.Success ? acquireResult.Data : null;
+            return await AcquireDependencyFromPublisherAsync(manifestId, cancellationToken) ?? acquired;
         }
         catch (OperationCanceledException)
         {
@@ -1819,8 +1743,124 @@ public sealed class ProfileContentService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to auto-acquire dependency {ManifestId}", manifestId);
+            return acquired;
+        }
+    }
+
+    private async Task<Core.Models.Manifest.ContentManifest?> FindAcquiredDependencyManifestAsync(
+        string manifestId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await manifestPool.GetManifestAsync(
+            Core.Models.Manifest.ManifestId.Create(manifestId),
+            cancellationToken);
+
+        if (existing.Success && existing.Data != null)
+        {
+            return existing.Data;
+        }
+
+        var equivalentManifest = await FindEquivalentAcquiredManifestAsync(manifestId, cancellationToken);
+        if (equivalentManifest != null)
+        {
+            logger.LogInformation(
+                "Using acquired manifest {ResolvedManifestId} to satisfy dependency {DeclaredManifestId}",
+                equivalentManifest.Id,
+                manifestId);
+            return equivalentManifest;
+        }
+
+        if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        {
             return null;
         }
+
+        var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+        if (!metadata.IsBaseDependency || string.IsNullOrWhiteSpace(metadata.OutputFilename))
+        {
+            return null;
+        }
+
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        var bundlingManifest = allManifestsResult.Data?.FirstOrDefault(manifest =>
+            ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
+                System.IO.Path.GetFileName(file.RelativePath),
+                metadata.OutputFilename,
+                StringComparison.OrdinalIgnoreCase)));
+
+        if (bundlingManifest != null)
+        {
+            logger.LogInformation(
+                "Satisfied base dependency {DeclaredManifestId} using acquired manifest {ResolvedManifestId} containing payload {Filename}",
+                manifestId,
+                bundlingManifest.Id,
+                metadata.OutputFilename);
+        }
+
+        return bundlingManifest;
+    }
+
+    private async Task<Core.Models.Manifest.ContentManifest?> AcquireDependencyFromPublisherAsync(
+        string manifestId,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        {
+            return null;
+        }
+
+        var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+        if (metadata.IsBaseDependency && !string.IsNullOrWhiteSpace(metadata.OutputFilename))
+        {
+            // Base deps are hidden from catalog search — acquire them directly.
+            var directAcquire = await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+            if (directAcquire != null)
+            {
+                return directAcquire;
+            }
+        }
+
+        // Provider discoverers match on PublisherType ("communityoutpost"), not
+        // PublisherId ("community-outpost"). Using the wrong id yields
+        // "No enabled providers available for search".
+        var query = new ContentSearchQuery
+        {
+            ProviderName = CommunityOutpostConstants.PublisherType,
+            SearchTerm = contentCode,
+            IncludeInstalled = true,
+            Take = 50,
+        };
+
+        var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+        if (searchResult.Failed || searchResult.Data == null)
+        {
+            // Catalog search can still miss base deps; fall back to a direct acquire.
+            return await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+        }
+
+        var match = searchResult.Data.FirstOrDefault(r =>
+            r.Id?.EndsWith($".{contentCode}", StringComparison.OrdinalIgnoreCase) == true ||
+            (r.ResolverMetadata?.TryGetValue("contentCode", out var discoveredCode) == true &&
+             discoveredCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase)));
+
+        if (match == null)
+        {
+            return await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+        }
+
+        // Silent by design: dependency auto-acquire is a sub-step of the profile operation,
+        // whose overall outcome already notifies the user. Per-dependency toasts would duplicate it.
+        var acquireResult = await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
+        return acquireResult.Success ? acquireResult.Data : null;
     }
 
     /// <summary>

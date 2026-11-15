@@ -1108,6 +1108,58 @@ public sealed class ProfileContentServiceTests
     public async Task InstallMissingDependenciesAsync_ExactIdTooOld_HonorsVersionLimitAsync(bool withCompatibleVersion)
     {
         var fixture = new ControlBarProFixture();
+        var gap = AddOldGenToolForNewerRequirement(fixture);
+        if (withCompatibleVersion)
+        {
+            fixture.AddManifest(CreateNewGenTool());
+        }
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync([gap]);
+
+        Assert.Equal(withCompatibleVersion, install.Success);
+        if (withCompatibleVersion)
+        {
+            Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
+        }
+        else
+        {
+            Assert.Contains("GenTool", install.FirstError, StringComparison.Ordinal);
+            Assert.Contains("not a version", install.FirstError, StringComparison.Ordinal);
+            Assert.DoesNotContain("connection", install.FirstError, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// When only a version older than the limit is acquired, install downloads a compatible
+    /// version from the publisher.
+    /// </summary>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Fact]
+    public async Task InstallMissingDependenciesAsync_AcquiredVersionTooOld_DownloadsCompatibleVersionAsync()
+    {
+        var fixture = new ControlBarProFixture();
+        var gap = AddOldGenToolForNewerRequirement(fixture);
+        var newGenTool = CreateNewGenTool();
+        fixture.Orchestrator
+            .Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+                [new ContentSearchResult { Id = ControlBarProFixture.GenToolId, Name = "GenTool" }]));
+        fixture.Orchestrator
+            .Setup(o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                fixture.AddManifest(newGenTool);
+                return OperationResult<ContentManifest>.CreateSuccess(newGenTool);
+            });
+
+        var install = await fixture.Service.InstallMissingDependenciesAsync([gap]);
+
+        Assert.True(install.Success);
+        Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
+    }
+
+    private static ContentDependencyGap AddOldGenToolForNewerRequirement(ControlBarProFixture fixture)
+    {
         const string declaredId = "1.1.communityoutpost.addon.gent";
         const string requiringId = "1.0.communityoutpost.addon.needsnewgentool";
         fixture.AddManifest(new ContentManifest
@@ -1130,14 +1182,7 @@ public sealed class ProfileContentServiceTests
         var oldGenTool = ControlBarProFixture.CreateAddon(declaredId, "gent");
         oldGenTool.Version = "1.0";
         fixture.AddManifest(oldGenTool);
-        if (withCompatibleVersion)
-        {
-            var newGenTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
-            newGenTool.Version = "2.5";
-            fixture.AddManifest(newGenTool);
-        }
-
-        var gap = new ContentDependencyGap
+        return new ContentDependencyGap
         {
             DisplayName = "GenTool",
             DependencyId = declaredId,
@@ -1146,20 +1191,13 @@ public sealed class ProfileContentServiceTests
             RequiredByName = "Needs New GenTool",
             RequiredById = requiringId,
         };
+    }
 
-        var install = await fixture.Service.InstallMissingDependenciesAsync([gap]);
-
-        Assert.Equal(withCompatibleVersion, install.Success);
-        if (withCompatibleVersion)
-        {
-            Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
-        }
-        else
-        {
-            Assert.Contains("GenTool", install.FirstError, StringComparison.Ordinal);
-            Assert.Contains("not a version", install.FirstError, StringComparison.Ordinal);
-            Assert.DoesNotContain("connection", install.FirstError, StringComparison.Ordinal);
-        }
+    private static ContentManifest CreateNewGenTool()
+    {
+        var genTool = ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent");
+        genTool.Version = "2.5";
+        return genTool;
     }
 
     private static ContentManifest CreateStandaloneTool(ContentDependency dependency) => new()
