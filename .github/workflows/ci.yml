@@ -69,6 +69,7 @@ jobs:
               - 'GenHub/GenHub.Core/**'
             ui:
               - 'GenHub/GenHub/**'
+              - 'GenHub/GenHub.UI.Showcase/**'
             windows:
               - 'GenHub/GenHub.Windows/**'
               - 'GenHub/GenHub.ProxyLauncher/**'
