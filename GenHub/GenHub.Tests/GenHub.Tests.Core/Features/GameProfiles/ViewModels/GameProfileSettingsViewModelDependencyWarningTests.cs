@@ -254,7 +254,7 @@ public sealed class GameProfileSettingsViewModelDependencyWarningTests
         ContentType = ContentType.Addon,
         TargetGame = GameType.ZeroHour,
         Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
-        Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
+        Dependencies = RequiredGenToolDependencies.ForControlBarPro()
             .Where(dependency => dependency.Name == "GenTool" || dependency.DependencyType == ContentType.GameInstallation)
             .ToList(),
     });
