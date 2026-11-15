@@ -64,9 +64,9 @@ internal sealed class GalleryApp : Application
             var theme = ThemeConstants.AllThemes.FirstOrDefault(t => t.Id == themes.SelectedItem as string)
                 ?? ThemeConstants.DefaultTheme;
             var actionColors = ActionButtonPalette.CreateBrushes(Color.Parse(theme.PrimaryHex));
-            application.Resources["ActionPrimaryRestBrush"] = actionColors.Normal;
-            application.Resources["ActionPrimaryHoverBrush"] = actionColors.Hover;
-            application.Resources["ActionPrimaryPressedBrush"] = actionColors.Pressed;
+            application.Resources[ThemeResourceKeys.ActionPrimaryRestBrush] = actionColors.Normal;
+            application.Resources[ThemeResourceKeys.ActionPrimaryHoverBrush] = actionColors.Hover;
+            application.Resources[ThemeResourceKeys.ActionPrimaryPressedBrush] = actionColors.Pressed;
             application.Resources["AccentBrush"] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
             application.Resources["AccentLightBrush"] = new SolidColorBrush(Color.Parse(theme.LightHex));
         };

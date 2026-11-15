@@ -29,6 +29,30 @@ public static class ThemeConstants
     /// <summary>End of the default pressed primary action gradient.</summary>
     public const string DefaultActionPressedGradientEndHex = "#592696";
 
+    /// <summary>Minimum white-ink contrast ratio for a derived resting action fill.</summary>
+    public const double ActionRestMinimumContrast = 6.2;
+
+    /// <summary>Maximum channel scale for a derived resting action fill.</summary>
+    public const double ActionRestMaximumScale = 0.82;
+
+    /// <summary>Minimum white-ink contrast ratio for a derived pointer-over action fill.</summary>
+    public const double ActionHoverMinimumContrast = 5.2;
+
+    /// <summary>Maximum channel scale for a derived pointer-over action fill.</summary>
+    public const double ActionHoverMaximumScale = 1.0;
+
+    /// <summary>Minimum white-ink contrast ratio for a derived pressed action fill.</summary>
+    public const double ActionPressedMinimumContrast = 7.5;
+
+    /// <summary>Maximum channel scale for a derived pressed action fill.</summary>
+    public const double ActionPressedMaximumScale = 0.68;
+
+    /// <summary>Channel multiplier for the deeper end of a derived pressed action gradient.</summary>
+    public const double ActionPressedGradientDarkenFactor = 0.85;
+
+    /// <summary>Bisection steps used to find the brightest action fill that meets its contrast target.</summary>
+    public const int ActionFillSearchIterations = 24;
+
     /// <summary>
     /// Default Void Purple theme.
     /// </summary>

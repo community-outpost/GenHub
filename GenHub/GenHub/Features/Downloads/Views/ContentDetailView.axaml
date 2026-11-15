@@ -300,7 +300,9 @@
                 </StackPanel>
 
                 <!-- Tabs -->
-                <TabControl Grid.Row="2"
+                <!-- Publisher-defined tabs are appended after the built-in tabs by the code-behind. -->
+                <TabControl x:Name="DetailTabs"
+                            Grid.Row="2"
                             SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                             IsVisible="{Binding !IsLoadingDetails}">
                     <TabControl.Styles>
@@ -399,7 +401,7 @@
                                 <!-- Description -->
                                 <StackPanel Spacing="12">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.About}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedDescription}">
+                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedDescription}">
                                         <md:MarkdownScrollViewer.Plugins>
                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -418,7 +420,7 @@
                                 <!-- Repository README (GitHub items) -->
                                 <StackPanel Spacing="12" IsVisible="{Binding HasReadme}">
                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.Readme}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
-                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedReadme}">
+                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedReadme}">
                                         <md:MarkdownScrollViewer.Plugins>
                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -733,7 +735,7 @@
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.ReadmeReleaseNotes}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedFullDescription}">
                                                                         <md:MarkdownScrollViewer.Plugins>
                                                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -1086,7 +1088,7 @@
                                                                     <TextBlock Text="{localization:Localize Downloads.ContentDetail.ReadmeReleaseNotes}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                                                                 </StackPanel>
                                                                 <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}">
-                                                                    <md:MarkdownScrollViewer Markdown="{Binding FormattedFullDescription}">
+                                                                    <md:MarkdownScrollViewer markdown:MarkdownWheelPassthrough.IsEnabled="True" Markdown="{Binding FormattedFullDescription}">
                                                                         <md:MarkdownScrollViewer.Plugins>
                                                                             <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
                                                                                             PathResolver="{StaticResource SafeMarkdownPathResolver}" />
@@ -1332,9 +1334,6 @@
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
-
-                    <!-- Publisher Tabs - catalog-defined cards for subscribed publishers -->
-                    <!-- Deferred pending per-item tab authoring support. Re-introduce publisher-defined custom tabs per content item once supported. See GitHub issue #621 (https://github.com/community-outpost/GenHub/issues/621). -->
                 </TabControl>
             </Grid>
 
@@ -1383,29 +1382,39 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- Delete Download Button (visible when stored locally) -->
-                            <Button x:Name="DeleteDownloadButton" HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding ShowDeleteButton}"
-                                    Command="{Binding DeleteDownloadCommand}"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}" Classes="action-danger" MinHeight="48">
+                            <Expander x:Name="SecondaryDownloadActions"
+                                      Header="{localization:Localize Downloads.ContentDetail.MoreActions}"
+                                      IsExpanded="False" HorizontalAlignment="Stretch">
+                                <Expander.IsVisible>
+                                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                        <Binding Path="ShowDeleteButton"/>
+                                        <Binding Path="HasSourceUrl"/>
+                                    </MultiBinding>
+                                </Expander.IsVisible>
+                                <StackPanel Spacing="8" Margin="0,8,0,0">
+                                    <!-- Delete Download Button (visible when stored locally) -->
+                                    <Button x:Name="DeleteDownloadButton" HorizontalAlignment="Stretch"
+                                            IsVisible="{Binding ShowDeleteButton}"
+                                            Command="{Binding DeleteDownloadCommand}"
+                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.DeleteDownloadTooltip}" Classes="action-danger" MinHeight="38">
+                                        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                            <PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.DeleteDownload}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
 
-                                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                                    <PathIcon Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
-                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.DeleteDownload}" VerticalAlignment="Center"/>
+                                    <!-- View on source website -->
+                                    <Button x:Name="OpenWebsiteButton" HorizontalAlignment="Stretch"
+                                            IsVisible="{Binding HasSourceUrl}"
+                                            Command="{Binding OpenInBrowserCommand}"
+                                            ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}" Classes="action-secondary" MinHeight="38">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                            <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                                            <TextBlock Text="{localization:Localize Downloads.ContentDetail.ViewOnWebsite}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
-                            </Button>
-
-                            <!-- View on source website -->
-                            <Button x:Name="OpenWebsiteButton" HorizontalAlignment="Stretch"
-                                    IsVisible="{Binding HasSourceUrl}"
-                                    Command="{Binding OpenInBrowserCommand}"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.OpenWebsiteTooltip}" Classes="action-secondary" MinHeight="38">
-
-                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
-                                    <TextBlock Text="{localization:Localize Downloads.ContentDetail.ViewOnWebsite}" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
+                            </Expander>
 
                             <!-- Download Progress -->
                             <StackPanel IsVisible="{Binding IsDownloading}" Spacing="8">
@@ -1528,11 +1537,7 @@
                                                IsVisible="{Binding !CanChangeContentType}" />
                                 </Grid>
 
-                                <!-- Version - only show if not empty -->
-                                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasVersion}">
-                                    <TextBlock Grid.Column="0" Text="{localization:Localize Downloads.ContentDetail.Version}" Foreground="{DynamicResource TextSecondary}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Version}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
-                                </Grid>
+
                             </StackPanel>
                         </StackPanel>
                     </Border>

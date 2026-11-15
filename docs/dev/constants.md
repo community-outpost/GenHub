@@ -710,6 +710,75 @@ Constants for publisher endpoint names and keys used in JSON serialization and l
 
 ---
 
+## PublisherStudioConstants Class
+
+Constants for Publisher Studio project storage and catalog export messages.
+
+| Constant                 | Value                                           | Description                                                        |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------ |
+| `StudioFolderName`       | `"PublisherStudio"`                             | Studio data folder under the application data directory            |
+| `ProjectsFolderName`     | `"projects"`                                    | Projects folder under the studio folder                            |
+| `DefaultProjectFileName` | `"default-publisher.json"`                      | File name of the default publisher project                         |
+| `SettingsFileName`       | `"publisher_studio_settings.json"`              | Publisher Studio settings file name                                |
+| `ExportDraftMessageKey`  | `"Tools.PublisherStudio.Validation.ExportDraft"` | Resource key for the error when an item without releases blocks export or publish |
+| `ExportDraftMessage`     | Message string                                  | English fallback for `ExportDraftMessageKey`; `{0}` is the item name or ID |
+
+---
+
+## CustomTabConstants Class
+
+Limits, allowlists, link patterns and UI resource keys for publisher-defined custom tabs.
+
+### Limits
+
+| Constant                   | Value   | Description                                              |
+| -------------------------- | ------- | -------------------------------------------------------- |
+| `MaxTabsPerScope`          | `10`    | Most tabs one content item or the catalog root may declare |
+| `MaxCardsPerTab`           | `24`    | Most cards one tab may declare                           |
+| `MaxTabIdLength`           | `64`    | Longest tab ID                                           |
+| `MaxHeaderLength`          | `40`    | Longest tab header                                       |
+| `MaxIntroLength`           | `2000`  | Longest tab intro                                        |
+| `MaxBodyLength`            | `50000` | Longest tab Markdown body                                |
+| `MaxCardTitleLength`       | `100`   | Longest card title or label                              |
+| `MaxCardDescriptionLength` | `1000`  | Longest card description                                 |
+| `AvaloniaResourceScheme`   | `"avares"` | URI scheme for images bundled with the app            |
+| `GeneratedIdFallbackPrefix` | `"tab-"` | Prefix of a generated tab ID when the header has no usable characters |
+| `GeneratedIdFallbackHashLength` | `8` | Hash characters in a generated fallback tab ID       |
+
+### Studio Tab Header Buttons
+
+| Constant                   | Value                                               | Description                                 |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| `EditTabLocalizationKey`   | `"Tools.PublisherStudio.Content.CustomTabs.EditTab"`   | Tooltip key of the tab header edit button   |
+| `DeleteTabLocalizationKey` | `"Tools.PublisherStudio.Content.CustomTabs.DeleteTab"` | Tooltip key of the tab header delete button |
+| `EditIconResourceKey`      | `"EditIcon"`                                        | Icon resource of the tab header edit button |
+| `DeleteIconResourceKey`    | `"DeleteIcon"`                                      | Icon resource of the tab header delete button |
+
+The header buttons use `ThemeResourceKeys.AccentBrush` for edit and `ThemeResourceKeys.StatusErrorBrush` for delete.
+
+### Publisher Image Links
+
+| Constant                                | Value                                                              | Description                                   |
+| --------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `GoogleDriveHost`                       | `"drive.google.com"`                                               | Host of Drive file viewer links               |
+| `GoogleDriveDirectUrlFormat`            | `"https://drive.usercontent.google.com/download?id={0}&export=view"` | Direct download URL for a Drive file ID     |
+| `GoogleDriveOpenPath`                   | `"/open"`                                                          | Drive open link path                          |
+| `GoogleDriveUcPath`                     | `"/uc"`                                                            | Drive legacy download link path               |
+| `GoogleDriveIdQueryKey`                 | `"id"`                                                             | Query parameter carrying a Drive file ID      |
+| `GoogleDriveResourceKeyQueryKey`        | `"resourcekey"`                                                    | Query parameter carrying a Drive resource key |
+| `GoogleDriveFilePathPattern`            | regex                                                              | Drive viewer path, captures the `id` group    |
+| `GoogleDriveFileIdPattern`              | regex                                                              | Drive file ID                                 |
+| `GoogleDriveResourceKeyPattern`         | regex                                                              | Drive resource key                            |
+| `DiscordCdnHost`                        | `"cdn.discordapp.com"`                                             | Discord CDN attachment host                   |
+| `DiscordMediaHost`                      | `"media.discordapp.net"`                                           | Discord media proxy attachment host           |
+| `DiscordAttachmentsPathPrefix`          | `"/attachments/"`                                                  | Discord attachment path prefix                |
+| `DiscordEphemeralAttachmentsPathPrefix` | `"/ephemeral-attachments/"`                                        | Discord ephemeral attachment path prefix      |
+| `DiscordExpiryQueryKey`                 | `"ex"`                                                             | Query parameter carrying the expiry time      |
+| `DiscordSignatureQueryKey`              | `"hm"`                                                             | Query parameter carrying the signature        |
+| `BodyLinkPattern`                       | regex                                                              | http or https link in a tab body              |
+
+---
+
 ## PublisherInfoConstants Class
 
 Constants for publisher information including display names, websites, and support URLs.
@@ -878,6 +947,26 @@ Constants related to game client detection and management.
   - `GeneralsOnline30HzExecutable`
   - `GeneralsOnline60HzExecutable`
   - `GeneralsOnlineDefaultExecutable`
+
+### Setup Wizard and Publisher Profiles
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherAcquisitionFailedError` | `"Could not download {0} content."` | Error returned when a publisher download failed. The result still carries any profiles created from an older package. `{0}` is the publisher display name |
+
+#### InstallationTypeLocalizationKeys
+
+Resource keys for installation source names in the setup wizard summary. Unknown and custom sources have no key and are left out.
+
+| Constant | Value |
+|----------|-------|
+| `Steam` | `"GameProfiles.InstallationType.Steam"` |
+| `EaApp` | `"GameProfiles.InstallationType.EaApp"` |
+| `TheFirstDecade` | `"GameProfiles.InstallationType.FirstDecade"` |
+| `CdIso` | `"GameProfiles.InstallationType.CdIso"` |
+| `Wine` | `"GameProfiles.InstallationType.Wine"` |
+| `Retail` | `"GameProfiles.InstallationType.Retail"` |
+| `Lutris` | `"GameProfiles.InstallationType.Lutris"` |
 
 ---
 
@@ -1104,6 +1193,10 @@ User interface sizing, theme color, and display name constants.
 - `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
 - `GeneralsThemeColor`: Default theme color for Generals content (`"#BD5A0F"`)
 - `ZeroHourThemeColor`: Default theme color for Zero Hour content (`"#1B6575"`)
+
+### Collection Notifications
+
+- `IndexerPropertyName`: Property name raised when the items of an indexed collection change (`"Item[]"`)
 
 ## ScrollSpyConstants Class
 
@@ -2017,6 +2110,10 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 ### Telemetry Properties (`TelemetryConstants.Properties`)
 
 Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ErrorCategory`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `ProfilesUpdated`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+
+### Telemetry Error Categories (`TelemetryConstants.ErrorCategories`)
+
+Values for the `ErrorCategory` property: `LaunchFailed` (`launch_failed`) when a launch reports failure without an exception, and `MissingDependencies` (`missing_dependencies`) when launch is blocked by missing required content.
 
 ---
 

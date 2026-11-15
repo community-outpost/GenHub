@@ -134,7 +134,7 @@ public class PublisherDefinition : IJsonOnDeserialized
             GetOrCreatePrimaryCatalog().Url = _legacyCatalogUrl;
         }
 
-        if (_legacyCatalogMirrors != null && _legacyCatalogMirrors.Count > 0 &&
+        if (_legacyCatalogMirrors is { Count: > 0 } &&
             (Catalogs.Count == 0 || Catalogs[0] == null || Catalogs[0].Mirrors == null || Catalogs[0].Mirrors.Count == 0))
         {
             GetOrCreatePrimaryCatalog().Mirrors = _legacyCatalogMirrors;

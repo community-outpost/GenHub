@@ -26,7 +26,10 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
                 Color.Parse(ThemeConstants.DefaultActionPressedHex));
         }
 
-        return new(CreateFill(accent, 6.2, 0.82), CreateFill(accent, 5.2, 1.0), CreateFill(accent, 7.5, 0.68));
+        return new(
+            CreateFill(accent, ThemeConstants.ActionRestMinimumContrast, ThemeConstants.ActionRestMaximumScale),
+            CreateFill(accent, ThemeConstants.ActionHoverMinimumContrast, ThemeConstants.ActionHoverMaximumScale),
+            CreateFill(accent, ThemeConstants.ActionPressedMinimumContrast, ThemeConstants.ActionPressedMaximumScale));
     }
 
     /// <summary>Creates shared gradient fills with readable white ink for every interaction state.</summary>
@@ -44,7 +47,8 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
                 Gradient(Color.Parse(ThemeConstants.DefaultActionPressedGradientStartHex), Color.Parse(ThemeConstants.DefaultActionPressedGradientEndHex)));
         }
 
-        var deeper = Color.FromRgb((byte)(palette.Pressed.R * 0.85), (byte)(palette.Pressed.G * 0.85), (byte)(palette.Pressed.B * 0.85));
+        const double darken = ThemeConstants.ActionPressedGradientDarkenFactor;
+        var deeper = Color.FromRgb((byte)(palette.Pressed.R * darken), (byte)(palette.Pressed.G * darken), (byte)(palette.Pressed.B * darken));
         return (Gradient(palette.Rest, palette.Pressed), Gradient(palette.Hover, palette.Rest), Gradient(palette.Pressed, deeper));
     }
 
@@ -68,7 +72,7 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         // Cap each state separately: saturated blue already has high white contrast at full intensity.
         var high = maximumScale;
         var result = Colors.Black;
-        for (var iteration = 0; iteration < 24; iteration++)
+        for (var iteration = 0; iteration < ThemeConstants.ActionFillSearchIterations; iteration++)
         {
             var scale = (low + high) / 2;
             var candidate = Color.FromRgb(
