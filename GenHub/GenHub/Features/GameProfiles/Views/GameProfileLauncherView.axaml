@@ -105,6 +105,9 @@
                         </Border>
                         <StackPanel Margin="30,36,30,22" Spacing="8" VerticalAlignment="Bottom">
                             <TextBlock Text="{Binding Name}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                            <Border Classes="library-compatibility" Classes.compatibility-retail="{Binding IsRetailCompatible}" Classes.compatibility-nonretail="{Binding !IsRetailCompatible}" IsVisible="{Binding HasCompatibilityBadge}" ToolTip.Tip="{Binding CompatibilityTooltip}">
+                                <TextBlock Text="{Binding CompatibilityBadgeText}"/>
+                            </Border>
                             <TextBlock Text="{Binding LibraryHeaderMetadata}" Classes="library-secondary" IsVisible="{Binding LibraryHeaderMetadata, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         </StackPanel>
                     </Grid>

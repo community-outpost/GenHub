@@ -50,6 +50,30 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
+        <Style Selector="Border.library-compatibility">
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Border.library-compatibility TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.library-compatibility.compatibility-retail">
+            <Setter Property="BorderBrush" Value="{DynamicResource CompatibilityRetailBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CompatibilityRetailBackgroundBrush}" />
+        </Style>
+        <Style Selector="Border.library-compatibility.compatibility-retail TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource CompatibilityRetailForegroundBrush}" />
+        </Style>
+        <Style Selector="Border.library-compatibility.compatibility-nonretail">
+            <Setter Property="BorderBrush" Value="{DynamicResource CompatibilityNonRetailBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CompatibilityNonRetailBackgroundBrush}" />
+        </Style>
+        <Style Selector="Border.library-compatibility.compatibility-nonretail TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource CompatibilityNonRetailForegroundBrush}" />
+        </Style>
         <Style Selector="TextBlock.library-section">
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
