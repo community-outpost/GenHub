@@ -1,10 +1,13 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Publishers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.Catalog;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -21,7 +24,8 @@ namespace GenHub.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioService(
     ILogger<PublisherStudioService> logger,
-    IPublisherCatalogParser catalogParser) : IPublisherStudioService
+    IPublisherCatalogParser catalogParser,
+    ILocalizationService? localizationService = null) : IPublisherStudioService
 {
     private const string DefaultCatalogId = "default";
 
@@ -220,6 +224,12 @@ public class PublisherStudioService(
                 catalogToExport.AvatarUrl = catalog.IconUrl;
             }
 
+            var itemWithoutReleases = catalogToExport.Content.FirstOrDefault(RequiresReleaseButHasNone);
+            if (itemWithoutReleases != null)
+            {
+                return Task.FromResult(OperationResult<string>.CreateFailure(GetDraftError(itemWithoutReleases)));
+            }
+
             var json = JsonSerializer.Serialize(catalogToExport, ExportJsonOptions);
 
             logger.LogInformation("Exported catalog '{CatalogName}' for project: {ProjectName}", catalogName, project.ProjectName);
@@ -250,6 +260,18 @@ public class PublisherStudioService(
             if (!contentResult.Success)
             {
                 return contentResult;
+            }
+
+            var tabErrors = new List<string>();
+            CatalogTabValidator.ValidateStructure("Catalog", catalog.CustomTabs, tabErrors);
+            foreach (var item in catalog.Content?.Where(item => item != null) ?? [])
+            {
+                CatalogTabValidator.Validate($"Content item '{item.Id}'", item.CustomTabs, tabErrors);
+            }
+
+            if (tabErrors.Count > 0)
+            {
+                return OperationResult<bool>.CreateFailure(tabErrors);
             }
 
             // Validate content references (ExtendsContentId)
@@ -451,24 +473,10 @@ public class PublisherStudioService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static OperationResult<bool> ValidateContentReleases(
-        PublisherCatalog catalog,
-        bool allowPendingArtifacts,
-        CancellationToken cancellationToken)
-    {
-        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var content in catalog.Content)
-        {
-            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
-            if (!result.Success)
-            {
-                return result;
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
+    private static bool RequiresReleaseButHasNone(CatalogContentItem content) =>
+        (content.Releases == null || content.Releases.Count == 0) &&
+        content.ContentType != ContentType.ContentBundle &&
+        !CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content);
 
     private static IEnumerable<NamedCatalog> ResolveCandidateCatalogs(
         PublisherStudioProject project,
@@ -491,53 +499,6 @@ public class PublisherStudioService(
         ];
     }
 
-    private static OperationResult<bool> ValidateContentItem(
-        CatalogContentItem content,
-        HashSet<string> seenIds,
-        bool allowPendingArtifacts,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(content.Id))
-        {
-            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
-        }
-
-        if (!seenIds.Add(content.Id))
-        {
-            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
-        }
-
-        var bundleValidation = ValidateContentBundleItem(content);
-        if (!bundleValidation.Success)
-        {
-            return bundleValidation;
-        }
-
-        var upstreamValidation = ValidateUpstreamSyncItem(content);
-        if (!upstreamValidation.Success)
-        {
-            return upstreamValidation;
-        }
-
-        var isUpstreamTracked = CatalogConstants.UpstreamProviders.IsConfiguredUpstreamSource(content) ||
-                                CatalogConstants.UpstreamProviders.IsSupported(content.PublisherType);
-        var isBundle = content.ContentType == ContentType.ContentBundle;
-
-        if (content.Releases.Count == 0)
-        {
-            if (!isUpstreamTracked && !isBundle)
-            {
-                return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' has no releases");
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-
-        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
-    }
-
     private static OperationResult<bool> ValidateContentBundleItem(CatalogContentItem content)
     {
         if (content.ContentType != ContentType.ContentBundle)
@@ -545,15 +506,15 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
-        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+        var hasBundledItems = content.BundledItems is { Count: > 0 };
+        var hasReleaseDependencies = content.Releases?.Any(r => r?.Dependencies is { Count: > 0 }) == true;
 
         if (!hasBundledItems && !hasReleaseDependencies)
         {
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
         }
 
-        if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        if (content.BundledItems?.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)) == true)
         {
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has bundled items with missing content IDs");
         }
@@ -803,6 +764,75 @@ public class PublisherStudioService(
         }
 
         return false;
+    }
+
+    private string GetDraftError(CatalogContentItem content) =>
+        localizationService.GetLocalizedString(
+            PublisherStudioConstants.ExportDraftMessageKey,
+            PublisherStudioConstants.ExportDraftMessage,
+            string.IsNullOrWhiteSpace(content.Name) ? content.Id : content.Name);
+
+    private OperationResult<bool> ValidateContentReleases(
+        PublisherCatalog catalog,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var content in catalog.Content)
+        {
+            var result = ValidateContentItem(content, seenIds, allowPendingArtifacts, cancellationToken);
+            if (!result.Success)
+            {
+                return result;
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private OperationResult<bool> ValidateContentItem(
+        CatalogContentItem content,
+        HashSet<string> seenIds,
+        bool allowPendingArtifacts,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Content item '{content.Name}' is missing an ID");
+        }
+
+        if (!seenIds.Add(content.Id))
+        {
+            return OperationResult<bool>.CreateFailure($"Duplicate content item ID '{content.Id}' found in catalog");
+        }
+
+        var bundleValidation = ValidateContentBundleItem(content);
+        if (!bundleValidation.Success)
+        {
+            return bundleValidation;
+        }
+
+        var upstreamValidation = ValidateUpstreamSyncItem(content);
+        if (!upstreamValidation.Success)
+        {
+            return upstreamValidation;
+        }
+
+        if (RequiresReleaseButHasNone(content))
+        {
+            return OperationResult<bool>.CreateFailure(GetDraftError(content));
+        }
+
+        var isBundle = content.ContentType == ContentType.ContentBundle;
+        if (content.Releases.Count == 0)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        return ValidateSingleContentReleases(content, allowPendingArtifacts, isBundle, cancellationToken);
     }
 
     /// <summary>

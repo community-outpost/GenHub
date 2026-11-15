@@ -8,6 +8,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -56,7 +57,10 @@ public class GameProfileSettingsViewModelDependencyTests
             null, // IGenLauncherNormalizationService
             null, // IDialogService
             NullLogger<GameProfileSettingsViewModel>.Instance,
-            NullLogger<GameSettingsViewModel>.Instance);
+            NullLogger<GameSettingsViewModel>.Instance,
+            dependencyValidator: new ContentDependencyValidator(
+                _mockManifestPool.Object,
+                NullLogger<ContentDependencyValidator>.Instance));
 
         // Setup default behavior for content loader
         _mockContentLoader.Setup(x => x.LoadAvailableGameInstallationsAsync())
