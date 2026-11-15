@@ -577,11 +577,11 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
-    /// A standalone tool's required add-on that is already downloaded is enabled in the new profile.
+    /// A standalone tool's required add-on that is already downloaded passes validation, and the profile saves only the tool.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
     [Fact]
-    public async Task CreateProfileWithContentAsync_StandaloneToolWithDownloadedGenTool_EnablesGenToolAsync()
+    public async Task CreateProfileWithContentAsync_StandaloneToolWithDownloadedGenTool_SavesOnlyToolAsync()
     {
         var fixture = new ControlBarProFixture();
         fixture.AddManifest(CreateStandaloneTool(CreateGenToolDependency()));
@@ -592,8 +592,7 @@ public sealed class ProfileContentServiceTests
 
         Assert.True(result.Success, result.FirstError);
         var saved = Assert.Single(createRequests).EnabledContentIds ?? [];
-        Assert.Contains(ControlBarProFixture.GenToolId, saved, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains(StandaloneToolId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(StandaloneToolId, Assert.Single(saved), StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -615,15 +614,15 @@ public sealed class ProfileContentServiceTests
         Assert.Equal("GenTool", Assert.Single(firstAttempt.MissingDependencies).DisplayName);
         Assert.True(install.Success, install.FirstError);
         Assert.True(secondAttempt.Success, secondAttempt.FirstError);
-        Assert.Contains(ControlBarProFixture.GenToolId, Assert.Single(createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(StandaloneToolId, Assert.Single(Assert.Single(createRequests).EnabledContentIds ?? []), StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// A standalone tool's auto-install dependency is downloaded and enabled instead of blocking the profile.
+    /// A standalone tool's auto-install dependency is downloaded instead of blocking the profile, and the profile saves only the tool.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
     [Fact]
-    public async Task CreateProfileWithContentAsync_StandaloneToolWithAutoInstallGenTool_AcquiresAndEnablesItAsync()
+    public async Task CreateProfileWithContentAsync_StandaloneToolWithAutoInstallGenTool_AcquiresItAndSavesOnlyToolAsync()
     {
         var fixture = new ControlBarProFixture();
         var genTool = CreateGenToolDependency();
@@ -636,7 +635,7 @@ public sealed class ProfileContentServiceTests
 
         Assert.True(result.Success, result.FirstError);
         Assert.Empty(result.MissingDependencies);
-        Assert.Contains(ControlBarProFixture.GenToolId, Assert.Single(createRequests).EnabledContentIds ?? [], StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(StandaloneToolId, Assert.Single(Assert.Single(createRequests).EnabledContentIds ?? []), StringComparer.OrdinalIgnoreCase);
         fixture.Orchestrator.Verify(
             o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
             Times.Once);

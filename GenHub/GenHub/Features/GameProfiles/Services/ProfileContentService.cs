@@ -318,8 +318,8 @@ public sealed class ProfileContentService(
                         standaloneAcquisition.FirstError ?? "A required dependency could not be acquired.");
                 }
 
-                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, standaloneAcquisition.Data);
-                return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, isStandalone: true, cancellationToken);
+                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+                return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, standaloneAcquisition.Data, isStandalone: true, cancellationToken);
             }
 
             var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
@@ -356,7 +356,7 @@ public sealed class ProfileContentService(
                 ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
                 : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
 
-            return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, isStandalone: false, cancellationToken);
+            return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, createRequest.EnabledContentIds ?? [], isStandalone: false, cancellationToken);
         }
         catch (ManifestNotFoundException ex)
         {
@@ -1053,11 +1053,12 @@ public sealed class ProfileContentService(
         ContentManifest manifest,
         string manifestId,
         CreateProfileRequest createRequest,
+        List<string> requiredContentIds,
         bool isStandalone,
         CancellationToken cancellationToken)
     {
         var missingDependencies = (await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
-                createRequest.EnabledContentIds ?? [],
+                requiredContentIds,
                 cancellationToken))
             .Where(gap => !isStandalone || gap.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient))
             .ToList();
