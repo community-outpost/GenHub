@@ -69,6 +69,7 @@ jobs:
               - 'GenHub/GenHub.Core/**'
             ui:
               - 'GenHub/GenHub/**'
+              - 'GenHub/GenHub.UI.Showcase/**'
             windows:
               - 'GenHub/GenHub.Windows/**'
               - 'GenHub/GenHub.ProxyLauncher/**'
@@ -209,6 +210,8 @@ jobs:
 
           Write-Host "Building UI project"
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Write-Host "Building Windows project"
           dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
@@ -349,6 +352,7 @@ jobs:
 
           echo "Building UI project"
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
 
           echo "Building Linux project"
           dotnet build "${{ env.LINUX_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
@@ -479,6 +483,7 @@ jobs:
 
           dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
           dotnet build "${{ env.MACOS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
 
       - name: Publish macOS App

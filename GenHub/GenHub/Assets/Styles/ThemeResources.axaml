@@ -254,6 +254,54 @@
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
 
+    <!-- Action dimensions grow with content; never impose a fixed text button height. -->
+    <x:Double x:Key="ActionMinHeight">36</x:Double>
+    <x:Double x:Key="ActionCompactMinHeight">32</x:Double>
+    <x:Double x:Key="ActionFontSize">13</x:Double>
+    <x:Double x:Key="ActionCompactFontSize">12</x:Double>
+    <x:Double x:Key="ActionIconSize">16</x:Double>
+    <x:Double x:Key="SectionIconSize">20</x:Double>
+    <x:Double x:Key="NavigationIconSize">24</x:Double>
+    <Thickness x:Key="ActionPadding">16,8</Thickness>
+    <Thickness x:Key="ActionCompactPadding">12,6</Thickness>
+    <!-- Selected pill treatment: dedicated action shades do not change navigation accents. -->
+    <CornerRadius x:Key="ActionCornerRadius">999</CornerRadius>
+    <SolidColorBrush x:Key="SplitActionHoverBrush" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="SplitActionPressedBrush" Color="#20000000" />
+    <SolidColorBrush x:Key="SplitActionDividerBrush" Color="#28FFFFFF" />
+
+    <LinearGradientBrush x:Key="ActionPrimaryRestBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8241CF" Offset="0" />
+        <GradientStop Color="#6930B3" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8651C9" Offset="0" />
+        <GradientStop Color="#7540B8" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryPressedBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#7135BC" Offset="0" />
+        <GradientStop Color="#592696" Offset="1" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ActionOnAccentBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ActionSecondaryRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionSecondaryHover" Color="#1B1A25" />
+    <SolidColorBrush x:Key="ActionSecondaryPressed" Color="#252331" />
+    <SolidColorBrush x:Key="ActionSecondaryInk" Color="#D2D0DC" />
+    <SolidColorBrush x:Key="ActionSecondaryBorder" Color="#42404F" />
+    <SolidColorBrush x:Key="ActionSecondaryHoverBorder" Color="#6A627B" />
+    <SolidColorBrush x:Key="ActionDisabledFill" Color="#0BFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledBorder" Color="#1EFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledInk" Color="#777383" />
+    <SolidColorBrush x:Key="ActionDangerRest" Color="#18EF4444" />
+    <SolidColorBrush x:Key="ActionDangerHover" Color="#32EF4444" />
+    <SolidColorBrush x:Key="ActionDangerPressed" Color="#48EF4444" />
+    <SolidColorBrush x:Key="ActionDangerInk" Color="#FCA5A5" />
+    <SolidColorBrush x:Key="ActionDangerBorder" Color="#66EF4444" />
+    <SolidColorBrush x:Key="ActionUtilityRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionUtilityInk" Color="#B6B2C5" />
+    <SolidColorBrush x:Key="ActionUtilityBorder" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionFocusBrush" Color="{StaticResource TextPrimaryColor}" />
+
     <!-- ==================================================================== -->
     <!-- 6. StreamGeometry Icons                                              -->
     <!-- ==================================================================== -->
