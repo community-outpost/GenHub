@@ -1,0 +1,686 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.CommunityOutpost;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Features.GameProfiles.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+
+namespace GenHub.Tests.Core.Features.GameProfiles.Services;
+
+/// <summary>
+/// Tests for <see cref="ContentDependencyValidator"/>.
+/// </summary>
+public sealed class ContentDependencyValidatorTests
+{
+    private const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
+    private const string ControlBarCoreId = "1.10.communityoutpost.addon.cbpc";
+    private const string ControlBarLanguageId = "1.10.communityoutpost.addon.cben";
+    private const string GenToolId = "1.10.communityoutpost.addon.gent";
+    private const string DeclaredGenToolId = "1.1.communityoutpost.addon.gent";
+    private const string InstallationId = "1.104.steam.gameinstallation.zerohour";
+
+    private readonly ContentDependencyValidator _validator = new(
+        Mock.Of<IContentManifestPool>(),
+        NullLogger<ContentDependencyValidator>.Instance);
+
+    /// <summary>
+    /// Control Bar Pro declares GenTool as RequireExisting with StrictPublisher false. The resolver
+    /// skips that kind of dependency, so the validator must report it by name.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_ControlBarProWithoutGenTool_ReportsGenToolByName()
+    {
+        var gaps = _validator.FindMissingDependencies(
+            [CreateControlBarPro(), CreateAddon(ControlBarCoreId, "cbpc"), CreateAddon(ControlBarLanguageId, "cben"), CreateInstallation()]);
+
+        var gap = Assert.Single(gaps);
+        Assert.Equal("GenTool", gap.DisplayName);
+        Assert.Equal(DeclaredGenToolId, gap.DependencyId);
+        Assert.Equal(ContentType.Addon, gap.DependencyType);
+        Assert.True(gap.CanDownload);
+        Assert.Equal("Control Bar Pro (ExiLe)", gap.RequiredByName);
+        Assert.Equal(ControlBarProId, gap.RequiredById);
+    }
+
+    /// <summary>
+    /// A GenTool manifest whose release version differs from the declared one satisfies the dependency.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_VersionedGenToolPresent_ReportsNothing()
+    {
+        var gaps = _validator.FindMissingDependencies(
+            [CreateControlBarPro(), CreateAddon(ControlBarCoreId, "cbpc"), CreateAddon(ControlBarLanguageId, "cben"), CreateAddon(GenToolId, "gent"), CreateInstallation()]);
+
+        Assert.Empty(gaps);
+    }
+
+    /// <summary>
+    /// Optional and suggested dependencies never block a profile.
+    /// </summary>
+    /// <param name="installBehavior">The install behavior of the dependency.</param>
+    /// <param name="isOptional">Whether the dependency is optional.</param>
+    [Theory]
+    [InlineData(DependencyInstallBehavior.RequireExisting, true)]
+    [InlineData(DependencyInstallBehavior.Suggest, false)]
+    [InlineData(DependencyInstallBehavior.Optional, false)]
+    public void FindMissingDependencies_OptionalDependencyMissing_ReportsNothing(
+        DependencyInstallBehavior installBehavior,
+        bool isOptional)
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cbhd"),
+            Name = "Control Bar HD",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(DeclaredGenToolId),
+                    Name = "GenTool (Recommended)",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = installBehavior,
+                    IsOptional = isOptional,
+                },
+            ],
+        };
+
+        Assert.Empty(_validator.FindMissingDependencies([addon]));
+    }
+
+    /// <summary>
+    /// Every missing item is reported once, and items GenHub cannot download are marked.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SeveralItemsMissing_ReportsEachOnce()
+    {
+        var hotkeys = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10.communityoutpost.addon.hleg"),
+            Name = "Legionnaire's Hotkeys",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                GenPatcherDependencyBuilder.CreateGenToolDependency("GenTool (required for Legionnaire's Hotkeys)", DependencyInstallBehavior.AutoInstall),
+            ],
+        };
+
+        var gaps = _validator.FindMissingDependencies([CreateControlBarPro(), hotkeys]);
+
+        Assert.Equal(4, gaps.Count);
+        Assert.Single(gaps, gap => gap.DisplayName == "GenTool");
+        Assert.Contains(gaps, gap => gap.DependencyId == "1.1.communityoutpost.addon.cbpc");
+        var installation = Assert.Single(gaps, gap => gap.DependencyType == ContentType.GameInstallation);
+        Assert.False(installation.CanDownload);
+        Assert.All(gaps.Where(gap => gap.DependencyType == ContentType.Addon), gap => Assert.True(gap.CanDownload));
+    }
+
+    /// <summary>
+    /// A publisher-agnostic installation dependency is satisfied by any installation of a compatible game.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_AnyPublisherInstallation_SatisfiedByCompatibleGame()
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.communityoutpost.addon.cbpc"),
+            Name = "Control Bar Pro (Core)",
+            ContentType = ContentType.Addon,
+            Dependencies = [GenPatcherDependencyBuilder.CreateZeroHour104Dependency()],
+        };
+        var eaInstallation = new ContentManifest
+        {
+            Id = ManifestId.Create("1.104.eaapp.gameinstallation.custompath"),
+            Name = "Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        Assert.Empty(_validator.FindMissingDependencies([addon, eaInstallation]));
+    }
+
+    /// <summary>
+    /// A placeholder dependency is not satisfied by content for another game.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_PlaceholderDependencyWrongGame_ReportsGap()
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.zhonly"),
+            Name = "Zero Hour Addon",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Name = "Zero Hour Installation",
+                    DependencyType = ContentType.GameInstallation,
+                    CompatibleGameTypes = [GameType.ZeroHour],
+                },
+            ],
+        };
+        var generals = new ContentManifest
+        {
+            Id = ManifestId.Create("1.108.steam.gameinstallation.generals"),
+            Name = "Generals",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.Generals,
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([addon, generals]));
+        Assert.Equal(ContentType.GameInstallation, gap.DependencyType);
+    }
+
+    /// <summary>
+    /// A strict placeholder dependency is satisfied only by its publisher's content.
+    /// </summary>
+    /// <param name="publisherType">The enabled patch's publisher type.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("otherpublisher", true)]
+    [InlineData("examplepublisher", false)]
+    public void FindMissingDependencies_StrictPlaceholder_AppliesPublisher(string publisherType, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needspatch"),
+            Name = "Needs Patch",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Name = "Example Patch",
+                    DependencyType = ContentType.Patch,
+                    StrictPublisher = true,
+                    PublisherType = "examplepublisher",
+                },
+            ],
+        };
+        var patch = new ContentManifest
+        {
+            Id = ManifestId.Create($"1.0.{publisherType}.patch.somepatch"),
+            Name = "Some Patch",
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = publisherType },
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, patch]).Count == 1);
+    }
+
+    /// <summary>
+    /// A strict dependency with a declared ID is satisfied only by its publisher's content, even when
+    /// the ID matches any publisher.
+    /// </summary>
+    /// <param name="declaredId">The declared dependency ID.</param>
+    /// <param name="publisherType">The enabled patch's publisher type.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.0.any.patch.somepatch", "otherpublisher", true)]
+    [InlineData("1.0.any.patch.somepatch", "examplepublisher", false)]
+    [InlineData("1.0.otherpublisher.patch.somepatch", "otherpublisher", true)]
+    public void FindMissingDependencies_StrictDeclaredId_AppliesPublisher(string declaredId, string publisherType, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needspatch"),
+            Name = "Needs Patch",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(declaredId),
+                    Name = "Example Patch",
+                    DependencyType = ContentType.Patch,
+                    StrictPublisher = true,
+                    PublisherType = "examplepublisher",
+                },
+            ],
+        };
+        var patch = new ContentManifest
+        {
+            Id = ManifestId.Create($"1.0.{publisherType}.patch.somepatch"),
+            Name = "Some Patch",
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = publisherType },
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, patch]).Count == 1);
+    }
+
+    /// <summary>
+    /// A gap carries the declaration that produced it, so installing honors that declaration's limits.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SameIdDifferentLimits_GapCarriesUnmetDeclaration()
+    {
+        var looseLimit = new ContentDependency
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            DependencyType = ContentType.Addon,
+            StrictPublisher = true,
+            MinVersion = "1.0",
+        };
+        var strictLimit = new ContentDependency
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            DependencyType = ContentType.Addon,
+            StrictPublisher = true,
+            MinVersion = "2.0",
+        };
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies = [looseLimit, strictLimit],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = "1.0",
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod, basePack]));
+        Assert.Same(strictLimit, gap.Dependency);
+    }
+
+    /// <summary>
+    /// A matching item outside the declared version range does not satisfy the dependency.
+    /// An item without a recorded version is not rejected for its version.
+    /// </summary>
+    /// <param name="version">The enabled item's version.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.0", true)]
+    [InlineData("2.5", false)]
+    [InlineData("", false)]
+    public void FindMissingDependencies_VersionConstraint_IsApplied(string version, bool expectGap)
+    {
+        var addon = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = true,
+                    MinVersion = "2.0",
+                },
+            ],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = version,
+        };
+
+        var gaps = _validator.FindMissingDependencies([addon, basePack]);
+
+        Assert.Equal(expectGap, gaps.Count == 1);
+    }
+
+    /// <summary>
+    /// A non-strict dependency is satisfied by another publisher's language variant of the same content.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_NonStrictDependencyOtherPublisherVariant_ReportsNothing()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publishera.mod.bigmod"),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.publishera.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                },
+            ],
+        };
+        var variant = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publisherb.addon.basepack-en"),
+            Name = "Base Pack (English)",
+            ContentType = ContentType.Addon,
+        };
+
+        Assert.Empty(_validator.FindMissingDependencies([mod, variant]));
+    }
+
+    /// <summary>
+    /// Content from another publisher that ships a base item's output file satisfies that base item,
+    /// matching the acquired-manifest lookup.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_OtherPublisherBundlesBasePayload_ReportsNothing()
+    {
+        var bundle = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.publisherb.gameclient.bundledclient"),
+            Name = "Bundled Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "publisherb" },
+            Files = [new ManifestFile { RelativePath = $"Data/{GameContentConstants.ControlBarProCoreFileName}" }],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [CreateControlBarPro(), bundle, CreateAddon(ControlBarLanguageId, "cben"), CreateAddon(GenToolId, "gent"), CreateInstallation()]);
+
+        Assert.Empty(gaps);
+    }
+
+    /// <summary>
+    /// The base item itself does not satisfy its dependency through its output file when its
+    /// version is outside the declared range.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_BaseItemOutsideVersionRangeShipsPayload_ReportsGap()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needscore"),
+            Name = "Needs Core",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(ControlBarCoreId),
+                    Name = "Control Bar Pro (Core)",
+                    DependencyType = ContentType.Addon,
+                    MinVersion = "2.0",
+                },
+            ],
+        };
+        var oldCore = new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarCoreId),
+            Name = "Control Bar Pro (Core)",
+            ContentType = ContentType.Addon,
+            Version = "1.0",
+            Files = [new ManifestFile { RelativePath = $"Data/{GameContentConstants.ControlBarProCoreFileName}" }],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod, oldCore]));
+        Assert.Equal(ControlBarCoreId, gap.DependencyId);
+    }
+
+    /// <summary>
+    /// Placeholder dependencies of different types are each reported.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_PlaceholdersOfDifferentTypes_ReportsEach()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsboth"),
+            Name = "Needs Both",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch },
+                new ContentDependency { Name = "Any Map Pack", DependencyType = ContentType.MapPack },
+            ],
+        };
+
+        Assert.Equal(2, _validator.FindMissingDependencies([mod]).Count);
+    }
+
+    /// <summary>
+    /// A version list and a range must both hold, and a version that cannot be compared is not rejected.
+    /// </summary>
+    /// <param name="version">The enabled item's version.</param>
+    /// <param name="expectGap">Whether a gap is expected.</param>
+    [Theory]
+    [InlineData("1.5", true)]
+    [InlineData("2.5", false)]
+    [InlineData("3.5", true)]
+    [InlineData("unknown", false)]
+    public void FindMissingDependencies_VersionListAndRange_BothApply(string version, bool expectGap)
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.needsbase"),
+            Name = "Needs Base",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+                    Name = "Base Pack",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = true,
+                    CompatibleVersions = ["1.5", "2.5", "3.5"],
+                    MinVersion = "2.0",
+                    MaxVersion = "3.0",
+                },
+            ],
+        };
+        var basePack = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.addon.basepack"),
+            Name = "Base Pack",
+            ContentType = ContentType.Addon,
+            Version = version,
+        };
+
+        Assert.Equal(expectGap, _validator.FindMissingDependencies([mod, basePack]).Count == 1);
+    }
+
+    /// <summary>
+    /// Two declarations of the same placeholder with different version limits are both reported.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SamePlaceholderDifferentLimits_ReportsBoth()
+    {
+        ContentManifest Mod(string id, string minVersion) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies = [new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch, MinVersion = minVersion }],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", "1.0"), Mod("1.0.examplepublisher.mod.second", "2.0")]);
+
+        Assert.Equal(2, gaps.Count);
+    }
+
+    /// <summary>
+    /// Two declarations that differ only in whether a version bound is inclusive are both reported.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SamePlaceholderDifferentInclusivity_ReportsBoth()
+    {
+        ContentManifest Mod(string id, bool minInclusive) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies = [new ContentDependency { Name = "Any Patch", DependencyType = ContentType.Patch, MinVersion = "2.0", MinInclusive = minInclusive }],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", true), Mod("1.0.examplepublisher.mod.second", false)]);
+
+        Assert.Equal(2, gaps.Count);
+    }
+
+    /// <summary>
+    /// Two declarations of the same item that differ only in publisher strictness are both reported,
+    /// and they still share one item key for display.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SameItemDifferentPublisherLimits_ReportsBoth()
+    {
+        ContentManifest Mod(string id, bool strictPublisher) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(DeclaredGenToolId),
+                    Name = "GenTool",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = strictPublisher,
+                    PublisherType = strictPublisher ? "communityoutpost" : null,
+                },
+            ],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", false), Mod("1.0.examplepublisher.mod.second", true)]);
+
+        Assert.Equal(2, gaps.Count);
+        Assert.Contains(gaps, gap => gap.Dependency?.StrictPublisher == true);
+        Assert.Single(gaps.Select(gap => gap.ItemKey).Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// A manifest whose dependency lists were deserialized as null still reports the gap.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_NullDependencyLists_ReportsGap()
+    {
+        var mod = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.examplepublisher.mod.bigmod"),
+            Name = "Big Mod",
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.addon.widget"),
+                    Name = "Widget",
+                    DependencyType = ContentType.Addon,
+                    CompatibleVersions = null!,
+                    CompatibleGameTypes = null!,
+                },
+            ],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies([mod]));
+
+        Assert.Equal("Widget", gap.DisplayName);
+    }
+
+    /// <summary>
+    /// A non-strict game client requirement with no game list is keyed by type, so two requirers report one gap.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_AnyGameClientWithNullGameTypes_ReportsOneGap()
+    {
+        ContentManifest Mod(string id) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.examplepublisher.gameclient.anyclient"),
+                    Name = "Any game client",
+                    DependencyType = ContentType.GameClient,
+                    StrictPublisher = false,
+                    CompatibleGameTypes = null!,
+                },
+            ],
+        };
+
+        var gap = Assert.Single(_validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first"), Mod("1.0.examplepublisher.mod.second")]));
+
+        Assert.Equal(ContentType.GameClient, gap.DependencyType);
+    }
+
+    /// <summary>
+    /// The async overload loads the enabled manifests from the pool and skips IDs it cannot load.
+    /// </summary>
+    /// <returns>A task that completes when validation finishes.</returns>
+    [Fact]
+    public async Task FindMissingDependenciesAsync_LoadsEnabledManifestsFromPoolAsync()
+    {
+        var manifests = new Dictionary<string, ContentManifest>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ControlBarProId] = CreateControlBarPro(),
+            [ControlBarCoreId] = CreateAddon(ControlBarCoreId, "cbpc"),
+            [ControlBarLanguageId] = CreateAddon(ControlBarLanguageId, "cben"),
+            [InstallationId] = CreateInstallation(),
+        };
+        var pool = new Mock<IContentManifestPool>();
+        pool.Setup(p => p.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ManifestId id, CancellationToken _) =>
+                OperationResult<ContentManifest?>.CreateSuccess(manifests.GetValueOrDefault(id.Value)));
+        var validator = new ContentDependencyValidator(pool.Object, NullLogger<ContentDependencyValidator>.Instance);
+
+        var gaps = await validator.FindMissingDependenciesAsync([.. manifests.Keys, "1.0.unknown.addon.missing"]);
+
+        var gap = Assert.Single(gaps);
+        Assert.Equal("GenTool", gap.DisplayName);
+    }
+
+    private static ContentManifest CreateControlBarPro() => new()
+    {
+        Id = ManifestId.Create(ControlBarProId),
+        Name = "Control Bar Pro (ExiLe)",
+        ContentType = ContentType.Addon,
+        TargetGame = GameType.ZeroHour,
+        Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+        Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+    };
+
+    private static ContentManifest CreateAddon(string id, string contentCode) => new()
+    {
+        Id = ManifestId.Create(id),
+        Name = GenPatcherContentRegistry.GetMetadata(contentCode).DisplayName,
+        ContentType = ContentType.Addon,
+        TargetGame = GameType.ZeroHour,
+        Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        Metadata = new ContentMetadata { Tags = [$"contentCode:{contentCode}"] },
+    };
+
+    private static ContentManifest CreateInstallation() => new()
+    {
+        Id = ManifestId.Create(InstallationId),
+        Name = "Zero Hour Installation",
+        ContentType = ContentType.GameInstallation,
+        TargetGame = GameType.ZeroHour,
+    };
+}
