@@ -2379,6 +2379,40 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// A chosen folder with no detectable game client is refused before it is registered or setup runs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ChooseGameFolderCommand_WhenNoClientDetected_RefusesFolderAsync()
+    {
+        var settings = new UserSettings();
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure("denied"));
+        var wizard = new Mock<ISetupWizardService>();
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(settings), notifications, wizard, detectsClient: false);
+        vm.ManualDirectoryPrompter = () => Task.FromResult<GameInstallation?>(new GameInstallation(Path.GetTempPath(), GameInstallationType.Retail, null));
+        await vm.InitializeAsync();
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        await vm.ChooseGameFolderCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ShouldShowScanFailure);
+        Assert.Equal(InstallationScanOutcome.NotScanned, settings.LastInstallationScanOutcome);
+        installationService.Verify(
+            x => x.AddInstallationToCacheAsync(It.IsAny<GameInstallation>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        wizard.Verify(
+            x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        notifications.Verify(
+            n => n.ShowWarning("Invalid Directory", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Each scan state input raises the visibility property that depends on it.
     /// </summary>
     [Fact]
@@ -3235,7 +3269,8 @@ public class GameProfileLauncherViewModelTests : IDisposable
         Mock<IUserSettingsService> settingsService,
         Mock<INotificationService> notificationService,
         Mock<ISetupWizardService> setupWizardService,
-        Mock<IGameProfileManager>? profileManager = null)
+        Mock<IGameProfileManager>? profileManager = null,
+        bool detectsClient = true)
     {
         if (profileManager == null)
         {
@@ -3248,7 +3283,11 @@ public class GameProfileLauncherViewModelTests : IDisposable
         var clientDetector = new Mock<IGameClientDetector>();
         clientDetector
             .Setup(x => x.DetectGameClientsFromInstallationsAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(DetectionResult<GameClient>.CreateSuccess([], TimeSpan.Zero));
+            .ReturnsAsync((IEnumerable<GameInstallation> installations, CancellationToken _) => DetectionResult<GameClient>.CreateSuccess(
+                detectsClient
+                    ? [.. installations.Select(i => new GameClient { Id = $"{i.Id}-zh", GameType = GameType.ZeroHour, InstallationId = i.Id })]
+                    : [],
+                TimeSpan.Zero));
 
         var vm = new GameProfileLauncherViewModel(
             installationService.Object,

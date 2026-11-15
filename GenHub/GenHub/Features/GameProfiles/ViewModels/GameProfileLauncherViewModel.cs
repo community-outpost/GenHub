@@ -2157,6 +2157,15 @@ public partial class GameProfileLauncherViewModel(
             manualInstallation.PopulateGameClients(detectionResult.Items);
         }
 
+        if (requireRegistration && manualInstallation.AvailableGameClients.Count == 0)
+        {
+            logger.LogWarning("Chosen folder has no detectable game client: {Path}", manualInstallation.InstallationPath);
+            notificationService.ShowWarning(
+                localizationService["GameProfiles.Notification.InvalidDirectory.Title"],
+                localizationService["GameProfiles.Notification.InvalidDirectory.Message"]);
+            return null;
+        }
+
         await CreateAndRegisterManualInstallationManifestsAsync(manualInstallation);
 
         var addResult = await installationService.AddInstallationToCacheAsync(manualInstallation);
