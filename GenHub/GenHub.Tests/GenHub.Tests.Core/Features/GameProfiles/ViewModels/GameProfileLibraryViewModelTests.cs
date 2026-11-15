@@ -647,7 +647,30 @@ public class GameProfileLibraryViewModelTests
             Assert.True(settings.IsEffectivelyVisible);
             Assert.True(settings.IsEnabled);
             Assert.DoesNotContain(view.GetVisualDescendants().OfType<ToggleButton>(), control => Equals(control.CommandParameter, "Overview"));
-            Assert.DoesNotContain(view.GetVisualDescendants().OfType<Button>(), control => ReferenceEquals(control.Command, vm.ScanForGamesCommand) || ReferenceEquals(control.Command, vm.ImportProfileCommand));
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<Button>(), control => control.IsEffectivelyVisible && (ReferenceEquals(control.Command, vm.ScanForGamesCommand) || ReferenceEquals(control.Command, vm.ImportProfileCommand)));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an empty library offers the scan its help text mentions.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_EmptyLibrary_OffersScan()
+    {
+        var vm = CreateViewModel();
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(vm.IsLibraryEmpty);
+            var scan = view.GetVisualDescendants().OfType<Button>().Single(control => ReferenceEquals(control.Command, vm.ScanForGamesCommand));
+            Assert.True(scan.IsEffectivelyVisible);
         }
         finally
         {
