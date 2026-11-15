@@ -35,6 +35,45 @@ namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 public class GameProfileLibraryViewModelTests
 {
     /// <summary>
+    /// Verifies that the tab count follows selection, enabled content changes and caption refreshes.
+    /// </summary>
+    /// <returns>A task representing the initialized view-model check.</returns>
+    [AvaloniaFact]
+    public async Task LibraryContentTabHeader_RefreshesForSelectionContentAndCultureChangesAsync()
+    {
+        var localization = new Mock<ILocalizationService>();
+        var vm = CreateViewModel(localizationServiceMock: localization);
+        await vm.InitializeAsync();
+        var first = CreateProfile("first", "First");
+        var second = CreateProfile("second", "Second");
+        ((GameProfile)first.Profile).EnabledContentIds.Add("base");
+        vm.Profiles.Add(first);
+        vm.Profiles.Add(second);
+        vm.SelectedProfile = first;
+        var firstCaption = vm.LibraryContentTabHeader;
+        var notifications = 0;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GameProfileLauncherViewModel.LibraryContentTabHeader))
+            {
+                notifications++;
+            }
+        };
+
+        vm.SelectedProfile = second;
+
+        Assert.True(notifications > 0);
+        Assert.NotEqual(firstCaption, vm.LibraryContentTabHeader);
+        var beforeUpdate = notifications;
+        second.UpdateFromProfile(new GameProfile { Id = "second", Name = "Second", EnabledContentIds = ["base", "patch"] });
+        Assert.EndsWith(":2", vm.LibraryContentTabHeader);
+        Assert.True(notifications > beforeUpdate);
+        var beforeCultureChange = notifications;
+        localization.Raise(x => x.PropertyChanged += null, new System.ComponentModel.PropertyChangedEventArgs(nameof(ILocalizationService.CurrentCulture)));
+        Assert.True(notifications > beforeCultureChange);
+    }
+
+    /// <summary>
     /// Verifies that the library excludes the old add-card sentinel from rows and counts.
     /// </summary>
     [Fact]
@@ -754,10 +793,12 @@ public class GameProfileLibraryViewModelTests
         return new GameProfileItemViewModel(id, profile, string.Empty, string.Empty);
     }
 
-    private static GameProfileLauncherViewModel CreateViewModel(IProfileContentLoader? contentLoader = null, IServiceScopeFactory? libraryScopeFactory = null)
+    private static GameProfileLauncherViewModel CreateViewModel(IProfileContentLoader? contentLoader = null, IServiceScopeFactory? libraryScopeFactory = null, Mock<ILocalizationService>? localizationServiceMock = null)
     {
-        var localization = new Mock<ILocalizationService>();
+        var localization = localizationServiceMock ?? new Mock<ILocalizationService>();
         localization.Setup(x => x[It.IsAny<string>()]).Returns((string key) => key);
+        localization.Setup(x => x.GetString(It.IsAny<string>(), It.IsAny<object[]>()))
+            .Returns((string key, object[] values) => key + ":" + string.Join(",", values));
         localization.SetupGet(x => x.CurrentCulture).Returns(System.Globalization.CultureInfo.InvariantCulture);
         Mock<IServiceScopeFactory>? scopeFactory = null;
         if (contentLoader != null)

@@ -124,7 +124,7 @@
                         <Border BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12">
                             <WrapPanel>
                                 <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Overview}" IsChecked="{Binding IsLibraryOverview, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.OverviewTab}"/>
-                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Content}" IsChecked="{Binding IsLibraryContent, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}"/>
+                                <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{Binding LibraryContentTabHeader}" IsChecked="{Binding IsLibraryContent, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}"/>
                                 <RadioButton GroupName="ProfileLibraryTabs" Theme="{StaticResource {x:Type ToggleButton}}" Classes="library-tab" Content="{localization:Localize GameProfiles.Library.Settings}" IsChecked="{Binding IsLibrarySettings, Mode=OneWay}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.SettingsTab}"/>
                             </WrapPanel>
                         </Border>
@@ -139,15 +139,6 @@
                                     <TextBlock Text="{Binding CompatibilityBadgeText}" ToolTip.Tip="{Binding CompatibilityTooltip}" Margin="0,5,0,0" FontSize="13" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </StackPanel>
-                            <Border Classes="library-card">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Spacing="4">
-                                        <TextBlock Text="{localization:Localize GameProfiles.Library.IncludedContent}" FontWeight="Medium" TextWrapping="Wrap"/>
-                                        <TextBlock Text="{Binding LibraryContentSummary}" Classes="library-secondary"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Library.Content}" Command="{Binding SelectLibraryTabCommand}" CommandParameter="{x:Static constants:GameProfileLibraryConstants.ContentTab}" VerticalAlignment="Center"/>
-                                </Grid>
-                            </Border>
                         </StackPanel>
                         <StackPanel IsVisible="{Binding IsLibraryContent}" Spacing="14">
                             <TextBlock Classes="library-section" Text="{localization:Localize GameProfiles.Library.IncludedContent}"/>

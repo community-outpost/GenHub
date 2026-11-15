@@ -18483,4 +18483,5 @@ Error: не удалось: {3}
   <data name="GameProfiles.Library.LoadError" xml:space="preserve">
     <value>Не удалось загрузить профили. Откройте раздел профилей заново или перезапустите GenHub.</value>
   </data>
+  <data name="GameProfiles.Library.ContentTabCount" xml:space="preserve"><value>Содержимое · {0}</value></data>
 </root>

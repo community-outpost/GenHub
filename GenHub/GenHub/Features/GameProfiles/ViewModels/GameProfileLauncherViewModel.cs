@@ -1587,7 +1587,7 @@ public partial class GameProfileLauncherViewModel(
                 profile.NotifyLibraryCaptionsChanged();
             }
 
-            OnPropertyChanged(nameof(LibraryContentSummary));
+            OnPropertyChanged(nameof(LibraryContentTabHeader));
             OnPropertyChanged(nameof(LibraryProfileCount));
 
             if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
