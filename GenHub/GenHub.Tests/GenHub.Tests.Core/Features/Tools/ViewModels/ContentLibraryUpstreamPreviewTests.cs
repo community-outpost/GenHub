@@ -1,4 +1,7 @@
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
@@ -9,6 +12,7 @@ using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -22,6 +26,46 @@ namespace GenHub.Tests.Core.Features.Tools.ViewModels;
 /// </summary>
 public sealed class ContentLibraryUpstreamPreviewTests
 {
+    /// <summary>
+    /// Verifies that releases begin as summaries and still expose their file controls on expansion.
+    /// </summary>
+    [AvaloniaFact]
+    public void ReleaseSummaries_KeepDetailsAndEditActionAvailable()
+    {
+        var release = new ContentRelease
+        {
+            Version = "1.04",
+            Artifacts = [new ReleaseArtifact { Filename = "community-patch.zip" }],
+        };
+        var item = new CatalogContentItem { Id = "patch", Name = "Patch", Releases = [release] };
+        var viewModel = CreateViewModel(item, Mock.Of<ICatalogUpstreamIngestionService>());
+        viewModel.SelectedContent = item;
+        viewModel.SelectedDetailTabIndex = 1;
+        var view = new GenHub.Features.Tools.Views.PublisherStudio.ContentLibraryView { DataContext = viewModel };
+        var window = new Window { Width = 900, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var expander = view.GetVisualDescendants().OfType<Expander>()
+                .Single(control => ReferenceEquals(control.DataContext, release));
+            Assert.False(expander.IsExpanded);
+            var edit = view.GetVisualDescendants().OfType<Button>()
+                .Single(control => ReferenceEquals(control.Command, viewModel.EditReleaseCommand));
+            Assert.True(edit.IsEffectivelyVisible);
+            Assert.Same(release, edit.CommandParameter);
+            expander.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Contains(
+                view.GetVisualDescendants().OfType<TextBlock>(),
+                control => control.IsEffectivelyVisible && control.Text == "community-patch.zip");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>
     /// Verifies that refreshing the selected content does not restart the upstream
     /// preview load or clear already loaded preview releases.
