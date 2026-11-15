@@ -307,19 +307,7 @@ public sealed class ProfileContentService(
 
             if (manifest.ContentType.IsStandalone())
             {
-                var standaloneAcquisition = await AcquireRequiredDependenciesAsync(
-                    [manifestId],
-                    [manifest],
-                    skipFoundationDependencies: true,
-                    cancellationToken);
-                if (standaloneAcquisition.Failed || standaloneAcquisition.Data == null)
-                {
-                    return ProfileOperationResult<GameProfile>.CreateFailure(
-                        standaloneAcquisition.FirstError ?? "A required dependency could not be acquired.");
-                }
-
-                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
-                return await SaveNewProfileAsync(profileName, manifest, manifestId, standaloneRequest, standaloneAcquisition.Data, isStandalone: true, cancellationToken);
+                return await CreateStandaloneProfileAsync(profileName, manifest, manifestId, cancellationToken);
             }
 
             var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
@@ -352,9 +340,7 @@ public sealed class ProfileContentService(
                 ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
                 : null;
 
-            var createRequest = manifest.ContentType.IsStandalone()
-                ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
-                : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
+            var createRequest = BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
 
             return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, createRequest.EnabledContentIds ?? [], isStandalone: false, cancellationToken);
         }
@@ -1042,6 +1028,31 @@ public sealed class ProfileContentService(
                 logger.LogWarning(ex, "Failed to resolve dependency names for notification on {ManifestId}", primaryManifestId);
             }
         }
+    }
+
+    /// <summary>
+    /// Creates a standalone tool profile. The tool's required items must be present or acquirable,
+    /// but the profile saves only the tool, so it stays a one-item tool profile.
+    /// </summary>
+    private async Task<ProfileOperationResult<GameProfile>> CreateStandaloneProfileAsync(
+        string profileName,
+        ContentManifest manifest,
+        string manifestId,
+        CancellationToken cancellationToken)
+    {
+        var acquisition = await AcquireRequiredDependenciesAsync(
+            [manifestId],
+            [manifest],
+            skipFoundationDependencies: true,
+            cancellationToken);
+        if (acquisition.Failed || acquisition.Data == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                acquisition.FirstError ?? "A required dependency could not be acquired.");
+        }
+
+        var request = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+        return await SaveNewProfileAsync(profileName, manifest, manifestId, request, acquisition.Data, isStandalone: true, cancellationToken);
     }
 
     /// <summary>
