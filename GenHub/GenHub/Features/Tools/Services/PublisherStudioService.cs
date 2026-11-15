@@ -493,15 +493,15 @@ public class PublisherStudioService(
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
-        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+        var hasBundledItems = content.BundledItems is { Count: > 0 };
+        var hasReleaseDependencies = content.Releases?.Any(r => r?.Dependencies is { Count: > 0 }) == true;
 
         if (!hasBundledItems && !hasReleaseDependencies)
         {
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has no bundled items");
         }
 
-        if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        if (content.BundledItems?.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)) == true)
         {
             return OperationResult<bool>.CreateFailure($"Content bundle '{content.Name}' has bundled items with missing content IDs");
         }

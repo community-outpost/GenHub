@@ -396,14 +396,14 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
             return;
         }
 
-        var hasBundledItems = content.BundledItems != null && content.BundledItems.Count > 0;
-        var hasReleaseDependencies = content.Releases != null && content.Releases.Any(r => r?.Dependencies is { Count: > 0 });
+        var hasBundledItems = content.BundledItems is { Count: > 0 };
+        var hasReleaseDependencies = content.Releases?.Any(r => r?.Dependencies is { Count: > 0 }) == true;
 
         if (!hasBundledItems && !hasReleaseDependencies)
         {
             errors.Add($"Content bundle '{content.Id}' has no bundled items");
         }
-        else if (content.BundledItems != null && content.BundledItems.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)))
+        else if (content.BundledItems?.Any(d => d == null || string.IsNullOrWhiteSpace(d.ContentId)) == true)
         {
             errors.Add($"Content bundle '{content.Id}' has bundled items with missing content IDs");
         }

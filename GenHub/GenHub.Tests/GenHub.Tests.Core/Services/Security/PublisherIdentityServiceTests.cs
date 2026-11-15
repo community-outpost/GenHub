@@ -3,6 +3,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Security;
 using GenHub.Core.Services.Security;
+using System.Globalization;
 using System.Security.Cryptography;
 
 namespace GenHub.Tests.Core.Services.Security;
@@ -45,7 +46,7 @@ public sealed class PublisherIdentityServiceTests : IDisposable
         Assert.Equal(PublisherSourceChange.None, assessment.Change);
         Assert.False(assessment.RequiresDecision);
         Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, assessment.ProvenKey?.Fingerprint);
-        Assert.Equal(DateTimeOffset.Parse(NewSignedAt), assessment.ProofSignedAt);
+        Assert.Equal(DateTimeOffset.Parse(NewSignedAt, CultureInfo.InvariantCulture), assessment.ProofSignedAt);
     }
 
     /// <summary>
@@ -107,7 +108,7 @@ public sealed class PublisherIdentityServiceTests : IDisposable
 
         Assert.Equal(PublisherSourceChange.VerifiedMove, assessment.Change);
         Assert.False(assessment.RequiresDecision);
-        Assert.Equal(DateTimeOffset.Parse(NewSignedAt), assessment.ProofSignedAt);
+        Assert.Equal(DateTimeOffset.Parse(NewSignedAt, CultureInfo.InvariantCulture), assessment.ProofSignedAt);
     }
 
     /// <summary>
@@ -464,7 +465,7 @@ public sealed class PublisherIdentityServiceTests : IDisposable
             PublisherName = "Test Publisher",
             CatalogUrl = "https://old.example.com/catalog.json",
             DefinitionUrl = definitionUrl,
-            IdentityProofSignedAt = proofSignedAt is null ? null : DateTimeOffset.Parse(proofSignedAt),
+            IdentityProofSignedAt = proofSignedAt is null ? null : DateTimeOffset.Parse(proofSignedAt, CultureInfo.InvariantCulture),
         };
 
     private static PublisherSourceCandidate Candidate(string fetchedUrl, PublisherDefinition definition) =>

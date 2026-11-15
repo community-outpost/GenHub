@@ -354,9 +354,9 @@ public partial class ContentLibraryViewModel(
         get => parentViewModel?.SelectedCatalog;
         set
         {
-            if (parentViewModel != null && parentViewModel.SelectedCatalog != value)
+            if (parentViewModel is { } parent && parent.SelectedCatalog != value)
             {
-                parentViewModel.SelectedCatalog = value;
+                parent.SelectedCatalog = value;
                 OnPropertyChanged();
             }
         }
@@ -365,7 +365,7 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets a value indicating whether the current catalog can be removed.
     /// </summary>
-    public bool CanRemoveCatalog => parentViewModel?.CanRemoveCatalog ?? false;
+    public bool CanRemoveCatalog => parentViewModel?.CanRemoveCatalog == true;
 
     /// <summary>
     /// Gets the command to add a new catalog.
@@ -438,7 +438,7 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets a value indicating whether a hosting provider is currently connected.
     /// </summary>
-    public bool IsHostingConnected => parentViewModel?.PublishShareViewModel?.IsProviderAuthenticated ?? false;
+    public bool IsHostingConnected => parentViewModel?.PublishShareViewModel?.IsProviderAuthenticated == true;
 
     /// <summary>
     /// Gets a value indicating whether the hosting hint banner should be shown.
@@ -501,7 +501,7 @@ public partial class ContentLibraryViewModel(
     public async Task AddContentWithPathsAsync(IEnumerable<string>? initialPaths)
     {
         var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
-        if (pathsList is { Count: > 0 } && !pathsList.Any(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
+        if (pathsList is { Count: > 0 } && pathsList.All(p => !System.IO.File.Exists(p) && !System.IO.Directory.Exists(p)))
         {
             var title = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathTitle", "Invalid Path");
             var message = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathMessage", "The specified file or folder does not exist.");
