@@ -375,7 +375,7 @@ public class PublisherProfileOrchestrator(
     private static bool IsNonRetail(ContentSearchResult result) =>
         CommunityOutpostConstants.IsNonRetailIdentifier(result.Id) ||
         CommunityOutpostConstants.IsNonRetailIdentifier(result.Name) ||
-        (result.Tags != null && result.Tags.Any(CommunityOutpostConstants.IsNonRetailIdentifier));
+        result.Tags?.Any(CommunityOutpostConstants.IsNonRetailIdentifier) == true;
 
     private async Task<List<ContentManifest>> GetPublisherManifestsFromPoolAsync(string publisherType, CancellationToken cancellationToken)
     {

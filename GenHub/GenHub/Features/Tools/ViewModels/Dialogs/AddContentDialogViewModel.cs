@@ -512,7 +512,7 @@ public partial class AddContentDialogViewModel(
             Videos.Add(existing.Metadata.VideoUrl);
         }
 
-        IsFeatured = existing.IsFeatured || (existing.Metadata?.IsFeatured ?? false);
+        IsFeatured = existing.IsFeatured || existing.Metadata?.IsFeatured == true;
         FeaturedBadge = existing.FeaturedBadge ?? existing.Metadata?.FeaturedBadge ?? (localizationService?.GetString("Tools.PublisherStudio.Content.FeaturedBadgePlaceholder") ?? "★ FEATURED BUNDLE");
 
         if (existing.UpstreamSync != null)
@@ -1668,6 +1668,7 @@ public partial class AddContentDialogViewModel(
                 BackdropArtwork = filePath;
                 break;
             default:
+                // An unknown target leaves the artwork unchanged.
                 break;
         }
     }
@@ -2029,10 +2030,10 @@ public partial class AddContentDialogViewModel(
             Tags = [.. tags],
             ExtendsContentId = SelectedContentType == ContentType.Addon ? ExtendsContentId : null,
             Metadata = MergeArtworkMetadata(),
+            IsFeatured = IsFeatured,
+            FeaturedBadge = FeaturedBadge,
         };
 
-        contentItem.IsFeatured = IsFeatured;
-        contentItem.FeaturedBadge = FeaturedBadge;
         if (contentItem.Metadata != null)
         {
             contentItem.Metadata.IsFeatured = IsFeatured;
@@ -2210,7 +2211,7 @@ public partial class AddContentDialogViewModel(
     {
         if (SelectedContentType == ContentType.ContentBundle)
         {
-            if (!BundleComponentOptions.Any(o => o.IsSelected))
+            if (BundleComponentOptions.All(o => !o.IsSelected))
             {
                 ValidationError = GetLocalizedString(
                     "Tools.PublisherStudio.Validation.BundleComponentRequired",

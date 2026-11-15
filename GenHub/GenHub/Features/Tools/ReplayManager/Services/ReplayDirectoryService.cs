@@ -3266,7 +3266,7 @@ public sealed class ReplayDirectoryService(
                 profileId,
                 replayFileName);
 
-            var launchResult = additionalArguments != null && additionalArguments.Count > 0
+            var launchResult = additionalArguments is { Count: > 0 }
                 ? await launcherFacade.LaunchProfileAsync(
                     profileId,
                     skipUserDataCleanup: true,

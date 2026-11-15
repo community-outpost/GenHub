@@ -777,6 +777,7 @@ public sealed class PublisherProfileOrchestratorTests
                     File.WriteAllBytes(path, [0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00, 0x00, 0x00]);
                     break;
                 default:
+                    // A missing kind leaves the path absent.
                     break;
             }
 
