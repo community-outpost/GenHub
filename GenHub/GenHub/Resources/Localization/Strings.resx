@@ -5909,9 +5909,9 @@ Profile startup and launch logs are recorded in the GenHub AppData directory to 
     <value>Profile card buttons, manifest scrubbing, and window sizing.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**Profile Card Controls:**
+    <value>**Profile Controls:**
 1. **Play:** Launches the game with this profile's active mods, settings, and workspace.
-2. **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+2. **Edit Profile:** Opens the profile editor from the profile actions menu to select mods, maps, and adjust game settings.
 3. **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
 4. **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
 5. **Delete Profile:** Removes the profile and its dedicated workspace configuration.
@@ -6208,7 +6208,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
     <value>How to add a profile shortcut to your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+    <value>1. In **Game Profiles**, select a profile and open its profile actions menu.
 2. Select **Create Desktop Shortcut**.
 3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows or a `.desktop` entry on Linux. Profile shortcuts are not available on macOS yet.
 4. Double-click it to launch that profile.</value>

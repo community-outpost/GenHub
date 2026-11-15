@@ -37,6 +37,29 @@ public class GameProfileLibraryDetailsTests
     }
 
     /// <summary>
+    /// Verifies that refreshing a Steam profile applies its saved launch method without resetting runtime state.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_RefreshesSavedSteamLaunchSetting()
+    {
+        var original = CreateProfile(string.Empty, string.Empty);
+        original.GameInstallationId = "1.104.steam.gameinstallation.zerohour";
+        original.UseSteamLaunch = false;
+        var item = CreateItem(original);
+        var localLaunch = item.LibraryLaunchMethod;
+        item.IsProcessRunning = true;
+        var refreshed = CreateProfile(string.Empty, string.Empty);
+        refreshed.GameInstallationId = original.GameInstallationId;
+        refreshed.UseSteamLaunch = true;
+
+        item.UpdateFromProfile(refreshed);
+
+        Assert.True(item.UseSteamLaunch);
+        Assert.NotEqual(localLaunch, item.LibraryLaunchMethod);
+        Assert.True(item.IsProcessRunning);
+    }
+
+    /// <summary>
     /// Verifies that a custom description takes precedence over derived launch metadata.
     /// </summary>
     [Fact]
