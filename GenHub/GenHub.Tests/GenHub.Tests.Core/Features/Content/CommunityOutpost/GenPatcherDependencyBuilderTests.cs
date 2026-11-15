@@ -31,22 +31,44 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
-    /// Verifies that Control Bar Pro recommends GenTool without requiring it. The TheSuperHackers
-    /// client reads the add-on's full viewport flag natively, so GenTool must not block it.
+    /// Verifies that Control Bar Pro has no GenTool dependency. The TheSuperHackers client reads
+    /// the add-on's full viewport flag natively, so GenTool must not be required or suggested.
     /// </summary>
     /// <param name="contentCode">The Control Bar Pro content code.</param>
     [Theory]
     [InlineData("cbpr")]
     [InlineData("cbpx")]
-    public void GetDependencies_ControlBarPro_RecommendsGenTool(string contentCode)
+    public void GetDependencies_ControlBarPro_HasNoGenToolDependency(string contentCode)
     {
         var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
         var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
 
-        var genTool = Assert.Single(dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
-        Assert.True(genTool.IsOptional);
-        Assert.Equal(DependencyInstallBehavior.Suggest, genTool.InstallBehavior);
+        Assert.DoesNotContain(dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
+    }
+
+    /// <summary>
+    /// Verifies that only Control Bar Pro manifests lose a stored GenTool dependency.
+    /// </summary>
+    /// <param name="manifestId">The stored manifest ID.</param>
+    /// <param name="expectRemoved">Whether the GenTool dependency should be removed.</param>
+    [Theory]
+    [InlineData("1.10.communityoutpost.addon.cbpr", true)]
+    [InlineData("1.10.communityoutpost.addon.cbpx", true)]
+    [InlineData("1.10.communityoutpost.addon.cbbs", false)]
+    [InlineData("1.10.publisherb.addon.cbpr", false)]
+    public void RemoveRetiredControlBarProGenToolDependency_OnlyAffectsControlBarPro(string manifestId, bool expectRemoved)
+    {
+        var manifest = new GenHub.Core.Models.Manifest.ContentManifest
+        {
+            Id = GenHub.Core.Models.Manifest.ManifestId.Create(manifestId),
+            Dependencies = [GenPatcherDependencyBuilder.CreateGenToolDependency()],
+        };
+
+        var removed = GenPatcherDependencyBuilder.RemoveRetiredControlBarProGenToolDependency(manifest);
+
+        Assert.Equal(expectRemoved, removed);
+        Assert.Equal(expectRemoved ? 0 : 1, manifest.Dependencies.Count);
     }
 
     /// <summary>

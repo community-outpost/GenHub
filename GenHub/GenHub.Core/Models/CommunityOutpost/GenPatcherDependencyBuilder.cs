@@ -203,6 +203,23 @@ public static class GenPatcherDependencyBuilder
     }
 
     /// <summary>
+    /// Removes the GenTool dependency that older Control Bar Pro manifests declared, so manifests
+    /// saved before the dependency was dropped behave like newly built ones.
+    /// </summary>
+    /// <param name="manifest">A manifest read from storage.</param>
+    /// <returns>True when a GenTool dependency was removed.</returns>
+    public static bool RemoveRetiredControlBarProGenToolDependency(ContentManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (manifest.Dependencies is not { Count: > 0 } || !IsControlBarProManifestId(manifest.Id.Value))
+        {
+            return false;
+        }
+
+        return manifest.Dependencies.RemoveAll(IsGenToolDependency) > 0;
+    }
+
+    /// <summary>
     /// Creates an optional GenTool dependency for enhanced features.
     /// </summary>
     /// <returns>An optional content dependency for GenTool.</returns>
@@ -362,9 +379,10 @@ public static class GenPatcherDependencyBuilder
             dependencies.Add(CreateControlBarProCoreDependency());
             dependencies.Add(CreateControlBarLanguageDependency());
 
-            // GenTool stays recommended for Pro variants. Their GenTool\fullviewport.dat flag
-            // extends the 3D view behind the bar. GenTool reads it on the original game, and the
-            // TheSuperHackers client reads it natively, so neither needs GenTool to be installed.
+            // Pro variants carry no GenTool dependency. Their only GenTool link is the
+            // GenTool\fullviewport.dat flag, which the TheSuperHackers client reads natively,
+            // and GenTool can't run on the non-Windows clients.
+            dependencies.RemoveAll(IsGenToolDependency);
         }
 
         // cbpc requires cbbs (HD Base)
@@ -529,5 +547,25 @@ public static class GenPatcherDependencyBuilder
         {
             dependencies.Add(CreateZeroHour104Dependency());
         }
+    }
+
+    private static bool IsGenToolDependency(ContentDependency dependency) =>
+        IsCommunityOutpostContent(dependency.Id.Value, out var code) && code == "gent";
+
+    private static bool IsControlBarProManifestId(string manifestId) =>
+        IsCommunityOutpostContent(manifestId, out var code) && code is "cbpr" or "cbpx";
+
+    private static bool IsCommunityOutpostContent(string manifestId, out string contentCode)
+    {
+        contentCode = string.Empty;
+        var parts = manifestId.Split('.');
+        if (parts.Length < 5 || !parts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var codePart = parts[4].ToLowerInvariant();
+        contentCode = codePart.Length >= 4 ? codePart[..4] : codePart;
+        return true;
     }
 }

@@ -169,7 +169,7 @@ public static class GenPatcherContentRegistry
         {
             ContentCode = "cbpr",
             DisplayName = "Control Bar Pro (ExiLe)",
-            Description = "Created by ExiLe. High transparency, modern look, widescreen compatible. GenTool recommended.",
+            Description = "Created by ExiLe. High transparency, modern look, widescreen compatible.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
             Category = GenPatcherContentCategory.ControlBar,
@@ -183,7 +183,7 @@ public static class GenPatcherContentRegistry
         {
             ContentCode = "cbpx",
             DisplayName = "Control Bar Pro (Xezon)",
-            Description = "Created by FAS & xezon. Modern, compact layout, widescreen compatible. GenTool recommended.",
+            Description = "Created by FAS & xezon. Modern, compact layout, widescreen compatible.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
             Category = GenPatcherContentCategory.ControlBar,

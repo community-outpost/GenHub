@@ -5,13 +5,13 @@ using System.Collections.Generic;
 namespace GenHub.Tests.Core.Features.GameProfiles;
 
 /// <summary>
-/// Control Bar Pro's dependencies with GenTool made required. GenTool is only recommended for
-/// Control Bar Pro, so tests that need a required add-on with a known download make it required here.
+/// Control Bar Pro's dependencies with a required GenTool added. Control Bar Pro has no GenTool
+/// dependency, so tests that need a required add-on with a known download add one here.
 /// </summary>
 internal static class RequiredGenToolDependencies
 {
     /// <summary>
-    /// Gets Control Bar Pro's dependencies with a required GenTool in place of the recommended one.
+    /// Gets Control Bar Pro's dependencies with a required GenTool added.
     /// </summary>
     /// <returns>The dependency list.</returns>
     public static List<ContentDependency> ForControlBarPro()
