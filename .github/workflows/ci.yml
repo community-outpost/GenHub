@@ -211,6 +211,7 @@ jobs:
           Write-Host "Building UI project"
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
           dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Write-Host "Building Windows project"
           dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
