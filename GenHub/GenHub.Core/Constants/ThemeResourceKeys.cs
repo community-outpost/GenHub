@@ -51,6 +51,11 @@ public static class ThemeResourceKeys
     public const string AccentBrush = "AccentBrush";
 
     /// <summary>
+    /// Error status brush resource key.
+    /// </summary>
+    public const string StatusErrorBrush = "StatusErrorBrush";
+
+    /// <summary>
     /// Accent color brush resource key.
     /// </summary>
     public const string AccentColorBrush = "AccentColorBrush";

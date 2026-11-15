@@ -189,6 +189,13 @@ public class PublisherStudioDialogService(
     }
 
     /// <inheritdoc/>
+    public async Task<CatalogTabDefinition?> ShowEditCustomTabDialogAsync(CatalogTabDefinition? existing, IReadOnlyList<CatalogTabDefinition> siblings)
+    {
+        return await ShowDialogAsync<EditCustomTabDialogViewModel, EditCustomTabDialogView, CatalogTabDefinition?>(
+            callback => new EditCustomTabDialogViewModel(existing, siblings, callback, localizationService));
+    }
+
+    /// <inheritdoc/>
     public async Task<string?> ShowProjectOpenPromptAsync(string title)
     {
         var mainWindow = GetMainWindow();

@@ -48,6 +48,11 @@ public class CustomTabDefinition
     public string? Intro { get; set; }
 
     /// <summary>
+    /// Gets or sets optional Markdown documentation displayed below the intro.
+    /// </summary>
+    public string? Body { get; set; }
+
+    /// <summary>
     /// Gets or sets the display cards supplied by the publisher for this tab.
     /// </summary>
     public List<CustomTabCardDefinition> Cards { get; set; } = [];
