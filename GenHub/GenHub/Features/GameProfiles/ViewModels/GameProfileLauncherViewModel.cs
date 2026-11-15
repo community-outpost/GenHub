@@ -1804,7 +1804,7 @@ public partial class GameProfileLauncherViewModel(
                 var (profilesCreated, failedComponentKeys, skippedInstallations) = await ApplyInstallationWizardDecisionsAsync(installationsList, wizardResult, cancellationToken);
                 if (detectionIncomplete)
                 {
-                    StatusMessage = ScanFailureMessage;
+                    ReportIncompleteScanSetupOutcome(failedComponentKeys);
                 }
                 else
                 {
@@ -1949,6 +1949,23 @@ public partial class GameProfileLauncherViewModel(
             localizationService["GameProfiles.Notification.NoProfilesCreated.Title"],
             noProfilesMessage,
             autoDismissMs: NotificationDurations.VeryLong);
+    }
+
+    /// <summary>
+    /// Reports setup after a scan whose detection is still failing. The scan failure stays in the status line,
+    /// and any setup choice that failed is still reported.
+    /// </summary>
+    /// <param name="failedComponentKeys">The localization keys of the components that could not be set up.</param>
+    private void ReportIncompleteScanSetupOutcome(IReadOnlyList<string> failedComponentKeys)
+    {
+        StatusMessage = ScanFailureMessage;
+        if (failedComponentKeys.Count > 0)
+        {
+            notificationService.ShowWarning(
+                localizationService["GameProfiles.Notification.ComponentsFailed.Title"],
+                FormatFailedComponentsMessage(failedComponentKeys),
+                autoDismissMs: NotificationDurations.VeryLong);
+        }
     }
 
     private string FormatFailedComponentsMessage(IReadOnlyList<string> failedComponentKeys) =>

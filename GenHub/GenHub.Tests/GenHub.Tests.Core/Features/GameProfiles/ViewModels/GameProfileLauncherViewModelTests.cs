@@ -61,7 +61,8 @@ public class GameProfileLauncherViewModelTests : IDisposable
             bool withClientlessInstallation = false,
             string? superHackersExecutablePath = null,
             bool existingSuperHackersProfile = false,
-            bool withSecondBaseClient = false)
+            bool withSecondBaseClient = false,
+            bool detectionIncomplete = false)
         {
             Installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
             var superHackersClient = new GameClient { Id = "native-tsh", Name = SuperHackersClientName, PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = Installation.Id, ExecutablePath = superHackersExecutablePath ?? string.Empty };
@@ -90,7 +91,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             var installationService = new Mock<IGameInstallationService>();
             installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(detected));
-            installationService.Setup(x => x.CachedInstallations).Returns(detected);
+            installationService.Setup(x => x.CachedInstallations).Returns(detectionIncomplete ? null : detected);
 
             var profiles = new List<GameProfile>();
             if (otherProfile != null)
@@ -709,6 +710,33 @@ public class GameProfileLauncherViewModelTests : IDisposable
         scan.Notifications.Verify(
             x => x.ShowWarning("No Profiles Created", scan.ViewModel.StatusMessage, It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a failed profile is still reported when detection did not finish.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenDetectionIncompleteAndBaseProfileCreationFails_NamesTheGameAsync()
+    {
+        var scan = new WizardScanFixture(detectionIncomplete: true);
+        scan.EditorFacade.Setup(x => x.CreateProfileWithWorkspaceAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("workspace failed"));
+
+        await scan.RunAsync(CreateDeclinedWizardResult());
+
+        Assert.True(scan.ViewModel.HasScanFailed);
+        Assert.Equal(scan.ViewModel.ScanFailureMessage, scan.ViewModel.StatusMessage);
+        scan.Notifications.Verify(
+            x => x.ShowWarning(
+                "Some Components Not Set Up",
+                "These components could not be set up: Zero Hour. Check the logs for details.",
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+        scan.Notifications.Verify(
+            x => x.ShowWarning("No Profiles Created", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     /// <summary>
