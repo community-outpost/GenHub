@@ -8,7 +8,8 @@ namespace GenHub.Features.GameProfiles.Services;
 /// </summary>
 public sealed class ProfileContentResolutionServices(
     IDependencyResolver dependencyResolver,
-    IGameInstallationService installationService)
+    IGameInstallationService installationService,
+    IContentDependencyValidator dependencyValidator)
 {
     /// <summary>
     /// Gets the dependency resolver.
@@ -19,4 +20,9 @@ public sealed class ProfileContentResolutionServices(
     /// Gets the game installation service.
     /// </summary>
     public IGameInstallationService InstallationService { get; } = installationService;
+
+    /// <summary>
+    /// Gets the validator that reports missing required content.
+    /// </summary>
+    public IContentDependencyValidator DependencyValidator { get; } = dependencyValidator;
 }
