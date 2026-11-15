@@ -65,7 +65,7 @@ public sealed class ContentDetailViewModelTests
             actions.IsExpanded = true;
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             var website = view.FindControl<Avalonia.Controls.Button>("OpenWebsiteButton")!;
-            Assert.True(website.IsVisible);
+            Assert.True(website.IsEffectivelyVisible);
             Assert.Same(viewModel.OpenInBrowserCommand, website.Command);
         }
         finally

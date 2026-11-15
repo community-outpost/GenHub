@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -78,7 +77,7 @@ public class SettingsViewTests
             viewModel.DownloadBufferSizeKB = 128;
             advanced.IsExpanded = true;
             Dispatcher.UIThread.RunJobs();
-            var buffer = advanced.GetVisualDescendants().OfType<NumericUpDown>().Single(control => control.Value == 128);
+            var buffer = view.FindControl<NumericUpDown>("DownloadBufferSizeInput")!;
             Assert.True(buffer.IsEffectivelyVisible);
             advanced.IsExpanded = false;
             Dispatcher.UIThread.RunJobs();

@@ -839,9 +839,10 @@
                                                                     <TextBlock Text="{Binding ReleaseDate, StringFormat='{}{0:yyyy-MM-dd}'}"
                                                                                Margin="0,0,12,4" FontSize="12"
                                                                                Foreground="{DynamicResource TextSecondary}"
-                                                                               VerticalAlignment="Center"/>
+                                                                               VerticalAlignment="Center"
+                                                                               IsVisible="{Binding ReleaseDate, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                                                     <TextBlock Text="{Binding Artifacts.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.PublisherStudio.Library.FileCount'}" Margin="0,0,12,4" FontSize="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding #RootView.((vm:ContentLibraryViewModel)DataContext).ShowReleaseArtifacts}"/>
-                                                                    <TextBlock Text="{Binding Dependencies.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.PublisherStudio.Library.DependencyCount'}" Margin="0,0,12,4" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                                                                    <TextBlock Text="{Binding Dependencies.Count, Converter={StaticResource LocalizedFormatConverter}, ConverterParameter='Tools.PublisherStudio.Library.DependencyCount'}" Margin="0,0,12,4" FontSize="12" Foreground="{DynamicResource TextSecondary}" IsVisible="{Binding Dependencies.Count}"/>
                                                                 </WrapPanel>
                                                             </StackPanel>
                                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">

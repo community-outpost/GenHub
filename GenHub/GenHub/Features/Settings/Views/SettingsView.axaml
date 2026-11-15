@@ -289,7 +289,8 @@
                 <!-- Download Buffer Size -->
                 <StackPanel Spacing="8">
                   <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
-                  <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
+                  <NumericUpDown x:Name="DownloadBufferSizeInput"
+                                 Value="{Binding DownloadBufferSizeKB}"
                                  Minimum="4"
                                  Maximum="1024"
                                  Increment="4"
