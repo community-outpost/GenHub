@@ -1783,7 +1783,12 @@ public sealed class ProfileContentService(
         }
 
         var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-        var bundlingManifest = allManifestsResult.Data?.FirstOrDefault(manifest =>
+        if (allManifestsResult.Failed || allManifestsResult.Data == null)
+        {
+            return null;
+        }
+
+        var bundlingManifest = allManifestsResult.Data.FirstOrDefault(manifest =>
             ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
                 System.IO.Path.GetFileName(file.RelativePath),
                 metadata.OutputFilename,

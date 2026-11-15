@@ -1153,8 +1153,11 @@ public sealed class ProfileContentServiceTests
 
         var install = await fixture.Service.InstallMissingDependenciesAsync([gap]);
 
-        Assert.True(install.Success);
+        Assert.True(install.Success, install.FirstError);
         Assert.Equal([ControlBarProFixture.GenToolId], install.Data);
+        fixture.Orchestrator.Verify(
+            o => o.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     private static ContentDependencyGap AddOldGenToolForNewerRequirement(ControlBarProFixture fixture)
