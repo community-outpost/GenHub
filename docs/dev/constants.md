@@ -1198,6 +1198,40 @@ User interface sizing, theme color, and display name constants.
 
 - `IndexerPropertyName`: Property name raised when the items of an indexed collection change (`"Item[]"`)
 
+## ThemeConstants Class
+
+Preset color themes and the primary action palette.
+
+### Default Action Fills
+
+Approved primary action fills for the default Void Purple theme.
+
+- `DefaultActionRestHex`: Resting fill (`"#7540B8"`)
+- `DefaultActionHoverHex`: Pointer-over fill (`"#8651C9"`)
+- `DefaultActionPressedHex`: Pressed fill (`"#65339F"`)
+- `DefaultActionRestGradientStartHex`: Start of the resting gradient (`"#8241CF"`)
+- `DefaultActionRestGradientEndHex`: End of the resting gradient (`"#6930B3"`)
+- `DefaultActionPressedGradientStartHex`: Start of the pressed gradient (`"#7135BC"`)
+- `DefaultActionPressedGradientEndHex`: End of the pressed gradient (`"#592696"`)
+
+### Derived Action Fill Tuning
+
+Used by `ActionButtonPalette` to derive action fills for non-default themes. Each state takes the brightest fill that keeps white text at or above its contrast ratio, capped by its maximum channel scale.
+
+- `ActionRestMinimumContrast`: Minimum white-ink contrast for the resting fill (`6.2`)
+- `ActionRestMaximumScale`: Maximum channel scale for the resting fill (`0.82`)
+- `ActionHoverMinimumContrast`: Minimum white-ink contrast for the pointer-over fill (`5.2`)
+- `ActionHoverMaximumScale`: Maximum channel scale for the pointer-over fill (`1.0`)
+- `ActionPressedMinimumContrast`: Minimum white-ink contrast for the pressed fill (`7.5`)
+- `ActionPressedMaximumScale`: Maximum channel scale for the pressed fill (`0.68`)
+- `ActionPressedGradientDarkenFactor`: Channel multiplier for the deeper end of the pressed gradient (`0.85`)
+- `ActionFillSearchIterations`: Bisection steps used to find each fill (`24`)
+
+### Preset Themes
+
+- `DefaultTheme`, `GeneralsTheme`, `ZeroHourTheme`, `EmeraldTheme`, `CrimsonTheme`, `AmberTheme`, `CobaltTheme`, `RoseTheme`, `TiberiumTheme`, `TealTheme`, `IndigoTheme`, `RubyTheme`: Preset `ColorTheme` palettes
+- `AllThemes`: Every preset, in display order
+
 ## ScrollSpyConstants Class
 
 Constants for sidebar section scroll-spy behavior shared by settings-style pages.
@@ -1678,6 +1712,7 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **PublisherKeyConstants**: Trusted publisher key store file name, encryption salt (DPAPI entropy on Windows), schema version, quarantine file naming, accepted PEM labels, minimum RSA and ECDSA key sizes, the allowed EC curve OIDs (P-256, P-384, P-521), the publisher identity proof domain line, and the allowed clock skew for proof signing times
 - **PublisherTypeConstants**: Publisher type identifiers for content sources
 - **StorageConstants**: Storage and CAS operation constants
+- **ThemeConstants**: Preset color themes and primary action palette tuning
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
 - **UserDataConstants**: Tracked user data installation constants

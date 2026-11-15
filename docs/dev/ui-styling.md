@@ -210,17 +210,107 @@ For game selection tabs, replay category toggles, or filter pills:
 - **Pointer-over:** Soft hover highlight `{DynamicResource SurfaceHoverBrush}` or `#10FFFFFF`.
 - **Checked / Active State:** Background bound to `{DynamicResource AccentBrush}` (or `{DynamicResource AccentTintBackgroundBrush}` with `{DynamicResource AccentBrush}` border), with foreground `White`.
 
+See [the consistency rollout](./ui-consistency-rollout.md) for adoption scope and
+remaining screen families.
+
 ## Button classes
 
-Use standardized button classes rather than ad-hoc button styling:
+Ordinary actions use the global `Assets/Styles/ButtonStyles.axaml`, loaded by
+`App.axaml`. Choose one text role and optionally `action-compact`. Add `icon-action` to a
+semantic role for an icon-only primary or destructive action; its 32px target
+does not replace the semantic colors. Use `icon-action` alone for neutral utilities. These are styles on
+standard Avalonia buttons: command enablement, keyboard activation and focus remain
+owned by Avalonia. Do not copy the styles into a feature view.
 
-| Class | Usage |
-|---|---|
-| `Button.action-primary` | Main call to action (theme accent background, white text). |
-| `Button.action-secondary` | Secondary action (`#1AFFFFFF` background with subtle border). |
-| `Button.icon-btn-subtle` | Icon-only utility buttons (`Width="28"`, `Height="28"`, transparent hover). |
-| `Button.tab-icon-btn` | Large square navigation tab buttons (`56x56`, `CornerRadius="12"`). |
-| `Button.dialog-close-btn` | Modal and flyout close buttons. |
+| Class | Use | Metrics |
+|---|---|---|
+| `action-primary` | Main action, usually one per form or dialog | Darker live accent; white ink; minimum 36px high; 16×8 padding |
+| `action-secondary` | Cancel, browse, retry, and other supporting actions | Transparent surface and subtle border; same metrics |
+| `action-danger` | Delete or replace an existing item | Subtle red tint, red outline and pale red ink; same metrics |
+| `icon-action` | Utility actions with no visible caption | Transparent at rest; minimum 32×32 target; 16px glyph |
+| `action-compact` | Add to a text role in dense toolbars | Minimum 32px high; 12×6 padding; 12px type |
+
+Default action type is 13px medium, with semibold primary actions. Ordinary action
+buttons use `ActionCornerRadius` (999px, clamped to a capsule by Avalonia). Utility
+icons use the same rule to form circular targets. Cards and inputs retain their
+existing radii; pill-shaped actions do not imply pill-shaped containers.
+Use minimum sizes so translated labels can grow. Wrap long captions in a
+`TextBlock` with `TextWrapping="Wrap"` when horizontal space is constrained.
+Do not override a role's background, foreground, font, padding, or interaction
+states locally. Layout properties such as alignment and margins stay with the
+consumer. Specialized split buttons form one capsule with square adjoining edges and shared
+`ToolActionBarStyles`. Put the gradient on a `Border.split-action` around both
+hit targets; the segments remain transparent at rest. Their hover/pressed
+overlays preserve the continuous gradient. Keep each target independently
+focusable and retain the arrow divider.
+
+```xml
+<Button Classes="action-primary"
+        Command="{Binding InstallCommand}"
+        Content="{localization:Localize Updates.Button.InstallUpdate}" />
+<Button Classes="icon-action"
+        Command="{Binding CloseCommand}"
+        AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+        ToolTip.Tip="{localization:Localize Common.Button.Close}">
+    <PathIcon Data="{StaticResource CloseIcon}" />
+</Button>
+```
+
+Primary actions use `ActionOnAccentBrush` (white) on dedicated
+`ActionPrimaryRestBrush`, `ActionPrimaryHoverBrush` and
+`ActionPrimaryPressedBrush` gradients. These action fills are separate from the
+brighter navigation accent. `ActionButtonPalette.CreateBrushes` derives restrained
+two-stop gradients for each live palette and preserves the selected purple
+treatment. Tests verify at least 4.5:1 white-text contrast at both stops and
+intermediate shades across every shipped palette and state.
+
+Secondary actions are transparent with restrained outlines and medium-weight
+labels. Destructive actions use a red tint and outline rather than a dominant
+solid red fill. Disabled actions mute both captions and glyphs. Keyboard focus
+retains its visible border; opacity or scaling is not the only state indicator.
+
+### Icons
+
+Use existing semantic geometry resources in `ThemeResources.axaml` for common
+actions (`AddIcon`, `EditIcon`, `DeleteIcon`, `DownloadIcon`, `RefreshIcon`,
+`CloseIcon`, and so on). Existing Material icons and `ToolIcon.*` resources may
+remain where they represent specialized concepts; do not add another icon
+package or paste duplicate path data for an existing semantic action.
+
+- Action glyphs: 16px (`ActionIconSize`); section glyphs: 20px (`SectionIconSize`);
+  navigation glyphs: 24px (`NavigationIconSize`).
+- Let glyphs and action captions inherit the button foreground. A fixed white
+  child icon bypasses palette contrast and disabled styling.
+- Icon-only buttons require a localized accessible name and a matching tooltip.
+- Game artwork, publisher logos, and other brand graphics keep their identity.
+- Navigation pills, selectable cards, media transport, hotkey keys and hero Play
+  actions are separate component families. Do not mechanically apply action
+  roles to them.
+
+### Component showcase and verification
+
+Run the standalone developer gallery (no game or application services start):
+
+```sh
+dotnet run --project GenHub/GenHub.UI.Showcase
+```
+
+It uses the production resources and offers every shipped accent palette,
+default and compact actions, disabled controls, utility icons, and long Russian
+and Arabic captions. Hover, press, Tab and Enter work normally; resize the window
+to inspect wrapping. Labels in this developer tool are samples, not application
+localization resources.
+
+For a reproducible headless image:
+
+```sh
+dotnet run --project GenHub/GenHub.UI.Showcase -- --screenshot /absolute/path/components.png
+```
+
+For a UI change, compare representative before/after views, check keyboard focus
+and activation, disabled command behavior, live palette changes and long captions.
+A gallery image verifies shared controls; it does not replace screenshots of the
+migrated screens or native Windows/Linux/macOS verification.
 
 ## User feedback and toast notifications (INotificationService)
 
