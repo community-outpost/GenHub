@@ -109,6 +109,39 @@ public sealed class ContentDependencyValidator(
         return !string.IsNullOrEmpty(contentCode);
     }
 
+    /// <summary>
+    /// Checks whether a manifest satisfies a dependency by content type and name, ignoring publisher and schema version.
+    /// </summary>
+    /// <param name="dependency">The dependency.</param>
+    /// <param name="declaredParts">The segments of the declared dependency ID.</param>
+    /// <param name="manifest">The candidate manifest.</param>
+    /// <returns>True if the manifest matches by type and name; otherwise, false.</returns>
+    internal static bool MatchesByType(ContentDependency dependency, string[] declaredParts, ContentManifest manifest)
+    {
+        if (manifest.ContentType != dependency.DependencyType)
+        {
+            return false;
+        }
+
+        if (IsFoundationType(dependency.DependencyType) &&
+            dependency.CompatibleGameTypes is { Count: > 0 } &&
+            dependency.CompatibleGameTypes.Contains(manifest.TargetGame))
+        {
+            return true;
+        }
+
+        if (declaredParts.Length < ManifestConstants.MinManifestSegments)
+        {
+            return false;
+        }
+
+        var manifestParts = manifest.Id.Value.Split('.');
+        return manifestParts.Length >= ManifestConstants.MinManifestSegments &&
+               string.Equals(manifestParts[3], declaredParts[3], StringComparison.OrdinalIgnoreCase) &&
+               (string.Equals(manifestParts[4], declaredParts[4], StringComparison.OrdinalIgnoreCase) ||
+                CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestParts[4], declaredParts[4]));
+    }
+
     private static bool IsRequired(ContentDependency dependency) =>
         !dependency.IsOptional &&
         dependency.InstallBehavior is DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall;
@@ -244,35 +277,8 @@ public sealed class ContentDependencyValidator(
     private static bool IsSatisfiedByType(
         ContentDependency dependency,
         string[] declaredParts,
-        IReadOnlyCollection<ContentManifest> manifests)
-    {
-        var sameType = manifests.Where(manifest => manifest.ContentType == dependency.DependencyType).ToList();
-        if (sameType.Count == 0)
-        {
-            return false;
-        }
-
-        if (IsFoundationType(dependency.DependencyType) &&
-            dependency.CompatibleGameTypes is { Count: > 0 } &&
-            sameType.Any(manifest => dependency.CompatibleGameTypes.Contains(manifest.TargetGame)))
-        {
-            return true;
-        }
-
-        if (declaredParts.Length < ManifestConstants.MinManifestSegments)
-        {
-            return false;
-        }
-
-        return sameType.Any(manifest =>
-        {
-            var manifestParts = manifest.Id.Value.Split('.');
-            return manifestParts.Length >= ManifestConstants.MinManifestSegments &&
-                   string.Equals(manifestParts[3], declaredParts[3], StringComparison.OrdinalIgnoreCase) &&
-                   (string.Equals(manifestParts[4], declaredParts[4], StringComparison.OrdinalIgnoreCase) ||
-                    CatalogManifestIdentity.IsContentNameOrVariantMatch(manifestParts[4], declaredParts[4]));
-        });
-    }
+        IReadOnlyCollection<ContentManifest> manifests) =>
+        manifests.Any(manifest => MatchesByType(dependency, declaredParts, manifest));
 
     private static ContentDependencyGap CreateGap(ContentManifest requiredBy, ContentDependency dependency)
     {
