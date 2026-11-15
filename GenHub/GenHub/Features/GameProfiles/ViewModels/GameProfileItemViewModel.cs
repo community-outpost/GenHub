@@ -27,6 +27,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
 {
     private CancellationTokenSource? _iniVerificationCts;
 
+    private IGameProfile? _libraryProfile;
+
     /// <summary>Gets or sets the identity of the running process, independently of its reusable PID.</summary>
     public Guid ProcessInstanceId { get; set; }
 

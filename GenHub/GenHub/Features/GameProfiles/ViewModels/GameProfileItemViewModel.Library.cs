@@ -11,8 +11,6 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 public partial class GameProfileItemViewModel
 {
-    private IGameProfile? _libraryProfile;
-
     /// <summary>
     /// Gets the game name without replacing the user's profile name.
     /// </summary>
