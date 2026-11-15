@@ -8531,7 +8531,7 @@ public partial class ContentDetailViewModel(
     {
         var loadVersion = Interlocked.Increment(ref _customTabsLoadVersion);
         _customTabsItemKey = ResolveCustomTabsItemKey();
-        CancellationToken token;
+        CancellationToken token = default;
         try
         {
             token = _cts.Token;
