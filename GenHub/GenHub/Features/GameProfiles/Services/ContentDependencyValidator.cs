@@ -253,11 +253,11 @@ public sealed class ContentDependencyValidator(
     }
 
     /// <summary>
-    /// Keys a gap by what it asks for. Two declarations of the same item with different version
-    /// limits stay separate, so the stricter one is not dropped.
+    /// Keys a gap by what it asks for. Two declarations of the same item with different version,
+    /// publisher or game limits stay separate, so the stricter one is not dropped.
     /// </summary>
     private static string GetGapKey(ContentDependency dependency) =>
-        $"{GetGapIdentityKey(dependency)}|{dependency.MinVersion}|{dependency.MinInclusive}|{dependency.MaxVersion}|{dependency.MaxInclusive}|{dependency.ExactVersion}|{string.Join(",", dependency.CompatibleVersions ?? [])}";
+        $"{GetGapIdentityKey(dependency)}|{dependency.MinVersion}|{dependency.MinInclusive}|{dependency.MaxVersion}|{dependency.MaxInclusive}|{dependency.ExactVersion}|{string.Join(",", dependency.CompatibleVersions ?? [])}|{dependency.StrictPublisher}|{dependency.PublisherType}|{string.Join(",", (dependency.CompatibleGameTypes ?? []).Order())}";
 
     private static string GetGapIdentityKey(ContentDependency dependency)
     {

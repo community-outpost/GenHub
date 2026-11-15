@@ -478,6 +478,39 @@ public sealed class ContentDependencyValidatorTests
     }
 
     /// <summary>
+    /// Two declarations of the same item that differ only in publisher strictness are both reported,
+    /// and they still share one item key for display.
+    /// </summary>
+    [Fact]
+    public void FindMissingDependencies_SameItemDifferentPublisherLimits_ReportsBoth()
+    {
+        ContentManifest Mod(string id, bool strictPublisher) => new()
+        {
+            Id = ManifestId.Create(id),
+            Name = id,
+            ContentType = ContentType.Mod,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create(DeclaredGenToolId),
+                    Name = "GenTool",
+                    DependencyType = ContentType.Addon,
+                    StrictPublisher = strictPublisher,
+                    PublisherType = strictPublisher ? "communityoutpost" : null,
+                },
+            ],
+        };
+
+        var gaps = _validator.FindMissingDependencies(
+            [Mod("1.0.examplepublisher.mod.first", false), Mod("1.0.examplepublisher.mod.second", true)]);
+
+        Assert.Equal(2, gaps.Count);
+        Assert.Contains(gaps, gap => gap.Dependency?.StrictPublisher == true);
+        Assert.Single(gaps.Select(gap => gap.ItemKey).Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// A manifest whose dependency lists were deserialized as null still reports the gap.
     /// </summary>
     [Fact]
