@@ -1339,12 +1339,12 @@ public partial class SubscriptionConfirmationViewModel(
     private bool IsCatalogIdInUse(string catalogId, IReadOnlyList<CatalogEntry>? declaredCatalogs)
     {
         return _definitionCatalogs.Any(existing => string.Equals(existing.Id, catalogId, StringComparison.OrdinalIgnoreCase)) ||
-               (declaredCatalogs != null && declaredCatalogs.Any(entry => entry != null && string.Equals(entry.Id, catalogId, StringComparison.OrdinalIgnoreCase)));
+               declaredCatalogs?.Any(entry => entry != null && string.Equals(entry.Id, catalogId, StringComparison.OrdinalIgnoreCase)) == true;
     }
 
     private string GenerateSyntheticCatalogId(IReadOnlyList<CatalogEntry>? declaredCatalogs, ref int catalogIndex)
     {
-        string candidateId;
+        string candidateId = string.Empty;
         do
         {
             catalogIndex++;

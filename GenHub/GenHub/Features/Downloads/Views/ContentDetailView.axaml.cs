@@ -58,6 +58,7 @@ public partial class ContentDetailView : UserControl
                     e.Handled = true;
                     return;
                 default:
+                    // Other keys reach the video player handling below.
                     break;
             }
         }

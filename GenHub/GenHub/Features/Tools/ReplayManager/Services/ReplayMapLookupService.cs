@@ -245,7 +245,7 @@ public sealed class ReplayMapLookupService(
 
     private void ScanArchives(MapScan scan, string root, CancellationToken cancellationToken)
     {
-        IEnumerable<string> archives;
+        IEnumerable<string> archives = [];
         try
         {
             archives = [.. Directory.EnumerateFiles(root, SageChecksumConstants.BigFileSearchPattern, TopLevelEnumeration)];
@@ -267,7 +267,7 @@ public sealed class ReplayMapLookupService(
                 continue;
             }
 
-            DateTime archiveWriteUtc;
+            DateTime archiveWriteUtc = default;
             try
             {
                 archiveWriteUtc = File.GetLastWriteTimeUtc(archivePath);
