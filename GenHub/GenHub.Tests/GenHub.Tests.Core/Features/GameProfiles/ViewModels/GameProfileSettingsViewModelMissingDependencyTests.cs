@@ -55,7 +55,7 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
             TargetGame = GameType.ZeroHour,
             Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
             Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
-            Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
+            Dependencies = RequiredGenToolDependencies.ForControlBarPro()
                 .Where(dependency => dependency.Name == "GenTool" || dependency.DependencyType == ContentType.GameInstallation)
                 .ToList(),
         };

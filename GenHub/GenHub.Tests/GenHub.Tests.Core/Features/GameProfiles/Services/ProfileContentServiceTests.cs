@@ -758,7 +758,7 @@ public sealed class ProfileContentServiceTests
     public async Task AddContentToProfileAsync_SameItemDeclaredTwice_NamesItOnceAsync()
     {
         var fixture = new ControlBarProFixture();
-        var dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"));
+        var dependencies = RequiredGenToolDependencies.ForControlBarPro();
         var genTool = dependencies.Single(dependency => dependency.Name == "GenTool");
         dependencies.Add(new ContentDependency
         {
@@ -1211,9 +1211,7 @@ public sealed class ProfileContentServiceTests
         Dependencies = [dependency],
     };
 
-    private static ContentDependency CreateGenToolDependency() => GenPatcherDependencyBuilder
-        .GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr"))
-        .Single(dependency => dependency.Name == "GenTool");
+    private static ContentDependency CreateGenToolDependency() => GenPatcherDependencyBuilder.CreateGenToolDependency();
 
     private static List<CreateProfileRequest> CaptureCreateRequests(ControlBarProFixture fixture)
     {
@@ -1286,7 +1284,7 @@ public sealed class ProfileContentServiceTests
                 TargetGame = GameType.ZeroHour,
                 Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
                 Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
-                Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+                Dependencies = RequiredGenToolDependencies.ForControlBarPro(),
             });
             AddManifest(CreateAddon("1.10.communityoutpost.addon.cbpc", "cbpc"));
             AddManifest(CreateAddon("1.10.communityoutpost.addon.cben", "cben"));
