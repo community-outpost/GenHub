@@ -730,6 +730,41 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
     }
 
     /// <summary>
+    /// A newer enabled item from another publisher does not hide an enabled item from the required publisher.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WildcardStrictPublisherEnabledBesideNewerOtherPublisher_PassesValidationAsync()
+    {
+        var result = await ValidateProfileAsync(
+            "profile-wildcard-strict-publisher",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.any.addon.sampleaddon"),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        PublisherType = "ea",
+                        StrictPublisher = true,
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create("1.0.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0", Publisher = new PublisherInfo { PublisherType = "ea" } },
+            new ContentManifest { Id = ManifestId.Create("1.1.examplepublisher.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0", Publisher = new PublisherInfo { PublisherType = "examplepublisher" } });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
     /// Verifies that when a profile contains content with missing required CAS objects, launch validation fails.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

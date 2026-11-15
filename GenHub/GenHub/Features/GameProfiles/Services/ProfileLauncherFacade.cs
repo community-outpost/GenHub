@@ -1792,7 +1792,7 @@ public class ProfileLauncherFacade(
                 return;
             }
 
-            matches = [match];
+            matches = SelectSatisfyingMatches(dependency, potentialMatches, match);
         }
         else
         {
@@ -1914,6 +1914,22 @@ public class ProfileLauncherFacade(
             DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, m) &&
             IsVersionCompatible(m.Version, dependency))
             ?? match;
+    }
+
+    /// <summary>
+    /// Keeps every enabled manifest that satisfies a specific dependency, so the game and publisher checks see each of them.
+    /// </summary>
+    /// <returns>The satisfying manifests, or the selected match alone when none satisfies the version requirement.</returns>
+    private IReadOnlyList<ContentManifest> SelectSatisfyingMatches(
+        ContentDependency dependency,
+        List<ContentManifest> potentialMatches,
+        ContentManifest match)
+    {
+        var dependencyParts = dependency.Id.ToString().Split('.');
+        var satisfying = potentialMatches
+            .Where(m => DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, m) && IsVersionCompatible(m.Version, dependency))
+            .ToList();
+        return satisfying.Count > 0 ? satisfying : [match];
     }
 
     private void ValidateDependencyGameType(
