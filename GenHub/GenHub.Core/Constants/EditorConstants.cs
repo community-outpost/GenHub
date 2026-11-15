@@ -59,4 +59,9 @@ public static class EditorConstants
     /// Large keyboard nudge step (Shift+Arrow) for selected slices or controls in pixels.
     /// </summary>
     public const int KeyboardNudgeStepLarge = 10;
+
+    /// <summary>
+    /// Default fallback column width in device-independent pixels for unconstrained two-column layouts.
+    /// </summary>
+    public const double TwoColumnDefaultWidth = 240.0;
 }

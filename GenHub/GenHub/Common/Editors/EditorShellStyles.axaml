@@ -23,15 +23,35 @@
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Auto"
                       Background="{TemplateBinding Background}">
-          <ContentPresenter Name="PART_Content"
-                            Content="{TemplateBinding Content}"
-                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+          <LayoutTransformControl>
+            <LayoutTransformControl.LayoutTransform>
+              <ScaleTransform ScaleX="{TemplateBinding Zoom}" ScaleY="{TemplateBinding Zoom}" />
+            </LayoutTransformControl.LayoutTransform>
+            <ContentPresenter Name="PART_Content"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+          </LayoutTransformControl>
         </ScrollViewer>
       </ControlTemplate>
     </Setter>
   </Style>
 
   <!-- Compact sidebar tab strip shared by every editor sidebar. -->
+  <Style Selector="TabStrip.compact-tabs TabStripItem">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="MinHeight" Value="22" />
+    <Setter Property="Padding" Value="6,2,6,3" />
+    <Setter Property="Margin" Value="0,0,3,0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+  </Style>
+  <Style Selector="TabStrip.compact-tabs TabStripItem:pointerover">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector="TabStrip.compact-tabs TabStripItem:selected">
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
   <Style Selector="TabControl.compact-tabs TabItem">
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />

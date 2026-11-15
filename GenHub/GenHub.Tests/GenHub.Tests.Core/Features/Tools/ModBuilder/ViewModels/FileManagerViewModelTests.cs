@@ -325,7 +325,7 @@ public class FileManagerViewModelTests : IDisposable
 
     private FileManagerViewModel CreateViewModelWithRealIniService()
     {
-        var iniService = new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>());
+        var iniService = new IniDocumentService(Mock.Of<ILogger<IniDocumentService>>(), _mockLocalizationService.Object);
         return new FileManagerViewModel(
             _mockGameInstallService.Object,
             _mockNotificationService.Object,

@@ -47,4 +47,12 @@ public interface IIniReferenceService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Operation result with the copied block, or null when it no longer exists.</returns>
     Task<OperationResult<IniBlock?>> CloneBlockAsync(IniReferenceEntry entry, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Finds indexed blocks whose fields reference the given block name.
+    /// </summary>
+    /// <param name="name">The referenced block name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Operation result with the referencing entries, capped and deduplicated.</returns>
+    Task<OperationResult<IReadOnlyList<IniReferenceEntry>>> FindReferencersAsync(string name, CancellationToken cancellationToken = default);
 }
