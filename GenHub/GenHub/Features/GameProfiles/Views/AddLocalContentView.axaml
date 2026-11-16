@@ -46,66 +46,6 @@
             <Setter Property="Padding" Value="10,8"/>
         </Style>
 
-        <Style Selector="Button.icon-btn">
-             <Setter Property="Background" Value="#10FFFFFF"/>
-             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-             <Setter Property="BorderThickness" Value="1"/>
-             <Setter Property="Padding" Value="10,8"/>
-             <Setter Property="CornerRadius" Value="6"/>
-             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-             <Setter Property="Cursor" Value="Hand"/>
-             <Setter Property="Transitions">
-                 <Transitions>
-                     <BrushTransition Property="Background" Duration="0:0:0.15" />
-                     <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                 </Transitions>
-             </Setter>
-        </Style>
-        <Style Selector="Button.icon-btn:pointerover">
-             <Setter Property="Background" Value="#20FFFFFF"/>
-             <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
-        </Style>
-
-        <Style Selector="Button.accent">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="20,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.accent:pointerover">
-            <Setter Property="Opacity" Value="0.9"/>
-        </Style>
-        <Style Selector="Button.accent:disabled">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
-            <Setter Property="Cursor" Value="Arrow"/>
-        </Style>
-
-        <Style Selector="Button.ghost">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.ghost:pointerover">
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -159,11 +99,19 @@
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Text="{Binding SourcePath}" IsReadOnly="True" Watermark="{localization:Localize Profiles.AddLocalContent.NoContentSelected}" Classes="glass" Margin="0,0,6,0"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                                <Button Command="{Binding BrowseFolderCommand}" ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFolder}" Classes="icon-btn">
-                                    <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
+                                <Button
+                                        Command="{Binding BrowseFolderCommand}"
+                                        ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFolder}"
+                                        Classes="icon-action"
+                                        AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.BrowseFolder}">
+                                    <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}"   />
                                 </Button>
-                                <Button Command="{Binding BrowseFileCommand}" ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFiles}" Classes="icon-btn">
-                                    <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16" Foreground="{DynamicResource TextPrimary}"/>
+                                <Button
+                                        Command="{Binding BrowseFileCommand}"
+                                        ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.BrowseFiles}"
+                                        Classes="icon-action"
+                                        AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.BrowseFiles}">
+                                    <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}"   />
                                 </Button>
                             </StackPanel>
                         </Grid>
@@ -185,15 +133,15 @@
                         <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="{localization:Localize Profiles.AddLocalContent.ContentPreview}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="0.8" VerticalAlignment="Center"/>
-                                <Button Grid.Column="1"
+                                <Button
+                                        Grid.Column="1"
                                         Command="{Binding NormalizeArchivesCommand}"
-                                        Classes="icon-btn"
-                                        Padding="8,4"
+                                        Classes="action-secondary"
                                         IsVisible="{Binding HasInactiveArchives}"
-                                        ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.NormalizeTip}">
+                                        ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.NormalizeTip}" AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.NormalizeTip}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <material:MaterialIcon Kind="AutoFix" Width="13" Height="13" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NormalizeButton}" FontSize="11" FontWeight="SemiBold"/>
+                                        <material:MaterialIcon Kind="AutoFix"   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{localization:Localize Profiles.AddLocalContent.NormalizeButton}"  />
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -226,11 +174,11 @@
                                         </StackPanel>
 
                                         <!-- Select as Executable button -->
-                                        <Button Grid.Column="1"
+                                        <Button
+                                                Grid.Column="1"
                                                 Command="{Binding ((vm:AddLocalContentViewModel)DataContext).SelectExecutableCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
-                                                Classes="icon-btn"
-                                                Padding="6,3"
+                                                Classes="action-secondary"
                                                 Margin="6,0,0,0"
                                                 AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.SelectExecutableTip}"
                                                 ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.SelectExecutableTip}">
@@ -241,20 +189,21 @@
                                                 </MultiBinding>
                                             </Button.IsVisible>
                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                <material:MaterialIcon Kind="Play" Width="12" Height="12" VerticalAlignment="Center"/>
-                                                <TextBlock Text="{Binding IsSelectedExecutable, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Selected|Select'}" FontSize="10.5" VerticalAlignment="Center"/>
+                                                <material:MaterialIcon Kind="Play"   VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding IsSelectedExecutable, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Selected|Select'}"  VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Button>
 
                                         <!-- Remove Item button -->
-                                        <Button Grid.Column="2"
+                                        <Button
+                                                Grid.Column="2"
                                                 Command="{Binding ((vm:AddLocalContentViewModel)DataContext).DeleteItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
-                                                Classes="icon-btn"
-                                                Padding="6,3"
+                                                Classes="action-danger icon-action"
                                                 Margin="6,0,0,0"
-                                                ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.RemoveItemTip}">
-                                            <material:MaterialIcon Kind="Close" Width="12" Height="12"/>
+                                                ToolTip.Tip="{localization:Localize Profiles.AddLocalContent.RemoveItemTip}"
+                                                AutomationProperties.Name="{localization:Localize Profiles.AddLocalContent.RemoveItemTip}">
+                                            <material:MaterialIcon Kind="Close"  />
                                         </Button>
                                     </Grid>
                                 </TreeDataTemplate>
@@ -273,11 +222,20 @@
 
             <!-- Footer Actions -->
             <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
-                <Button Grid.Column="0" Content="{localization:Localize Common.Cancel}" Command="{Binding CancelCommand}" Classes="ghost" IsVisible="{Binding !IsDemoMode}"/>
+                <Button
+                        Grid.Column="0"
+                        Content="{localization:Localize Common.Cancel}"
+                        Command="{Binding CancelCommand}"
+                        Classes="action-secondary"
+                        IsVisible="{Binding !IsDemoMode}"/>
 
-                <Button Grid.Column="2" Command="{Binding AddContentCommand}" Classes="accent" IsEnabled="{Binding CanAdd}">
+                <Button
+                        Grid.Column="2"
+                        Command="{Binding AddContentCommand}"
+                        Classes="action-primary"
+                        IsEnabled="{Binding CanAdd}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <material:MaterialIcon Kind="Check" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <material:MaterialIcon Kind="Check"   VerticalAlignment="Center"/>
                         <TextBlock Text="{localization:Localize Profiles.AddLocalContent.AddContentButton}" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

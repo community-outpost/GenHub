@@ -3721,6 +3721,9 @@
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>Сине-бирюзовый</value>
   </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>Средне-синий</value>
+  </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>Бирюзовый</value>
   </data>
@@ -4260,6 +4263,9 @@
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>Сине-голубой</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>Средне-синий</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>Тёмно-синий</value>
@@ -5943,9 +5949,9 @@ GenHub передает аргументы командной строки на�
     <value>Кнопки карточек профилей, очистка манифеста и размеры окон.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**Элементы управления карточки профиля:**
+    <value>**Элементы управления профилем:**
 1. **Играть:** Запуск игры с активными модами, настройками и рабочей областью данного профиля.
-2. **Редактировать (карандаш):** Открывает редактор для выбора модов, карт и изменения параметров.
+2. **Редактировать:** Открывает редактор из меню действий с профилем для выбора модов, карт и изменения параметров.
 3. **Копировать профиль (дубликат):** Создает полную копию со всеми активными модами и настройками.
 4. **Ярлык на рабочем столе:** Создает ярлык для прямого запуска этого профиля.
 5. **Удалить профиль:** Удаляет профиль и его изолированную рабочую область.
@@ -6220,7 +6226,7 @@ GenHub сканирует систему для поиска официальн�
     <value>Как добавить ярлык профиля на рабочий стол Windows.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. Во вкладке **Профили игры** щелкните правой кнопкой мыши по карточке профиля (или нажмите иконку ярлыка).
+    <value>1. Во вкладке **Профили игры** выберите профиль и откройте меню действий с профилем.
 2. Выберите **Создать ярлык на рабочем столе**.
 3. GenHub создаст ярлык для вашей ОС: файл `.lnk` в Windows или запись `.desktop` в Linux. Ярлыки профилей пока недоступны в macOS.
 4. Дважды щелкните его, чтобы запустить этот профиль.</value>
@@ -18528,6 +18534,68 @@ Error: не удалось: {3}
   <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Файлы и зависимости</value></data>
   <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Файлы: {0}</value></data>
   <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Зависимости: {0}</value></data>
+  <data name="GameProfiles.Library.MyProfiles" xml:space="preserve">
+    <value>Мои профили</value>
+  </data>
+  <data name="GameProfiles.Library.Search" xml:space="preserve">
+    <value>Поиск профилей</value>
+  </data>
+  <data name="GameProfiles.Library.NoMatches" xml:space="preserve">
+    <value>Подходящие профили не найдены</value>
+  </data>
+  <data name="GameProfiles.Library.NewProfile" xml:space="preserve">
+    <value>Новый профиль</value>
+  </data>
+  <data name="GameProfiles.Library.Play" xml:space="preserve">
+    <value>Играть</value>
+  </data>
+  <data name="GameProfiles.Library.Actions" xml:space="preserve">
+    <value>Действия с профилем</value>
+  </data>
+  <data name="GameProfiles.Library.EditProfile" xml:space="preserve">
+    <value>Редактировать профиль</value>
+  </data>
+  <data name="GameProfiles.Library.MoveEarlier" xml:space="preserve">
+    <value>Переместить выше</value>
+  </data>
+  <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
+    <value>Переместить ниже</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
+    <value>Ваша следующая игра начинается здесь</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
+    <value>Создайте профиль или найдите установленные игры, чтобы начать.</value>
+  </data>
+  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
+    <value>У этого профиля пока нет описания.</value>
+  </data>
+  <data name="GameProfiles.Library.Running" xml:space="preserve">
+    <value>Запущено</value>
+  </data>
+  <data name="GameProfiles.Library.Preparing" xml:space="preserve">
+    <value>Подготовка рабочей области…</value>
+  </data>
+  <data name="GameProfiles.Library.LaunchAvailable" xml:space="preserve">
+    <value>Можно запустить</value>
+  </data>
+  <data name="GameProfiles.Library.SteamLaunch" xml:space="preserve">
+    <value>Запуск через Steam</value>
+  </data>
+  <data name="GameProfiles.Library.LocalLaunch" xml:space="preserve">
+    <value>Локальный запуск</value>
+  </data>
+  <data name="GameProfiles.Library.NoArguments" xml:space="preserve">
+    <value>Нет дополнительных параметров</value>
+  </data>
+  <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
+    <value>Профиль игры</value>
+  </data>
+  <data name="GameProfiles.Library.LoadError" xml:space="preserve">
+    <value>Не удалось загрузить профили. Откройте раздел профилей заново или перезапустите GenHub.</value>
+  </data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>Мои профили ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Настройки профиля</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>Технические сведения</value>
   </data>

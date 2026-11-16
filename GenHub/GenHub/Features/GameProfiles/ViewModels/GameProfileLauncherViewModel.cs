@@ -207,6 +207,7 @@ public partial class GameProfileLauncherViewModel(
 
     partial void OnSelectedProfileChanged(GameProfileItemViewModel? value)
     {
+        RefreshDisplayedProfile();
         OnPropertyChanged(nameof(CanEditProfile));
         LaunchProfileCommand.NotifyCanExecuteChanged();
         EditProfileCommand.NotifyCanExecuteChanged();
@@ -354,6 +355,9 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public virtual async Task InitializeAsync()
     {
+        IsLibraryInitializing = true;
+        HasLibraryLoadError = false;
+
         // On app launch, the header is expanded and persists without auto-collapsing
         IsHeaderExpanded = true;
         _isHovering = false;
@@ -513,6 +517,8 @@ public partial class GameProfileLauncherViewModel(
                 StatusMessage = localizationService.GetString("GameProfiles.Status.FailedToLoad", errors);
                 ErrorMessage = errors;
                 logger.LogWarning("Failed to load profiles: {Errors}", errors);
+                HasLibraryLoadError = true;
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], localizationService["GameProfiles.Library.LoadError"]);
             }
 
             // Register for profile messages on first initialization only
@@ -528,6 +534,12 @@ public partial class GameProfileLauncherViewModel(
             StatusMessage = localizationService["GameProfiles.Status.ErrorLoadingProfiles"];
             ErrorMessage = ex.Message;
             IsServiceAvailable = false;
+            HasLibraryLoadError = true;
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], localizationService["GameProfiles.Library.LoadError"]);
+        }
+        finally
+        {
+            IsLibraryInitializing = false;
         }
     }
 
@@ -1673,6 +1685,12 @@ public partial class GameProfileLauncherViewModel(
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
             InitializeSortOptions(forceRefresh: true);
+            foreach (var profile in Profiles.Where(p => p is not AddProfileItemViewModel))
+            {
+                profile.NotifyLibraryCaptionsChanged();
+            }
+
+            OnPropertyChanged(nameof(LibraryProfileCount));
 
             if (!IsServiceAvailable || !string.IsNullOrEmpty(ErrorMessage) || IsLaunching || IsPreparingWorkspace || IsScanning)
             {
@@ -3333,12 +3351,14 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error editing profile {ProfileName}", profile.Name);
             StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorEditingProfile", profile.Name);
+            notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
         }
     }
 
@@ -3380,6 +3400,7 @@ public partial class GameProfileLauncherViewModel(
             else
             {
                 StatusMessage = localizationService["GameProfiles.Error.MainWindowNotFound"];
+                notificationService.ShowError(localizationService[NotificationErrorTitleKey], StatusMessage);
             }
         }
         catch (Exception ex)
@@ -3465,6 +3486,7 @@ public partial class GameProfileLauncherViewModel(
             if (!profileResult.Success || profileResult.Data == null)
             {
                 StatusMessage = localizationService.GetString("GameProfiles.Error.FailedToLoadProfile", string.Join(", ", profileResult.Errors));
+                notificationService.ShowError(localizationService["GameProfiles.Notification.ShortcutFailed.Title"], StatusMessage);
                 return;
             }
 
@@ -3893,6 +3915,7 @@ public partial class GameProfileLauncherViewModel(
 
     private void OnProfilesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        RefreshLibraryProfiles();
         UpdateHasNoProfiles();
     }
 
