@@ -18,10 +18,9 @@
          <TextBlock Text="{localization:Localize Info.Changelog.LatestUpdatesAndChanges}" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
        </StackPanel>
        <Button Grid.Column="1" Command="{Binding LoadPatchNotesCommand}"
-               IsEnabled="{Binding !IsLoading}"
-               Padding="8,4" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="4">
+               IsEnabled="{Binding !IsLoading}" Classes="action-secondary action-compact">
            <StackPanel Orientation="Horizontal" Spacing="6">
-               <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+               <material:MaterialIcon Kind="Refresh" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                <TextBlock Text="{localization:Localize Info.Changelog.Refresh}"/>
            </StackPanel>
        </Button>
@@ -60,7 +59,7 @@
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                         <Grid ColumnDefinitions="*, Auto">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource SystemAccentColorBrush}"/>
+                                <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColorBrush}"/>
                                 <TextBlock Text="{Binding Date}"
                                            FontSize="13" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                             </StackPanel>
@@ -91,7 +90,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid ColumnDefinitions="Auto, *" Margin="0,2">
-                                            <TextBlock Grid.Column="0" Text="•" Foreground="{StaticResource SystemAccentColorBrush}" VerticalAlignment="Top" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="0" Text="•" Foreground="{DynamicResource SystemAccentColorBrush}" VerticalAlignment="Top" Margin="0,0,8,0"/>
                                             <TextBlock Grid.Column="1" Text="{Binding}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" FontSize="13"/>
                                         </Grid>
                                     </DataTemplate>
@@ -102,11 +101,10 @@
                             <Button HorizontalAlignment="Right"
                                     Command="{Binding ((vm:GeneralsOnlineChangelogViewModel)DataContext).OpenReleaseUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding DetailsUrl}"
-                                    IsVisible="{Binding IsDetailsLoaded}"
-                                    Background="Transparent" Padding="4">
+                                    IsVisible="{Binding IsDetailsLoaded}" Classes="icon-action">
                                  <StackPanel Orientation="Horizontal" Spacing="4">
-                                     <TextBlock Text="{localization:Localize Info.Changelog.ViewSource}" FontSize="11" Foreground="{DynamicResource TextMuted}"/>
-                                     <material:MaterialIcon Kind="OpenInNew" Width="14" Height="14" Foreground="{DynamicResource TextMuted}"/>
+                                     <TextBlock Text="{localization:Localize Info.Changelog.ViewSource}"/>
+                                     <material:MaterialIcon Kind="OpenInNew" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
                                  </StackPanel>
                             </Button>
                         </StackPanel>

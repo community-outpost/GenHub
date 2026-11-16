@@ -45,7 +45,7 @@
         </Style>
 
         <Style Selector="ToggleButton.filter-toggle:checked">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -64,52 +64,6 @@
             <Setter Property="MinHeight" Value="32" />
         </Style>
 
-        <!-- Secondary action button (Clear Filters) -->
-        <Style Selector="Button.filter-clear">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12,6" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <Style Selector="Button.filter-clear:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        </Style>
-
-        <!-- Primary and secondary button styles for actions -->
-        <Style Selector="Button.primary">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="14,7" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <Style Selector="Button.primary:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-        </Style>
-
-        <Style Selector="Button.secondary">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="14,7" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <Style Selector="Button.secondary:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        </Style>
     </UserControl.Styles>
 
     <!-- Dynamic content based on filter type -->
@@ -236,11 +190,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
@@ -278,11 +232,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
@@ -342,11 +296,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
@@ -376,11 +330,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
@@ -426,11 +380,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
@@ -542,11 +496,11 @@
                         <Button Content="{localization:Localize Downloads.Filter.ApplyFilters}"
                                 Command="{Binding ApplyFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="primary" />
+                                Classes="action-primary" />
                         <Button Content="{localization:Localize Downloads.Filter.ClearFilters}"
                                 Command="{Binding ClearFiltersActionCommand}"
                                 MinWidth="120"
-                                Classes="secondary" />
+                                Classes="action-secondary action-compact" />
                     </StackPanel>
                 </StackPanel>
             </DataTemplate>
