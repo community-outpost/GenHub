@@ -198,7 +198,7 @@ public class CatalogUpstreamIngestionService(
         var rules = (sync?.AssetRules ?? [])
             .Where(r => RuntimePlatformMatcher.IsRecognised(r.Platform))
             .ToList();
-        return rules.Count > 0 && !rules.Any(r => r.SupportsRuntime(hostRuntimeIdentifier));
+        return rules.Count > 0 && rules.All(r => !r.SupportsRuntime(hostRuntimeIdentifier));
     }
 
     /// <summary>
