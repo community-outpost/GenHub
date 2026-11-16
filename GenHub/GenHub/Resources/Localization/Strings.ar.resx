@@ -5943,9 +5943,9 @@
     <value>أزرار بطاقات الملف الشخصي وتنظيف البيان وتغيير حجم النوافذ.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**عناصر التحكم في بطاقة ملف التعريف:**
+    <value>**عناصر التحكم في ملف التعريف:**
 1. **تشغيل:** يبدأ اللعبة بالتعديلات والإعدادات ومساحة العمل النشطة لهذا الملف.
-2. **تعديل ملف التعريف (أيقونة القلم):** يفتح محرر ملف التعريف لاختيار التعديلات والخرائط وضبط الإعدادات.
+2. **تعديل ملف التعريف:** يفتح محرر ملف التعريف من قائمة إجراءات ملف التعريف لاختيار التعديلات والخرائط وضبط الإعدادات.
 3. **نسخ ملف التعريف (تكرار):** يستنسخ ملف التعريف بالكامل، بما في ذلك جميع الإعدادات والمحتويات المُمكّنة.
 4. **اختصار سطح المكتب:** ينشئ اختصارًا على سطح المكتب لتشغيل هذا الملف مباشرة.
 5. **حذف ملف التعريف:** يزيل ملف التعريف وتكوين مساحة العمل المخصصة له.
@@ -6220,7 +6220,7 @@
     <value>طريقة إضافة اختصار لملف التعريف على سطح مكتب Windows.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. في **ملفات تعريف اللعبة**، انقر بزر الماوس الأيمن على أي بطاقة ملف تعريف (أو انقر فوق أيقونة اختصار سطح المكتب).
+    <value>1. في **ملفات تعريف اللعبة**، اختر ملف تعريف وافتح قائمة إجراءات ملف التعريف.
 2. اختر **إنشاء اختصار على سطح المكتب**.
 3. يكتب GenHub الاختصار المناسب لنظامك: ملف `.lnk` على Windows أو مدخل `.desktop` على Linux. اختصارات الملفات غير متوفرة على macOS بعد.
 4. انقر نقرًا مزدوجًا عليه لتشغيل ملف التعريف.</value>
@@ -18528,6 +18528,68 @@ Error: فشل: {3}
   <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>الملفات والتبعيات</value></data>
   <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>الملفات: {0}</value></data>
   <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>التبعيات: {0}</value></data>
+  <data name="GameProfiles.Library.MyProfiles" xml:space="preserve">
+    <value>ملفاتي التعريفية</value>
+  </data>
+  <data name="GameProfiles.Library.Search" xml:space="preserve">
+    <value>البحث عن ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Library.NoMatches" xml:space="preserve">
+    <value>لا توجد ملفات تعريف مطابقة</value>
+  </data>
+  <data name="GameProfiles.Library.NewProfile" xml:space="preserve">
+    <value>ملف تعريف جديد</value>
+  </data>
+  <data name="GameProfiles.Library.Play" xml:space="preserve">
+    <value>لعب</value>
+  </data>
+  <data name="GameProfiles.Library.Actions" xml:space="preserve">
+    <value>إجراءات ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Library.EditProfile" xml:space="preserve">
+    <value>تحرير ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Library.MoveEarlier" xml:space="preserve">
+    <value>نقل إلى الأعلى</value>
+  </data>
+  <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
+    <value>نقل إلى الأسفل</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
+    <value>لعبتك التالية تبدأ هنا</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
+    <value>أنشئ ملف تعريف أو ابحث عن الألعاب المثبّتة للبدء.</value>
+  </data>
+  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
+    <value>لم تتم إضافة وصف إلى ملف التعريف هذا.</value>
+  </data>
+  <data name="GameProfiles.Library.Running" xml:space="preserve">
+    <value>قيد التشغيل</value>
+  </data>
+  <data name="GameProfiles.Library.Preparing" xml:space="preserve">
+    <value>جارٍ تجهيز مساحة العمل…</value>
+  </data>
+  <data name="GameProfiles.Library.LaunchAvailable" xml:space="preserve">
+    <value>متاح للتشغيل</value>
+  </data>
+  <data name="GameProfiles.Library.SteamLaunch" xml:space="preserve">
+    <value>التشغيل عبر Steam</value>
+  </data>
+  <data name="GameProfiles.Library.LocalLaunch" xml:space="preserve">
+    <value>تشغيل محلي</value>
+  </data>
+  <data name="GameProfiles.Library.NoArguments" xml:space="preserve">
+    <value>لا توجد وسائط إضافية</value>
+  </data>
+  <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
+    <value>ملف تعريف اللعبة</value>
+  </data>
+  <data name="GameProfiles.Library.LoadError" xml:space="preserve">
+    <value>تعذر تحميل ملفات التعريف. أعد فتح قسم ملفات التعريف أو أعد تشغيل GenHub.</value>
+  </data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>ملفاتي الشخصية ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>إعدادات الملف الشخصي</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>التفاصيل التقنية</value>
   </data>
