@@ -68,7 +68,8 @@ public static class SharedViewModelModule
             sp.GetRequiredService<IPublisherSubscriptionStore>(),
             sp.GetRequiredService<IPublisherCatalogRefreshService>(),
             sp.GetService<ILocalizationService>(),
-            sp.GetService<ISteamWorkshopAccountAuthService>()));
+            sp.GetService<ISteamWorkshopAccountAuthService>(),
+            sp.GetRequiredService<GameProfileLauncherViewModel>()));
         services.AddSingleton<GameProfileSettingsViewModel>();
 
         // Register ProfileSelectionViewModel as transient for profile selection scenarios
