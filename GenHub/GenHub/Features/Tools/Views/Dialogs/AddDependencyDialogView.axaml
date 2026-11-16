@@ -11,9 +11,6 @@
 
     <UserControl.Styles>
 
-
-
-
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>

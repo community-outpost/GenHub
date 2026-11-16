@@ -14,7 +14,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
             <StackPanel Spacing="4">
                 <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" />
-                <TextBlock Classes="dialog-title" Text="{Binding StepTitle}"/>
+                <TextBlock Classes="dialog-hint" Text="{Binding StepTitle}"/>
             </StackPanel>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CancelCommand}"

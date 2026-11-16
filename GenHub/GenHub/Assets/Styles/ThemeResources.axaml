@@ -274,7 +274,6 @@
     <x:Double x:Key="FormCompactFontSize">12</x:Double>
     <Thickness x:Key="FormFieldPadding">10,8</Thickness>
     <Thickness x:Key="FormCompactPadding">8,6</Thickness>
-
     <!-- Shared navigation states: geometry remains specific to tabs, rows and icon choices. -->
     <SolidColorBrush x:Key="NavRestInk" Color="{DynamicResource TextSecondaryColor}" />
     <SolidColorBrush x:Key="NavSelectedInk" Color="{DynamicResource TextPrimaryColor}" />
