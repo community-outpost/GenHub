@@ -22,6 +22,12 @@
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- Reading panels are not interactive, so hover keeps their border. -->
+        <Style Selector="Border.settings-card:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        </Style>
+    </UserControl.Styles>
 
     <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>

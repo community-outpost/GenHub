@@ -514,16 +514,12 @@ profile color changes, including very bright colors. Do not apply opacity to a
 whole form header: it also fades its text and actions. Use `TextPrimary` and
 `TextSecondary` for labels/help instead of reducing text opacity over artwork.
 
-Catalog cards retain their existing restrained shading and depth. Shared surface
-roles do not require flattening an established component that already looks good.
-Profile artwork and a light identity tint remain in a bounded header; reading
-panels stay opaque. Form fills and borders remain visible at rest, and profile
-navigation retains large icons and clear inactive targets.
-
-Visual consistency is a quality constraint, not a reason to flatten a successful component.
-Keep the original catalog-card depth, crisp main selection outline and 32px profile
-navigation glyphs with visible inactive targets. Preserve improved dialog layout
-and readable form panels while keeping restrained artwork and tint in profile headers.
+Visual consistency is a quality constraint, not a reason to flatten a successful
+component. Catalog cards keep their restrained shading and depth, and the main
+selection outline stays crisp. Profile artwork and a light identity tint stay in a
+bounded header, and every profile tab keeps opaque reading panels. Form fills and
+borders remain visible at rest. Profile navigation keeps 32px glyphs with visible
+inactive targets.
 
 ### Alignment and curvature
 

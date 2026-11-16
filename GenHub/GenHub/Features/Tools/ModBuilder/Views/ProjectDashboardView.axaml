@@ -48,8 +48,6 @@
       <Setter Property="ClipToBounds" Value="True"/>
     </Style>
 
-    <!-- Recent Project Row -->
-
     <!-- Recent Project Button -->
     <Style Selector="Button.recent-project-btn">
       <Setter Property="Background" Value="Transparent"/>

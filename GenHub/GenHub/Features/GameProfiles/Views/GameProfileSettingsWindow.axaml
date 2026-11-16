@@ -27,7 +27,6 @@
     <Window.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
         <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
         <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />

@@ -14,7 +14,6 @@
     <UserControl.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
         <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
         <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
@@ -53,11 +52,6 @@
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
-
-        <!-- Input fields -->
-
-
-
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
@@ -223,13 +217,14 @@
                 BorderThickness="4,0,0,0"
                 CornerRadius="0,0,12,12"
                 MinHeight="70" ClipToBounds="True">
+            <Panel>
+            <!-- Identity remains in a bounded header, away from the editable reading panels. -->
+            <Image x:Name="ProfileHeaderArtwork" Height="70"
+                   Source="{Binding CoverPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
+                   Stretch="UniformToFill" Opacity="0.18" IsHitTestVisible="False" />
+            <Border x:Name="ProfileHeaderTint" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
+                    Opacity="0.10" IsHitTestVisible="False" />
             <Grid ColumnDefinitions="Auto,*,Auto" Margin="16,0">
-                <!-- Identity remains in a bounded header, away from the editable reading panels. -->
-                <Image x:Name="ProfileHeaderArtwork" Grid.ColumnSpan="3" Height="70"
-                       Source="{Binding CoverPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                       Stretch="UniformToFill" Opacity="0.18" IsHitTestVisible="False" />
-                <Border Grid.ColumnSpan="3" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
-                        Opacity="0.10" IsHitTestVisible="False" />
                 <!-- Profile Icon -->
                 <Border Grid.Column="0"
                         Width="44" Height="44"
@@ -287,6 +282,7 @@
                     </Button>
                 </StackPanel>
             </Grid>
+            </Panel>
         </Border>
 
         <!-- Tab Navigation Icons -->
