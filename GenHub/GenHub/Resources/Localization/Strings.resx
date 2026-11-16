@@ -1691,6 +1691,12 @@
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>Select the user interface display language.</value>
   </data>
+  <data name="Settings.Appearance.ProfileLayout.Label" xml:space="preserve">
+    <value>Profile layout</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Description" xml:space="preserve">
+    <value>Show game profiles as a searchable library or as cards with a Play button on each card.</value>
+  </data>
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>Language</value>
   </data>
@@ -18607,6 +18613,12 @@ Mapped image texture reference</value>
   </data>
   <data name="GameProfiles.Library.Play" xml:space="preserve">
     <value>Play</value>
+  </data>
+  <data name="GameProfiles.Layout.Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="GameProfiles.Layout.Cards" xml:space="preserve">
+    <value>Cards</value>
   </data>
   <data name="GameProfiles.Library.Actions" xml:space="preserve">
     <value>Profile actions</value>

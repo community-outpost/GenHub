@@ -1691,6 +1691,12 @@
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>Выберите язык интерфейса приложения.</value>
   </data>
+  <data name="Settings.Appearance.ProfileLayout.Label" xml:space="preserve">
+    <value>Вид профилей</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Description" xml:space="preserve">
+    <value>Показывать игровые профили в виде библиотеки с поиском или в виде карточек с кнопкой «Играть» на каждой.</value>
+  </data>
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>Язык</value>
   </data>
@@ -18548,6 +18554,12 @@ Error: не удалось: {3}
   </data>
   <data name="GameProfiles.Library.Play" xml:space="preserve">
     <value>Играть</value>
+  </data>
+  <data name="GameProfiles.Layout.Library" xml:space="preserve">
+    <value>Библиотека</value>
+  </data>
+  <data name="GameProfiles.Layout.Cards" xml:space="preserve">
+    <value>Карточки</value>
   </data>
   <data name="GameProfiles.Library.Actions" xml:space="preserve">
     <value>Действия с профилем</value>

@@ -1691,6 +1691,12 @@
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>حدد لغة عرض واجهة المستخدم.</value>
   </data>
+  <data name="Settings.Appearance.ProfileLayout.Label" xml:space="preserve">
+    <value>تخطيط الملفات الشخصية</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Description" xml:space="preserve">
+    <value>اعرض ملفات اللعبة الشخصية كمكتبة قابلة للبحث أو كبطاقات تحتوي كل منها على زر تشغيل.</value>
+  </data>
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>اللغة</value>
   </data>
@@ -18548,6 +18554,12 @@ Error: فشل: {3}
   </data>
   <data name="GameProfiles.Library.Play" xml:space="preserve">
     <value>لعب</value>
+  </data>
+  <data name="GameProfiles.Layout.Library" xml:space="preserve">
+    <value>مكتبة</value>
+  </data>
+  <data name="GameProfiles.Layout.Cards" xml:space="preserve">
+    <value>بطاقات</value>
   </data>
   <data name="GameProfiles.Library.Actions" xml:space="preserve">
     <value>إجراءات ملف التعريف</value>

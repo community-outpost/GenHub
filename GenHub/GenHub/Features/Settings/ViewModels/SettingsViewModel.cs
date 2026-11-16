@@ -1268,6 +1268,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             SelectedLanguage = AvailableLanguages.FirstOrDefault(l =>
                 string.Equals(l.Culture.Name, LocalizationConstants.DefaultCultureName, StringComparison.OrdinalIgnoreCase))
                 ?? AvailableLanguages.FirstOrDefault();
+            if (ProfileLibraryActions != null)
+            {
+                ProfileLibraryActions.ProfileLayout = ProfileLayout.Library;
+            }
+
             WorkspacePath = string.Empty;
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
