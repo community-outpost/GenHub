@@ -80,11 +80,6 @@
         </Style>
 
         <Style Selector="Border.glass-card">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="24"/>
             <Setter Property="Margin" Value="0,0,0,20"/>
         </Style>
         <Style Selector="Border.metric-box">
@@ -177,7 +172,7 @@
 
             <!-- Onboarding Step 1: Connect Cloud Provider -->
             <Border IsVisible="{Binding !IsProviderAuthenticated}"
-                    Classes="glass-card"
+                    Classes="glass-card surface-card surface-section"
                     BorderBrush="{DynamicResource AccentColorBrush}"
                     BorderThickness="1.5"
                     CornerRadius="10"
@@ -340,7 +335,7 @@
             </Grid>
 
             <!-- Section 3: Provider Connection & Step-by-Step Setup Guides -->
-            <Border Classes="glass-card">
+            <Border Classes="glass-card surface-card surface-section">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">
@@ -571,7 +566,7 @@
             </Border>
 
             <!-- Section 4: Hosted Asset Inventory Table -->
-            <Border Classes="glass-card">
+            <Border Classes="glass-card surface-card surface-section">
                 <StackPanel Spacing="16">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4">

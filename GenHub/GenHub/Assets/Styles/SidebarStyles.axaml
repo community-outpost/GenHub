@@ -61,7 +61,8 @@
     </Style>
     <Style Selector="TextBlock.form-label">
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Opacity" Value="0.7" />
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        <Setter Property="Opacity" Value="1" />
         <Setter Property="Margin" Value="0,0,0,8" />
     </Style>
 

@@ -258,6 +258,7 @@
     <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
+    <Thickness x:Key="SurfaceSectionPadding">24</Thickness>
 
     <SolidColorBrush x:Key="FormFieldFill" Color="#1B1B24" />
     <SolidColorBrush x:Key="FormFieldBorder" Color="#666678" />

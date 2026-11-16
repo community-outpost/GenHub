@@ -18,13 +18,6 @@
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
         </Style>
 
-        <Style Selector="Border.glass-card">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-        </Style>
-
         <!-- List Item Styles -->
         <Style Selector="ListBoxItem">
             <Setter Property="Padding" Value="0"/>
@@ -211,8 +204,7 @@
                 </Border>
 
                 <!-- Edit Form (when referral selected) -->
-                <Border Classes="glass-card"
-                        Padding="24"
+                <Border Classes="glass-card surface-card surface-section"
                         IsVisible="{Binding IsEditing}">
                     <StackPanel Spacing="16">
                         <!-- Header -->
