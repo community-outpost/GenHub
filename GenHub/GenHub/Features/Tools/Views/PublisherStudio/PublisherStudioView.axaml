@@ -34,8 +34,6 @@
             </Setter>
         </Style>
 
-
-
         <Style Selector="Button.action-secondary.upload-pending /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
