@@ -255,12 +255,10 @@
                         </StackPanel>
 
                         <Button Grid.Column="1"
-                                Classes="accent"
+                                Classes="action-primary"
                                 Command="{Binding ScanForGamesCommand}"
                                 VerticalAlignment="Center"
-                                HorizontalContentAlignment="Center"
-                                Margin="16,0,0,0"
-                                Padding="14,8">
+                                Margin="16,0,0,0">
                             <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Button}" VerticalAlignment="Center" />
                         </Button>
                     </Grid>
@@ -297,19 +295,17 @@
                         </StackPanel>
 
                         <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <Button Classes="accent"
+                            <Button
+                                    Classes="action-primary"
                                     Command="{Binding ChooseGameFolderCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center"
-                                    Padding="14,8">
+                                    HorizontalAlignment="Stretch">
                                 <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" VerticalAlignment="Center" />
                             </Button>
 
-                            <Button Classes="outline"
+                            <Button
+                                    Classes="action-secondary"
                                     Command="{Binding ScanForGamesCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Center"
-                                    Padding="14,8">
+                                    HorizontalAlignment="Stretch">
                                 <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.RetryButton}" VerticalAlignment="Center" />
                             </Button>
                         </StackPanel>
@@ -339,10 +335,10 @@
                         </StackPanel>
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <Button Classes="accent"
+                            <Button
+                                    Classes="action-primary"
                                     Command="{Binding ChooseGameFolderCommand}"
-                                    HorizontalAlignment="Stretch"
-                                    Padding="14,8">
+                                    HorizontalAlignment="Stretch">
                                 <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" />
                             </Button>
 

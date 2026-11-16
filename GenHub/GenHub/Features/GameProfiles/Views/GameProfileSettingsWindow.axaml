@@ -72,8 +72,8 @@
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="28" />
+            <Setter Property="Width" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Height" Value="{DynamicResource ColorSwatchSize}" />
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="CornerRadius" Value="14" />
