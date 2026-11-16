@@ -795,7 +795,7 @@ jobs:
           ENGINE_REPO: bobtista/GeneralsGameCode
           ENGINE_TAG: latest-bgfx
           ENGINE_ASSET: GeneralsZH-macos-arm64.zip
-          ENGINE_SHA256: c081ae674dacd5701bdde03d968bdf862e8169be7ee923f23b0e0de6711a71d1
+          ENGINE_SHA256: de72b66846b5922d20fa5e30c816e1df38e481261d34359afde23c83de29b4a9
         run: |
           gh release download "$ENGINE_TAG" \
             --repo "$ENGINE_REPO" \
