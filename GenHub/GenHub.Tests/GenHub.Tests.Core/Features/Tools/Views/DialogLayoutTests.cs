@@ -8,7 +8,6 @@ using Avalonia.VisualTree;
 using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Common.Views.Dialogs;
 using GenHub.Core.Models.Providers;
-using GenHub.Core.Models.Publishers;
 using GenHub.Features.Tools.Interfaces;
 using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Features.Tools.Views.Dialogs;
@@ -101,7 +100,17 @@ public class DialogLayoutTests
             Assert.True(submitPosition.Y + submit.Bounds.Height <= root.Bounds.Height + 0.1);
             Assert.True(submitPosition.X >= 0);
             Assert.True(submitPosition.X + submit.Bounds.Width <= root.Bounds.Width + 0.1);
-            Assert.True(caption.Bounds.Width <= submit.Bounds.Width - submit.Padding.Left - submit.Padding.Right);
+            if (width < 400)
+            {
+                Assert.True(caption.TextLayout.TextLines.Count > 1, $"Caption lines: {caption.TextLayout.TextLines.Count}");
+            }
+
+            var error = Assert.Single(footer.GetVisualDescendants().OfType<TextBlock>(), block => block.Classes.Contains("dialog-error"));
+            Assert.True(error.IsEffectivelyVisible);
+            Assert.Equal(validation, error.Text);
+            var errorPosition = error.TranslatePoint(default, root)!.Value;
+            Assert.True(errorPosition.Y >= bodyBottom);
+            Assert.True(errorPosition.Y + error.Bounds.Height <= submitPosition.Y);
             Assert.Same(originalCommand, submit.Command);
             Assert.NotNull(originalCommand);
             var footerY = footerPosition.Y;
@@ -113,6 +122,24 @@ public class DialogLayoutTests
         {
             window.Close();
             (viewModel as IDisposable)?.Dispose();
+        }
+    }
+
+    /// <summary>The wizard keeps one dialog title; the step name stays a secondary subtitle.</summary>
+    [AvaloniaFact]
+    public void SetupWizard_StepNameIsNotASecondTitle()
+    {
+        var view = new PublisherSetupWizardView();
+        var window = new Window { Width = 700, Height = 600, Content = view };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            Assert.Single(view.GetVisualDescendants().OfType<TextBlock>(), block => block.Classes.Contains("dialog-title"));
+        }
+        finally
+        {
+            window.Close();
         }
     }
 

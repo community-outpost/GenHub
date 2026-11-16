@@ -32,7 +32,7 @@ public class SplitActionStyleTests
             foreach (var tab in gameTabs)
             {
                 var tabBorder = tab.GetVisualDescendants().OfType<Border>().Single(border => border.Name == "Root");
-                Assert.Equal(new Avalonia.CornerRadius(999), tabBorder.CornerRadius);
+                Assert.Equal((Avalonia.CornerRadius)Avalonia.Application.Current!.FindResource("ActionCornerRadius")!, tabBorder.CornerRadius);
             }
 
             var capsule = Assert.Single(view.GetVisualDescendants().OfType<Border>(), border => border.Classes.Contains("split-action"));

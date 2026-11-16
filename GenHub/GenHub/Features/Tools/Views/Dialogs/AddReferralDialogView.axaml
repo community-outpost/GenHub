@@ -28,7 +28,7 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1">
+        <ScrollViewer Classes="dialog-scroll" Grid.Row="1">
             <StackPanel Spacing="16">
                 <!-- Quick Select from Subscribed Publishers -->
                 <Border IsVisible="{Binding AvailablePublishers.Count}"
@@ -172,20 +172,18 @@
                                  Height="80"/>
                     </StackPanel>
 
-                    <TextBlock Text="{Binding ValidationError}"
-                               Foreground="{DynamicResource ErrorBrush}" FontSize="12"
-                               IsVisible="{Binding !IsValid}"
-                               TextWrapping="Wrap"/>
+                    <TextBlock Classes="dialog-error"
+                               Text="{Binding ValidationError}"
+                               IsVisible="{Binding !IsValid}"/>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource ErrorBrush}"
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap"
                         MaxWidth="300"
                         IsVisible="{Binding !IsValid}"/>
 

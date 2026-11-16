@@ -11,7 +11,6 @@
 
     <UserControl.Styles>
 
-
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
@@ -114,7 +113,7 @@
                 <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"/>
 
                 <!-- Artifact Details -->
-                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="dialog-label"/>
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="dialog-section"/>
 
                 <!-- Computing hash indicator -->
                 <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
@@ -162,7 +161,7 @@
                            IsVisible="{Binding AllowVariants}"/>
 
                 <!-- Variant (hidden for bundle-mode releases whose artifacts install together) -->
-                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="dialog-label"
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="dialog-section"
                            IsVisible="{Binding AllowVariants}"/>
 
                 <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
@@ -204,10 +203,9 @@
 
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource StatusErrorBrush}"
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap"
                         MaxWidth="300"
                         Margin="0,0,12,0"/>
 

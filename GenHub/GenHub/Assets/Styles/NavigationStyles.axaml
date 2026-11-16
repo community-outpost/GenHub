@@ -1,4 +1,7 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters">
+  <Styles.Resources>
+    <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+  </Styles.Resources>
   <!-- Navigation families retain their own layout; these shared states express location consistently. -->
   <Style Selector="Button.pill-tab, Button.nav-pill, Button.sidebar-btn, Button.tab-icon-btn">
     <Setter Property="Background" Value="Transparent" />
@@ -61,22 +64,30 @@
   <Style Selector="Button.pill-tab.active:pointerover, Button.pill-tab.selected:pointerover, Button.nav-pill.active:pointerover, Button.nav-pill.selected:pointerover, Button.sidebar-btn.active:pointerover, Button.sidebar-btn.selected:pointerover, Button.tab-icon-btn.active:pointerover, Button.tab-icon-btn.selected:pointerover">
     <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedHoverBorder}" />
   </Style>
   <Style Selector="Button.pill-tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
   </Style>
   <Style Selector="Button.pill-tab.active:pressed, Button.pill-tab.selected:pressed, Button.nav-pill.active:pressed, Button.nav-pill.selected:pressed, Button.sidebar-btn.active:pressed, Button.sidebar-btn.selected:pressed, Button.tab-icon-btn.active:pressed, Button.tab-icon-btn.selected:pressed">
     <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedHoverBorder}" />
   </Style>
   <Style Selector="Button.pill-tab.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedBorder}" />
+  </Style>
+  <Style Selector="Button.pill-tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedHoverBorder}" />
+  </Style>
+  <!-- Profile targets and sidebar rows keep their profile accent outline while hovered or pressed. -->
+  <Style Selector="Button.tab-icon-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{ReflectionBinding $parent[Button].BorderBrush}" />
+  </Style>
+  <Style Selector="Button.sidebar-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter" x:CompileBindings="False">
+    <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
   </Style>
   <Style Selector="Button.pill-tab:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.sidebar-btn:focus-visible /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource NavFocusBrush}" />

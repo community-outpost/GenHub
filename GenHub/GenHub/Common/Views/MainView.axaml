@@ -89,12 +89,6 @@
             </Setter>
         </Style>
 
-        <!-- Pill tab hover (unselected) -->
-
-        <!-- Pill tab active / selected -->
-
-        <!-- Pill tab active + hover -->
-
         <!-- Header gradient background -->
         <Style Selector="Border.header-background">
             <Setter Property="Background">

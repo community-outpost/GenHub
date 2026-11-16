@@ -14,7 +14,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
             <StackPanel Spacing="4">
                 <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Title}" />
-                <TextBlock Classes="dialog-title" Text="{Binding StepTitle}"/>
+                <TextBlock Classes="dialog-hint" Text="{Binding StepTitle}"/>
             </StackPanel>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CancelCommand}"
@@ -64,10 +64,8 @@
                         <TextBox Classes="form-field" Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
                     </StackPanel>
 
-                    <TextBlock Text="{Binding ValidationError}"
-                               FontSize="12"
-                               Foreground="{DynamicResource StatusErrorBrush}"
-                               TextWrapping="Wrap"
+                    <TextBlock Classes="dialog-error"
+                               Text="{Binding ValidationError}"
                                IsVisible="{Binding ValidationError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 </StackPanel>
 

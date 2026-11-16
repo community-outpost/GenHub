@@ -170,8 +170,6 @@
             </Setter>
         </Style>
 
-        <Style Selector="Button.tab-icon-btn Panel > Border">
-        </Style>
         <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />

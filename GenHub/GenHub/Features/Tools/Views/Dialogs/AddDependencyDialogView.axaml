@@ -11,9 +11,6 @@
 
     <UserControl.Styles>
 
-
-
-
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
@@ -37,7 +34,7 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1" Margin="0,0,0,24">
+        <ScrollViewer Classes="dialog-scroll" Grid.Row="1" Margin="0,0,0,24">
             <StackPanel Spacing="16">
                 <!-- Source Selection -->
                 <StackPanel Spacing="8">
@@ -161,10 +158,9 @@
 
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource ErrorBrush}"
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap"
                         MaxWidth="300"/>
 
              <Button Classes="action-primary" Content="{localization:Localize Tools.PublisherStudio.Dependency.AddTitle}"

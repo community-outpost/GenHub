@@ -124,6 +124,11 @@
                         <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}"/>
                       </Style>
+                      <Style Selector="ListBoxItem:selected:disabled /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource NavSelectedFill}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource NavDisabledInk}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource NavDisabledBorder}"/>
+                      </Style>
                     </ListBox.Styles>
                   </ListBox>
                 </ScrollViewer>
