@@ -2091,6 +2091,7 @@ public partial class AddContentDialogViewModel(
                 Variant = rule.Variant,
                 IsDefault = rule.IsDefault,
                 TargetGame = rule.TargetGame,
+                Platform = rule.Platform,
             }).ToList();
         }
 

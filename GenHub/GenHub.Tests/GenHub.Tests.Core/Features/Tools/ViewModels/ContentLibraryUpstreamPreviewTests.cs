@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Content.Services.Catalog;
@@ -96,6 +97,40 @@ public sealed class ContentLibraryUpstreamPreviewTests
         ingestionMock.Verify(
             s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that the preview ingests every platform's assets rather than only the
+    /// publisher's own OS, while leaving unrecognised platforms to be ignored as at runtime.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [AvaloniaFact]
+    public async Task PlatformAssetRules_PreviewIngestsAllPlatformsAsync()
+    {
+        string?[]? previewPlatforms = null;
+        var ingestionMock = new Mock<ICatalogUpstreamIngestionService>();
+        ingestionMock
+            .Setup(s => s.IngestCatalogAsync(It.IsAny<PublisherCatalog>(), It.IsAny<CancellationToken>()))
+            .Callback<PublisherCatalog, CancellationToken>((catalog, _) =>
+                previewPlatforms = [.. catalog.Content[0].UpstreamSync!.AssetRules.Select(r => r.Platform)])
+            .Returns(Task.CompletedTask);
+
+        var item = CreateUpstreamItem("per-os");
+        item.UpstreamSync!.AssetRules =
+        [
+            new CatalogUpstreamAssetRule { Pattern = "win64", Platform = "windows" },
+            new CatalogUpstreamAssetRule { Pattern = "macos", Platform = "osx-arm64" },
+            new CatalogUpstreamAssetRule { Pattern = "other", Platform = "darwin" },
+        ];
+        var viewModel = CreateViewModel(item, ingestionMock.Object);
+        viewModel.SelectedContent = item;
+
+        await WaitForIngestionAsync(ingestionMock, 1);
+
+        Assert.NotNull(previewPlatforms);
+        var host = ManifestVariantResolver.CurrentRuntimeIdentifier;
+        Assert.Equal(new[] { host, host, "darwin" }, previewPlatforms.Select(platform => platform ?? string.Empty));
+        Assert.Equal("windows", item.UpstreamSync.AssetRules[0].Platform);
     }
 
     /// <summary>

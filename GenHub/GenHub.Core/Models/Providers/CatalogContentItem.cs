@@ -172,6 +172,13 @@ public class CatalogContentItem : ObservableObject
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether upstream ingestion found no build for this host's platform
+    /// and withheld the item, so it must not be offered on this host.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsWithheldOnHost { get; set; }
+
+    /// <summary>
     /// Gets the combined number of legacy addons and addon releases for tab badges.
     /// </summary>
     [JsonIgnore]
