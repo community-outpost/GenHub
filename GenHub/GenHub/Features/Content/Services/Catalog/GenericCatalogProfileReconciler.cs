@@ -58,7 +58,7 @@ public class GenericCatalogProfileReconciler(
 
             if (!next.Success)
             {
-                _result = applied ?? next;
+                _result = item.IsAutomatic ? applied ?? next : next;
                 IsComplete = !item.IsAutomatic;
                 return;
             }
@@ -105,13 +105,14 @@ public class GenericCatalogProfileReconciler(
                 return OperationResult<PublisherReconciliationResult>.CreateSuccess(PublisherReconciliationResult.None);
             }
 
+            var allowAutomatic = !string.IsNullOrEmpty(triggeringProfileId);
             var outcome = new ReconciliationOutcome();
             foreach (var profile in profilesToCheck)
             {
                 foreach (var subscription in subResult.Data)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    await ReconcileSubscriptionAsync(profile, subscription, outcome, cancellationToken);
+                    await ReconcileSubscriptionAsync(profile, subscription, outcome, allowAutomatic, cancellationToken);
                     if (outcome.IsComplete)
                     {
                         return outcome.ToResult();
@@ -163,6 +164,7 @@ public class GenericCatalogProfileReconciler(
         GameProfile profile,
         PublisherSubscription subscription,
         ReconciliationOutcome outcome,
+        bool allowAutomatic,
         CancellationToken cancellationToken)
     {
         contentServices.CatalogDiscoverer.Configure(subscription);
@@ -176,7 +178,7 @@ public class GenericCatalogProfileReconciler(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var itemOutcome = await TryReconcileItemAsync(profile, subscription, item, cancellationToken);
+            var itemOutcome = await TryReconcileItemAsync(profile, subscription, item, allowAutomatic, cancellationToken);
             if (itemOutcome == null)
             {
                 continue;
@@ -194,6 +196,7 @@ public class GenericCatalogProfileReconciler(
         GameProfile profile,
         PublisherSubscription subscription,
         ContentSearchResult item,
+        bool allowAutomatic,
         CancellationToken cancellationToken)
     {
         var localManifestId = await GetLocalManifestIdIfApplicableAsync(profile, item, cancellationToken);
@@ -210,7 +213,7 @@ public class GenericCatalogProfileReconciler(
             return null;
         }
 
-        var decision = await ResolveUpdateDecisionAsync(settings, subscription, item, itemVersion);
+        var decision = await ResolveUpdateDecisionAsync(settings, subscription, item, itemVersion, allowAutomatic);
         if (decision == null)
         {
             return null;
@@ -246,12 +249,13 @@ public class GenericCatalogProfileReconciler(
         UserSettings settings,
         PublisherSubscription subscription,
         ContentSearchResult item,
-        string itemVersion)
+        string itemVersion,
+        bool allowAutomatic)
     {
         var preference = settings.GetSubscription(subscription.PublisherId);
         var deleteOldVersions = preference?.DeleteOldVersions ?? true;
 
-        if (preference?.AutoUpdateEnabled == true)
+        if (allowAutomatic && preference?.AutoUpdateEnabled == true)
         {
             var strategy = preference.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
             logger.LogInformation(
@@ -356,9 +360,9 @@ public class GenericCatalogProfileReconciler(
             localizationService.GetLocalizedString("Content.Notification.DownloadingUpdate.Title", "Downloading Update"),
             localizationService.GetLocalizedString("Content.Notification.DownloadingUpdate.Message", $"Downloading {item.Name} v{itemVersion}...", item.Name, itemVersion));
         var downloadResult = await contentServices.DownloadCoordinator.DownloadContentAsync(item, null, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
         if (!downloadResult.Success || downloadResult.Data == null)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (decision.IsAutomatic)
             {
                 ShowUpdateFailure(item.Name, itemVersion, downloadResult.FirstError, isAutomatic: true);

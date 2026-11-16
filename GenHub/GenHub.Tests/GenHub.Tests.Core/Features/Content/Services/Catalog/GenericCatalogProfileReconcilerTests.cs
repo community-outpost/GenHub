@@ -558,6 +558,83 @@ public sealed class GenericCatalogProfileReconcilerTests
         _downloadCoordinatorMock.Verify(d => d.DownloadContentAsync(items[1], It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that reconciliation started without a launching profile (the Downloads update button)
+    /// still asks, so opting in never updates content the user did not launch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabledWithoutLaunchingProfile_ShowsDialog()
+    {
+        SetupProfileWithItems(("item1", "Test Item", OldItemManifestId));
+        var profile = new GameProfile { Id = "prof1", Name = "Test Profile", EnabledContentIds = [OldItemManifestId] };
+        _profileManagerMock
+            .Setup(m => m.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([profile]));
+        _userSettings.SetAutoUpdatePreference("pub1", true);
+        _dialogServiceMock
+            .Setup(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .ReturnsAsync(new UpdateDialogResult { Action = "Skip" });
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync(string.Empty);
+
+        Assert.True(result.Success);
+        Assert.Equal(PublisherReconciliationResult.None, result.Data);
+        _dialogServiceMock.Verify(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
+        _downloadCoordinatorMock.Verify(d => d.DownloadContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when an automatic update succeeds and a prompted update from another catalog then fails,
+    /// the failure the user chose to apply is reported instead of being masked as success.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_AutoSuccessThenPromptedFailure_ReturnsFailure()
+    {
+        var autoItem = new ContentSearchResult { Id = "item1", Name = "Client", Version = "2.0" };
+        var promptedItem = new ContentSearchResult { Id = "item2", Name = "Map Pack", Version = "2.0" };
+        var profile = new GameProfile { Id = "prof1", Name = "Test Profile", EnabledContentIds = [OldItemManifestId, OldSecondManifestId] };
+        _profileManagerMock
+            .Setup(m => m.GetProfileAsync("prof1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _subscriptionStoreMock
+            .Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(
+            [
+                new PublisherSubscription { PublisherId = "pub1", PublisherName = "Publisher 1" },
+                new PublisherSubscription { PublisherId = "pub2", PublisherName = "Publisher 2" },
+            ]));
+        _discovererMock
+            .SetupSequence(d => d.DiscoverAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [autoItem] }))
+            .ReturnsAsync(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = [promptedItem] }));
+        foreach (var (item, manifestId) in new[] { (autoItem, OldItemManifestId), (promptedItem, OldSecondManifestId) })
+        {
+            _contentStateServiceMock
+                .Setup(s => s.GetStateAsync(item, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ContentState.UpdateAvailable);
+            _contentStateServiceMock
+                .Setup(s => s.GetLocalManifestIdAsync(item, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manifestId);
+        }
+
+        SetupSuccessfulUpdate(autoItem, OldItemManifestId, NewItemManifestId);
+        _downloadCoordinatorMock
+            .Setup(d => d.DownloadContentAsync(promptedItem, It.IsAny<IProgress<ContentAcquisitionProgress>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure("network down"));
+        _userSettings.SetAutoUpdatePreference("pub1", true);
+        _dialogServiceMock
+            .Setup(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .ReturnsAsync(new UpdateDialogResult { Action = "Update", Strategy = UpdateStrategy.ReplaceCurrent });
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("prof1");
+
+        Assert.False(result.Success);
+        _dialogServiceMock.Verify(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
+        _reconciliationServiceMock.Verify(r => r.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private List<ContentSearchResult> SetupProfileWithItems(params (string Id, string Name, string LocalManifestId)[] entries)
     {
         var profile = new GameProfile
