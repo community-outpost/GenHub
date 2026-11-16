@@ -672,6 +672,7 @@ public class GameProfileItemViewModelTests
     public void IsSteamIntegrationSupported_EvaluatesInstallationAndBinaryFormat()
     {
         var steamRetail = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
+        Assert.True(Guid.TryParse(((GenHub.Core.Models.GameProfile.GameProfile)steamRetail.Profile).GameInstallationId, out _));
         Assert.True(steamRetail.IsSteamInstallation);
         Assert.True(steamRetail.IsSteamIntegrationSupported);
 
@@ -685,30 +686,21 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
-    /// Verifies that a Steam installation is detected from its type, since real installation IDs are GUIDs.
+    /// Verifies that a late installation type uses the latest saved profile. A saved choice of off stays
+    /// off, and no saved choice turns Steam launch on.
     /// </summary>
-    [Fact]
-    public void SteamInstallation_WithGuidInstallationId_ShowsSteamToggle()
-    {
-        var vm = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
-
-        Assert.True(Guid.TryParse(((GenHub.Core.Models.GameProfile.GameProfile)vm.Profile).GameInstallationId, out _));
-        Assert.True(vm.IsSteamInstallation);
-        Assert.True(vm.IsSteamIntegrationSupported);
-    }
-
-    /// <summary>
-    /// Verifies that a late installation type uses the latest saved profile, so a saved Steam launch
-    /// choice of off is not replaced by the value the card was built with.
-    /// </summary>
-    [Fact]
-    public void InstallationTypeSetAfterUpdate_KeepsSavedSteamLaunchChoice()
+    /// <param name="savedChoice">The Steam launch choice in the saved profile.</param>
+    /// <param name="expected">The expected Steam launch state.</param>
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(null, true)]
+    public void InstallationTypeSetAfterUpdate_UsesSavedSteamLaunchChoice(bool? savedChoice, bool expected)
     {
         var original = new GenHub.Core.Models.GameProfile.GameProfile
         {
             Id = "steam",
             Name = "Steam",
-            UseSteamLaunch = null,
+            UseSteamLaunch = true,
             GameClient = new GenHub.Core.Models.GameClients.GameClient { Id = "client", ExecutablePath = "generals.exe" },
         };
         var vm = new GameProfileItemViewModel(original.Id, original, null!, null!);
@@ -716,7 +708,7 @@ public class GameProfileItemViewModelTests
         {
             Id = original.Id,
             Name = original.Name,
-            UseSteamLaunch = false,
+            UseSteamLaunch = savedChoice,
             GameClient = original.GameClient,
         };
 
@@ -724,7 +716,51 @@ public class GameProfileItemViewModelTests
         vm.InstallationType = GameInstallationType.Steam;
 
         Assert.True(vm.IsSteamInstallation);
-        Assert.False(vm.UseSteamLaunch);
+        Assert.Equal(expected, vm.UseSteamLaunch);
+    }
+
+    /// <summary>
+    /// Verifies that moving a profile to another installation clears the type resolved for the old one.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_InstallationChanged_ResetsInstallationType()
+    {
+        var vm = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
+        var original = (GenHub.Core.Models.GameProfile.GameProfile)vm.Profile;
+        var moved = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = original.Id,
+            Name = original.Name,
+            GameInstallationId = Guid.NewGuid().ToString(),
+            GameClient = original.GameClient,
+        };
+
+        vm.UpdateFromProfile(moved);
+
+        Assert.Equal(GameInstallationType.Unknown, vm.InstallationType);
+        Assert.False(vm.IsSteamInstallation);
+    }
+
+    /// <summary>
+    /// Verifies that saving a profile on the same installation keeps its resolved type.
+    /// </summary>
+    [Fact]
+    public void UpdateFromProfile_SameInstallation_KeepsInstallationType()
+    {
+        var vm = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
+        var original = (GenHub.Core.Models.GameProfile.GameProfile)vm.Profile;
+        var saved = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = original.Id,
+            Name = "Renamed",
+            GameInstallationId = original.GameInstallationId,
+            GameClient = original.GameClient,
+        };
+
+        vm.UpdateFromProfile(saved);
+
+        Assert.Equal(GameInstallationType.Steam, vm.InstallationType);
+        Assert.True(vm.IsSteamInstallation);
     }
 
     /// <summary>

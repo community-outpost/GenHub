@@ -2574,6 +2574,60 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// A successful lookup replaces a wrong type, a card without an installation ID becomes Unknown,
+    /// and cards that share an installation cause one lookup.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_SetsTypesAndLooksUpEachInstallationOnceAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(steam));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        var client = new GameClient { Id = "c1", ExecutablePath = "generals.exe" };
+        var first = new GameProfileItemViewModel("a", new GameProfile { Id = "a", Name = "A", GameInstallationId = steam.Id, GameClient = client }, string.Empty, string.Empty) { InstallationType = GameInstallationType.EaApp };
+        var second = new GameProfileItemViewModel("b", new GameProfile { Id = "b", Name = "B", GameInstallationId = steam.Id, GameClient = client }, string.Empty, string.Empty);
+        var standalone = new GameProfileItemViewModel("c", new GameProfile { Id = "c", Name = "C", GameInstallationId = string.Empty, GameClient = client }, string.Empty, string.Empty) { InstallationType = GameInstallationType.Steam };
+
+        await vm.RefreshInstallationTypesAsync([first, second, standalone]);
+
+        Assert.Equal(GameInstallationType.Steam, first.InstallationType);
+        Assert.Equal(GameInstallationType.Steam, second.InstallationType);
+        Assert.Equal(GameInstallationType.Unknown, standalone.InstallationType);
+        installationService.Verify(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// A lookup that finishes after the card moved to another installation does not overwrite its type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_InstallationChangedDuringLookup_IgnoresStaleResultAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var profile = new GameProfile { Id = "card", Name = "Card", GameInstallationId = steam.Id, GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty);
+        var moved = new GameProfile { Id = profile.Id, Name = profile.Name, GameInstallationId = Guid.NewGuid().ToString(), GameClient = profile.GameClient };
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                card.UpdateFromProfile(moved);
+                return OperationResult<GameInstallation>.CreateSuccess(steam);
+            });
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+
+        await vm.RefreshInstallationTypesAsync([card]);
+
+        Assert.Equal(GameInstallationType.Unknown, card.InstallationType);
+        Assert.False(card.IsSteamInstallation);
+    }
+
+    /// <summary>
     /// Choosing the game folder after a failed scan runs setup for that folder and clears the failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

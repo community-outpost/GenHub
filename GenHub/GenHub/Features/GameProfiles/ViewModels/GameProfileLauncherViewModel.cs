@@ -26,6 +26,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
@@ -1056,7 +1057,9 @@ public partial class GameProfileLauncherViewModel(
 
     /// <summary>
     /// Sets each card's installation type from the installation service, which detects installations
-    /// on first use and follows merged installation IDs. A failed lookup keeps the card's current type.
+    /// on first use and follows merged installation IDs. Each installation ID is looked up once. A card
+    /// without an installation ID becomes <see cref="GameInstallationType.Unknown"/>. A failed lookup
+    /// keeps the card's current type.
     /// </summary>
     /// <param name="items">The profile cards to update.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -1065,6 +1068,7 @@ public partial class GameProfileLauncherViewModel(
     {
         try
         {
+            Dictionary<string, OperationResult<GameInstallation>> results = new(StringComparer.OrdinalIgnoreCase);
             foreach (var item in items)
             {
                 if (item.LibraryProfile is not Core.Models.GameProfile.GameProfile { GameInstallationId: { Length: > 0 } installationId })
@@ -1073,8 +1077,16 @@ public partial class GameProfileLauncherViewModel(
                     continue;
                 }
 
-                var result = await installationService.GetInstallationAsync(installationId, cancellationToken);
-                if (result.Success && result.Data != null)
+                if (!results.TryGetValue(installationId, out var result))
+                {
+                    result = await installationService.GetInstallationAsync(installationId, cancellationToken);
+                    results[installationId] = result;
+                }
+
+                if (result.Success
+                    && result.Data != null
+                    && item.LibraryProfile is Core.Models.GameProfile.GameProfile current
+                    && string.Equals(current.GameInstallationId, installationId, StringComparison.OrdinalIgnoreCase))
                 {
                     item.InstallationType = result.Data.InstallationType;
                 }

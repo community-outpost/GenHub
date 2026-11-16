@@ -678,7 +678,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <param name="updatedProfile">The updated profile to refresh from.</param>
     public void UpdateFromProfile(IGameProfile updatedProfile)
     {
+        var previousInstallationId = (LibraryProfile as GameProfile)?.GameInstallationId;
         _libraryProfile = updatedProfile;
+        if (!string.Equals(previousInstallationId, (updatedProfile as GameProfile)?.GameInstallationId, StringComparison.OrdinalIgnoreCase))
+        {
+            InstallationType = GameInstallationType.Unknown;
+        }
 
         // Update basic properties
         Name = updatedProfile.Name;
