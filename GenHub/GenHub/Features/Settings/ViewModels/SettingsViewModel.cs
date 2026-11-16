@@ -3879,17 +3879,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (saved)
         {
+            item.SavedAutoUpdateEnabled = enabled;
             return;
         }
 
         _logger.LogWarning("Failed to save the automatic update preference for {PublisherId}", publisherId);
-        if (item.AutoUpdateRevision != revision)
+        if (item.AutoUpdateRevision != revision || !Subscriptions.Contains(item))
         {
             return;
         }
 
-        _userSettingsService.Update(s => s.SetAutoUpdatePreference(publisherId, !enabled));
-        item.IsAutoUpdateEnabled = !enabled;
+        var savedEnabled = item.SavedAutoUpdateEnabled;
+        _userSettingsService.Update(s => s.SetAutoUpdatePreference(publisherId, savedEnabled));
+        item.IsAutoUpdateEnabled = savedEnabled;
         ShowAutoUpdateSaveFailed(item.Subscription.PublisherName);
     }
 

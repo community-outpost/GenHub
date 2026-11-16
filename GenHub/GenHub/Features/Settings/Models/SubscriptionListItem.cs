@@ -20,6 +20,7 @@ public partial class SubscriptionListItem : ObservableObject
     {
         Subscription = subscription;
         _isAutoUpdateEnabled = isAutoUpdateEnabled;
+        SavedAutoUpdateEnabled = isAutoUpdateEnabled;
     }
 
     /// <summary>
@@ -31,6 +32,11 @@ public partial class SubscriptionListItem : ObservableObject
     /// Gets how many times the automatic update preference has changed since the row was created.
     /// </summary>
     public int AutoUpdateRevision { get; private set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the last successfully saved preference enables automatic updates.
+    /// </summary>
+    public bool SavedAutoUpdateEnabled { get; set; }
 
     partial void OnIsAutoUpdateEnabledChanged(bool value) => AutoUpdateRevision++;
 }
