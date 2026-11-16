@@ -585,4 +585,37 @@ public static class CatalogConstants
             string.Equals(channel, Beta, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(channel, Nightly, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Tokens accepted by an upstream asset rule's platform: an OS family
+    /// (<c>windows</c>, <c>macos</c>, <c>linux</c>) or a .NET runtime identifier
+    /// (<c>win-x64</c>, <c>osx-arm64</c>, <c>linux-x64</c>).
+    /// </summary>
+    public static class AssetPlatforms
+    {
+        /// <summary>
+        /// Prefix matching the Windows family and Windows runtime identifiers.
+        /// </summary>
+        public const string WindowsPrefix = "win";
+
+        /// <summary>
+        /// Prefix matching the macOS runtime identifiers.
+        /// </summary>
+        public const string MacOSRuntimePrefix = "osx";
+
+        /// <summary>
+        /// Prefix matching the macOS family name.
+        /// </summary>
+        public const string MacOSFamilyPrefix = "mac";
+
+        /// <summary>
+        /// Prefix matching the Linux family and Linux runtime identifiers.
+        /// </summary>
+        public const string LinuxPrefix = "linux";
+
+        /// <summary>
+        /// Separator between the OS and architecture parts of a runtime identifier.
+        /// </summary>
+        public const char ArchitectureSeparator = '-';
+    }
 }

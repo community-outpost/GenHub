@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using System.Text.Json.Serialization;
 
@@ -31,4 +32,26 @@ public class CatalogUpstreamAssetRule
     /// </summary>
     [JsonPropertyName("targetGame")]
     public GameType TargetGame { get; set; } = GameType.Unknown;
+
+    /// <summary>
+    /// Gets or sets the platform the matching assets run on: an OS family (<c>windows</c>,
+    /// <c>macos</c>, <c>linux</c>) or a runtime identifier (<c>win-x64</c>, <c>osx-arm64</c>,
+    /// <c>linux-x64</c>). <c>null</c> matches every host.
+    /// </summary>
+    [JsonPropertyName("platform")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Platform { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether this rule is limited to a platform.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsPlatformSpecific => !string.IsNullOrWhiteSpace(Platform);
+
+    /// <summary>
+    /// Determines whether assets matched by this rule run on the given host.
+    /// </summary>
+    /// <param name="runtimeIdentifier">The host runtime identifier, for example <c>osx-arm64</c>.</param>
+    /// <returns><c>true</c> when the rule declares no platform or its platform matches the host.</returns>
+    public bool SupportsRuntime(string runtimeIdentifier) => RuntimePlatformMatcher.Matches(Platform, runtimeIdentifier);
 }

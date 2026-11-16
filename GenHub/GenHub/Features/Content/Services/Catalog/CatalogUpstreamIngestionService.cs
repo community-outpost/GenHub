@@ -66,6 +66,11 @@ public class CatalogUpstreamIngestionService(
         ["ukrainian"] = "Ukrainian",
     };
 
+    /// <summary>
+    /// Gets the runtime identifier that platform-specific asset rules are matched against.
+    /// </summary>
+    internal string HostRuntimeIdentifier { get; init; } = ManifestVariantResolver.CurrentRuntimeIdentifier;
+
     /// <inheritdoc />
     public async Task IngestCatalogAsync(PublisherCatalog catalog, CancellationToken cancellationToken = default)
     {
@@ -183,32 +188,53 @@ public class CatalogUpstreamIngestionService(
         }
     }
 
-    private static void PopulateArtifactsFromAssetRules(
+    /// <summary>
+    /// Adds an artifact for each asset whose first host-applicable rule matches. An asset
+    /// also claimed by another platform's rule is skipped even when a platform-neutral rule
+    /// matches it, so a catch-all pattern never pulls in a build for a different OS.
+    /// </summary>
+    /// <returns><c>true</c> when at least one asset was skipped because it belongs to another platform.</returns>
+    private static bool PopulateArtifactsFromAssetRules(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets,
         CatalogUpstreamSync sync,
+        string hostRuntimeIdentifier,
         ILogger log)
     {
+        var skippedForOtherPlatform = false;
         foreach (var asset in assets)
         {
-            var matchedRule = sync.AssetRules.FirstOrDefault(r =>
-                IsAssetRuleMatch(asset.Name, r, log));
+            var matchingRules = sync.AssetRules
+                .Where(r => IsAssetRuleMatch(asset.Name, r, log))
+                .ToList();
+            var matchedRule = matchingRules.FirstOrDefault(r => r.SupportsRuntime(hostRuntimeIdentifier));
+            var claimedByOtherPlatform = matchingRules.Any(r => r.IsPlatformSpecific && !r.SupportsRuntime(hostRuntimeIdentifier));
 
-            if (matchedRule != null)
+            if (matchedRule == null || (!matchedRule.IsPlatformSpecific && claimedByOtherPlatform))
             {
-                release.Artifacts.Add(new ReleaseArtifact
-                {
-                    Filename = asset.Name,
-                    DownloadUrl = asset.BrowserDownloadUrl,
-                    Size = asset.Size,
-                    Variant = matchedRule.Variant,
-                    VariantAxis = sync.VariantAxis ?? CatalogConstants.GameTypeVariantAxis,
-                    IsDefaultVariant = matchedRule.IsDefault,
-                    IsPrimary = matchedRule.IsDefault,
-                    TargetGame = matchedRule.TargetGame,
-                });
+                skippedForOtherPlatform |= claimedByOtherPlatform;
+                continue;
             }
+
+            release.Artifacts.Add(new ReleaseArtifact
+            {
+                Filename = asset.Name,
+                DownloadUrl = asset.BrowserDownloadUrl,
+                Size = asset.Size,
+                Variant = matchedRule.Variant,
+                VariantAxis = sync.VariantAxis ?? CatalogConstants.GameTypeVariantAxis,
+                IsDefaultVariant = matchedRule.IsDefault,
+                IsPrimary = matchedRule.IsDefault,
+                TargetGame = matchedRule.TargetGame,
+            });
         }
+
+        if (release.Artifacts.Count == 1)
+        {
+            release.Artifacts[0].IsPrimary = true;
+        }
+
+        return skippedForOtherPlatform;
     }
 
     private static void PopulateDefaultSuperHackersArtifacts(
@@ -302,8 +328,11 @@ public class CatalogUpstreamIngestionService(
         string? provider,
         string? repository,
         CatalogContentItem item,
-        ILogger logger)
+        string hostRuntimeIdentifier,
+        ILogger logger,
+        out bool skippedForOtherPlatform)
     {
+        skippedForOtherPlatform = false;
         var version = NormalizeReleaseVersion(release);
         var synthesized = new ContentRelease
         {
@@ -316,7 +345,7 @@ public class CatalogUpstreamIngestionService(
 
         if (sync?.AssetRules is { Count: > 0 })
         {
-            PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, logger);
+            skippedForOtherPlatform = PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, hostRuntimeIdentifier, logger);
         }
         else if (item.ContentType == ContentType.GameClient &&
             IsDefaultSuperHackersRepository(provider, repository))
@@ -599,13 +628,24 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, item, logger);
+        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, item, HostRuntimeIdentifier, logger, out var skippedForOtherPlatform);
         PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
         if (synthesized.Artifacts.Count > 0)
         {
             item.Releases.Clear();
             item.Releases.Add(synthesized);
+        }
+        else if (skippedForOtherPlatform)
+        {
+            // Static releases cannot be trusted to suit this host once the publisher split
+            // the upstream build by platform, so the item is withheld instead of offered.
+            logger.LogInformation(
+                "Upstream release '{Version}' for item '{ItemId}' has no asset for runtime '{RuntimeIdentifier}', withholding the item on this platform",
+                synthesized.Version,
+                item.Id,
+                HostRuntimeIdentifier);
+            item.Releases.Clear();
         }
         else
         {
