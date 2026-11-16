@@ -214,11 +214,13 @@ public class GameProfileLayoutTests
     {
         var launcher = CreateViewModel(null);
         launcher.ProfileLayout = ProfileLayout.Cards;
-        var settingsVm = CreateSettingsViewModel(launcher);
+        var configService = new Mock<IUserSettingsService>();
+        var settingsVm = CreateSettingsViewModel(launcher, configService);
 
         await settingsVm.ResetToDefaultsCommand.ExecuteAsync(null);
 
         Assert.Equal(ProfileLayout.Library, launcher.ProfileLayout);
+        configService.Verify(x => x.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
     }
 
     /// <summary>
@@ -321,10 +323,12 @@ public class GameProfileLayoutTests
             userSettingsService: settingsService);
     }
 
-    private static SettingsViewModel CreateSettingsViewModel(GameProfileLauncherViewModel launcher)
+    private static SettingsViewModel CreateSettingsViewModel(GameProfileLauncherViewModel launcher, Mock<IUserSettingsService>? configService = null)
     {
-        var configService = new Mock<IUserSettingsService>();
+        configService ??= new Mock<IUserSettingsService>();
         configService.Setup(x => x.Get()).Returns(new UserSettings());
+        var configurationProvider = new Mock<IConfigurationProviderService>();
+        configurationProvider.Setup(x => x.GetApplicationDataPath()).Returns(Path.GetTempPath());
 
         return new SettingsViewModel(
             configService.Object,
@@ -336,7 +340,7 @@ public class GameProfileLayoutTests
             new Mock<IContentManifestPool>().Object,
             updateManager: null,
             new Mock<INotificationService>().Object,
-            new Mock<IConfigurationProviderService>().Object,
+            configurationProvider.Object,
             new Mock<IGameInstallationService>().Object,
             new Mock<IStorageLocationService>().Object,
             new Mock<IUserDataTracker>().Object,

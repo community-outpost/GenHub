@@ -84,10 +84,6 @@ public partial class GameProfileLauncherViewModel
 
             ProfileLayout = savedLayout;
         }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to load profile layout setting");
-        }
         finally
         {
             _isLoadingProfileLayout = false;
@@ -126,15 +122,15 @@ public partial class GameProfileLauncherViewModel
                 return;
             }
 
-            await settingsService.TryUpdateAndSaveAsync(settings =>
+            var saved = await settingsService.TryUpdateAndSaveAsync(settings =>
             {
                 settings.ProfileLayout = layout;
                 return true;
             });
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to persist profile layout setting");
+            if (!saved)
+            {
+                logger.LogWarning("Failed to persist profile layout setting");
+            }
         }
         finally
         {
