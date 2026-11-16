@@ -3592,7 +3592,14 @@ public partial class GameProfileLauncherViewModel(
                 {
                     UseSteamLaunch = profile.UseSteamLaunch,
                 };
-                await gameProfileManager.UpdateProfileAsync(profile.ProfileId, updateRequest);
+                var updateResult = await gameProfileManager.UpdateProfileAsync(profile.ProfileId, updateRequest);
+                if (!updateResult.Success)
+                {
+                    var errors = string.Join(", ", updateResult.Errors);
+                    logger.LogWarning("Failed to save Steam launch mode for profile {ProfileName}: {Errors}", profile.Name, errors);
+                    ReportSteamLaunchFailure(profile, errors);
+                    return;
+                }
 
                 // Patch all enabled manifests on disk immediately
                 foreach (var contentId in gameProfile.EnabledContentIds)
@@ -3609,12 +3616,20 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error toggling Steam launch for {ProfileName}", profile.Name);
-            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", profile.Name);
-            notificationService.ShowError(localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name, ex.Message));
-
-            // Revert UI if failed
-            profile.UseSteamLaunch = !profile.UseSteamLaunch;
+            ReportSteamLaunchFailure(profile, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Reports a failed Steam launch toggle and reverts the card's toggle.
+    /// </summary>
+    /// <param name="profile">The profile whose toggle failed.</param>
+    /// <param name="reason">The failure reason shown to the user.</param>
+    private void ReportSteamLaunchFailure(GameProfileItemViewModel profile, string reason)
+    {
+        StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", profile.Name);
+        notificationService.ShowError(localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name, reason));
+        profile.UseSteamLaunch = !profile.UseSteamLaunch;
     }
 
     /// <summary>

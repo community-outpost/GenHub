@@ -2628,6 +2628,33 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// A failed profile save leaves the manifests untouched, reports the error and reverts the toggle.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ToggleSteamLaunch_UpdateFails_DoesNotPatchManifestsAndRevertsToggleAsync()
+    {
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(x => x.UpdateProfileAsync("steam", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("disk full"));
+        var patcher = new Mock<ISteamManifestPatcher>();
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(new UserSettings()), notifications, new Mock<ISetupWizardService>(), profileManager, steamManifestPatcher: patcher);
+        var profile = new GameProfile { Id = "steam", Name = "Steam", EnabledContentIds = ["content"], GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty) { UseSteamLaunch = true };
+
+        await vm.ToggleSteamLaunchCommand.ExecuteAsync(card);
+
+        patcher.Verify(x => x.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+        notifications.Verify(x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("disk full")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        Assert.False(card.UseSteamLaunch);
+    }
+
+    /// <summary>
     /// Choosing the game folder after a failed scan runs setup for that folder and clears the failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -3756,7 +3783,8 @@ public class GameProfileLauncherViewModelTests : IDisposable
         Mock<INotificationService> notificationService,
         Mock<ISetupWizardService> setupWizardService,
         Mock<IGameProfileManager>? profileManager = null,
-        bool detectsClient = true)
+        bool detectsClient = true,
+        Mock<ISteamManifestPatcher>? steamManifestPatcher = null)
     {
         if (profileManager == null)
         {
@@ -3785,7 +3813,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             new Mock<IGameProcessManager>().Object,
             new Mock<IShortcutService>().Object,
             new Mock<IPublisherProfileOrchestrator>().Object,
-            new Mock<ISteamManifestPatcher>().Object,
+            (steamManifestPatcher ?? new Mock<ISteamManifestPatcher>()).Object,
             CreateProfileResourceService(),
             clientDetector.Object,
             notificationService.Object,
