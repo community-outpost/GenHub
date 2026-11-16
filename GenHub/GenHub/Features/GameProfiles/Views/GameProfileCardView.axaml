@@ -156,7 +156,27 @@
             <Setter Property="RenderTransform" Value="scale(1.1)" />
         </Style>
 
-        <!-- Delete Button Specifics (Red Glassmorphism) -->
+        <!-- Card tools sit over cover art, so they keep a dark backing and light ink -->
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):not(:disabled)">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        </Style>
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        </Style>
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover, Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
+        </Style>
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
+        </Style>
 
         <Style Selector="ToggleButton.tool-button:pressed">
             <Setter Property="RenderTransform" Value="scale(0.9)" />

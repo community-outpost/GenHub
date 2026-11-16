@@ -553,7 +553,7 @@
                         Classes="action-primary"
                         Command="{Binding SaveCommand}"
                         ToolTip.Tip="{localization:Localize GameProfiles.Window.SaveTooltip}"
-                        Margin="0" AutomationProperties.Name="{localization:Localize GameProfiles.Window.SaveTooltip}">
+                        Margin="0" AutomationProperties.Name="{localization:Localize Common.Button.Save}">
 
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <PathIcon Data="{StaticResource ConfirmationCheckIcon}" />

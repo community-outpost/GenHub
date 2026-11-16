@@ -327,7 +327,7 @@
                             Command="{Binding SaveCommand}"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.SaveTooltip}"
                             Classes="action-primary"
-                            MinWidth="100" AutomationProperties.Name="{localization:Localize Profiles.Settings.SaveTooltip}">
+                            MinWidth="100" AutomationProperties.Name="{localization:Localize Common.Save}">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize Common.Save}" VerticalAlignment="Center"/>
