@@ -223,13 +223,28 @@ All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.ax
 - **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
 - **Hover on Selected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}` and outlined with `{DynamicResource AccentBrush}`.
 
-## Tab and pill buttons (RadioButton.TabButton & Button.pill-tab)
+## Navigation (Button.pill-tab, nav-pill, tab-icon-btn & sidebar-btn)
 
-For game selection tabs, replay category toggles, or filter pills:
+`Assets/Styles/NavigationStyles.axaml` owns the state paint for the main tabs
+(`pill-tab`), Publisher Studio tabs (`nav-pill`), profile targets (`tab-icon-btn`)
+and settings sidebar rows (`sidebar-btn`). Views keep only layout: padding, size,
+margins and transitions. Mark the current item with `active` or `selected`.
 
-- **Style:** Inset rounded pill (`CornerRadius="8"`, `Padding="16,8"`).
-- **Pointer-over:** Soft hover highlight `{DynamicResource SurfaceHoverBrush}` or `#10FFFFFF`.
-- **Checked / Active State:** Background bound to `{DynamicResource AccentBrush}` (or `{DynamicResource AccentTintBackgroundBrush}` with `{DynamicResource AccentBrush}` border), with foreground `White`.
+- **Shape:** Tabs and profile targets use `{DynamicResource ActionCornerRadius}`.
+  Sidebar rows keep their own row radius.
+- **Rest:** `NavRestInk` text on a transparent fill. Profile targets keep a visible
+  `ProfileNavigationRestFill` and `ProfileNavigationRestBorder`.
+- **Hover / pressed:** `NavHoverFill` or `NavPressedFill` with `NavHoverBorder` and
+  `NavSelectedInk`.
+- **Selected:** `NavSelectedFill`, `NavSelectedInk` and `NavSelectedBorder`.
+  Hovering or pressing it uses `NavSelectedHoverFill` and `NavSelectedHoverBorder`.
+  Profile targets and sidebar rows keep the profile colour outline in every state.
+- **Focus:** a 2px `NavFocusBrush` outline.
+- **Disabled:** `NavDisabledInk` and `NavDisabledBorder`. A disabled selected item
+  keeps `NavSelectedFill`.
+
+Map and Replay Manager game tabs (`RadioButton.TabButton`) share the pill radius
+and keep their own state colours.
 
 See [the consistency rollout](./ui-consistency-rollout.md) for adoption scope and
 remaining screen families.
@@ -298,8 +313,9 @@ actions (`AddIcon`, `EditIcon`, `DeleteIcon`, `DownloadIcon`, `RefreshIcon`,
 remain where they represent specialized concepts; do not add another icon
 package or paste duplicate path data for an existing semantic action.
 
-- Action glyphs: 16px (`ActionIconSize`); section glyphs: 20px (`SectionIconSize`);
-  navigation glyphs: 24px (`NavigationIconSize`).
+- Action and Studio tab glyphs: 16px (`ActionIconSize`); section and sidebar glyphs:
+  20px (`SectionIconSize`); profile navigation glyphs: 32px
+  (`ProfileNavigationIconSize`).
 - Let glyphs and action captions inherit the button foreground. A fixed white
   child icon bypasses palette contrast and disabled styling.
 - Icon-only buttons require a localized accessible name and a matching tooltip.

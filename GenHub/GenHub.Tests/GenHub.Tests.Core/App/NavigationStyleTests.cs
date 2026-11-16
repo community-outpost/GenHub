@@ -53,7 +53,7 @@ public class NavigationStyleTests
             }
 
             var role = family switch { "main" => "pill-tab", "studio" => "nav-pill", "profile" => "tab-icon-btn", _ => "sidebar-btn" };
-            var button = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains(role));
+            var button = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains(role) && item.IsVisible && !item.Classes.Contains("selected") && !item.Classes.Contains("active"));
             if (family != "sidebar")
             {
                 Assert.Equal((CornerRadius)Avalonia.Application.Current!.FindResource("ActionCornerRadius")!, button.CornerRadius);
@@ -70,39 +70,87 @@ public class NavigationStyleTests
                 border.Transitions = null;
             }
 
-            button.Classes.Add(family is "main" or "studio" ? "active" : "selected");
+            var selectedClass = family is "main" or "studio" ? "active" : "selected";
+            Func<IBrush?> outline = border is not null ? () => border.BorderBrush : () => presenter.BorderBrush;
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
-            Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
-            if (family == "profile")
-            {
-                Assert.Equal(BrushColor(button.BorderBrush), BrushColor(presenter.BorderBrush));
-            }
+            Assert.Equal(ResourceColor("NavRestInk"), BrushColor(button.Foreground));
 
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             var target = button.TranslatePoint(new Point(Math.Min(12, button.Bounds.Width / 2), button.Bounds.Height / 2), window)!.Value;
             window.MouseMove(target);
             Dispatcher.UIThread.RunJobs();
             Assert.True(button.IsPointerOver, $"{family}: {button.Bounds}; position {button.TranslatePoint(default, window)}; target {target}; hit {window.InputHitTest(target)?.GetType().Name}");
-            Assert.Equal(ResourceColor("NavSelectedHoverFill"), BrushColor(button.Background));
+            Assert.Equal(ResourceColor("NavHoverFill"), BrushColor(button.Background));
+            Assert.Equal(ResourceColor("NavHoverBorder"), BrushColor(button.BorderBrush));
             Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
+            window.MouseDown(target, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("NavPressedFill"), BrushColor(button.Background));
+            window.MouseUp(target, MouseButton.Left);
+            window.MouseMove(new Point(window.Width - 1, window.Height - 1));
+            TopLevel.GetTopLevel(button)!.FocusManager!.ClearFocus();
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(button.IsPointerOver);
+
+            button.Classes.Add(selectedClass);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
+            Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
+            var selectedOutline = BrushColor(outline());
+            if (family == "profile")
+            {
+                Assert.Equal(BrushColor(button.BorderBrush), selectedOutline);
+            }
+
+            if (family is "profile" or "sidebar")
+            {
+                Assert.NotEqual(ResourceColor("NavSelectedBorder"), selectedOutline);
+            }
+
+            window.MouseMove(target);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(button.IsPointerOver);
+            Assert.Equal(ResourceColor("NavSelectedHoverFill"), BrushColor(button.Background));
+            Assert.NotEqual(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
+            Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
+            Assert.Equal(family is "profile" or "sidebar" ? selectedOutline : ResourceColor("NavSelectedHoverBorder"), BrushColor(outline()));
             Assert.True(button.Focus(NavigationMethod.Tab));
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(ResourceColor("NavFocusBrush"), BrushColor(border?.BorderBrush ?? presenter.BorderBrush));
+            Assert.Equal(ResourceColor("NavFocusBrush"), BrushColor(outline()));
             button.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(button.Foreground));
-            foreach (var glyph in button.GetVisualDescendants().OfType<PathIcon>())
+            Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
+            if (family != "profile")
+            {
+                Assert.Equal(ResourceColor("NavDisabledBorder"), BrushColor(button.BorderBrush));
+            }
+
+            var glyphs = button.GetVisualDescendants().OfType<PathIcon>().ToList();
+            Assert.Equal(family == "main", glyphs.Count == 0);
+            foreach (var glyph in glyphs)
             {
                 Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(glyph.Foreground));
-                Assert.Equal(family switch { "studio" => 16, "sidebar" => 20, "profile" => 32, _ => 24 }, glyph.Width);
+                Assert.Equal(family switch { "studio" => 16, "profile" => 32, _ => 20 }, glyph.Width);
                 Assert.Equal(glyph.Width, glyph.Height);
+            }
+
+            button.Classes.Remove(selectedClass);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("NavDisabledFill"), BrushColor(button.Background));
+
+            if (family == "sidebar")
+            {
+                var logoRow = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains("sidebar-btn") && item.GetVisualDescendants().OfType<Image>().Any());
+                var logo = logoRow.GetVisualDescendants().OfType<Image>().First();
+                logoRow.IsEnabled = false;
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(0.45, logo.Opacity);
             }
         }
         finally
         {
             window.Close();
-            (profile as IDisposable)?.Dispose();
         }
     }
 
@@ -130,7 +178,6 @@ public class NavigationStyleTests
         finally
         {
             window.Close();
-            (profile as IDisposable)?.Dispose();
         }
     }
 
@@ -153,9 +200,11 @@ public class NavigationStyleTests
             {
                 service.ApplyTheme(theme);
                 Dispatcher.UIThread.RunJobs();
-                Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
+                var primary = Color.Parse(theme.PrimaryHex);
+                Assert.Equal(Color.FromArgb(0x25, primary.R, primary.G, primary.B), BrushColor(button.Background));
+                Assert.Equal(Color.FromArgb(0x20, primary.R, primary.G, primary.B), ResourceColor("NavSelectedHoverFill"));
                 Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
-                Assert.Equal(Color.Parse(theme.PrimaryHex), BrushColor(button.BorderBrush));
+                Assert.Equal(primary, BrushColor(button.BorderBrush));
             }
         }
         finally
