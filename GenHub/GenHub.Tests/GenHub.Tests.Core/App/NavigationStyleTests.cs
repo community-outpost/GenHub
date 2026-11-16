@@ -143,6 +143,8 @@ public class NavigationStyleTests
             {
                 var logoRow = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains("sidebar-btn") && item.GetVisualDescendants().OfType<Image>().Any());
                 var logo = logoRow.GetVisualDescendants().OfType<Image>().First();
+                Assert.Equal(20, logo.Width);
+                Assert.Equal(20, logo.Height);
                 logoRow.IsEnabled = false;
                 Dispatcher.UIThread.RunJobs();
                 Assert.Equal(0.45, logo.Opacity);

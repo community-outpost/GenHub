@@ -83,7 +83,7 @@
                             IsVisible="{Binding IsTheSuperHackersVisible}"
                             ToolTip.Tip="{localization:Localize GameSettings.Category.TheSuperHackers}" AutomationProperties.Name="{localization:Localize GameSettings.Category.TheSuperHackers}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" Width="18" Height="18" />
+                            <Image Source="avares://GenHub/Assets/Logos/thesuperhackers-logo.png" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.TheSuperHackers}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -95,7 +95,7 @@
                             IsVisible="{Binding IsGeneralsOnlineVisible}"
                             ToolTip.Tip="{localization:Localize GameSettings.Category.GeneralsOnline}" AutomationProperties.Name="{localization:Localize GameSettings.Category.GeneralsOnline}">
                         <StackPanel Orientation="Horizontal">
-                            <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" Width="18" Height="18" />
+                            <Image Source="avares://GenHub/Assets/Logos/generalsonline-logo.png" />
                             <TextBlock Text="{localization:Localize GameSettings.Category.GeneralsOnline}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
