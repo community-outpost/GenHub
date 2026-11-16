@@ -2516,6 +2516,64 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Loading profiles at startup asks the installation service for each profile's installation, so a
+    /// Steam profile shows its Steam toggle even though nothing has filled the installation cache yet.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_SteamProfile_ShowsSteamToggleWithoutCachedInstallationsAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var eaApp = new GameInstallation(Path.Combine("C:", "EA", "Games"), GameInstallationType.EaApp, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService.Setup(x => x.CachedInstallations).Returns((IReadOnlyList<GameInstallation>?)null);
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(steam));
+        installationService
+            .Setup(x => x.GetInstallationAsync(eaApp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(eaApp));
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+            [
+                new GameProfile { Id = "steam", Name = "Steam", GameInstallationId = steam.Id, GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } },
+                new GameProfile { Id = "ea", Name = "EA", GameInstallationId = eaApp.Id, GameClient = new GameClient { Id = "c2", ExecutablePath = "generals.exe" } },
+            ]));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>(), profileManager);
+
+        await vm.InitializeAsync();
+
+        var cards = vm.Profiles.OfType<GameProfileItemViewModel>().Where(card => card is not AddProfileItemViewModel).ToDictionary(card => card.ProfileId);
+        Assert.True(cards["steam"].IsSteamInstallation);
+        Assert.True(cards["steam"].IsSteamIntegrationSupported);
+        Assert.False(cards["ea"].IsSteamInstallation);
+    }
+
+    /// <summary>
+    /// A failed installation lookup, such as one made while the cache is being rebuilt, keeps the
+    /// card's known installation type instead of hiding the Steam toggle.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_LookupFails_KeepsKnownTypeAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateFailure("not found"));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        var profile = new GameProfile { Id = "steam", Name = "Steam", GameInstallationId = Guid.NewGuid().ToString(), GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty) { InstallationType = GameInstallationType.Steam };
+
+        await vm.RefreshInstallationTypesAsync([card]);
+
+        Assert.Equal(GameInstallationType.Steam, card.InstallationType);
+        Assert.True(card.IsSteamInstallation);
+    }
+
+    /// <summary>
     /// Choosing the game folder after a failed scan runs setup for that folder and clears the failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

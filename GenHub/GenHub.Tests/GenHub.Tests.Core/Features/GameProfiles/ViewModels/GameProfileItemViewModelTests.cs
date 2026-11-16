@@ -698,6 +698,36 @@ public class GameProfileItemViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a late installation type uses the latest saved profile, so a saved Steam launch
+    /// choice of off is not replaced by the value the card was built with.
+    /// </summary>
+    [Fact]
+    public void InstallationTypeSetAfterUpdate_KeepsSavedSteamLaunchChoice()
+    {
+        var original = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = "steam",
+            Name = "Steam",
+            UseSteamLaunch = null,
+            GameClient = new GenHub.Core.Models.GameClients.GameClient { Id = "client", ExecutablePath = "generals.exe" },
+        };
+        var vm = new GameProfileItemViewModel(original.Id, original, null!, null!);
+        var saved = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = original.Id,
+            Name = original.Name,
+            UseSteamLaunch = false,
+            GameClient = original.GameClient,
+        };
+
+        vm.UpdateFromProfile(saved);
+        vm.InstallationType = GameInstallationType.Steam;
+
+        Assert.True(vm.IsSteamInstallation);
+        Assert.False(vm.UseSteamLaunch);
+    }
+
+    /// <summary>
     /// Verifies that setting IsSteamInstallation notifies property change for IsSteamIntegrationSupported.
     /// </summary>
     [Fact]

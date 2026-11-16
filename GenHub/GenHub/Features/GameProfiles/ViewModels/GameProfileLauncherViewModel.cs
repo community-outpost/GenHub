@@ -454,7 +454,6 @@ public partial class GameProfileLauncherViewModel(
                         CreateShortcutAction = CreateShortcut,
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
-                        InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations),
                         CopyProfileAction = CopyProfile,
                         ShareProfileAction = ShareProfileFromCardAsync,
                     };
@@ -474,6 +473,7 @@ public partial class GameProfileLauncherViewModel(
                 // Add "Add New Profile" item at the end
                 Profiles.Add(new AddProfileItemViewModel());
                 RestoreSelectedProfile(selectedProfileId);
+                _ = RefreshInstallationTypesAsync(Profiles.OfType<GameProfileItemViewModel>().ToList());
 
                 ApplySorting();
                 RestoreScanOutcome();
@@ -1054,6 +1054,42 @@ public partial class GameProfileLauncherViewModel(
         return copyName;
     }
 
+    /// <summary>
+    /// Sets each card's installation type from the installation service, which detects installations
+    /// on first use and follows merged installation IDs. A failed lookup keeps the card's current type.
+    /// </summary>
+    /// <param name="items">The profile cards to update.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when every card has been checked.</returns>
+    internal async Task RefreshInstallationTypesAsync(IReadOnlyList<GameProfileItemViewModel> items, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            foreach (var item in items)
+            {
+                if (item.LibraryProfile is not Core.Models.GameProfile.GameProfile { GameInstallationId: { Length: > 0 } installationId })
+                {
+                    item.InstallationType = GameInstallationType.Unknown;
+                    continue;
+                }
+
+                var result = await installationService.GetInstallationAsync(installationId, cancellationToken);
+                if (result.Success && result.Data != null)
+                {
+                    item.InstallationType = result.Data.InstallationType;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogDebug("Installation type refresh was cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve installation types for profile cards");
+        }
+    }
+
     private static void RunOnUi(Action action)
     {
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -1325,17 +1361,6 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return current;
-    }
-
-    private static GameInstallationType ResolveInstallationType(IGameProfile profile, IReadOnlyList<GameInstallation>? installations)
-    {
-        if (profile is not Core.Models.GameProfile.GameProfile { GameInstallationId: { Length: > 0 } installationId } || installations == null)
-        {
-            return GameInstallationType.Unknown;
-        }
-
-        return installations.FirstOrDefault(i => string.Equals(i.Id, installationId, StringComparison.OrdinalIgnoreCase))?.InstallationType
-            ?? GameInstallationType.Unknown;
     }
 
     /// <summary>
@@ -1749,8 +1774,8 @@ public partial class GameProfileLauncherViewModel(
 
                 if (existingItem != null)
                 {
-                    existingItem.InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations);
                     existingItem.UpdateFromProfile(profile);
+                    _ = RefreshInstallationTypesAsync([existingItem]);
 
                     var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
                     var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameType);
@@ -1827,7 +1852,7 @@ public partial class GameProfileLauncherViewModel(
 
                 HasNoDetectedInstallations = false;
                 detectionFinished = true;
-                ApplyInstallationTypes(installationsList);
+                _ = RefreshInstallationTypesAsync(Profiles.OfType<GameProfileItemViewModel>().ToList(), cancellationToken);
                 await RecordDetectionOutcomeAsync(detectionIncomplete);
 
                 logger.LogInformation(
@@ -2768,14 +2793,6 @@ public partial class GameProfileLauncherViewModel(
         return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
-    private void ApplyInstallationTypes(IReadOnlyList<GameInstallation> installations)
-    {
-        foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
-        {
-            item.InstallationType = ResolveInstallationType(item.Profile, installations);
-        }
-    }
-
     /// <summary>
     /// Adds a newly created profile to the UI immediately (without waiting for full refresh).
     /// </summary>
@@ -2813,7 +2830,6 @@ public partial class GameProfileLauncherViewModel(
                 CreateShortcutAction = CreateShortcut,
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
-                InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations),
                 CopyProfileAction = CopyProfile,
                 ShareProfileAction = ShareProfileFromCardAsync,
             };
@@ -2830,6 +2846,7 @@ public partial class GameProfileLauncherViewModel(
             }
 
             ApplySorting();
+            _ = RefreshInstallationTypesAsync([item]);
             logger.LogDebug("Added profile {ProfileName} to UI (Total: {Count})", profile.Name, Profiles.Count);
         }
         catch (Exception ex)

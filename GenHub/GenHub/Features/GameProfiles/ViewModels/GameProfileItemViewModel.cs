@@ -1421,7 +1421,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
 
     partial void OnInstallationTypeChanged(GameInstallationType value)
     {
-        if (Profile is GameProfile gameProfile)
+        if (LibraryProfile is GameProfile gameProfile)
         {
             RefreshSteamLaunchState(gameProfile);
         }
