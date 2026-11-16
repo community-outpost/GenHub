@@ -307,7 +307,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabled_AppliesUpdateWithoutDialog()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabled_AppliesUpdateWithoutDialogAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         SetupSuccessfulUpdate(item, OldItemManifestId, NewItemManifestId);
@@ -337,7 +337,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabledForOtherCatalog_StillShowsDialog()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabledForOtherCatalog_StillShowsDialogAsync()
     {
         SetupProfileWithItems(("item1", "Test Item", OldItemManifestId));
         _userSettings.SetAutoUpdatePreference("other-publisher", true);
@@ -359,7 +359,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_UpdateWithDoNotAskAgain_PersistsPreferenceAndSkipsNextDialog()
+    public async Task CheckAndReconcileIfNeededAsync_UpdateWithDoNotAskAgain_PersistsPreferenceAndSkipsNextDialogAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         SetupSuccessfulUpdate(item, OldItemManifestId, NewItemManifestId);
@@ -394,7 +394,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_UpdateWithoutDoNotAskAgain_DoesNotEnableAutoUpdate()
+    public async Task CheckAndReconcileIfNeededAsync_UpdateWithoutDoNotAskAgain_DoesNotEnableAutoUpdateAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         SetupSuccessfulUpdate(item, OldItemManifestId, NewItemManifestId);
@@ -417,7 +417,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateDownloadFails_ReturnsFailureAndNotifies()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateDownloadFails_ReturnsFailureAndNotifiesAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         _userSettings.SetAutoUpdatePreference("pub1", true);
@@ -441,7 +441,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateThrows_ReturnsFailureAndNotifies()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateThrows_ReturnsFailureAndNotifiesAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         _userSettings.SetAutoUpdatePreference("pub1", true);
@@ -463,7 +463,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_CancelledDuringAutoUpdate_PropagatesCancellation()
+    public async Task CheckAndReconcileIfNeededAsync_CancelledDuringAutoUpdate_PropagatesCancellationAsync()
     {
         var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
         _userSettings.SetAutoUpdatePreference("pub1", true);
@@ -488,7 +488,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateWithTwoItems_UpdatesBoth()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateWithTwoItems_UpdatesBothAsync()
     {
         var items = SetupProfileWithItems(
             ("item1", "Client", OldItemManifestId),
@@ -513,7 +513,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateFirstItemFails_StillUpdatesSecond()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateFirstItemFails_StillUpdatesSecondAsync()
     {
         var items = SetupProfileWithItems(
             ("item1", "Client", OldItemManifestId),
@@ -539,7 +539,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_DialogUpdateWithTwoItems_StopsAfterFirstApplied()
+    public async Task CheckAndReconcileIfNeededAsync_DialogUpdateWithTwoItems_StopsAfterFirstAppliedAsync()
     {
         var items = SetupProfileWithItems(
             ("item1", "Client", OldItemManifestId),
@@ -564,7 +564,7 @@ public sealed class GenericCatalogProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabledWithoutLaunchingProfile_ShowsDialog()
+    public async Task CheckAndReconcileIfNeededAsync_AutoUpdateEnabledWithoutLaunchingProfile_ShowsDialogAsync()
     {
         SetupProfileWithItems(("item1", "Test Item", OldItemManifestId));
         var profile = new GameProfile { Id = "prof1", Name = "Test Profile", EnabledContentIds = [OldItemManifestId] };
@@ -586,11 +586,11 @@ public sealed class GenericCatalogProfileReconcilerTests
 
     /// <summary>
     /// Verifies that when an automatic update succeeds and a prompted update from another catalog then fails,
-    /// the failure the user chose to apply is reported instead of being masked as success.
+    /// the failure is shown to the user and the applied update is still returned so the launcher reloads the profile.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AutoSuccessThenPromptedFailure_ReturnsFailure()
+    public async Task CheckAndReconcileIfNeededAsync_AutoSuccessThenPromptedFailure_ReturnsAppliedUpdateAsync()
     {
         var autoItem = new ContentSearchResult { Id = "item1", Name = "Client", Version = "2.0" };
         var promptedItem = new ContentSearchResult { Id = "item2", Name = "Map Pack", Version = "2.0" };
@@ -630,7 +630,9 @@ public sealed class GenericCatalogProfileReconcilerTests
 
         var result = await _reconciler.CheckAndReconcileIfNeededAsync("prof1");
 
-        Assert.False(result.Success);
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        _notificationServiceMock.Verify(n => n.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("Map Pack")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
         _dialogServiceMock.Verify(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Once);
         _reconciliationServiceMock.Verify(r => r.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }

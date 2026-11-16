@@ -3828,6 +3828,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                     if (!cleared)
                     {
                         _logger.LogWarning("Failed to save the cleared automatic update preference for {PublisherId}", subscription.PublisherId);
+                        ShowAutoUpdateSaveFailed(subscription.PublisherName);
                     }
                 }
 
@@ -3868,6 +3869,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         var enabled = item.IsAutoUpdateEnabled;
+        var revision = item.AutoUpdateRevision;
         var publisherId = item.Subscription.PublisherId;
         var saved = await _userSettingsService.TryUpdateAndSaveAsync(s =>
         {
@@ -3881,10 +3883,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         _logger.LogWarning("Failed to save the automatic update preference for {PublisherId}", publisherId);
+        if (item.AutoUpdateRevision != revision)
+        {
+            return;
+        }
+
         _userSettingsService.Update(s => s.SetAutoUpdatePreference(publisherId, !enabled));
         item.IsAutoUpdateEnabled = !enabled;
+        ShowAutoUpdateSaveFailed(item.Subscription.PublisherName);
+    }
+
+    private void ShowAutoUpdateSaveFailed(string publisherName)
+    {
         var saveFailedMessage = _localizationService?.GetString("Settings.Subscriptions.AutoUpdateSaveFailedMessage") ?? "Failed to save the automatic update setting for {0}.";
-        _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, saveFailedMessage, item.Subscription.PublisherName));
+        _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, saveFailedMessage, publisherName));
     }
 
     /// <summary>

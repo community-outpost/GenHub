@@ -58,23 +58,18 @@ public class GenericCatalogProfileReconciler(
 
             if (!next.Success)
             {
-                _result = item.IsAutomatic ? applied ?? next : next;
+                _result = applied ?? next;
                 IsComplete = !item.IsAutomatic;
                 return;
             }
 
-            if (applied?.Data != null && next.Data != null)
-            {
-                _result = OperationResult<PublisherReconciliationResult>.CreateSuccess(
+            _result = applied?.Data != null && next.Data != null
+                ? OperationResult<PublisherReconciliationResult>.CreateSuccess(
                     PublisherReconciliationResult.Success(
                         next.Data.Strategy ?? UpdateStrategy.ReplaceCurrent,
                         next.Data.TargetProfileId ?? applied.Data.TargetProfileId,
-                        Math.Max(applied.Data.ProfilesAffectedCount, next.Data.ProfilesAffectedCount)));
-            }
-            else
-            {
-                _result = next;
-            }
+                        Math.Max(applied.Data.ProfilesAffectedCount, next.Data.ProfilesAffectedCount)))
+                : next;
 
             IsComplete = !item.IsAutomatic || next.Data?.Strategy != UpdateStrategy.ReplaceCurrent;
         }

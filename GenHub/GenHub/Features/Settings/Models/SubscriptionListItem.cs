@@ -26,4 +26,11 @@ public partial class SubscriptionListItem : ObservableObject
     /// Gets the catalog subscription.
     /// </summary>
     public PublisherSubscription Subscription { get; }
+
+    /// <summary>
+    /// Gets how many times the automatic update preference has changed since the row was created.
+    /// </summary>
+    public int AutoUpdateRevision { get; private set; }
+
+    partial void OnIsAutoUpdateEnabledChanged(bool value) => AutoUpdateRevision++;
 }
