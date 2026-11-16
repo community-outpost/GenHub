@@ -31,37 +31,52 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
-    /// Verifies that no control bar declares a GenTool dependency, required or suggested.
+    /// Verifies that only Control Bar Pro declares GenTool, and only for retail game clients.
     /// </summary>
     /// <param name="contentCode">The control bar content code.</param>
+    /// <param name="expectRetailGenTool">Whether a retail-only GenTool dependency is expected.</param>
     [Theory]
-    [InlineData("cbbs")]
-    [InlineData("cben")]
-    [InlineData("cbpc")]
-    [InlineData("cbpr")]
-    [InlineData("cbpx")]
-    public void GetDependencies_ControlBar_HasNoGenToolDependency(string contentCode)
+    [InlineData("cbbs", false)]
+    [InlineData("cben", false)]
+    [InlineData("cbpc", false)]
+    [InlineData("cbpr", true)]
+    [InlineData("cbpx", true)]
+    public void GetDependencies_ControlBar_DeclaresGenToolOnlyForProOnRetail(string contentCode, bool expectRetailGenTool)
     {
         var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
         var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
 
-        Assert.DoesNotContain(dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
+        var genTool = dependencies.Where(d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id)).ToList();
+        Assert.Equal(expectRetailGenTool ? 1 : 0, genTool.Count);
+        Assert.All(genTool, dependency =>
+        {
+            Assert.True(dependency.RetailClientOnly);
+            Assert.False(dependency.IsOptional);
+            Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
+        });
     }
 
     /// <summary>
-    /// Verifies that only Community Outpost control bar manifests lose a stored GenTool dependency.
+    /// Verifies that stored control bar manifests drop unconditional GenTool dependencies and that
+    /// Control Bar Pro ends up with the retail-only one.
     /// </summary>
     /// <param name="manifestId">The stored manifest ID.</param>
-    /// <param name="expectRemoved">Whether the GenTool dependency should be removed.</param>
+    /// <param name="expectChanged">Whether the dependencies should change.</param>
+    /// <param name="expectRetailGenTool">Whether a retail-only GenTool dependency should remain.</param>
+    /// <param name="expectUnconditionalGenTool">Whether the unconditional GenTool dependency should remain.</param>
     [Theory]
-    [InlineData("1.10.communityoutpost.addon.cbpr", true)]
-    [InlineData("1.10.communityoutpost.addon.cbpx", true)]
-    [InlineData("1.10.communityoutpost.addon.cbbs", true)]
-    [InlineData("1.10.communityoutpost.addon.cbpc", true)]
-    [InlineData("1.10.communityoutpost.addon.hleg", false)]
-    [InlineData("1.10.publisherb.addon.cbpr", false)]
-    public void RemoveRetiredControlBarGenToolDependency_OnlyAffectsControlBars(string manifestId, bool expectRemoved)
+    [InlineData("1.10.communityoutpost.addon.cbpr", true, true, false)]
+    [InlineData("1.10.communityoutpost.addon.cbpx", true, true, false)]
+    [InlineData("1.10.communityoutpost.addon.cbbs", true, false, false)]
+    [InlineData("1.10.communityoutpost.addon.cbpc", true, false, false)]
+    [InlineData("1.10.communityoutpost.addon.hleg", false, false, true)]
+    [InlineData("1.10.publisherb.addon.cbpr", false, false, true)]
+    public void NormalizeControlBarGenToolDependency_StoredManifest_MatchesBuiltDependencies(
+        string manifestId,
+        bool expectChanged,
+        bool expectRetailGenTool,
+        bool expectUnconditionalGenTool)
     {
         var manifest = new GenHub.Core.Models.Manifest.ContentManifest
         {
@@ -69,10 +84,28 @@ public class GenPatcherDependencyBuilderTests
             Dependencies = [GenPatcherDependencyBuilder.CreateGenToolDependency()],
         };
 
-        var removed = GenPatcherDependencyBuilder.RemoveRetiredControlBarGenToolDependency(manifest);
+        var changed = GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest);
 
-        Assert.Equal(expectRemoved, removed);
-        Assert.Equal(expectRemoved ? 0 : 1, manifest.Dependencies.Count);
+        Assert.Equal(expectChanged, changed);
+        Assert.Equal(expectRetailGenTool, manifest.Dependencies.Exists(d => d.RetailClientOnly));
+        Assert.Equal(expectUnconditionalGenTool, manifest.Dependencies.Exists(d => !d.RetailClientOnly));
+    }
+
+    /// <summary>
+    /// Verifies that normalizing a Control Bar Pro manifest that already has the retail-only
+    /// dependency changes nothing.
+    /// </summary>
+    [Fact]
+    public void NormalizeControlBarGenToolDependency_AlreadyNormalized_ReportsNoChange()
+    {
+        var manifest = new GenHub.Core.Models.Manifest.ContentManifest
+        {
+            Id = GenHub.Core.Models.Manifest.ManifestId.Create("1.10.communityoutpost.addon.cbpr"),
+            Dependencies = [GenPatcherDependencyBuilder.CreateRetailClientGenToolDependency()],
+        };
+
+        Assert.False(GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest));
+        Assert.Single(manifest.Dependencies);
     }
 
     /// <summary>

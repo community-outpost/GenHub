@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.CommunityOutpost;
@@ -58,6 +59,10 @@ public sealed class ContentDependencyValidator(
         IsSatisfied(dependency, manifests);
 
     /// <inheritdoc/>
+    public bool AppliesTo(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests) =>
+        !dependency.RetailClientOnly || enabledManifests.Any(IsRetailGameClient);
+
+    /// <inheritdoc/>
     public IReadOnlyList<ContentDependencyGap> FindMissingDependencies(IReadOnlyCollection<ContentManifest> enabledManifests)
     {
         var gaps = new List<ContentDependencyGap>();
@@ -68,6 +73,7 @@ public sealed class ContentDependencyValidator(
             foreach (var dependency in manifest.Dependencies ?? [])
             {
                 if (!IsRequired(dependency) ||
+                    !AppliesTo(dependency, enabledManifests) ||
                     IsSatisfied(dependency, enabledManifests) ||
                     !reportedKeys.Add(GetGapKey(dependency)))
                 {
@@ -145,6 +151,17 @@ public sealed class ContentDependencyValidator(
     private static bool IsRequired(ContentDependency dependency) =>
         !dependency.IsOptional &&
         dependency.InstallBehavior is DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall;
+
+    private static bool IsRetailGameClient(ContentManifest manifest)
+    {
+        if (manifest.ContentType != ContentType.GameClient)
+        {
+            return false;
+        }
+
+        var parts = manifest.Id.Value.Split('.');
+        return parts.Length >= ManifestConstants.MinManifestSegments && InstallationExtensions.IsInstallationIdentifier(parts[2]);
+    }
 
     private static bool IsFoundationType(ContentType contentType) =>
         contentType is ContentType.GameInstallation or ContentType.GameClient;

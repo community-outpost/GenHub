@@ -186,11 +186,13 @@ public static class GenPatcherDependencyBuilder
     /// <param name="name">The display name of the dependency.</param>
     /// <param name="installBehavior">The install behavior for the dependency.</param>
     /// <param name="isOptional">Whether the dependency is optional.</param>
+    /// <param name="retailClientOnly">Whether the dependency applies only to retail game clients.</param>
     /// <returns>A content dependency for GenTool.</returns>
     public static ContentDependency CreateGenToolDependency(
         string name = "GenTool",
         DependencyInstallBehavior installBehavior = DependencyInstallBehavior.RequireExisting,
-        bool isOptional = false)
+        bool isOptional = false,
+        bool retailClientOnly = false)
     {
         return new ContentDependency
         {
@@ -199,25 +201,44 @@ public static class GenPatcherDependencyBuilder
             DependencyType = ContentType.Addon,
             InstallBehavior = installBehavior,
             IsOptional = isOptional,
+            RetailClientOnly = retailClientOnly,
         };
     }
 
     /// <summary>
-    /// Removes the GenTool dependency that older control bar manifests declared, so manifests
-    /// saved before the dependency was dropped behave like newly built ones.
+    /// Brings the GenTool dependency of a stored control bar manifest in line with newly built ones.
+    /// Control bars drop any unconditional GenTool dependency, and Control Bar Pro requires GenTool
+    /// only with a retail game client.
     /// </summary>
     /// <param name="manifest">A manifest read from storage.</param>
-    /// <returns>True when a GenTool dependency was removed.</returns>
-    public static bool RemoveRetiredControlBarGenToolDependency(ContentManifest manifest)
+    /// <returns>True when the dependencies changed.</returns>
+    public static bool NormalizeControlBarGenToolDependency(ContentManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        if (manifest.Dependencies is not { Count: > 0 } || !IsControlBarManifestId(manifest.Id.Value))
+        if (!IsCommunityOutpostContent(manifest.Id.Value, out var code) ||
+            GenPatcherContentRegistry.GetMetadata(code).Category != GenPatcherContentCategory.ControlBar)
         {
             return false;
         }
 
-        return manifest.Dependencies.RemoveAll(IsGenToolDependency) > 0;
+        manifest.Dependencies ??= [];
+        var changed = manifest.Dependencies.RemoveAll(d => IsGenToolDependency(d) && !d.RetailClientOnly) > 0;
+        if (IsControlBarProCode(code) && !manifest.Dependencies.Exists(IsGenToolDependency))
+        {
+            manifest.Dependencies.Add(CreateRetailClientGenToolDependency());
+            changed = true;
+        }
+
+        return changed;
     }
+
+    /// <summary>
+    /// Creates the GenTool dependency that Control Bar Pro needs with a retail game client. Its full
+    /// viewport flag is read by GenTool there; community clients read it natively.
+    /// </summary>
+    /// <returns>A GenTool dependency that applies only to retail game clients.</returns>
+    public static ContentDependency CreateRetailClientGenToolDependency() =>
+        CreateGenToolDependency("GenTool (required with the retail game client)", retailClientOnly: true);
 
     /// <summary>
     /// Creates a dependency on the Control Bar HD Base (cbbs).
@@ -364,10 +385,11 @@ public static class GenPatcherDependencyBuilder
 
         // cbpr and cbpx require cbpc (Pro Core) and cben (Language)
         // NOTE: cbbs (HD Base) is NOT required - verified from GenPatcher source
-        if (code == "cbpr" || code == "cbpx")
+        if (IsControlBarProCode(code))
         {
             dependencies.Add(CreateControlBarProCoreDependency());
             dependencies.Add(CreateControlBarLanguageDependency());
+            dependencies.Add(CreateRetailClientGenToolDependency());
         }
 
         // cbpc requires cbbs (HD Base)
@@ -537,9 +559,7 @@ public static class GenPatcherDependencyBuilder
     private static bool IsGenToolDependency(ContentDependency dependency) =>
         IsCommunityOutpostContent(dependency.Id.Value, out var code) && code == "gent";
 
-    private static bool IsControlBarManifestId(string manifestId) =>
-        IsCommunityOutpostContent(manifestId, out var code) &&
-        GenPatcherContentRegistry.GetMetadata(code).Category == GenPatcherContentCategory.ControlBar;
+    private static bool IsControlBarProCode(string code) => code is "cbpr" or "cbpx";
 
     private static bool IsCommunityOutpostContent(string manifestId, out string contentCode)
     {

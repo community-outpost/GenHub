@@ -1268,8 +1268,9 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
-                if (skipFoundationDependencies &&
-                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient)
+                if ((skipFoundationDependencies &&
+                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests))
                 {
                     continue;
                 }
@@ -1540,6 +1541,7 @@ public sealed class ProfileContentService(
             foreach (var dependency in manifestResult.Data?.Dependencies ?? [])
             {
                 if (dependency.InstallBehavior is not (DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests) ||
                     resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, enabledManifests))
                 {
                     continue;

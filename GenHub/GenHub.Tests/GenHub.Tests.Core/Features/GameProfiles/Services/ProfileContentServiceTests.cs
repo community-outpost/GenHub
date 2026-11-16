@@ -515,6 +515,52 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
+    /// Control Bar Pro needs GenTool only with a retail game client. On a community client, adding it
+    /// neither reports GenTool missing nor enables a downloaded GenTool. On a retail client the
+    /// downloaded GenTool is enabled with it.
+    /// </summary>
+    /// <param name="retailClient">Whether the profile also enables a retail game client.</param>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddContentToProfileAsync_ControlBarPro_EnablesGenToolOnlyWithRetailClientAsync(bool retailClient)
+    {
+        const string retailClientId = "1.104.steam.gameclient.zerohour";
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarProFixture.ControlBarProId),
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+            Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+        });
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+        if (retailClient)
+        {
+            fixture.AddManifest(new ContentManifest
+            {
+                Id = ManifestId.Create(retailClientId),
+                Name = "Zero Hour",
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "steam" },
+            });
+            fixture.EnableInProfile(retailClientId);
+        }
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = fixture.SavedRequest?.EnabledContentIds ?? [];
+        Assert.Contains(ControlBarProFixture.ControlBarProId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(retailClient, saved.Contains(ControlBarProFixture.GenToolId, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Creating a profile from Downloads applies the same rule and creates nothing while GenTool is missing.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
