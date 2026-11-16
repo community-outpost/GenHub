@@ -3721,6 +3721,9 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
   </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
+  </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>Cyan</value>
   </data>
@@ -4260,6 +4263,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>Dark Blue</value>

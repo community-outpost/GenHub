@@ -95,13 +95,11 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="16">
                         <Button Command="{Binding SkipCommand}" Content="{localization:Localize Common.Button.Cancel}"
-                                Background="Transparent" BorderBrush="#40FFFFFF" BorderThickness="1"
-                                Foreground="White" Padding="20,10" CornerRadius="4"
+                                Classes="action-secondary"
                                 ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.Cancel}"/>
 
                         <Button Command="{Binding UpdateCommand}" Content="{localization:Localize Dialog.UpdateOption.Button.Update}"
-                                Background="{DynamicResource PrimaryGradientBrush}"
-                                FontWeight="SemiBold" Foreground="White" Padding="24,10" CornerRadius="4" />
+                                Classes="action-primary" />
                     </StackPanel>
                 </Grid>
              </Grid>
