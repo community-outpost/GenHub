@@ -53,10 +53,6 @@
 
         <!-- Sidebar buttons -->
         <Style Selector="Button.sidebar-btn">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12,10" />
             <Setter Property="Margin" Value="0,2" />
@@ -70,16 +66,6 @@
                     <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
                 </Transitions>
             </Setter>
-        </Style>
-        <Style Selector="Button.sidebar-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-        </Style>
-        <Style Selector="Button.sidebar-btn.selected">
-            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
         <!-- Content Card Styles -->

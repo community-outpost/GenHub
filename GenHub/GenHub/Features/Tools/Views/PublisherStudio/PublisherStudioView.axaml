@@ -23,13 +23,7 @@
 
         <!-- ==================== NAVIGATION PILL STYLES ==================== -->
         <Style Selector="Button.nav-pill">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
@@ -38,17 +32,6 @@
                     <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
                 </Transitions>
             </Setter>
-        </Style>
-
-        <Style Selector="Button.nav-pill:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-        </Style>
-
-        <Style Selector="Button.nav-pill.active">
-            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="Button.action-secondary.upload-pending /template/ ContentPresenter#PART_ContentPresenter">
@@ -127,7 +110,7 @@
                                     CommandParameter="0"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabProfileTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource PersonIcon}" Width="13" Height="13"/>
+                                    <PathIcon Data="{StaticResource PersonIcon}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabProfile}"/>
                                 </StackPanel>
                             </Button>
@@ -140,7 +123,7 @@
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabLibraryTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource ContentIcon}" Width="13" Height="13"/>
+                                    <PathIcon Data="{StaticResource ContentIcon}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabLibrary}"/>
                                 </StackPanel>
                             </Button>
@@ -152,7 +135,7 @@
                                     CommandParameter="2"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabHostingTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource CloudStorageIcon}" Width="13" Height="13"/>
+                                    <PathIcon Data="{StaticResource CloudStorageIcon}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabHosting}"/>
                                 </StackPanel>
                             </Button>
@@ -166,7 +149,7 @@
                                     CommandParameter="3"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabReferralsTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource LinkIcon}" Width="13" Height="13"/>
+                                    <PathIcon Data="{StaticResource LinkIcon}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabReferrals}"/>
                                 </StackPanel>
                             </Button>
@@ -179,7 +162,7 @@
                                     IsEnabled="{Binding IsSetupComplete}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Studio.TabPublishTooltip}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource PublishIcon}" Width="13" Height="13"/>
+                                    <PathIcon Data="{StaticResource PublishIcon}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.TabPublish}"/>
                                 </StackPanel>
                             </Button>
