@@ -192,14 +192,22 @@ public static class CatalogBundleComponentBuilder
             return null;
         }
 
-        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 })
+        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 } assetRules)
         {
+            var hostRules = assetRules
+                .Where(r => r.SupportsRuntime(ManifestVariantResolver.CurrentRuntimeIdentifier))
+                .ToList();
+            if (hostRules.Count == 0)
+            {
+                return null;
+            }
+
             isSyntheticPlaceholder = true;
             return new ContentRelease
             {
                 Version = "latest",
                 IsLatest = true,
-                Artifacts = sibling.UpstreamSync.AssetRules.Select(r => new ReleaseArtifact
+                Artifacts = hostRules.Select(r => new ReleaseArtifact
                 {
                     Filename = r.Pattern,
                     Variant = r.Variant,

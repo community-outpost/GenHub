@@ -94,7 +94,8 @@ public partial class ContentLibraryViewModel(
             if (!string.Equals(ruleA.Pattern, ruleB.Pattern, StringComparison.Ordinal) ||
                 !string.Equals(ruleA.Variant, ruleB.Variant, StringComparison.Ordinal) ||
                 ruleA.IsDefault != ruleB.IsDefault ||
-                ruleA.TargetGame != ruleB.TargetGame)
+                ruleA.TargetGame != ruleB.TargetGame ||
+                !string.Equals(ruleA.Platform, ruleB.Platform, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
