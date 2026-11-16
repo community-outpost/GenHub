@@ -32,7 +32,7 @@
         </controls:SidebarLayout.PaneFooter>
         <controls:SidebarLayout.ItemTemplate>
             <DataTemplate x:DataType="vm:GameProfileItemViewModel">
-                <Border BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
+                <Border Classes="library-row" BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
                     <Border.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
@@ -45,9 +45,15 @@
                             <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
                         </ContextMenu>
                     </Border.ContextMenu>
-                    <Grid ColumnDefinitions="42,*">
+                    <Grid ColumnDefinitions="42,*,Auto">
                         <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <Button Grid.Column="2" Classes="action-primary library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                            <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
+                        </Button>
+                        <Button Grid.Column="2" Classes="action-danger library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
+                            <material:MaterialIcon Kind="Stop" Width="16" Height="16"/>
+                        </Button>
                     </Grid>
                 </Border>
             </DataTemplate>

@@ -544,6 +544,222 @@ public class GameProfileLibraryViewModelTests
         }
     }
 
+    /// <summary>
+    /// Verifies that double-clicking a sidebar row launches that row's profile, not the selected detail.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_RowDoubleTap_LaunchesClickedProfile()
+    {
+        var vm = CreateViewModel();
+        var selected = CreateProfile("selected", "Selected");
+        var other = CreateProfile("other", "Other");
+        var launched = new List<GameProfileItemViewModel>();
+        selected.LaunchAction = profile => RecordLaunch(launched, profile);
+        other.LaunchAction = profile => RecordLaunch(launched, profile);
+        vm.Profiles.Add(selected);
+        vm.Profiles.Add(other);
+        vm.SelectedProfile = selected;
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            GetRow(view, other).RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal([other], launched);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a double-click in the list item padding around the row content still launches.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_ItemPaddingDoubleTap_LaunchesProfile()
+    {
+        var vm = CreateViewModel();
+        var profile = CreateProfile("padded", "Padded");
+        var launched = new List<GameProfileItemViewModel>();
+        profile.LaunchAction = item => RecordLaunch(launched, item);
+        vm.Profiles.Add(profile);
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var item = view.GetVisualDescendants().OfType<ListBoxItem>().Single(control => ReferenceEquals(control.DataContext, profile));
+
+            item.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal([profile], launched);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that double-clicking a row's own Play or Stop button does not start an extra launch.
+    /// </summary>
+    /// <param name="buttonClass">The row action button that receives the double-click.</param>
+    [AvaloniaTheory]
+    [InlineData("library-row-play")]
+    [InlineData("library-row-stop")]
+    public void LibraryView_RowButtonDoubleTap_DoesNotLaunch(string buttonClass)
+    {
+        var vm = CreateViewModel();
+        var profile = CreateProfile("idle", "Idle");
+        var launched = new List<GameProfileItemViewModel>();
+        profile.LaunchAction = item => RecordLaunch(launched, item);
+        vm.Profiles.Add(profile);
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var button = GetRow(view, profile).GetVisualDescendants().OfType<Button>().Single(control => control.Classes.Contains(buttonClass));
+
+            button.RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Empty(launched);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that idle Play stays hidden and untappable until the row has focus, while Stop shows on a running row.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_RowActions_RevealOnFocusAndWhileRunning()
+    {
+        var vm = CreateViewModel();
+        var idle = CreateProfile("idle", "Idle");
+        var running = CreateProfile("running", "Running");
+        running.IsProcessRunning = true;
+        vm.Profiles.Add(idle);
+        vm.Profiles.Add(running);
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var play = GetRow(view, idle).GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("library-row-play"));
+            var stop = GetRow(view, running).GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("library-row-stop"));
+
+            Assert.Equal(0, play.Opacity);
+            Assert.False(play.IsHitTestVisible);
+            Assert.Equal(1, stop.Opacity);
+            Assert.True(stop.IsHitTestVisible);
+
+            play.Focus();
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Equal(1, play.Opacity);
+            Assert.True(play.IsHitTestVisible);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that double-clicking a running or preparing row does not start a second launch.
+    /// </summary>
+    /// <param name="running">Whether the profile process is running rather than preparing.</param>
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void LibraryView_RowDoubleTap_IgnoresBusyProfile(bool running)
+    {
+        var vm = CreateViewModel();
+        var profile = CreateProfile("busy", "Busy");
+        var launched = new List<GameProfileItemViewModel>();
+        profile.LaunchAction = item => RecordLaunch(launched, item);
+        profile.IsProcessRunning = running;
+        profile.IsPreparingWorkspace = !running;
+        vm.Profiles.Add(profile);
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            GetRow(view, profile).RaiseEvent(new TappedEventArgs(InputElement.DoubleTappedEvent, null!));
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.Empty(launched);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that each row offers Play for an idle profile and Stop for a running one, bound to that row.
+    /// </summary>
+    [AvaloniaFact]
+    public void LibraryView_RowActions_BindToRowProfileAndSwapWhenRunning()
+    {
+        var vm = CreateViewModel();
+        var selected = CreateProfile("selected", "Selected");
+        var other = CreateProfile("other", "Other");
+        vm.Profiles.Add(selected);
+        vm.Profiles.Add(other);
+        vm.SelectedProfile = selected;
+        var view = new GameProfileLauncherView { DataContext = vm };
+        var window = new Window { Width = 1200, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var row = GetRow(view, other);
+            var play = row.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("library-row-play"));
+            var stop = row.GetVisualDescendants().OfType<Button>().Single(button => button.Classes.Contains("library-row-stop"));
+
+            Assert.Same(other.LaunchProfileCommand, play.Command);
+            Assert.Same(other.StopProfileCommand, stop.Command);
+            Assert.True(play.IsVisible);
+            Assert.False(stop.IsVisible);
+
+            other.IsProcessRunning = true;
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.False(play.IsVisible);
+            Assert.True(stop.IsVisible);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static Border GetRow(GameProfileLauncherView view, GameProfileItemViewModel profile) =>
+        view.GetVisualDescendants().OfType<Border>().Single(control => ReferenceEquals(control.DataContext, profile) && control.Classes.Contains("library-row"));
+
+    private static Task RecordLaunch(List<GameProfileItemViewModel> launched, GameProfileItemViewModel profile)
+    {
+        launched.Add(profile);
+        return Task.CompletedTask;
+    }
+
     private static GameProfileItemViewModel CreateProfile(string id, string name, GameType gameType = GameType.Generals)
     {
         var profile = new GameProfile
