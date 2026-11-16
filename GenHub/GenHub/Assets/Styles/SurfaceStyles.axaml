@@ -1,0 +1,19 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Neutral surfaces keep artwork and accent choices from changing form readability. -->
+  <Style Selector="Border.surface-card">
+    <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextPrimary}" />
+  </Style>
+  <Style Selector="Border.surface-card.surface-content">
+    <Setter Property="Padding" Value="{DynamicResource CardPadding}" />
+  </Style>
+  <Style Selector="Border.surface-card.surface-section">
+    <Setter Property="Padding" Value="{DynamicResource SurfaceSectionPadding}" />
+  </Style>
+  <Style Selector="Border.surface-card.surface-interactive:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+  </Style>
+</Styles>

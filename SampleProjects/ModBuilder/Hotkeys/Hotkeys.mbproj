@@ -1,0 +1,18 @@
+{
+  "name": "Hotkeys",
+  "contentType": "Addon",
+  "version": "1.0.0",
+  "author": "Legionnaire & Community Outpost",
+  "targetGame": "ZeroHour",
+  "description": "Legionnaire QWERTY hotkey layout and control bar indicator overlay icons for C&C Generals: Zero Hour",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

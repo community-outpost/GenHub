@@ -1,0 +1,1258 @@
+using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
+using GenHub.Core.Interfaces.Launching;
+using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Storage;
+using GenHub.Features.GameProfiles.Services;
+using GenHub.Features.Launching;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Resources;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+
+namespace GenHub.Tests.Core.Features.GameProfiles.Services;
+
+/// <summary>
+/// Unit tests for ProfileLauncherFacade launch dependency validation.
+/// </summary>
+public sealed class ProfileLauncherFacadeDependencyValidationTests
+{
+    private readonly Mock<IGameProfileManager> _profileManagerMock = new();
+    private readonly Mock<IGameLauncher> _gameLauncherMock = new();
+    private readonly Mock<IWorkspaceManager> _workspaceManagerMock = new();
+    private readonly Mock<ILaunchRegistry> _launchRegistryMock = new();
+    private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
+    private readonly Mock<IGameInstallationService> _installationServiceMock = new();
+    private readonly Mock<IDependencyResolver> _dependencyResolverMock = new();
+    private readonly Mock<ICasService> _casServiceMock = new();
+    private readonly Mock<IGameSettingsService> _gameSettingsServiceMock = new();
+    private readonly Mock<IStorageLocationService> _storageLocationServiceMock = new();
+    private readonly Mock<INotificationService> _notificationServiceMock = new();
+    private readonly Mock<IPublisherReconcilerRegistry> _reconcilerRegistryMock = new();
+    private readonly Mock<IConfigurationProviderService> _configurationProviderMock = new();
+    private readonly Mock<IGameProcessManager> _gameProcessManagerMock = new();
+    private readonly Mock<ISymlinkCapabilityProvider> _symlinkCapabilityMock = new();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProfileLauncherFacadeDependencyValidationTests"/> class.
+    /// </summary>
+    public ProfileLauncherFacadeDependencyValidationTests()
+    {
+        _casServiceMock
+            .Setup(c => c.GetStatsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CasStats { ObjectCount = 10, TotalSize = 1024, SpaceSaved = 1024 });
+    }
+
+    /// <summary>
+    /// Verifies that a profile configured with all required dependencies passes launch validation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_CommunityOutpostBundleProfile_PassesValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-community-outpost-stack";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string gentoolManifestId = "1.0.communityoutpost.addon.gentool89suite";
+        const string indicatorsManifestId = "1.10.communityoutpost.addon.hlenenglish";
+        const string hotkeysManifestId = "1.0.communityoutpost.addon.legionnaireshotkeys";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Community Outpost Game Client (Community Patch)",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.104.any.gameinstallation.zerohour"),
+                    Name = "Zero Hour",
+                    DependencyType = ContentType.GameInstallation,
+                    InstallBehavior = DependencyInstallBehavior.RequireExisting,
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var gentoolManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(gentoolManifestId),
+            Name = "GenTool 8.9 Suite",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:gent"] },
+        };
+
+        var indicatorsManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(indicatorsManifestId),
+            Name = "Leikeze/Legionnaire Hotkeys Indicators (English)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:hlen"] },
+        };
+
+        var hotkeysManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(hotkeysManifestId),
+            Name = "Legionnaire's Hotkeys",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:hleg"] },
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.1.communityoutpost.addon.hlen"),
+                    Name = "Leikeze/Legionnaire Hotkeys Indicators (provides visual overlay icons)",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.AutoInstall,
+                    IsOptional = false,
+                },
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.1.communityoutpost.addon.gent"),
+                    Name = "GenTool (required for Legionnaire's Hotkeys)",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.AutoInstall,
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Community Outpost Stack",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                gentoolManifestId,
+                indicatorsManifestId,
+                hotkeysManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(gentoolManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(gentoolManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(indicatorsManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(indicatorsManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(hotkeysManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(hotkeysManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.True(result.Success, string.Join("; ", result.Errors));
+    }
+
+    /// <summary>
+    /// Verifies that a profile missing required dependencies fails launch validation with descriptive error messages.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_MissingRequiredCommunityOutpostDependency_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-missing-dependencies";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string hotkeysManifestId = "1.0.communityoutpost.addon.legionnaireshotkeys";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Community Patch",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        };
+
+        var hotkeysManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(hotkeysManifestId),
+            Name = "Legionnaire's Hotkeys",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:hleg"] },
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.1.communityoutpost.addon.hlen"),
+                    Name = "Leikeze/Legionnaire Hotkeys Indicators (provides visual overlay icons)",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.AutoInstall,
+                    IsOptional = false,
+                },
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.1.communityoutpost.addon.gent"),
+                    Name = "GenTool (required for Legionnaire's Hotkeys)",
+                    DependencyType = ContentType.Addon,
+                    InstallBehavior = DependencyInstallBehavior.AutoInstall,
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Missing Deps Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                hotkeysManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(hotkeysManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(hotkeysManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Equal(2, result.MissingDependencies.Count);
+        Assert.Contains(result.Errors, err => err.Contains("Hotkeys Indicators (Leikeze/Legionnaire)"));
+        Assert.Contains(result.Errors, err => err.Contains("GenTool"));
+        Assert.DoesNotContain(result.Errors, err => err.Contains("communityoutpost.addon", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Launch uses the shared validator: Control Bar Pro's RequireExisting GenTool with
+    /// StrictPublisher false blocks launch, named by display name, with the gap attached.
+    /// </summary>
+    /// <param name="installationVersion">The installation's recorded version. Empty means none was recorded.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("1.04")]
+    [InlineData("")]
+    [InlineData("unknown")]
+    [InlineData("retail")]
+    public async Task ValidateLaunchAsync_ControlBarProWithoutGenTool_ReportsGenToolGapAsync(string installationVersion)
+    {
+        const string profileId = "profile-control-bar";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string controlBarId = "1.0.communityoutpost.addon.cbpr-1080p";
+
+        var manifests = new[]
+        {
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = installationVersion, ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create(controlBarId),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies =
+                [
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency(),
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateGenToolDependency(),
+                ],
+            },
+        };
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Control Bar Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient { Id = clientManifestId, Name = "Community Patch", GameType = GameType.ZeroHour, InstallationId = "steam-zh-install-id" },
+            EnabledContentIds = [.. manifests.Select(m => m.Id.Value)],
+        };
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        foreach (var manifest in manifests)
+        {
+            _manifestPoolMock
+                .Setup(m => m.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        }
+
+        var result = await CreateFacade().ValidateLaunchAsync(profileId);
+
+        Assert.False(result.Success);
+        var gap = Assert.Single(result.MissingDependencies);
+        Assert.Equal("GenTool", gap.DisplayName);
+        Assert.Equal(profileId, result.MissingDependenciesProfileId);
+        Assert.Contains("GenTool", result.FirstError, StringComparison.Ordinal);
+        Assert.DoesNotContain("communityoutpost", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// An installation older than the declared minimum keeps the detailed version error and offers no install.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_InstallationOlderThanMinimum_ReportsVersionErrorAsync()
+    {
+        const string profileId = "profile-old-installation";
+        const string installationManifestId = "1.103.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string controlBarId = "1.0.communityoutpost.addon.cbpr-1080p";
+        var result = await ValidateProfileAsync(
+            profileId,
+            new ContentManifest { Id = ManifestId.Create(installationManifestId), Name = "Steam Zero Hour", Version = "1.03", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create(controlBarId),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies = [GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency()],
+            });
+
+        Assert.False(result.Success);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains("but version 1.03 is selected", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An installation with no recorded game passes the game check, as in the shared validator, so launch reaches the missing items.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_InstallationWithUnknownGame_ReportsMissingItemsAsync()
+    {
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        var result = await ValidateProfileAsync(
+            "profile-unknown-game",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.Unknown },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.communityoutpost.addon.cbpr-1080p"),
+                Name = "Control Bar Pro (ExiLe)",
+                ContentType = ContentType.Addon,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+                Dependencies =
+                [
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateZeroHour104Dependency(),
+                    GenHub.Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.CreateGenToolDependency(),
+                ],
+            });
+
+        Assert.False(result.Success);
+        Assert.Equal("GenTool", Assert.Single(result.MissingDependencies).DisplayName);
+        Assert.DoesNotContain("different game", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A missing strict-publisher item is not compared with another publisher's item of the same type.
+    /// Launch reports it as missing, so the install dialog can offer it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_StrictPublisherItemMissingWithOtherPublisherEnabled_ReportsGapAsync()
+    {
+        const string profileId = "profile-strict-publisher";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        var result = await ValidateProfileAsync(
+            profileId,
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", Version = "1.04", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Community Patch", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "communityoutpost" } },
+            new ContentManifest { Id = ManifestId.Create("1.0.examplepublisher.mappack.tournamentmaps"), Name = "Tournament Maps", ContentType = ContentType.MapPack, TargetGame = GameType.ZeroHour, Publisher = new PublisherInfo { PublisherType = "examplepublisher" } },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.onlinepublisher.mod.onlinemod"),
+                Name = "Online Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "onlinepublisher" },
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.onlinepublisher.mappack.onlinemaps"),
+                        Name = "Online Maps",
+                        DependencyType = ContentType.MapPack,
+                        PublisherType = "onlinepublisher",
+                        StrictPublisher = true,
+                    },
+                ],
+            });
+
+        Assert.False(result.Success);
+        Assert.Equal("Online Maps", Assert.Single(result.MissingDependencies).DisplayName);
+        Assert.DoesNotContain("publisher type", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile has GameClient configured in its GameClient property but omitted from EnabledContentIds, launch validation resolves it and passes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenGameClientOnlyInProfileGameClientProperty_PassesValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-gameclient-prop-test";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "ZH Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert: Validation succeeds because GameClient is resolved from profile.GameClient
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies that when an installed dependency candidate matches by identity but fails version constraints, launch validation fails with a version mismatch error.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenDependencyVersionIncompatible_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-version-incompatible";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string modManifestId = "1.0.ea.mod.samplemod";
+        const string depManifestId = "1.0.ea.addon.sampleaddon";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var modManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(modManifestId),
+            Name = "Sample Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Dependencies =
+            [
+                new ContentDependency
+                {
+                    Id = ManifestId.Create("1.0.ea.addon.sampleaddon"),
+                    Name = "Sample Addon",
+                    DependencyType = ContentType.Addon,
+                    MinVersion = "2.0.0",
+                    IsOptional = false,
+                },
+            ],
+        };
+
+        var depManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(depManifestId),
+            Name = "Sample Addon",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Version = "1.0.0",
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Version Incompatible Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                modManifestId,
+                depManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(modManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(depManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(depManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert: Validation must fail because installed version 1.0.0 is less than min version 2.0.0
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains("Sample Addon") && err.Contains("(version >= 2.0.0)") && err.Contains("1.0.0"));
+    }
+
+    /// <summary>
+    /// An enabled item that misses an exact or listed version keeps the detailed version error and offers no install.
+    /// </summary>
+    /// <param name="exactVersion">The exact version the dependency requires.</param>
+    /// <param name="compatibleVersion">A listed compatible version.</param>
+    /// <param name="maxVersion">The highest version the dependency accepts.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("2.0.0", null, null)]
+    [InlineData(null, "1.0.0", "0.9.0")]
+    public async Task ValidateLaunchAsync_EnabledItemMissesExactOrListedVersion_ReportsVersionErrorAsync(string? exactVersion, string? compatibleVersion, string? maxVersion)
+    {
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string addonManifestId = "1.0.ea.addon.sampleaddon";
+        var result = await ValidateProfileAsync(
+            "profile-exact-version",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create(clientManifestId), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create(addonManifestId),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = exactVersion,
+                        CompatibleVersions = compatibleVersion == null ? [] : [compatibleVersion],
+                        MaxVersion = maxVersion,
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create(addonManifestId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" });
+
+        Assert.False(result.Success);
+        Assert.Empty(result.MissingDependencies);
+        Assert.Contains("but version 1.0.0 is selected", result.FirstError, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A newer enabled version does not hide an older enabled version that the dependency requires exactly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_ExactVersionEnabledBesideNewerVersion_PassesValidationAsync()
+    {
+        const string requiredAddonId = "1.0.ea.addon.sampleaddon";
+        var result = await ValidateProfileAsync(
+            "profile-exact-version-beside-newer",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create(requiredAddonId),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = "1.0.0",
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create(requiredAddonId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" },
+            new ContentManifest { Id = ManifestId.Create("1.1.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0" });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// An enabled exact version from another publisher or schema version satisfies a dependency that is not publisher strict.
+    /// </summary>
+    /// <param name="rescuerId">The ID of the enabled item at the exact version.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData("1.0.otherpub.addon.sampleaddon")]
+    [InlineData("2.0.ea.addon.sampleaddon")]
+    public async Task ValidateLaunchAsync_ExactVersionFromOtherIdentityBesideNewerVersion_PassesValidationAsync(string rescuerId)
+    {
+        var result = await ValidateProfileAsync(
+            "profile-exact-version-other-identity",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.ea.addon.sampleaddon"),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        ExactVersion = "1.0.0",
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create("1.1.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0" },
+            new ContentManifest { Id = ManifestId.Create(rescuerId), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0" });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// A newer enabled item from another publisher does not hide an enabled item from the required publisher.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WildcardStrictPublisherEnabledBesideNewerOtherPublisher_PassesValidationAsync()
+    {
+        var result = await ValidateProfileAsync(
+            "profile-wildcard-strict-publisher",
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameinstallation.zerohour"), Name = "Steam Zero Hour", ContentType = ContentType.GameInstallation, TargetGame = GameType.ZeroHour },
+            new ContentManifest { Id = ManifestId.Create("1.104.steam.gameclient.zerohour"), Name = "Steam Zero Hour Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour },
+            new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.ea.mod.samplemod"),
+                Name = "Sample Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+                Dependencies =
+                [
+                    new ContentDependency
+                    {
+                        Id = ManifestId.Create("1.0.any.addon.sampleaddon"),
+                        Name = "Sample Addon",
+                        DependencyType = ContentType.Addon,
+                        PublisherType = "ea",
+                        StrictPublisher = true,
+                    },
+                ],
+            },
+            new ContentManifest { Id = ManifestId.Create("1.0.ea.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "1.0.0", Publisher = new PublisherInfo { PublisherType = "ea" } },
+            new ContentManifest { Id = ManifestId.Create("1.1.examplepublisher.addon.sampleaddon"), Name = "Sample Addon", ContentType = ContentType.Addon, TargetGame = GameType.ZeroHour, Version = "2.0.0", Publisher = new PublisherInfo { PublisherType = "examplepublisher" } });
+
+        Assert.True(result.Success, result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that when a profile contains content with missing required CAS objects, launch validation fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRequiredCasObjectMissing_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-missing-cas-object";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string modManifestId = "1.0.communityoutpost.addon.crzh";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var modManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(modManifestId),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "missing_exe_hash_999",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Missing CAS Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                modManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(modManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_exe_hash_999", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("missing_exe_hash_999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains("Missing") && err.Contains("CAS objects"));
+    }
+
+    /// <summary>
+    /// Verifies that when all required CAS objects are present, launch validation passes the CAS gate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenRequiredCasObjectsPresent_PassesValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-present-cas-object";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+        const string modManifestId = "1.0.communityoutpost.addon.crzh";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var modManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(modManifestId),
+            Name = "Camera Mod - Zero Hour",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Files =
+            [
+                new()
+                {
+                    RelativePath = "Generals.exe",
+                    Hash = "present_exe_hash_111",
+                    SourceType = ContentSourceType.ContentAddressable,
+                    IsRequired = true,
+                },
+            ],
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Present CAS Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                modManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(modManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(modManifest));
+
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("present_exe_hash_111", ContentType.Addon, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _casServiceMock
+            .Setup(c => c.ExistsAsync("present_exe_hash_111", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.True(result.Success);
+        _casServiceMock.Verify(c => c.ExistsAsync("present_exe_hash_111", ContentType.Addon, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when an enabled content ID has no corresponding manifest in the pool, launch validation fails early.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenEnabledContentManifestMissingFromPool_FailsValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-missing-manifest";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.0.communityoutpost.gameclient.communityoutpostgameclientcommunitypatch";
+        const string missingContentId = "1.1.communityoutpost.addon.crzh";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Community Patch",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Community Outpost - Zero Hour",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+                clientManifestId,
+                missingContentId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(missingContentId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(null));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains(result.Errors, err => err.Contains($"Missing or invalid content IDs: {missingContentId}"));
+    }
+
+    /// <summary>A stopped tool never reports success, while a live tool carries its tracked identity.</summary>
+    /// <param name="exited">Whether registration drains an early exit.</param>
+    /// <param name="exitCode">The observed exit code.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(true, 1)]
+    public async Task CompleteToolLaunchAsync_UsesTrackedStateBeforeReportingSuccessAsync(bool exited, int exitCode)
+    {
+        using var process = Process.GetCurrentProcess();
+        var identity = Guid.NewGuid();
+        var info = new GameProcessInfo
+        {
+            ProcessId = process.Id,
+            ProcessInstanceId = identity,
+            IsRunning = true,
+        };
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process)).Returns(info);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch =>
+            {
+                registered = launch;
+                if (exited)
+                {
+                    launch.TerminatedAt = DateTime.UtcNow;
+                    launch.ExitCode = exitCode;
+                    launch.ProcessInfo.IsRunning = false;
+                }
+            })
+            .Returns(Task.CompletedTask);
+        var recipient = new object();
+        var messages = new List<ProfileLaunchedMessage>();
+        WeakReferenceMessenger.Default.Register<ProfileLaunchedMessage>(recipient, (_, message) =>
+        {
+            if (message.ProfileId == "tool-profile")
+            {
+                messages.Add(message);
+            }
+        });
+        try
+        {
+            var result = await CreateFacade().CompleteToolLaunchAsync(
+                process, new GameProfile { Id = "tool-profile", Name = "Tool" }, "tool-workspace", "tool");
+            Assert.Equal(!exited, result.Success);
+            Assert.NotNull(registered);
+            Assert.Equal(identity, registered.ProcessInfo.ProcessInstanceId);
+            Assert.Equal("tool", registered.ProcessInfo.ExecutablePath);
+            if (exited)
+            {
+                Assert.Contains($"exit code {exitCode}", result.FirstError);
+                Assert.Empty(messages);
+                _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+            }
+            else
+            {
+                Assert.Equal(identity, Assert.Single(messages).ProcessInstanceId);
+                Assert.Same(info, result.Data!.ProcessInfo);
+                _notificationServiceMock.Verify(m => m.ShowSuccess("Tool Launched", "Successfully launched 'Tool'", NotificationDurations.Medium, It.IsAny<bool>()), Times.Once);
+            }
+
+            _launchRegistryMock.Verify(m => m.UnregisterLaunchAsync(It.IsAny<string>()), Times.Never);
+        }
+        finally
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(recipient);
+        }
+    }
+
+    /// <summary>Tools that exit before tracking retain their code and never report success.</summary>
+    /// <param name="exitCode">The tool exit code.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task CompleteToolLaunchAsync_AlreadyExited_PreservesDiagnosticsAsync(int exitCode)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        startInfo.ArgumentList.Add(OperatingSystem.IsWindows() ? "/c" : "-c");
+        startInfo.ArgumentList.Add($"exit {exitCode}");
+        using var process = Process.Start(startInfo)!;
+        await process.WaitForExitAsync();
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process)).Returns((GameProcessInfo?)null);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch => registered = launch)
+            .Returns(Task.CompletedTask);
+        var result = await CreateFacade().CompleteToolLaunchAsync(
+            process, new GameProfile { Id = "exited-tool", Name = "Tool" }, "workspace", "tool");
+        Assert.False(result.Success);
+        Assert.NotNull(registered);
+        Assert.Equal(exitCode, registered.ExitCode);
+        Assert.Equal(exitCode != 0, registered.HasFailed);
+        Assert.False(registered.ProcessInfo.IsRunning);
+        _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>Unreadable diagnostics still produce a registered early exit and release the handle.</summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task CompleteToolLaunchAsync_UnavailableExitDiagnostics_RegistersUnknownExitAsync()
+    {
+        using var process = Process.GetCurrentProcess();
+        _gameProcessManagerMock.Setup(m => m.TrackProcess(process))
+            .Callback(process.Dispose)
+            .Returns((GameProcessInfo?)null);
+        GameLaunchInfo? registered = null;
+        _launchRegistryMock.Setup(m => m.RegisterLaunchAsync(It.IsAny<GameLaunchInfo>()))
+            .Callback<GameLaunchInfo>(launch => registered = launch)
+            .Returns(Task.CompletedTask);
+
+        var result = await CreateFacade().CompleteToolLaunchAsync(
+            process, new GameProfile { Id = "unreadable-tool", Name = "Tool" }, "workspace", "tool");
+
+        Assert.False(result.Success);
+        Assert.NotNull(registered);
+        Assert.Null(registered.ExitCode);
+        Assert.NotNull(registered.TerminatedAt);
+        Assert.False(registered.ProcessInfo.IsRunning);
+        Assert.Contains("before launch completed", result.FirstError);
+        _notificationServiceMock.Verify(m => m.ShowSuccess(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    private ProfileLauncherFacade CreateFacade()
+    {
+        var resources = new ResourceManager(LocalizationConstants.StringResourceBaseName, typeof(GameLauncher).Assembly);
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(m => m.GetString(It.IsAny<string>(), It.IsAny<object?[]>()))
+            .Returns<string, object?[]>((key, arguments) => string.Format(CultureInfo.InvariantCulture, resources.GetString(key, CultureInfo.InvariantCulture)!, arguments));
+        return new ProfileLauncherFacade(
+            _profileManagerMock.Object,
+            _gameLauncherMock.Object,
+            _workspaceManagerMock.Object,
+            _launchRegistryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _dependencyResolverMock.Object,
+            _casServiceMock.Object,
+            _gameSettingsServiceMock.Object,
+            _storageLocationServiceMock.Object,
+            _notificationServiceMock.Object,
+            _reconcilerRegistryMock.Object,
+            _configurationProviderMock.Object,
+            _gameProcessManagerMock.Object,
+            _symlinkCapabilityMock.Object,
+            NullLogger<ProfileLauncherFacade>.Instance,
+            new DirectRunner(NullLogger<DirectRunner>.Instance),
+            localizationService: localization.Object);
+    }
+
+    private async Task<ProfileOperationResult<bool>> ValidateProfileAsync(string profileId, params ContentManifest[] manifests)
+    {
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Test Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = manifests.First(m => m.ContentType == ContentType.GameClient).Id.Value,
+                Name = "Community Patch",
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds = [.. manifests.Select(m => m.Id.Value)],
+        };
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        foreach (var manifest in manifests)
+        {
+            _manifestPoolMock
+                .Setup(m => m.GetManifestAsync(manifest.Id, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        }
+
+        return await CreateFacade().ValidateLaunchAsync(profileId);
+    }
+}

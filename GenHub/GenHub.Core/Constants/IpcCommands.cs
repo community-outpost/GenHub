@@ -1,5 +1,3 @@
-using System.Runtime.Versioning;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -11,4 +9,33 @@ public static class IpcCommands
     /// Command prefix used to launch a profile via IPC.
     /// </summary>
     public const string LaunchProfilePrefix = "launch-profile:";
+
+    /// <summary>
+    /// Command prefix used to forward a subscribe URL to the primary instance
+    /// (<c>subscribe:&lt;absolute-url&gt;</c>). Same payload as <c>genhub://subscribe?url=...</c>.
+    /// </summary>
+    public const string SubscribePrefix = "subscribe:";
+
+    /// <summary>
+    /// Command prefix used to forward a shared profile URI or payload to the primary instance
+    /// (<c>import-profile:&lt;uri-or-payload&gt;</c>).
+    /// </summary>
+    public const string ImportProfilePrefix = "import-profile:";
+
+    /// <summary>
+    /// Command prefix used to forward a map share URI to the primary instance
+    /// (<c>import-map:&lt;genhub-uri&gt;</c>).
+    /// </summary>
+    public const string ImportMapPrefix = "import-map:";
+
+    /// <summary>
+    /// Command prefix used to forward a replay share URI to the primary instance
+    /// (<c>import-replay:&lt;genhub-uri&gt;</c>).
+    /// </summary>
+    public const string ImportReplayPrefix = "import-replay:";
+
+    /// <summary>
+    /// Command used to activate and focus the running primary instance window.
+    /// </summary>
+    public const string ActivateCommand = "activate";
 }

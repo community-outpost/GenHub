@@ -1,3 +1,6 @@
+using GenHub.Core.Helpers;
+using System.Collections.Generic;
+
 namespace GenHub.Core.Models.Tools;
 
 /// <summary>
@@ -5,6 +8,8 @@ namespace GenHub.Core.Models.Tools;
 /// </summary>
 public class ToolMetadata
 {
+    private string _version = string.Empty;
+
     /// <summary>
     /// Gets or sets the unique identifier for the tool.
     /// </summary>
@@ -16,12 +21,16 @@ public class ToolMetadata
     public required string Name { get; set; }
 
     /// <summary>
-    /// Gets or sets the author of the tool.
+    /// Gets or sets the version of the tool.
     /// </summary>
-    public required string Version { get; set; }
+    public required string Version
+    {
+        get => _version;
+        set => _version = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
+    }
 
     /// <summary>
-    /// Gets or sets the version of the tool.
+    /// Gets or sets the author of the tool.
     /// </summary>
     public required string Author { get; set; }
 
@@ -36,7 +45,17 @@ public class ToolMetadata
     public string? IconPath { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the tool is bundled with the application and cannot be removed.
+    /// </summary>
+    public bool IsBundled { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the tool should be displayed in full screen mode (hiding default headers/margins).
+    /// </summary>
+    public bool IsFullScreen { get; set; }
+
+    /// <summary>
     /// Gets or sets the tags/categories for the tool.
     /// </summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 }

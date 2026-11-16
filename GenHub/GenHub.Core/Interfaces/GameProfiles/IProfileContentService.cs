@@ -1,5 +1,6 @@
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Results;
+using System.Collections.Generic;
 
 namespace GenHub.Core.Interfaces.GameProfiles;
 
@@ -19,6 +20,18 @@ public interface IProfileContentService
     Task<AddToProfileResult> AddContentToProfileAsync(
         string profileId,
         string manifestId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds multiple acquired content items to a profile, resolving the combined dependency graph.
+    /// </summary>
+    /// <param name="profileId">The profile ID to add content to.</param>
+    /// <param name="manifestIds">The manifest IDs of the content to add.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result indicating success with details about any swapped content.</returns>
+    Task<AddToProfileResult> AddContentToProfileAsync(
+        string profileId,
+        IReadOnlyList<string> manifestIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -43,5 +56,31 @@ public interface IProfileContentService
     Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(
         string profileName,
         string manifestId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new profile with multiple acquired content items pre-enabled.
+    /// </summary>
+    /// <param name="profileName">Name for the new profile.</param>
+    /// <param name="manifestIds">The manifest IDs of the content to enable.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>An operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileWithContentAsync(
+        string profileName,
+        IReadOnlyList<string> manifestIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Installs the missing items that GenHub can download, plus the items those need.
+    /// Items GenHub cannot download are skipped, so callers must validate again afterwards.
+    /// </summary>
+    /// <param name="missingDependencies">The missing items reported by an add, create, or save.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>
+    /// The manifest IDs of the installed or already acquired items, which can be empty when nothing could be
+    /// downloaded, or a failure naming each downloadable item that could not be installed.
+    /// </returns>
+    Task<OperationResult<IReadOnlyList<string>>> InstallMissingDependenciesAsync(
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
         CancellationToken cancellationToken = default);
 }

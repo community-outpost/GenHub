@@ -1,0 +1,5 @@
+# Force all *.netlify.app traffic to wiki.generalshub.com
+https://generalshub.netlify.app/*   https://wiki.generalshub.com/:splat   301!
+
+# Support legacy /wiki/* prefix
+/wiki/*                             /:splat                               301!

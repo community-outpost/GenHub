@@ -1,7 +1,6 @@
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
-using GenHub.Features.Content.Services.CommunityOutpost.Models;
 using Xunit;
-
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.CommunityOutpost;
@@ -29,6 +28,85 @@ public class GenPatcherDependencyBuilderTests
         Assert.NotNull(gameInstallDep);
         Assert.Equal("1.04", gameInstallDep.MinVersion);
         Assert.Contains(GameType.ZeroHour, gameInstallDep.CompatibleGameTypes);
+    }
+
+    /// <summary>
+    /// Verifies that only Control Bar Pro declares GenTool, and only for retail game clients.
+    /// </summary>
+    /// <param name="contentCode">The control bar content code.</param>
+    /// <param name="expectRetailGenTool">Whether a retail-only GenTool dependency is expected.</param>
+    [Theory]
+    [InlineData("cbbs", false)]
+    [InlineData("cben", false)]
+    [InlineData("cbpc", false)]
+    [InlineData("cbpr", true)]
+    [InlineData("cbpx", true)]
+    public void GetDependencies_ControlBar_DeclaresGenToolOnlyForProOnRetail(string contentCode, bool expectRetailGenTool)
+    {
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
+
+        var genTool = dependencies.Where(d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id)).ToList();
+        Assert.Equal(expectRetailGenTool ? 1 : 0, genTool.Count);
+        Assert.All(genTool, dependency =>
+        {
+            Assert.True(dependency.RetailClientOnly);
+            Assert.False(dependency.IsOptional);
+            Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
+        });
+    }
+
+    /// <summary>
+    /// Verifies that stored control bar manifests drop unconditional GenTool dependencies and that
+    /// Control Bar Pro ends up with the retail-only one.
+    /// </summary>
+    /// <param name="manifestId">The stored manifest ID.</param>
+    /// <param name="expectChanged">Whether the dependencies should change.</param>
+    /// <param name="expectRetailGenTool">Whether a retail-only GenTool dependency should remain.</param>
+    /// <param name="expectUnconditionalGenTool">Whether the unconditional GenTool dependency should remain.</param>
+    [Theory]
+    [InlineData("1.10.communityoutpost.addon.cbpr", true, true, false)]
+    [InlineData("1.10.communityoutpost.addon.cbpx", true, true, false)]
+    [InlineData("1.10.communityoutpost.addon.cbbs", true, false, false)]
+    [InlineData("1.10.communityoutpost.addon.cbpc", true, false, false)]
+    [InlineData("1.10.communityoutpost.addon.hleg", false, false, true)]
+    [InlineData("1.10.publisherb.addon.cbpr", false, false, true)]
+    public void NormalizeControlBarGenToolDependency_StoredManifest_MatchesBuiltDependencies(
+        string manifestId,
+        bool expectChanged,
+        bool expectRetailGenTool,
+        bool expectUnconditionalGenTool)
+    {
+        var manifest = new GenHub.Core.Models.Manifest.ContentManifest
+        {
+            Id = GenHub.Core.Models.Manifest.ManifestId.Create(manifestId),
+            Dependencies = [GenPatcherDependencyBuilder.CreateGenToolDependency()],
+        };
+
+        var changed = GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest);
+
+        Assert.Equal(expectChanged, changed);
+        Assert.Equal(expectRetailGenTool, manifest.Dependencies.Exists(d => d.RetailClientOnly));
+        Assert.Equal(expectUnconditionalGenTool, manifest.Dependencies.Exists(d => !d.RetailClientOnly));
+        Assert.Equal(expectRetailGenTool || expectUnconditionalGenTool ? 1 : 0, manifest.Dependencies.Count);
+    }
+
+    /// <summary>
+    /// Verifies that normalizing a Control Bar Pro manifest that already has the retail-only
+    /// dependency changes nothing.
+    /// </summary>
+    [Fact]
+    public void NormalizeControlBarGenToolDependency_AlreadyNormalized_ReportsNoChange()
+    {
+        var manifest = new GenHub.Core.Models.Manifest.ContentManifest
+        {
+            Id = GenHub.Core.Models.Manifest.ManifestId.Create("1.10.communityoutpost.addon.cbpr"),
+            Dependencies = [GenPatcherDependencyBuilder.CreateRetailClientGenToolDependency()],
+        };
+
+        Assert.False(GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest));
+        Assert.Single(manifest.Dependencies);
     }
 
     /// <summary>
@@ -158,8 +236,8 @@ public class GenPatcherDependencyBuilderTests
     [Theory]
     [InlineData("hlen")]
     [InlineData("hlde")]
-    [InlineData("ewba")]
-    [InlineData("ewbi")]
+    [InlineData("hleg")]
+    [InlineData("hlei")]
     public void GetDependencies_Hotkeys_RequiresZeroHour104(string contentCode)
     {
         // Arrange
@@ -173,6 +251,45 @@ public class GenPatcherDependencyBuilderTests
         var gameInstallDep = dependencies.Find(d => d.DependencyType == ContentType.GameInstallation);
         Assert.NotNull(gameInstallDep);
         Assert.Equal("1.04", gameInstallDep.MinVersion);
+    }
+
+    /// <summary>
+    /// Verifies that Leikeze's and Legionnaire's hotkeys require the indicators pack (hlen).
+    /// </summary>
+    /// <param name="contentCode">The hotkey content code.</param>
+    [Theory]
+    [InlineData("hlei")]
+    [InlineData("hleg")]
+    public void GetDependencies_Hotkeys_RequiresIndicatorsPack(string contentCode)
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies(contentCode, metadata);
+
+        // Assert
+        Assert.Contains(dependencies, d => d.Id.Value.EndsWith(".hlen") && d.DependencyType == ContentType.Addon);
+    }
+
+    /// <summary>
+    /// Verifies that Legionnaire's Hotkeys automatically reconciles its GenTool runtime requirement.
+    /// </summary>
+    [Fact]
+    public void GetDependencies_LegionnairesHotkeys_AutoInstallsGenTool()
+    {
+        // Arrange
+        var metadata = GenPatcherContentRegistry.GetMetadata("hleg");
+
+        // Act
+        var dependencies = GenPatcherDependencyBuilder.GetDependencies("hleg", metadata);
+
+        // Assert
+        Assert.Contains(dependencies, dependency =>
+            dependency.Id.Value.EndsWith(".gent", StringComparison.OrdinalIgnoreCase) &&
+            dependency.DependencyType == ContentType.Addon &&
+            dependency.InstallBehavior == DependencyInstallBehavior.AutoInstall &&
+            !dependency.IsOptional);
     }
 
     /// <summary>
@@ -234,14 +351,11 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_ControlBar_ReturnsOtherControlBars()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbbs");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("cbpr");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("cbbs", conflicts); // Should not conflict with itself
-        Assert.Contains("cben", conflicts);
-        Assert.Contains("cbpc", conflicts);
-        Assert.Contains("cbpr", conflicts);
+        Assert.DoesNotContain("cbpr", conflicts); // Should not conflict with itself
         Assert.Contains("cbpx", conflicts);
     }
 
@@ -252,13 +366,14 @@ public class GenPatcherDependencyBuilderTests
     public void GetConflictingCodes_Hotkeys_ReturnsOtherHotkeys()
     {
         // Act
-        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hlen");
+        var conflicts = GenPatcherDependencyBuilder.GetConflictingCodes("hleg");
 
         // Assert
         Assert.NotEmpty(conflicts);
-        Assert.DoesNotContain("hlen", conflicts); // Should not conflict with itself
+        Assert.DoesNotContain("hleg", conflicts); // Should not conflict with itself
         Assert.Contains("hlde", conflicts);
-        Assert.Contains("ewba", conflicts);
+        Assert.Contains("hlei", conflicts);
+        Assert.DoesNotContain("ewba", conflicts);
     }
 
     /// <summary>
@@ -334,26 +449,8 @@ public class GenPatcherDependencyBuilderTests
 
         // Assert
         Assert.Equal(ContentType.Addon, dependency.DependencyType);
-        Assert.Equal(DependencyInstallBehavior.AutoInstall, dependency.InstallBehavior);
+        Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
         Assert.False(dependency.IsOptional);
-
-        // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)
-        Assert.Contains("gent", dependency.Id.ToString());
-    }
-
-    /// <summary>
-    /// Verifies that CreateOptionalGenToolDependency returns optional dependency.
-    /// </summary>
-    [Fact]
-    public void CreateOptionalGenToolDependency_ReturnsOptionalDependency()
-    {
-        // Act
-        var dependency = GenPatcherDependencyBuilder.CreateOptionalGenToolDependency();
-
-        // Assert
-        Assert.Equal(ContentType.Addon, dependency.DependencyType);
-        Assert.Equal(DependencyInstallBehavior.Suggest, dependency.InstallBehavior);
-        Assert.True(dependency.IsOptional);
 
         // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)
         Assert.Contains("gent", dependency.Id.ToString());

@@ -1,16 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.Publishers;
 
@@ -19,24 +21,20 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Discovers and delivers game client releases from TheSuperHackers GitHub repositories.
 /// </summary>
 public class SuperHackersProvider(
+    IProviderDefinitionLoader providerDefinitionLoader,
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
-    ILogger<SuperHackersProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    ILogger<SuperHackersProvider> logger,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
-            d.SourceName.Contains("GitHub", StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("No GitHub discoverer found for SuperHackers");
+    private readonly IContentDiscoverer _discoverer = ResolveDiscoverer(discoverers, PublisherTypeConstants.TheSuperHackers);
 
-    private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
-            r.ResolverId?.Equals(SuperHackersConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub resolver found for SuperHackers");
+    private readonly IContentResolver _resolver = ResolveResolver(resolvers, SuperHackersConstants.ResolverId);
 
-    private readonly IContentDeliverer _deliverer = deliverers.FirstOrDefault(d =>
-            d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
-        ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
+    private readonly IContentDeliverer _deliverer = ResolveDeliverer(deliverers, ContentSourceNames.GitHubDeliverer);
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
@@ -62,44 +60,6 @@ public class SuperHackersProvider(
     protected override IContentDeliverer Deliverer => _deliverer;
 
     /// <inheritdoc/>
-    public override async Task<OperationResult<IEnumerable<ContentSearchResult>>> SearchAsync(
-        ContentSearchQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        var baseResult = await base.SearchAsync(query, cancellationToken);
-        if (!baseResult.Success || baseResult.Data == null)
-        {
-            return baseResult;
-        }
-
-        // Filter results to only include TheSuperHackers publisher content
-        var filteredResults = baseResult.Data
-            .Where(r =>
-            {
-                var manifest = r.GetData<ContentManifest>();
-                if (manifest?.Publisher?.PublisherType != null)
-                {
-                    return manifest.Publisher.PublisherType.Equals(
-                        PublisherTypeConstants.TheSuperHackers,
-                        StringComparison.OrdinalIgnoreCase);
-                }
-
-                // Fallback to source URL check for unresolved content
-                var sourceUrl = r.SourceUrl ?? string.Empty;
-                return sourceUrl.Contains("/thesuperhackers/", StringComparison.OrdinalIgnoreCase)
-                    || sourceUrl.Contains("/genpatcher", StringComparison.OrdinalIgnoreCase);
-            })
-            .ToList();
-
-        logger.LogInformation(
-            "Filtered {OriginalCount} results to {FilteredCount} TheSuperHackers results",
-            baseResult.Data.Count(),
-            filteredResults.Count);
-
-        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(filteredResults);
-    }
-
-    /// <inheritdoc/>
     public override async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default)
@@ -107,34 +67,23 @@ public class SuperHackersProvider(
         Logger.LogInformation("Getting SuperHackers manifest for: {ContentId}", contentId);
 
         // Create a search result for resolution
-        var searchResult = new ContentSearchResult
-        {
-            Id = contentId,
-            Name = SuperHackersConstants.PublisherName,
-            Version = contentId,
-            ProviderName = SourceName,
-            RequiresResolution = true,
-            ResolverId = SuperHackersConstants.ResolverId,
-        };
+        var searchResult = CreateResolutionRequest(
+            contentId,
+            SuperHackersConstants.PublisherName,
+            contentId,
+            SuperHackersConstants.ResolverId);
 
-        var manifestResult = await Resolver.ResolveAsync(searchResult, cancellationToken);
-        if (!manifestResult.Success || manifestResult.Data == null)
-        {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"Failed to resolve manifest: {manifestResult.FirstError}");
-        }
+        return await ResolveAndValidateAsync(searchResult, cancellationToken);
+    }
 
-        var validationResult = await ContentValidator.ValidateManifestAsync(
-            manifestResult.Data,
-            cancellationToken);
-
-        if (!validationResult.IsValid)
-        {
-            var errors = validationResult.Issues.Select(i => $"Validation failed: {i.Message}");
-            return OperationResult<ContentManifest>.CreateFailure(errors);
-        }
-
-        return manifestResult;
+    /// <inheritdoc/>
+    /// <remarks>
+    /// Returns the TheSuperHackers provider definition loaded from JSON configuration.
+    /// The definition contains GitHub repository info, endpoints, and other configuration.
+    /// </remarks>
+    protected override ProviderDefinition? GetProviderDefinition()
+    {
+        return GetCachedProviderDefinition(providerDefinitionLoader, SuperHackersConstants.PublisherId);
     }
 
     /// <inheritdoc/>
@@ -148,27 +97,12 @@ public class SuperHackersProvider(
 
         try
         {
-            if (!Deliverer.CanDeliver(manifest))
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Cannot deliver content for manifest {manifest.Id}");
-            }
-
-            var deliveryResult = await Deliverer.DeliverContentAsync(
+            return await DeliverContentOnlyAsync(
+                Deliverer,
                 manifest,
                 workingDirectory,
                 progress,
                 cancellationToken);
-
-            if (!deliveryResult.Success)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Content delivery failed: {deliveryResult.FirstError}");
-            }
-
-            var resultManifest = deliveryResult.Data ?? manifest;
-            Logger.LogInformation("Successfully prepared SuperHackers content {ManifestId}", manifest.Id);
-            return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
         catch (Exception ex)
         {

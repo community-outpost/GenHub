@@ -1,12 +1,12 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Storage.Services;
 
@@ -19,20 +19,18 @@ public class CasMaintenanceService(
     ILogger<CasMaintenanceService> logger) : BackgroundService
 {
     private const int ErrorRetryDelayMinutes = 5;
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly CasConfiguration _config = config.Value;
-    private readonly ILogger<CasMaintenanceService> _logger = logger;
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!_config.EnableAutomaticGc)
         {
-            _logger.LogInformation("Automatic CAS garbage collection is disabled");
+            logger.LogInformation("Automatic CAS garbage collection is disabled");
             return;
         }
 
-        _logger.LogInformation("CAS maintenance service started with interval: {Interval}", _config.AutoGcInterval);
+        logger.LogInformation("CAS maintenance service started with interval: {Interval}", _config.AutoGcInterval);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -52,14 +50,14 @@ public class CasMaintenanceService(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during CAS maintenance cycle");
+                logger.LogError(ex, "Error during CAS maintenance cycle");
 
                 // Continue with next cycle after a delay
                 await Task.Delay(TimeSpan.FromMinutes(ErrorRetryDelayMinutes), stoppingToken);
             }
         }
 
-        _logger.LogInformation("CAS maintenance service stopped");
+        logger.LogInformation("CAS maintenance service stopped");
     }
 
     private static bool ShouldRunIntegrityValidation()
@@ -70,36 +68,44 @@ public class CasMaintenanceService(
 
     private async Task RunMaintenanceTasksAsync(CancellationToken cancellationToken)
     {
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = serviceProvider.CreateScope();
+        var lifecycleManager = scope.ServiceProvider.GetRequiredService<ICasLifecycleManager>();
         var casService = scope.ServiceProvider.GetRequiredService<ICasService>();
 
-        _logger.LogDebug("Starting CAS maintenance tasks");
+        logger.LogDebug("Starting CAS maintenance tasks");
 
         // Run garbage collection
-        var gcResult = await casService.RunGarbageCollectionAsync(cancellationToken: cancellationToken);
+        var gcResult = await lifecycleManager.RunGarbageCollectionAsync(cancellationToken: cancellationToken);
 
-        if (gcResult.Success)
+        if (gcResult.Success && gcResult.Data != null)
         {
-            _logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.ObjectsDeleted, gcResult.BytesFreed, gcResult.Elapsed);
+            if (gcResult.Data.Skipped)
+            {
+                logger.LogInformation("CAS garbage collection skipped: another collection is already in progress");
+            }
+            else
+            {
+                logger.LogInformation("CAS garbage collection completed: {ObjectsDeleted} objects deleted, {BytesFreed:N0} bytes freed in {Elapsed}", gcResult.Data.ObjectsDeleted, gcResult.Data.BytesFreed, gcResult.Data.Duration);
+            }
         }
         else
         {
-            _logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.FirstError);
+            logger.LogWarning("CAS garbage collection failed: {ErrorMessage}", gcResult.FirstError);
         }
 
         // Optionally run integrity validation periodically
         if (ShouldRunIntegrityValidation())
         {
-            _logger.LogDebug("Running CAS integrity validation");
+            logger.LogDebug("Running CAS integrity validation");
             var validationResult = await casService.ValidateIntegrityAsync(cancellationToken);
 
             if (validationResult.Success)
             {
-                _logger.LogInformation("CAS integrity validation passed: {ObjectsValidated} objects validated", validationResult.ObjectsValidated);
+                logger.LogInformation("CAS integrity validation passed: {ObjectsValidated} objects validated", validationResult.ObjectsValidated);
             }
             else
             {
-                _logger.LogWarning("CAS integrity validation found {IssueCount} issues in {ObjectsValidated} objects", validationResult.ObjectsWithIssues, validationResult.ObjectsValidated);
+                logger.LogWarning("CAS integrity validation found {IssueCount} issues in {ObjectsValidated} objects", validationResult.ObjectsWithIssues, validationResult.ObjectsValidated);
             }
         }
     }

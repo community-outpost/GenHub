@@ -1,7 +1,7 @@
-using System;
-using System.Globalization;
 using Avalonia.Data.Converters;
 using GenHub.Core.Constants;
+using System;
+using System.Globalization;
 
 namespace GenHub.Infrastructure.Converters;
 

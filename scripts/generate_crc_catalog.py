@@ -1,0 +1,1691 @@
+#!/usr/bin/env python3
+"""
+GameClient CRC Catalog Generator for GenHub Replay Manager.
+Crawls TheSuperHackers (GitHub Releases) and GeneralsOnline (CDN) to build and update crc-mapping.json.
+"""
+
+import argparse
+import concurrent.futures
+import datetime
+import http.client
+import hashlib
+import io
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+import zipfile
+import zlib
+
+SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
+GENERALSONLINE_CDN = "https://cdn.playgenerals.online"
+GENERALSONLINE_KNOWN_DATES = ("021326", "032926", "042826", "060526", "062026", "081326", "082826", "092226", "092526", "092826")
+RETAIL_ZERO_HOUR_MANIFEST_ID = "1.104.retail.gameclient.zerohour"
+VANILLA_104_INI = "Vanilla 1.04 INI"
+GENERALSONLINE_092826_MANIFEST_ID = "1.92826.generalsonline.gameclient.zerohour"
+GENERALSONLINE_092826_PORTABLE_ZIP = (
+    f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip"
+)
+COMMUNITY_PATCH_CORE_INI_NAME = "CommunityPatch Core INI (81FB5632)"
+COMMUNITY_PATCH_CORE_INI_URL = (
+    "https://strata.gamereplays.org/storage/versions/ini/500_900_CommunityPatch_CoreINI_81FB5632.big"
+)
+GENERALS_EXE_NAME = "generals.exe"
+DEFAULT_OUTPUT_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "GenHub", "GenHub", "Resources", "crc-mapping.json"
+)
+
+
+class CatalogConflictError(Exception):
+    """Raised when conflicting CRCs are encountered for the same manifest/cdnUrl."""
+
+
+class UpstreamFetchError(Exception):
+    """Raised when an upstream release source fails to fetch."""
+
+
+BASELINE_ENTRIES = [
+    {
+        "exeCrc": "0xDA2B4B18",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": None,
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "ea",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Official Retail Zero Hour 1.04",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xDA2B4B18",
+        "iniCrc": "0x76B251A3",
+        "sha256": None,
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "ea",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Zero Hour 1.04",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x401D89EA",
+        "iniCrc": "0x76B251A3",
+        "sha256": "7B075B9F0BAA9DF81651C0C9DD7D8C445454AE1B2452B928F4A1D9332E9CCECE",
+        "manifestId": "1.104.steam.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Steam 1.04 INI",
+        "publisher": "steam",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Official Steam Zero Hour 1.04",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xDA2B4B18",
+        "iniCrc": "0x8FB8AE76",
+        "sha256": None,
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
+        "dataPatchManifestId": "1.8fb8ae76.community.gamedata.zerohour",
+        "dataPatchName": "Community Balance Patch (0x8FB8AE76)",
+        "publisher": "community",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Zero Hour 1.04 (Community Patch)",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xDA2B4B18",
+        "iniCrc": "0xCA7292AD",
+        "sha256": None,
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
+        "dataPatchManifestId": "1.ca7292ad.community.gamedata.zerohour",
+        "dataPatchName": "Defcon Balanced Patch (0xCA7292AD)",
+        "publisher": "community",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Zero Hour 1.04 (Defcon Patch)",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xDA2B4B18",
+        "iniCrc": "0x81FB5632",
+        "sha256": None,
+        "manifestId": RETAIL_ZERO_HOUR_MANIFEST_ID,
+        "dataPatchManifestId": "1.81fb5632.community.gamedata.zerohour",
+        "dataPatchName": "Community Patch Core INI (0x81FB5632)",
+        "publisher": "community",
+        "gameType": "ZeroHour",
+        "version": "1.04",
+        "buildDate": "2003-09-16",
+        "description": "Zero Hour 1.04 (Community Core INI)",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x45BF602F",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "e03e98227249ee5ad4236f2b61f3ae6eeda2765dcb95b9c6b5090919e563c89e",
+        "manifestId": "1.329261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE1",
+        "buildDate": "2026-03-30",
+        "description": "GeneralsOnline 032926_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE1.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xE981A0B4",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "ff240ed786c8a524c45a03f8c70be687cff6aae1bc05156f2b64cfe6c366549d",
+        "manifestId": "1.329262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE2",
+        "buildDate": "2026-03-31",
+        "description": "GeneralsOnline 032926_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE2.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x1A5EF2C5",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "cfaba92da40f476fc7c99696d569d0f802a493651774a441ec952b23b89e528b",
+        "manifestId": "1.329263.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "032926_QFE3",
+        "buildDate": "2026-04-02",
+        "description": "GeneralsOnline 032926_QFE3",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_032926_QFE3.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x88BEB180",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "123ad03667cc45f1f89811ca9705abfca6104673af85c646adeb50595ab89f41",
+        "manifestId": "1.213262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "021326_QFE2",
+        "buildDate": "2026-03-16",
+        "description": "GeneralsOnline 021326_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_021326_QFE2.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xB9DB8815",
+        "iniCrc": "0x81FB5632",
+        "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
+        "manifestId": "1.828261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.828261.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE1",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.828262.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE2",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE2.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828263.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.828263.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE3",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE3",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE3.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xB044249B",
+        "iniCrc": "0x81FB5632",
+        "sha256": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+        "manifestId": "1.828264.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.828264.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE4",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE4",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE4.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0x383205DC",
+        "iniCrc": "0x81FB5632",
+        "sha256": "895075b251175a5337d724fe6ae933ab4cd2edd314e0fdc8b0cf23dc96c4c001",
+        "manifestId": "1.92226.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.92226.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xC3F59DFA",
+        "iniCrc": "0x81FB5632",
+        "sha256": "eeb09472f6fd30cd2a623517ec69ac93423e17c38065624befdc45df9adf3fb9",
+        "manifestId": "1.922261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.922261.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226_QFE1",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226_QFE1.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xC4841747",
+        "iniCrc": "0x81FB5632",
+        "sha256": "ff21df13c5cb0f524e4d56585c1867467efbcff44a94ed2e1b2f30eef2aaca8b",
+        "manifestId": "1.922262.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.922262.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092226_QFE2",
+        "buildDate": "2026-09-22",
+        "description": "GeneralsOnline 092226_QFE2",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092226_QFE2.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xDB4E6D21",
+        "iniCrc": "0x81FB5632",
+        "sha256": "704a8d100acb7ffb3e5c8bfdb1c81cfd183dcacce0b9720ecd1d9e902ebb63fd",
+        "manifestId": "1.92526.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.92526.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092526",
+        "buildDate": "2026-09-25",
+        "description": "GeneralsOnline 092526",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092526.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0x3F347AAC",
+        "iniCrc": "0x81FB5632",
+        "sha256": "eed0d118e6bdd0b06a75c6a903268badd87193dbbefc2369da2b3b280febe57f",
+        "manifestId": "1.925261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.925261.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092526_QFE1",
+        "buildDate": "2026-09-25",
+        "description": "GeneralsOnline 092526_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092526_QFE1.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xD83377F3",
+        "iniCrc": "0x81FB5632",
+        "sha256": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
+        "manifestId": GENERALSONLINE_092826_MANIFEST_ID,
+        "dataPatchManifestId": "1.92826.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092826",
+        "buildDate": "2026-09-28",
+        "description": "GeneralsOnline 092826",
+        "cdnUrl": GENERALSONLINE_092826_PORTABLE_ZIP,
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xD7AEF7C6",
+        "iniCrc": "0x81FB5632",
+        "sha256": "e07a579dc5fbe3a9ca8f12ab302906c45db9f33847b368f83890ee35404f58f0",
+        "manifestId": "1.928261.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.928261.generalsonline.patch.gamedata",
+        "dataPatchName": COMMUNITY_PATCH_CORE_INI_NAME,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "092826_QFE1",
+        "buildDate": "2026-09-28",
+        "description": "GeneralsOnline 092826_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_092826_QFE1.zip",
+        "dataPatchCdnUrl": COMMUNITY_PATCH_CORE_INI_URL,
+    },
+    {
+        "exeCrc": "0xB9DB8815",
+        "iniCrc": "0xFEAAE3F3",
+        "sha256": "97288eb5979bb959a4be2da03d09a06144e05bbf2f07ff67dbf8c05769eb07ee",
+        "manifestId": "1.828261.generalsonline.gameclient.vanilla-zerohour",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "082826_QFE1",
+        "buildDate": "2026-08-28",
+        "description": "GeneralsOnline 082826_QFE1",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xD431009C",
+        "iniCrc": "0x5CB7992C",
+        "sha256": "fa95e504426b139535b06d2e173f5c7297d668b26f2b36aa76ec674fbcaec71d",
+        "manifestId": "1.60526.generalsonline.gameclient.zerohour",
+        "dataPatchManifestId": "1.60526.generalsonline.patch.gamedata",
+        "dataPatchName": "GeneralsOnline Game Data",
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": "060526",
+        "buildDate": "2026-06-05",
+        "description": "GeneralsOnline 060526 portable release",
+        "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x1C96366F",
+        "iniCrc": "0x5A8E12F0",
+        "sha256": None,
+        "manifestId": "1.108.steam.gameclient.generals",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Steam 1.08 INI",
+        "publisher": "steam",
+        "gameType": "Generals",
+        "version": "1.08",
+        "buildDate": "2003-02-11",
+        "description": "Official Steam Generals 1.08",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x89C1F821",
+        "iniCrc": "0x323577BD",
+        "sha256": None,
+        "manifestId": "1.108.retail.gameclient.generals",
+        "dataPatchManifestId": None,
+        "dataPatchName": "Vanilla 1.08 INI",
+        "publisher": "ea",
+        "gameType": "Generals",
+        "version": "1.08",
+        "buildDate": "2003-02-11",
+        "description": "Official Retail Generals 1.08",
+        "cdnUrl": None,
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0xE3DB8319",
+        "iniCrc": "0x76B251A3",
+        "sha256": "f17e7a610ef73f86fb293678f5a4f3e24238eac8707f151c155701ea6049fcc6",
+        "manifestId": "1.11092026.communityoutpost.gameclient.community-patch-nonret",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "communityoutpost",
+        "gameType": "ZeroHour",
+        "version": "11-09-2026",
+        "buildDate": "2026-09-11",
+        "description": "Community Patch (TheSuperHackers Non-Retail Build) 11-09-2026",
+        "cdnUrl": "https://legi.cc/patch/generalszh_11-09-2026_NonRet.zip",
+        "dataPatchCdnUrl": None,
+    },
+    {
+        "exeCrc": "0x391259B0",
+        "iniCrc": "0x76B251A3",
+        "sha256": "a531a56e82381b0d15117ee5f9881d276de232c9245e598f3b75b71bc80275b8",
+        "manifestId": "1.23072026.communityoutpost.gameclient.community-patch",
+        "dataPatchManifestId": None,
+        "dataPatchName": VANILLA_104_INI,
+        "publisher": "communityoutpost",
+        "gameType": "ZeroHour",
+        "version": "23-07-2026",
+        "buildDate": "2026-07-23",
+        "description": "Community Patch (TheSuperHackers Build) 23-07-2026",
+        "cdnUrl": "https://legi.cc/patch/generalszh_23-07-2026.zip",
+        "dataPatchCdnUrl": None,
+    },
+]
+
+
+def normalize_hex(val: str) -> str:
+    """Normalizes a hex string to 0x uppercase format."""
+    if not val:
+        return ""
+    val = val.strip()
+    if val.startswith(("0x", "0X")):
+        val = val[2:]
+    return f"0x{val.upper()}"
+
+
+def compute_sage_legacy_crc(data: bytes) -> str:
+    """Computes SAGE engine 32-bit ROL-1 byte-by-byte checksum (exeCRC)."""
+    val = 0
+    for b in data:
+        val = ((val << 1) + b + (val >> 31)) & 0xFFFFFFFF
+    return f"0x{val:08X}"
+
+
+def compute_sage_xfer_crc(data: bytes) -> str:
+    """Computes SAGE network transfer checksum (iniCRC) on normalized INI lines."""
+    val = 0
+    i = 0
+    n = len(data)
+    while n - i >= 4:
+        chunk = (data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+        i += 4
+    rem = n - i
+    if rem == 1:
+        chunk = data[i]
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+    elif rem == 2:
+        chunk = data[i] | (data[i + 1] << 8)
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+    elif rem == 3:
+        chunk = data[i] | (data[i + 1] << 8) | (data[i + 2] << 16)
+        val = ((val << 1) + chunk + (val >> 31)) & 0xFFFFFFFF
+
+    bswap = (((val & 0xFF000000) >> 24) |
+             ((val & 0x00FF0000) >> 8) |
+             ((val & 0x0000FF00) << 8) |
+             ((val & 0x000000FF) << 24))
+    return f"0x{bswap:08X}"
+
+
+def compute_buffer_crc(data: bytes) -> str:
+    """Computes SAGE legacy checksum for raw binary data and formats as uppercase hex string."""
+    return compute_sage_legacy_crc(data)
+
+
+def compute_buffer_sha256(data: bytes) -> str:
+    """Computes SHA-256 for raw binary data."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def check_url_exists(url: str, timeout: int = 5) -> bool:
+    """Checks whether a remote URL exists using a HEAD request."""
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "GenHub-Replay-Crawler"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except (OSError, http.client.HTTPException):
+        return False
+
+
+def check_cdn_reachable(cdn_url: str, timeout: int = 10) -> bool:
+    """Checks whether the CDN host is reachable by probing it and verifying an HTTP response."""
+    req = urllib.request.Request(cdn_url, method="HEAD", headers={"User-Agent": "GenHub-Replay-Crawler"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout):
+            return True
+    except urllib.error.HTTPError:
+        # Received HTTP status code (e.g. 200, 400, 403, 404); CDN host is online and responsive
+        return True
+    except (OSError, http.client.HTTPException):
+        # Transport, network, DNS, or socket error (URLError is an OSError subclass)
+        return False
+
+
+def _find_target_executable_from_settings(zf: zipfile.ZipFile) -> str | None:
+    """Inspects EasyAntiCheat/Settings.json to find the target executable."""
+    for name in zf.namelist():
+        norm_name = name.replace("\\", "/").lower()
+        if norm_name.endswith("easyanticheat/settings.json"):
+            try:
+                settings_bytes = zf.read(name)
+                settings = json.loads(settings_bytes.decode("utf-8"))
+                if not isinstance(settings, dict):
+                    continue
+                target = settings.get("executable")
+                if isinstance(target, str) and target:
+                    return target.replace("\\", "/")
+            except (OSError, ValueError):
+                pass
+    return None
+
+
+def _find_binary_by_name(zf: zipfile.ZipFile, target_base: str) -> tuple[str, str]:
+    """Finds a binary in the zip by exact relative path or shallowest basename match."""
+    target_norm = target_base.replace("\\", "/").lower()
+    target_leaf = os.path.basename(target_norm).lower()
+
+    for name in zf.namelist():
+        norm = name.replace("\\", "/").lower()
+        if norm == target_norm:
+            binary_bytes = zf.read(name)
+            return compute_buffer_crc(binary_bytes), compute_buffer_sha256(binary_bytes)
+
+    matches = []
+    for name in zf.namelist():
+        norm = name.replace("\\", "/")
+        if os.path.basename(norm).lower() == target_leaf:
+            depth = norm.count("/")
+            matches.append((depth, len(norm), name))
+    if matches:
+        matches.sort()
+        best_name = matches[0][2]
+        binary_bytes = zf.read(best_name)
+        return compute_buffer_crc(binary_bytes), compute_buffer_sha256(binary_bytes)
+
+    return "", ""
+
+
+def _scan_archive_patterns(
+    zf: zipfile.ZipFile,
+    pattern_set: set[str],
+    current_exe_crc: str,
+    current_sha256: str,
+) -> tuple[str, str, str]:
+    """Scans zip archive for fallback binary patterns and generals.ini."""
+    exe_crc = current_exe_crc
+    sha256 = current_sha256
+    ini_crc = ""
+
+    for name in zf.namelist():
+        norm = name.replace("\\", "/")
+        base_name = os.path.basename(norm).lower()
+        if not exe_crc and base_name in pattern_set:
+            binary_bytes = zf.read(name)
+            exe_crc = compute_buffer_crc(binary_bytes)
+            sha256 = compute_buffer_sha256(binary_bytes)
+        if not ini_crc and base_name == "generals.ini":
+            ini_bytes = zf.read(name)
+            ini_crc = compute_sage_xfer_crc(ini_bytes)
+
+        if exe_crc and ini_crc:
+            break
+
+    return exe_crc, sha256, ini_crc
+
+
+def _extract_archive_crcs(zf: zipfile.ZipFile, binary_patterns: list[str]) -> tuple[str, str, str]:
+    """Extracts executable CRC32, SHA256, and INI CRC from an open zip archive."""
+    target_executable = _find_target_executable_from_settings(zf)
+    exe_crc, sha256 = "", ""
+    if target_executable:
+        exe_crc, sha256 = _find_binary_by_name(zf, target_executable)
+
+    pattern_set = {p.lower() for p in binary_patterns}
+    return _scan_archive_patterns(zf, pattern_set, exe_crc, sha256)
+
+def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tuple[str, str, str]:
+    """Downloads archive into memory and extracts CRC32, SHA256, and INI CRC."""
+    req = urllib.request.Request(download_url, headers={"User-Agent": "GenHub-Replay-Crawler"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            archive_data = resp.read()
+
+        with zipfile.ZipFile(io.BytesIO(archive_data)) as zf:
+            return _extract_archive_crcs(zf, binary_patterns)
+    except (OSError, zipfile.BadZipFile, http.client.HTTPException, zlib.error, EOFError) as e:
+        print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
+        return "", "", ""
+
+
+def _fetch_release_page(repo: str, page: int, headers: dict) -> tuple[list[dict], bool]:
+    """Fetches a single page of releases from GitHub API, returning entries and whether a next page exists."""
+    url = f"https://api.github.com/repos/{repo}/releases?per_page=100&page={page}"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        page_data = json.loads(resp.read().decode("utf-8"))
+        link_header = resp.headers.get("Link", "")
+    if not page_data or not isinstance(page_data, list):
+        return [], False
+    has_next = 'rel="next"' in link_header
+    return page_data, has_next
+
+
+def fetch_github_releases(repo: str, token: str | None = None) -> list[dict]:
+    """Fetches all release records from a GitHub repository."""
+    headers = {"User-Agent": "GenHub-Replay-Crawler"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    releases = []
+    page = 1
+    while True:
+        try:
+            page_data, has_next = _fetch_release_page(repo, page, headers)
+            if not page_data:
+                break
+            releases.extend(page_data)
+            if not has_next:
+                break
+            page += 1
+        except (OSError, json.JSONDecodeError, http.client.HTTPException) as e:
+            if page == 1:
+                raise UpstreamFetchError(f"GitHub API error fetching {repo} releases on page {page}: {e}") from e
+            print(f"Warning: could not reach GitHub API page {page} ({e}). Using partial fetched releases.", file=sys.stderr)
+            break
+
+    return releases
+
+
+def parse_superhackers_asset(date_str: str, version_num: str, asset: dict, inspect_binaries: bool) -> dict | None:
+    """Parses a single release asset into a mapping entry if it is a relevant gameclient zip."""
+    name = asset.get("name", "")
+    download_url = asset.get("browser_download_url", "")
+    if not (name.endswith(".zip") and "generals" in name.lower()):
+        return None
+
+    game_type = "ZeroHour" if "zh" in name.lower() else "Generals"
+    manifest_type = "zerohour" if game_type == "ZeroHour" else "generals"
+    manifest_id = f"1.{version_num}.thesuperhackers.gameclient.{manifest_type}"
+    default_ini = "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD"
+
+    exe_crc = ""
+    sha256 = ""
+    ini_crc = default_ini
+
+    if inspect_binaries and download_url:
+        target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else [GENERALS_EXE_NAME]
+        c_exe, c_sha, c_ini = inspect_archive_binary(download_url, target_bin)
+        if c_exe:
+            exe_crc = c_exe
+        if c_sha:
+            sha256 = c_sha
+        if c_ini:
+            ini_crc = c_ini
+
+    return {
+        "exeCrc": exe_crc,
+        "iniCrc": ini_crc,
+        "sha256": sha256,
+        "manifestId": manifest_id,
+        "publisher": "thesuperhackers",
+        "gameType": game_type,
+        "version": date_str,
+        "buildDate": date_str,
+        "description": f"TheSuperHackers {game_type} weekly {date_str}",
+        "cdnUrl": download_url,
+    }
+
+
+def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
+    """Fetches and maps releases from TheSuperHackers repository on GitHub across all pages (2025, 2026, etc.)."""
+    effective_token = token or os.environ.get("GITHUB_TOKEN")
+    releases = fetch_github_releases(SUPERHACKERS_REPO, effective_token)
+    if not releases:
+        return []
+
+    entries = []
+    for rel in releases:
+        tag = rel.get("tag_name", "")
+        m = re.match(r"weekly-(\d{4}-\d{2}-\d{2})", tag)
+        if not m:
+            continue
+        date_str = m.group(1)
+        version_num = date_str.replace("-", "")
+
+        for asset in rel.get("assets", []):
+            entry = parse_superhackers_asset(date_str, version_num, asset, inspect_binaries)
+            if entry:
+                entries.append(entry)
+
+    return entries
+
+
+def _parse_known_date_code(code: str) -> datetime.date | None:
+    """Parses a MMDDYY date code to a date object, returning None if invalid."""
+    try:
+        month = int(code[0:2])
+        day = int(code[2:4])
+        year = 2000 + int(code[4:6])
+        return datetime.date(year, month, day)
+    except (ValueError, IndexError):
+        return None
+
+
+def _resolve_date_bounds(
+    start_year: int,
+    end_year: int,
+    start_date: datetime.date | None,
+    end_date: datetime.date | None,
+) -> tuple[datetime.date, datetime.date]:
+    """Resolves and validates start and end date bounds."""
+    if start_date is not None and end_date is not None and start_date > end_date:
+        raise ValueError(f"start_date ({start_date}) cannot be after end_date ({end_date})")
+
+    resolved_start = start_date or datetime.date(start_year, 1, 1)
+    default_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
+    resolved_end = end_date or (datetime.date.today() + datetime.timedelta(days=7) if start_date else default_end)
+
+    if resolved_start > resolved_end:
+        raise ValueError(f"Computed start_date ({resolved_start}) is after end_date ({resolved_end})")
+
+    return resolved_start, resolved_end
+
+
+def generate_date_codes(
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
+) -> set[str]:
+    """Generates valid MMDDYY date codes within the given year range or explicit date bounds."""
+    start, end = _resolve_date_bounds(start_year, end_year, start_date, end_date)
+    date_set = set()
+
+    for code in GENERALSONLINE_KNOWN_DATES:
+        d = _parse_known_date_code(code)
+        if d and (include_all_known_dates or (start <= d <= end)):
+            if end_date is None or d <= end:
+                date_set.add(code)
+
+    curr_date = start
+    while curr_date <= end:
+        date_set.add(curr_date.strftime("%m%d%y"))
+        curr_date += datetime.timedelta(days=1)
+
+    return date_set
+
+
+def _build_variant_candidate(date_code: str, qfe: int | None, is_eac: bool) -> tuple[str, str, str, str]:
+    qfe_part = f"_QFE{qfe}" if qfe is not None else ""
+    eac_part = "_EAC" if is_eac else ""
+    suffix = f"{qfe_part}{eac_part}"
+    zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
+    url = f"{GENERALSONLINE_CDN}/{zip_name}"
+    manifest_type = "eac-zerohour" if is_eac else "zerohour"
+    qfe_digit = str(qfe) if qfe is not None else ""
+    date_code_norm = str(int(date_code)) if date_code.isdigit() else date_code
+    manifest_id = f"1.{date_code_norm}{qfe_digit}.generalsonline.gameclient.{manifest_type}"
+    version_str = f"{date_code}{suffix}"
+    return (date_code, version_str, manifest_id, url)
+
+
+def build_candidates_for_date(date_code: str, max_qfe: int = 15) -> list[tuple[str, str, str, str]]:
+    """Builds base and QFE candidate descriptors for a single date code up to max_qfe."""
+    candidates = [
+        _build_variant_candidate(date_code, qfe=None, is_eac=False),
+        _build_variant_candidate(date_code, qfe=None, is_eac=True),
+    ]
+    for qfe in range(1, max_qfe + 1):
+        candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=False))
+        candidates.append(_build_variant_candidate(date_code, qfe=qfe, is_eac=True))
+    return candidates
+
+
+def generate_generalsonline_candidates(
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
+) -> list[tuple[str, str, str, str]]:
+    """Generates candidate (date_code, version_str, manifest_id, url) tuples for GeneralsOnline."""
+    date_set = generate_date_codes(
+        start_year,
+        end_year,
+        start_date=start_date,
+        end_date=end_date,
+        include_all_known_dates=include_all_known_dates,
+    )
+    candidates = []
+    for date_code in sorted(date_set):
+        candidates.extend(build_candidates_for_date(date_code))
+    return candidates
+
+
+def parse_date_arg(date_str: str) -> datetime.date:
+    """Parses a date string in YYYY-MM-DD or MMDDYY format."""
+    s = date_str.strip()
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+        return datetime.date.fromisoformat(s)
+    if re.match(r"^\d{6}$", s):
+        month = int(s[0:2])
+        day = int(s[2:4])
+        year = 2000 + int(s[4:6])
+        return datetime.date(year, month, day)
+    raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD or MMDDYY.")
+
+
+def _is_generalsonline_entry(entry: dict) -> bool:
+    """Checks whether a catalog entry belongs to GeneralsOnline."""
+    pub = entry.get("publisher", "").lower()
+    m_id = entry.get("manifestId", "").lower()
+    return pub == "generalsonline" or "generalsonline" in m_id
+
+
+def _parse_entry_build_date(entry: dict) -> datetime.date | None:
+    """Extracts date from entry buildDate field if valid ISO format."""
+    bdate_str = entry.get("buildDate")
+    if not bdate_str:
+        return None
+    try:
+        return datetime.date.fromisoformat(bdate_str)
+    except ValueError:
+        return None
+
+
+def _parse_entry_version_date(entry: dict) -> datetime.date | None:
+    """Extracts date from entry MMDDYY version prefix if valid."""
+    ver = entry.get("version", "")
+    m = re.match(r"^(\d{2})(\d{2})(\d{2})", ver)
+    if not m:
+        return None
+    try:
+        month = int(m.group(1))
+        day = int(m.group(2))
+        year = 2000 + int(m.group(3))
+        return datetime.date(year, month, day)
+    except ValueError:
+        return None
+
+
+def _extract_generalsonline_entry_date(entry: dict) -> datetime.date | None:
+    """Extracts candidate build date from buildDate or version string."""
+    d_build = _parse_entry_build_date(entry)
+    d_ver = _parse_entry_version_date(entry)
+    if d_build and d_ver:
+        return max(d_build, d_ver)
+    return d_build or d_ver
+
+
+def get_latest_generalsonline_date(mappings: list[dict]) -> datetime.date | None:
+    """Extracts the most recent GeneralsOnline build date from existing catalog mappings."""
+    dates = [
+        d
+        for entry in mappings
+        if _is_generalsonline_entry(entry)
+        and (d := _extract_generalsonline_entry_date(entry)) is not None
+    ]
+    return max(dates, default=None)
+
+
+def filter_available_candidates(candidates: list[tuple[str, str, str, str]]) -> list[tuple[str, str, str, str]]:
+    """Probes candidate URLs concurrently and returns reachable ones."""
+    valid_candidates = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        future_to_cand = {executor.submit(check_url_exists, cand[3]): cand for cand in candidates}
+        for future in concurrent.futures.as_completed(future_to_cand):
+            cand = future_to_cand[future]
+            try:
+                if future.result():
+                    valid_candidates.append(cand)
+            except OSError as e:
+                print(f"Warning: error probing candidate {cand[3]}: {e}", file=sys.stderr)
+    valid_candidates.sort(key=lambda c: (c[0], c[1], c[3]))
+    return valid_candidates
+
+
+KNOWN_GENERALSONLINE_SAGE_CRCS = {
+    "021326_QFE2": "0x88BEB180",
+    "032926_QFE1": "0x45BF602F",
+    "032926_QFE2": "0xE981A0B4",
+    "032926_QFE3": "0x1A5EF2C5",
+    "032926_QFE4": "0x1A5EF2C5",
+    "032926_QFE5": "0x1A5EF2C5",
+    "082826": "0xB9DB8815",
+    "082826_QFE1": "0xB9DB8815",
+    "082826_QFE2": "0xB044249B",
+    "082826_QFE3": "0xB044249B",
+    "082826_QFE4": "0xB044249B",
+    "092226": "0x383205DC",
+    "092226_QFE1": "0xC3F59DFA",
+    "092226_QFE2": "0xC4841747",
+    "092526": "0xDB4E6D21",
+    "092526_QFE1": "0x3F347AAC",
+    "092826": "0xD83377F3",
+    "092826_QFE1": "0xD7AEF7C6",
+}
+KNOWN_GENERALSONLINE_SHA256S = {
+    "082826_QFE2": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+    "082826_QFE3": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+    "082826_QFE4": "5f36a6ff83dd26d50d45a9ab88ef8b8af9922ea04f044266d05bf56c19222287",
+    "092226": "895075b251175a5337d724fe6ae933ab4cd2edd314e0fdc8b0cf23dc96c4c001",
+    "092226_QFE1": "eeb09472f6fd30cd2a623517ec69ac93423e17c38065624befdc45df9adf3fb9",
+    "092226_QFE2": "ff21df13c5cb0f524e4d56585c1867467efbcff44a94ed2e1b2f30eef2aaca8b",
+    "092526": "704a8d100acb7ffb3e5c8bfdb1c81cfd183dcacce0b9720ecd1d9e902ebb63fd",
+    "092526_QFE1": "eed0d118e6bdd0b06a75c6a903268badd87193dbbefc2369da2b3b280febe57f",
+    "092826": "8ba835206919bbfe724514f10e3ecb665245ff9e4141ef842b67fe616214ba3f",
+    "092826_QFE1": "e07a579dc5fbe3a9ca8f12ab302906c45db9f33847b368f83890ee35404f58f0",
+}
+
+
+def _inspect_generalsonline_binary(
+    url: str,
+    version_str: str,
+    exe_crc: str,
+    ini_crc: str,
+) -> tuple[str, str, str] | None:
+    """Inspects remote archive binary to determine exe CRC, SHA-256, and INI CRC."""
+    c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
+    if not c_exe:
+        return None
+    if version_str in KNOWN_GENERALSONLINE_SAGE_CRCS:
+        if normalize_hex(c_exe) != normalize_hex(exe_crc):
+            print(f"[Warning] Inspected exe CRC {c_exe} diverges from known SAGE CRC {exe_crc} for {version_str}")
+    else:
+        exe_crc = c_exe
+    sha256 = c_sha
+    if c_ini:
+        ini_crc = c_ini
+    return exe_crc, sha256, ini_crc
+
+
+def build_generalsonline_entry(cand: tuple[str, str, str, str], inspect_binaries: bool) -> dict | None:
+    """Builds a single catalog entry from a verified GeneralsOnline release candidate."""
+    date_code, version_str, manifest_id, url = cand
+    exe_crc = KNOWN_GENERALSONLINE_SAGE_CRCS.get(version_str, "")
+    sha256 = KNOWN_GENERALSONLINE_SHA256S.get(version_str, "")
+    month = int(date_code[:2])
+    ini_crc = "0x81FB5632" if month >= 8 else "0xFEAAE3F3"
+
+    if inspect_binaries or not exe_crc:
+        inspected = _inspect_generalsonline_binary(url, version_str, exe_crc, ini_crc)
+        if inspected is not None:
+            exe_crc, sha256, ini_crc = inspected
+        elif not exe_crc:
+            return None
+
+    year = f"20{date_code[4:6]}"
+    month_str = date_code[0:2]
+    day = date_code[2:4]
+    build_date = f"{year}-{month_str}-{day}"
+
+    entry = {
+        "exeCrc": exe_crc,
+        "iniCrc": ini_crc,
+        "sha256": sha256,
+        "manifestId": manifest_id,
+        "publisher": "generalsonline",
+        "gameType": "ZeroHour",
+        "version": version_str,
+        "buildDate": build_date,
+        "description": f"GeneralsOnline {version_str}",
+        "cdnUrl": url,
+    }
+    if ini_crc == "0x81FB5632":
+        entry["dataPatchName"] = COMMUNITY_PATCH_CORE_INI_NAME
+        entry["dataPatchCdnUrl"] = COMMUNITY_PATCH_CORE_INI_URL
+        entry["dataPatchManifestId"] = manifest_id.replace(".gameclient.zerohour", ".patch.gamedata").replace(".gameclient.eac-zerohour", ".patch.gamedata")
+    return entry
+
+
+def crawl_generalsonline_releases(
+    inspect_binaries: bool = False,
+    start_year: int = 2025,
+    end_year: int = 2026,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+    include_all_known_dates: bool = False,
+) -> list[dict]:
+    """Probes and maps portable releases from the GeneralsOnline CDN."""
+    if not check_cdn_reachable(GENERALSONLINE_CDN):
+        raise UpstreamFetchError(
+            f"GeneralsOnline CDN reachability check failed ({GENERALSONLINE_CDN}); CDN is unreachable or offline."
+        )
+
+    candidates = generate_generalsonline_candidates(
+        start_year=start_year,
+        end_year=end_year,
+        start_date=start_date,
+        end_date=end_date,
+        include_all_known_dates=include_all_known_dates,
+    )
+    valid_candidates = filter_available_candidates(candidates)
+
+    entries = []
+    for cand in valid_candidates:
+        entry = build_generalsonline_entry(cand, inspect_binaries)
+        if entry:
+            entries.append(entry)
+
+    return entries
+
+
+def _update_existing_entry(existing: dict, incoming: dict) -> None:
+    """Updates missing metadata and checksums on an existing catalog entry."""
+    if incoming.get("cdnUrl"):
+        existing["cdnUrl"] = incoming["cdnUrl"]
+    for key in ("exeCrc", "iniCrc"):
+        if not existing.get(key) and incoming.get(key):
+            existing[key] = normalize_hex(incoming[key])
+    if not existing.get("sha256") and incoming.get("sha256"):
+        existing["sha256"] = incoming["sha256"]
+    if incoming.get("dataPatchName") and not existing.get("dataPatchName"):
+        existing["dataPatchName"] = incoming["dataPatchName"]
+    if incoming.get("dataPatchCdnUrl") and not existing.get("dataPatchCdnUrl"):
+        existing["dataPatchCdnUrl"] = incoming["dataPatchCdnUrl"]
+    if incoming.get("dataPatchManifestId") and not existing.get("dataPatchManifestId"):
+        existing["dataPatchManifestId"] = incoming["dataPatchManifestId"]
+
+
+def _is_crc_field_compatible(item_crc: str, existing_crc: str) -> bool:
+    """Checks whether two CRC hex strings are compatible (either empty or equal)."""
+    return not existing_crc or not item_crc or existing_crc == item_crc
+
+
+def _has_partial_crc_match(item_exe: str, item_ini: str, ex_exe: str, ex_ini: str) -> bool:
+    """Returns True if the crawled item provides a CRC missing from the existing entry."""
+    return bool((not ex_exe and item_exe) or (not ex_ini and item_ini))
+
+
+def _has_same_cdn_url(item: dict, existing_entry: dict) -> bool:
+    """Returns True if both entries share the same non-empty CDN URL."""
+    item_url = item.get("cdnUrl")
+    ex_url = existing_entry.get("cdnUrl")
+    return bool(item_url and ex_url and item_url == ex_url)
+
+
+def _check_catalog_entry_match(
+    item: dict,
+    existing_entry: dict,
+    item_exe: str,
+    item_ini: str,
+    ex_exe: str,
+    ex_ini: str,
+) -> tuple[bool, bool]:
+    """Determines whether an existing catalog entry matches or conflicts with the crawled item."""
+    is_crc_compatible = _is_crc_field_compatible(item_exe, ex_exe) and _is_crc_field_compatible(item_ini, ex_ini)
+    same_cdn = _has_same_cdn_url(item, existing_entry)
+    has_partial = _has_partial_crc_match(item_exe, item_ini, ex_exe, ex_ini)
+    is_match = is_crc_compatible and (has_partial or same_cdn)
+    is_conflict = same_cdn and not is_crc_compatible
+    return is_match, is_conflict
+
+
+def _find_compatible_catalog_key(
+    merged: dict,
+    m_id: str,
+    key: tuple[str, str, str],
+    item: dict,
+) -> tuple[str, str, str] | None:
+    """Finds an existing catalog key compatible with the crawled item to merge CRCs/hashes."""
+    item_exe, item_ini = key[1], key[2]
+    if not (item_exe or item_ini):
+        return None
+
+    for existing_key, existing_entry in merged.items():
+        if existing_key[0] != m_id:
+            continue
+
+        ex_exe, ex_ini = existing_key[1], existing_key[2]
+        is_match, is_conflict = _check_catalog_entry_match(
+            item, existing_entry, item_exe, item_ini, ex_exe, ex_ini
+        )
+
+        if is_match:
+            return existing_key
+
+        if is_conflict:
+            print(
+                f"Validation error: refusing to merge {m_id} due to conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
+                file=sys.stderr,
+            )
+            raise CatalogConflictError(
+                f"Conflicting CRCs ({item_exe}/{item_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl in manifestId {m_id}"
+            )
+
+    return None
+
+
+def normalize_manifest_id(m_id: str) -> str:
+    """Normalizes legacy base-release manifest IDs with trailing zeros to the canonical format."""
+    return re.sub(r"^1\.(\d{5})0\.generalsonline\.", r"1.\1.generalsonline.", m_id)
+
+
+def _merge_crawled_item(merged: dict, item: dict, entry_key_fn) -> None:
+    """Merges a single crawled item into the accumulated catalog mapping."""
+    m_id = item.get("manifestId")
+    if not m_id:
+        return
+
+    item_copy = dict(item)
+    item_copy["manifestId"] = normalize_manifest_id(item_copy["manifestId"])
+    m_id = item_copy["manifestId"]
+    key = entry_key_fn(item_copy)
+
+    if key in merged:
+        _update_existing_entry(merged[key], item_copy)
+        return
+
+    matched_key = _find_compatible_catalog_key(merged, m_id, key, item_copy)
+    if matched_key:
+        existing_entry = merged.pop(matched_key)
+        _update_existing_entry(existing_entry, item_copy)
+        merged[entry_key_fn(existing_entry)] = existing_entry
+        return
+
+    if not item_copy.get("exeCrc") or not item_copy.get("iniCrc"):
+        print(
+            f"Validation warning: skipping crawled entry {m_id} without complete CRCs (exeCrc={item_copy.get('exeCrc')}, iniCrc={item_copy.get('iniCrc')}) (run with --inspect-binaries to populate CRCs)",
+            file=sys.stderr,
+        )
+        return
+
+    if any(k[0] == m_id for k in merged):
+        print(
+            f"Validation warning: duplicate manifestId {m_id} with distinct CRC key {key}",
+            file=sys.stderr,
+        )
+    merged[key] = dict(item_copy)
+
+
+def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
+    """Merges new crawled entries into existing catalog, preserving known CRCs and hashes."""
+    def entry_key(entry: dict) -> tuple[str, str, str]:
+        m_id = normalize_manifest_id(entry.get("manifestId", ""))
+        return (
+            m_id,
+            normalize_hex(entry.get("exeCrc", "")),
+            normalize_hex(entry.get("iniCrc", "")),
+        )
+
+    merged = {}
+    for entry in existing:
+        if not entry.get("manifestId"):
+            print(f"Validation warning: skipping existing catalog entry without manifestId: {entry}", file=sys.stderr)
+            continue
+        entry_copy = dict(entry)
+        entry_copy["manifestId"] = normalize_manifest_id(entry_copy["manifestId"])
+        merged[entry_key(entry_copy)] = entry_copy
+
+    for item in crawled:
+        _merge_crawled_item(merged, item, entry_key)
+
+    return list(merged.values())
+
+
+def _validate_crc_fields(m_id: str, entry: dict) -> bool:
+    """Validates hex format for exeCrc and iniCrc."""
+    valid = True
+    for crc_name in ("exeCrc", "iniCrc"):
+        crc_val = entry.get(crc_name)
+        if not crc_val:
+            print(f"Validation error at {m_id}: missing {crc_name}", file=sys.stderr)
+            valid = False
+        elif not re.match(r"^0x[0-9A-Fa-f]{8}$", crc_val):
+            print(f"Validation error at {m_id}: invalid {crc_name} format '{crc_val}'", file=sys.stderr)
+            valid = False
+    return valid
+
+
+def _has_cdn_crc_conflict(entry: dict, existing_entry: dict, new_exe: str, new_ini: str, ex_exe: str, ex_ini: str) -> bool:
+    ex_cdn = existing_entry.get("cdnUrl")
+    new_cdn = entry.get("cdnUrl")
+    if not (ex_cdn and new_cdn and ex_cdn == new_cdn):
+        return False
+    is_patch = bool(
+        entry.get("dataPatchName")
+        or existing_entry.get("dataPatchName")
+        or entry.get("dataPatchManifestId")
+        or existing_entry.get("dataPatchManifestId")
+    )
+    has_ini_conflict = bool(ex_ini and new_ini and ex_ini != new_ini and not is_patch)
+    return bool((ex_exe and new_exe and ex_exe != new_exe) or has_ini_conflict)
+
+
+def _validate_seen_manifest(m_id: str, entry: dict, seen_manifests: dict) -> bool:
+    """Checks for duplicate or conflicting exeCrc / iniCrc / cdnUrl for previously seen manifest IDs."""
+    new_exe = (entry.get("exeCrc") or "").lower()
+    new_ini = (entry.get("iniCrc") or "").lower()
+
+    if m_id not in seen_manifests:
+        seen_manifests[m_id] = entry
+        return True
+
+    existing_entry = seen_manifests[m_id]
+    ex_exe = (existing_entry.get("exeCrc") or "").lower()
+    ex_ini = (existing_entry.get("iniCrc") or "").lower()
+
+    if _has_cdn_crc_conflict(entry, existing_entry, new_exe, new_ini, ex_exe, ex_ini):
+        print(
+            f"Validation error at {m_id}: conflicting CRCs ({new_exe}/{new_ini} vs {ex_exe}/{ex_ini}) for same cdnUrl",
+            file=sys.stderr,
+        )
+        return False
+
+    if ex_exe and new_exe and ex_exe != new_exe:
+        print(
+            f"Validation error at {m_id}: conflicting exeCrc {new_exe} vs {ex_exe} for the same manifestId",
+            file=sys.stderr,
+        )
+        return False
+
+    print(f"Validation notice: multiple mapping variants for manifestId {m_id}", file=sys.stderr)
+    return True
+
+
+def _validate_mapping_entry(idx: int, entry: dict, seen_manifests: dict) -> bool:
+    """Validates a single mapping entry in the CRC catalog."""
+    m_id = entry.get("manifestId")
+    if not m_id:
+        print(f"Validation error at mapping index {idx}: missing manifestId", file=sys.stderr)
+        return False
+
+    valid = _validate_seen_manifest(m_id, entry, seen_manifests)
+
+    if not entry.get("publisher"):
+        print(f"Validation error at {m_id}: missing publisher", file=sys.stderr)
+        valid = False
+
+    if not entry.get("gameType") or entry["gameType"] not in ("Generals", "ZeroHour"):
+        print(f"Validation error at {m_id}: invalid gameType {entry.get('gameType')}", file=sys.stderr)
+        valid = False
+
+    if not _validate_crc_fields(m_id, entry):
+        valid = False
+
+    return valid
+
+
+def validate_catalog(catalog: dict) -> bool:
+    """Validates the structure and entries of the CRC mapping catalog."""
+    if not isinstance(catalog, dict):
+        print("Validation error: catalog must be a JSON object", file=sys.stderr)
+        return False
+
+    if "mappings" not in catalog or not isinstance(catalog["mappings"], list):
+        print("Validation error: 'mappings' array missing", file=sys.stderr)
+        return False
+
+    if "totalEntries" in catalog and catalog["totalEntries"] != len(catalog["mappings"]):
+        print(f"Validation error: totalEntries ({catalog['totalEntries']}) does not match mappings count ({len(catalog['mappings'])})", file=sys.stderr)
+        return False
+
+    valid = True
+    seen_manifests = {}
+    for idx, entry in enumerate(catalog["mappings"]):
+        if not isinstance(entry, dict):
+            print(f"Validation error at mapping index {idx}: entry must be a JSON object", file=sys.stderr)
+            valid = False
+            continue
+        if not _validate_mapping_entry(idx, entry, seen_manifests):
+            valid = False
+
+    return valid
+
+
+def _update_entry_from_base(existing_entry: dict, base: dict) -> None:
+    """Updates missing fields on an existing entry from base mapping."""
+    base_exe = base.get("exeCrc")
+    if base_exe:
+        if not existing_entry.get("exeCrc"):
+            existing_entry["exeCrc"] = base_exe
+        elif normalize_hex(base_exe) != normalize_hex(existing_entry.get("exeCrc", "")):
+            print(f"[Warning] Base mapping exeCrc {base_exe} diverges from existing {existing_entry.get('exeCrc')} for {base.get('manifestId')}")
+    if base.get("sha256") and not existing_entry.get("sha256"):
+        existing_entry["sha256"] = base.get("sha256")
+    if base.get("dataPatchName") and not existing_entry.get("dataPatchName"):
+        existing_entry["dataPatchName"] = base.get("dataPatchName")
+    if base.get("dataPatchCdnUrl") and not existing_entry.get("dataPatchCdnUrl"):
+        existing_entry["dataPatchCdnUrl"] = base.get("dataPatchCdnUrl")
+    if base.get("dataPatchManifestId") and not existing_entry.get("dataPatchManifestId"):
+        existing_entry["dataPatchManifestId"] = base.get("dataPatchManifestId")
+
+
+
+
+
+def _merge_base_mappings(existing: list[dict], base_mappings: list[dict]) -> list[dict]:
+    """Merges base mappings into an existing mapping list."""
+    existing_keys = {
+        (e.get("manifestId"), normalize_hex(e.get("exeCrc", "")), normalize_hex(e.get("iniCrc", "")))
+        for e in existing
+    }
+    existing_map = {
+        (e.get("manifestId"), normalize_hex(e.get("iniCrc", ""))): e
+        for e in existing
+    }
+    for base in base_mappings:
+        base_key = (
+            base.get("manifestId"),
+            normalize_hex(base.get("exeCrc", "")),
+            normalize_hex(base.get("iniCrc", "")),
+        )
+        pair_key = (base.get("manifestId"), normalize_hex(base.get("iniCrc", "")))
+        if pair_key in existing_map:
+            _update_entry_from_base(existing_map[pair_key], base)
+        elif base_key not in existing_keys:
+            existing.append(dict(base))
+            existing_keys.add(base_key)
+    return existing
+
+
+def _load_existing_mappings(output_path: str, base_mappings: list[dict]) -> list[dict]:
+    """Loads existing mappings from disk if present."""
+    if not os.path.exists(output_path):
+        return base_mappings
+
+    try:
+        with open(output_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+            if isinstance(loaded, dict) and "mappings" in loaded and isinstance(loaded["mappings"], list):
+                return _merge_base_mappings(loaded["mappings"], base_mappings)
+            print(
+                f"Warning: existing catalog at {output_path} is not an object containing a 'mappings' list; falling back to base mappings.",
+                file=sys.stderr,
+            )
+    except (OSError, ValueError) as e:
+        print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
+
+    return base_mappings
+
+
+def _resolve_go_start_date(
+    existing_mappings: list[dict],
+    from_latest: bool,
+    start_date: datetime.date | None,
+) -> datetime.date | None:
+    """Calculates start date for incremental GeneralsOnline crawling."""
+    if not (from_latest and start_date is None):
+        return start_date
+    latest_date = get_latest_generalsonline_date(existing_mappings)
+    if latest_date:
+        go_start_date = max(datetime.date(2025, 1, 1), latest_date - datetime.timedelta(days=1))
+        print(f"Incremental crawl: probing GeneralsOnline CDN from {go_start_date} (latest catalog date: {latest_date})")
+        return go_start_date
+    return None
+
+
+def _crawl_generalsonline_source(
+    existing_mappings: list[dict],
+    inspect_binaries: bool,
+    from_latest: bool,
+    start_date: datetime.date | None,
+    end_date: datetime.date | None,
+) -> list[dict]:
+    """Probes and maps GeneralsOnline releases."""
+    go_start_date = _resolve_go_start_date(existing_mappings, from_latest, start_date)
+    return crawl_generalsonline_releases(
+        inspect_binaries=inspect_binaries,
+        start_date=go_start_date,
+        end_date=end_date,
+        include_all_known_dates=from_latest and end_date is None,
+    )
+
+
+def _crawl_and_merge(
+    existing_mappings: list[dict],
+    inspect_binaries: bool,
+    source: str = "all",
+    from_latest: bool = False,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> list[dict]:
+    """Crawls upstream release feeds and merges into existing mappings."""
+    try:
+        if source in ("all", "superhackers"):
+            sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+            if sh_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+            elif source == "superhackers":
+                print("Notice: no new Superhackers releases discovered.")
+
+        if source in ("all", "generalsonline"):
+            go_crawled = _crawl_generalsonline_source(
+                existing_mappings, inspect_binaries, from_latest, start_date, end_date
+            )
+            if go_crawled:
+                existing_mappings = merge_catalogs(existing_mappings, go_crawled)
+            else:
+                print("Notice: no new GeneralsOnline releases discovered on CDN; catalog is up to date.")
+
+        return existing_mappings
+    except (CatalogConflictError, UpstreamFetchError) as e:
+        print(f"Error: {e}; aborting generation to prevent publishing a stale catalog.", file=sys.stderr)
+        sys.exit(1)
+
+
+def _write_catalog_file(output_path: str, catalog: dict) -> None:
+    """Serializes catalog JSON to disk atomically."""
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    tmp_path = f"{output_path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(catalog, f, indent=2)
+        f.write("\n")
+    os.replace(tmp_path, output_path)
+
+
+def build_catalog(
+    output_path: str = DEFAULT_OUTPUT_PATH,
+    crawl: bool = False,
+    inspect_binaries: bool = False,
+    source: str = "all",
+    from_latest: bool = False,
+    start_date: datetime.date | None = None,
+    end_date: datetime.date | None = None,
+) -> dict:
+    """Builds and writes the complete CRC catalog."""
+    existing_mappings = _load_existing_mappings(output_path, list(BASELINE_ENTRIES))
+    original_snapshot = json.dumps(existing_mappings, sort_keys=True)
+
+    original_last_updated = None
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                if isinstance(raw, dict):
+                    original_last_updated = raw.get("lastUpdated")
+        except (OSError, ValueError):
+            pass
+
+    if crawl:
+        existing_mappings = _crawl_and_merge(
+            existing_mappings,
+            inspect_binaries=inspect_binaries,
+            source=source,
+            from_latest=from_latest,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    new_snapshot = json.dumps(existing_mappings, sort_keys=True)
+    mappings_changed = (new_snapshot != original_snapshot)
+
+    last_updated = (
+        datetime.datetime.now(datetime.timezone.utc).isoformat()
+        if (mappings_changed or not original_last_updated)
+        else original_last_updated
+    )
+
+    catalog = {
+        "schemaVersion": 1,
+        "lastUpdated": last_updated,
+        "totalEntries": len(existing_mappings),
+        "mappings": existing_mappings,
+    }
+
+    if not validate_catalog(catalog):
+        print("Error: Generated catalog failed validation; refusing to write.", file=sys.stderr)
+        sys.exit(1)
+
+    _write_catalog_file(output_path, catalog)
+    if mappings_changed:
+        print(f"Successfully updated catalog with {len(existing_mappings)} entries to {output_path} (changes detected).")
+    else:
+        print(f"Catalog is up to date ({len(existing_mappings)} entries, no changes detected).")
+    return catalog
+
+
+def run_self_test() -> bool:
+    """Runs self-test assertions verifying hashing, date generation, and catalog structure."""
+    if not __debug__:
+        raise RuntimeError("Self-test suite requires asserts enabled (cannot run under python -O)")
+
+    def expect(condition: bool, msg: str = "") -> None:
+        if not condition:
+            raise AssertionError(msg or "Self-test expectation failed")
+
+    print("Running self-test suite...")
+
+    # Test 1: SAGE Legacy CRC
+    test_bytes = b"Hello, World!"
+    crc = compute_buffer_crc(test_bytes)
+    expect(crc == "0x000AD4F9", f"Expected 0x000AD4F9, got {crc}")
+
+    # Test 2: SAGE Transfer CRC
+    xfer_crc = compute_sage_xfer_crc(test_bytes)
+    expect(xfer_crc == "0xA7BDC0DE", f"Expected 0xA7BDC0DE, got {xfer_crc}")
+
+    # Test 3: Date range generation
+    d_start = datetime.date(2026, 9, 25)
+    d_end = datetime.date(2026, 9, 28)
+    codes = generate_date_codes(start_date=d_start, end_date=d_end)
+    expected_codes = {"092526", "092626", "092726", "092826"}
+    expect(codes == expected_codes, f"Expected {expected_codes}, got {codes}")
+
+    # Test 4: Candidate generation includes QFE and EAC
+    cands = build_candidates_for_date("092826", max_qfe=3)
+    urls = [c[3] for c in cands]
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826.zip" in urls, "portable zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_EAC.zip" in urls, "portable EAC zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1.zip" in urls, "QFE1 zip missing")
+    expect(f"{GENERALSONLINE_CDN}/GeneralsOnline_portable_092826_QFE1_EAC.zip" in urls, "QFE1 EAC zip missing")
+
+    # Test 5: Date argument parsing
+    expect(parse_date_arg("2026-09-28") == datetime.date(2026, 9, 28), "ISO date parse failed")
+    expect(parse_date_arg("092826") == datetime.date(2026, 9, 28), "MMDDYY date parse failed")
+
+    # Test 6: get_latest_generalsonline_date
+    dummy_mappings = [
+        {"publisher": "generalsonline", "buildDate": "2026-08-28", "version": "082826"},
+        {"publisher": "generalsonline", "buildDate": "2026-09-28", "version": "092826_QFE1"},
+        {"publisher": "steam", "buildDate": "2003-09-16", "version": "1.04"},
+    ]
+    latest = get_latest_generalsonline_date(dummy_mappings)
+    expect(latest == datetime.date(2026, 9, 28), f"Expected 2026-09-28, got {latest}")
+
+    # Test 7: generate_date_codes year range bounding & clamping
+    codes_2025 = generate_date_codes(start_year=2025, end_year=2025)
+    expect(len(codes_2025) == 365, f"Expected 365 days for 2025, got {len(codes_2025)}")
+    expect("010125" in codes_2025 and "123125" in codes_2025, "Boundary dates 010125 and 123125 must be present")
+    for c in codes_2025:
+        expect(c.endswith("25"), f"Expected 2025 date code, got {c}")
+
+    future_codes = generate_date_codes(start_year=2025, end_year=2099)
+    today = datetime.date.today()
+    max_expected = today + datetime.timedelta(days=7)
+    for c in future_codes:
+        month = int(c[0:2])
+        day = int(c[2:4])
+        year = 2000 + int(c[4:6])
+        d = datetime.date(year, month, day)
+        expect(d <= max_expected, f"Code {c} ({d}) exceeds future clamp limit {max_expected}")
+
+    try:
+        generate_date_codes(start_date=datetime.date(2026, 5, 1), end_date=datetime.date(2026, 4, 1))
+        raise AssertionError("Expected ValueError for inverted date range")
+    except ValueError:
+        pass
+
+    # Test 8: _extract_archive_crcs preserves first-match for duplicate basenames
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, "w") as zf:
+        zf.writestr(GENERALS_EXE_NAME, b"FIRST")
+        zf.writestr(f"subfolder/{GENERALS_EXE_NAME}", b"SECOND")
+    zip_buf.seek(0)
+    with zipfile.ZipFile(zip_buf, "r") as zf:
+        exe_crc, _, _ = _extract_archive_crcs(zf, [GENERALS_EXE_NAME])
+        expect(exe_crc == compute_buffer_crc(b"FIRST"), "Expected first archive member match")
+
+    # Test 9: check_cdn_reachable unit test with mock response and exception handling
+    class _MockHTTPResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            # No cleanup needed for in-memory mock context manager
+            pass
+
+    test_cdn = "https://example.com/cdn"
+    original_urlopen = urllib.request.urlopen
+    try:
+        urllib.request.urlopen = lambda req, timeout=10: _MockHTTPResponse()
+        expect(check_cdn_reachable(test_cdn), "Expected reachable for 200 mock")
+
+        def _raise_http_error(req, timeout=10):
+            raise urllib.error.HTTPError(test_cdn, 404, "Not Found", {}, None)
+
+        urllib.request.urlopen = _raise_http_error
+        expect(check_cdn_reachable(test_cdn), "Expected reachable for HTTP 404 error")
+
+        def _raise_url_error(req, timeout=10):
+            raise urllib.error.URLError("Network unreachable")
+
+        urllib.request.urlopen = _raise_url_error
+        expect(not check_cdn_reachable(test_cdn), "Expected unreachable for URLError")
+    finally:
+        urllib.request.urlopen = original_urlopen
+
+    # Test 10: include_all_known_dates respects explicit end_date
+    early_end = datetime.date(2026, 2, 1)
+    bounded_codes = generate_date_codes(
+        start_date=datetime.date(2026, 1, 1),
+        end_date=early_end,
+        include_all_known_dates=True,
+    )
+    for c in bounded_codes:
+        d = _parse_known_date_code(c)
+        if d:
+            expect(d <= early_end, f"Code {c} exceeds explicit end_date {early_end}")
+
+    print("All self-test assertions passed.")
+    return True
+
+
+def main():
+    parser = argparse.ArgumentParser(description="GenHub GameClient CRC Catalog Generator")
+    parser.add_argument("--output", "-o", default=DEFAULT_OUTPUT_PATH, help="Output path for crc-mapping.json")
+    parser.add_argument("--crawl", action="store_true", help="Crawl upstream sources for latest releases")
+    parser.add_argument("--source", choices=["all", "generalsonline", "superhackers"], default="all", help="Source to crawl (all, generalsonline, superhackers)")
+    parser.add_argument("--generalsonline-only", action="store_true", help="Crawl only GeneralsOnline (shortcut for --source generalsonline)")
+    parser.add_argument("--from-latest", action="store_true", help="Crawl from latest known catalog date onward")
+    parser.add_argument("--start-date", type=parse_date_arg, help="Custom start date for crawling (YYYY-MM-DD or MMDDYY)")
+    parser.add_argument("--end-date", type=parse_date_arg, help="Custom end date for crawling (YYYY-MM-DD or MMDDYY)")
+    parser.add_argument("--inspect-binaries", action="store_true", help="Download archives and calculate CRC32/SHA256 from binaries")
+    parser.add_argument("--validate", action="store_true", help="Validate existing catalog")
+    parser.add_argument("--self-test", action="store_true", help="Run self-test suite and exit")
+
+    args = parser.parse_args()
+
+    if args.start_date and args.end_date and args.start_date > args.end_date:
+        parser.error(f"--start-date ({args.start_date}) cannot be after --end-date ({args.end_date})")
+
+    if args.self_test:
+        if run_self_test():
+            sys.exit(0)
+        sys.exit(1)
+
+    if args.validate:
+        if not os.path.exists(args.output):
+            print(f"Catalog file not found: {args.output}", file=sys.stderr)
+            sys.exit(1)
+        with open(args.output, "r", encoding="utf-8") as f:
+            cat = json.load(f)
+        if validate_catalog(cat):
+            print(f"Catalog at {args.output} is valid with {len(cat.get('mappings', []))} entries.")
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
+    source = "generalsonline" if args.generalsonline_only else args.source
+    start_date = args.start_date
+    end_date = args.end_date
+
+    build_catalog(
+        output_path=args.output,
+        crawl=args.crawl,
+        inspect_binaries=args.inspect_binaries,
+        source=source,
+        from_latest=args.from_latest,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+if __name__ == "__main__":
+    main()

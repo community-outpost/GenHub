@@ -1,0 +1,125 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:GenHub.Features.Notifications.ViewModels"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="100"
+             x:Class="GenHub.Features.Notifications.Views.NotificationFeedItemView"
+             x:DataType="vm:NotificationFeedItemViewModel">
+
+    <UserControl.Styles>
+        <Style Selector="Border.item-container">
+            <Setter Property="Background" Value="#1A1A26" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Border.item-container.unread">
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="Border.item-container:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+        </Style>
+
+        <Style Selector="TextBlock.item-title">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="TextBlock.item-message">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="LineHeight" Value="18" />
+        </Style>
+
+        <Style Selector="TextBlock.item-time">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+        </Style>
+
+        <Style Selector="ItemsControl.actions-panel">
+            <Setter Property="Margin" Value="0,8,0,0" />
+        </Style>
+
+    </UserControl.Styles>
+
+    <Border Classes="item-container" Padding="0">
+        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+            <!-- Title row: icon + title, time on left -->
+            <Grid Grid.Column="0" Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="12,12,12,0">
+                <Path Grid.Column="0"
+                      Data="{Binding IconPath}"
+                      Fill="{Binding BackgroundBrush}"
+                      Width="18"
+                      Height="18"
+                      Stretch="Uniform"
+                      VerticalAlignment="Center"
+                      Margin="0,0,10,0" />
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{Binding Title}" Classes="item-title" />
+                    <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Message -->
+            <StackPanel Grid.Column="0" Grid.Row="1" Margin="12,6,12,0">
+                <TextBlock Text="{Binding Message}"
+                           Classes="item-message"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- Actions -->
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Margin="12,8,12,12">
+                <ItemsControl ItemsSource="{Binding Actions}"
+                              Classes="actions-panel"
+                              IsVisible="{Binding Actions.Count}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,8,8">
+                                <Button Command="{Binding ExecuteCommand}"
+                                        Classes="action-compact" Classes.action-primary="{Binding IsPrimary}" Classes.action-secondary="{Binding IsSecondary}" Classes.action-danger="{Binding IsDanger}">
+                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                </Button>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Dismiss Button Area -->
+            <Button Grid.Column="1" Grid.Row="0"
+                    Command="{Binding DismissCommand}"
+                    ToolTip.Tip="{localization:Localize Notifications.Tooltip.Dismiss}"
+                    Classes="icon-action"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,8,8,0" AutomationProperties.Name="{localization:Localize Notifications.Tooltip.Dismiss}">
+                <PathIcon Data="{StaticResource CloseIcon}" />
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

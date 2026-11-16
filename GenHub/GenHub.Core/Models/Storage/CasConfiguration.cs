@@ -15,11 +15,23 @@ public class CasConfiguration : ICloneable
     private TimeSpan _autoGcInterval = DefaultAutoGcInterval;
     private int _maxConcurrentOperations = CasDefaults.MaxConcurrentOperations;
     private long _maxCacheSizeBytes = CasDefaults.MaxCacheSizeBytes;
+    private TimeSpan _gcLockTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// Gets or sets a value indicating whether automatic garbage collection is enabled.
     /// </summary>
     public bool EnableAutomaticGc { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the timeout for acquiring the GC lock.
+    /// </summary>
+    public TimeSpan GcLockTimeout
+    {
+        get => _gcLockTimeout;
+        set => _gcLockTimeout = value > TimeSpan.Zero
+            ? value
+            : throw new ArgumentOutOfRangeException(nameof(value), "Must be positive");
+    }
 
     /// <summary>
     /// Gets or sets the root path for the CAS pool.
@@ -32,6 +44,20 @@ public class CasConfiguration : ICloneable
     /// If empty, falls back to the primary CasRootPath.
     /// </summary>
     public string InstallationPoolRootPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether <see cref="InstallationPoolRootPath"/> was
+    /// selected automatically from a detected game installation.
+    /// </summary>
+    public bool IsInstallationPoolRootPathAutoDerived { get; set; }
+
+    /// <summary>
+    /// Gets or sets the previous installation-pool roots that remain available for read-only
+    /// object lookup after new writes have fallen back to another pool. Every root the pool has
+    /// previously used is retained, because objects written to any of them stay reachable only
+    /// through this list.
+    /// </summary>
+    public List<string> LegacyInstallationPoolRootPaths { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
@@ -104,7 +130,15 @@ public class CasConfiguration : ICloneable
             if (!string.IsNullOrEmpty(parentDir) && !Directory.Exists(parentDir))
                 throw new DirectoryNotFoundException($"Parent directory of CasRootPath does not exist: {parentDir}");
         }
-        catch (Exception ex) when (!(ex is ArgumentException || ex is DirectoryNotFoundException))
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             throw new ArgumentException($"Invalid CasRootPath: {CasRootPath}", ex);
         }
@@ -121,12 +155,15 @@ public class CasConfiguration : ICloneable
             EnableAutomaticGc = EnableAutomaticGc,
             CasRootPath = CasRootPath,
             InstallationPoolRootPath = InstallationPoolRootPath,
+            IsInstallationPoolRootPathAutoDerived = IsInstallationPoolRootPathAutoDerived,
+            LegacyInstallationPoolRootPaths = [.. LegacyInstallationPoolRootPaths],
             HashAlgorithm = HashAlgorithm,
             GcGracePeriod = GcGracePeriod,
             MaxCacheSizeBytes = MaxCacheSizeBytes,
             AutoGcInterval = AutoGcInterval,
             MaxConcurrentOperations = MaxConcurrentOperations,
             VerifyIntegrity = VerifyIntegrity,
+            GcLockTimeout = GcLockTimeout,
         };
     }
 }

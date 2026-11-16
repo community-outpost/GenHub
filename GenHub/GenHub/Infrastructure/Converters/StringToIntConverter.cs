@@ -1,8 +1,8 @@
-namespace GenHub.Infrastructure.Converters;
-
+using Avalonia.Data.Converters;
 using System;
 using System.Globalization;
-using Avalonia.Data.Converters;
+
+namespace GenHub.Infrastructure.Converters;
 
 /// <summary>
 /// Converts a string to an integer for CommandParameter binding.
@@ -12,7 +12,7 @@ public class StringToIntConverter : IValueConverter
     /// <summary>
     /// Singleton instance.
     /// </summary>
-    public static readonly StringToIntConverter Instance = new StringToIntConverter();
+    public static readonly StringToIntConverter Instance = new();
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo? culture)

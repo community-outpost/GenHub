@@ -27,16 +27,24 @@ public class LaunchProgressTests
     [Fact]
     public void LaunchProgress_PropertyAssignment_ShouldWork()
     {
-        // Arrange
-        var progress = new LaunchProgress();
-
-        // Act
-        progress.Phase = LaunchPhase.Starting;
-        progress.PercentComplete = 75;
+        // Arrange & Act
+        var progress = new LaunchProgress
+        {
+            Phase = LaunchPhase.Starting,
+            PercentComplete = 75,
+            IsInitializingWorkspace = true,
+            TotalFiles = 100,
+            FilesProcessed = 50,
+            CurrentFile = "test.big",
+        };
 
         // Assert
         Assert.Equal(LaunchPhase.Starting, progress.Phase);
         Assert.Equal(75, progress.PercentComplete);
+        Assert.True(progress.IsInitializingWorkspace);
+        Assert.Equal(100, progress.TotalFiles);
+        Assert.Equal(50, progress.FilesProcessed);
+        Assert.Equal("test.big", progress.CurrentFile);
     }
 
     /// <summary>
@@ -99,11 +107,19 @@ public class LaunchProgressTests
         {
             Phase = LaunchPhase.ResolvingContent,
             PercentComplete = 45,
+            IsInitializingWorkspace = true,
+            TotalFiles = 50,
+            FilesProcessed = 25,
+            CurrentFile = "data.big",
         };
 
         // Assert
         Assert.Equal(LaunchPhase.ResolvingContent, progress.Phase);
         Assert.Equal(45, progress.PercentComplete);
+        Assert.True(progress.IsInitializingWorkspace);
+        Assert.Equal(50, progress.TotalFiles);
+        Assert.Equal(25, progress.FilesProcessed);
+        Assert.Equal("data.big", progress.CurrentFile);
     }
 
     /// <summary>
@@ -137,14 +153,20 @@ public class LaunchProgressTests
         {
             Phase = LaunchPhase.Running,
             PercentComplete = 80,
+            IsInitializingWorkspace = true,
         };
+        Assert.Equal(LaunchPhase.Running, progress.Phase);
+        Assert.Equal(80, progress.PercentComplete);
+        Assert.True(progress.IsInitializingWorkspace);
 
         // Act
         progress.Phase = LaunchPhase.ValidatingProfile;
         progress.PercentComplete = 0;
+        progress.IsInitializingWorkspace = false;
 
         // Assert
         Assert.Equal(LaunchPhase.ValidatingProfile, progress.Phase);
         Assert.Equal(0, progress.PercentComplete);
+        Assert.False(progress.IsInitializingWorkspace);
     }
 }

@@ -1,0 +1,106 @@
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Common.ViewModels.Dialogs"
+        xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+        xmlns:localization="using:GenHub.Common.Markup"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="400"
+        x:Class="GenHub.Common.Views.Dialogs.UpdateOptionDialogWindow"
+        x:DataType="vm:UpdateOptionDialogViewModel"
+        Width="500" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        SystemDecorations="None"
+        CanResize="False"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True">
+
+    <Border CornerRadius="8" ClipToBounds="True">
+        <Border.Background>
+            <!-- Semi-transparent dark navy for blur to show through -->
+            <SolidColorBrush Color="#CC050515" />
+        </Border.Background>
+
+        <Panel>
+             <!-- Accent Border -->
+             <Border BorderBrush="{DynamicResource AccentBadgeBackgroundBrush}" BorderThickness="1" CornerRadius="8" IsHitTestVisible="False" />
+
+             <!-- Top Gradient Glow -->
+             <Border Height="200" VerticalAlignment="Top" IsHitTestVisible="False" Opacity="0.3">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
+                        <GradientStop Color="{DynamicResource AccentGlowColor}" Offset="0" />
+                        <GradientStop Color="Transparent" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+             </Border>
+
+             <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
+
+                <!-- Header -->
+                <TextBlock Classes="dialog-title" Grid.Row="0" Text="{Binding Title}" Margin="{DynamicResource DialogHeaderSpacing}" />
+
+                <!-- Content -->
+                <StackPanel Grid.Row="1" Spacing="20">
+                    <md:MarkdownScrollViewer Markdown="{Binding Message}" TextElement.FontSize="13" TextElement.Foreground="{DynamicResource TextPrimary}">
+                        <md:MarkdownScrollViewer.Styles>
+                            <Style Selector="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="LineHeight" Value="20"/>
+                                <Setter Property="TextWrapping" Value="Wrap"/>
+                            </Style>
+                        </md:MarkdownScrollViewer.Styles>
+                    </md:MarkdownScrollViewer>
+
+                    <!-- Options Group -->
+                    <Border Background="#20FFFFFF" CornerRadius="6" Padding="16" Margin="0,8,0,0">
+                        <StackPanel Spacing="12">
+                            <RadioButton IsChecked="{Binding IsReplaceCurrentVersion}"
+                                         Content="{localization:Localize Dialog.UpdateOption.Radio.Replace}"
+                                         Foreground="{DynamicResource TextPrimary}" FontWeight="Medium"/>
+
+                            <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.Replace}"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="28,-8,0,0"
+                                       TextWrapping="Wrap"/>
+
+                            <CheckBox IsChecked="{Binding DeleteOldVersions}"
+                                      IsEnabled="{Binding CanDeleteOldVersions}"
+                                      Content="{localization:Localize Dialog.UpdateOption.Checkbox.DeleteOldVersions}"
+                                      ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.DeleteOldVersions}"
+                                      Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="28,-4,0,4"/>
+
+                            <RadioButton IsChecked="{Binding IsCreateNewProfile}"
+                                         Content="{localization:Localize Dialog.UpdateOption.Radio.CreateNewProfile}"
+                                         Foreground="{DynamicResource TextPrimary}" FontWeight="Medium"/>
+
+                            <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.CreateNewProfile}"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="28,-8,0,0"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Footer -->
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,16,0,0">
+                    <CheckBox Grid.Column="0"
+                              IsChecked="{Binding IsDoNotAskAgain}"
+                              Content="{localization:Localize Common.Checkbox.DontAskAgain}"
+                              ToolTip.Tip="{localization:Localize Common.Checkbox.DontAskAgain.Tooltip}"
+                              Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                        <Button Command="{Binding SkipCommand}" Content="{localization:Localize Common.Button.Cancel}"
+                                Classes="action-secondary"
+                                ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.Cancel}"/>
+
+                        <Button Command="{Binding UpdateCommand}" Content="{localization:Localize Dialog.UpdateOption.Button.Update}"
+                                Classes="action-primary" />
+                    </StackPanel>
+                </Grid>
+             </Grid>
+        </Panel>
+    </Border>
+</controls:GenHubWindow>

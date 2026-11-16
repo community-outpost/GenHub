@@ -1,0 +1,76 @@
+<controls:GenHubWindow xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+        xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
+        xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="GenHub.Features.GameProfiles.Views.AddLocalContentWindow"
+        x:DataType="vm:AddLocalContentViewModel"
+        x:Name="RootWindow"
+        Title="{localization:Localize Profiles.AddLocalContent.Title}"
+        Width="800" Height="600"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent"
+        DragDrop.AllowDrop="True">
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
+        <conv:BoolToTextConverter x:Key="BoolToTextConverter" />
+    </Window.Resources>
+
+    <Panel>
+        <!-- Acrylic Tint Layer -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="Black"
+                    TintOpacity="0.85"
+                    MaterialOpacity="0.65" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <!-- Main Content Border -->
+        <Border BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="0">
+            <Grid RowDefinitions="30,*" Margin="20,10,20,20">
+
+                <!-- Custom Title Bar Drag Area -->
+                <Grid Grid.Row="0"
+                      Background="Transparent"
+                      PointerPressed="OnTitleBarPointerPressed">
+                    <TextBlock Text="{localization:Localize Profiles.AddLocalContent.Title}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="#80FFFFFF"
+                               FontSize="12"
+                               IsHitTestVisible="False"/>
+                </Grid>
+
+                <!-- Extracted Content View -->
+                <views:AddLocalContentView Grid.Row="1"/>
+
+            </Grid>
+        </Border>
+
+    </Panel>
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#80FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+        </Style>
+
+    </Window.Styles>
+</controls:GenHubWindow>

@@ -51,6 +51,34 @@ public class ApiConstantsTests
     }
 
     /// <summary>
+    /// Tests that branch archive URLs keep simple branches direct.
+    /// </summary>
+    [Fact]
+    public void GetGitHubBranchZipUrl_WithSimpleBranch_BuildsDirectUrl()
+    {
+        var url = ApiConstants.GetGitHubBranchZipUrl("owner", "repo", "main");
+
+        Assert.EndsWith("/owner/repo/zip/main", url);
+        Assert.DoesNotContain("refs/heads", url);
+    }
+
+    /// <summary>
+    /// Tests that slashed branches use the refs/heads form with escaped segments.
+    /// </summary>
+    /// <param name="branch">The branch name.</param>
+    /// <param name="expectedSuffix">The expected URL suffix.</param>
+    [Theory]
+    [InlineData("feature/foo", "zip/refs/heads/feature/foo")]
+    [InlineData("feature/foo/bar", "zip/refs/heads/feature/foo/bar")]
+    public void GetGitHubBranchZipUrl_WithSlashedBranch_UsesRefsHeads(string branch, string expectedSuffix)
+    {
+        var url = ApiConstants.GetGitHubBranchZipUrl("owner", "repo", branch);
+
+        Assert.EndsWith($"/owner/repo/{expectedSuffix}", url);
+        Assert.DoesNotContain("%2F", url);
+    }
+
+    /// <summary>
     /// Tests that GitHub constants are not null or empty.
     /// </summary>
     [Fact]
@@ -98,6 +126,21 @@ public class ApiConstantsTests
             Assert.IsType<string>(ApiConstants.DefaultUserAgent);
             Assert.IsType<string>(ApiConstants.GitHubDomain);
             Assert.IsType<string>(ApiConstants.GitHubUrlRegexPattern);
+        });
+    }
+
+    /// <summary>
+    /// Tests that workflow runs format constants target the ci.yml workflow.
+    /// </summary>
+    [Fact]
+    public void ApiConstants_WorkflowRunsFormats_ShouldTargetCiWorkflow()
+    {
+        // Assert
+        Assert.Multiple(() =>
+        {
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiWorkflowRunsFormat);
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiWorkflowRunsAllFormat);
+            Assert.Contains("/actions/workflows/ci.yml/runs", ApiConstants.GitHubApiLatestWorkflowRunsFormat);
         });
     }
 }

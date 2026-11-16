@@ -36,8 +36,14 @@ public class ContentDependency
     /// <summary>Gets or sets the minimum version required.</summary>
     public string? MinVersion { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the minimum version bound is inclusive.</summary>
+    public bool MinInclusive { get; set; } = true;
+
     /// <summary>Gets or sets the maximum version allowed.</summary>
     public string? MaxVersion { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the maximum version bound is inclusive.</summary>
+    public bool MaxInclusive { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the exact version required (optional, overrides min/max if specified).
@@ -82,4 +88,10 @@ public class ContentDependency
     /// Content from these publisher types cannot satisfy this dependency.
     /// </summary>
     public List<string> IncompatiblePublisherTypes { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the dependency is required only when the profile runs a
+    /// retail game client. Community clients such as TheSuperHackers and GeneralsOnline do not need it.
+    /// </summary>
+    public bool RetailClientOnly { get; set; }
 }

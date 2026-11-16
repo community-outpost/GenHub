@@ -1,0 +1,216 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ViewModels.Dialogs"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.Views.Dialogs.AddArtifactDialogView"
+             x:DataType="vm:AddArtifactDialogViewModel"
+             DragDrop.AllowDrop="True">
+
+    <UserControl.Styles>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{Binding DialogTitle}"/>
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
+                    Command="{Binding CloseCommand}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
+            </Button>
+        </Grid>
+
+        <!-- Form -->
+        <ScrollViewer Classes="dialog-scroll" Grid.Row="1" Margin="0,0,0,24">
+            <StackPanel Spacing="20">
+                <!-- Source Selection -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.SourcePrompt}" Classes="dialog-section"/>
+
+                    <!-- Upload Local File Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseLocalFile}"
+                                 Foreground="{DynamicResource TextPrimary}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFile}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.UploadLocalFileHint}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- File Selection (visible when UseLocalFile is true) -->
+                    <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseLocalFile}">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <TextBox Classes="form-field" Text="{Binding LocalFilePath}"
+                                     IsReadOnly="True"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"/>
+                            <Button Grid.Column="1"
+                                    Command="{Binding BrowseLocalFileCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.Browse}"
+                                    Classes="action-secondary action-compact"
+                                    Margin="8,0,0,0"/>
+                            <Button Grid.Column="2"
+                                    Command="{Binding BrowseLocalFolderCommand}"
+                                    Content="{localization:Localize Tools.PublisherStudio.Artifact.BrowseFolder}"
+                                    Classes="action-secondary action-compact"
+                                    Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DragDropHint}" Classes="dialog-hint"/>
+                        <TextBlock Text="{Binding FileSizeDisplay}" Classes="dialog-hint"
+                                   IsVisible="{Binding LocalFilePath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+
+                    <!-- Enter Existing URL Option -->
+                    <RadioButton GroupName="ArtifactSource"
+                                 IsChecked="{Binding UseExistingUrl}"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 Margin="0,8,0,0">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdn}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ExternalCdnHint}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" MaxWidth="420"/>
+                        </StackPanel>
+                    </RadioButton>
+
+                    <!-- CDN URL and Size Inputs (visible when UseExistingUrl is true) -->
+                    <StackPanel Spacing="10" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="dialog-label"/>
+                            <TextBox Classes="form-field" Text="{Binding DownloadUrl}"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder}"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}" Classes="dialog-label"/>
+                            <TextBox Classes="form-field" Text="{Binding FileSizeInput}"
+                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}"
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FileSizePlaceholder}"/>
+                            <TextBlock Text="{Binding ParsedSizeDisplay}" Classes="dialog-hint"
+                                       IsVisible="{Binding ParsedSizeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Status Banner -->
+                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="6" Padding="12,8" Margin="0,4">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <PathIcon Data="{StaticResource PackageIcon}" Width="14" Height="14" Foreground="{DynamicResource AccentColorBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding ArtifactStatus}" FontSize="12" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Divider -->
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"/>
+
+                <!-- Artifact Details -->
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.MetadataHeader}" Classes="dialog-section"/>
+
+                <!-- Computing hash indicator -->
+                <StackPanel IsVisible="{Binding IsComputingHash}" Orientation="Horizontal" Spacing="8">
+                    <ProgressBar IsIndeterminate="True" Width="120" Height="4" Foreground="{DynamicResource AccentColorBrush}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.ComputingHash}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
+
+                <!-- Filename -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Filename}" Classes="dialog-label"/>
+                        <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
+                    </StackPanel>
+                    <TextBox Classes="form-field" Text="{Binding Filename}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FilenamePlaceholder}"
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FilenameHint}"
+                               Classes="dialog-hint"/>
+                </StackPanel>
+
+                <!-- SHA256 -->
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Sha256Hash}" Classes="dialog-label" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="{localization:Localize Tools.PublisherStudio.Artifact.ComputeHash}"
+                                Command="{Binding ComputeHashCommand}"
+                                IsEnabled="{Binding !IsComputingHash}"
+                                IsVisible="{Binding UseLocalFile}"
+                                Classes="action-secondary action-compact"/>
+                    </Grid>
+                    <TextBox Classes="form-field" Text="{Binding Sha256Hash}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.HashPlaceholder}"
+                             IsReadOnly="{Binding UseLocalFile}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.HashHint}"
+                               Classes="dialog-hint"
+                               IsVisible="{Binding UseLocalFile}"/>
+                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsComputingHash}" Height="2" Foreground="{DynamicResource AccentColorBrush}"/>
+                </StackPanel>
+
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifact}" IsChecked="{Binding IsPrimary}"
+                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.PrimaryArtifactTooltip}"/>
+
+                <!-- Divider -->
+                <Rectangle Height="1" Fill="{DynamicResource GlassStrongBrush}" Margin="0,4"
+                           IsVisible="{Binding AllowVariants}"/>
+
+                <!-- Variant (hidden for bundle-mode releases whose artifacts install together) -->
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantHeader}" Classes="dialog-section"
+                           IsVisible="{Binding AllowVariants}"/>
+
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantAxis}" Classes="dialog-label"/>
+                    <ComboBox Classes="form-field" ItemsSource="{Binding VariantAxisSelector.Options}"
+                              SelectedItem="{Binding VariantAxisSelector.SelectedOption}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:VariantAxisOption">
+                                <StackPanel Spacing="2" Margin="0,4">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox Classes="form-field" Text="{Binding VariantAxisSelector.CustomValue}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder}"
+                             IsVisible="{Binding VariantAxisSelector.ShowCustomValue}"/>
+                    <TextBlock Text="{Binding VariantAxisSelector.SelectedDescription}"
+                               Classes="dialog-hint"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabel}" Classes="dialog-label"/>
+                    <TextBox Classes="form-field" Text="{Binding Variant}"
+                             Watermark="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelPlaceholder}"/>
+                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelHint}"
+                               Classes="dialog-hint"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <CheckBox Content="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariant}" IsChecked="{Binding IsDefaultVariant}"
+                          IsVisible="{Binding AllowVariants}"
+                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Artifact.DefaultVariantTooltip}"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
+                        VerticalAlignment="Center"
+                        MaxWidth="300"
+                        Margin="0,0,12,0"/>
+
+             <Button Classes="action-primary" Content="{Binding SubmitButtonText}"
+                     Command="{Binding CreateArtifactCommand}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

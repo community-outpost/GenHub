@@ -1,0 +1,46 @@
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Manifest;
+
+namespace GenHub.Core.Interfaces.GameProfiles;
+
+/// <summary>
+/// Finds the required dependencies missing from a set of enabled profile content.
+/// Adding content to a profile, creating a profile with content, saving a profile, and launch preflight all use these rules.
+/// </summary>
+public interface IContentDependencyValidator
+{
+    /// <summary>
+    /// Finds required dependencies that no enabled content satisfies.
+    /// </summary>
+    /// <param name="enabledContentIds">The manifest IDs that the profile would enable.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>One gap per missing item. The list is empty when nothing is missing.</returns>
+    Task<IReadOnlyList<ContentDependencyGap>> FindMissingDependenciesAsync(
+        IEnumerable<string> enabledContentIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Finds required dependencies that no manifest in <paramref name="enabledManifests"/> satisfies.
+    /// </summary>
+    /// <param name="enabledManifests">The manifests that the profile would enable.</param>
+    /// <returns>One gap per missing item. The list is empty when nothing is missing.</returns>
+    IReadOnlyList<ContentDependencyGap> FindMissingDependencies(IReadOnlyCollection<ContentManifest> enabledManifests);
+
+    /// <summary>
+    /// Checks whether any manifest in <paramref name="manifests"/> satisfies <paramref name="dependency"/>,
+    /// using the same identity, game and version rules as <see cref="FindMissingDependencies"/>.
+    /// </summary>
+    /// <param name="dependency">The dependency to check.</param>
+    /// <param name="manifests">The candidate manifests.</param>
+    /// <returns><see langword="true"/> when a manifest satisfies the dependency.</returns>
+    bool IsSatisfiedBy(ContentDependency dependency, IReadOnlyCollection<ContentManifest> manifests);
+
+    /// <summary>
+    /// Checks whether <paramref name="dependency"/> applies to a profile with the given enabled content.
+    /// A retail-client-only dependency applies only when a retail game client is enabled.
+    /// </summary>
+    /// <param name="dependency">The dependency to check.</param>
+    /// <param name="enabledManifests">The manifests enabled in the profile, including its game client.</param>
+    /// <returns><see langword="true"/> when the profile needs the dependency.</returns>
+    bool AppliesTo(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests);
+}

@@ -36,6 +36,11 @@ public static class ComparisonConverters
     public static readonly IValueConverter IsPositive = new FuncValueConverter<int, bool>(
         count => count > 0);
 
+    /// <summary>
+    /// A value converter that returns true if the value is not equal to the converter parameter.
+    /// </summary>
+    public static readonly IValueConverter IsNotEqualTo = new NotEqualToConverter();
+
     private static bool TryGetDouble(object? value, out double result)
     {
         if (value == null)

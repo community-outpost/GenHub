@@ -1,13 +1,17 @@
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.Telemetry;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using GenHub.Core.Interfaces.GameInstallations;
-using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
-using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameInstallations;
 
@@ -16,9 +20,11 @@ namespace GenHub.Features.GameInstallations;
 /// </summary>
 /// <param name="detectors">The collection of installation detectors.</param>
 /// <param name="logger">The logger instance.</param>
+/// <param name="telemetryService">Optional telemetry service.</param>
 public sealed class GameInstallationDetectionOrchestrator(
     IEnumerable<IGameInstallationDetector> detectors,
-    ILogger<GameInstallationDetectionOrchestrator> logger)
+    ILogger<GameInstallationDetectionOrchestrator> logger,
+    ITelemetryService? telemetryService = null)
     : IGameInstallationDetectionOrchestrator
 {
     /// <inheritdoc/>
@@ -72,7 +78,33 @@ public sealed class GameInstallationDetectionOrchestrator(
             detectorCount,
             sw.ElapsedMilliseconds);
 
-        return errors.Any()
+        var hasSteam = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.Steam);
+        var hasEaApp = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.EaApp);
+        var hasTheFirstDecade = allGameInstallations.Any(i => i.InstallationType == GameInstallationType.TheFirstDecade);
+        var hasGenerals = allGameInstallations.Any(i => i.HasGenerals);
+        var hasZeroHour = allGameInstallations.Any(i => i.HasZeroHour);
+
+        try
+        {
+            telemetryService?.TrackEvent(TelemetryConstants.Events.GameInstallationsDetected, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.DurationSeconds] = sw.Elapsed.TotalSeconds,
+                [TelemetryConstants.Properties.InstallationCount] = allGameInstallations.Count,
+                [TelemetryConstants.Properties.HasSteam] = hasSteam,
+                [TelemetryConstants.Properties.HasEaApp] = hasEaApp,
+                [TelemetryConstants.Properties.HasTheFirstDecade] = hasTheFirstDecade,
+                [TelemetryConstants.Properties.HasGenerals] = hasGenerals,
+                [TelemetryConstants.Properties.HasZeroHour] = hasZeroHour,
+                [TelemetryConstants.Properties.Success] = errors.Count == 0,
+                [TelemetryConstants.Properties.ErrorMessage] = errors.Count > 0 ? string.Join("; ", errors) : null,
+            });
+        }
+        catch (Exception teleEx)
+        {
+            logger.LogWarning(teleEx, "Failed to track game installation detection telemetry");
+        }
+
+        return errors.Count > 0
              ? DetectionResult<GameInstallation>.CreateFailure(string.Join("; ", errors))
              : DetectionResult<GameInstallation>.CreateSuccess(allGameInstallations, sw.Elapsed);
     }
@@ -82,6 +114,6 @@ public sealed class GameInstallationDetectionOrchestrator(
         CancellationToken cancellationToken = default)
     {
         var result = await DetectAllInstallationsAsync(cancellationToken);
-        return result.Success ? result.Items.ToList() : new List<GameInstallation>();
+        return result.Success ? [.. result.Items] : [];
     }
 }
