@@ -1374,7 +1374,7 @@
                             <Button x:Name="AddToProfileButton" HorizontalAlignment="Stretch"
                                     IsVisible="{Binding ShowAddToProfileButton}"
                                     Command="{Binding AddToProfileCommand}"
-                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary action-compact" MinHeight="48">
+                                    ToolTip.Tip="{localization:Localize Downloads.ContentDetail.AddToProfileTooltip}" Classes="action-secondary" MinHeight="48">
 
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
