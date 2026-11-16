@@ -195,7 +195,10 @@ public class CatalogUpstreamIngestionService(
     /// rule matches is skipped, so neither a catch-all pattern nor overlapping platform
     /// patterns pull in a build for a different OS. Rules with an unrecognised platform are ignored.
     /// </summary>
-    /// <returns><c>true</c> when at least one asset was skipped because it belongs to another platform.</returns>
+    /// <returns>
+    /// <c>true</c> when the rules are limited by platform, either because an asset belongs to another
+    /// platform or because a platform-specific rule exists, so static releases cannot be trusted on this host.
+    /// </returns>
     private static bool PopulateArtifactsFromAssetRules(
         ContentRelease release,
         IEnumerable<GitHubReleaseAsset> assets,
@@ -258,7 +261,7 @@ public class CatalogUpstreamIngestionService(
             release.Artifacts[0].IsPrimary = true;
         }
 
-        return skippedForOtherPlatform;
+        return skippedForOtherPlatform || rules.Any(r => r.IsPlatformSpecific);
     }
 
     private static void PopulateDefaultSuperHackersArtifacts(
@@ -354,9 +357,9 @@ public class CatalogUpstreamIngestionService(
         CatalogContentItem item,
         string hostRuntimeIdentifier,
         ILogger logger,
-        out bool skippedForOtherPlatform)
+        out bool isPlatformConstrained)
     {
-        skippedForOtherPlatform = false;
+        isPlatformConstrained = false;
         var version = NormalizeReleaseVersion(release);
         var synthesized = new ContentRelease
         {
@@ -369,7 +372,7 @@ public class CatalogUpstreamIngestionService(
 
         if (sync?.AssetRules is { Count: > 0 })
         {
-            skippedForOtherPlatform = PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, hostRuntimeIdentifier, logger);
+            isPlatformConstrained = PopulateArtifactsFromAssetRules(synthesized, release.Assets, sync, hostRuntimeIdentifier, logger);
         }
         else if (item.ContentType == ContentType.GameClient &&
             IsDefaultSuperHackersRepository(provider, repository))
@@ -652,15 +655,16 @@ public class CatalogUpstreamIngestionService(
             return;
         }
 
-        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, item, HostRuntimeIdentifier, logger, out var skippedForOtherPlatform);
+        var synthesized = SynthesizeGitHubRelease(release, isTrackPrerelease, sync, provider, repo, item, HostRuntimeIdentifier, logger, out var isPlatformConstrained);
         PreserveReleaseDependenciesAndMetadata(item, synthesized);
 
+        item.IsWithheldOnHost = false;
         if (synthesized.Artifacts.Count > 0)
         {
             item.Releases.Clear();
             item.Releases.Add(synthesized);
         }
-        else if (skippedForOtherPlatform)
+        else if (isPlatformConstrained)
         {
             // Static releases cannot be trusted to suit this host once the publisher split
             // the upstream build by platform, so the item is withheld instead of offered.
@@ -670,6 +674,7 @@ public class CatalogUpstreamIngestionService(
                 item.Id,
                 HostRuntimeIdentifier);
             item.Releases.Clear();
+            item.IsWithheldOnHost = true;
         }
         else
         {

@@ -187,7 +187,7 @@ public static class CatalogBundleComponentBuilder
         var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(versionConstraint) ||
                                         string.Equals(versionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
 
-        if (!isConstraintLatestOrEmpty)
+        if (!isConstraintLatestOrEmpty || sibling.IsWithheldOnHost)
         {
             return null;
         }

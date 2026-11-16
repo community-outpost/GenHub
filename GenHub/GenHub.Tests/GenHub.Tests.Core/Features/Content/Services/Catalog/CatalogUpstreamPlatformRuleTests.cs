@@ -136,6 +136,32 @@ public sealed class CatalogUpstreamPlatformRuleTests
         await CreateService("linux-arm64").IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
 
         Assert.Empty(item.Releases);
+        Assert.True(item.IsWithheldOnHost);
+    }
+
+    /// <summary>
+    /// When no asset matches any rule but the rules are limited by platform, the static releases are
+    /// still dropped, because they cannot be trusted to suit this host.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_PlatformRulesWithNoMatchingAsset_WithholdsStaticReleasesAsync()
+    {
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync(Owner, Repo, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateRelease(["checksums.txt"]));
+        var item = CreateItem(new CatalogUpstreamSync
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            AssetRules = [new CatalogUpstreamAssetRule { Pattern = @"^win\.zip$", Platform = "windows" }],
+        });
+        item.Releases.Add(CreateStaticRelease());
+
+        await CreateService("linux-x64").IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
+
+        Assert.Empty(item.Releases);
+        Assert.True(item.IsWithheldOnHost);
     }
 
     /// <summary>

@@ -372,6 +372,21 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.False(Assert.Single(components, c => c.ContentId == "per-os-client").IsAvailable);
     }
 
+    /// <summary>
+    /// A sibling that ingestion withheld on this host stays unavailable even though it has host rules.
+    /// </summary>
+    [Fact]
+    public void Build_SiblingWithheldOnHost_MarksComponentUnavailable()
+    {
+        var (catalog, bundle) = CreateBundleWithPlatformRules(
+            new CatalogUpstreamAssetRule { Pattern = "host", Variant = "Host", Platform = HostFamily() });
+        catalog.Content.Single(c => c.Id == "per-os-client").IsWithheldOnHost = true;
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        Assert.False(Assert.Single(components, c => c.ContentId == "per-os-client").IsAvailable);
+    }
+
     private static string HostFamily() => HostPlatform.Current switch
     {
         ExecutablePlatform.Windows => "windows",
