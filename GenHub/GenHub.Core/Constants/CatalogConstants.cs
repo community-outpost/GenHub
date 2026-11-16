@@ -627,5 +627,15 @@ public static class CatalogConstants
         /// Separator between the OS and architecture parts of a runtime identifier.
         /// </summary>
         public const char ArchitectureSeparator = '-';
+
+        /// <summary>
+        /// Architectures accepted in a runtime identifier.
+        /// </summary>
+        public static readonly string[] Architectures = ["x64", "x86", "arm64", "arm"];
+
+        /// <summary>
+        /// Linux runtime identifier qualifiers accepted between the OS and the architecture.
+        /// </summary>
+        public static readonly string[] LinuxQualifiers = ["musl", "bionic"];
     }
 }

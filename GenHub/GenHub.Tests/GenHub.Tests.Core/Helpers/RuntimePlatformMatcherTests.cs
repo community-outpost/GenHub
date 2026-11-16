@@ -51,6 +51,14 @@ public sealed class RuntimePlatformMatcherTests
     [InlineData("linuxish", "linux-x64", false)]
     [InlineData("osx", "osx.13-arm64", true)]
     [InlineData("osx-arm64", "osx.13-arm64", true)]
+    [InlineData("osx.10.15-x64", "osx-x64", true)]
+    [InlineData("windows.x64", "win-x64", false)]
+    [InlineData("windows.typo", "win-arm64", false)]
+    [InlineData("win-x64x", "win-x64", false)]
+    [InlineData("win-musl-x64", "win-x64", false)]
+    [InlineData("linux-musl-x64", "linux-musl-x64", true)]
+    [InlineData("linux-x64", "linux-musl-x64", true)]
+    [InlineData("linux-foo-x64", "linux-x64", false)]
     public void Matches_ReturnsExpected(string? platform, string? host, bool expected)
     {
         Assert.Equal(expected, RuntimePlatformMatcher.Matches(platform, host));
@@ -72,6 +80,15 @@ public sealed class RuntimePlatformMatcherTests
     [InlineData("macosx", false)]
     [InlineData("x64", false)]
     [InlineData("win-", false)]
+    [InlineData("osx", true)]
+    [InlineData("macos-arm64", true)]
+    [InlineData("osx.13-arm64", true)]
+    [InlineData("windows.typo", false)]
+    [InlineData("windows.x64", false)]
+    [InlineData("osx.-arm64", false)]
+    [InlineData("osx.13.-arm64", false)]
+    [InlineData("win-x64x", false)]
+    [InlineData("linux-bionic-arm64", true)]
     public void IsRecognised_ReturnsExpected(string? platform, bool expected)
     {
         Assert.Equal(expected, RuntimePlatformMatcher.IsRecognised(platform));

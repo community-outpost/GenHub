@@ -1,14 +1,16 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using System;
+using System.Linq;
 
 namespace GenHub.Core.Helpers;
 
 /// <summary>
 /// Matches a declared platform against a host runtime identifier. A platform is either an
-/// OS family (<c>windows</c>, <c>macos</c>, <c>linux</c>), which matches every architecture,
-/// or a runtime identifier (<c>win-x64</c>, <c>osx-arm64</c>, <c>linux-x64</c>), which also
-/// requires the architecture to match.
+/// OS family (<c>windows</c>, <c>macos</c>, <c>linux</c>) or runtime OS name (<c>win</c>, <c>osx</c>),
+/// which matches every architecture, or either one with an architecture (<c>win-x64</c>,
+/// <c>osx-arm64</c>, <c>macos-arm64</c>), which also requires the architecture to match.
+/// A version after the OS name must be numeric (<c>osx.13-arm64</c>).
 /// </summary>
 public static class RuntimePlatformMatcher
 {
@@ -55,20 +57,38 @@ public static class RuntimePlatformMatcher
             return false;
         }
 
-        var trimmed = value.Trim();
-        var firstSeparator = trimmed.IndexOf(CatalogConstants.AssetPlatforms.ArchitectureSeparator);
-        var osPart = firstSeparator < 0 ? trimmed : trimmed[..firstSeparator];
-        if (firstSeparator >= 0)
+        var parts = value.Trim().Split(CatalogConstants.AssetPlatforms.ArchitectureSeparator);
+        if (!TryResolveOs(parts[0], out family))
         {
-            architecture = trimmed[(trimmed.LastIndexOf(CatalogConstants.AssetPlatforms.ArchitectureSeparator) + 1)..];
-            if (architecture.Length == 0)
-            {
-                return false;
-            }
+            return false;
         }
 
+        if (parts.Length == 1)
+        {
+            return true;
+        }
+
+        var isLinux = family == ExecutablePlatform.Linux;
+        var qualifiersValid = parts[1..^1].All(qualifier =>
+            isLinux && CatalogConstants.AssetPlatforms.LinuxQualifiers.Contains(qualifier, StringComparer.OrdinalIgnoreCase));
+        if (!qualifiersValid || !CatalogConstants.AssetPlatforms.Architectures.Contains(parts[^1], StringComparer.OrdinalIgnoreCase))
+        {
+            family = ExecutablePlatform.Unknown;
+            return false;
+        }
+
+        architecture = parts[^1];
+        return true;
+    }
+
+    private static bool TryResolveOs(string osPart, out ExecutablePlatform family)
+    {
         var versionSeparator = osPart.IndexOf(CatalogConstants.AssetPlatforms.OsVersionSeparator);
-        family = ResolveFamily(versionSeparator < 0 ? osPart : osPart[..versionSeparator]);
+        var osName = versionSeparator < 0 ? osPart : osPart[..versionSeparator];
+        var version = versionSeparator < 0 ? null : osPart[(versionSeparator + 1)..];
+        var versionValid = version == null
+            || version.Split(CatalogConstants.AssetPlatforms.OsVersionSeparator).All(segment => segment.Length > 0 && segment.All(char.IsAsciiDigit));
+        family = versionValid ? ResolveFamily(osName) : ExecutablePlatform.Unknown;
         return family != ExecutablePlatform.Unknown;
     }
 
