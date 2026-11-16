@@ -49,20 +49,4 @@
         <Setter Property="Padding" Value="{DynamicResource FormCompactPadding}" />
         <Setter Property="FontSize" Value="{DynamicResource FormCompactFontSize}" />
     </Style>
-    <Style Selector="NumericUpDown.form-field">
-        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
-        <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-    <Style Selector="NumericUpDown.form-field:pointerover">
-        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldHoverBorder}" />
-    </Style>
-    <Style Selector="NumericUpDown.form-field:focus-within">
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    </Style>
-    <Style Selector="NumericUpDown.form-field /template/ TextBox#PART_TextBox">
-        <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
-    </Style>
 </Styles>

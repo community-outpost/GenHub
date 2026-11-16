@@ -67,4 +67,24 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FontSize" Value="11" />
     </Style>
+
+    <!-- Form fields: matches TextBox.form-field. Kept after the global rules so these win. -->
+    <Style Selector="NumericUpDown.form-field">
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
+        <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="NumericUpDown.form-field:pointerover">
+        <Setter Property="Background" Value="{DynamicResource FormFieldHoverFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FormFieldHoverBorder}" />
+    </Style>
+    <Style Selector="NumericUpDown.form-field:focus-within">
+        <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="NumericUpDown.form-field /template/ TextBox#PART_TextBox">
+        <Setter Property="FontSize" Value="{DynamicResource FormFieldFontSize}" />
+    </Style>
 </Styles>

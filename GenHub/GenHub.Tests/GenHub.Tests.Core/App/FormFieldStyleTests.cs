@@ -8,6 +8,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using GenHub.Core.Models.Providers;
+using GenHub.Features.Tools.ViewModels.Dialogs;
 using GenHub.Features.Tools.Views.Dialogs;
 using System;
 using System.Linq;
@@ -103,18 +105,19 @@ public class FormFieldStyleTests
         }
     }
 
-    /// <summary>Edit Custom Tab fields use the shared field and dialog label styles.</summary>
+    /// <summary>Edit Custom Tab fields, including card fields and the order box, use the shared form styles.</summary>
     [AvaloniaFact]
     public void EditCustomTab_FieldsAndLabelsUseSharedStyles()
     {
-        var dialog = new EditCustomTabDialogView();
-        var window = new Window { Width = 900, Height = 900, Content = dialog };
+        var tab = new CatalogTabDefinition { TabId = "notes", Header = "Notes", Cards = [new CatalogTabCardDefinition { Title = "Release" }] };
+        var dialog = new EditCustomTabDialogView { DataContext = new EditCustomTabDialogViewModel(tab, [], _ => { }) };
+        var window = new Window { Width = 900, Height = 1100, Content = dialog };
         window.Show();
         try
         {
             Dispatcher.UIThread.RunJobs();
             var fields = dialog.GetVisualDescendants().OfType<TextBox>().Where(field => field.TemplatedParent is null).ToList();
-            Assert.NotEmpty(fields);
+            Assert.Equal(8, fields.Count);
             Assert.All(fields, field =>
             {
                 Assert.Contains("form-field", field.Classes);
@@ -122,10 +125,24 @@ public class FormFieldStyleTests
                 Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), field.CornerRadius);
             });
 
-            var labels = dialog.GetVisualDescendants().OfType<TextBlock>().Where(text => text.Classes.Contains("dialog-label")).ToList();
-            Assert.NotEmpty(labels);
-            Assert.All(labels, label => Assert.Equal(TextWrapping.Wrap, label.TextWrapping));
-            Assert.DoesNotContain(dialog.GetVisualDescendants().OfType<TextBlock>(), text => text.Classes.Contains("label") || text.Classes.Contains("hint"));
+            var texts = dialog.GetVisualDescendants().OfType<TextBlock>().ToList();
+            Assert.Equal(11, texts.Count(text => text.Classes.Contains("dialog-label")));
+            Assert.Single(texts, text => text.Classes.Contains("dialog-hint"));
+            Assert.DoesNotContain(texts, text => text.Classes.Contains("label") || text.Classes.Contains("hint"));
+
+            var order = dialog.GetVisualDescendants().OfType<NumericUpDown>().Single();
+            var orderText = order.GetVisualDescendants().OfType<TextBox>().First(box => box.Name == "PART_TextBox");
+            Assert.Contains("form-field", order.Classes);
+            Assert.Equal(Resource<double>("FormFieldMinHeight"), order.MinHeight);
+            Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), order.CornerRadius);
+            Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(order.Background));
+            Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(order.BorderBrush));
+            Assert.Equal(Resource<double>("FormFieldFontSize"), orderText.FontSize);
+
+            window.MouseMove(order.TranslatePoint(new Point(10, order.Bounds.Height / 2), window)!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(order.IsPointerOver);
+            Assert.Equal(ResourceColor("FormFieldHoverBorder"), BrushColor(order.BorderBrush));
         }
         finally
         {
