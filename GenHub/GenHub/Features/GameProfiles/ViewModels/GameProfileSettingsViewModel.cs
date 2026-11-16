@@ -1569,14 +1569,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return manifests;
         }
 
-        var manifestIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
-        var activeClientId = GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation)?.Id;
-        if (!string.IsNullOrEmpty(activeClientId) && ManifestId.TryCreate(activeClientId, out _))
-        {
-            manifestIds.Add(activeClientId);
-        }
-
-        foreach (var manifestId in manifestIds.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var manifestId in WithActiveGameClientId(EnabledContent.Select(e => e.ManifestId.Value)))
         {
             var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
             if (manifestResult.Success && manifestResult.Data != null)
@@ -1586,6 +1579,20 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         }
 
         return manifests;
+    }
+
+    private List<string> WithActiveGameClientId(IEnumerable<string> manifestIds)
+    {
+        var ids = manifestIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var activeClientId = GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation)?.Id;
+        if (!string.IsNullOrEmpty(activeClientId) &&
+            ManifestId.TryCreate(activeClientId, out _) &&
+            !ids.Contains(activeClientId, StringComparer.OrdinalIgnoreCase))
+        {
+            ids.Add(activeClientId);
+        }
+
+        return ids;
     }
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem, CancellationToken cancellationToken = default)

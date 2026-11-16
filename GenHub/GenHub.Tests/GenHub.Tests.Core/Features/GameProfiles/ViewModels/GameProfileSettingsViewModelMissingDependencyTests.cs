@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -149,6 +150,36 @@ public sealed class GameProfileSettingsViewModelMissingDependencyTests
         Assert.Contains("1.1.communityoutpost.addon.gent", Assert.Single(_dialogDetails), StringComparison.Ordinal);
         Assert.Equal(string.Empty, _viewModel.StatusMessage);
         _profileManager.Verify(x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Save reports the retail-only GenTool gap when the client is only the selected installation's
+    /// default client, and saves without it for a community client.
+    /// </summary>
+    /// <param name="clientId">The installation's default game client manifest ID.</param>
+    /// <param name="expectDialog">Whether the missing-dependency dialog should be shown.</param>
+    /// <returns>A task that completes when the test finishes.</returns>
+    [Theory]
+    [InlineData("1.104.steam.gameclient.zerohour", true)]
+    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false)]
+    public async Task Save_ControlBarProWithInstallationOnlyClient_ValidatesRetailGenToolAsync(string clientId, bool expectDialog)
+    {
+        _manifests[ControlBarProId].Dependencies = [GenPatcherDependencyBuilder.CreateRetailClientGenToolDependency()];
+        _manifests[clientId] = new ContentManifest
+        {
+            Id = ManifestId.Create(clientId),
+            Name = "Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+        _viewModel.SelectedGameInstallation!.GameClient = new GameClient { Id = clientId, GameType = GameType.ZeroHour };
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(expectDialog ? 1 : 0, _dialogTitles.Count);
+        _profileManager.Verify(
+            x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            expectDialog ? Times.Never() : Times.Once());
     }
 
     /// <summary>

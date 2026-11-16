@@ -756,7 +756,7 @@ public partial class GameProfileSettingsViewModel
         List<string> unshownInstalledIds,
         CancellationToken cancellationToken)
     {
-        var missingDependencies = await _dependencyValidator!.FindMissingDependenciesAsync(enabledContentIds, cancellationToken);
+        var missingDependencies = await _dependencyValidator!.FindMissingDependenciesAsync(WithActiveGameClientId(enabledContentIds), cancellationToken);
         if (missingDependencies.Count == 0)
         {
             return true;
