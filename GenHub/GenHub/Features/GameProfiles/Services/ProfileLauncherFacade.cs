@@ -1185,6 +1185,7 @@ public class ProfileLauncherFacade(
         }
 
         if (genericCatalogProfileReconciler != null &&
+            !ReferenceEquals(reconciler, genericCatalogProfileReconciler) &&
             !string.Equals(publisherType, CatalogConstants.GenericPublisherType, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogDebug("[Launch] Checking for subscribed catalog content updates in profile");
