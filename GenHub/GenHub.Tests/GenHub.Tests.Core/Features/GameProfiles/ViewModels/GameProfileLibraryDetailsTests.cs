@@ -40,13 +40,12 @@ public class GameProfileLibraryDetailsTests
     public void UpdateFromProfile_RefreshesSavedSteamLaunchSetting()
     {
         var original = CreateProfile(string.Empty, string.Empty);
-        original.GameInstallationId = "1.104.steam.gameinstallation.zerohour";
         original.UseSteamLaunch = false;
         var item = CreateItem(original);
+        item.InstallationType = GameInstallationType.Steam;
         var localLaunch = item.LibraryLaunchMethod;
         item.IsProcessRunning = true;
         var refreshed = CreateProfile(string.Empty, string.Empty);
-        refreshed.GameInstallationId = original.GameInstallationId;
         refreshed.UseSteamLaunch = true;
 
         item.UpdateFromProfile(refreshed);

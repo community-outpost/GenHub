@@ -2516,6 +2516,145 @@ public class GameProfileLauncherViewModelTests : IDisposable
     }
 
     /// <summary>
+    /// Loading profiles at startup asks the installation service for each profile's installation, so a
+    /// Steam profile shows its Steam toggle even though nothing has filled the installation cache yet.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_SteamProfile_ShowsSteamToggleWithoutCachedInstallationsAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var eaApp = new GameInstallation(Path.Combine("C:", "EA", "Games"), GameInstallationType.EaApp, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService.Setup(x => x.CachedInstallations).Returns((IReadOnlyList<GameInstallation>?)null);
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(steam));
+        installationService
+            .Setup(x => x.GetInstallationAsync(eaApp.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(eaApp));
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess(
+            [
+                new GameProfile { Id = "steam", Name = "Steam", GameInstallationId = steam.Id, GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } },
+                new GameProfile { Id = "ea", Name = "EA", GameInstallationId = eaApp.Id, GameClient = new GameClient { Id = "c2", ExecutablePath = "generals.exe" } },
+            ]));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>(), profileManager);
+
+        await vm.InitializeAsync();
+
+        var cards = vm.Profiles.OfType<GameProfileItemViewModel>().Where(card => card is not AddProfileItemViewModel).ToDictionary(card => card.ProfileId);
+        Assert.True(cards["steam"].IsSteamInstallation);
+        Assert.True(cards["steam"].IsSteamIntegrationSupported);
+        Assert.False(cards["ea"].IsSteamInstallation);
+    }
+
+    /// <summary>
+    /// A failed installation lookup, such as one made while the cache is being rebuilt, keeps the
+    /// card's known installation type instead of hiding the Steam toggle.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_LookupFails_KeepsKnownTypeAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateFailure("not found"));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        var profile = new GameProfile { Id = "steam", Name = "Steam", GameInstallationId = Guid.NewGuid().ToString(), GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty) { InstallationType = GameInstallationType.Steam };
+
+        await vm.RefreshInstallationTypesAsync([card]);
+
+        Assert.Equal(GameInstallationType.Steam, card.InstallationType);
+        Assert.True(card.IsSteamInstallation);
+    }
+
+    /// <summary>
+    /// A successful lookup replaces a wrong type, a card without an installation ID becomes Unknown,
+    /// and cards that share an installation cause one lookup.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_SetsTypesAndLooksUpEachInstallationOnceAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(steam));
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+        var client = new GameClient { Id = "c1", ExecutablePath = "generals.exe" };
+        var first = new GameProfileItemViewModel("a", new GameProfile { Id = "a", Name = "A", GameInstallationId = steam.Id, GameClient = client }, string.Empty, string.Empty) { InstallationType = GameInstallationType.EaApp };
+        var second = new GameProfileItemViewModel("b", new GameProfile { Id = "b", Name = "B", GameInstallationId = steam.Id, GameClient = client }, string.Empty, string.Empty);
+        var standalone = new GameProfileItemViewModel("c", new GameProfile { Id = "c", Name = "C", GameInstallationId = string.Empty, GameClient = client }, string.Empty, string.Empty) { InstallationType = GameInstallationType.Steam };
+
+        await vm.RefreshInstallationTypesAsync([first, second, standalone]);
+
+        Assert.Equal(GameInstallationType.Steam, first.InstallationType);
+        Assert.Equal(GameInstallationType.Steam, second.InstallationType);
+        Assert.Equal(GameInstallationType.Unknown, standalone.InstallationType);
+        installationService.Verify(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// A lookup that finishes after the card moved to another installation does not overwrite its type.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task RefreshInstallationTypesAsync_InstallationChangedDuringLookup_IgnoresStaleResultAsync()
+    {
+        var steam = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, null);
+        var profile = new GameProfile { Id = "card", Name = "Card", GameInstallationId = steam.Id, GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty);
+        var moved = new GameProfile { Id = profile.Id, Name = profile.Name, GameInstallationId = Guid.NewGuid().ToString(), GameClient = profile.GameClient };
+        var installationService = new Mock<IGameInstallationService>();
+        installationService
+            .Setup(x => x.GetInstallationAsync(steam.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                card.UpdateFromProfile(moved);
+                return OperationResult<GameInstallation>.CreateSuccess(steam);
+            });
+        var vm = CreateViewModelForScanState(installationService, CreateSettingsService(new UserSettings()), new Mock<INotificationService>(), new Mock<ISetupWizardService>());
+
+        await vm.RefreshInstallationTypesAsync([card]);
+
+        Assert.Equal(GameInstallationType.Unknown, card.InstallationType);
+        Assert.False(card.IsSteamInstallation);
+    }
+
+    /// <summary>
+    /// A failed profile save leaves the manifests untouched, reports the error and reverts the toggle.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ToggleSteamLaunch_UpdateFails_DoesNotPatchManifestsAndRevertsToggleAsync()
+    {
+        var profileManager = new Mock<IGameProfileManager>();
+        profileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        profileManager
+            .Setup(x => x.UpdateProfileAsync("steam", It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateFailure("disk full"));
+        var patcher = new Mock<ISteamManifestPatcher>();
+        var notifications = new Mock<INotificationService>();
+        var vm = CreateViewModelForScanState(new Mock<IGameInstallationService>(), CreateSettingsService(new UserSettings()), notifications, new Mock<ISetupWizardService>(), profileManager, steamManifestPatcher: patcher);
+        var profile = new GameProfile { Id = "steam", Name = "Steam", EnabledContentIds = ["content"], GameClient = new GameClient { Id = "c1", ExecutablePath = "generals.exe" } };
+        var card = new GameProfileItemViewModel(profile.Id, profile, string.Empty, string.Empty) { UseSteamLaunch = true };
+
+        await vm.ToggleSteamLaunchCommand.ExecuteAsync(card);
+
+        patcher.Verify(x => x.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+        notifications.Verify(x => x.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("disk full")), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+        Assert.False(card.UseSteamLaunch);
+    }
+
+    /// <summary>
     /// Choosing the game folder after a failed scan runs setup for that folder and clears the failure.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -3644,7 +3783,8 @@ public class GameProfileLauncherViewModelTests : IDisposable
         Mock<INotificationService> notificationService,
         Mock<ISetupWizardService> setupWizardService,
         Mock<IGameProfileManager>? profileManager = null,
-        bool detectsClient = true)
+        bool detectsClient = true,
+        Mock<ISteamManifestPatcher>? steamManifestPatcher = null)
     {
         if (profileManager == null)
         {
@@ -3673,7 +3813,7 @@ public class GameProfileLauncherViewModelTests : IDisposable
             new Mock<IGameProcessManager>().Object,
             new Mock<IShortcutService>().Object,
             new Mock<IPublisherProfileOrchestrator>().Object,
-            new Mock<ISteamManifestPatcher>().Object,
+            (steamManifestPatcher ?? new Mock<ISteamManifestPatcher>()).Object,
             CreateProfileResourceService(),
             clientDetector.Object,
             notificationService.Object,

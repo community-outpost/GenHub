@@ -457,6 +457,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private bool _isSteamInstallation;
 
     /// <summary>
+    /// Gets or sets the type of the installation this profile runs on.
+    /// </summary>
+    [ObservableProperty]
+    private GameInstallationType _installationType;
+
+    /// <summary>
     /// Gets a value indicating whether any demo highlight is active, often requiring the overlay to be always visible.
     /// </summary>
     public bool IsDemoModeActive => IsDemoSteamHighlightVisible || IsDemoShortcutHighlightVisible;
@@ -672,7 +678,12 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <param name="updatedProfile">The updated profile to refresh from.</param>
     public void UpdateFromProfile(IGameProfile updatedProfile)
     {
+        var previousInstallationId = (LibraryProfile as GameProfile)?.GameInstallationId;
         _libraryProfile = updatedProfile;
+        if (!string.Equals(previousInstallationId, (updatedProfile as GameProfile)?.GameInstallationId, StringComparison.OrdinalIgnoreCase))
+        {
+            InstallationType = GameInstallationType.Unknown;
+        }
 
         // Update basic properties
         Name = updatedProfile.Name;
@@ -1413,10 +1424,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
             };
     }
 
+    partial void OnInstallationTypeChanged(GameInstallationType value)
+    {
+        if (LibraryProfile is GameProfile gameProfile)
+        {
+            RefreshSteamLaunchState(gameProfile);
+        }
+    }
+
     private void RefreshSteamLaunchState(GameProfile gameProfile)
     {
-        // Determine if this is a Steam installation by checking the publisher in the manifest ID
-        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+        IsSteamInstallation = InstallationType == GameInstallationType.Steam;
         var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
         UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
     }

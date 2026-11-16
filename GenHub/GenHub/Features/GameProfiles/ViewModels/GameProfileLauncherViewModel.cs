@@ -26,6 +26,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
@@ -473,6 +474,7 @@ public partial class GameProfileLauncherViewModel(
                 // Add "Add New Profile" item at the end
                 Profiles.Add(new AddProfileItemViewModel());
                 RestoreSelectedProfile(selectedProfileId);
+                _ = RefreshInstallationTypesAsync(Profiles.OfType<GameProfileItemViewModel>().ToList());
 
                 ApplySorting();
                 RestoreScanOutcome();
@@ -1051,6 +1053,53 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return copyName;
+    }
+
+    /// <summary>
+    /// Sets each card's installation type from the installation service, which detects installations
+    /// on first use and follows merged installation IDs. Each installation ID is looked up once. A card
+    /// without an installation ID becomes <see cref="GameInstallationType.Unknown"/>. A failed lookup
+    /// keeps the card's current type.
+    /// </summary>
+    /// <param name="items">The profile cards to update.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when every card has been checked.</returns>
+    internal async Task RefreshInstallationTypesAsync(IReadOnlyList<GameProfileItemViewModel> items, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Dictionary<string, OperationResult<GameInstallation>> results = new(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in items)
+            {
+                if (item.LibraryProfile is not Core.Models.GameProfile.GameProfile { GameInstallationId: { Length: > 0 } installationId })
+                {
+                    item.InstallationType = GameInstallationType.Unknown;
+                    continue;
+                }
+
+                if (!results.TryGetValue(installationId, out var result))
+                {
+                    result = await installationService.GetInstallationAsync(installationId, cancellationToken);
+                    results[installationId] = result;
+                }
+
+                if (result.Success
+                    && result.Data != null
+                    && item.LibraryProfile is Core.Models.GameProfile.GameProfile current
+                    && string.Equals(current.GameInstallationId, installationId, StringComparison.OrdinalIgnoreCase))
+                {
+                    item.InstallationType = result.Data.InstallationType;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger.LogDebug("Installation type refresh was cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve installation types for profile cards");
+        }
     }
 
     private static void RunOnUi(Action action)
@@ -1738,6 +1787,7 @@ public partial class GameProfileLauncherViewModel(
                 if (existingItem != null)
                 {
                     existingItem.UpdateFromProfile(profile);
+                    _ = RefreshInstallationTypesAsync([existingItem]);
 
                     var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
                     var (iconPath, coverPath) = ResolveProfileDisplayPaths(profile, gameType);
@@ -1814,6 +1864,7 @@ public partial class GameProfileLauncherViewModel(
 
                 HasNoDetectedInstallations = false;
                 detectionFinished = true;
+                _ = RefreshInstallationTypesAsync(Profiles.OfType<GameProfileItemViewModel>().ToList(), cancellationToken);
                 await RecordDetectionOutcomeAsync(detectionIncomplete);
 
                 logger.LogInformation(
@@ -2807,6 +2858,7 @@ public partial class GameProfileLauncherViewModel(
             }
 
             ApplySorting();
+            _ = RefreshInstallationTypesAsync([item]);
             logger.LogDebug("Added profile {ProfileName} to UI (Total: {Count})", profile.Name, Profiles.Count);
         }
         catch (Exception ex)
@@ -3540,7 +3592,14 @@ public partial class GameProfileLauncherViewModel(
                 {
                     UseSteamLaunch = profile.UseSteamLaunch,
                 };
-                await gameProfileManager.UpdateProfileAsync(profile.ProfileId, updateRequest);
+                var updateResult = await gameProfileManager.UpdateProfileAsync(profile.ProfileId, updateRequest);
+                if (!updateResult.Success)
+                {
+                    var errors = string.Join(", ", updateResult.Errors);
+                    logger.LogWarning("Failed to save Steam launch mode for profile {ProfileName}: {Errors}", profile.Name, errors);
+                    ReportSteamLaunchFailure(profile, errors);
+                    return;
+                }
 
                 // Patch all enabled manifests on disk immediately
                 foreach (var contentId in gameProfile.EnabledContentIds)
@@ -3557,12 +3616,20 @@ public partial class GameProfileLauncherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error toggling Steam launch for {ProfileName}", profile.Name);
-            StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", profile.Name);
-            notificationService.ShowError(localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name, ex.Message));
-
-            // Revert UI if failed
-            profile.UseSteamLaunch = !profile.UseSteamLaunch;
+            ReportSteamLaunchFailure(profile, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Reports a failed Steam launch toggle and reverts the card's toggle.
+    /// </summary>
+    /// <param name="profile">The profile whose toggle failed.</param>
+    /// <param name="reason">The failure reason shown to the user.</param>
+    private void ReportSteamLaunchFailure(GameProfileItemViewModel profile, string reason)
+    {
+        StatusMessage = localizationService.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", profile.Name);
+        notificationService.ShowError(localizationService["GameProfiles.Notification.SteamIntegrationError.Title"], localizationService.GetString("GameProfiles.Notification.SteamIntegrationError.Message", profile.Name, reason));
+        profile.UseSteamLaunch = !profile.UseSteamLaunch;
     }
 
     /// <summary>
