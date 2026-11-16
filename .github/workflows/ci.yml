@@ -786,16 +786,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      # The engine release tag is republished as the engine advances, so the archive is
-      # pinned by its SHA-256. A republished build fails here until it has been verified
-      # and the hash updated, instead of failing the smoke test with an unrelated crash.
+      # The engine comes from a dedicated release that the fork never republishes or prunes.
+      # The SHA-256 guards against the archive changing anyway. To move to a newer engine,
+      # verify the build, publish it (not as a draft) as a new genhub-ci-engine release, and update both values.
       - name: Download Native Engine
         env:
           GH_TOKEN: ${{ github.token }}
           ENGINE_REPO: bobtista/GeneralsGameCode
-          ENGINE_TAG: latest-bgfx
+          ENGINE_TAG: genhub-ci-engine-2026.11.16
           ENGINE_ASSET: GeneralsZH-macos-arm64.zip
-          ENGINE_SHA256: c081ae674dacd5701bdde03d968bdf862e8169be7ee923f23b0e0de6711a71d1
+          ENGINE_SHA256: de72b66846b5922d20fa5e30c816e1df38e481261d34359afde23c83de29b4a9
         run: |
           gh release download "$ENGINE_TAG" \
             --repo "$ENGINE_REPO" \
