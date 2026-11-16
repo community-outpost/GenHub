@@ -788,7 +788,7 @@ jobs:
 
       # The engine comes from a dedicated release that the fork never republishes or prunes.
       # The SHA-256 guards against the archive changing anyway. To move to a newer engine,
-      # verify the build, publish it as a new genhub-ci-engine release, and update both values.
+      # verify the build, publish it (not as a draft) as a new genhub-ci-engine release, and update both values.
       - name: Download Native Engine
         env:
           GH_TOKEN: ${{ github.token }}
