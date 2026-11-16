@@ -3721,6 +3721,9 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
   </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
+  </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>Cyan</value>
   </data>
@@ -4260,6 +4263,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>Dark Blue</value>
@@ -5945,9 +5951,9 @@ Profile startup and launch logs are recorded in the GenHub AppData directory to 
     <value>Profile card buttons, manifest scrubbing, and window sizing.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**Profile Card Controls:**
+    <value>**Profile Controls:**
 1. **Play:** Launches the game with this profile's active mods, settings, and workspace.
-2. **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+2. **Edit Profile:** Opens the profile editor from the profile actions menu to select mods, maps, and adjust game settings.
 3. **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
 4. **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
 5. **Delete Profile:** Removes the profile and its dedicated workspace configuration.
@@ -6244,7 +6250,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
     <value>How to add a profile shortcut to your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+    <value>1. In **Game Profiles**, select a profile and open its profile actions menu.
 2. Select **Create Desktop Shortcut**.
 3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows or a `.desktop` entry on Linux. Profile shortcuts are not available on macOS yet.
 4. Double-click it to launch that profile.</value>
@@ -18587,6 +18593,68 @@ Mapped image texture reference</value>
   <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Files and dependencies</value></data>
   <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Files: {0}</value></data>
   <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Dependencies: {0}</value></data>
+  <data name="GameProfiles.Library.MyProfiles" xml:space="preserve">
+    <value>My profiles</value>
+  </data>
+  <data name="GameProfiles.Library.Search" xml:space="preserve">
+    <value>Search profiles</value>
+  </data>
+  <data name="GameProfiles.Library.NoMatches" xml:space="preserve">
+    <value>No matching profiles</value>
+  </data>
+  <data name="GameProfiles.Library.NewProfile" xml:space="preserve">
+    <value>New profile</value>
+  </data>
+  <data name="GameProfiles.Library.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="GameProfiles.Library.Actions" xml:space="preserve">
+    <value>Profile actions</value>
+  </data>
+  <data name="GameProfiles.Library.EditProfile" xml:space="preserve">
+    <value>Edit profile</value>
+  </data>
+  <data name="GameProfiles.Library.MoveEarlier" xml:space="preserve">
+    <value>Move earlier</value>
+  </data>
+  <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
+    <value>Move later</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
+    <value>Your next game starts here</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
+    <value>Create a profile or scan for installed games to get started.</value>
+  </data>
+  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
+    <value>No description has been added to this profile.</value>
+  </data>
+  <data name="GameProfiles.Library.Running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="GameProfiles.Library.Preparing" xml:space="preserve">
+    <value>Preparing workspace…</value>
+  </data>
+  <data name="GameProfiles.Library.LaunchAvailable" xml:space="preserve">
+    <value>Available to launch</value>
+  </data>
+  <data name="GameProfiles.Library.SteamLaunch" xml:space="preserve">
+    <value>Launch through Steam</value>
+  </data>
+  <data name="GameProfiles.Library.LocalLaunch" xml:space="preserve">
+    <value>Local launch</value>
+  </data>
+  <data name="GameProfiles.Library.NoArguments" xml:space="preserve">
+    <value>No extra arguments</value>
+  </data>
+  <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="GameProfiles.Library.LoadError" xml:space="preserve">
+    <value>Profiles could not be loaded. Try reopening Game Profiles or restart GenHub.</value>
+  </data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>My profiles ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Profile settings</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>Technical details</value>
   </data>

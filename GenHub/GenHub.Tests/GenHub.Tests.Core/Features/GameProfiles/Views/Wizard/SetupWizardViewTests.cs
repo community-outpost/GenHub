@@ -20,38 +20,25 @@ namespace GenHub.Tests.Core.Features.GameProfiles.Views.Wizard;
 public class SetupWizardViewTests
 {
     /// <summary>
-    /// Verifies that the primary wizard actions keep readable primary colors at rest and a visible hover.
+    /// Verifies that Use installed game keeps readable primary colors at rest and a visible hover.
     /// </summary>
-    /// <param name="customizing">True to check Continue on the customize step, false for Use installed game.</param>
-    [AvaloniaTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void PrimaryButton_UsesPrimaryColorsAtRestAndOnHover(bool customizing)
+    [AvaloniaFact]
+    public void UseInstalledGameButton_UsesPrimaryColorsAtRestAndOnHover()
     {
-        var viewModel = new SetupWizardViewModel([], foundGames: ["Zero Hour"]) { IsCustomizing = customizing };
-        var command = customizing ? viewModel.ConfirmCommand : viewModel.UseInstalledGameCommand;
+        var viewModel = new SetupWizardViewModel([], foundGames: ["Zero Hour"]);
         var window = new SetupWizardView { DataContext = viewModel };
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
         try
         {
-            var button = Assert.Single(
-                window.GetVisualDescendants().OfType<Button>(),
-                candidate => ReferenceEquals(candidate.Command, command) && candidate.IsEffectivelyVisible);
-            var presenter = Assert.Single(
-                button.GetVisualDescendants().OfType<ContentPresenter>(),
-                child => child.Name == "PART_ContentPresenter");
+            var (button, presenter) = FindVisibleButton(window, viewModel.UseInstalledGameCommand);
 
             AssertBrush(window, "PrimaryButtonBackground", presenter.Background, "background at rest");
             AssertBrush(window, "PrimaryButtonForeground", presenter.Foreground, "foreground at rest");
 
-            var center = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window);
-            Assert.True(center.HasValue);
-            window.MouseMove(center.Value, RawInputModifiers.None);
-            Dispatcher.UIThread.RunJobs();
+            HoverOver(window, button);
 
-            Assert.True(button.IsPointerOver);
             AssertBrush(window, "AccentDarkBrush", presenter.Background, "background on hover");
             AssertBrush(window, "PrimaryButtonForeground", presenter.Foreground, "foreground on hover");
         }
@@ -59,6 +46,59 @@ public class SetupWizardViewTests
         {
             window.Close();
         }
+    }
+
+    /// <summary>
+    /// Verifies that Continue on the customize step uses the shared primary action colors at rest and on hover.
+    /// </summary>
+    [AvaloniaFact]
+    public void ContinueButton_UsesSharedPrimaryActionColorsAtRestAndOnHover()
+    {
+        var viewModel = new SetupWizardViewModel([], foundGames: ["Zero Hour"]) { IsCustomizing = true };
+        var window = new SetupWizardView { DataContext = viewModel };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            var (button, presenter) = FindVisibleButton(window, viewModel.ConfirmCommand);
+
+            AssertResource(window, "ActionPrimaryRestBrush", presenter.Background, "background at rest");
+
+            HoverOver(window, button);
+
+            AssertResource(window, "ActionPrimaryHoverBrush", presenter.Background, "background on hover");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static (Button Button, ContentPresenter Presenter) FindVisibleButton(Window window, object command)
+    {
+        var button = Assert.Single(
+            window.GetVisualDescendants().OfType<Button>(),
+            candidate => ReferenceEquals(candidate.Command, command) && candidate.IsEffectivelyVisible);
+        var presenter = Assert.Single(
+            button.GetVisualDescendants().OfType<ContentPresenter>(),
+            child => child.Name == "PART_ContentPresenter");
+        return (button, presenter);
+    }
+
+    private static void HoverOver(Window window, Button button)
+    {
+        var center = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window);
+        Assert.True(center.HasValue);
+        window.MouseMove(center.Value, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(button.IsPointerOver);
+    }
+
+    private static void AssertResource(Control scope, string resourceKey, IBrush? actual, string state)
+    {
+        Assert.True(scope.TryFindResource(resourceKey, scope.ActualThemeVariant, out var resource));
+        Assert.True(ReferenceEquals(resource, actual), $"{state} does not use {resourceKey}.");
     }
 
     private static void AssertBrush(Control scope, string resourceKey, IBrush? actual, string state)

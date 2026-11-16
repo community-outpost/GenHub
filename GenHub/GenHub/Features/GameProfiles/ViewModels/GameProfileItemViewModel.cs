@@ -27,6 +27,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
 {
     private CancellationTokenSource? _iniVerificationCts;
 
+    private IGameProfile? _libraryProfile;
+
     /// <summary>Gets or sets the identity of the running process, independently of its reusable PID.</summary>
     public Guid ProcessInstanceId { get; set; }
 
@@ -179,6 +181,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the name of the game profile.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string _name;
 
     /// <summary>
@@ -197,6 +200,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the version.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryVersion))]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string _version;
 
     /// <summary>
@@ -225,7 +230,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
         set
         {
             var displayVersion = GameVersionHelper.IsDefaultVersion(value) ? string.Empty : value;
-            SetProperty(ref _gameVersion, displayVersion);
+            if (SetProperty(ref _gameVersion, displayVersion))
+            {
+                OnPropertyChanged(nameof(LibraryVersion));
+                OnPropertyChanged(nameof(LibraryHeaderMetadata));
+            }
         }
     }
 
@@ -293,6 +302,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the source type name.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryGameName))]
+    [NotifyPropertyChangedFor(nameof(LibraryHeaderMetadata))]
     private string? _sourceTypeName;
 
     /// <summary>
@@ -359,6 +370,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets the command line arguments.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryArguments))]
     private string? _commandLineArguments;
 
     /// <summary>
@@ -379,6 +391,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanEdit))]
     [NotifyPropertyChangedFor(nameof(CanLaunch))]
+    [NotifyPropertyChangedFor(nameof(LibraryLaunchStatus))]
     private bool _isProcessRunning;
 
     /// <summary>
@@ -392,6 +405,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanEdit))]
+    [NotifyPropertyChangedFor(nameof(LibraryLaunchStatus))]
     private bool _isPreparingWorkspace;
 
     /// <summary>
@@ -406,6 +420,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// Gets or sets a value indicating whether to use Steam launch mode (generals.exe) or standalone mode (game.dat).
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LibraryLaunchMethod))]
     private bool _useSteamLaunch = false;
 
     /// <summary>
@@ -657,6 +672,8 @@ public partial class GameProfileItemViewModel : ViewModelBase
     /// <param name="updatedProfile">The updated profile to refresh from.</param>
     public void UpdateFromProfile(IGameProfile updatedProfile)
     {
+        _libraryProfile = updatedProfile;
+
         // Update basic properties
         Name = updatedProfile.Name;
         Version = updatedProfile.Version;
@@ -686,6 +703,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ColorValue = ResolveInitialColorValue(gameProfile, ColorValue);
 
             UpdateDescription(gameProfile);
+            RefreshSteamLaunchState(gameProfile);
         }
 
         ResolveCompatibilityBadge(updatedProfile);
@@ -1350,6 +1368,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(CoverPath));
         OnPropertyChanged(nameof(CoverImagePath));
         OnPropertyChanged(nameof(CommandLineArguments));
+        NotifyLibraryPropertiesChanged();
     }
 
     [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Kept as instance method to adhere to StyleCop SA1204 ordering rules.")]
@@ -1380,13 +1399,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
         IsProcessRunning = false; // Will be updated by LauncherViewModel
-
-        // Determine if this is a Steam installation by checking the publisher in the manifest ID
-        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
-
-        // Initialize Steam launch mode settings
-        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
-        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
+        RefreshSteamLaunchState(gameProfile);
 
         WorkspaceStatus = string.IsNullOrEmpty(gameProfile.ActiveWorkspaceId)
             ? "Not Prepared"
@@ -1398,5 +1411,13 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 WorkspaceStrategy.HardLink => "Hard Linked",
                 _ => "Prepared",
             };
+    }
+
+    private void RefreshSteamLaunchState(GameProfile gameProfile)
+    {
+        // Determine if this is a Steam installation by checking the publisher in the manifest ID
+        IsSteamInstallation = gameProfile.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
+        var isEligibleForSteam = ReplayCrcMatchingHelper.IsSteamLaunchEligible(IsSteamInstallation, gameProfile.GameClient);
+        UseSteamLaunch = isEligibleForSteam && (gameProfile.UseSteamLaunch ?? true);
     }
 }
