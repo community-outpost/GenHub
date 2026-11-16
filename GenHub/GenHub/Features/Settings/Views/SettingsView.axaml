@@ -401,6 +401,27 @@
                   </ComboBox.ItemTemplate>
                 </ComboBox>
               </StackPanel>
+
+              <StackPanel Spacing="6" Margin="0,16,0,0" IsVisible="{Binding ProfileLibraryActions, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{localization:Localize Settings.Appearance.ProfileLayout.Label}" Classes="setting-label" />
+                <TextBlock Text="{localization:Localize Settings.Appearance.ProfileLayout.Description}"
+                           Classes="setting-description" />
+                <ComboBox x:Name="ProfileLayoutComboBox"
+                          DataContext="{Binding ProfileLibraryActions}"
+                          x:DataType="profiles:GameProfileLauncherViewModel"
+                          ItemsSource="{Binding AvailableProfileLayouts}"
+                          SelectedItem="{Binding SelectedProfileLayoutOption}"
+                          AutomationProperties.Name="{localization:Localize Settings.Appearance.ProfileLayout.Label}"
+                          MinWidth="220"
+                          HorizontalAlignment="Left"
+                          Margin="0,4,0,0">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="profiles:GameProfileLauncherViewModel+ProfileLayoutOption">
+                      <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
             </StackPanel>
           </StackPanel>
         </Border>

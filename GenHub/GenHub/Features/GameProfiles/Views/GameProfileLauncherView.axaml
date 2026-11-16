@@ -1,165 +1,176 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:GenHub.Common.Controls" xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels" xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core" xmlns:localization="clr-namespace:GenHub.Common.Markup" xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core" xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView" x:DataType="vm:GameProfileLauncherViewModel" x:CompileBindings="True" x:Name="ProfileLibrary" DragDrop.AllowDrop="True" Background="{DynamicResource SurfaceBackgroundBrush}">
-    <controls:SidebarLayout x:Name="ProfileLibraryLayout" PaneTitle="{Binding LibraryProfileCount}" PaneTitleForeground="{DynamicResource TextSecondaryBrush}" IsPaneCollapsible="False" ItemsSource="{Binding LibraryProfiles}" SelectedItem="{Binding DisplayedProfile, Mode=TwoWay}" OpenPaneLength="260" MinPaneLength="220" MaxPaneLength="360">
-        <controls:SidebarLayout.PaneHeader>
-            <StackPanel Spacing="10">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBox Text="{Binding ProfileSearchText, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.Library.Search}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Search}" MinHeight="38" CornerRadius="8" Padding="10,8" VerticalContentAlignment="Center"/>
-                    <Button x:Name="ProfileSortButton" Grid.Column="1" Classes="library-action" Margin="6,0,0,0" ToolTip.Tip="{Binding SelectedSortModeItem.DisplayName}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}">
-                        <material:MaterialIcon Kind="Sort" Width="16" Height="16"/>
-                        <Button.Flyout>
-                            <MenuFlyout>
-                                <MenuItem Header="{localization:Localize GameProfiles.Sort.LastPlayed}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.LastPlayed}"/>
-                                <MenuItem Header="{localization:Localize GameProfiles.Sort.DateCreated}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.DateCreated}"/>
-                                <MenuItem Header="{localization:Localize GameProfiles.Sort.Alphabetical}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Alphabetical}"/>
-                                <MenuItem Header="{localization:Localize GameProfiles.Sort.AlphabeticalDesc}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.AlphabeticalDesc}"/>
-                                <MenuItem Header="{localization:Localize GameProfiles.Sort.Free}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Free}"/>
-                            </MenuFlyout>
-                        </Button.Flyout>
-                    </Button>
-                </Grid>
-                <TextBlock Text="{localization:Localize GameProfiles.Library.NoMatches}" Classes="library-secondary" IsVisible="{Binding !HasLibraryProfiles}"/>
-            </StackPanel>
-        </controls:SidebarLayout.PaneHeader>
-        <controls:SidebarLayout.PaneFooter>
-            <StackPanel Spacing="8">
-                <Button Classes="action-secondary library-action" Command="{Binding CreateNewProfileCommand}" HorizontalAlignment="Stretch">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <material:MaterialIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize GameProfiles.Library.NewProfile}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-        </controls:SidebarLayout.PaneFooter>
-        <controls:SidebarLayout.ItemTemplate>
-            <DataTemplate x:DataType="vm:GameProfileItemViewModel">
-                <Border Classes="library-row" BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
-                    <Border.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
-                            <Separator/>
-                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
-                        </ContextMenu>
-                    </Border.ContextMenu>
-                    <Grid ColumnDefinitions="42,*,Auto">
-                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Classes="action-primary icon-action library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
-                            <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
-                        </Button>
-                        <Button Grid.Column="2" Classes="action-danger icon-action library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
-                            <material:MaterialIcon Kind="Stop" Width="16" Height="16"/>
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="clr-namespace:GenHub.Common.Controls" xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views" xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels" xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core" xmlns:localization="clr-namespace:GenHub.Common.Markup" xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core" xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia" x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView" x:DataType="vm:GameProfileLauncherViewModel" x:CompileBindings="True" x:Name="ProfileLibrary" DragDrop.AllowDrop="True" Background="{DynamicResource SurfaceBackgroundBrush}">
+    <Panel>
+        <controls:SidebarLayout x:Name="ProfileLibraryLayout" IsVisible="{Binding IsLibraryLayout}" PaneTitle="{Binding LibraryProfileCount}" PaneTitleForeground="{DynamicResource TextSecondaryBrush}" IsPaneCollapsible="False" ItemsSource="{Binding LibraryProfiles}" SelectedItem="{Binding DisplayedProfile, Mode=TwoWay}" OpenPaneLength="260" MinPaneLength="220" MaxPaneLength="360">
+            <controls:SidebarLayout.PaneHeader>
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Text="{Binding ProfileSearchText, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.Library.Search}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Search}" MinHeight="38" CornerRadius="8" Padding="10,8" VerticalContentAlignment="Center"/>
+                        <Button x:Name="ProfileSortButton" Grid.Column="1" Classes="library-action" Margin="6,0,0,0" ToolTip.Tip="{Binding SelectedSortModeItem.DisplayName}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}">
+                            <material:MaterialIcon Kind="Sort" Width="16" Height="16"/>
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.LastPlayed}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.LastPlayed}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.DateCreated}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.DateCreated}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.Alphabetical}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Alphabetical}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.AlphabeticalDesc}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.AlphabeticalDesc}"/>
+                                    <MenuItem Header="{localization:Localize GameProfiles.Sort.Free}" Command="{Binding SetLibrarySortModeCommand}" CommandParameter="{x:Static enums:ProfileSortMode.Free}"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
                         </Button>
                     </Grid>
-                </Border>
-            </DataTemplate>
-        </controls:SidebarLayout.ItemTemplate>
-        <Grid>
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <Grid>
-                <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Center" Margin="30" IsVisible="{Binding IsLibraryInitializing}"/>
-                <TextBlock Text="{localization:Localize GameProfiles.Library.LoadError}" Classes="library-secondary" Margin="30" VerticalAlignment="Center" IsVisible="{Binding HasLibraryLoadError}"/>
-                <StackPanel IsVisible="{Binding IsLibraryEmpty}" Margin="30" Spacing="16" VerticalAlignment="Center" MaxWidth="560">
-                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyTitle}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                    <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyHelp}" Classes="library-secondary"/>
-                    <WrapPanel>
-                        <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}" Margin="0,0,8,8"/>
-                        <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Button.Scan}" Command="{Binding ScanForGamesCommand}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
-                    </WrapPanel>
-                    <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsScanning}"/>
-                    <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Description}" Classes="library-secondary" IsVisible="{Binding ShouldShowScanPrompt}"/>
-                    <StackPanel IsVisible="{Binding ShouldShowScanFailure}" Spacing="12">
-                        <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                        <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="library-secondary"/>
-                        <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
-                            <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
-                        </Expander>
-                        <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,0,8"/>
-                    </StackPanel>
-                    <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
-                        <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
-                        <WrapPanel>
-                            <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,8,8"/>
-                            <Button Classes="action-secondary library-action" Command="{Binding OpenSteamStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.SteamButton}" Margin="0,0,8,8"/>
-                            <Button Classes="action-secondary library-action" Command="{Binding OpenEaStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.EaAppButton}" Margin="0,0,0,8"/>
-                        </WrapPanel>
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.NoMatches}" Classes="library-secondary" IsVisible="{Binding !HasLibraryProfiles}"/>
+                </StackPanel>
+            </controls:SidebarLayout.PaneHeader>
+            <controls:SidebarLayout.PaneFooter>
+                <StackPanel Spacing="8">
+                    <Button Classes="action-secondary library-action" Command="{Binding CreateNewProfileCommand}" HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <material:MaterialIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.Library.NewProfile}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center">
+                        <Button Classes="library-action layout-toggle" Classes.selected="{Binding IsLibraryLayout}" Command="{Binding SetProfileLayoutCommand}" CommandParameter="{x:Static enums:ProfileLayout.Library}" ToolTip.Tip="{localization:Localize GameProfiles.Layout.Library}" AutomationProperties.Name="{localization:Localize GameProfiles.Layout.Library}">
+                            <material:MaterialIcon Kind="ViewList" Width="16" Height="16"/>
+                        </Button>
+                        <Button Classes="library-action layout-toggle" Classes.selected="{Binding IsCardLayout}" Command="{Binding SetProfileLayoutCommand}" CommandParameter="{x:Static enums:ProfileLayout.Cards}" ToolTip.Tip="{localization:Localize GameProfiles.Layout.Cards}" AutomationProperties.Name="{localization:Localize GameProfiles.Layout.Cards}">
+                            <material:MaterialIcon Kind="ViewGrid" Width="16" Height="16"/>
+                        </Button>
                     </StackPanel>
                 </StackPanel>
-                </Grid>
-            </ScrollViewer>
-                <Grid IsVisible="{Binding HasDisplayedProfile}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*" MaxHeight="220"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ClipToBounds="True">
-                        <Border Height="220" ClipToBounds="True" VerticalAlignment="Top">
-                            <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" Opacity="0.65"/>
-                        </Border>
-                        <Border>
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                    <GradientStop Color="Transparent" Offset="0"/>
-                                    <GradientStop Color="{DynamicResource SurfaceBackgroundDark}" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                        </Border>
-                        <StackPanel Margin="30,36,30,22" Spacing="8" VerticalAlignment="Bottom">
-                            <TextBlock Text="{Binding Name}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
-                            <Border Classes="library-compatibility" Classes.compatibility-retail="{Binding IsRetailCompatible}" Classes.compatibility-nonretail="{Binding !IsRetailCompatible}" IsVisible="{Binding HasCompatibilityBadge}" ToolTip.Tip="{Binding CompatibilityTooltip}">
-                                <TextBlock Text="{Binding CompatibilityBadgeText}"/>
-                            </Border>
-                            <TextBlock Text="{Binding LibraryHeaderMetadata}" Classes="library-secondary" IsVisible="{Binding LibraryHeaderMetadata, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        </StackPanel>
-                    </Grid>
-                        <Grid Grid.Row="1" Margin="30,0,30,0" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ColumnDefinitions="*,Auto">
-                            <WrapPanel Orientation="Horizontal">
-                                <Button Classes="action-primary library-action library-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" Margin="0,0,12,8" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <material:MaterialIcon Kind="Play" Width="18" Height="18" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{localization:Localize GameProfiles.Library.Play}" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Classes="action-danger library-action library-play library-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" Margin="0,0,20,8">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <material:MaterialIcon Kind="Stop" Width="18" Height="18" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Stop}" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <TextBlock Text="{Binding LibraryLaunchStatus}" Classes="library-secondary" VerticalAlignment="Center" IsVisible="{Binding IsPreparingWorkspace}" Margin="0,0,12,8"/>
-                                <Button Classes="library-action" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}" Content="{localization:Localize GameProfiles.Library.ProfileSettings}" Margin="0,0,12,8"/>
-                                <ToggleButton Classes="library-tab" IsChecked="{Binding UseSteamLaunch}" Command="{Binding ToggleSteamLaunchCommand}" IsVisible="{Binding IsSteamIntegrationSupported}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" Margin="0,0,12,8">
-                                    <Image Source="avares://GenHub/Assets/Icons/steam-icon.png" Width="20" Height="20"/>
-                                </ToggleButton>
-
-                            </WrapPanel>
-                            <Button Grid.Column="1" Classes="action-secondary library-action" Padding="16,9" MinWidth="46" MinHeight="38" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}">
-                                <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18"/>
-                                <Button.Flyout>
-                                    <MenuFlyout>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
-                                        <Separator/>
-                                        <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
-                                    </MenuFlyout>
-                                </Button.Flyout>
+            </controls:SidebarLayout.PaneFooter>
+            <controls:SidebarLayout.ItemTemplate>
+                <DataTemplate x:DataType="vm:GameProfileItemViewModel">
+                    <Border Classes="library-row" BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" BorderThickness="3,0,0,0" Padding="8,0,0,0">
+                        <Border.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                <Separator/>
+                                <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
+                            </ContextMenu>
+                        </Border.ContextMenu>
+                        <Grid ColumnDefinitions="42,*,Auto">
+                            <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Classes="action-primary icon-action library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                                <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
+                            </Button>
+                            <Button Grid.Column="2" Classes="action-danger icon-action library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
+                                <material:MaterialIcon Kind="Stop" Width="16" Height="16"/>
                             </Button>
                         </Grid>
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="30,22,30,30" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" IsVisible="{Binding HasLibraryDescription}">
-                            <TextBlock Text="{Binding LibraryDescription}" Classes="library-secondary"/>
+                    </Border>
+                </DataTemplate>
+            </controls:SidebarLayout.ItemTemplate>
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <Grid>
+                    <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Center" Margin="30" IsVisible="{Binding IsLibraryInitializing}"/>
+                    <TextBlock Text="{localization:Localize GameProfiles.Library.LoadError}" Classes="library-secondary" Margin="30" VerticalAlignment="Center" IsVisible="{Binding HasLibraryLoadError}"/>
+                    <StackPanel IsVisible="{Binding IsLibraryEmpty}" Margin="30" Spacing="16" VerticalAlignment="Center" MaxWidth="560">
+                        <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyTitle}" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{localization:Localize GameProfiles.Library.EmptyHelp}" Classes="library-secondary"/>
+                        <WrapPanel>
+                            <Button Classes="action-primary library-action library-play" Content="{localization:Localize GameProfiles.Library.NewProfile}" Command="{Binding CreateNewProfileCommand}" Margin="0,0,8,8"/>
+                            <Button Classes="action-secondary library-action" Content="{localization:Localize GameProfiles.Button.Scan}" Command="{Binding ScanForGamesCommand}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
+                        </WrapPanel>
+                        <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding IsScanning}"/>
+                        <TextBlock Text="{localization:Localize GameProfiles.ScanPrompt.Description}" Classes="library-secondary" IsVisible="{Binding ShouldShowScanPrompt}"/>
+                        <StackPanel IsVisible="{Binding ShouldShowScanFailure}" Spacing="12">
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="library-secondary"/>
+                            <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
+                                <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                            </Expander>
+                            <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,0,8"/>
                         </StackPanel>
-                    </ScrollViewer>
-                </Grid>
-        </Grid>
-    </controls:SidebarLayout>
+                        <StackPanel IsVisible="{Binding ShouldShowStorefrontBanner}" Spacing="12">
+                            <TextBlock Text="{localization:Localize GameProfiles.Storefront.BannerDescription}" Classes="library-secondary"/>
+                            <WrapPanel>
+                                <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" Margin="0,0,8,8"/>
+                                <Button Classes="action-secondary library-action" Command="{Binding OpenSteamStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.SteamButton}" Margin="0,0,8,8"/>
+                                <Button Classes="action-secondary library-action" Command="{Binding OpenEaStoreCommand}" Content="{localization:Localize GameProfiles.Storefront.EaAppButton}" Margin="0,0,0,8"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+                    <Grid IsVisible="{Binding HasDisplayedProfile}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" MaxHeight="220"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ClipToBounds="True">
+                            <Border Height="220" ClipToBounds="True" VerticalAlignment="Top">
+                                <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}" Stretch="UniformToFill" Opacity="0.65"/>
+                            </Border>
+                            <Border>
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Color="Transparent" Offset="0"/>
+                                        <GradientStop Color="{DynamicResource SurfaceBackgroundDark}" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <StackPanel Margin="30,36,30,22" Spacing="8" VerticalAlignment="Bottom">
+                                <TextBlock Text="{Binding Name}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}"/>
+                                <Border Classes="library-compatibility" Classes.compatibility-retail="{Binding IsRetailCompatible}" Classes.compatibility-nonretail="{Binding !IsRetailCompatible}" IsVisible="{Binding HasCompatibilityBadge}" ToolTip.Tip="{Binding CompatibilityTooltip}">
+                                    <TextBlock Text="{Binding CompatibilityBadgeText}"/>
+                                </Border>
+                                <TextBlock Text="{Binding LibraryHeaderMetadata}" Classes="library-secondary" IsVisible="{Binding LibraryHeaderMetadata, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                            </StackPanel>
+                        </Grid>
+                            <Grid Grid.Row="1" Margin="30,0,30,0" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" ColumnDefinitions="*,Auto">
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Classes="action-primary library-action library-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" Margin="0,0,12,8" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="Play" Width="18" Height="18" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{localization:Localize GameProfiles.Library.Play}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="action-danger library-action library-play library-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" Margin="0,0,20,8">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <material:MaterialIcon Kind="Stop" Width="18" Height="18" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Stop}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Text="{Binding LibraryLaunchStatus}" Classes="library-secondary" VerticalAlignment="Center" IsVisible="{Binding IsPreparingWorkspace}" Margin="0,0,12,8"/>
+                                    <Button Classes="library-action" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}" Content="{localization:Localize GameProfiles.Library.ProfileSettings}" Margin="0,0,12,8"/>
+                                    <ToggleButton Classes="library-tab" IsChecked="{Binding UseSteamLaunch}" Command="{Binding ToggleSteamLaunchCommand}" IsVisible="{Binding IsSteamIntegrationSupported}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" Margin="0,0,12,8">
+                                        <Image Source="avares://GenHub/Assets/Icons/steam-icon.png" Width="20" Height="20"/>
+                                    </ToggleButton>
+
+                                </WrapPanel>
+                                <Button Grid.Column="1" Classes="action-secondary library-action" Padding="16,9" MinWidth="46" MinHeight="38" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}">
+                                    <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18"/>
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.EditProfile}" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.ShareProfile}" Command="{Binding ShareProfileCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}" Command="{Binding CopyProfileCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}" Command="{Binding CreateShortcutCommand}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveEarlier}" Command="{Binding MoveLeftCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Library.MoveLater}" Command="{Binding MoveRightCommand}" IsVisible="{Binding IsFreeReorderMode}"/>
+                                            <Separator/>
+                                            <MenuItem Header="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}" Command="{Binding DeleteProfileCommand}" Foreground="{DynamicResource ErrorBrush}"/>
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Margin="30,22,30,30" DataContext="{Binding DisplayedProfile}" x:DataType="vm:GameProfileItemViewModel" IsVisible="{Binding HasLibraryDescription}">
+                                <TextBlock Text="{Binding LibraryDescription}" Classes="library-secondary"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+            </Grid>
+        </controls:SidebarLayout>
+        <views:GameProfileCardsView IsVisible="{Binding IsCardLayout}"/>
+    </Panel>
 </UserControl>

@@ -421,6 +421,8 @@ public partial class GameProfileLauncherViewModel(
                 {
                     _isLoadingSortMode = false;
                 }
+
+                LoadProfileLayout(userSettingsService);
             }
 
             StatusMessage = localizationService["GameProfiles.Status.LoadingProfiles"];
@@ -1685,6 +1687,7 @@ public partial class GameProfileLauncherViewModel(
         if (e.PropertyName == nameof(ILocalizationService.CurrentCulture) || e.PropertyName == LocalizationConstants.IndexerPropertyName)
         {
             InitializeSortOptions(forceRefresh: true);
+            RefreshProfileLayoutOptions();
             foreach (var profile in Profiles.Where(p => p is not AddProfileItemViewModel))
             {
                 profile.NotifyLibraryCaptionsChanged();
