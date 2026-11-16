@@ -11,21 +11,7 @@
              DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
+
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
@@ -77,12 +63,12 @@
                         <TextBlock Text="{Binding TitleLabel}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}" IsVisible="{Binding IsAddonMode}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding Title}" Watermark="{Binding TitlePlaceholder}"/>
+                    <TextBox Classes="form-field" Text="{Binding Title}" Watermark="{Binding TitlePlaceholder}"/>
                 </StackPanel>
 
                 <StackPanel Spacing="8" IsVisible="{Binding IsAddonMode}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddonCategory}" Classes="label"/>
-                    <ComboBox ItemsSource="{Binding AvailableAddonCategories}"
+                    <ComboBox Classes="form-field" ItemsSource="{Binding AvailableAddonCategories}"
                               SelectedItem="{Binding Category}"
                               HorizontalAlignment="Stretch"/>
                 </StackPanel>
@@ -94,7 +80,7 @@
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,8,Auto">
-                         <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
+                         <TextBox Classes="form-field" Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
                          <Button Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Suggest}"
                                  Command="{Binding ApplySuggestedVersionCommand}"
                                  Classes="action-secondary action-compact"/>
@@ -112,7 +98,7 @@
                 <!-- Changelog -->
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
-                    <TextBox Text="{Binding Changelog}"
+                    <TextBox Classes="form-field" Text="{Binding Changelog}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              Height="80"/>
@@ -244,7 +230,7 @@
                                             <TextBlock Text="{Binding ContentTypeDisplay}" Classes="hint"/>
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="hint" IsVisible="{Binding HasVariants}"/>
-                                        <ComboBox Grid.Column="3"
+                                        <ComboBox Classes="form-field" Grid.Column="3"
                                                   ItemsSource="{Binding AvailableVariants}"
                                                   SelectedItem="{Binding SelectedVariant}"
                                                   IsVisible="{Binding HasVariants}"
@@ -314,14 +300,14 @@
 
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseImages}" Classes="label"/>
-                        <TextBox Text="{Binding ImageUrlsInput, Mode=TwoWay}"
+                        <TextBox Classes="form-field" Text="{Binding ImageUrlsInput, Mode=TwoWay}"
                                  AcceptsReturn="True"
                                  Height="60"
                                  Watermark="https://example.com/screenshot1.jpg&#x0a;https://example.com/screenshot2.jpg"/>
                     </StackPanel>
                     <StackPanel Spacing="4">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.ReleaseVideos}" Classes="label"/>
-                        <TextBox Text="{Binding VideoUrlsInput, Mode=TwoWay}"
+                        <TextBox Classes="form-field" Text="{Binding VideoUrlsInput, Mode=TwoWay}"
                                  AcceptsReturn="True"
                                  Height="60"
                                  Watermark="https://www.youtube.com/watch?v=...&#x0a;https://example.com/video.mp4"/>

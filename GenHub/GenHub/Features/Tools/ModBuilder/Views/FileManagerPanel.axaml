@@ -30,7 +30,7 @@
                    Foreground="{DynamicResource TextPrimary}"
                    VerticalAlignment="Center" Margin="0,0,12,0"/>
 
-        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableInstallations}"
+        <ComboBox Classes="form-compact form-field" Grid.Column="1" ItemsSource="{Binding AvailableInstallations}"
                   SelectedItem="{Binding SelectedInstallation}"
                   MinWidth="320" HorizontalAlignment="Left">
           <ComboBox.ItemTemplate>
@@ -58,11 +58,11 @@
             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
             CornerRadius="10" Padding="14" Margin="0,0,0,10">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
-        <TextBox Grid.Column="0" Text="{Binding SearchText}"
+        <TextBox Classes="form-compact form-field" Grid.Column="0" Text="{Binding SearchText}"
                  Watermark="{localization:Localize Tools.ModBuilder.FileManager.WatermarkSearchFiles}" Margin="0,0,8,0"
                  VerticalContentAlignment="Center"/>
 
-        <ComboBox Grid.Column="1" ItemsSource="{Binding FileTypeFilters}"
+        <ComboBox Classes="form-compact form-field" Grid.Column="1" ItemsSource="{Binding FileTypeFilters}"
                   SelectedItem="{Binding SelectedFileType}"
                   Width="180" Margin="0,0,8,0"/>
 

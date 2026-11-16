@@ -176,11 +176,8 @@
 
             <!-- Search Filter Bar -->
             <Border Grid.Row="1" Background="{DynamicResource SurfaceBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="28,12">
-                <TextBox Text="{Binding SearchText, Mode=TwoWay}"
-                         Watermark="{localization:Localize Tools.ReplayManager.ClientSelection.SearchWatermark}"
-                         FontSize="13"
-                         Padding="10,8"
-                         CornerRadius="6" />
+                <TextBox Classes="form-compact form-field" Text="{Binding SearchText, Mode=TwoWay}"
+                         Watermark="{localization:Localize Tools.ReplayManager.ClientSelection.SearchWatermark}" />
             </Border>
 
             <!-- Clients List / Loading Area -->

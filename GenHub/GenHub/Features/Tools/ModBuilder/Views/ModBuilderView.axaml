@@ -57,13 +57,9 @@
               <TextBlock Text="{localization:Localize Tools.ModBuilder.View.CurrentProjectHeader}" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Bold" LetterSpacing="0.5"/>
               <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             </StackPanel>
-            <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
+            <TextBox Classes="form-compact form-field" Text="{Binding CurrentProjectPath}" IsReadOnly="True"
                      Watermark="{localization:Localize Tools.ModBuilder.View.NoProjectLoadedWatermark}" MinWidth="260" MaxWidth="440"
-                     Background="{DynamicResource SurfaceElevatedBrush}"
-                     BorderBrush="{DynamicResource BorderBrush}"
-                     CornerRadius="8" Padding="10,6"
-                     VerticalAlignment="Center" VerticalContentAlignment="Center"
-                     Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
+                     VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="8,0,0,0"/>
           </StackPanel>
 
           <!-- Quick Actions -->

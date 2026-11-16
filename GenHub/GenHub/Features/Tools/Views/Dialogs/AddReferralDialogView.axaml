@@ -116,7 +116,7 @@
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.CatalogUrl}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-                            <TextBox Grid.Column="0" Grid.Row="0"
+                            <TextBox Classes="form-field" Grid.Column="0" Grid.Row="0"
                                      Text="{Binding CatalogUrl}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Referral.CatalogUrlPlaceholder}"
                                      IsEnabled="{Binding SelectedPublisher, Converter={x:Static ObjectConverters.IsNull}}"/>
@@ -165,14 +165,14 @@
 
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.PublisherId}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
-                        <TextBox Text="{Binding PublisherId}"
+                        <TextBox Classes="form-field" Text="{Binding PublisherId}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Referral.PublisherIdPlaceholder}"
                                  IsReadOnly="{Binding DiscoveredPublisher, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.Note}" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
-                        <TextBox Text="{Binding Note}"
+                        <TextBox Classes="form-field" Text="{Binding Note}"
                                  Watermark="{localization:Localize Tools.PublisherStudio.Referral.NotePlaceholder}"
                                  AcceptsReturn="True"
                                  Height="80"/>

@@ -72,25 +72,5 @@
             <Setter Property="LetterSpacing" Value="1"/>
         </Style>
 
-        <Style Selector="TextBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="8,6"/>
-        </Style>
-        <Style Selector="TextBox.glass:focus">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
-        </Style>
-
-        <Style Selector="ComboBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="8,6"/>
-        </Style>
-
     </Window.Styles>
 </controls:GenHubWindow>

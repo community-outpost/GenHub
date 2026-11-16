@@ -9,21 +9,6 @@
              x:DataType="vm:PublisherSetupWizardViewModel">
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
 
         <Style Selector="TextBlock.label">
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -66,7 +51,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherId}" Classes="label"/>
                             <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder}"/>
+                        <TextBox Classes="form-field" Text="{Binding PublisherId}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdPlaceholder}"/>
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.PublisherIdHint}" Classes="hint"/>
                     </StackPanel>
 
@@ -75,7 +60,7 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayName}" Classes="label"/>
                             <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                         </StackPanel>
-                        <TextBox Text="{Binding PublisherName}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder}"/>
+                        <TextBox Classes="form-field" Text="{Binding PublisherName}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.DisplayNamePlaceholder}"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -85,12 +70,12 @@
 
                     <StackPanel Spacing="8">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.Website}" Classes="label"/>
-                        <TextBox Text="{Binding WebsiteUrl}" Watermark="https://example.com"/>
+                        <TextBox Classes="form-field" Text="{Binding WebsiteUrl}" Watermark="https://example.com"/>
                     </StackPanel>
 
                     <StackPanel Spacing="8">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmail}" Classes="label"/>
-                        <TextBox Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
+                        <TextBox Classes="form-field" Text="{Binding ContactEmail}" Watermark="{localization:Localize Tools.PublisherStudio.SetupWizard.ContactEmailPlaceholder}"/>
                     </StackPanel>
 
                     <TextBlock Text="{Binding ValidationError}"

@@ -18,13 +18,7 @@
         Background="Transparent">
 
     <Window.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,10"/>
-        </Style>
+
     </Window.Styles>
 
     <Border Background="{DynamicResource SurfaceElevatedBrush}"
@@ -71,9 +65,8 @@
                            Foreground="{DynamicResource TextSecondary}"
                            TextWrapping="Wrap"/>
 
-                <TextBox Text="{Binding InputUrl}"
+                <TextBox Classes="form-field" Text="{Binding InputUrl}"
                          Watermark="{localization:Localize Downloads.ImportSubscription.UrlWatermark}"
-                         FontSize="13"
                          FontFamily="Consolas, Courier New, monospace"/>
 
                 <!-- Error Message Banner -->

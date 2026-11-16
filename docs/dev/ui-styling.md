@@ -127,12 +127,33 @@ Item templates inside sidebars must use inset rounded rows:
 </DataTemplate>
 ```
 
+## Text inputs and form density
+
+Ordinary text inputs opt into `FormFieldStyles.axaml` with `Classes="form-field"`.
+Use `FormFieldFill` and `FormFieldBorder` so inputs remain visible at rest, with semantic text colors and 8px input corners,
+36px minimum height, 13px type and `10,8` padding. Hover lifts the fill and strengthens the border. Focus and validation states
+retain the original Fluent editor template; password, selection, read-only and
+multiline behavior stay with the consumer.
+
+Use `Classes="form-field form-compact"` for dense editor/search fields: 32px
+minimum height, 12px type and `8,6` padding. Dropdowns use the same form metrics,
+with `form-compact` for dense contexts. Do not duplicate field paint or template
+state styles in individual views. Layout, multiline height, maximum dropdown
+height and semantic option templates stay with the consumer.
+
+The text style is deliberately opt-in so embedded text editors inside numeric
+scrubbers and code-editor controls keep their component templates and geometry.
+Code/raw-text editors, numeric scrubbing and special item previews are distinct
+families, not ordinary text forms. Never remove their behavior to match form
+presentation.
+
 ## Selection dropdowns (ComboBox)
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
 
-- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource CardBackground}` with subtle 1px border `{DynamicResource BorderBrush}`.
-- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceElevatedBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
+- **Container:** Corners from `{DynamicResource InputCornerRadius}`, `MinHeight` from `{DynamicResource FormFieldMinHeight}`, background bound to `{DynamicResource FormFieldFill}` with a 1px `{DynamicResource FormFieldBorder}` border.
+- **Hover & Focus:** Hover switches to `{DynamicResource FormFieldHoverFill}` and `{DynamicResource FormFieldHoverBorder}`. Focus keeps `{DynamicResource FormFieldFill}` with an `{DynamicResource AccentBrush}` border, which also marks the open state.
+- **Disabled:** Text and chevron use `{DynamicResource TextMuted}`.
 - **Glyph:** Vector chevron (`Data="M7 10l5 5 5-5z"`) that rotates 180 degrees smoothly when the dropdown opens.
 - **Popup menu:** Elevated surface with rounded 8px corners, internal 4px padding, and drop shadow (`BoxShadow="0 10 28 0 #99000000"`).
 - **Items:** Inset rounded items (`Margin="0,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
@@ -428,7 +449,8 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 #### TextBoxes and Search Fields (Watermarks)
 ```xml
-<TextBox Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
+<TextBox Classes="form-field"
+         Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
          Text="{Binding SearchQuery, Mode=TwoWay}" />
 ```
 
@@ -454,3 +476,11 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 > [!IMPORTANT]
 > **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.
+
+### Alignment and curvature
+
+Single-line, non-wrapping `form-field` editors center both text and watermark in the allocated height. Multiline and wrapped editors keep their first line at the top inset. Preserve local layout overrides for specialized editors.
+
+Action captions and glyphs center their own line/icon boxes within the shared action content. Avoid per-screen baseline nudges or transforms.
+
+Fields use `InputCornerRadius`. Fluent validation captions use the same error brush as field outlines.

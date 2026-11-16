@@ -137,7 +137,7 @@
                   <!-- Item Name -->
                   <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelBundleName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Text="{Binding SelectedBundleItem.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkBundleName}" />
+                    <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleItem.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkBundleName}" />
                   </StackPanel>
 
                   <!-- Source Selection Section -->
@@ -271,7 +271,7 @@
 
                       <!-- Add Custom Pattern Field -->
                       <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                        <TextBox Grid.Column="0" Text="{Binding SelectedBundleItem.CustomPatternInput, Mode=TwoWay}"
+                        <TextBox Classes="form-compact form-field" Grid.Column="0" Text="{Binding SelectedBundleItem.CustomPatternInput, Mode=TwoWay}"
                                  Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkAddPattern}"
                                  Margin="0,0,8,0"/>
                         <Button Classes="action-secondary" Grid.Column="1" Command="{Binding AddCustomPatternCommand}"
@@ -307,7 +307,7 @@
                                 Background="Transparent" BorderThickness="0" Margin="0,2,0,0">
                         <StackPanel Spacing="4" Margin="0,4,0,0">
                           <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelRawGlobString}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
-                          <TextBox Text="{Binding SelectedBundleItem.SourcePattern, Mode=TwoWay}"
+                          <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleItem.SourcePattern, Mode=TwoWay}"
                                    Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkSourceFiles}"/>
                         </StackPanel>
                       </Expander>
@@ -352,7 +352,7 @@
                                  FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                       <StackPanel Spacing="6" IsVisible="{Binding SelectedBundleItem.IsBig}">
                         <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelArchiveSuffix}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
-                        <TextBox Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix}"
+                        <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleItem.BigSuffix, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkArchiveSuffix}"
                                  ToolTip.Tip="{localization:Localize Tools.ModBuilder.ConfigEditor.TooltipArchiveSuffix}"/>
                       </StackPanel>
                     </StackPanel>
@@ -445,14 +445,14 @@
                   <!-- Pack Name -->
                   <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelPackName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Text="{Binding SelectedBundlePack.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkPackName}" />
+                    <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundlePack.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkPackName}" />
                   </StackPanel>
 
                   <!-- Output File -->
                   <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelCustomOutputFile}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescOutputFile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
-                    <TextBox Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile}" />
+                    <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundlePack.OutputFile, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkCustomOutputFile}" />
                   </StackPanel>
 
                   <!-- Included Items Checklist -->
@@ -586,18 +586,18 @@
                   <!-- Manifest Name -->
                   <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestName}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Text="{Binding SelectedBundleManifest.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestName}" />
+                    <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleManifest.Name, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestName}" />
                   </StackPanel>
 
                   <!-- Version + Publisher -->
                   <Grid ColumnDefinitions="*,12,*">
                     <StackPanel Grid.Column="0" Spacing="6">
                       <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestVersion}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                      <TextBox Text="{Binding SelectedBundleManifest.Version, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion}" />
+                      <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleManifest.Version, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestVersion}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
                       <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestPublisher}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                      <TextBox Text="{Binding SelectedBundleManifest.Publisher, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher}" />
+                      <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleManifest.Publisher, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestPublisher}" />
                     </StackPanel>
                   </Grid>
                   <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.DescManifestPublisher}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
@@ -605,14 +605,14 @@
                   <!-- Description -->
                   <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestDescription}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                    <TextBox Text="{Binding SelectedBundleManifest.Description, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription}" />
+                    <TextBox Classes="form-compact form-field" Text="{Binding SelectedBundleManifest.Description, Mode=TwoWay}" Watermark="{localization:Localize Tools.ModBuilder.ConfigEditor.WatermarkManifestDescription}" />
                   </StackPanel>
 
                   <!-- Content Type + Target Game -->
                   <Grid ColumnDefinitions="*,12,*">
                     <StackPanel Grid.Column="0" Spacing="6">
                       <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestContentType}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                      <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                      <ComboBox Classes="form-compact form-field" ItemsSource="{Binding AvailableContentTypes}"
                                 SelectedItem="{Binding SelectedBundleManifest.ContentType, Mode=TwoWay}"
                                 HorizontalAlignment="Stretch">
                         <ComboBox.ItemTemplate>
@@ -624,7 +624,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
                       <TextBlock Text="{localization:Localize Tools.ModBuilder.ConfigEditor.LabelManifestTargetGame}" FontWeight="SemiBold" FontSize="12.5" Foreground="{DynamicResource TextPrimary}"/>
-                      <ComboBox ItemsSource="{Binding AvailableTargetGames}"
+                      <ComboBox Classes="form-compact form-field" ItemsSource="{Binding AvailableTargetGames}"
                                 SelectedItem="{Binding SelectedBundleManifest.TargetGame, Mode=TwoWay}"
                                 HorizontalAlignment="Stretch">
                         <ComboBox.ItemTemplate>

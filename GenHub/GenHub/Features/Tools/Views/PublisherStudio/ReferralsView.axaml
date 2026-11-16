@@ -51,24 +51,6 @@
         </Style>
 
         <!-- TextBox Styles -->
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
-
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassStrongBrush}"/>
-        </Style>
 
         <!-- Button Styles -->
 
@@ -259,21 +241,21 @@
                         <!-- Publisher ID -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.PublisherId}" Classes="field-label"/>
-                            <TextBox Text="{Binding EditPublisherId}"
+                            <TextBox Classes="form-field" Text="{Binding EditPublisherId}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Referrals.PublisherIdPlaceholder}"/>
                         </StackPanel>
 
                         <!-- Catalog URL -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.CatalogUrl}" Classes="field-label"/>
-                            <TextBox Text="{Binding EditCatalogUrl}"
+                            <TextBox Classes="form-field" Text="{Binding EditCatalogUrl}"
                                      Watermark="https://cdn.playgenerals.online/catalog.json"/>
                         </StackPanel>
 
                         <!-- Notes -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referrals.RecommendationNote}" Classes="field-label"/>
-                            <TextBox Text="{Binding EditNote}"
+                            <TextBox Classes="form-field" Text="{Binding EditNote}"
                                      AcceptsReturn="True"
                                      Height="70"
                                      TextWrapping="Wrap"

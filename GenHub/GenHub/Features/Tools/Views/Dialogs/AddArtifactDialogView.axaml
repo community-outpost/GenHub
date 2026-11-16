@@ -10,21 +10,7 @@
              DragDrop.AllowDrop="True">
 
     <UserControl.Styles>
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="SelectionBrush" Value="{DynamicResource AccentColorBrush}"/>
-            <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
-        </Style>
+
         <Style Selector="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
@@ -76,10 +62,9 @@
                     <!-- File Selection (visible when UseLocalFile is true) -->
                     <StackPanel Spacing="8" Margin="24,8,0,0" IsVisible="{Binding UseLocalFile}">
                         <Grid ColumnDefinitions="*,Auto,Auto">
-                            <TextBox Text="{Binding LocalFilePath}"
+                            <TextBox Classes="form-field" Text="{Binding LocalFilePath}"
                                      IsReadOnly="True"
-                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"
-                                     FontSize="12"/>
+                                     Watermark="{localization:Localize Tools.PublisherStudio.Artifact.NoFileSelected}"/>
                             <Button Grid.Column="1"
                                     Command="{Binding BrowseLocalFileCommand}"
                                     Content="{localization:Localize Tools.PublisherStudio.Artifact.Browse}"
@@ -112,14 +97,14 @@
                     <StackPanel Spacing="10" Margin="24,8,0,0" IsVisible="{Binding UseExistingUrl}">
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}" Classes="label"/>
-                            <TextBox Text="{Binding DownloadUrl}"
+                            <TextBox Classes="form-field" Text="{Binding DownloadUrl}"
                                      AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrl}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Artifact.DirectDownloadUrlPlaceholder}"/>
                         </StackPanel>
 
                         <StackPanel Spacing="4">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}" Classes="label"/>
-                            <TextBox Text="{Binding FileSizeInput}"
+                            <TextBox Classes="form-field" Text="{Binding FileSizeInput}"
                                      AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Artifact.FileSize}"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FileSizePlaceholder}"/>
                             <TextBlock Text="{Binding ParsedSizeDisplay}" Classes="hint"
@@ -154,7 +139,7 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.Filename}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding Filename}"
+                    <TextBox Classes="form-field" Text="{Binding Filename}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Artifact.FilenamePlaceholder}"
                              IsReadOnly="{Binding UseLocalFile}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.FilenameHint}"
@@ -171,7 +156,7 @@
                                 IsVisible="{Binding UseLocalFile}"
                                 Classes="action-secondary action-compact"/>
                     </Grid>
-                    <TextBox Text="{Binding Sha256Hash}"
+                    <TextBox Classes="form-field" Text="{Binding Sha256Hash}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Artifact.HashPlaceholder}"
                              IsReadOnly="{Binding UseLocalFile}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.HashHint}"
@@ -193,7 +178,7 @@
 
                 <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantAxis}" Classes="label"/>
-                    <ComboBox ItemsSource="{Binding VariantAxisSelector.Options}"
+                    <ComboBox Classes="form-field" ItemsSource="{Binding VariantAxisSelector.Options}"
                               SelectedItem="{Binding VariantAxisSelector.SelectedOption}"
                               HorizontalAlignment="Stretch">
                         <ComboBox.ItemTemplate>
@@ -205,7 +190,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <TextBox Text="{Binding VariantAxisSelector.CustomValue}"
+                    <TextBox Classes="form-field" Text="{Binding VariantAxisSelector.CustomValue}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder}"
                              IsVisible="{Binding VariantAxisSelector.ShowCustomValue}"/>
                     <TextBlock Text="{Binding VariantAxisSelector.SelectedDescription}"
@@ -215,7 +200,7 @@
 
                 <StackPanel Spacing="8" IsVisible="{Binding AllowVariants}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabel}" Classes="label"/>
-                    <TextBox Text="{Binding Variant}"
+                    <TextBox Classes="form-field" Text="{Binding Variant}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelPlaceholder}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Artifact.VariantLabelHint}"
                                Classes="hint"

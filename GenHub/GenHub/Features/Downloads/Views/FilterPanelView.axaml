@@ -53,15 +53,7 @@
 
         <!-- Dropdown styling -->
         <Style Selector="ComboBox.filter-dropdown">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="FontSize" Value="12" />
             <Setter Property="MinWidth" Value="130" />
-            <Setter Property="MinHeight" Value="32" />
         </Style>
 
     </UserControl.Styles>
@@ -259,7 +251,7 @@
 
                         <StackPanel>
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Sort}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding SortOptions}"
                                       SelectedValue="{Binding SelectedSort, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -312,7 +304,7 @@
                         <!-- Authors -->
                         <StackPanel>
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Authors}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding AuthorOptions}"
                                       SelectedValue="{Binding SelectedAuthor, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -418,7 +410,7 @@
                         <!-- Category Dropdown (visible when ShowCategoryFilter) -->
                         <StackPanel Margin="0,0,16,8" IsVisible="{Binding ShowCategoryFilter}">
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Category}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding CategoryOptions}"
                                       SelectedValue="{Binding SelectedCategory, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -433,7 +425,7 @@
                         <!-- Addon Category Dropdown (visible when ShowAddonCategoryFilter) -->
                         <StackPanel Margin="0,0,16,8" IsVisible="{Binding ShowAddonCategoryFilter}">
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.AddonType}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding AddonCategoryOptions}"
                                       SelectedValue="{Binding SelectedAddonCategory, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -448,7 +440,7 @@
                         <!-- License Dropdown (visible when ShowLicenseFilter) -->
                         <StackPanel Margin="0,0,16,8" IsVisible="{Binding ShowLicenseFilter}">
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.License}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding LicenseOptions}"
                                       SelectedValue="{Binding SelectedLicense, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -463,7 +455,7 @@
                         <!-- Timeframe Dropdown -->
                         <StackPanel Margin="0,0,16,8">
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Timeframe}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding TimeframeOptions}"
                                       SelectedValue="{Binding SelectedTimeframe, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">
@@ -478,7 +470,7 @@
                         <!-- Sort Dropdown -->
                         <StackPanel Margin="0,0,16,8">
                             <TextBlock Classes="filter-label" Text="{localization:Localize Downloads.Filter.Sort}" />
-                            <ComboBox Classes="filter-dropdown"
+                            <ComboBox Classes="filter-dropdown form-compact form-field"
                                       ItemsSource="{Binding SortOptions}"
                                       SelectedValue="{Binding SelectedSort, Mode=TwoWay}"
                                       SelectedValueBinding="{Binding Value}">

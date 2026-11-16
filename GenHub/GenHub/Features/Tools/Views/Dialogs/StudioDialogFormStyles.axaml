@@ -1,6 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Style Selector="TextBox">
+    <Style Selector="TextBox:not(.form-field)">
         <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
@@ -11,16 +11,16 @@
         <Setter Property="SelectionForegroundBrush" Value="{DynamicResource TextPrimary}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
     </Style>
-    <Style Selector="TextBox:focus">
+    <Style Selector="TextBox:not(.form-field):focus">
         <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource AccentColorBrush}"/>
     </Style>
-    <Style Selector="TextBox:pointerover">
+    <Style Selector="TextBox:not(.form-field):pointerover">
         <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
     </Style>
 
-    <Style Selector="ComboBox">
+    <Style Selector="ComboBox:not(.form-field)">
         <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>

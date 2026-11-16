@@ -36,10 +36,8 @@
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource TextPrimary}"
                        FontSize="13"/>
-            <TextBox Text="{Binding CatalogName, Mode=TwoWay}"
-                     Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"
-                     FontSize="13"
-                     Padding="10,8"/>
+            <TextBox Classes="form-field" Text="{Binding CatalogName, Mode=TwoWay}"
+                     Watermark="{localization:Localize Tools.PublisherStudio.RenameCatalog.NamePlaceholder}"/>
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.RenameCatalog.Description}"
                        FontSize="11"
                        Foreground="{DynamicResource TextMuted}"

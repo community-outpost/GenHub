@@ -67,12 +67,12 @@
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Name.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding ShortName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding ShortName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <TextBlock Text="{Binding DecoratedPreview}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DecoratedPreview}"/>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Type.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" ItemsSource="{Binding WindowTypeOptions}" SelectedItem="{Binding SelectedWindowType, Mode=TwoWay}" FontSize="11" HorizontalAlignment="Stretch"/>
+            <ComboBox Classes="form-compact form-field" Grid.Column="1" ItemsSource="{Binding WindowTypeOptions}" SelectedItem="{Binding SelectedWindowType, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
           </Grid>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Style.Label}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <ItemsControl ItemsSource="{Binding StyleFlags}" ItemTemplate="{StaticResource FlagTemplate}">
@@ -156,11 +156,11 @@
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.Label}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding Text, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.Tooltip}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding TooltipText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding TooltipText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Text.TooltipDelay}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -173,7 +173,7 @@
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Name}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <ComboBox Grid.Column="1" ItemsSource="{Binding FontNameOptions}" SelectedItem="{Binding FontName, Mode=TwoWay}" FontSize="11" MaxDropDownHeight="220"/>
+            <ComboBox Classes="form-compact form-field" Grid.Column="1" ItemsSource="{Binding FontNameOptions}" SelectedItem="{Binding FontName, Mode=TwoWay}" MaxDropDownHeight="220"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Font.Size}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
@@ -204,23 +204,23 @@
         <StackPanel Spacing="3">
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.System}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding SystemCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding SystemCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Input}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding InputCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding InputCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Tooltip}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding TooltipCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding TooltipCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.Draw}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding DrawCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding DrawCallback, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <Grid ColumnDefinitions="80,*">
             <TextBlock Grid.Column="0" Text="{localization:Localize Tools.WndEditor.General.Callbacks.HeaderTemplate}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
-            <TextBox Grid.Column="1" Text="{Binding HeaderTemplate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding HeaderTemplate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
           </Grid>
           <TextBlock Text="{localization:Localize Tools.WndEditor.General.Callbacks.ImageOffset}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}"/>
           <Grid ColumnDefinitions="Auto,*,Auto,*">
@@ -253,7 +253,7 @@
               <DataTemplate x:DataType="vm:WndPropertyRowViewModel">
                 <Grid ColumnDefinitions="100,*,Auto" Margin="0,2">
                   <TextBlock Grid.Column="0" Text="{Binding Key}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Key}"/>
-                  <TextBox Grid.Column="1" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" FontSize="11" Margin="6,0"/>
+                  <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Margin="6,0"/>
                   <Button
                           Grid.Column="2"
                           x:CompileBindings="False"
@@ -267,8 +267,8 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
           <Grid ColumnDefinitions="*,*,Auto">
-            <TextBox Grid.Column="0" Text="{Binding NewPropertyKey, Mode=TwoWay}" Watermark="{localization:Localize Tools.WndEditor.Properties.KeyWatermark}" FontSize="11" Margin="0,0,4,0"/>
-            <TextBox Grid.Column="1" Text="{Binding NewPropertyValue, Mode=TwoWay}" Watermark="{localization:Localize Tools.WndEditor.Properties.ValueWatermark}" FontSize="11" Margin="0,0,4,0"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="0" Text="{Binding NewPropertyKey, Mode=TwoWay}" Watermark="{localization:Localize Tools.WndEditor.Properties.KeyWatermark}" Margin="0,0,4,0"/>
+            <TextBox Classes="form-compact form-field" Grid.Column="1" Text="{Binding NewPropertyValue, Mode=TwoWay}" Watermark="{localization:Localize Tools.WndEditor.Properties.ValueWatermark}" Margin="0,0,4,0"/>
             <Button
                     Grid.Column="2"
                     Command="{Binding AddPropertyCommand}"

@@ -48,7 +48,7 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Name}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding ContentName}" Watermark="{localization:Localize Tools.PublisherStudio.Content.NamePlaceholder}"/>
+                    <TextBox Classes="form-field" Text="{Binding ContentName}" Watermark="{localization:Localize Tools.PublisherStudio.Content.NamePlaceholder}"/>
                     <Button Classes="action-secondary" Content="{localization:Localize Tools.PublisherStudio.Content.UseSuggestedId}"
                             Command="{Binding ApplySuggestedIdCommand}"
                             HorizontalAlignment="Right"
@@ -61,7 +61,7 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Id}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
+                    <TextBox Classes="form-field" Text="{Binding ContentId}" Watermark="{localization:Localize Tools.PublisherStudio.Content.IdPlaceholder}"
                              IsReadOnly="{Binding IsContentIdReadOnly}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.IdHint}"
                                Classes="hint"
@@ -75,13 +75,13 @@
                 <Grid ColumnDefinitions="*,16,*">
                     <StackPanel Grid.Column="0" Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Type}" Classes="label"/>
-                        <ComboBox ItemsSource="{Binding AvailableContentTypes}"
+                        <ComboBox Classes="form-field" ItemsSource="{Binding AvailableContentTypes}"
                                   SelectedItem="{Binding SelectedContentType}"
                                   HorizontalAlignment="Stretch"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.TargetGame}" Classes="label"/>
-                        <ComboBox ItemsSource="{Binding AvailableTargetGames}"
+                        <ComboBox Classes="form-field" ItemsSource="{Binding AvailableTargetGames}"
                                   SelectedItem="{Binding SelectedTargetGame}"
                                   HorizontalAlignment="Stretch"/>
                     </StackPanel>
@@ -90,7 +90,7 @@
                 <!-- Addon Parent Selection (only visible when ContentType is Addon) -->
                 <StackPanel Spacing="6" IsVisible="{Binding ShowAddonParentSelection}">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsContent}" Classes="label"/>
-                    <TextBox Text="{Binding ExtendsContentId}"
+                    <TextBox Classes="form-field" Text="{Binding ExtendsContentId}"
                              Watermark="{localization:Localize Tools.PublisherStudio.Content.ExtendsPlaceholder}"/>
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ExtendsHint}"
                                Classes="hint"/>
@@ -109,7 +109,7 @@
                                       FontWeight="SemiBold"/>
                             <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgeLabel}" Classes="label"/>
-                                <TextBox Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
+                                <TextBox Classes="form-field" Text="{Binding FeaturedBadge}" Watermark="{localization:Localize Tools.PublisherStudio.Content.FeaturedBadgePlaceholder}"/>
                             </StackPanel>
                             <StackPanel Spacing="4" IsVisible="{Binding IsFeatured}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.FeaturedColor}" Classes="label"/>
@@ -191,7 +191,7 @@
                                                 <TextBlock Text="{Binding ContentTypeDisplay}" Classes="hint"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="2" Text="{localization:Localize Tools.PublisherStudio.Content.DefaultVariant}" VerticalAlignment="Center" Margin="8,0" Classes="hint" IsVisible="{Binding HasVariants}"/>
-                                            <ComboBox Grid.Column="3"
+                                            <ComboBox Classes="form-field" Grid.Column="3"
                                                       ItemsSource="{Binding AvailableVariants}"
                                                       SelectedItem="{Binding SelectedVariant}"
                                                       IsVisible="{Binding HasVariants}"
@@ -215,18 +215,18 @@
                     <StackPanel Spacing="8">
                         <StackPanel Spacing="8">
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamProvider}" Classes="label"/>
-                            <ComboBox ItemsSource="{Binding AvailableUpstreamProviders}"
+                            <ComboBox Classes="form-field" ItemsSource="{Binding AvailableUpstreamProviders}"
                                       SelectedItem="{Binding SelectedUpstreamProvider}"
                                       HorizontalAlignment="Stretch"/>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamRepository}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepo}" Classes="label"/>
-                                <TextBox Text="{Binding UpstreamRepository}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepoPlaceholder}"/>
+                                <TextBox Classes="form-field" Text="{Binding UpstreamRepository}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamRepoPlaceholder}"/>
                             </StackPanel>
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamContentCode}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCode}" Classes="label"/>
-                                <TextBox Text="{Binding UpstreamContentCode}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder}"/>
+                                <TextBox Classes="form-field" Text="{Binding UpstreamContentCode}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodePlaceholder}"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamContentCodeHint}"
                                            Classes="hint"
                                            TextWrapping="Wrap"/>
@@ -234,11 +234,11 @@
 
                             <StackPanel Spacing="4" IsVisible="{Binding ShowUpstreamChannel}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannel}" Classes="label"/>
-                                <TextBox Text="{Binding UpstreamChannel}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannelPlaceholder}"/>
+                                <TextBox Classes="form-field" Text="{Binding UpstreamChannel}" Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamChannelPlaceholder}"/>
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxis}" Classes="label"/>
-                                <ComboBox ItemsSource="{Binding UpstreamVariantAxisSelector.Options}"
+                                <ComboBox Classes="form-field" ItemsSource="{Binding UpstreamVariantAxisSelector.Options}"
                                           SelectedItem="{Binding UpstreamVariantAxisSelector.SelectedOption}"
                                           HorizontalAlignment="Stretch">
                                     <ComboBox.ItemTemplate>
@@ -250,7 +250,7 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <TextBox Text="{Binding UpstreamVariantAxisSelector.CustomValue}"
+                                <TextBox Classes="form-field" Text="{Binding UpstreamVariantAxisSelector.CustomValue}"
                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.UpstreamVariantAxisCustomPlaceholder}"
                                          IsVisible="{Binding UpstreamVariantAxisSelector.ShowCustomValue}"/>
                                 <TextBlock Text="{Binding UpstreamVariantAxisSelector.SelectedDescription}"
@@ -270,7 +270,7 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Description}" Classes="label"/>
                         <TextBlock Text="*" Foreground="{DynamicResource StatusErrorBrush}"/>
                     </StackPanel>
-                    <TextBox Text="{Binding Description}"
+                    <TextBox Classes="form-field" Text="{Binding Description}"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
                              MinHeight="100"
@@ -280,7 +280,7 @@
                 <!-- Tags -->
                 <StackPanel Spacing="6">
                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.Tags}" Classes="label"/>
-                    <TextBox Text="{Binding TagsInput}" Watermark="{localization:Localize Tools.PublisherStudio.Content.TagsPlaceholder}"/>
+                    <TextBox Classes="form-field" Text="{Binding TagsInput}" Watermark="{localization:Localize Tools.PublisherStudio.Content.TagsPlaceholder}"/>
                 </StackPanel>
 
                 <!-- ==================== ARTWORK (Browser cards & detail headers) ==================== -->
@@ -345,7 +345,7 @@
                                         BorderThickness="1"
                                         VerticalAlignment="Center"
                                         ToolTip.Tip="{Binding AccentColor}"/>
-                                <TextBox Text="{Binding AccentColor, Mode=TwoWay}"
+                                <TextBox Classes="form-field" Text="{Binding AccentColor, Mode=TwoWay}"
                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.AccentColorPlaceholder}"
                                          MaxWidth="200"
                                          VerticalAlignment="Center"/>
@@ -449,7 +449,7 @@
 
                             <!-- Screenshot Name Editor -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0" IsVisible="{Binding HasSelectedScreenshot}">
-                                <TextBox Grid.Column="0"
+                                <TextBox Classes="form-field" Grid.Column="0"
                                          Text="{Binding SelectedScreenshotTitle, Mode=TwoWay}"
                                          Watermark="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameWatermark}"
                                          ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.ScreenshotNameTooltip}"/>
@@ -460,7 +460,7 @@
 
                             <!-- Add Screenshot URL Input -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
-                                <TextBox Text="{Binding NewScreenshotUrl, Mode=TwoWay}"
+                                <TextBox Classes="form-field" Text="{Binding NewScreenshotUrl, Mode=TwoWay}"
                                          Watermark="https://example.com/screenshot.png"
                                          Margin="0,0,6,0"/>
                                 <Button Classes="action-secondary" Grid.Column="1"
@@ -469,7 +469,7 @@
                             </Grid>
 
                             <!-- Bulk Screenshot URLs Input -->
-                            <TextBox Text="{Binding ScreenshotUrlsInput, Mode=TwoWay}"
+                            <TextBox Classes="form-field" Text="{Binding ScreenshotUrlsInput, Mode=TwoWay}"
                                      AcceptsReturn="True"
                                      Height="60"
                                      Watermark="{localization:Localize Tools.PublisherStudio.Content.BulkScreenshotsPlaceholder}"/>
@@ -506,7 +506,7 @@
 
                             <!-- Add Video URL Input -->
                             <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,0">
-                                <TextBox Text="{Binding NewVideoUrl, Mode=TwoWay}"
+                                <TextBox Classes="form-field" Text="{Binding NewVideoUrl, Mode=TwoWay}"
                                          Watermark="https://www.youtube.com/watch?v=..."
                                          Margin="0,0,6,0"/>
                                 <Button Classes="action-secondary" Grid.Column="1"
@@ -542,18 +542,18 @@
                             <Grid ColumnDefinitions="*,16,*">
                                 <StackPanel Grid.Column="0" Spacing="4">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.ReleaseVersion}" Classes="label"/>
-                                    <TextBox Text="{Binding InitialVersion}" Watermark="1.0.0"/>
+                                    <TextBox Classes="form-field" Text="{Binding InitialVersion}" Watermark="1.0.0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="4" IsVisible="{Binding !IsMultiFileStaging}">
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.PackageFilename}" Classes="label"/>
-                                    <TextBox Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
+                                    <TextBox Classes="form-field" Text="{Binding PackageFilename}" Watermark="{localization:Localize Tools.PublisherStudio.Content.PackageFilenamePlaceholder}"/>
                                 </StackPanel>
                             </Grid>
 
                             <!-- Changelog -->
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Changelog}" Classes="label"/>
-                                <TextBox Text="{Binding ReleaseChangelog, Mode=TwoWay}"
+                                <TextBox Classes="form-field" Text="{Binding ReleaseChangelog, Mode=TwoWay}"
                                          AcceptsReturn="True"
                                          Height="60"
                                          Watermark="{localization:Localize Tools.PublisherStudio.Content.ReleaseChangelogPlaceholder}"/>
@@ -641,7 +641,7 @@
                             <!-- Direct URL Mode -->
                             <StackPanel Spacing="4" IsVisible="{Binding UseDirectUrl}">
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}" Classes="label"/>
-                                <TextBox Text="{Binding DownloadUrl, Mode=TwoWay}"
+                                <TextBox Classes="form-field" Text="{Binding DownloadUrl, Mode=TwoWay}"
                                          AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Content.DownloadUrl}"
                                          Watermark="https://cdn.playgenerals.online/GeneralsOnline_portable_082826_QFE1.zip"/>
                                 <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DownloadUrlHint}" Classes="hint"/>

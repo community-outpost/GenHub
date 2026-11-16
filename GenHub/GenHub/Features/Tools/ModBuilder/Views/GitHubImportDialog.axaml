@@ -49,14 +49,14 @@
         <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.LabelRepository}"
                    FontWeight="SemiBold" FontSize="12"
                    Foreground="{DynamicResource TextPrimary}"/>
-        <TextBox Text="{Binding RepositoryText, Mode=TwoWay}"
+        <TextBox Classes="form-compact form-field" Text="{Binding RepositoryText, Mode=TwoWay}"
                  Watermark="{localization:Localize Tools.ModBuilder.GitHubImport.WatermarkRepository}"/>
       </StackPanel>
       <StackPanel Spacing="6">
         <TextBlock Text="{localization:Localize Tools.ModBuilder.GitHubImport.LabelBranch}"
                    FontWeight="SemiBold" FontSize="12"
                    Foreground="{DynamicResource TextPrimary}"/>
-        <TextBox Text="{Binding BranchText, Mode=TwoWay}"
+        <TextBox Classes="form-compact form-field" Text="{Binding BranchText, Mode=TwoWay}"
                  Watermark="{localization:Localize Tools.ModBuilder.GitHubImport.WatermarkBranch}"/>
       </StackPanel>
       <TextBlock Text="{Binding ErrorText}"
