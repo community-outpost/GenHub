@@ -27,6 +27,7 @@ public class CatalogContentItem : ObservableObject
     private List<CatalogDependency> _bundledItems = [];
     private List<CatalogDependency> _addons = [];
     private List<ContentRelease> _addonReleases = [];
+    private List<CatalogTabDefinition> _customTabs = [];
     private CatalogUpstreamSync? _upstreamSync;
 
     /// <summary>
@@ -158,6 +159,16 @@ public class CatalogContentItem : ObservableObject
     {
         get => _addonReleases;
         set => _addonReleases = value ?? [];
+    }
+
+    /// <summary>
+    /// Gets or sets the publisher-defined tabs shown in the content detail view for this item.
+    /// </summary>
+    [JsonPropertyName("customTabs")]
+    public List<CatalogTabDefinition> CustomTabs
+    {
+        get => _customTabs;
+        set => _customTabs = value ?? [];
     }
 
     /// <summary>

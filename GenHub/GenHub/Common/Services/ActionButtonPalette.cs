@@ -20,10 +20,16 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         if (accent.R == defaultAccent.R && accent.G == defaultAccent.G && accent.B == defaultAccent.B)
         {
             // Keep the approved purple treatment independent of a theme's identifier.
-            return new(Color.Parse("#7540B8"), Color.Parse("#8651C9"), Color.Parse("#65339F"));
+            return new(
+                Color.Parse(ThemeConstants.DefaultActionRestHex),
+                Color.Parse(ThemeConstants.DefaultActionHoverHex),
+                Color.Parse(ThemeConstants.DefaultActionPressedHex));
         }
 
-        return new(CreateFill(accent, 6.2, 0.82), CreateFill(accent, 5.2, 1.0), CreateFill(accent, 7.5, 0.68));
+        return new(
+            CreateFill(accent, ThemeConstants.ActionRestMinimumContrast, ThemeConstants.ActionRestMaximumScale),
+            CreateFill(accent, ThemeConstants.ActionHoverMinimumContrast, ThemeConstants.ActionHoverMaximumScale),
+            CreateFill(accent, ThemeConstants.ActionPressedMinimumContrast, ThemeConstants.ActionPressedMaximumScale));
     }
 
     /// <summary>Creates shared gradient fills with readable white ink for every interaction state.</summary>
@@ -36,12 +42,13 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         if (accent.R == defaultAccent.R && accent.G == defaultAccent.G && accent.B == defaultAccent.B)
         {
             return (
-                Gradient(Color.Parse("#8241CF"), Color.Parse("#6930B3")),
-                Gradient(Color.Parse("#8651C9"), Color.Parse("#7540B8")),
-                Gradient(Color.Parse("#7135BC"), Color.Parse("#592696")));
+                Gradient(Color.Parse(ThemeConstants.DefaultActionRestGradientStartHex), Color.Parse(ThemeConstants.DefaultActionRestGradientEndHex)),
+                Gradient(Color.Parse(ThemeConstants.DefaultActionHoverHex), Color.Parse(ThemeConstants.DefaultActionRestHex)),
+                Gradient(Color.Parse(ThemeConstants.DefaultActionPressedGradientStartHex), Color.Parse(ThemeConstants.DefaultActionPressedGradientEndHex)));
         }
 
-        var deeper = Color.FromRgb((byte)(palette.Pressed.R * 0.85), (byte)(palette.Pressed.G * 0.85), (byte)(palette.Pressed.B * 0.85));
+        const double darken = ThemeConstants.ActionPressedGradientDarkenFactor;
+        var deeper = Color.FromRgb((byte)(palette.Pressed.R * darken), (byte)(palette.Pressed.G * darken), (byte)(palette.Pressed.B * darken));
         return (Gradient(palette.Rest, palette.Pressed), Gradient(palette.Hover, palette.Rest), Gradient(palette.Pressed, deeper));
     }
 
@@ -65,7 +72,7 @@ public sealed record ActionButtonPalette(Color Rest, Color Hover, Color Pressed)
         // Cap each state separately: saturated blue already has high white contrast at full intensity.
         var high = maximumScale;
         var result = Colors.Black;
-        for (var iteration = 0; iteration < 24; iteration++)
+        for (var iteration = 0; iteration < ThemeConstants.ActionFillSearchIterations; iteration++)
         {
             var scale = (low + high) / 2;
             var candidate = Color.FromRgb(

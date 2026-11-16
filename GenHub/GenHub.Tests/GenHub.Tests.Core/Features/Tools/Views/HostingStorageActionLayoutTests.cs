@@ -35,19 +35,20 @@ public class HostingStorageActionLayoutTests
             .Returns((string key, object?[] values) => string.Format(culture, resources.GetString(key, culture) ?? key, values));
         localization.SetupGet(service => service.CurrentCulture).Returns(culture);
         application.Resources[LocalizationConstants.ResourceServiceKey] = localization.Object;
-        using var viewModel = new PublishShareViewModel(new PublisherStudioProject(), Mock.Of<IPublisherStudioService>(), NullLogger.Instance);
-        var asset = new HostedAssetItemViewModel
-        {
-            Name = "community.zip",
-            Url = "https://example.invalid/community.zip",
-            CanAddToCatalog = true,
-            CanDelete = true,
-        };
-        viewModel.FilteredHostedAssets.Add(asset);
-        var view = new HostingStorageView { DataContext = viewModel };
-        var window = new Window { Width = 1400, Height = 1000, Content = view };
+        Window? window = null;
         try
         {
+            using var viewModel = new PublishShareViewModel(new PublisherStudioProject(), Mock.Of<IPublisherStudioService>(), NullLogger.Instance);
+            var asset = new HostedAssetItemViewModel
+            {
+                Name = "community.zip",
+                Url = "https://example.invalid/community.zip",
+                CanAddToCatalog = true,
+                CanDelete = true,
+            };
+            viewModel.FilteredHostedAssets.Add(asset);
+            var view = new HostingStorageView { DataContext = viewModel };
+            window = new Window { Width = 1400, Height = 1000, Content = view };
             window.Show();
             Dispatcher.UIThread.RunJobs();
             var buttons = view.GetVisualDescendants().OfType<Button>()
@@ -67,7 +68,7 @@ public class HostingStorageActionLayoutTests
         }
         finally
         {
-            window.Close();
+            window?.Close();
             if (hadLocalization)
             {
                 application.Resources[LocalizationConstants.ResourceServiceKey] = previousLocalization;

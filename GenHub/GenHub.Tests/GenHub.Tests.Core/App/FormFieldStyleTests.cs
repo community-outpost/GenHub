@@ -35,6 +35,9 @@ public class FormFieldStyleTests
             Assert.Equal(new CornerRadius(8), field.CornerRadius);
             Assert.Equal(36, field.MinHeight);
             Assert.Equal(13, field.FontSize);
+            Assert.Same(Avalonia.Application.Current!.FindResource("ActionPrimaryRestBrush"), field.SelectionBrush);
+            Assert.Equal(ResourceColor("TextPrimary"), BrushColor(field.SelectionForegroundBrush));
+            Assert.Equal(ResourceColor("TextPrimary"), BrushColor(field.CaretBrush));
             window.MouseMove(field.TranslatePoint(new Point(150, field.Bounds.Height / 2), window)!.Value);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("FormFieldHoverBorder"), BrushColor(border.BorderBrush));
@@ -53,6 +56,7 @@ public class FormFieldStyleTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("TextMuted"), BrushColor(field.Foreground));
             Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(border.BorderBrush));
+            Assert.Equal(ResourceColor("SurfaceElevatedBrush"), BrushColor(border.Background));
         }
         finally
         {
@@ -80,6 +84,18 @@ public class FormFieldStyleTests
             Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(createField.Background));
             Assert.Equal(BrushColor(createField.Background), BrushColor(renameField.Background));
             Assert.Equal(ResourceColor("TextPrimary"), BrushColor(createField.Foreground));
+
+            // The dialog's shared Studio styles must not repaint opted-in fields at rest or on hover.
+            var createDropdown = create.GetVisualDescendants().OfType<ComboBox>().First();
+            Assert.Contains("form-field", createDropdown.Classes);
+            Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), createDropdown.CornerRadius);
+            Assert.Equal(Resource<Thickness>("FormFieldPadding"), createDropdown.Padding);
+            Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(createDropdown.Background));
+            Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(createDropdown.BorderBrush));
+            window.MouseMove(createField.TranslatePoint(new Point(20, createField.Bounds.Height / 2), window)!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(createField.IsPointerOver);
+            Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(createField.Background));
         }
         finally
         {
@@ -117,7 +133,71 @@ public class FormFieldStyleTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("TextMuted"), BrushColor(field.Foreground));
             Assert.Equal(ResourceColor("TextMuted"), BrushColor(glyph.Foreground));
-            Assert.True(field.Bounds.Height >= glyph.Bounds.Height);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>A dropdown's hover, keyboard focus and disabled selection use the shared field states.</summary>
+    [AvaloniaFact]
+    public void Dropdown_HoverFocusAndDisabledSelectionUseFieldStates()
+    {
+        var field = new ComboBox { ItemsSource = new[] { "Generals", "Zero Hour" }, SelectedIndex = 0, Width = 230, Foreground = Brushes.White };
+        var window = new Window { Width = 320, Height = 180, Content = new StackPanel { Children = { field } } };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var border = field.GetVisualDescendants().OfType<Border>().Single(item => item.Name == "Background");
+            var presenter = field.GetVisualDescendants().OfType<ContentControl>().Single(item => item.Name == "ContentPresenter");
+            border.Transitions = null;
+            Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(border.Background));
+            Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(border.BorderBrush));
+            window.MouseMove(field.TranslatePoint(new Point(20, field.Bounds.Height / 2), window)!.Value);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("FormFieldHoverFill"), BrushColor(border.Background));
+            Assert.Equal(ResourceColor("FormFieldHoverBorder"), BrushColor(border.BorderBrush));
+
+            // Keyboard focus replaces the hover lift even while the pointer stays over the field.
+            field.Focus(NavigationMethod.Tab);
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(field.IsPointerOver);
+            Assert.Equal(ResourceColor("AccentBrush"), BrushColor(border.BorderBrush));
+            Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(border.Background));
+
+            // A consumer foreground must still mute when the dropdown is disabled.
+            field.IsEnabled = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(ResourceColor("TextMuted"), BrushColor(presenter.Foreground));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>A narrow dropdown clips a long selection and trims a long placeholder instead of overlapping its glyph.</summary>
+    [AvaloniaFact]
+    public void NarrowDropdown_ClipsLongSelectionAndTrimsLongPlaceholder()
+    {
+        const string longText = "Zero Hour Community Patch with every optional texture and audio pack";
+        var selected = new ComboBox { ItemsSource = new[] { longText }, SelectedIndex = 0, Width = 140 };
+        var empty = new ComboBox { ItemsSource = new[] { "Generals" }, PlaceholderText = longText, Width = 140 };
+        var window = new Window { Width = 320, Height = 180, Content = new StackPanel { Children = { selected, empty } } };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var presenter = selected.GetVisualDescendants().OfType<ContentControl>().Single(item => item.Name == "ContentPresenter");
+            var selectedText = presenter.GetVisualDescendants().OfType<TextBlock>().Single();
+            Assert.True(selectedText.TextLayout.WidthIncludingTrailingWhitespace > presenter.Bounds.Width);
+            Assert.True(presenter.ClipToBounds);
+
+            var placeholder = empty.GetVisualDescendants().OfType<TextBlock>().Single(item => item.Name == "PlaceholderTextBlock");
+            Assert.True(placeholder.IsEffectivelyVisible);
+            Assert.Contains(placeholder.TextLayout.TextLines, line => line.HasCollapsed);
         }
         finally
         {
@@ -215,6 +295,8 @@ public class FormFieldStyleTests
             window.Close();
         }
     }
+
+    private static T Resource<T>(string key) => (T)Avalonia.Application.Current!.FindResource(key)!;
 
     private static Color ResourceColor(string key) => BrushColor((IBrush)Avalonia.Application.Current!.FindResource(key)!);
 

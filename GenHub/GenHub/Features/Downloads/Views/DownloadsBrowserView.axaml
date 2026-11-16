@@ -175,7 +175,7 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBox Grid.Column="0"
-                             Classes="search-box form-field"
+                             Classes="form-field"
                              Text="{Binding SearchTerm}"
                              Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
                              VerticalAlignment="Center"
@@ -214,7 +214,7 @@
                             Spacing="8"
                             Margin="0,0,0,12"
                             IsVisible="{Binding CanFilterLocally}">
-                    <TextBox Classes="search-box clearButton form-field"
+                    <TextBox Classes="clearButton form-field"
                              Text="{Binding LocalFilterText}"
                              Watermark="{localization:Localize Downloads.Browser.Filter.Watermark}"
                              AutomationProperties.Name="{localization:Localize Downloads.Browser.Filter.Watermark}" />

@@ -1,3 +1,4 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
@@ -21,6 +22,8 @@ namespace GenHub.Tests.Core.Features.Tools.Services;
 /// </summary>
 public class PublisherStudioServiceTests
 {
+    private delegate bool LocalizeCallback(string key, out string? result, object?[] arguments);
+
     private readonly Mock<ILogger<PublisherStudioService>> _loggerMock;
     private readonly Mock<IPublisherCatalogParser> _catalogParserMock;
     private readonly PublisherStudioService _service;
@@ -33,6 +36,29 @@ public class PublisherStudioServiceTests
         _loggerMock = new Mock<ILogger<PublisherStudioService>>();
         _catalogParserMock = new Mock<IPublisherCatalogParser>();
         _service = new PublisherStudioService(_loggerMock.Object, _catalogParserMock.Object);
+    }
+
+    /// <summary>
+    /// Export errors use the active localization service and name the draft that blocks export.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_DraftError_UsesLocalizedMessageAsync()
+    {
+        var localization = new Mock<ILocalizationService>();
+        localization.Setup(service => service.TryGetString(It.IsAny<string>(), out It.Ref<string?>.IsAny, It.IsAny<object?[]>()))
+            .Returns(new LocalizeCallback((string key, out string? result, object?[] arguments) =>
+            {
+                result = $"Localized draft: {arguments[0]}";
+                return true;
+            }));
+        var service = new PublisherStudioService(_loggerMock.Object, _catalogParserMock.Object, localization.Object);
+        var project = CreateExportProject(new CatalogContentItem { Id = "draft-id", Name = "Draft Mod", ContentType = ContentType.Mod });
+
+        var exported = await service.ExportCatalogAsync(project);
+
+        Assert.False(exported.Success);
+        Assert.Equal("Localized draft: Draft Mod", exported.FirstError);
     }
 
     /// <summary>
@@ -263,6 +289,85 @@ public class PublisherStudioServiceTests
         Assert.NotNull(result.Data);
         Assert.Contains("test-publisher", result.Data);
         Assert.Contains("test-mod", result.Data);
+    }
+
+    /// <summary>
+    /// Verifies that ExportCatalogAsync refuses an item that subscribers would reject for having no releases.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_ItemWithoutReleases_ReturnsFailureAsync()
+    {
+        var project = CreateExportProject(new CatalogContentItem
+        {
+            Id = "draft-mod",
+            Name = "Draft Mod",
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.False(result.Success);
+        Assert.Contains("Draft Mod", result.FirstError);
+        Assert.Contains("no releases", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that the export error names the item ID when the item has no name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_UnnamedItemWithoutReleases_NamesItemIdAsync()
+    {
+        var project = CreateExportProject(new CatalogContentItem
+        {
+            Id = "unnamed-mod",
+            Name = string.Empty,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+        });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.False(result.Success);
+        Assert.Contains("'unnamed-mod'", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that ExportCatalogAsync still exports bundles and upstream-tracked items, which need no releases.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExportCatalogAsync_BundleAndUpstreamWithoutReleases_ReturnsJsonAsync()
+    {
+        var project = CreateExportProject(
+            new CatalogContentItem
+            {
+                Id = "tracked-client",
+                Name = "Tracked Client",
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                UpstreamSync = new CatalogUpstreamSync
+                {
+                    Provider = "TheSuperHackers",
+                    Repository = "TheSuperHackers/GeneralsGameCode",
+                },
+            },
+            new CatalogContentItem
+            {
+                Id = "starter-bundle",
+                Name = "Starter Bundle",
+                ContentType = ContentType.ContentBundle,
+                TargetGame = GameType.ZeroHour,
+                BundledItems = [new CatalogDependency { ContentId = "tracked-client" }],
+            });
+
+        var result = await _service.ExportCatalogAsync(project);
+
+        Assert.True(result.Success, result.FirstError);
+        Assert.Contains("tracked-client", result.Data);
+        Assert.Contains("starter-bundle", result.Data);
     }
 
     /// <summary>
@@ -796,6 +901,33 @@ public class PublisherStudioServiceTests
     }
 
     /// <summary>
+    /// A supported publisher type without upstream sync is a draft, so validation rejects it before export would.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ValidateCatalogAsync_ContentWithZeroReleases_SupportedPublisherTypeWithoutUpstreamSync_FailsAsync()
+    {
+        var item = new CatalogContentItem
+        {
+            Id = "former-upstream",
+            Name = "Former Upstream",
+            ContentType = ContentType.GameClient,
+            PublisherType = "TheSuperHackers",
+            Releases = [],
+        };
+        var project = CreateExportProject(item);
+        _catalogParserMock.Setup(p => p.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(project.Catalog));
+
+        var validated = await _service.ValidateCatalogAsync(project.Catalog, allowPendingArtifacts: true);
+        var exported = await _service.ExportCatalogAsync(project);
+
+        Assert.False(validated.Success);
+        Assert.False(exported.Success);
+        Assert.Equal(exported.FirstError, validated.FirstError);
+    }
+
+    /// <summary>
     /// Creates a temporary test file path.
     /// </summary>
     /// <returns>A temporary file path.</returns>
@@ -803,4 +935,18 @@ public class PublisherStudioServiceTests
     {
         return Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
     }
+
+    private static PublisherStudioProject CreateExportProject(params CatalogContentItem[] items) => new()
+    {
+        ProjectName = "Test Project",
+        Catalog = new PublisherCatalog
+        {
+            Publisher = new PublisherProfile
+            {
+                Id = "test-publisher",
+                Name = "Test Publisher",
+            },
+            Content = [.. items],
+        },
+    };
 }

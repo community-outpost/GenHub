@@ -21,16 +21,6 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
-    <!-- Modern Header Action Button -->
-
-    <!-- Accent Header Button -->
-
-    <!-- Quick Access Navigation Row Button -->
-
-    <!-- Execute Build CTA Button -->
-
-    <!-- Abort Danger Button -->
-
     <!-- Fast Responsive Tooltips & Cursors -->
     <Style Selector="Button">
       <Setter Property="ToolTip.ShowDelay" Value="150" />
@@ -274,8 +264,10 @@
                     CornerRadius="8" ClipToBounds="True">
               <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
                             HorizontalScrollBarVisibility="Auto">
-                <TextBox Classes="form-compact form-field" Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
-                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" AcceptsReturn="True"/>
+                <TextBox Name="BuildOutputTextBox" Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                         BorderThickness="0" Background="Transparent"
+                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" FontSize="12"
+                         Foreground="{DynamicResource TextPrimary}" Padding="14" AcceptsReturn="True"/>
               </ScrollViewer>
             </Border>
           </Grid>
