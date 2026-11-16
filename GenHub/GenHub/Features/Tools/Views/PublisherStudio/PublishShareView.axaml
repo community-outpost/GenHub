@@ -127,21 +127,24 @@
                         </Border>
                     </Grid>
 
-                    <!-- Provider Selector -->
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                        <ComboBox Classes="form-field" ItemsSource="{Binding HostingProviders}"
-                                  SelectedItem="{Binding SelectedHostingProvider}"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="interfaces:IHostingProvider">
-                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </Grid>
+                    <Expander x:Name="PublishingConnectionSettings" Header="{localization:Localize Tools.PublisherStudio.Publish.ConnectionSettings}" IsExpanded="{Binding !IsProviderAuthenticated, Mode=OneWay}" HorizontalAlignment="Stretch">
+                        <!-- Provider Selector -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                            <ComboBox Classes="form-field" ItemsSource="{Binding HostingProviders}"
+                                      SelectedItem="{Binding SelectedHostingProvider}"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="interfaces:IHostingProvider">
+                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+
+                    </Expander>
 
                     <!-- Publish Now Panel: destination summary, progress, and publish action.
                          Shown once the provider is ready; the connection guides below collapse automatically. -->
@@ -165,27 +168,20 @@
                                     </StackPanel>
                                 </Border>
 
-                                <!-- Breakdown counters -->
-                                <Grid ColumnDefinitions="*,*,*">
-                                    <Border Grid.Column="0" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="0,0,4,0">
-                                        <StackPanel>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.LocalFilesToUpload}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                            <TextBlock Text="{Binding PendingArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Column="1" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="2,0,2,0">
-                                        <StackPanel>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.ExternalCdnPreserved}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                            <TextBlock Text="{Binding ExternalCdnArtifactsCount}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Column="2" Background="{DynamicResource GlassFillSubtleBrush}" CornerRadius="4" Padding="8,6" Margin="4,0,0,0">
-                                        <StackPanel>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.CatalogsAndDefinition}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
-                                            <TextBlock Text="{Binding CatalogStatusesCountText}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource StatusSuccessBrush}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.LocalFilesToUpload}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding PendingArtifactsCount}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.CatalogsAndDefinition}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding CatalogStatusesCountText}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding ExternalCdnArtifactsCount}">
+                                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Publish.ExternalCdnPreserved}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,12,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding ExternalCdnArtifactsCount}" Foreground="{DynamicResource TextSecondary}"/>
+                                    </Grid>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -446,7 +442,7 @@
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBox Text="{Binding SubscriptionUrl}"
                                              IsReadOnly="True"
-                                             Classes="readonly form-field"
+                                             Classes="form-field"
                                              FontFamily="Consolas, Courier New, monospace"
                                              Watermark="{localization:Localize Tools.PublisherStudio.Publish.ProtocolLinkPlaceholder}"/>
                                     <Button Grid.Column="1"
@@ -470,7 +466,7 @@
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBox Text="{Binding ProviderDefinitionUrl}"
                                              IsReadOnly="True"
-                                             Classes="readonly form-field"
+                                             Classes="form-field"
                                              FontFamily="Consolas, Courier New, monospace"
                                              Watermark="{localization:Localize Tools.PublisherStudio.Publish.DefinitionUrlPlaceholder}"/>
                                     <Button Grid.Column="1"
@@ -615,7 +611,7 @@
                                                 <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsPublished}">
                                                 <TextBox Text="{Binding DirectDownloadUrl}"
                                                          IsReadOnly="True"
-                                                         Classes="readonly form-field"
+                                                         Classes="form-field"
                                                          FontFamily="Consolas, Courier New, monospace"/>
                                                 <Button Grid.Column="1"
                                                         Command="{Binding #RootView.((vm:PublishShareViewModel)DataContext).CopyCustomUrlCommand}"

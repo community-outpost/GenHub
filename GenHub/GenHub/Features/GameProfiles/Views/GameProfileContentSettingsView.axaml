@@ -164,7 +164,7 @@
                                     Grid.Column="0"
                                     Classes="action-secondary"
                                     Command="{Binding AddLocalContentCommand}"
-                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalButton}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <material:MaterialIcon Kind="FolderPlusOutline"  />
                                     <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center"/>

@@ -128,7 +128,6 @@
                                 Command="{Binding ConfirmCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <PathIcon Data="{StaticResource ConfirmationCheckIcon}"
-                                          Width="16" Height="16"
                                           VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding ConfirmButtonText}"
                                            VerticalAlignment="Center" />

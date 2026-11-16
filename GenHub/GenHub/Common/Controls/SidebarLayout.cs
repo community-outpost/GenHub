@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using System;
@@ -24,7 +25,20 @@ public class SidebarLayout : ContentControl
         AvaloniaProperty.Register<SidebarLayout, bool>(
             nameof(IsPaneOpen),
             defaultValue: true,
-            defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+            defaultBindingMode: Avalonia.Data.BindingMode.TwoWay,
+            coerce: (control, value) => ((SidebarLayout)control).IsPaneCollapsible ? value : true);
+
+    /// <summary>
+    /// Defines whether users can collapse the sidebar.
+    /// </summary>
+    public static readonly StyledProperty<bool> IsPaneCollapsibleProperty =
+        AvaloniaProperty.Register<SidebarLayout, bool>(nameof(IsPaneCollapsible), true);
+
+    /// <summary>
+    /// Defines the foreground used for the pane title.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> PaneTitleForegroundProperty =
+        AvaloniaProperty.Register<SidebarLayout, IBrush?>(nameof(PaneTitleForeground));
 
     /// <summary>
     /// Defines the <see cref="PanePlacement"/> property.
@@ -108,6 +122,12 @@ public class SidebarLayout : ContentControl
 
     static SidebarLayout()
     {
+        IsPaneCollapsibleProperty.Changed.AddClassHandler<SidebarLayout>((control, _) =>
+        {
+            control.CoerceValue(IsPaneOpenProperty);
+            control.ClosePaneCommand.NotifyCanExecuteChanged();
+            control.TogglePaneCommand.NotifyCanExecuteChanged();
+        });
         IsPaneOpenProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnIsPaneOpenChanged());
         OpenPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnOpenPaneLengthChanged());
         MinPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnMinMaxPaneLengthChanged());
@@ -120,9 +140,9 @@ public class SidebarLayout : ContentControl
     /// </summary>
     public SidebarLayout()
     {
-        ClosePaneCommand = new RelayCommand(() => IsPaneOpen = false);
+        ClosePaneCommand = new RelayCommand(() => IsPaneOpen = false, () => IsPaneCollapsible);
         OpenPaneCommand = new RelayCommand(() => IsPaneOpen = true);
-        TogglePaneCommand = new RelayCommand(() => IsPaneOpen = !IsPaneOpen);
+        TogglePaneCommand = new RelayCommand(() => IsPaneOpen = !IsPaneOpen, () => IsPaneCollapsible);
     }
 
     /// <summary>
@@ -132,6 +152,24 @@ public class SidebarLayout : ContentControl
     {
         get => GetValue(IsPaneOpenProperty);
         set => SetValue(IsPaneOpenProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the sidebar can be collapsed.
+    /// </summary>
+    public bool IsPaneCollapsible
+    {
+        get => GetValue(IsPaneCollapsibleProperty);
+        set => SetValue(IsPaneCollapsibleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the foreground used for the pane title.
+    /// </summary>
+    public IBrush? PaneTitleForeground
+    {
+        get => GetValue(PaneTitleForegroundProperty);
+        set => SetValue(PaneTitleForegroundProperty, value);
     }
 
     /// <summary>

@@ -61,8 +61,8 @@
 
         <!-- Compact color button -->
         <Style Selector="Button.color-btn">
-            <Setter Property="Width" Value="{DynamicResource NavigationIconSize}" />
-            <Setter Property="Height" Value="{DynamicResource NavigationIconSize}" />
+            <Setter Property="Width" Value="{DynamicResource ColorSwatchSize}" />
+            <Setter Property="Height" Value="{DynamicResource ColorSwatchSize}" />
             <Setter Property="Margin" Value="0,0,6,6" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="CornerRadius" Value="14" />
@@ -211,23 +211,6 @@
             <Setter Property="Background" Value="#12FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
         </Style>
-
-        <!-- Style to show children on hover -->
-        <Style Selector="Button.delete-reveal-btn">
-            <Setter Property="Opacity" Value="0" />
-
-        </Style>
-
-        <!-- When parent card is hovered, reveal the delete button -->
-        <Style Selector="Button.content-card-btn:pointerover Button.delete-reveal-btn">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-
-        <!-- Ensure the delete button itself reacts to its own hover -->
-        <Style Selector="Button.delete-reveal-btn:pointerover">
-            <Setter Property="Opacity" Value="1" />
-
-        </Style>
     </UserControl.Styles>
 
     <Border Background="{DynamicResource SurfaceBackgroundBrush}">
@@ -287,7 +270,7 @@
                             Command="{Binding SaveCommand}"
                             ToolTip.Tip="{localization:Localize Profiles.Settings.SaveTooltip}"
                             Classes="action-primary"
-                            MinWidth="100" AutomationProperties.Name="{localization:Localize Profiles.Settings.SaveTooltip}">
+                            MinWidth="100" AutomationProperties.Name="{localization:Localize Common.Save}">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
                             <TextBlock Text="{localization:Localize Common.Save}" VerticalAlignment="Center"/>
@@ -523,31 +506,16 @@
 
                             <StackPanel Classes="form-field">
                                 <TextBlock Classes="form-label" Text="{localization:Localize Profiles.Settings.WorkspaceStrategy}" />
-                                <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
+                                <ComboBox Classes="workspace-strategy form-field"
+                                          ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}"
                                           SelectedItem="{Binding SelectedWorkspaceStrategy}"
                                           IsEnabled="{Binding CanEditImmutableMetadata}"
-                                          HorizontalAlignment="Stretch">
-                                    <ComboBox.Styles>
-                                        <Style Selector="ComboBoxItem">
-                                            <Setter Property="ToolTip.Tip">
-                                                <Binding Path="Content" RelativeSource="{RelativeSource Self}">
-                                                    <Binding.Converter>
-                                                        <conv:WorkspaceStrategyTooltipConverter />
-                                                    </Binding.Converter>
-                                                </Binding>
-                                            </Setter>
-                                        </Style>
-                                    </ComboBox.Styles>
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding .}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                                          HorizontalAlignment="Stretch" />
                                 <TextBlock Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap">
                                     <TextBlock.Text>
-                                        <MultiBinding StringFormat="{}{0}">
+                                        <MultiBinding Converter="{x:Static conv:WorkspaceStrategyDisplayConverter.Description}">
                                             <Binding Path="SelectedWorkspaceStrategy" />
+                                            <Binding Path="CurrentCulture" Source="{x:Static conv:WorkspaceStrategyDisplayConverter.LocalizationSource}" />
                                         </MultiBinding>
                                     </TextBlock.Text>
                                 </TextBlock>
@@ -579,7 +547,7 @@
                                 <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="{localization:Localize Color.Blue}" AutomationProperties.Name="{localization:Localize Color.Blue}"/>
                                 <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="{localization:Localize Color.DarkBlue}" AutomationProperties.Name="{localization:Localize Color.DarkBlue}"/>
                                 <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="{localization:Localize Color.LightBlue}" AutomationProperties.Name="{localization:Localize Color.LightBlue}"/>
-                                <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Color.Blue}" AutomationProperties.Name="{localization:Localize Color.Blue}"/>
+                                <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Color.MediumBlue}" AutomationProperties.Name="{localization:Localize Color.MediumBlue}"/>
                                 <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="{localization:Localize Color.CyanBlue}" AutomationProperties.Name="{localization:Localize Color.CyanBlue}"/>
                                 <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="{localization:Localize Color.Cyan}" AutomationProperties.Name="{localization:Localize Color.Cyan}"/>
                                 <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="{localization:Localize Color.DarkCyan}" AutomationProperties.Name="{localization:Localize Color.DarkCyan}"/>

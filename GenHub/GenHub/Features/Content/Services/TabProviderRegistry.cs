@@ -83,8 +83,10 @@ public class TabProviderRegistry(
             }
         }
 
-        // Sort by order and return read-only list
-        return [.. allTabs.OrderBy(t => t.Order)];
+        return [.. allTabs
+            .Where(t => t.IsVisible && !string.IsNullOrWhiteSpace(t.TabId))
+            .OrderBy(t => t.Order)
+            .DistinctBy(t => t.TabId, StringComparer.OrdinalIgnoreCase)];
     }
 
     private static ConcurrentDictionary<string, ITabProvider> InitializeProviders(

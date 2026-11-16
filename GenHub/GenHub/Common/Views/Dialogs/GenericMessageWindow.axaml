@@ -9,6 +9,7 @@
         xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
         xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         xmlns:controls="clr-namespace:GenHub.Common.Controls"
+        xmlns:markdown="clr-namespace:GenHub.Infrastructure.Markdown;assembly=GenHub"
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
         x:Class="GenHub.Common.Views.Dialogs.GenericMessageWindow"
         x:DataType="vm:GenericMessageViewModel"
@@ -21,6 +22,11 @@
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome">
+
+    <Window.Resources>
+        <markdown:SafeMarkdownHyperlinkCommand x:Key="SafeMarkdownHyperlinkCommand" />
+        <markdown:SafeMarkdownPathResolver x:Key="SafeMarkdownPathResolver" />
+    </Window.Resources>
 
     <Border CornerRadius="16" ClipToBounds="True">
         <Panel>
@@ -92,7 +98,9 @@
                                Width="32" Height="32" Grid.Column="0" VerticalAlignment="Center" />
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
-                            <TextBlock Classes="dialog-title" Text="{Binding Title}"></TextBlock>
+                            <TextBlock Classes="dialog-title" Text="{Binding Title}"
+                                       MaxHeight="160"
+                                       TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Grid>
 
@@ -109,8 +117,13 @@
                 </StackPanel>
 
                 <!-- Body Text with Markdown support -->
-                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,16"
-                                         TextElement.Foreground="{DynamicResource TextPrimary}" TextElement.FontSize="13">
+                <StackPanel Grid.Row="1" Spacing="12" Margin="0,0,0,16">
+                <md:MarkdownScrollViewer Markdown="{Binding Content}" MaxHeight="320"
+                                         TextElement.Foreground="{DynamicResource TextPrimaryBrush}" TextElement.FontSize="13">
+                    <md:MarkdownScrollViewer.Plugins>
+                        <md:MdAvPlugins HyperlinkCommand="{StaticResource SafeMarkdownHyperlinkCommand}"
+                                        PathResolver="{StaticResource SafeMarkdownPathResolver}" />
+                    </md:MarkdownScrollViewer.Plugins>
                     <md:MarkdownScrollViewer.Styles>
                          <Style Selector="Border.Note">
                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
@@ -127,6 +140,18 @@
                         </Style>
                     </md:MarkdownScrollViewer.Styles>
                 </md:MarkdownScrollViewer>
+                <Expander Header="{Binding DetailsHeader}"
+                          IsVisible="{Binding HasDetails}"
+                          IsExpanded="False"
+                          HorizontalAlignment="Stretch">
+                    <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled">
+                        <SelectableTextBlock Text="{Binding DetailsContent}"
+                                             TextWrapping="Wrap"
+                                             FontSize="12"
+                                             Foreground="{DynamicResource TextSecondary}" />
+                    </ScrollViewer>
+                </Expander>
+                </StackPanel>
 
                 <!-- Footer with Checkbox and Action Buttons -->
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">

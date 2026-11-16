@@ -15,7 +15,6 @@
         <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
-        <conv:WorkspaceStrategyTooltipConverter x:Key="WorkspaceStrategyTooltipConverter" />
         <conv:TabIndexToVisibilityConverter x:Key="TabIndexToVisibilityConverter" />
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:NullableDecimalToIntConverter x:Key="NullableDecimalToIntConverter" />
@@ -205,9 +204,15 @@
                 <Border Classes="settings-card">
                     <StackPanel Spacing="16">
                         <TextBlock Classes="section-header" Text="{localization:Localize GameProfiles.General.LaunchConfiguration}" />
+                        <TextBlock x:Name="LaunchConfigurationLockedReason"
+                                   Text="{localization:Localize GameProfiles.General.LaunchConfigurationLocked}"
+                                   IsVisible="{Binding IsHotswapMode}"
+                                   Foreground="{DynamicResource WarningBrush}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap" />
                         <StackPanel Spacing="8">
                             <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
-                            <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}" SelectedItem="{Binding SelectedWorkspaceStrategy}" IsEnabled="{Binding CanEditImmutableMetadata}" HorizontalAlignment="Stretch" />
+                            <ComboBox Classes="workspace-strategy form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableWorkspaceStrategies}" SelectedItem="{Binding SelectedWorkspaceStrategy}" IsEnabled="{Binding CanEditImmutableMetadata}" HorizontalAlignment="Stretch" />
                             <TextBlock Text="{localization:Localize GameProfiles.General.WorkspaceStrategyDescription}" FontSize="11" Opacity="0.5" />
                         </StackPanel>
                         <StackPanel Spacing="8">
@@ -234,7 +239,7 @@
                             <Button Classes="color-btn" Background="#3F51B5" Command="{Binding SelectThemeColorCommand}" CommandParameter="#3F51B5" ToolTip.Tip="{localization:Localize Theme.Color.Blue}" AutomationProperties.Name="{localization:Localize Theme.Color.Blue}"/>
                             <Button Classes="color-btn" Background="#303F9F" Command="{Binding SelectThemeColorCommand}" CommandParameter="#303F9F" ToolTip.Tip="{localization:Localize Theme.Color.DarkBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkBlue}"/>
                             <Button Classes="color-btn" Background="#2196F3" Command="{Binding SelectThemeColorCommand}" CommandParameter="#2196F3" ToolTip.Tip="{localization:Localize Theme.Color.LightBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.LightBlue}"/>
-                            <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Theme.Color.Blue}" AutomationProperties.Name="{localization:Localize Theme.Color.Blue}"/>
+                            <Button Classes="color-btn" Background="#1976D2" Command="{Binding SelectThemeColorCommand}" CommandParameter="#1976D2" ToolTip.Tip="{localization:Localize Theme.Color.MediumBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.MediumBlue}"/>
                             <Button Classes="color-btn" Background="#0288D1" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0288D1" ToolTip.Tip="{localization:Localize Theme.Color.CyanBlue}" AutomationProperties.Name="{localization:Localize Theme.Color.CyanBlue}"/>
                             <Button Classes="color-btn" Background="#00BCD4" Command="{Binding SelectThemeColorCommand}" CommandParameter="#00BCD4" ToolTip.Tip="{localization:Localize Theme.Color.Cyan}" AutomationProperties.Name="{localization:Localize Theme.Color.Cyan}"/>
                             <Button Classes="color-btn" Background="#0097A7" Command="{Binding SelectThemeColorCommand}" CommandParameter="#0097A7" ToolTip.Tip="{localization:Localize Theme.Color.DarkCyan}" AutomationProperties.Name="{localization:Localize Theme.Color.DarkCyan}"/>

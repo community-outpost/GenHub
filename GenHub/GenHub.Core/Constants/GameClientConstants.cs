@@ -206,6 +206,11 @@ public static class GameClientConstants
     /// <summary>Version string used for unknown/unrecognized clients.</summary>
     public const string UnknownVersion = "Unknown";
 
+    /// <summary>
+    /// Diagnostic error when a publisher download failed, with the publisher display name as {0}.
+    /// </summary>
+    public const string PublisherAcquisitionFailedError = "Could not download {0} content.";
+
     // ===== Steam Latest Versions =====
 
     /// <summary>Latest Steam version for Command &amp; Conquer Generals.</summary>
@@ -548,9 +553,6 @@ public static class GameClientConstants
         /// <summary>Wizard heading.</summary>
         public const string Title = "Profiles.Wizard.Title";
 
-        /// <summary>Skip button label.</summary>
-        public const string Skip = "Profiles.Wizard.Skip";
-
         /// <summary>Continue button label with no selected items.</summary>
         public const string Continue = "Profiles.Wizard.Continue";
 
@@ -619,6 +621,54 @@ public static class GameClientConstants
 
         /// <summary>Missing status label.</summary>
         public const string MissingStatus = "Profiles.Wizard.Status.Missing";
+
+        /// <summary>Summary for one found game, with the game as {0}.</summary>
+        public const string FoundOneGame = "Profiles.Wizard.Ready.FoundOne";
+
+        /// <summary>Lead-in for a list of several found games.</summary>
+        public const string FoundManyGames = "Profiles.Wizard.Ready.FoundMany";
+
+        /// <summary>Summary when no game client could be named.</summary>
+        public const string FoundNoNamedGame = "Profiles.Wizard.Ready.FoundNone";
+
+        /// <summary>Found game entry with the game as {0} and the installation source as {1}.</summary>
+        public const string FoundGameEntry = "Profiles.Wizard.Ready.FoundEntry";
+
+        /// <summary>Found game name with the game as {0} and the version as {1}.</summary>
+        public const string FoundGameVersionEntry = "Profiles.Wizard.Ready.FoundEntryVersion";
+
+        /// <summary>Generals game name.</summary>
+        public const string GeneralsGameName = "Profiles.Wizard.Game.Generals";
+
+        /// <summary>Zero Hour game name.</summary>
+        public const string ZeroHourGameName = "Profiles.Wizard.Game.ZeroHour";
+    }
+
+    /// <summary>
+    /// Localization resource keys for installation source names shown to the user.
+    /// </summary>
+    public static class InstallationTypeLocalizationKeys
+    {
+        /// <summary>Steam installation source.</summary>
+        public const string Steam = "GameProfiles.InstallationType.Steam";
+
+        /// <summary>EA App installation source.</summary>
+        public const string EaApp = "GameProfiles.InstallationType.EaApp";
+
+        /// <summary>The First Decade installation source.</summary>
+        public const string TheFirstDecade = "GameProfiles.InstallationType.FirstDecade";
+
+        /// <summary>CD or ISO installation source.</summary>
+        public const string CdIso = "GameProfiles.InstallationType.CdIso";
+
+        /// <summary>Wine installation source.</summary>
+        public const string Wine = "GameProfiles.InstallationType.Wine";
+
+        /// <summary>Retail installation source.</summary>
+        public const string Retail = "GameProfiles.InstallationType.Retail";
+
+        /// <summary>Lutris installation source.</summary>
+        public const string Lutris = "GameProfiles.InstallationType.Lutris";
     }
 
     /// <summary>
@@ -628,7 +678,6 @@ public static class GameClientConstants
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [WizardLocalizationKeys.Title] = "Setup Detected Content",
-            [WizardLocalizationKeys.Skip] = "Skip",
             [WizardLocalizationKeys.Continue] = "Continue",
             [WizardLocalizationKeys.ContinueWithCount] = "Continue ({0})",
             [WizardLocalizationKeys.CommunityPatchRetailTitle] = "Community Patch (Retail)",
@@ -652,6 +701,13 @@ public static class GameClientConstants
             [WizardLocalizationKeys.DownloadedStatus] = WizardStatuses.Downloaded,
             [WizardLocalizationKeys.DetectedStatus] = WizardStatuses.Detected,
             [WizardLocalizationKeys.MissingStatus] = WizardStatuses.Missing,
+            [WizardLocalizationKeys.FoundOneGame] = "We found {0}.",
+            [WizardLocalizationKeys.FoundManyGames] = "We found these games:",
+            [WizardLocalizationKeys.FoundNoNamedGame] = "GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.",
+            [WizardLocalizationKeys.FoundGameEntry] = "{0} ({1})",
+            [WizardLocalizationKeys.FoundGameVersionEntry] = "{0} {1}",
+            [WizardLocalizationKeys.GeneralsGameName] = "Generals",
+            [WizardLocalizationKeys.ZeroHourGameName] = "Zero Hour",
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

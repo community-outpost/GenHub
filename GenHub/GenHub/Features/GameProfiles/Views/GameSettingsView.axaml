@@ -274,7 +274,7 @@
                                         Grid.Column="1"
                                         Classes="action-secondary"
                                         Command="{Binding ResetCameraDefaultsCommand}"
-                                        ToolTip.Tip="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}" AutomationProperties.Name="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}">
+                                        ToolTip.Tip="{localization:Localize GameSettings.Camera.ResetDefaultsToolTip}" AutomationProperties.Name="{localization:Localize GameSettings.Camera.ResetDefaults}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <PathIcon Data="{StaticResource RefreshIcon}"   VerticalAlignment="Center" />
                                         <TextBlock Text="{localization:Localize GameSettings.Camera.ResetDefaults}" VerticalAlignment="Center"  />
