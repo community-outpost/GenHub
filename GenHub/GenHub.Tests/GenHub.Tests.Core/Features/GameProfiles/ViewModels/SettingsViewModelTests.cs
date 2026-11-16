@@ -2422,7 +2422,7 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
-    /// Verifies that a failed save reverts the toggle and tells the user.
+    /// Verifies that a failed save reverts the toggle and the in-memory preference, and tells the user.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -2430,7 +2430,14 @@ public class SettingsViewModelTests
     {
         _mockConfigService
             .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
-            .ReturnsAsync(false);
+            .Returns<Func<UserSettings, bool>>(apply =>
+            {
+                apply(_defaultSettings);
+                return Task.FromResult(false);
+            });
+        _mockConfigService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(apply => apply(_defaultSettings));
         var viewModel = CreateViewModel();
         var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
 
@@ -2438,11 +2445,13 @@ public class SettingsViewModelTests
         await viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
 
         Assert.False(item.IsAutoUpdateEnabled);
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
         _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
     }
 
     /// <summary>
-    /// Verifies that removing a subscription clears its automatic update preference so a later re-subscribe asks again.
+    /// Verifies that removing a subscription clears its stored automatic update preference, even when the row
+    /// was loaded before the preference was enabled, so a later re-subscribe asks again.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -2460,7 +2469,7 @@ public class SettingsViewModelTests
         _defaultSettings.SetAutoUpdatePreference("pub1", true);
 
         var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
-        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: true);
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
         viewModel.Subscriptions.Add(item);
 
         await viewModel.RemoveSubscriptionCommand.ExecuteAsync(item);

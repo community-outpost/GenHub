@@ -3817,13 +3817,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             if (result.Success)
             {
                 Subscriptions.Remove(item);
-                if (item.IsAutoUpdateEnabled)
+                if (_userSettingsService.Get().GetSubscription(subscription.PublisherId)?.AutoUpdateEnabled == true)
                 {
-                    await _userSettingsService.TryUpdateAndSaveAsync(s =>
+                    var cleared = await _userSettingsService.TryUpdateAndSaveAsync(s =>
                     {
                         s.SetAutoUpdatePreference(subscription.PublisherId, false);
                         return true;
                     });
+
+                    if (!cleared)
+                    {
+                        _logger.LogWarning("Failed to save the cleared automatic update preference for {PublisherId}", subscription.PublisherId);
+                    }
                 }
 
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage(subscription.PublisherId));
@@ -3854,7 +3859,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Saves the automatic update preference of a catalog subscription after its toggle changes.
     /// </summary>
     /// <param name="item">The subscription row whose toggle changed.</param>
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task SetSubscriptionAutoUpdateAsync(SubscriptionListItem? item)
     {
         if (item == null)
@@ -3876,6 +3881,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         _logger.LogWarning("Failed to save the automatic update preference for {PublisherId}", publisherId);
+        _userSettingsService.Update(s => s.SetAutoUpdatePreference(publisherId, !enabled));
         item.IsAutoUpdateEnabled = !enabled;
         var saveFailedMessage = _localizationService?.GetString("Settings.Subscriptions.AutoUpdateSaveFailedMessage") ?? "Failed to save the automatic update setting for {0}.";
         _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, saveFailedMessage, item.Subscription.PublisherName));
