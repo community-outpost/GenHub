@@ -2460,8 +2460,8 @@ public class SettingsViewModelTests
             .Returns<Func<UserSettings, bool>>(apply =>
             {
                 apply(_defaultSettings);
-                item.IsAutoUpdateEnabled = false;
-                item.IsAutoUpdateEnabled = true;
+                item.IsAutoUpdateEnabled = !item.IsAutoUpdateEnabled;
+                item.IsAutoUpdateEnabled = !item.IsAutoUpdateEnabled;
                 return Task.FromResult(false);
             });
         _mockConfigService
