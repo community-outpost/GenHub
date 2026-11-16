@@ -974,7 +974,7 @@
                       </Border>
 
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Subscription.PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
+                        <TextBlock Text="{Binding Subscription.PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="{Binding Subscription.DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                         <TextBlock Text="{Binding Subscription.CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                       </StackPanel>

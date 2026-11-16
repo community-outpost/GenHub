@@ -390,6 +390,38 @@ public sealed class GenericCatalogProfileReconcilerTests
     }
 
     /// <summary>
+    /// Verifies that a failed save of the "Don't ask again" opt-in is reported to the user and the
+    /// prompted update still runs.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_DoNotAskAgainSaveFails_NotifiesAndStillUpdatesAsync()
+    {
+        var item = SetupProfileWithItems(("item1", "Test Item", OldItemManifestId)).Single();
+        SetupSuccessfulUpdate(item, OldItemManifestId, NewItemManifestId);
+        _userSettingsServiceMock
+            .Setup(s => s.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .ReturnsAsync(false);
+        _dialogServiceMock
+            .Setup(d => d.ShowUpdateOptionDialogAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .ReturnsAsync(new UpdateDialogResult
+            {
+                Action = "Update",
+                Strategy = UpdateStrategy.ReplaceCurrent,
+                IsDoNotAskAgain = true,
+            });
+
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("prof1");
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        _notificationServiceMock.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.Is<string>(m => m.Contains("Publisher 1")), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _reconciliationServiceMock.Verify(r => r.OrchestrateBulkUpdateAsync(It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that choosing Update without "Don't ask again" leaves the preference off.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

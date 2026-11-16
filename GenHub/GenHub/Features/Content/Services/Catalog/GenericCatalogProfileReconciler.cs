@@ -274,14 +274,15 @@ public class GenericCatalogProfileReconciler(
 
         if (promptResult.IsDoNotAskAgain)
         {
-            await SaveAutoUpdatePreferenceAsync(subscription.PublisherId, promptResult.Strategy, promptResult.DeleteOldVersions);
+            await SaveAutoUpdatePreferenceAsync(subscription, promptResult.Strategy, promptResult.DeleteOldVersions);
         }
 
         return new UpdateDecision(promptResult.Strategy, promptResult.DeleteOldVersions, IsAutomatic: false);
     }
 
-    private async Task SaveAutoUpdatePreferenceAsync(string publisherId, UpdateStrategy strategy, bool deleteOldVersions)
+    private async Task SaveAutoUpdatePreferenceAsync(PublisherSubscription subscription, UpdateStrategy strategy, bool deleteOldVersions)
     {
+        var publisherId = subscription.PublisherId;
         logger.LogInformation("[Catalog Reconciler] Enabling automatic updates for {PublisherId}", publisherId);
         var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
         {
@@ -293,6 +294,13 @@ public class GenericCatalogProfileReconciler(
         if (!saved)
         {
             logger.LogWarning("[Catalog Reconciler] Failed to save the automatic update preference for {PublisherId}", publisherId);
+            var publisherName = subscription.PublisherName ?? publisherId;
+            notificationService.ShowError(
+                localizationService.GetLocalizedString("Settings.Subscriptions.ErrorTitle", "Error"),
+                localizationService.GetLocalizedString(
+                    "Settings.Subscriptions.AutoUpdateSaveFailedMessage",
+                    $"Failed to save the automatic update setting for {publisherName}.",
+                    publisherName));
         }
     }
 
