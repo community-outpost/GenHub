@@ -27,7 +27,6 @@ using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GitHub;
 using GenHub.Core.Models.Manifest;
-using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Steam;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
@@ -325,7 +324,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
-    private ObservableCollection<PublisherSubscription> _subscriptions = [];
+    private ObservableCollection<SubscriptionListItem> _subscriptions = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowNoSubscriptions))]
@@ -3719,7 +3718,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed, {Locked} locked)", deletedCount, freedBytes, lockedCount);
     }
 
-    partial void OnSubscriptionsChanged(ObservableCollection<PublisherSubscription> value)
+    partial void OnSubscriptionsChanged(ObservableCollection<SubscriptionListItem> value)
     {
         value.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
     }
@@ -3758,10 +3757,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var result = await _subscriptionStore.GetSubscriptionsAsync(cancellationToken);
             if (result.Success && result.Data != null)
             {
+                var settings = _userSettingsService.Get();
                 Subscriptions.Clear();
                 foreach (var sub in result.Data.OrderBy(s => s.PublisherName))
                 {
-                    Subscriptions.Add(sub);
+                    Subscriptions.Add(new SubscriptionListItem(sub, settings.GetSubscription(sub.PublisherId)?.AutoUpdateEnabled == true));
                 }
             }
             else if (!result.Success)
@@ -3786,12 +3786,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Removes a publisher subscription.
     /// </summary>
     [RelayCommand]
-    private async Task RemoveSubscriptionAsync(PublisherSubscription? subscription, CancellationToken cancellationToken = default)
+    private async Task RemoveSubscriptionAsync(SubscriptionListItem? item, CancellationToken cancellationToken = default)
     {
-        if (subscription == null || _subscriptionStore == null)
+        if (item == null || _subscriptionStore == null)
         {
             return;
         }
+
+        var subscription = item.Subscription;
 
         try
         {
@@ -3814,7 +3816,22 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var result = await _subscriptionStore.RemoveSubscriptionAsync(subscription.PublisherId, cancellationToken);
             if (result.Success)
             {
-                Subscriptions.Remove(subscription);
+                Subscriptions.Remove(item);
+                if (_userSettingsService.Get().GetSubscription(subscription.PublisherId)?.AutoUpdateEnabled == true)
+                {
+                    var cleared = await _userSettingsService.TryUpdateAndSaveAsync(s =>
+                    {
+                        s.SetAutoUpdatePreference(subscription.PublisherId, false);
+                        return true;
+                    });
+
+                    if (!cleared)
+                    {
+                        _logger.LogWarning("Failed to save the cleared automatic update preference for {PublisherId}", subscription.PublisherId);
+                        ShowAutoUpdateSaveFailed(subscription.PublisherName);
+                    }
+                }
+
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionRemovedMessage(subscription.PublisherId));
                 WeakReferenceMessenger.Default.Send(new PublisherSubscriptionsChangedMessage(subscription.PublisherId));
                 var removedTitle = _localizationService?.GetString("Settings.Subscriptions.RemovedNotificationTitle") ?? CatalogConstants.SubscriptionRemovedNotificationTitle;
@@ -3837,6 +3854,51 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var removeFailedFallback = _localizationService?.GetString("Settings.Subscriptions.RemoveFailedFallback") ?? "Failed to remove subscription";
             _notificationService.ShowError(SubscriptionErrorTitle, removeFailedFallback);
         }
+    }
+
+    /// <summary>
+    /// Saves the automatic update preference of a catalog subscription after its toggle changes.
+    /// </summary>
+    /// <param name="item">The subscription row whose toggle changed.</param>
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private async Task SetSubscriptionAutoUpdateAsync(SubscriptionListItem? item)
+    {
+        if (item == null)
+        {
+            return;
+        }
+
+        var enabled = item.IsAutoUpdateEnabled;
+        var revision = item.AutoUpdateRevision;
+        var publisherId = item.Subscription.PublisherId;
+        var saved = await _userSettingsService.TryUpdateAndSaveAsync(s =>
+        {
+            s.SetAutoUpdatePreference(publisherId, enabled);
+            return true;
+        });
+
+        if (saved)
+        {
+            item.SavedAutoUpdateEnabled = enabled;
+            return;
+        }
+
+        _logger.LogWarning("Failed to save the automatic update preference for {PublisherId}", publisherId);
+        if (item.AutoUpdateRevision != revision || !Subscriptions.Contains(item))
+        {
+            return;
+        }
+
+        var savedEnabled = item.SavedAutoUpdateEnabled;
+        _userSettingsService.Update(s => s.SetAutoUpdatePreference(publisherId, savedEnabled));
+        item.IsAutoUpdateEnabled = savedEnabled;
+        ShowAutoUpdateSaveFailed(item.Subscription.PublisherName);
+    }
+
+    private void ShowAutoUpdateSaveFailed(string publisherName)
+    {
+        var saveFailedMessage = _localizationService?.GetString("Settings.Subscriptions.AutoUpdateSaveFailedMessage") ?? "Failed to save the automatic update setting for {0}.";
+        _notificationService.ShowError(SubscriptionErrorTitle, string.Format(CultureInfo.InvariantCulture, saveFailedMessage, publisherName));
     }
 
     /// <summary>

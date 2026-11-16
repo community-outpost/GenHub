@@ -10,7 +10,6 @@
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
-             xmlns:providers="using:GenHub.Core.Models.Providers"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
@@ -966,21 +965,29 @@
 
             <ItemsControl ItemsSource="{Binding Subscriptions}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="providers:PublisherSubscription">
+                <DataTemplate x:DataType="models:SubscriptionListItem">
                   <Border Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                       <!-- Publisher Icon/Avatar -->
                       <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" ClipToBounds="True" Background="{DynamicResource SurfaceHoverBrush}" Margin="0,0,12,0">
-                         <Image controls:ImageLoader.Source="{Binding AvatarUrl}" Stretch="UniformToFill" />
+                         <Image controls:ImageLoader.Source="{Binding Subscription.AvatarUrl}" Stretch="UniformToFill" />
                       </Border>
 
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
-                        <TextBlock Text="{Binding DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding Subscription.PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Subscription.DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding Subscription.CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                       </StackPanel>
 
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <CheckBox IsChecked="{Binding IsAutoUpdateEnabled}"
+                                  Content="{localization:Localize Settings.Subscriptions.AutoUpdate}"
+                                  Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SetSubscriptionAutoUpdateCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="{localization:Localize Settings.Subscriptions.AutoUpdateToolTip}"
+                                  Foreground="{DynamicResource TextSecondary}"
+                                  VerticalAlignment="Center"/>
+
                         <!-- Remove Button -->
                         <Button Content="{localization:Localize Settings.Subscriptions.Remove}"
                                 Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveSubscriptionCommand}"
