@@ -454,6 +454,7 @@ public partial class GameProfileLauncherViewModel(
                         CreateShortcutAction = CreateShortcut,
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
+                        InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations),
                         CopyProfileAction = CopyProfile,
                         ShareProfileAction = ShareProfileFromCardAsync,
                     };
@@ -1326,6 +1327,17 @@ public partial class GameProfileLauncherViewModel(
         return current;
     }
 
+    private static GameInstallationType ResolveInstallationType(IGameProfile profile, IReadOnlyList<GameInstallation>? installations)
+    {
+        if (profile is not Core.Models.GameProfile.GameProfile { GameInstallationId: { Length: > 0 } installationId } || installations == null)
+        {
+            return GameInstallationType.Unknown;
+        }
+
+        return installations.FirstOrDefault(i => string.Equals(i.Id, installationId, StringComparison.OrdinalIgnoreCase))?.InstallationType
+            ?? GameInstallationType.Unknown;
+    }
+
     /// <summary>
     /// Determines whether a file is worth binary inspection: classic executables and
     /// extensionless binaries (ELF/Mach-O), which carry no extension by convention.
@@ -1737,6 +1749,7 @@ public partial class GameProfileLauncherViewModel(
 
                 if (existingItem != null)
                 {
+                    existingItem.InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations);
                     existingItem.UpdateFromProfile(profile);
 
                     var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
@@ -1814,6 +1827,7 @@ public partial class GameProfileLauncherViewModel(
 
                 HasNoDetectedInstallations = false;
                 detectionFinished = true;
+                ApplyInstallationTypes(installationsList);
                 await RecordDetectionOutcomeAsync(detectionIncomplete);
 
                 logger.LogInformation(
@@ -2754,6 +2768,14 @@ public partial class GameProfileLauncherViewModel(
         return profileResourceService.GetDefaultCoverPath(fallbackGameType);
     }
 
+    private void ApplyInstallationTypes(IReadOnlyList<GameInstallation> installations)
+    {
+        foreach (var item in Profiles.OfType<GameProfileItemViewModel>())
+        {
+            item.InstallationType = ResolveInstallationType(item.Profile, installations);
+        }
+    }
+
     /// <summary>
     /// Adds a newly created profile to the UI immediately (without waiting for full refresh).
     /// </summary>
@@ -2791,6 +2813,7 @@ public partial class GameProfileLauncherViewModel(
                 CreateShortcutAction = CreateShortcut,
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
+                InstallationType = ResolveInstallationType(profile, installationService.CachedInstallations),
                 CopyProfileAction = CopyProfile,
                 ShareProfileAction = ShareProfileFromCardAsync,
             };

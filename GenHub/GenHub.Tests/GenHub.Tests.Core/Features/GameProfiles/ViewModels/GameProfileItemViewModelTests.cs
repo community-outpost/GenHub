@@ -1,5 +1,7 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Features.GameProfiles.ViewModels;
 using Moq;
 
@@ -669,56 +671,30 @@ public class GameProfileItemViewModelTests
     [Fact]
     public void IsSteamIntegrationSupported_EvaluatesInstallationAndBinaryFormat()
     {
-        // Steam installation with Windows executable
-        var steamRetailProfile = new GenHub.Core.Models.GameProfile.GameProfile
-        {
-            Id = "test-steam-retail",
-            Name = "Steam Retail",
-            GameInstallationId = "installation.steam.zerohour",
-            GameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Id = "steam",
-                ExecutablePath = "generals.exe",
-            },
-        };
+        var steamRetail = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
+        Assert.True(steamRetail.IsSteamInstallation);
+        Assert.True(steamRetail.IsSteamIntegrationSupported);
 
-        var vmSteamRetail = new GameProfileItemViewModel("test-steam-retail", steamRetailProfile, null!, null!);
-        Assert.True(vmSteamRetail.IsSteamInstallation);
-        Assert.True(vmSteamRetail.IsSteamIntegrationSupported);
+        var steamNonRetail = CreateSteamTestViewModel(GameInstallationType.Steam, "com.fbraz3.GeneralsXZH.flatpakref");
+        Assert.True(steamNonRetail.IsSteamInstallation);
+        Assert.False(steamNonRetail.IsSteamIntegrationSupported);
 
-        // Steam installation with non-retail format
-        var steamNonRetailProfile = new GenHub.Core.Models.GameProfile.GameProfile
-        {
-            Id = "test-steam-nonretail",
-            Name = "Steam Non-Retail",
-            GameInstallationId = "installation.steam.zerohour",
-            GameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Id = "steam-flatpak",
-                ExecutablePath = "com.fbraz3.GeneralsXZH.flatpakref",
-            },
-        };
+        var eaApp = CreateSteamTestViewModel(GameInstallationType.EaApp, "generals.exe");
+        Assert.False(eaApp.IsSteamInstallation);
+        Assert.False(eaApp.IsSteamIntegrationSupported);
+    }
 
-        var vmSteamNonRetail = new GameProfileItemViewModel("test-steam-nonretail", steamNonRetailProfile, null!, null!);
-        Assert.True(vmSteamNonRetail.IsSteamInstallation);
-        Assert.False(vmSteamNonRetail.IsSteamIntegrationSupported);
+    /// <summary>
+    /// Verifies that a Steam installation is detected from its type, since real installation IDs are GUIDs.
+    /// </summary>
+    [Fact]
+    public void SteamInstallation_WithGuidInstallationId_ShowsSteamToggle()
+    {
+        var vm = CreateSteamTestViewModel(GameInstallationType.Steam, "generals.exe");
 
-        // Non-Steam installation
-        var nonSteamProfile = new GenHub.Core.Models.GameProfile.GameProfile
-        {
-            Id = "test-ea-retail",
-            Name = "EA Retail",
-            GameInstallationId = "installation.ea.zerohour",
-            GameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Id = "ea",
-                ExecutablePath = "generals.exe",
-            },
-        };
-
-        var vmNonSteam = new GameProfileItemViewModel("test-ea-retail", nonSteamProfile, null!, null!);
-        Assert.False(vmNonSteam.IsSteamInstallation);
-        Assert.False(vmNonSteam.IsSteamIntegrationSupported);
+        Assert.True(Guid.TryParse(((GenHub.Core.Models.GameProfile.GameProfile)vm.Profile).GameInstallationId, out _));
+        Assert.True(vm.IsSteamInstallation);
+        Assert.True(vm.IsSteamIntegrationSupported);
     }
 
     /// <summary>
@@ -752,5 +728,26 @@ public class GameProfileItemViewModelTests
 
         Assert.Contains(nameof(GameProfileItemViewModel.IsSteamInstallation), notifiedProperties);
         Assert.Contains(nameof(GameProfileItemViewModel.IsSteamIntegrationSupported), notifiedProperties);
+    }
+
+    private static GameProfileItemViewModel CreateSteamTestViewModel(GameInstallationType installationType, string executablePath)
+    {
+        var installationPath = Path.Combine(Path.GetTempPath(), "GenHub.SteamDetectionTests", installationType.ToString());
+        var profile = new GenHub.Core.Models.GameProfile.GameProfile
+        {
+            Id = $"test-{installationType}",
+            Name = installationType.ToString(),
+            GameInstallationId = GameInstallation.CreateStableId(installationType, installationPath),
+            GameClient = new GenHub.Core.Models.GameClients.GameClient
+            {
+                Id = "client",
+                ExecutablePath = executablePath,
+            },
+        };
+
+        return new GameProfileItemViewModel(profile.Id, profile, null!, null!)
+        {
+            InstallationType = installationType,
+        };
     }
 }
