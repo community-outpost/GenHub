@@ -49,4 +49,23 @@ public sealed class RuntimePlatformMatcherTests
     {
         Assert.Equal(expected, RuntimePlatformMatcher.Matches(platform, host));
     }
+
+    /// <summary>
+    /// Verifies which platform values are recognised.
+    /// </summary>
+    /// <param name="platform">The declared platform.</param>
+    /// <param name="expected">Whether the platform is recognised.</param>
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("windows", true)]
+    [InlineData("osx-arm64", true)]
+    [InlineData("linux-x64", true)]
+    [InlineData("darwin", false)]
+    [InlineData("x64", false)]
+    [InlineData("win-", false)]
+    public void IsRecognised_ReturnsExpected(string? platform, bool expected)
+    {
+        Assert.Equal(expected, RuntimePlatformMatcher.IsRecognised(platform));
+    }
 }

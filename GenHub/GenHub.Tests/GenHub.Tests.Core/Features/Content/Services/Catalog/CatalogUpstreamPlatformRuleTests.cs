@@ -211,6 +211,93 @@ public sealed class CatalogUpstreamPlatformRuleTests
         Assert.All(artifacts, a => Assert.False(a.IsPrimary));
     }
 
+    /// <summary>
+    /// An asset matched by rules for two platforms is ambiguous and is never hydrated, so
+    /// overlapping patterns cannot hand one OS another OS's build.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_OverlappingPlatformRules_SkipsAmbiguousAssetAsync()
+    {
+        CatalogUpstreamSync CreateSync() => new()
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            AssetRules =
+            [
+                new CatalogUpstreamAssetRule { Pattern = @"^GeneralsZH-.*\.zip$", Platform = "windows" },
+                new CatalogUpstreamAssetRule { Pattern = "macos", Platform = "macos" },
+                new CatalogUpstreamAssetRule { Pattern = "linux", Platform = "linux" },
+            ],
+        };
+
+        var windowsItem = CreateItem(CreateSync());
+        await CreateService("win-x64").IngestCatalogAsync(CreateCatalog(windowsItem), CancellationToken.None);
+
+        var windowsAssets = Assert.Single(windowsItem.Releases).Artifacts.Select(a => a.Filename).ToList();
+        Assert.Equal(4, windowsAssets.Count);
+        Assert.All(windowsAssets, name => Assert.Contains("win64", name, StringComparison.Ordinal));
+
+        var macItem = CreateItem(CreateSync());
+        await CreateService("osx-arm64").IngestCatalogAsync(CreateCatalog(macItem), CancellationToken.None);
+
+        Assert.Empty(macItem.Releases);
+    }
+
+    /// <summary>
+    /// A host-specific rule wins over an earlier platform-neutral rule for the same asset.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_HostRuleAfterNeutralRule_TakesPrecedenceAsync()
+    {
+        var item = CreateItem(new CatalogUpstreamSync
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            VariantAxis = "build",
+            AssetRules =
+            [
+                new CatalogUpstreamAssetRule { Pattern = @"^GeneralsZH-.*\.zip$", Variant = "Generic" },
+                new CatalogUpstreamAssetRule { Pattern = "macos", Variant = "Release", IsDefault = true, Platform = "osx-arm64" },
+                new CatalogUpstreamAssetRule { Pattern = "win64", Platform = "windows" },
+                new CatalogUpstreamAssetRule { Pattern = "linux", Platform = "linux" },
+            ],
+        });
+
+        await CreateService("osx-arm64").IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
+
+        var artifact = Assert.Single(Assert.Single(item.Releases).Artifacts);
+        Assert.Equal("GeneralsZH-macos-arm64.zip", artifact.Filename);
+        Assert.Equal("Release", artifact.Variant);
+        Assert.True(artifact.IsDefaultVariant);
+    }
+
+    /// <summary>
+    /// A rule with an unrecognised platform is ignored instead of withholding the item on every host.
+    /// </summary>
+    /// <param name="host">The host runtime identifier.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("win-x64")]
+    [InlineData("osx-arm64")]
+    [InlineData("linux-x64")]
+    public async Task IngestCatalogAsync_UnrecognisedPlatform_IgnoresRuleAsync(string host)
+    {
+        var item = CreateItem(new CatalogUpstreamSync
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            AssetRules = [new CatalogUpstreamAssetRule { Pattern = "macos", Platform = "darwin" }],
+        });
+        var staticRelease = CreateStaticRelease();
+        item.Releases.Add(staticRelease);
+
+        await CreateService(host).IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
+
+        Assert.Same(staticRelease, Assert.Single(item.Releases));
+    }
+
     private static GitHubRelease CreateRelease(IEnumerable<string> assetNames) => new()
     {
         TagName = "v2026.11.16.1835",

@@ -1852,6 +1852,12 @@ public partial class ContentLibraryViewModel(
                 return;
             }
 
+            // Authors review every platform's assets, not only the ones for the OS Publisher Studio runs on.
+            foreach (var rule in (clone.UpstreamSync?.AssetRules ?? []).Where(r => RuntimePlatformMatcher.IsRecognised(r.Platform)))
+            {
+                rule.Platform = null;
+            }
+
             // Ingestion replaces releases on success and leaves them untouched on a miss,
             // so reference comparison tells live data apart from static leftovers.
             var staticRefs = new HashSet<ContentRelease>(clone.Releases);

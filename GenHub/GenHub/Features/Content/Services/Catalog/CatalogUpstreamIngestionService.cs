@@ -1,4 +1,5 @@
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.Content;
@@ -189,9 +190,10 @@ public class CatalogUpstreamIngestionService(
     }
 
     /// <summary>
-    /// Adds an artifact for each asset whose first host-applicable rule matches. An asset
-    /// also claimed by another platform's rule is skipped even when a platform-neutral rule
-    /// matches it, so a catch-all pattern never pulls in a build for a different OS.
+    /// Adds an artifact for each asset matched by a rule that applies to the host, preferring
+    /// a host-specific rule over a platform-neutral one. An asset that any other platform's
+    /// rule matches is skipped, so neither a catch-all pattern nor overlapping platform
+    /// patterns pull in a build for a different OS. Rules with an unrecognised platform are ignored.
     /// </summary>
     /// <returns><c>true</c> when at least one asset was skipped because it belongs to another platform.</returns>
     private static bool PopulateArtifactsFromAssetRules(
@@ -201,18 +203,40 @@ public class CatalogUpstreamIngestionService(
         string hostRuntimeIdentifier,
         ILogger log)
     {
+        var rules = new List<CatalogUpstreamAssetRule>();
+        foreach (var rule in sync.AssetRules)
+        {
+            if (RuntimePlatformMatcher.IsRecognised(rule.Platform))
+            {
+                rules.Add(rule);
+            }
+            else
+            {
+                log.LogWarning("Ignoring asset rule '{Pattern}' with unrecognised platform '{Platform}'", rule.Pattern, rule.Platform);
+            }
+        }
+
         var skippedForOtherPlatform = false;
         foreach (var asset in assets)
         {
-            var matchingRules = sync.AssetRules
+            var matchingRules = rules
                 .Where(r => IsAssetRuleMatch(asset.Name, r, log))
                 .ToList();
-            var matchedRule = matchingRules.FirstOrDefault(r => r.SupportsRuntime(hostRuntimeIdentifier));
-            var claimedByOtherPlatform = matchingRules.Any(r => r.IsPlatformSpecific && !r.SupportsRuntime(hostRuntimeIdentifier));
-
-            if (matchedRule == null || (!matchedRule.IsPlatformSpecific && claimedByOtherPlatform))
+            var hostRules = matchingRules.Where(r => r.SupportsRuntime(hostRuntimeIdentifier)).ToList();
+            if (hostRules.Count < matchingRules.Count)
             {
-                skippedForOtherPlatform |= claimedByOtherPlatform;
+                if (hostRules.Any(r => r.IsPlatformSpecific))
+                {
+                    log.LogWarning("Asset '{AssetName}' matches asset rules for this platform and another platform, skipping it", asset.Name);
+                }
+
+                skippedForOtherPlatform = true;
+                continue;
+            }
+
+            var matchedRule = hostRules.FirstOrDefault(r => r.IsPlatformSpecific) ?? hostRules.FirstOrDefault();
+            if (matchedRule == null)
+            {
                 continue;
             }
 

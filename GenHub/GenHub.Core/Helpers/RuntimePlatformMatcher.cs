@@ -38,6 +38,14 @@ public static class RuntimePlatformMatcher
             && (architecture is null || string.Equals(architecture, hostArchitecture, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Determines whether <paramref name="platform"/> is empty or names a recognised OS family or runtime identifier.
+    /// </summary>
+    /// <param name="platform">The declared platform.</param>
+    /// <returns><c>true</c> when the platform is absent or can be matched against a host.</returns>
+    public static bool IsRecognised(string? platform) =>
+        string.IsNullOrWhiteSpace(platform) || TryParse(platform, out _, out _);
+
     private static bool TryParse(string? value, out ExecutablePlatform family, out string? architecture)
     {
         family = ExecutablePlatform.Unknown;
