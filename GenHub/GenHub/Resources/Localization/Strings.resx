@@ -17051,6 +17051,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
     <value>Updated {0} to version {1}.</value>
   </data>
+  <data name="Content.Notification.AutoUpdateCompleted.Message" xml:space="preserve">
+    <value>{0} was updated automatically to version {1}. You can turn this off in Settings under Publisher Subscriptions.</value>
+  </data>
+  <data name="Content.Notification.AutoUpdateFailed.Message" xml:space="preserve">
+    <value>{0} could not be updated to version {1} automatically: {2}. The installed version is still in use.</value>
+  </data>
   <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
     <value>{0} Update Partial</value>
   </data>

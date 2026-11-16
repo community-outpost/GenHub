@@ -16992,6 +16992,12 @@ https://example.com/screenshot2.png</value>
   <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
     <value>تم تحديث {0} إلى الإصدار {1}.</value>
   </data>
+  <data name="Content.Notification.AutoUpdateCompleted.Message" xml:space="preserve">
+    <value>تم تحديث {0} تلقائيًا إلى الإصدار {1}. يمكنك إيقاف ذلك من الإعدادات ضمن اشتراكات الناشرين.</value>
+  </data>
+  <data name="Content.Notification.AutoUpdateFailed.Message" xml:space="preserve">
+    <value>تعذر تحديث {0} تلقائيًا إلى الإصدار {1}: {2}. لا يزال الإصدار المثبت قيد الاستخدام.</value>
+  </data>
   <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
     <value>تحديث {0} جزئي</value>
   </data>

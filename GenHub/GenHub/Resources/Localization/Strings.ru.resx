@@ -16899,6 +16899,12 @@ GenHub сравнивает Exe CRC и INI CRC повтора с каталог�
   <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
     <value>{0} обновлено до версии {1}.</value>
   </data>
+  <data name="Content.Notification.AutoUpdateCompleted.Message" xml:space="preserve">
+    <value>{0} автоматически обновлено до версии {1}. Это можно отключить в настройках в разделе «Подписки издателей».</value>
+  </data>
+  <data name="Content.Notification.AutoUpdateFailed.Message" xml:space="preserve">
+    <value>Не удалось автоматически обновить {0} до версии {1}: {2}. По-прежнему используется установленная версия.</value>
+  </data>
   <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
     <value>Частичное обновление {0}</value>
   </data>
