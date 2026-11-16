@@ -27,13 +27,11 @@
     </ResourceDictionary>
   </Window.Resources>
 
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="18">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="{DynamicResource DialogPadding}">
     <!-- Header with Search -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
       <StackPanel Grid.Column="0" Spacing="4">
-        <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
-                   FontSize="17" FontWeight="Bold"
-                   Foreground="{DynamicResource TextPrimary}"/>
+        <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"/>
         <TextBlock Text="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Subtitle}"
                    FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
       </StackPanel>

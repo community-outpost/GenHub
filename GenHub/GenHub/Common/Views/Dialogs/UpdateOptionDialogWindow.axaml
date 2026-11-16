@@ -37,21 +37,19 @@
                 </Border.Background>
              </Border>
 
-             <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+             <Grid RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
 
                 <!-- Header -->
-                <TextBlock Grid.Row="0" Text="{Binding Title}"
-                           FontSize="22" FontWeight="SemiBold"
-                           Foreground="White" Margin="0,0,0,24" />
+                <TextBlock Classes="dialog-title" Grid.Row="0" Text="{Binding Title}" Margin="{DynamicResource DialogHeaderSpacing}" />
 
                 <!-- Content -->
                 <StackPanel Grid.Row="1" Spacing="20">
-                    <md:MarkdownScrollViewer Markdown="{Binding Message}">
+                    <md:MarkdownScrollViewer Markdown="{Binding Message}" TextElement.FontSize="13" TextElement.Foreground="{DynamicResource TextPrimary}">
                         <md:MarkdownScrollViewer.Styles>
                             <Style Selector="TextBlock">
-                                <Setter Property="Foreground" Value="#E0E0E0"/>
-                                <Setter Property="FontSize" Value="15"/>
-                                <Setter Property="LineHeight" Value="22"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="LineHeight" Value="20"/>
                                 <Setter Property="TextWrapping" Value="Wrap"/>
                             </Style>
                         </md:MarkdownScrollViewer.Styles>
@@ -62,38 +60,38 @@
                         <StackPanel Spacing="12">
                             <RadioButton IsChecked="{Binding IsReplaceCurrentVersion}"
                                          Content="{localization:Localize Dialog.UpdateOption.Radio.Replace}"
-                                         Foreground="White" FontWeight="Medium"/>
+                                         Foreground="{DynamicResource TextPrimary}" FontWeight="Medium"/>
 
                             <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.Replace}"
-                                       FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
 
                             <CheckBox IsChecked="{Binding DeleteOldVersions}"
                                       IsEnabled="{Binding CanDeleteOldVersions}"
                                       Content="{localization:Localize Dialog.UpdateOption.Checkbox.DeleteOldVersions}"
                                       ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.DeleteOldVersions}"
-                                      Foreground="#B0B0B0" FontSize="12" Margin="28,-4,0,4"/>
+                                      Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="28,-4,0,4"/>
 
                             <RadioButton IsChecked="{Binding IsCreateNewProfile}"
                                          Content="{localization:Localize Dialog.UpdateOption.Radio.CreateNewProfile}"
-                                         Foreground="White" FontWeight="Medium"/>
+                                         Foreground="{DynamicResource TextPrimary}" FontWeight="Medium"/>
 
                             <TextBlock Text="{localization:Localize Dialog.UpdateOption.Description.CreateNewProfile}"
-                                       FontSize="12" Foreground="#A0A0A0" Margin="28,-8,0,0"
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="28,-8,0,0"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
                 <!-- Footer -->
-                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,32,0,0">
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="0,16,0,0">
                     <CheckBox Grid.Column="0"
                               IsChecked="{Binding IsDoNotAskAgain}"
                               Content="{localization:Localize Common.Checkbox.DontAskAgain}"
                               ToolTip.Tip="{localization:Localize Common.Checkbox.DontAskAgain.Tooltip}"
-                              Foreground="#C0C0C0" VerticalAlignment="Center"/>
+                              Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="16">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
                         <Button Command="{Binding SkipCommand}" Content="{localization:Localize Common.Button.Cancel}"
                                 Classes="action-secondary"
                                 ToolTip.Tip="{localization:Localize Dialog.UpdateOption.Tooltip.Cancel}"/>

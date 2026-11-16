@@ -67,7 +67,7 @@
                         IsHitTestVisible="False" />
 
                 <!-- Window Content -->
-                <Grid Margin="28,24,28,24" RowDefinitions="Auto,*,Auto">
+                <Grid Margin="{DynamicResource DialogPadding}" RowDefinitions="Auto,*,Auto">
 
                     <!-- Header -->
                     <Grid Grid.Row="0"
@@ -81,11 +81,7 @@
                                           Width="18" Height="18"
                                           Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                           VerticalAlignment="Center" />
-                                <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.Title}"
-                                           FontSize="16"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource TextPrimary}"
-                                           LetterSpacing="0.5"
+                                <TextBlock Classes="dialog-title" Text="{localization:Localize GameProfiles.ShareDialog.Title}"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                             <TextBlock Text="{localization:Localize GameProfiles.ShareDialog.Subtitle}"

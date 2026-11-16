@@ -14,19 +14,13 @@
         <conv:StringEqualityMultiConverter x:Key="StringEqualityMultiConverter"/>
     </UserControl.Resources>
 
-    <UserControl.Styles>
-
-    </UserControl.Styles>
-
-    <Grid RowDefinitions="Auto, *, Auto" Margin="24">
+    <Grid RowDefinitions="Auto, *, Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,20">
-            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"
-                       FontSize="20" FontWeight="Bold"
-                       Foreground="{DynamicResource TextPrimary}"/>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
+            <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"/>
             <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    VerticalAlignment="Top"
+                    VerticalAlignment="Center"
                     AutomationProperties.Name="{localization:Localize Common.Button.Close}"
                     ToolTip.Tip="{localization:Localize Common.Button.Close}">
                 <PathIcon Data="{StaticResource CloseIcon}"/>
@@ -34,7 +28,7 @@
         </Grid>
 
         <!-- Form -->
-        <ScrollViewer Grid.Row="1">
+        <ScrollViewer Classes="dialog-scroll" Grid.Row="1">
             <StackPanel Spacing="16">
                 <!-- Quick Select from Subscribed Publishers -->
                 <Border IsVisible="{Binding AvailablePublishers.Count}"
@@ -178,20 +172,18 @@
                                  Height="80"/>
                     </StackPanel>
 
-                    <TextBlock Text="{Binding ValidationError}"
-                               Foreground="{DynamicResource ErrorBrush}" FontSize="12"
-                               IsVisible="{Binding !IsValid}"
-                               TextWrapping="Wrap"/>
+                    <TextBlock Classes="dialog-error"
+                               Text="{Binding ValidationError}"
+                               IsVisible="{Binding !IsValid}"/>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,16,0,0">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource ErrorBrush}"
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap"
                         MaxWidth="300"
                         IsVisible="{Binding !IsValid}"/>
 

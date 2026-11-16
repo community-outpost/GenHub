@@ -39,7 +39,7 @@
             </ExperimentalAcrylicBorder>
 
             <!-- Window Content -->
-            <Grid Margin="28,22,28,22" RowDefinitions="Auto,*,Auto">
+            <Grid Margin="{DynamicResource DialogPadding}" RowDefinitions="Auto,*,Auto">
 
                 <!-- Header -->
                 <Grid Grid.Row="0"
@@ -53,10 +53,7 @@
                                       Width="18" Height="18"
                                       Foreground="{DynamicResource AccentBrush}"
                                       VerticalAlignment="Center" />
-                            <TextBlock Text="{localization:Localize Tools.Share.Title}"
-                                       FontSize="16"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource TextPrimary}"
+                            <TextBlock Classes="dialog-title" Text="{localization:Localize Tools.Share.Title}"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                         <TextBlock Text="{localization:Localize Tools.Share.Subtitle}"
