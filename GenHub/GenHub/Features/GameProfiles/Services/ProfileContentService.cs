@@ -341,6 +341,7 @@ public sealed class ProfileContentService(
                 : null;
 
             var createRequest = BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
+            await AddClientDependentLocalDependenciesAsync(createRequest, cancellationToken);
 
             return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, createRequest.EnabledContentIds ?? [], isStandalone: false, cancellationToken);
         }
@@ -1268,8 +1269,9 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
-                if (skipFoundationDependencies &&
-                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient)
+                if ((skipFoundationDependencies &&
+                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests))
                 {
                     continue;
                 }
@@ -1494,6 +1496,18 @@ public sealed class ProfileContentService(
         return string.Join(" ", messages);
     }
 
+    /// <summary>
+    /// Enables acquired dependencies that apply only once the new profile's game client is known,
+    /// such as GenTool for Control Bar Pro with a retail client.
+    /// </summary>
+    private async Task AddClientDependentLocalDependenciesAsync(CreateProfileRequest createRequest, CancellationToken cancellationToken)
+    {
+        var enabledIds = createRequest.EnabledContentIds ??= [];
+        var enabledManifests = await LoadManifestsAsync(enabledIds, cancellationToken);
+        var localIds = await FindLocalRequiredDependenciesAsync(enabledIds, enabledManifests, cancellationToken);
+        enabledIds.AddRange(localIds.Where(id => !enabledIds.Contains(id, StringComparer.OrdinalIgnoreCase)));
+    }
+
     private async Task<List<ContentManifest>> LoadManifestsAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken)
     {
         var manifests = new List<ContentManifest>();
@@ -1540,6 +1554,7 @@ public sealed class ProfileContentService(
             foreach (var dependency in manifestResult.Data?.Dependencies ?? [])
             {
                 if (dependency.InstallBehavior is not (DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests) ||
                     resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, enabledManifests))
                 {
                     continue;

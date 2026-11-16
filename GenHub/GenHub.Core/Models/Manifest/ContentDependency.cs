@@ -88,4 +88,10 @@ public class ContentDependency
     /// Content from these publisher types cannot satisfy this dependency.
     /// </summary>
     public List<string> IncompatiblePublisherTypes { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the dependency is required only when the profile runs a
+    /// retail game client. Community clients such as TheSuperHackers and GeneralsOnline do not need it.
+    /// </summary>
+    public bool RetailClientOnly { get; set; }
 }

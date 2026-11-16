@@ -5,8 +5,9 @@ using System.Collections.Generic;
 namespace GenHub.Tests.Core.Features.GameProfiles;
 
 /// <summary>
-/// Control Bar Pro's dependencies with a required GenTool added. Control Bar Pro has no GenTool
-/// dependency, so tests that need a required add-on with a known download add one here.
+/// Control Bar Pro's dependencies with GenTool required for every game client. Control Bar Pro
+/// requires GenTool only with a retail client, so tests that need a required add-on with a known
+/// download use this instead.
 /// </summary>
 internal static class RequiredGenToolDependencies
 {

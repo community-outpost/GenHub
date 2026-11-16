@@ -215,11 +215,12 @@ public class ContentManifestPoolTests : IDisposable
     }
 
     /// <summary>
-    /// A Control Bar Pro manifest saved while GenTool was a required dependency loads without it.
+    /// A Control Bar Pro manifest saved while GenTool was required for every client loads with GenTool
+    /// required only for retail game clients.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_StoredControlBarProWithGenTool_DropsGenToolAsync()
+    public async Task GetManifestAsync_StoredControlBarProWithGenTool_RequiresGenToolOnlyForRetailAsync()
     {
         var manifest = new ContentManifest
         {
@@ -240,8 +241,10 @@ public class ContentManifestPoolTests : IDisposable
         var result = await _manifestPool.GetManifestAsync(manifest.Id);
 
         Assert.True(result.Success);
-        var dependency = Assert.Single(result.Data!.Dependencies);
-        Assert.Equal(GenPatcherDependencyBuilder.CreateControlBarProCoreDependency().Id, dependency.Id);
+        Assert.Equal(2, result.Data!.Dependencies.Count);
+        Assert.Contains(result.Data.Dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateControlBarProCoreDependency().Id));
+        var genTool = Assert.Single(result.Data.Dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
+        Assert.True(genTool.RetailClientOnly);
     }
 
     /// <summary>

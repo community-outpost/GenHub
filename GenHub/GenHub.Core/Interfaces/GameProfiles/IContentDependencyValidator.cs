@@ -34,4 +34,13 @@ public interface IContentDependencyValidator
     /// <param name="manifests">The candidate manifests.</param>
     /// <returns><see langword="true"/> when a manifest satisfies the dependency.</returns>
     bool IsSatisfiedBy(ContentDependency dependency, IReadOnlyCollection<ContentManifest> manifests);
+
+    /// <summary>
+    /// Checks whether <paramref name="dependency"/> applies to a profile with the given enabled content.
+    /// A retail-client-only dependency applies only when a retail game client is enabled.
+    /// </summary>
+    /// <param name="dependency">The dependency to check.</param>
+    /// <param name="enabledManifests">The manifests enabled in the profile, including its game client.</param>
+    /// <returns><see langword="true"/> when the profile needs the dependency.</returns>
+    bool AppliesTo(ContentDependency dependency, IReadOnlyCollection<ContentManifest> enabledManifests);
 }

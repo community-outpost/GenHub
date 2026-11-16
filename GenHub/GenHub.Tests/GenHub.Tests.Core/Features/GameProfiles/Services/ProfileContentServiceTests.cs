@@ -515,6 +515,86 @@ public sealed class ProfileContentServiceTests
     }
 
     /// <summary>
+    /// Control Bar Pro needs GenTool only with a retail game client. On a community client, adding it
+    /// neither reports GenTool missing nor enables a downloaded GenTool. On a retail client the
+    /// downloaded GenTool is enabled with it.
+    /// </summary>
+    /// <param name="retailClient">Whether the profile also enables a retail game client.</param>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AddContentToProfileAsync_ControlBarPro_EnablesGenToolOnlyWithRetailClientAsync(bool retailClient)
+    {
+        const string retailClientId = "1.104.steam.gameclient.zerohour";
+        var fixture = new ControlBarProFixture();
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarProFixture.ControlBarProId),
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+            Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+        });
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+        if (retailClient)
+        {
+            fixture.AddManifest(new ContentManifest
+            {
+                Id = ManifestId.Create(retailClientId),
+                Name = "Zero Hour",
+                ContentType = ContentType.GameClient,
+                TargetGame = GameType.ZeroHour,
+                Publisher = new PublisherInfo { PublisherType = "steam" },
+            });
+            fixture.EnableInProfile(retailClientId);
+        }
+
+        var result = await fixture.Service.AddContentToProfileAsync(fixture.Profile.Id, ControlBarProFixture.ControlBarProId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = fixture.SavedRequest?.EnabledContentIds ?? [];
+        Assert.Contains(ControlBarProFixture.ControlBarProId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(retailClient, saved.Contains(ControlBarProFixture.GenToolId, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Creating a Control Bar Pro profile from Downloads on a retail install enables the downloaded
+    /// GenTool once the retail client is chosen. On a community client GenTool is left out.
+    /// </summary>
+    /// <param name="clientId">The game client the new profile uses.</param>
+    /// <param name="expectGenTool">Whether GenTool should be enabled.</param>
+    /// <returns>A task that completes when the operation finishes.</returns>
+    [Theory]
+    [InlineData("1.104.steam.gameclient.zerohour", true)]
+    [InlineData("1.0.communityoutpost.gameclient.communitypatch", false)]
+    public async Task CreateProfileWithContentAsync_ControlBarProWithDownloadedGenTool_EnablesItOnlyForRetailAsync(string clientId, bool expectGenTool)
+    {
+        var fixture = new ControlBarProFixture(clientId);
+        fixture.AddManifest(new ContentManifest
+        {
+            Id = ManifestId.Create(ControlBarProFixture.ControlBarProId),
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo { PublisherType = "communityoutpost" },
+            Metadata = new ContentMetadata { Tags = ["contentCode:cbpr"] },
+            Dependencies = GenPatcherDependencyBuilder.GetDependencies("cbpr", GenPatcherContentRegistry.GetMetadata("cbpr")),
+        });
+        fixture.AddManifest(ControlBarProFixture.CreateAddon(ControlBarProFixture.GenToolId, "gent"));
+        var createRequests = CaptureCreateRequests(fixture);
+
+        var result = await fixture.Service.CreateProfileWithContentAsync("Control Bar Pro Profile", ControlBarProFixture.ControlBarProId);
+
+        Assert.True(result.Success, result.FirstError);
+        var saved = Assert.Single(createRequests).EnabledContentIds ?? [];
+        Assert.Contains(clientId, saved, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(expectGenTool, saved.Contains(ControlBarProFixture.GenToolId, StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Creating a profile from Downloads applies the same rule and creates nothing while GenTool is missing.
     /// </summary>
     /// <returns>A task that completes when the operation finishes.</returns>
@@ -1258,17 +1338,17 @@ public sealed class ProfileContentServiceTests
         public const string ControlBarProId = "1.10.communityoutpost.addon.cbpr";
         public const string GenToolId = "1.10.communityoutpost.addon.gent";
         public const string MapPackId = "1.0.examplepublisher.mappack.tournamentmaps";
-        private const string ClientId = "1.0.communityoutpost.gameclient.communitypatch";
+        private const string CommunityClientId = "1.0.communityoutpost.gameclient.communitypatch";
 
         private readonly Dictionary<string, ContentManifest> _manifests = new(StringComparer.OrdinalIgnoreCase);
 
-        public ControlBarProFixture()
+        public ControlBarProFixture(string clientId = CommunityClientId)
         {
             var installation = new GameInstallation("C:\\ZH", GameInstallationType.Steam)
             {
                 AvailableGameClients =
                 [
-                    new GameClient { Id = ClientId, GameType = GameType.ZeroHour, Version = "1.04" },
+                    new GameClient { Id = clientId, GameType = GameType.ZeroHour, Version = "1.04" },
                 ],
             };
             var installationId = ManifestIdGenerator.GenerateGameInstallationId(
@@ -1290,7 +1370,7 @@ public sealed class ProfileContentServiceTests
             AddManifest(CreateAddon("1.10.communityoutpost.addon.cben", "cben"));
             AddManifest(new ContentManifest
             {
-                Id = ManifestId.Create(ClientId),
+                Id = ManifestId.Create(clientId),
                 Name = "Community Patch",
                 ContentType = ContentType.GameClient,
                 TargetGame = GameType.ZeroHour,
@@ -1308,8 +1388,8 @@ public sealed class ProfileContentServiceTests
             {
                 Id = "profile-id",
                 Name = "TheSuperHackers Zero Hour",
-                GameClient = new GameClient { Id = ClientId, GameType = GameType.ZeroHour, InstallationId = installation.Id },
-                EnabledContentIds = [installationId, ClientId],
+                GameClient = new GameClient { Id = clientId, GameType = GameType.ZeroHour, InstallationId = installation.Id },
+                EnabledContentIds = [installationId, clientId],
             };
 
             ProfileManager

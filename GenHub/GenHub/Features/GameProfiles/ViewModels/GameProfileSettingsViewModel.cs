@@ -1534,22 +1534,65 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                 return;
             }
 
+            IReadOnlyCollection<ContentManifest>? enabledManifests = null;
             foreach (var dependency in manifest.Dependencies)
             {
                 if (dependency.DependencyType == ContentType.GameInstallation)
                 {
                     ResolveGameInstallationDependency(contentItem, dependency, autoEnabledNames, warnedLockedNames);
+                    continue;
                 }
-                else
+
+                if (dependency.RetailClientOnly && _dependencyValidator != null)
                 {
-                    await ResolveContentDependencyAsync(dependency, autoEnabledNames, warnedLockedNames, cancellationToken);
+                    enabledManifests ??= await LoadEnabledManifestsAsync(cancellationToken);
+                    if (!_dependencyValidator.AppliesTo(dependency, enabledManifests))
+                    {
+                        continue;
+                    }
                 }
+
+                await ResolveContentDependencyAsync(dependency, autoEnabledNames, warnedLockedNames, cancellationToken);
             }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error resolving dependencies for {ContentName}", contentItem.DisplayName);
         }
+    }
+
+    private async Task<List<ContentManifest>> LoadEnabledManifestsAsync(CancellationToken cancellationToken)
+    {
+        var manifests = new List<ContentManifest>();
+        if (_manifestPool == null)
+        {
+            return manifests;
+        }
+
+        foreach (var manifestId in WithActiveGameClientId(EnabledContent.Select(e => e.ManifestId.Value)))
+        {
+            var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                manifests.Add(manifestResult.Data);
+            }
+        }
+
+        return manifests;
+    }
+
+    private List<string> WithActiveGameClientId(IEnumerable<string> manifestIds)
+    {
+        var ids = manifestIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var activeClientId = GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation)?.Id;
+        if (!string.IsNullOrEmpty(activeClientId) &&
+            ManifestId.TryCreate(activeClientId, out _) &&
+            !ids.Contains(activeClientId, StringComparer.OrdinalIgnoreCase))
+        {
+            ids.Add(activeClientId);
+        }
+
+        return ids;
     }
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem, CancellationToken cancellationToken = default)
@@ -1923,15 +1966,9 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         try
         {
             if (_manifestPool == null) return;
-            var enabledManifestIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
-            if (enabledManifestIds.Count == 0) return;
+            if (EnabledContent.Count == 0) return;
 
-            var manifests = new List<ContentManifest>();
-            foreach (var manifestId in enabledManifestIds)
-            {
-                var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
-                if (manifestResult.Success && manifestResult.Data != null) manifests.Add(manifestResult.Data);
-            }
+            var manifests = await LoadEnabledManifestsAsync(cancellationToken);
 
             var warnings = new List<string>();
             if (_dependencyValidator != null)
