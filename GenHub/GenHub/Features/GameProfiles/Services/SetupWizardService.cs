@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions;
+using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -146,6 +148,7 @@ public class SetupWizardService(
                             Version = HasDisplayVersion(nativeVersion) ? nativeVersion : string.Empty,
                             ActionLabel = GameClientConstants.WizardActionLabels.CreateProfile,
                             ActionType = GameClientConstants.WizardActionTypes.CreateProfile,
+                            IsHostNative = true,
                             IsSelected = true,
                             IconPath = config.IconPath,
                             Metadata = config.Metadata,
@@ -425,18 +428,22 @@ public class SetupWizardService(
                 ApplyDisplayLabels(wizardItem);
             }
 
-            var wizardVm = new SetupWizardViewModel(wizardItems, localizationService);
+            var wizardVm = new SetupWizardViewModel(wizardItems, localizationService, DescribeFoundGames(installationsList));
 
             var accepted = await ShowWizardDialogAsync(wizardVm);
             result.Confirmed = accepted;
+            result.UseInstalledGame = accepted && wizardVm.UseInstalledGameChosen;
+            result.SetUpLater = !accepted && wizardVm.SetUpLaterChosen;
             if (accepted)
             {
-                logger.LogInformation("[SetupWizard] User accepted wizard selections");
+                logger.LogInformation("[SetupWizard] User confirmed the wizard. Use installed game: {UseInstalledGame}", wizardVm.UseInstalledGameChosen);
 
-                // Read decisions back to result
+                // Use installed game keeps only the profiles for native builds already on disk and
+                // declines every download, install and update.
                 foreach (var item in wizardVm.Items)
                 {
-                    var finalAction = item.IsSelected ? item.ActionType : GameClientConstants.WizardActionTypes.Decline;
+                    var keep = wizardVm.UseInstalledGameChosen ? item.IsHostNative : item.IsSelected;
+                    var finalAction = keep ? item.ActionType : GameClientConstants.WizardActionTypes.Decline;
                     if (string.Equals(item.Metadata as string, CommunityOutpostConstants.CommunityPatchRetailCode, StringComparison.Ordinal))
                     {
                         result.CommunityPatchAction = finalAction;
@@ -457,7 +464,7 @@ public class SetupWizardService(
             }
             else
             {
-                logger.LogInformation("[SetupWizard] User canceled or declined the wizard");
+                logger.LogInformation("[SetupWizard] Wizard was not confirmed. Set up later chosen: {SetUpLater}", result.SetUpLater);
                 result.CommunityPatchAction = GameClientConstants.WizardActionTypes.Decline;
                 result.CommunityPatchNonRetAction = GameClientConstants.WizardActionTypes.Decline;
                 result.GeneralsOnlineAction = GameClientConstants.WizardActionTypes.Decline;
@@ -500,6 +507,20 @@ public class SetupWizardService(
     }
 
     /// <summary>
+    /// Describes each base game client and host-native build found in the installations, such as
+    /// "Zero Hour 1.04 (Steam)".
+    /// </summary>
+    /// <param name="installations">The detected installations.</param>
+    /// <returns>The distinct display names of the found games.</returns>
+    internal IReadOnlyList<string> DescribeFoundGames(IEnumerable<GameInstallation> installations) =>
+        installations
+            .SelectMany(installation => (installation.AvailableGameClients ?? [])
+                .Where(client => !client.IsPublisherClient || PublisherProfileOrchestrator.IsHostNativeClient(client))
+                .Select(client => DescribeFoundGame(installation, client)))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
     /// Selects the installation's client that matches <paramref name="predicate"/>, preferring a
     /// build native to this host so a Windows build of the same publisher does not hide it.
     /// </summary>
@@ -536,6 +557,45 @@ public class SetupWizardService(
         }
 
         return null;
+    }
+
+    private static string? GetInstallationSourceKey(GameInstallationType installationType) => installationType switch
+    {
+        GameInstallationType.Steam => GameClientConstants.InstallationTypeLocalizationKeys.Steam,
+        GameInstallationType.EaApp => GameClientConstants.InstallationTypeLocalizationKeys.EaApp,
+        GameInstallationType.TheFirstDecade => GameClientConstants.InstallationTypeLocalizationKeys.TheFirstDecade,
+        GameInstallationType.CDISO => GameClientConstants.InstallationTypeLocalizationKeys.CdIso,
+        GameInstallationType.Wine => GameClientConstants.InstallationTypeLocalizationKeys.Wine,
+        GameInstallationType.Retail => GameClientConstants.InstallationTypeLocalizationKeys.Retail,
+        GameInstallationType.Lutris => GameClientConstants.InstallationTypeLocalizationKeys.Lutris,
+        _ => null,
+    };
+
+    private string DescribeFoundGame(GameInstallation installation, GameClient client)
+    {
+        string label;
+        if (client.IsPublisherClient)
+        {
+            label = client.Name;
+        }
+        else
+        {
+            var gameName = localizationService.GetWizardText(client.GameType == GameType.Generals
+                ? GameClientConstants.WizardLocalizationKeys.GeneralsGameName
+                : GameClientConstants.WizardLocalizationKeys.ZeroHourGameName);
+            label = HasDisplayVersion(client.Version)
+                ? localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundGameVersionEntry, gameName, client.Version)
+                : gameName;
+        }
+
+        var sourceKey = GetInstallationSourceKey(installation.InstallationType);
+        if (sourceKey == null)
+        {
+            return label;
+        }
+
+        var source = localizationService.GetLocalizedString(sourceKey, installation.InstallationType.GetDisplayName());
+        return localizationService.GetWizardText(GameClientConstants.WizardLocalizationKeys.FoundGameEntry, label, source);
     }
 
     private string FormatCreateProfileDescription(string title, string? version) =>

@@ -94,7 +94,7 @@
                         <Button
                                 Grid.Column="1"
                                 Command="{Binding CloseCommand}"
-                                AutomationProperties.Name="Close dialog"
+                                AutomationProperties.Name="{localization:Localize GameProfiles.ShareDialog.Tooltip.Close}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.ShareDialog.Tooltip.Close}"
                                 Classes="icon-action">
 
@@ -203,7 +203,7 @@
                                         IsEnabled="{Binding !IsGeneratingLink}"
                                         Margin="0,10,0,0"
                                         HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Generate Share Link"
+                                        AutomationProperties.Name="{localization:Localize GameProfiles.ShareDialog.GenerateLink}"
                                         IsVisible="{Binding !IsShareUriGenerated}"
                                         Classes="action-primary">
                                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -228,13 +228,14 @@
                                        Foreground="{DynamicResource TextSecondary}"
                                        FontWeight="Medium" />
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBox Classes="form-field" Grid.Column="0" Margin="0,0,8,0"
+                                <TextBox Classes="form-field" Grid.Column="0"
                                          Text="{Binding ShareUri, Mode=OneWay}"
                                          IsReadOnly="True"
                                          VerticalContentAlignment="Center" />
                                 <Button
                                         Grid.Column="1"
                                         Command="{Binding CopyUriCommand}"
+                                        Margin="8,0,0,0"
                                         AutomationProperties.Name="{localization:Localize GameProfiles.ShareDialog.CopyLink}"
                                         Classes="action-secondary">
 
@@ -298,7 +299,7 @@
                                 HorizontalAlignment="Right"
                                 Command="{Binding CloseCommand}"
                                 Content="{localization:Localize GameProfiles.ShareDialog.Button.Close}"
-                                AutomationProperties.Name="Close"
+                                AutomationProperties.Name="{localization:Localize GameProfiles.ShareDialog.Button.Close}"
                                 Classes="action-secondary"
                                 MinWidth="90" />
                     </Grid>

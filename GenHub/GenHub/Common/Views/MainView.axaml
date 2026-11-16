@@ -156,17 +156,12 @@
 
         <!-- Header -->
         <Border Grid.Row="0" Classes="header-background">
-            <Grid ColumnDefinitions="*,Auto,*" Margin="20,0,20,0" Height="68">
-                <!-- Left spacer column for perfect center alignment -->
-                <Panel Grid.Column="0" />
-
-                <!-- Centered Pill Navigation Tabs -->
-                <Border Grid.Column="1"
+            <Grid Margin="14,0" Height="56">
+                <!-- Primary navigation starts at the left edge of the library. -->
+                <Border
                         Classes="pill-container"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        PointerEntered="OnTabsPointerEntered"
-                        PointerExited="OnTabsPointerExited">
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="4">
                         <Button Classes="pill-tab"
                                 Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.GameProfiles}}"
@@ -189,24 +184,6 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Logo and title section - Right side -->
-                <StackPanel Grid.Column="2"
-                            Orientation="Vertical"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
-                            Margin="0,0,4,0">
-                    <Image Source="avares://GenHub/Assets/Logos/generalshub-logo.png"
-                           Width="90" Height="34"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center" />
-                    <TextBlock Text="{localization:Localize Navigation.App.Tagline}"
-                               FontSize="9"
-                               Foreground="#A0A0A0"
-                               FontWeight="Normal"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               Margin="0,2,0,0" />
-                </StackPanel>
             </Grid>
         </Border>
 

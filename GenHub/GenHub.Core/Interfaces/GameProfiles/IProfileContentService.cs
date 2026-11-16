@@ -71,12 +71,16 @@ public interface IProfileContentService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Validates a profile's enabled content for conflicts.
+    /// Installs the missing items that GenHub can download, plus the items those need.
+    /// Items GenHub cannot download are skipped, so callers must validate again afterwards.
     /// </summary>
-    /// <param name="profileId">The profile ID to validate.</param>
+    /// <param name="missingDependencies">The missing items reported by an add, create, or save.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
-    /// <returns>List of conflict warning messages to display to the user.</returns>
-    Task<List<string>> ValidateProfileContentAsync(
-        string profileId,
+    /// <returns>
+    /// The manifest IDs of the installed or already acquired items, which can be empty when nothing could be
+    /// downloaded, or a failure naming each downloadable item that could not be installed.
+    /// </returns>
+    Task<OperationResult<IReadOnlyList<string>>> InstallMissingDependenciesAsync(
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
         CancellationToken cancellationToken = default);
 }

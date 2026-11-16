@@ -20,6 +20,10 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <StyleInclude Source="avares://GenHub/Features/Tools/Views/Dialogs/StudioDialogFormStyles.axaml"/>
+    </UserControl.Styles>
+
     <Grid x:Name="DialogLayoutRoot" RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
@@ -510,6 +514,11 @@
                         </StackPanel>
                     </StackPanel>
                 </Expander>
+
+                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Content.DraftHint}"
+                           Classes="dialog-hint"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding CanShowInitialRelease}" />
 
                 <!-- ==================== INITIAL RELEASE & ARTIFACT (Create Mode Only) ==================== -->
                 <Expander x:Name="InitialReleaseSection"

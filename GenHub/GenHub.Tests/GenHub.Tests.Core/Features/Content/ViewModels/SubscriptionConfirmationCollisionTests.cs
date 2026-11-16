@@ -11,6 +11,7 @@ using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Tests.Core.Collections;
 using GenHub.Tests.Core.Services.Security;
 using Moq;
+using System.Globalization;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -95,7 +96,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         Assert.True(closed);
         Assert.NotNull(_added);
         Assert.Equal(NewDefinitionUrl, _added.DefinitionUrl);
-        Assert.Equal(DateTimeOffset.Parse(NewSignedAt), _added.IdentityProofSignedAt);
+        Assert.Equal(DateTimeOffset.Parse(NewSignedAt, CultureInfo.InvariantCulture), _added.IdentityProofSignedAt);
         Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
     }
 
@@ -237,7 +238,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
         Assert.NotNull(_updated);
         Assert.Equal(NewDefinitionUrl, _updated.DefinitionUrl);
         Assert.Equal(TrustLevel.Trusted, _updated.TrustLevel);
-        Assert.Equal(DateTimeOffset.Parse(NewSignedAt), _updated.IdentityProofSignedAt);
+        Assert.Equal(DateTimeOffset.Parse(NewSignedAt, CultureInfo.InvariantCulture), _updated.IdentityProofSignedAt);
         Assert.Equal(TrustOf(_genuineKey).PublicKey.Fingerprint, _keyStore.Keys[PublisherId].PublicKey.Fingerprint);
     }
 
@@ -848,7 +849,7 @@ public sealed class SubscriptionConfirmationCollisionTests : IDisposable
             DefinitionUrl = OldDefinitionUrl,
             TrustLevel = TrustLevel.Trusted,
             CachedCatalogHash = "old-hash",
-            IdentityProofSignedAt = proofSignedAt is null ? null : DateTimeOffset.Parse(proofSignedAt),
+            IdentityProofSignedAt = proofSignedAt is null ? null : DateTimeOffset.Parse(proofSignedAt, CultureInfo.InvariantCulture),
         };
 
     private static PublisherDefinition SignedDefinition(string definitionUrl, RSA key, string signedAt) =>

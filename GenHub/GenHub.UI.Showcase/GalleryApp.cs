@@ -20,13 +20,13 @@ internal sealed class GalleryApp : Application
     /// <inheritdoc/>
     public override void Initialize()
     {
-        this.RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark;
-        this.Resources.MergedDictionaries.Add(new ResourceInclude(new Uri("avares://GenHub/"))
+        RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark;
+        Resources.MergedDictionaries.Add(new ResourceInclude(new Uri("avares://GenHub/"))
         {
             Source = new Uri("avares://GenHub/Assets/Styles/ThemeResources.axaml"),
         });
-        this.Styles.Add(new FluentTheme());
-        this.Styles.Add(new StyleInclude(new Uri("avares://GenHub/"))
+        Styles.Add(new FluentTheme());
+        Styles.Add(new StyleInclude(new Uri("avares://GenHub/"))
         {
             Source = new Uri("avares://GenHub/Assets/Styles/ButtonStyles.axaml"),
         });
@@ -35,7 +35,7 @@ internal sealed class GalleryApp : Application
     /// <inheritdoc/>
     public override void OnFrameworkInitializationCompleted()
     {
-        if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = CreateWindow();
         }
@@ -64,11 +64,11 @@ internal sealed class GalleryApp : Application
             var theme = ThemeConstants.AllThemes.FirstOrDefault(t => t.Id == themes.SelectedItem as string)
                 ?? ThemeConstants.DefaultTheme;
             var actionColors = ActionButtonPalette.CreateBrushes(Color.Parse(theme.PrimaryHex));
-            application.Resources["ActionPrimaryRestBrush"] = actionColors.Normal;
-            application.Resources["ActionPrimaryHoverBrush"] = actionColors.Hover;
-            application.Resources["ActionPrimaryPressedBrush"] = actionColors.Pressed;
-            application.Resources["AccentBrush"] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
-            application.Resources["AccentLightBrush"] = new SolidColorBrush(Color.Parse(theme.LightHex));
+            application.Resources[ThemeResourceKeys.ActionPrimaryRestBrush] = actionColors.Normal;
+            application.Resources[ThemeResourceKeys.ActionPrimaryHoverBrush] = actionColors.Hover;
+            application.Resources[ThemeResourceKeys.ActionPrimaryPressedBrush] = actionColors.Pressed;
+            application.Resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(Color.Parse(theme.PrimaryHex));
+            application.Resources[ThemeResourceKeys.AccentLightBrush] = new SolidColorBrush(Color.Parse(theme.LightHex));
         };
         body.Children.Add(themes);
         body.Children.Add(Label("Actions · hover, press, Tab and Enter to inspect states", 16));
@@ -100,12 +100,12 @@ internal sealed class GalleryApp : Application
         body.Children.Add(Label("Utility icons · 16px glyph / 32px minimum target", 16));
         body.Children.Add(icons);
         body.Children.Add(Label("Localization and narrow layouts · resize the window", 16));
-        foreach (var text in new[] { "Установить необходимые компоненты", "تثبيت العناصر المطلوبة" })
+        foreach (var (text, direction) in new[] { ("Установить необходимые компоненты", FlowDirection.LeftToRight), ("تثبيت العناصر المطلوبة", FlowDirection.RightToLeft) })
         {
             var button = Action("action-primary", string.Empty, false);
             button.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
             button.Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap };
-            button.FlowDirection = text[0] > 0x600 && text[0] < 0x700 ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+            button.FlowDirection = direction;
             body.Children.Add(button);
         }
 

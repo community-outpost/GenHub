@@ -54,6 +54,9 @@ public class UserSettings
     /// <summary>Gets or sets the sorting mode for game profiles on the launcher screen.</summary>
     public ProfileSortMode ProfileSortMode { get; set; } = ProfileSortMode.LastPlayed;
 
+    /// <summary>Gets or sets the outcome of the most recent completed game installation scan.</summary>
+    public InstallationScanOutcome LastInstallationScanOutcome { get; set; } = InstallationScanOutcome.NotScanned;
+
     /// <summary>Gets or sets the last selected navigation tab.</summary>
     public NavigationTab LastSelectedTab { get; set; } = NavigationTab.Home;
 
@@ -257,6 +260,7 @@ public class UserSettings
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
             ProfileSortMode = ProfileSortMode,
+            LastInstallationScanOutcome = LastInstallationScanOutcome,
             LastSelectedTab = LastSelectedTab,
             MaxConcurrentDownloads = MaxConcurrentDownloads,
             AllowBackgroundDownloads = AllowBackgroundDownloads,

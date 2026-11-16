@@ -18,9 +18,9 @@ public class ProfileActionStyleTests
 {
     /// <summary>The wizard footer uses action roles and still confirms the selected setup choices.</summary>
     [AvaloniaFact]
-    public void WizardFooter_RetainsConfirmAndCancelCommands()
+    public void WizardFooter_RetainsConfirmAndBackCommands()
     {
-        var viewModel = new SetupWizardViewModel([]);
+        var viewModel = new SetupWizardViewModel([]) { IsCustomizing = true };
         var window = new SetupWizardView { DataContext = viewModel };
         window.Show();
         try
@@ -28,13 +28,13 @@ public class ProfileActionStyleTests
             Dispatcher.UIThread.RunJobs();
             var buttons = window.GetVisualDescendants().OfType<Button>().ToArray();
             var confirm = Assert.Single(buttons, button => button.Classes.Contains("action-primary"));
-            var cancel = Assert.Single(buttons, button => button.Classes.Contains("action-secondary"));
+            var back = Assert.Single(buttons, button => button.Classes.Contains("action-secondary"));
             Assert.Same(viewModel.ConfirmCommand, confirm.Command);
-            Assert.Same(viewModel.CancelCommand, cancel.Command);
+            Assert.Same(viewModel.BackCommand, back.Command);
+            back.Command!.Execute(back.CommandParameter);
+            Assert.False(viewModel.IsCustomizing);
             confirm.Command!.Execute(confirm.CommandParameter);
             Assert.True(viewModel.Confirmed);
-            cancel.Command!.Execute(cancel.CommandParameter);
-            Assert.False(viewModel.Confirmed);
         }
         finally
         {

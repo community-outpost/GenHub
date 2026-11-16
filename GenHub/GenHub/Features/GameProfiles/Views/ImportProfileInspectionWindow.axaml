@@ -366,7 +366,7 @@
                                                                     Command="{Binding ToggleExpandCommand}"
                                                                     VerticalAlignment="Center"
                                                                     ToolTip.Tip="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}"
-                                                                    Classes="action-secondary" AutomationProperties.Name="{localization:Localize GameProfiles.ImportInspection.Tooltip.Details}">
+                                                                    Classes="action-secondary action-compact" AutomationProperties.Name="{localization:Localize GameProfiles.ImportInspection.Button.Details}">
                                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                                     <TextBlock Text="{localization:Localize GameProfiles.ImportInspection.Button.Details}"
 

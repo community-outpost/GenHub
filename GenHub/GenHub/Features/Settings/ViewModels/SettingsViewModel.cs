@@ -32,6 +32,7 @@ using GenHub.Core.Models.Steam;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Settings.Models;
 using GenHub.Infrastructure.DependencyInjection;
@@ -337,6 +338,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private LanguageOption? _selectedLanguage;
 
     /// <summary>
+    /// Gets the shared profile actions exposed in game configuration settings.
+    /// </summary>
+    public GameProfileLauncherViewModel? ProfileLibraryActions { get; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
     /// <param name="userSettingsService">The user settings service.</param>
@@ -361,6 +367,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="subscriptionStore">The publisher subscription store.</param>
     /// <param name="catalogRefreshService">The publisher catalog refresh service.</param>
     /// <param name="localizationService">The localization service for language management.</param>
+    /// <param name="profileLibraryActions">The shared profile library commands for import and installation scanning.</param>
     /// <param name="steamWorkshopAccountAuthService">Steam account authentication service for 1-click in-app workshop downloads.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
@@ -385,7 +392,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IPublisherSubscriptionStore? subscriptionStore = null,
         IPublisherCatalogRefreshService? catalogRefreshService = null,
         ILocalizationService? localizationService = null,
-        ISteamWorkshopAccountAuthService? steamWorkshopAccountAuthService = null)
+        ISteamWorkshopAccountAuthService? steamWorkshopAccountAuthService = null,
+        GameProfileLauncherViewModel? profileLibraryActions = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -409,6 +417,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _subscriptionStore = subscriptionStore;
         _catalogRefreshService = catalogRefreshService;
         _steamWorkshopAccountAuthService = steamWorkshopAccountAuthService;
+        ProfileLibraryActions = profileLibraryActions;
         _ = RefreshSteamAccountStateAsync();
 
         _subscriptions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowNoSubscriptions));
