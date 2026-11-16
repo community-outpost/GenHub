@@ -203,10 +203,9 @@
 
         <!-- Footer -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-             <TextBlock Text="{Binding ValidationError}"
-                        Foreground="{DynamicResource StatusErrorBrush}"
+             <TextBlock Classes="dialog-error"
+                        Text="{Binding ValidationError}"
                         VerticalAlignment="Center"
-                        TextWrapping="Wrap"
                         MaxWidth="300"
                         Margin="0,0,12,0"/>
 

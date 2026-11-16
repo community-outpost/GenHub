@@ -44,11 +44,9 @@
                                          PreviewToolTip="{localization:Localize Tools.PublisherStudio.Profile.AvatarDropTooltip}"
                                          DropHandler="{Binding HandleIconDropAsync}"/>
 
-            <TextBlock Text="{Binding ValidationError}"
-                       Foreground="{DynamicResource StatusErrorBrush}"
-                       FontSize="12"
-                       IsVisible="{Binding !IsValid}"
-                       TextWrapping="Wrap"/>
+            <TextBlock Classes="dialog-error"
+                       Text="{Binding ValidationError}"
+                       IsVisible="{Binding !IsValid}"/>
         </StackPanel>
 
         <!-- Actions -->
