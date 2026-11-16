@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
@@ -23,6 +25,7 @@ public partial class GameProfileLauncherView : UserControl
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DoubleTappedEvent, OnProfileRowDoubleTapped);
     }
 
     /// <summary>
@@ -72,6 +75,22 @@ public partial class GameProfileLauncherView : UserControl
     private void InitializeComponent()
     {
         Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnProfileRowDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Source is not Visual source ||
+            source.FindAncestorOfType<Button>(includeSelf: true) != null ||
+            source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { DataContext: GameProfileItemViewModel profile })
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (!profile.IsProcessRunning && !profile.IsPreparingWorkspace && profile.LaunchProfileCommand.CanExecute(null))
+        {
+            profile.LaunchProfileCommand.Execute(null);
+        }
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)
