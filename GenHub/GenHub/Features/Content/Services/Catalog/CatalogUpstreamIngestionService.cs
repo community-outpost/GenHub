@@ -190,6 +190,18 @@ public class CatalogUpstreamIngestionService(
     }
 
     /// <summary>
+    /// Determines whether the item's recognised asset rules all target other platforms, so no
+    /// upstream release can supply an asset for the host.
+    /// </summary>
+    private static bool HasNoRuleForHost(CatalogUpstreamSync? sync, string hostRuntimeIdentifier)
+    {
+        var rules = (sync?.AssetRules ?? [])
+            .Where(r => RuntimePlatformMatcher.IsRecognised(r.Platform))
+            .ToList();
+        return rules.Count > 0 && !rules.Any(r => r.SupportsRuntime(hostRuntimeIdentifier));
+    }
+
+    /// <summary>
     /// Adds an artifact for each asset matched by a rule that applies to the host, preferring
     /// a host-specific rule over a platform-neutral one. An asset that any other platform's
     /// rule matches is skipped, so neither a catch-all pattern nor overlapping platform
@@ -651,6 +663,18 @@ public class CatalogUpstreamIngestionService(
         var release = await FetchGitHubReleaseAsync(parts[0], parts[1], isTrackPrerelease, cacheKey, cancellationToken);
         if (release == null)
         {
+            if (HasNoRuleForHost(sync, HostRuntimeIdentifier))
+            {
+                logger.LogInformation(
+                    "No upstream release found for repository '{Repo}' and item '{ItemId}' has no asset rule for runtime '{RuntimeIdentifier}', withholding the item on this platform",
+                    repo,
+                    item.Id,
+                    HostRuntimeIdentifier);
+                item.Releases.Clear();
+                item.IsWithheldOnHost = true;
+                return;
+            }
+
             logger.LogWarning("No upstream release found for repository '{Repo}' on item '{ItemId}'", repo, item.Id);
             return;
         }

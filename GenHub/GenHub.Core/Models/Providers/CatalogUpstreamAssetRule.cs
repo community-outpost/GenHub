@@ -37,6 +37,8 @@ public class CatalogUpstreamAssetRule
     /// Gets or sets the platform the matching assets run on: an OS family (<c>windows</c>,
     /// <c>macos</c>, <c>linux</c>) or runtime OS name (<c>win</c>, <c>osx</c>), optionally
     /// followed by an architecture (<c>win-x64</c>, <c>osx-arm64</c>, <c>macos-arm64</c>).
+    /// A numeric OS version (<c>osx.13-arm64</c>) and a Linux qualifier (<c>linux-musl-x64</c>)
+    /// are accepted but not compared with the host. See <see cref="RuntimePlatformMatcher"/>.
     /// <c>null</c> matches every host.
     /// </summary>
     [JsonPropertyName("platform")]

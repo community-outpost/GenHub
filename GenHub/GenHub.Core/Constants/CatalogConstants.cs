@@ -588,8 +588,10 @@ public static class CatalogConstants
 
     /// <summary>
     /// Tokens accepted by an upstream asset rule's platform: an OS family
-    /// (<c>windows</c>, <c>macos</c>, <c>linux</c>) or a .NET runtime identifier
-    /// (<c>win-x64</c>, <c>osx-arm64</c>, <c>linux-x64</c>).
+    /// (<c>windows</c>, <c>macos</c>, <c>linux</c>) or runtime OS name (<c>win</c>, <c>osx</c>),
+    /// optionally followed by an architecture (<c>win-x64</c>, <c>macos-arm64</c>).
+    /// A numeric OS version may follow the OS name (<c>osx.13-arm64</c>), and Linux accepts
+    /// a qualifier before the architecture (<c>linux-musl-x64</c>).
     /// </summary>
     public static class AssetPlatforms
     {

@@ -324,6 +324,65 @@ public sealed class CatalogUpstreamPlatformRuleTests
         Assert.Same(staticRelease, Assert.Single(item.Releases));
     }
 
+    /// <summary>
+    /// When no upstream release can be fetched, an item whose rules all target other platforms is
+    /// withheld, while a host the rules cover keeps its static releases as before.
+    /// </summary>
+    /// <param name="host">The host runtime identifier.</param>
+    /// <param name="isWithheld">Whether the item should be withheld on the host.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("linux-x64", true)]
+    [InlineData("win-x64", false)]
+    public async Task IngestCatalogAsync_NoUpstreamRelease_WithholdsOnlyWhenNoRuleSupportsHostAsync(string host, bool isWithheld)
+    {
+        _gitHubClientMock
+            .Setup(c => c.GetLatestReleaseAsync(Owner, Repo, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease)null!);
+        var item = CreateItem(new CatalogUpstreamSync
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            AssetRules = [new CatalogUpstreamAssetRule { Pattern = @"^GeneralsZH-win64\.zip$", Platform = "windows" }],
+        });
+        var staticRelease = CreateStaticRelease();
+        item.Releases.Add(staticRelease);
+
+        await CreateService(host).IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
+
+        Assert.Equal(isWithheld, item.IsWithheldOnHost);
+        if (isWithheld)
+        {
+            Assert.Empty(item.Releases);
+        }
+        else
+        {
+            Assert.Same(staticRelease, Assert.Single(item.Releases));
+        }
+    }
+
+    /// <summary>
+    /// A withheld bundle is not given a synthetic release after ingestion, so it stays hidden on the host.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IngestCatalogAsync_WithheldBundle_IsNotHydratedAsync()
+    {
+        var item = CreateItem(new CatalogUpstreamSync
+        {
+            Provider = CatalogConstants.UpstreamProviders.GitHubReleases,
+            Repository = $"{Owner}/{Repo}",
+            AssetRules = [new CatalogUpstreamAssetRule { Pattern = @"^GeneralsZH-win64\.zip$", Platform = "windows" }],
+        });
+        item.ContentType = ContentType.ContentBundle;
+        item.BundledItems = [new CatalogDependency { ContentId = "other-item" }];
+
+        await CreateService("linux-x64").IngestCatalogAsync(CreateCatalog(item), CancellationToken.None);
+
+        Assert.True(item.IsWithheldOnHost);
+        Assert.Empty(item.Releases);
+    }
+
     private static GitHubRelease CreateRelease(IEnumerable<string> assetNames) => new()
     {
         TagName = "v2026.11.16.1835",

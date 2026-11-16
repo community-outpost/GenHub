@@ -125,7 +125,7 @@ public static class CatalogBundleComponentBuilder
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        foreach (var item in items.Where(i => (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
+        foreach (var item in items.Where(i => !i.IsWithheldOnHost && (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
         {
             item.Releases ??= [];
             var bundleRelease = new ContentRelease
@@ -178,6 +178,11 @@ public static class CatalogBundleComponentBuilder
         out bool isSyntheticPlaceholder)
     {
         isSyntheticPlaceholder = false;
+        if (sibling.IsWithheldOnHost)
+        {
+            return null;
+        }
+
         var siblingRelease = SelectRelease(sibling, versionConstraint);
         if (siblingRelease != null)
         {
@@ -187,7 +192,7 @@ public static class CatalogBundleComponentBuilder
         var isConstraintLatestOrEmpty = string.IsNullOrWhiteSpace(versionConstraint) ||
                                         string.Equals(versionConstraint.Trim(), CatalogConstants.LatestVersionToken, StringComparison.OrdinalIgnoreCase);
 
-        if (!isConstraintLatestOrEmpty || sibling.IsWithheldOnHost)
+        if (!isConstraintLatestOrEmpty)
         {
             return null;
         }

@@ -10,7 +10,10 @@ namespace GenHub.Core.Helpers;
 /// OS family (<c>windows</c>, <c>macos</c>, <c>linux</c>) or runtime OS name (<c>win</c>, <c>osx</c>),
 /// which matches every architecture, or either one with an architecture (<c>win-x64</c>,
 /// <c>osx-arm64</c>, <c>macos-arm64</c>), which also requires the architecture to match.
-/// A version after the OS name must be numeric (<c>osx.13-arm64</c>).
+/// A version after the OS name must be numeric (<c>osx.13-arm64</c>), and Linux accepts a
+/// <c>musl</c> or <c>bionic</c> qualifier before the architecture (<c>linux-musl-x64</c>).
+/// Versions and qualifiers are accepted so runtime identifiers parse, but they are not compared
+/// with the host.
 /// </summary>
 public static class RuntimePlatformMatcher
 {
