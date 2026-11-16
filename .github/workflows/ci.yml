@@ -658,7 +658,7 @@ jobs:
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
-              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
               if ($LASTEXITCODE -ne 0) {
                 throw "Test failed for $($testProject.FullName)"
               }
@@ -701,7 +701,7 @@ jobs:
           for test_project in ${{ env.TEST_PROJECTS }}; do
             [[ "$test_project" == *Windows* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
-            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
           done
 
   test-macos:
@@ -744,7 +744,7 @@ jobs:
             [[ -z "$test_project" ]] && continue
             [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
-            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
             test_count=$((test_count + 1))
           done <<< "$test_projects"
           if [ "$test_count" -eq 0 ]; then
@@ -830,7 +830,8 @@ jobs:
           dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
             --filter "FullyQualifiedName~EngineLaunchSmokeTests" \
-            --verbosity normal
+            --verbosity minimal \
+            --logger "console;verbosity=normal"
 
   summary:
     name: Build Summary
