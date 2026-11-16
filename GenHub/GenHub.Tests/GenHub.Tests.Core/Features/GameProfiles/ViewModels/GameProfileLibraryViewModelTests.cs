@@ -554,8 +554,8 @@ public class GameProfileLibraryViewModelTests
         var selected = CreateProfile("selected", "Selected");
         var other = CreateProfile("other", "Other");
         var launched = new List<GameProfileItemViewModel>();
-        selected.LaunchAction = profile => RecordLaunch(launched, profile);
-        other.LaunchAction = profile => RecordLaunch(launched, profile);
+        selected.LaunchAction = profile => RecordLaunchAsync(launched, profile);
+        other.LaunchAction = profile => RecordLaunchAsync(launched, profile);
         vm.Profiles.Add(selected);
         vm.Profiles.Add(other);
         vm.SelectedProfile = selected;
@@ -586,7 +586,7 @@ public class GameProfileLibraryViewModelTests
         var vm = CreateViewModel();
         var profile = CreateProfile("padded", "Padded");
         var launched = new List<GameProfileItemViewModel>();
-        profile.LaunchAction = item => RecordLaunch(launched, item);
+        profile.LaunchAction = item => RecordLaunchAsync(launched, item);
         vm.Profiles.Add(profile);
         var view = new GameProfileLauncherView { DataContext = vm };
         var window = new Window { Width = 1200, Height = 800, Content = view };
@@ -619,7 +619,7 @@ public class GameProfileLibraryViewModelTests
         var vm = CreateViewModel();
         var profile = CreateProfile("idle", "Idle");
         var launched = new List<GameProfileItemViewModel>();
-        profile.LaunchAction = item => RecordLaunch(launched, item);
+        profile.LaunchAction = item => RecordLaunchAsync(launched, item);
         vm.Profiles.Add(profile);
         var view = new GameProfileLauncherView { DataContext = vm };
         var window = new Window { Width = 1200, Height = 800, Content = view };
@@ -690,7 +690,7 @@ public class GameProfileLibraryViewModelTests
         var vm = CreateViewModel();
         var profile = CreateProfile("busy", "Busy");
         var launched = new List<GameProfileItemViewModel>();
-        profile.LaunchAction = item => RecordLaunch(launched, item);
+        profile.LaunchAction = item => RecordLaunchAsync(launched, item);
         profile.IsProcessRunning = running;
         profile.IsPreparingWorkspace = !running;
         vm.Profiles.Add(profile);
@@ -754,7 +754,7 @@ public class GameProfileLibraryViewModelTests
     private static Border GetRow(GameProfileLauncherView view, GameProfileItemViewModel profile) =>
         view.GetVisualDescendants().OfType<Border>().Single(control => ReferenceEquals(control.DataContext, profile) && control.Classes.Contains("library-row"));
 
-    private static Task RecordLaunch(List<GameProfileItemViewModel> launched, GameProfileItemViewModel profile)
+    private static Task RecordLaunchAsync(List<GameProfileItemViewModel> launched, GameProfileItemViewModel profile)
     {
         launched.Add(profile);
         return Task.CompletedTask;

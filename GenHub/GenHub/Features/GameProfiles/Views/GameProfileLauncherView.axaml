@@ -48,10 +48,10 @@
                     <Grid ColumnDefinitions="42,*,Auto">
                         <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="32" Height="32" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="13" FontWeight="Medium" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Classes="action-primary library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
+                        <Button Grid.Column="2" Classes="action-primary icon-action library-row-action library-row-play" Command="{Binding LaunchProfileCommand}" IsVisible="{Binding !IsProcessRunning}" IsEnabled="{Binding !IsPreparingWorkspace}" ToolTip.Tip="{Binding LibraryLaunchMethod}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Play}">
                             <material:MaterialIcon Kind="Play" Width="16" Height="16"/>
                         </Button>
-                        <Button Grid.Column="2" Classes="action-danger library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
+                        <Button Grid.Column="2" Classes="action-danger icon-action library-row-action library-row-stop" Command="{Binding StopProfileCommand}" IsVisible="{Binding IsProcessRunning}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Action.Stop}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}">
                             <material:MaterialIcon Kind="Stop" Width="16" Height="16"/>
                         </Button>
                     </Grid>
