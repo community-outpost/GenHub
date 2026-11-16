@@ -79,10 +79,10 @@
     <Setter Property="Background" Value="{DynamicResource NavSelectedHoverFill}" />
     <Setter Property="Foreground" Value="{DynamicResource NavSelectedInk}" />
   </Style>
-  <!-- Profile targets and sidebar rows keep their profile accent outline while hovered or pressed. -->
   <Style Selector="Button.pill-tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.pill-tab.selected:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.nav-pill.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource NavSelectedHoverBorder}" />
   </Style>
+  <!-- Profile targets and sidebar rows keep their profile accent outline while hovered or pressed. -->
   <Style Selector="Button.tab-icon-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.active:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.tab-icon-btn.selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{ReflectionBinding $parent[Button].BorderBrush}" />
   </Style>

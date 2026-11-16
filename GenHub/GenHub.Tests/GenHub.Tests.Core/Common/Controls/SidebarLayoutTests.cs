@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Common.Controls;
@@ -139,5 +141,49 @@ public class SidebarLayoutTests
         {
             window.Close();
         }
+    }
+
+    /// <summary>
+    /// Verifies that a disabled selected row keeps the selected fill with disabled ink.
+    /// </summary>
+    [AvaloniaFact]
+    public void SidebarLayout_DisabledSelectedRow_KeepsSelectedFill()
+    {
+        var layout = new SidebarLayout
+        {
+            ItemsSource = new[] { "First", "Second" },
+            SelectedItem = "First",
+            Content = new TextBlock { Text = "Main Content" },
+        };
+
+        var window = new Window
+        {
+            Width = 800,
+            Height = 600,
+            Content = layout,
+        };
+
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var row = layout.GetVisualDescendants().OfType<ListBoxItem>().First(item => item.IsSelected);
+            row.IsEnabled = false;
+            Dispatcher.UIThread.RunJobs();
+
+            var presenter = row.GetVisualDescendants().OfType<ContentPresenter>().First();
+            Assert.Equal(ResourceColor("NavSelectedFill"), Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background).Color);
+            Assert.Equal(ResourceColor("NavDisabledInk"), Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Foreground).Color);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    private static Color ResourceColor(string key)
+    {
+        return ((ISolidColorBrush)Avalonia.Application.Current!.FindResource(key)!).Color;
     }
 }
