@@ -9,7 +9,7 @@
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="700"
         x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectItemPickerDialog"
         x:DataType="vm:ProjectItemPickerViewModel"
-        Title="Select Project Files &amp; Directories"
+        Title="{localization:Localize Tools.ModBuilder.ProjectItemPicker.Header}"
         Icon="/Assets/Icons/generalshub-icon.png"
         Width="920" Height="700"
         MinWidth="750" MinHeight="550"
@@ -123,16 +123,10 @@
                  FontSize="12" Foreground="{DynamicResource TextSecondary}"
                  VerticalAlignment="Center"/>
 
-      <Button Grid.Column="1" Content="{localization:Localize Common.Button.Cancel}" Click="OnCancelClick"
-              Background="{DynamicResource SurfaceElevatedBrush}"
-              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-              Padding="16,8" CornerRadius="8" Margin="0,0,8,0" Cursor="Hand"/>
+      <Button Classes="action-secondary" Grid.Column="1" Content="{localization:Localize Common.Button.Cancel}" Click="OnCancelClick" Margin="0,0,8,0"/>
 
-      <Button Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonApply}" Click="OnConfirmClick"
-              IsEnabled="{Binding !IsLoading}"
-              Background="{DynamicResource AccentBrush}" Foreground="White"
-              FontWeight="SemiBold"
-              Padding="16,8" CornerRadius="8" Cursor="Hand"/>
+      <Button Classes="action-primary" Grid.Column="2" Content="{localization:Localize Tools.ModBuilder.ProjectItemPicker.ButtonApply}" Click="OnConfirmClick"
+              IsEnabled="{Binding !IsLoading}"/>
     </Grid>
   </Grid>
 </controls:GenHubWindow>

@@ -21,37 +21,8 @@
 
   <UserControl.Styles>
     <!-- Dashboard Primary Button -->
-    <Style Selector="Button.dashboard-primary-btn">
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="Foreground" Value="White"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="FontSize" Value="13"/>
-      <Setter Property="Padding" Value="18,10"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Cursor" Value="Hand"/>
-      <Setter Property="BorderThickness" Value="0"/>
-    </Style>
-    <Style Selector="Button.dashboard-primary-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
-      <Setter Property="Foreground" Value="White"/>
-    </Style>
 
     <!-- Dashboard Secondary Button -->
-    <Style Selector="Button.dashboard-secondary-btn">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedDarkBrush}"/>
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleDarkBrush}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="FontSize" Value="13"/>
-      <Setter Property="Padding" Value="18,10"/>
-      <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="Cursor" Value="Hand"/>
-    </Style>
-    <Style Selector="Button.dashboard-secondary-btn:pointerover /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}"/>
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightDarkBrush}"/>
-    </Style>
 
     <!-- Action Cards -->
     <Style Selector="Border.action-card">
@@ -150,26 +121,22 @@
         <!-- Header Actions: Primary buttons always accessible -->
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <Button Command="{Binding NewProjectCommand}"
-                  Classes="dashboard-primary-btn"
+                  Classes="action-primary"
                   ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipNewProject}">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Path Width="14" Height="14"
-                    Fill="White"
+              <PathIcon
                     Data="{StaticResource IconAdd}"
-                    Stretch="Uniform"
                     VerticalAlignment="Center"/>
               <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonNewProject}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
 
           <Button Command="{Binding OpenProjectCommand}"
-                  Classes="dashboard-secondary-btn"
+                  Classes="action-secondary"
                   ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipOpenProject}">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Path Width="14" Height="14"
-                    Fill="{DynamicResource TextPrimary}"
+              <PathIcon
                     Data="{StaticResource IconFolder}"
-                    Stretch="Uniform"
                     VerticalAlignment="Center"/>
               <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonOpenProject}" VerticalAlignment="Center"/>
             </StackPanel>
@@ -607,15 +574,13 @@
                        HorizontalAlignment="Center"
                        TextAlignment="Center"/>
             <Button Command="{Binding LoadSampleProjectCommand}"
-                    Classes="dashboard-primary-btn"
+                    Classes="action-primary"
                     ToolTip.Tip="{localization:Localize Tools.ModBuilder.Dashboard.TooltipExploreTemplates}"
                     HorizontalAlignment="Center"
                     Margin="0,8,0,0">
               <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Path Width="14" Height="14"
-                      Fill="White"
+                <PathIcon
                       Data="{StaticResource IconPackage}"
-                      Stretch="Uniform"
                       VerticalAlignment="Center"/>
                 <TextBlock Text="{localization:Localize Tools.ModBuilder.Dashboard.ButtonExploreTemplates}" VerticalAlignment="Center"/>
               </StackPanel>

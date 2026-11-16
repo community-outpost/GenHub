@@ -15,18 +15,7 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <Style Selector="Button.glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
+
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto, *, Auto" Margin="24">
@@ -35,24 +24,12 @@
             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Referral.AddTitle}"
                        FontSize="20" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <Button Grid.Column="1"
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    Background="Transparent"
-                    Padding="8"
-                    CornerRadius="8"
-                    BorderThickness="0"
-                    VerticalAlignment="Top">
-                <PathIcon Data="{StaticResource CloseIcon}"
-                          Width="12" Height="12"
-                          Foreground="{DynamicResource TextSecondary}"/>
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-                    </Style>
-                    <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                    </Style>
-                </Button.Styles>
+                    VerticalAlignment="Top"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
             </Button>
         </Grid>
 
@@ -147,8 +124,7 @@
                                     Command="{Binding DiscoverPublisherCommand}"
                                     Content="{localization:Localize Tools.PublisherStudio.Referral.Discover}"
                                     Margin="8,0,0,0"
-                                    Classes="glass-btn"
-                                    Padding="12,8"
+                                    Classes="action-secondary"
                                     IsEnabled="{Binding !IsBusy}"/>
                             <ProgressBar Grid.Row="1" Grid.ColumnSpan="2"
                                          IsIndeterminate="True"
@@ -221,26 +197,9 @@
 
              <Button Content="{localization:Localize Downloads.ImportSubscription.Cancel}"
                      Command="{Binding CloseCommand}"
-                     Classes="glass-btn"
-                     Padding="24,12"/>
-             <Button Content="{localization:Localize Tools.PublisherStudio.Referral.AddButton}"
-                     Command="{Binding CreateReferralCommand}"
-                     Background="{DynamicResource PrimaryGradientBrush}"
-                     Foreground="{DynamicResource TextPrimary}"
-                     CornerRadius="8"
-                     Padding="32,12"
-                     FontWeight="Bold"
-                     BorderThickness="0">
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                        <Setter Property="Opacity" Value="0.85"/>
-                    </Style>
-                    <Style Selector="Button:disabled">
-                        <Setter Property="Opacity" Value="0.5"/>
-                    </Style>
-                </Button.Styles>
-            </Button>
+                     Classes="action-secondary"/>
+             <Button Classes="action-primary" Content="{localization:Localize Tools.PublisherStudio.Referral.AddButton}"
+                     Command="{Binding CreateReferralCommand}"/>
         </StackPanel>
     </Grid>
 </UserControl>

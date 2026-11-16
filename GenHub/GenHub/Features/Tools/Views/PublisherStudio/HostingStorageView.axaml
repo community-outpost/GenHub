@@ -12,47 +12,7 @@
              x:Name="RootView">
 
     <UserControl.Styles>
-        <Style Selector="Button.glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
-        <Style Selector="Button.primary-btn">
-            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="18,10"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.primary-btn:pointerover">
-            <Setter Property="Opacity" Value="0.85"/>
-        </Style>
-        <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillSubtleBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="10,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassStrongBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}"/>
-        </Style>
+
         <Style Selector="Button.column-header-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -199,23 +159,23 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <Button Classes="glass-btn"
+                    <Button Classes="action-secondary action-compact"
                             Command="{Binding OpenCloudFolderCommand}"
                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolderTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource FolderOpenIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                            <PathIcon Data="{StaticResource FolderOpenIcon}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OpenCloudFolder}"/>
                         </StackPanel>
                     </Button>
 
-                    <Button Classes="primary-btn"
+                    <Button Classes="action-primary action-compact"
                             Command="{Binding ScanCloudStorageCommand}"
                             IsEnabled="{Binding !IsScanningStorage}"
                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorageTip}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource RefreshIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
+                            <PathIcon Data="{StaticResource RefreshIcon}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Scanning}" IsVisible="{Binding IsScanningStorage}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanSyncStorage}" IsVisible="{Binding !IsScanningStorage}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -242,7 +202,7 @@
                     Margin="0,0,0,20">
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <Border Grid.Column="0" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource PrimaryGradientBrush}" VerticalAlignment="Center" Margin="0,0,14,0">
-                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="White"/>
+                        <PathIcon Data="{StaticResource CloudStorageIcon}" Width="18" Height="18" Foreground="{DynamicResource TextPrimary}"/>
                     </Border>
                     <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Title}"
@@ -250,14 +210,14 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Step1Desc}"
                                    FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Button Grid.Column="2" Classes="glass-btn"
+                    <Button Grid.Column="2" Classes="action-secondary action-compact"
                             Command="{Binding CreateNewProfileCommand}"
                             VerticalAlignment="Center"
                             Margin="14,0,0,0"
                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfileTip}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <PathIcon Data="{StaticResource PersonIcon}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <PathIcon Data="{StaticResource PersonIcon}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConfigureLocalProfile}"/>
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -287,18 +247,18 @@
                                    FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="14,0,0,0">
-                        <Button Classes="primary-btn"
+                        <Button Classes="action-primary action-compact"
                                 Command="{Binding PullPrimaryCloudDefinitionCommand}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionTip}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource DownloadIcon}" Width="14" Height="14" Foreground="White"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionAction}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                                <PathIcon Data="{StaticResource DownloadIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.PullDefinitionAction}"/>
                             </StackPanel>
                         </Button>
-                        <Button Classes="glass-btn"
+                        <Button Classes="action-secondary action-compact"
                                 Command="{Binding CreateNewProfileCommand}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfileTip}">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfile}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.OrCreateNewProfile}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -322,13 +282,13 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.NoDefinitionFoundDesc}"
                                    FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Button Grid.Column="2" Classes="primary-btn"
+                    <Button Grid.Column="2" Classes="action-primary action-compact"
                             Command="{Binding CreateNewProfileCommand}"
                             VerticalAlignment="Center"
                             Margin="14,0,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Data="{StaticResource PersonIcon}" Width="14" Height="14" Foreground="White"/>
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateProfileBtn}" FontSize="12" FontWeight="SemiBold" Foreground="White"/>
+                            <PathIcon Data="{StaticResource PersonIcon}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateProfileBtn}"/>
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -390,7 +350,8 @@
                             <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.StorageLocation}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningHighlightBrush}"/>
                         </StackPanel>
                         <TextBlock Text="{Binding ProviderDisplayName}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
-                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding HostingFolderPath}"/>
+                        <TextBlock Text="{Binding HostingFolderPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextTrimming="CharacterEllipsis"
+                                ToolTip.Tip="{Binding HostingFolderPath}"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -462,25 +423,29 @@
 
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource WarningHighlightBrush}" VerticalAlignment="Center"/>
-                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Command="{Binding OpenGoogleAuthPlatformConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthWizardTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthPlatform}" Command="{Binding OpenGoogleAuthPlatformConsoleCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenAuthWizardTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep2Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDS3Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusInfoBrush}" VerticalAlignment="Center"/>
-                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApi}" Command="{Binding OpenGoogleDriveApiConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApiTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApi}" Command="{Binding OpenGoogleDriveApiConsoleCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenDriveApiTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep3Desc}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
 
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
-                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Command="{Binding OpenGoogleCredentialsConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentialsTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentials}" Command="{Binding OpenGoogleCredentialsConsoleCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenCredentialsTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep4Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Title}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource StatusErrorBrush}" VerticalAlignment="Center"/>
-                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Command="{Binding OpenGoogleAudienceConsoleCommand}" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsersTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                                        <HyperlinkButton Content="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsers}" Command="{Binding OpenGoogleAudienceConsoleCommand}"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenTestUsersTip}" Foreground="{DynamicResource AccentColorBrush}" FontSize="11" Padding="0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.GDStep5Desc}" FontSize="11" Foreground="{DynamicResource WarningHighlightBrush}" TextWrapping="Wrap"/>
 
@@ -537,10 +502,11 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxRedirectUriLabel}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBox Text="{Binding DropboxRedirectUri, Mode=OneWay}" IsReadOnly="True" FontSize="11" FontFamily="Consolas,Menlo,monospace"/>
-                                        <Button Grid.Column="1" Command="{Binding CopyDropboxRedirectUriCommand}" Classes="small-glass-btn" Margin="8,0,0,0" ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip}">
+                                        <Button Grid.Column="1" Command="{Binding CopyDropboxRedirectUriCommand}" Classes="action-secondary action-compact" Margin="8,0,0,0"
+                                ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyRedirectUriTooltip}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <PathIcon Data="{StaticResource CopyIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                                <PathIcon Data="{StaticResource CopyIcon}"/>
+                                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>
@@ -548,16 +514,16 @@
 
                                 <!-- Action button to Dropbox console -->
                                 <WrapPanel Margin="0,4,0,0">
-                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="small-glass-btn" Margin="0,0,10,0">
+                                    <Button Command="{Binding OpenDropboxAppConsoleCommand}" Classes="action-secondary action-compact" Margin="0,0,10,0">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateDropboxApp}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.CreateDropboxApp}"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="small-glass-btn">
+                                    <Button Command="{Binding OpenDropboxCreateAppCommand}" Classes="action-secondary action-compact">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxDevSettings}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxDevSettings}"/>
                                         </StackPanel>
                                     </Button>
                                 </WrapPanel>
@@ -567,10 +533,10 @@
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthTitle}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
                                     <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.DropboxOAuthDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                     <TextBox Text="{Binding DropboxAppKey}" Watermark="{localization:Localize Tools.PublisherStudio.Hosting.DropboxAppKeyPlaceholder}" FontSize="12"/>
-                                    <Button Command="{Binding ConnectDropboxOAuthCommand}" Classes="small-glass-btn" IsEnabled="{Binding !IsAuthenticating}" HorizontalAlignment="Left">
+                                    <Button Command="{Binding ConnectDropboxOAuthCommand}" Classes="action-secondary action-compact" IsEnabled="{Binding !IsAuthenticating}" HorizontalAlignment="Left">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectWithDropbox}" Foreground="{DynamicResource AccentColorBrush}" FontSize="12" FontWeight="SemiBold"/>
+                                            <PathIcon Data="{StaticResource ExternalLinkIcon}"/>
+                                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectWithDropbox}"/>
                                         </StackPanel>
                                     </Button>
                                 </StackPanel>
@@ -587,28 +553,28 @@
 
                     <!-- Connection Action Buttons -->
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="primary-btn"
+                        <Button Classes="action-primary action-compact"
                                 Command="{Binding AuthenticateCommand}"
                                 IsEnabled="{Binding !IsAuthenticating}"
                                 IsVisible="{Binding !IsProviderAuthenticated}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProviderTip}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}" Width="14" Height="14" Foreground="{DynamicResource TextPrimary}"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}" FontSize="12" Foreground="{DynamicResource TextPrimary}"/>
+                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ConnectProvider}"/>
                             </StackPanel>
                         </Button>
 
-                        <Button Classes="glass-btn"
+                        <Button Classes="action-secondary action-compact"
                                 Command="{Binding SignOutCommand}"
                                 IsVisible="{Binding IsProviderAuthenticated}">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Disconnect}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Disconnect}"/>
                         </Button>
 
-                        <Button Classes="glass-btn"
+                        <Button Classes="action-secondary action-compact"
                                 Command="{Binding CancelAuthenticationCommand}"
                                 IsVisible="{Binding IsAuthenticating}"
                                 ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CancelAuthTip}">
-                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}" FontSize="12" Foreground="{DynamicResource ErrorBrush}"/>
+                            <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Cancel}"/>
                         </Button>
 
                         <ProgressBar IsIndeterminate="True" Width="100" Height="4"
@@ -636,14 +602,14 @@
                                 <TextBlock Text="{Binding HostedAssetsCountText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource StatusInfoBrush}"/>
                             </Border>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="action-secondary action-compact"
                                     Command="{Binding ScanCloudStorageCommand}"
                                     IsEnabled="{Binding !IsScanningStorage}"
                                     ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProviderTip}"
                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <PathIcon Data="{StaticResource RefreshIcon}" Width="12" Height="12" Foreground="{DynamicResource AccentColorBrush}"/>
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <PathIcon Data="{StaticResource RefreshIcon}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.ScanAndLoadProvider}"/>
                                 </StackPanel>
                             </Button>
                         </StackPanel>
@@ -653,93 +619,86 @@
                     <Grid ColumnDefinitions="*,Auto">
                         <!-- Category Filter Tabs -->
                         <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="All"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterAll}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterAll}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedAssets.Count}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedAssets.Count}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Definition"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterDefinitions}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterDefinitions}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedDefinitionCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedDefinitionCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Catalog"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterCatalogs}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterCatalogs}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedCatalogsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedCatalogsCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Artifact"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterArtifacts}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterArtifacts}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedArtifactsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedArtifactsCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Screenshot"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterScreenshots}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterScreenshots}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedScreenshotsCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedScreenshotsCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="Video"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterVideos}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterVideos}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding HostedVideosCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding HostedVideosCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
 
-                            <Button Classes="small-glass-btn"
+                            <Button Classes="filter-chip"
                                     Command="{Binding SetInventoryFilterCommand}"
                                     CommandParameter="ExternalCdn"
-                                    Padding="10,5"
                                     Margin="0,3,6,3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
-                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterExternalCdn}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.FilterExternalCdn}"/>
                                     <Border Background="{DynamicResource GlassFillBrush}" CornerRadius="10" Padding="5,1">
-                                        <TextBlock Text="{Binding ExternalCdnCount}" FontSize="10" Foreground="{DynamicResource TextSecondary}"/>
+                                        <TextBlock Text="{Binding ExternalCdnCount}"/>
                                     </Border>
                                 </StackPanel>
                             </Button>
@@ -814,7 +773,8 @@
                                         <!-- Column 1: File Name & URL -->
                                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Url}"
+                                            <TextBlock Text="{Binding Url}" FontSize="10" Foreground="{DynamicResource TextMuted}" TextTrimming="CharacterEllipsis"
+                                ToolTip.Tip="{Binding Url}"
                                                        IsVisible="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
 
@@ -822,7 +782,8 @@
                                         <TextBlock Grid.Column="2" Text="{Binding Category}" FontSize="12" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Column 3: Linked To -->
-                                        <TextBlock Grid.Column="3" Text="{Binding LinkedToText}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LinkedToTooltip}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding LinkedToText}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                ToolTip.Tip="{Binding LinkedToTooltip}"/>
 
                                         <!-- Column 4: File Size -->
                                         <TextBlock Grid.Column="4" Text="{Binding FileSizeFormatted}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
@@ -844,78 +805,78 @@
                                         <TextBlock Grid.Column="6" Text="{Binding Location}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- Column 7: Action Buttons -->
-                                        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" VerticalAlignment="Center" Width="260">
+                                        <WrapPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Width="260">
                                             <!-- Load to Project (for Cloud Definitions or Catalogs) -->
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-secondary action-compact"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).LoadAssetToProjectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanLoadToProject}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}"
-                                                    ToolTip.Tip="{Binding LoadButtonTooltip}">
+                                                    ToolTip.Tip="{Binding LoadButtonTooltip}" Margin="0,0,6,6">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource ToolIcon.Download}" Width="10" Height="10" Foreground="{DynamicResource StatusSuccessBrush}"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <PathIcon Data="{StaticResource ToolIcon.Download}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.LoadToProject}"/>
                                                 </StackPanel>
                                             </Button>
 
                                             <!-- Add to Catalog (for discovered Cloud Artifacts) -->
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-secondary action-compact"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).AddArtifactToActiveCatalogCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanAddToCatalog}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalogTip}">
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalogTip}" Margin="0,0,6,6">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="10" Height="10" Foreground="{DynamicResource StatusInfoBrush}"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <PathIcon Data="{StaticResource ToolIcon.Plus}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.AddToCatalog}"/>
                                                 </StackPanel>
                                             </Button>
 
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-secondary action-compact"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).UploadHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanUpload}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}">
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.UploadTip}" Margin="0,0,6,6">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Upload}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Upload}"/>
                                                 </StackPanel>
                                             </Button>
 
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-secondary action-compact"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).CopyAssetUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsVisible="{Binding !CanUpload}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}">
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.CopyDownloadLinkTip}" Margin="0,0,6,6">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                                    <PathIcon Data="{StaticResource CopyIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
-                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}" FontSize="10" Foreground="{DynamicResource TextPrimary}"/>
+                                                    <PathIcon Data="{StaticResource CopyIcon}"/>
+                                                    <TextBlock Text="{localization:Localize Tools.PublisherStudio.Hosting.Copy}"/>
                                                 </StackPanel>
                                             </Button>
 
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-secondary icon-action"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).OpenUrlInBrowserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding Url}"
                                                     IsVisible="{Binding !CanUpload}"
                                                     IsEnabled="{Binding Url, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}">
-                                                <PathIcon Data="{StaticResource ExternalLinkIcon}" Width="10" Height="10" Foreground="{DynamicResource AccentColorBrush}"/>
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.OpenUrlTip}" Margin="0,0,6,6">
+                                                <PathIcon Data="{StaticResource ExternalLinkIcon}"/>
                                             </Button>
 
-                                            <Button Classes="small-glass-btn"
+                                            <Button Classes="action-danger icon-action"
                                                     Command="{Binding ((vm:PublishShareViewModel)DataContext).DeleteHostedAssetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
                                                     IsVisible="{Binding CanDelete}"
                                                     IsEnabled="{Binding !IsDeleting}"
                                                     AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Hosting.DeleteAction}"
-                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.DeleteTip}">
-                                                <PathIcon Data="{StaticResource DeleteIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                                    ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Hosting.DeleteTip}" Margin="0,0,6,6">
+                                                <PathIcon Data="{StaticResource DeleteIcon}"/>
                                             </Button>
-                                        </StackPanel>
+                                        </WrapPanel>
                                     </Grid>
 
                                     <!-- Expanded linked items -->

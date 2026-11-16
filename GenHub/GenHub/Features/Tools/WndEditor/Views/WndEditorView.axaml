@@ -39,13 +39,11 @@
             CornerRadius="10" Padding="10,8" Margin="0,0,0,10">
       <Grid ColumnDefinitions="Auto,*,Auto">
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
+          <Button
                   ToolTip.Tip="{localization:Localize Tools.WndEditor.Toolbar.MenuTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Toolbar.MenuTooltip}">
-            <material:MaterialIcon Kind="Menu" Width="14" Height="14"/>
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Toolbar.MenuTooltip}"
+                  Classes="icon-action">
+            <material:MaterialIcon Kind="Menu"  />
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedLeft">
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Toolbar.New}"
@@ -165,13 +163,10 @@
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Button Content="{localization:Localize Tools.WndEditor.Assets.LinkMenu}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
-                  FontSize="11" FontWeight="SemiBold"
-                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.LinkTooltip}">
+          <Button
+                  Content="{localization:Localize Tools.WndEditor.Assets.LinkMenu}"
+                  ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.LinkTooltip}"
+                  Classes="action-secondary action-compact">
             <Button.Flyout>
               <MenuFlyout Placement="BottomEdgeAlignedRight">
                 <MenuItem Header="{localization:Localize Tools.WndEditor.Assets.LinkModFolder}"
@@ -214,14 +209,12 @@
                          FontSize="10" FontWeight="SemiBold"
                          Foreground="{DynamicResource AccentBrush}"
                          VerticalAlignment="Center"/>
-              <Button Command="{Binding ClearLinkedAssetsCommand}"
-                      Background="Transparent" BorderThickness="0"
-                      Padding="2,0"
-                      Cursor="Hand"
+              <Button
+                      Command="{Binding ClearLinkedAssetsCommand}"
                       AutomationProperties.Name="{localization:Localize Tools.WndEditor.Assets.Clear}"
-                      ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}">
-                <material:MaterialIcon Kind="Close" Width="10" Height="10"
-                                       Foreground="{DynamicResource AccentBrush}"/>
+                      ToolTip.Tip="{localization:Localize Tools.WndEditor.Assets.Clear}"
+                      Classes="icon-action">
+                <material:MaterialIcon Kind="Close" />
               </Button>
             </StackPanel>
           </Border>
@@ -251,32 +244,26 @@
                         AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ShowHiddenTooltip}">
             <material:MaterialIcon Kind="EyeOutline" Width="14" Height="14"/>
           </ToggleButton>
-          <Button Command="{Binding ZoomOutCommand}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
+          <Button
+                  Command="{Binding ZoomOutCommand}"
                   ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}">
-            <material:MaterialIcon Kind="MagnifyMinus" Width="14" Height="14"/>
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomOutTooltip}"
+                  Classes="icon-action">
+            <material:MaterialIcon Kind="MagnifyMinus"  />
           </Button>
-          <Button Command="{Binding ResetZoomCommand}"
-                  Padding="8,4" MinWidth="52"
-                  Background="Transparent"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
+          <Button
+                  Command="{Binding ResetZoomCommand}"
+                  MinWidth="52"
                   Content="{Binding ZoomDisplayText}"
-                  FontSize="11"
                   ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"/>
-          <Button Command="{Binding ZoomInCommand}"
-                  Padding="8,4"
-                  Background="{DynamicResource SurfaceElevatedBrush}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="6"
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomResetTooltip}"
+                  Classes="action-secondary action-compact"/>
+          <Button
+                  Command="{Binding ZoomInCommand}"
                   ToolTip.Tip="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}"
-                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}">
-            <material:MaterialIcon Kind="MagnifyPlus" Width="14" Height="14"/>
+                  AutomationProperties.Name="{localization:Localize Tools.WndEditor.Canvas.ZoomInTooltip}"
+                  Classes="icon-action">
+            <material:MaterialIcon Kind="MagnifyPlus"  />
           </Button>
         </StackPanel>
       </Grid>
@@ -296,20 +283,14 @@
                          Watermark="{localization:Localize Tools.WndEditor.Tree.FilterWatermark}"
                          FontSize="11" Margin="0,4,0,4"/>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
-                  <Button Command="{Binding ExpandAllNodesCommand}"
-                          Padding="8,4"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
+                  <Button
+                          Command="{Binding ExpandAllNodesCommand}"
                           Content="{localization:Localize Tools.WndEditor.Tree.ExpandAll}"
-                          FontSize="11"/>
-                  <Button Command="{Binding CollapseAllNodesCommand}"
-                          Padding="8,4"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
+                          Classes="action-secondary action-compact"/>
+                  <Button
+                          Command="{Binding CollapseAllNodesCommand}"
                           Content="{localization:Localize Tools.WndEditor.Tree.CollapseAll}"
-                          FontSize="11"/>
+                          Classes="action-secondary action-compact"/>
                 </StackPanel>
                 <Border Grid.Row="2"
                         BorderBrush="{DynamicResource BorderBrush}"
@@ -378,30 +359,20 @@
                   </TreeView>
                 </Border>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="6" Margin="0,10,0,0">
-                  <Button Command="{Binding AddChildWindowCommand}"
-                          Padding="8,4"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1" CornerRadius="6"
+                  <Button
+                          Command="{Binding AddChildWindowCommand}"
                           Content="{localization:Localize Tools.WndEditor.Tree.AddChild}"
-                          FontSize="11" FontWeight="SemiBold"/>
-                  <Button Command="{Binding DuplicateCommand}"
+                          Classes="action-secondary action-compact"/>
+                  <Button
+                          Command="{Binding DuplicateCommand}"
                           IsEnabled="{Binding CanDuplicate}"
-                          Padding="8,4"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1" CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Tree.Duplicate}"
-                          FontSize="11" FontWeight="SemiBold"/>
-                  <Button Command="{Binding DeleteCommand}"
+                          Classes="action-secondary action-compact"/>
+                  <Button
+                          Command="{Binding DeleteCommand}"
                           IsEnabled="{Binding SelectedNode, Converter={x:Static ObjectConverters.IsNotNull}}"
-                          Padding="8,4"
-                          Background="{DynamicResource ErrorBadgeBackgroundBrush}"
-                          Foreground="{DynamicResource ErrorBrush}"
-                          BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
-                          CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Tree.Delete}"
-                          FontSize="11" FontWeight="SemiBold"/>
+                          Classes="action-danger action-compact"/>
                 </StackPanel>
               </Grid>
             </TabItem>
@@ -411,31 +382,24 @@
             <TabItem Header="{localization:Localize Tools.WndEditor.Tabs.Assets}">
               <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="0,4,0,0">
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*" Margin="0,0,0,4">
-                  <Button Grid.Column="0"
+                  <Button
+                          Grid.Column="0"
                           Command="{Binding ImportTexturesWithDialogCommand}"
-                          Padding="8,4"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1" CornerRadius="6"
                           Content="{localization:Localize Tools.WndEditor.Assets.ImportTextures}"
-                          FontSize="11" FontWeight="SemiBold"/>
-                  <Button Grid.Column="1"
+                          Classes="action-secondary action-compact"/>
+                  <Button
+                          Grid.Column="1"
                           Command="{Binding PasteAssetFromClipboardCommand}"
-                          Padding="8,4" Margin="6,0,0,0"
-                          Background="{DynamicResource SurfaceElevatedBrush}"
-                          BorderBrush="{DynamicResource BorderBrush}"
-                          BorderThickness="1" CornerRadius="6"
+                          Margin="6,0,0,0"
                           Content="{localization:Localize Tools.WndEditor.Assets.Paste}"
                           ToolTip.Tip="{localization:Localize Tools.WndEditor.Toolbar.PasteTooltip}"
-                          FontSize="11" FontWeight="SemiBold"/>
-                  <Button Grid.Column="2"
+                          Classes="action-secondary action-compact"/>
+                  <Button
+                          Grid.Column="2"
                           Command="{Binding ReloadAssetsCommand}"
-                          Padding="8,4" Margin="6,0,0,0"
-                          Background="Transparent"
-                          BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                          CornerRadius="6"
+                          Margin="6,0,0,0"
                           Content="{localization:Localize Tools.WndEditor.Assets.Reload}"
-                          FontSize="11"/>
+                          Classes="action-secondary action-compact"/>
                 </Grid>
                 <TextBlock Grid.Row="1"
                            Text="{Binding AssetRootDisplayText}"
@@ -479,15 +443,14 @@
                                          VerticalAlignment="Center"
                                          TextTrimming="CharacterEllipsis"
                                          ToolTip.Tip="{Binding}"/>
-                              <Button Grid.Column="1" x:CompileBindings="False"
+                              <Button
+                                      Grid.Column="1"
+                                      x:CompileBindings="False"
                                       Command="{Binding ElementName=Root, Path=DataContext.ImportTextureForMissingCommand}"
                                       CommandParameter="{Binding}"
-                                      Padding="6,2" Margin="6,0,0,0"
-                                      Background="Transparent"
-                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                      CornerRadius="6"
+                                      Margin="6,0,0,0"
                                       Content="{localization:Localize Tools.WndEditor.Assets.ImportOne}"
-                                      FontSize="10"/>
+                                      Classes="action-secondary action-compact"/>
                             </Grid>
                           </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -809,27 +772,18 @@
                      Foreground="{DynamicResource TextSecondary}"
                      HorizontalAlignment="Center"/>
           <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-            <Button Command="{Binding OpenFolderCommand}"
-                    Padding="12,6"
-                    Background="{DynamicResource SurfaceElevatedBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="6"
+            <Button
+                    Command="{Binding OpenFolderCommand}"
                     Content="{localization:Localize Tools.WndEditor.Empty.OpenFolderButton}"
-                    FontSize="11" FontWeight="SemiBold"/>
-            <Button Command="{Binding OpenFileCommand}"
-                    Padding="12,6"
-                    Background="{DynamicResource SurfaceElevatedBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="6"
+                    Classes="action-secondary action-compact"/>
+            <Button
+                    Command="{Binding OpenFileCommand}"
                     Content="{localization:Localize Tools.WndEditor.Empty.OpenFileButton}"
-                    FontSize="11" FontWeight="SemiBold"/>
-            <Button Command="{Binding NewDocumentCommand}"
-                    Padding="12,6"
-                    Background="{DynamicResource SurfaceElevatedBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                    CornerRadius="6"
+                    Classes="action-secondary action-compact"/>
+            <Button
+                    Command="{Binding NewDocumentCommand}"
                     Content="{localization:Localize Tools.WndEditor.Empty.NewButton}"
-                    FontSize="11" FontWeight="SemiBold"/>
+                    Classes="action-primary action-compact"/>
           </StackPanel>
         </StackPanel>
       </Border>

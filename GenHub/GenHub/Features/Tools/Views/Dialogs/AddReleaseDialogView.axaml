@@ -47,19 +47,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
-        <Style Selector="Button.small-glass-btn">
-            <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-        <Style Selector="Button.small-glass-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource GlassBorderBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}"/>
-        </Style>
+
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*" Margin="20,14,20,14">
@@ -68,24 +56,12 @@
             <TextBlock Text="{Binding DialogTitle}"
                        FontSize="18" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimary}"/>
-            <Button Grid.Column="1"
+            <Button Classes="action-secondary icon-action" Grid.Column="1"
                     Command="{Binding CloseCommand}"
-                    Background="Transparent"
-                    Padding="8"
-                    CornerRadius="8"
-                    BorderThickness="0"
-                    VerticalAlignment="Top">
-                <PathIcon Data="{StaticResource CloseIcon}"
-                          Width="12" Height="12"
-                          Foreground="{DynamicResource TextMuted}"/>
-                <Button.Styles>
-                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource GlassFillBrush}"/>
-                    </Style>
-                    <Style Selector="Button:pointerover PathIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                    </Style>
-                </Button.Styles>
+                    VerticalAlignment="Top"
+                    AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+                    ToolTip.Tip="{localization:Localize Common.Button.Close}">
+                <PathIcon Data="{StaticResource CloseIcon}"/>
             </Button>
         </Grid>
 
@@ -121,7 +97,7 @@
                          <TextBox Text="{Binding Version}" Watermark="{localization:Localize Tools.PublisherStudio.Release.VersionPlaceholder}"/>
                          <Button Grid.Column="2" Content="{localization:Localize Tools.PublisherStudio.Release.Suggest}"
                                  Command="{Binding ApplySuggestedVersionCommand}"
-                                 Classes="small-glass-btn"/>
+                                 Classes="action-secondary action-compact"/>
                     </Grid>
                 </StackPanel>
 
@@ -154,10 +130,10 @@
                         </StackPanel>
                         <Button Grid.Column="1"
                                 Command="{Binding AddArtifactCommand}"
-                                Classes="small-glass-btn">
+                                Classes="action-secondary action-compact">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddArtifact}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -200,22 +176,19 @@
                                              </Border>
                                          </StackPanel>
                                      </StackPanel>
-                                     <Button Grid.Column="1"
+                                     <Button Classes="action-secondary icon-action" Grid.Column="1"
                                              Command="{ReflectionBinding DataContext.EditArtifactCommand, ElementName=Root}"
                                              CommandParameter="{Binding}"
-                                             Background="Transparent"
-                                             BorderThickness="0"
-                                             Padding="8"
-                                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Release.EditArtifactTooltip}">
-                                         <PathIcon Data="{StaticResource EditIcon}" Width="12" Height="12" Foreground="{DynamicResource TextSecondary}"/>
+                                             ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Release.EditArtifactTooltip}"
+                                             AutomationProperties.Name="{localization:Localize Tools.PublisherStudio.Release.EditArtifactTooltip}">
+                                         <PathIcon Data="{StaticResource EditIcon}"/>
                                      </Button>
-                                     <Button Grid.Column="2"
+                                     <Button Classes="action-danger icon-action" Grid.Column="2"
                                              Command="{ReflectionBinding DataContext.RemoveArtifactCommand, ElementName=Root}"
                                              CommandParameter="{Binding}"
-                                             Background="Transparent"
-                                             BorderThickness="0"
-                                             Padding="8">
-                                         <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                             AutomationProperties.Name="{localization:Localize Common.Button.Remove}"
+                                             ToolTip.Tip="{localization:Localize Common.Button.Remove}">
+                                         <PathIcon Data="{StaticResource CloseIcon}"/>
                                      </Button>
                                  </Grid>
                              </DataTemplate>
@@ -290,10 +263,10 @@
                         <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.Dependencies}" Classes="label" VerticalAlignment="Center"/>
                         <Button Grid.Column="1"
                                 Command="{Binding AddDependencyCommand}"
-                                Classes="small-glass-btn">
+                                Classes="action-secondary action-compact">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource AddIcon}" Width="10" Height="10" Foreground="{DynamicResource TextPrimary}"/>
-                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddDependency}" FontSize="11" Foreground="{DynamicResource TextPrimary}"/>
+                                <PathIcon Data="{StaticResource AddIcon}"/>
+                                <TextBlock Text="{localization:Localize Tools.PublisherStudio.Release.AddDependency}"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -306,13 +279,12 @@
                                          <TextBlock Text="{Binding ContentId}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                          <TextBlock Text="{Binding VersionConstraint, StringFormat='v{0}'}" FontSize="11" Foreground="{DynamicResource TextSecondary}"/>
                                      </StackPanel>
-                                      <Button Grid.Column="1"
+                                      <Button Classes="action-danger icon-action" Grid.Column="1"
                                               Command="{ReflectionBinding DataContext.RemoveDependencyCommand, ElementName=Root}"
                                               CommandParameter="{Binding}"
-                                              Background="Transparent"
-                                              BorderThickness="0"
-                                              Padding="8">
-                                          <PathIcon Data="{StaticResource CloseIcon}" Width="10" Height="10" Foreground="{DynamicResource StatusErrorBrush}"/>
+                                              AutomationProperties.Name="{localization:Localize Common.Button.Remove}"
+                                              ToolTip.Tip="{localization:Localize Common.Button.Remove}">
+                                          <PathIcon Data="{StaticResource CloseIcon}"/>
                                       </Button>
                                  </Grid>
                              </DataTemplate>
@@ -391,42 +363,18 @@
                 BoxShadow="{DynamicResource FlyoutElevationShadow}">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <!-- Delete Button (Only in Edit Mode) -->
-                <Button Command="{Binding DeleteReleaseCommand}"
+                <Button Classes="action-danger" Command="{Binding DeleteReleaseCommand}"
                         IsVisible="{Binding IsEditMode}"
-                        Background="{DynamicResource StatusErrorBadgeBackgroundBrush}"
-                        BorderBrush="{DynamicResource StatusErrorBrush}"
-                        BorderThickness="1"
-                        CornerRadius="7"
-                        Padding="14,7"
-                        Cursor="Hand"
                         ToolTip.Tip="{localization:Localize Tools.PublisherStudio.Library.DeleteReleaseTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <PathIcon Data="{StaticResource DeleteIcon}" Width="13" Height="13" Foreground="{DynamicResource StatusErrorBrush}"/>
-                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"
-                                   Foreground="{DynamicResource StatusErrorBrush}"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"/>
+                        <PathIcon Data="{StaticResource DeleteIcon}"/>
+                        <TextBlock Text="{localization:Localize Tools.PublisherStudio.Studio.DeleteConfirm}"/>
                     </StackPanel>
                 </Button>
 
                 <!-- Save / Create Button -->
-                <Button Content="{Binding SubmitButtonText}"
-                        Command="{Binding CreateReleaseCommand}"
-                        Background="{DynamicResource PrimaryGradientBrush}"
-                        Foreground="{DynamicResource PrimaryButtonForeground}"
-                        CornerRadius="7"
-                        Padding="20,7"
-                        FontWeight="SemiBold"
-                        FontSize="12"
-                        Cursor="Hand"
-                        BorderThickness="0">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource PrimaryGradientBrush}"/>
-                            <Setter Property="Opacity" Value="0.85"/>
-                        </Style>
-                    </Button.Styles>
-                </Button>
+                <Button Classes="action-primary" Content="{Binding SubmitButtonText}"
+                        Command="{Binding CreateReleaseCommand}"/>
             </StackPanel>
         </Border>
     </Grid>
