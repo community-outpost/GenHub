@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions.GameInstallations;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.CommunityOutpost;
@@ -159,8 +160,16 @@ public sealed class ContentDependencyValidator(
             return false;
         }
 
-        var parts = manifest.Id.Value.Split('.');
-        return parts.Length >= ManifestConstants.MinManifestSegments && InstallationExtensions.IsInstallationIdentifier(parts[2]);
+        var parts = manifest.Id.Value.Split(ManifestConstants.ManifestIdSegmentSeparator);
+        if (parts.Length < ManifestConstants.MinManifestSegments)
+        {
+            return false;
+        }
+
+        var publisher = parts[ManifestConstants.ManifestPublisherSegmentIndex];
+        return (InstallationExtensions.IsInstallationIdentifier(publisher) ||
+                string.Equals(publisher, ManifestConstants.ScannedRetailPublisherId, StringComparison.OrdinalIgnoreCase)) &&
+               !ReplayCrcMatchingHelper.HasNonRetailExecutableFormat(manifest.EntryPoint);
     }
 
     private static bool IsFoundationType(ContentType contentType) =>

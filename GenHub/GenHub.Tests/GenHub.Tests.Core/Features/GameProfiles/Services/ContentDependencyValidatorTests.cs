@@ -58,23 +58,26 @@ public sealed class ContentDependencyValidatorTests
     /// game client. Community clients read the full viewport flag natively.
     /// </summary>
     /// <param name="clientId">The enabled game client manifest ID, or empty for none.</param>
+    /// <param name="entryPoint">The client's entry point file.</param>
     /// <param name="expectGap">Whether GenTool should be reported missing.</param>
     [Theory]
-    [InlineData("1.104.steam.gameclient.zerohour", true)]
-    [InlineData("1.104.eaapp.gameclient.zerohour", true)]
-    [InlineData("1.104.retail.gameclient.zerohour", true)]
-    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false)]
-    [InlineData("1.0.generalsonline.gameclient.zerohour", false)]
-    [InlineData("1.0.local.gameclient.zerohour-macos", false)]
-    [InlineData("", false)]
-    public void FindMissingDependencies_RetailOnlyGenTool_RequiredOnlyWithRetailClient(string clientId, bool expectGap)
+    [InlineData("1.104.steam.gameclient.zerohour", "generals.exe", true)]
+    [InlineData("1.104.eaapp.gameclient.zerohour", "game.dat", true)]
+    [InlineData("1.104.retail.gameclient.zerohour", "generals.exe", true)]
+    [InlineData("1.104.retailinstallation.gameclient.zerohour", "generals.exe", true)]
+    [InlineData("1.0.eaapp.gameclient.zerohour", "generalszh", false)]
+    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", "generalszh", false)]
+    [InlineData("1.0.generalsonline.gameclient.zerohour", "generalsonlinezh.exe", false)]
+    [InlineData("1.0.local.gameclient.zerohour-macos", "generalszh", false)]
+    [InlineData("", "", false)]
+    public void FindMissingDependencies_RetailOnlyGenTool_RequiredOnlyWithRetailClient(string clientId, string entryPoint, bool expectGap)
     {
         var controlBarPro = CreateControlBarPro();
         controlBarPro.Dependencies = [GenPatcherDependencyBuilder.CreateRetailClientGenToolDependency()];
         List<ContentManifest> manifests = [controlBarPro, CreateInstallation()];
         if (clientId.Length > 0)
         {
-            manifests.Add(new ContentManifest { Id = ManifestId.Create(clientId), Name = "Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour });
+            manifests.Add(new ContentManifest { Id = ManifestId.Create(clientId), Name = "Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour, EntryPoint = entryPoint });
         }
 
         var gaps = _validator.FindMissingDependencies(manifests);

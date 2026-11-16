@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
@@ -544,6 +545,79 @@ public class GameProfileSettingsViewModelDependencyTests
 
         Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == mapPackId.Value);
         Assert.True(_viewModel.EnabledContent.First(c => c.ManifestId.Value == mapPackId.Value).IsEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that enabling Control Bar Pro auto-enables a downloaded GenTool only when the profile
+    /// runs a retail game client.
+    /// </summary>
+    /// <param name="clientId">The enabled game client manifest ID.</param>
+    /// <param name="expectGenTool">Whether GenTool should be auto-enabled.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("1.104.steam.gameclient.zerohour", true)]
+    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false)]
+    public async Task EnableContent_ControlBarPro_AutoEnablesGenToolOnlyForRetailClientAsync(string clientId, bool expectGenTool)
+    {
+        var controlBarProId = new ManifestId("1.10.communityoutpost.addon.cbpr");
+        var genToolId = new ManifestId("1.10.communityoutpost.addon.gent");
+        var clientManifest = new ContentManifest { Id = new ManifestId(clientId), Name = "Client", ContentType = ContentType.GameClient, TargetGame = GameType.ZeroHour };
+        var controlBarPro = new ContentManifest
+        {
+            Id = controlBarProId,
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            TargetGame = GameType.ZeroHour,
+            Dependencies = [GenPatcherDependencyBuilder.CreateRetailClientGenToolDependency()],
+        };
+        foreach (var manifest in new[] { clientManifest, controlBarPro })
+        {
+            _mockManifestPool.Setup(x => x.GetManifestAsync(It.Is<ManifestId>(id => id.Value == manifest.Id.Value), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+        }
+
+        _mockContentLoader.Setup(x => x.LoadAvailableContentAsync(
+                ContentType.Addon,
+                It.IsAny<ObservableCollection<CoreContentDisplayItem>>(),
+                It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(
+            [
+                new CoreContentDisplayItem
+                {
+                    Id = genToolId.Value,
+                    ManifestId = genToolId.Value,
+                    DisplayName = "GenTool",
+                    ContentType = ContentType.Addon,
+                    GameType = GameType.ZeroHour,
+                    InstallationType = GameInstallationType.Unknown,
+                },
+            ]);
+
+        _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+        {
+            ManifestId = clientManifest.Id,
+            DisplayName = "Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = true,
+        });
+        var controlBarProItem = new ViewModelContentDisplayItem
+        {
+            ManifestId = controlBarProId,
+            DisplayName = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            IsEnabled = false,
+        };
+        _viewModel.AvailableContent.Add(controlBarProItem);
+
+        _viewModel.EnableContentCommand.Execute(controlBarProItem);
+        await Task.Delay(50);
+
+        Assert.Contains(_viewModel.EnabledContent, c => c.ManifestId.Value == controlBarProId.Value);
+        Assert.Equal(expectGenTool, _viewModel.EnabledContent.Any(c => c.ManifestId.Value == genToolId.Value));
     }
 
     /// <summary>

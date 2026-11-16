@@ -106,6 +106,11 @@ public static class ManifestConstants
     public const string ScannedPublisherId = "scanned";
 
     /// <summary>
+    /// Publisher ID segment of a scanned retail game client, normalized from the "Retail Installation" publisher name.
+    /// </summary>
+    public const string ScannedRetailPublisherId = "retailinstallation";
+
+    /// <summary>
     /// Tag for content validation status.
     /// </summary>
     public const string ValidationStatusTag = "ValidationStatus";
