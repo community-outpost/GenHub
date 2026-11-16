@@ -21,16 +21,6 @@
   </UserControl.Resources>
 
   <UserControl.Styles>
-    <!-- Modern Header Action Button -->
-
-    <!-- Accent Header Button -->
-
-    <!-- Quick Access Navigation Row Button -->
-
-    <!-- Execute Build CTA Button -->
-
-    <!-- Abort Danger Button -->
-
     <!-- Fast Responsive Tooltips & Cursors -->
     <Style Selector="Button">
       <Setter Property="ToolTip.ShowDelay" Value="150" />

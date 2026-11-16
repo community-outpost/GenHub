@@ -67,6 +67,10 @@
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
         </Style>
+        <Style Selector="Button.action-secondary.upload-pending:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
 
     </UserControl.Styles>
 
