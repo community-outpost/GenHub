@@ -169,12 +169,14 @@ public class SidebarLayoutTests
             Dispatcher.UIThread.RunJobs();
 
             var row = layout.GetVisualDescendants().OfType<ListBoxItem>().First(item => item.IsSelected);
+            var presenter = row.GetVisualDescendants().OfType<ContentPresenter>().First();
+            presenter.Transitions = null;
             row.IsEnabled = false;
             Dispatcher.UIThread.RunJobs();
 
-            var presenter = row.GetVisualDescendants().OfType<ContentPresenter>().First();
             Assert.Equal(ResourceColor("NavSelectedFill"), Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Background).Color);
             Assert.Equal(ResourceColor("NavDisabledInk"), Assert.IsAssignableFrom<ISolidColorBrush>(presenter.Foreground).Color);
+            Assert.Equal(ResourceColor("NavDisabledBorder"), Assert.IsAssignableFrom<ISolidColorBrush>(presenter.BorderBrush).Color);
         }
         finally
         {
