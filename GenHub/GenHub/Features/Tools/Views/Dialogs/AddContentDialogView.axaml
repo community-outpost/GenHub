@@ -20,10 +20,6 @@
         <converters:StringToImageConverter x:Key="StringToImageConverter"/>
     </UserControl.Resources>
 
-    <UserControl.Styles>
-        <StyleInclude Source="avares://GenHub/Features/Tools/Views/Dialogs/StudioDialogFormStyles.axaml"/>
-    </UserControl.Styles>
-
     <Grid x:Name="DialogLayoutRoot" RowDefinitions="Auto,*,Auto" Margin="{DynamicResource DialogPadding}">
         <!-- Header -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="{DynamicResource DialogHeaderSpacing}">
