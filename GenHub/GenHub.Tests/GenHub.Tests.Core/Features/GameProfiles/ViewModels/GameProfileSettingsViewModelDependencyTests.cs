@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -553,11 +554,14 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <param name="clientId">The enabled game client manifest ID.</param>
     /// <param name="expectGenTool">Whether GenTool should be auto-enabled.</param>
+    /// <param name="clientOnInstallationOnly">Whether the client is only the selected installation's default client.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Theory]
-    [InlineData("1.104.steam.gameclient.zerohour", true)]
-    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false)]
-    public async Task EnableContent_ControlBarPro_AutoEnablesGenToolOnlyForRetailClientAsync(string clientId, bool expectGenTool)
+    [InlineData("1.104.steam.gameclient.zerohour", true, false)]
+    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false, false)]
+    [InlineData("1.104.steam.gameclient.zerohour", true, true)]
+    [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", false, true)]
+    public async Task EnableContent_ControlBarPro_AutoEnablesGenToolOnlyForRetailClientAsync(string clientId, bool expectGenTool, bool clientOnInstallationOnly)
     {
         var controlBarProId = new ManifestId("1.10.communityoutpost.addon.cbpr");
         var genToolId = new ManifestId("1.10.communityoutpost.addon.gent");
@@ -593,15 +597,34 @@ public class GameProfileSettingsViewModelDependencyTests
                 },
             ]);
 
-        _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+        if (clientOnInstallationOnly)
         {
-            ManifestId = clientManifest.Id,
-            DisplayName = "Client",
-            ContentType = ContentType.GameClient,
-            GameType = GameType.ZeroHour,
-            InstallationType = GameInstallationType.Unknown,
-            IsEnabled = true,
-        });
+            var installation = new ViewModelContentDisplayItem
+            {
+                ManifestId = new ManifestId("1.104.steam.gameinstallation.zerohour"),
+                DisplayName = "Installation",
+                ContentType = ContentType.GameInstallation,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Steam,
+                GameClient = new GameClient { Id = clientId, GameType = GameType.ZeroHour },
+                IsEnabled = true,
+            };
+            _viewModel.EnabledContent.Add(installation);
+            _viewModel.SelectedGameInstallation = installation;
+        }
+        else
+        {
+            _viewModel.EnabledContent.Add(new ViewModelContentDisplayItem
+            {
+                ManifestId = clientManifest.Id,
+                DisplayName = "Client",
+                ContentType = ContentType.GameClient,
+                GameType = GameType.ZeroHour,
+                InstallationType = GameInstallationType.Unknown,
+                IsEnabled = true,
+            });
+        }
+
         var controlBarProItem = new ViewModelContentDisplayItem
         {
             ManifestId = controlBarProId,

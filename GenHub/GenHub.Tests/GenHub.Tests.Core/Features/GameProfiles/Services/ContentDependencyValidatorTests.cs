@@ -65,6 +65,7 @@ public sealed class ContentDependencyValidatorTests
     [InlineData("1.104.eaapp.gameclient.zerohour", "game.dat", true)]
     [InlineData("1.104.retail.gameclient.zerohour", "generals.exe", true)]
     [InlineData("1.104.retailinstallation.gameclient.zerohour", "generals.exe", true)]
+    [InlineData("1.104.steam.gameclient.zerohour", "", true)]
     [InlineData("1.0.eaapp.gameclient.zerohour", "generalszh", false)]
     [InlineData("1.0.thesuperhackers.gameclient.zerohour-macos", "generalszh", false)]
     [InlineData("1.0.generalsonline.gameclient.zerohour", "generalsonlinezh.exe", false)]

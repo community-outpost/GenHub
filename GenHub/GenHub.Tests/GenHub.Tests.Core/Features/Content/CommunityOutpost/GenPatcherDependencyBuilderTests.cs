@@ -89,6 +89,7 @@ public class GenPatcherDependencyBuilderTests
         Assert.Equal(expectChanged, changed);
         Assert.Equal(expectRetailGenTool, manifest.Dependencies.Exists(d => d.RetailClientOnly));
         Assert.Equal(expectUnconditionalGenTool, manifest.Dependencies.Exists(d => !d.RetailClientOnly));
+        Assert.Equal(expectRetailGenTool || expectUnconditionalGenTool ? 1 : 0, manifest.Dependencies.Count);
     }
 
     /// <summary>

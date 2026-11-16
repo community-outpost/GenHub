@@ -382,6 +382,7 @@ Constants related to manifest ID generation, validation, and file operations.
 | `MinManifestSegments`          | `5`                  | Minimum number of segments in manifest ID (must be exactly 5)                         |
 | `ManifestIdSegmentSeparator`   | `'.'`                | Separator character for manifest ID segments                                          |
 | `VariantSeparator`             | `"-"`                | Separator used to append variant identifiers to content names                         |
+| `ScannedRetailPublisherId`     | `"retailinstallation"` | Publisher ID segment of a scanned retail game client                                |
 
 ### Manifest Validation
 

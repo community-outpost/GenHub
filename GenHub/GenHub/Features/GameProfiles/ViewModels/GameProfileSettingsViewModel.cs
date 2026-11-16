@@ -1569,7 +1569,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return manifests;
         }
 
-        foreach (var manifestId in EnabledContent.Select(e => e.ManifestId.Value).Distinct(StringComparer.OrdinalIgnoreCase))
+        var manifestIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
+        var activeClientId = GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation)?.Id;
+        if (!string.IsNullOrEmpty(activeClientId) && ManifestId.TryCreate(activeClientId, out _))
+        {
+            manifestIds.Add(activeClientId);
+        }
+
+        foreach (var manifestId in manifestIds.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             var manifestResult = await _manifestPool.GetManifestAsync(ManifestId.Create(manifestId), cancellationToken);
             if (manifestResult.Success && manifestResult.Data != null)
