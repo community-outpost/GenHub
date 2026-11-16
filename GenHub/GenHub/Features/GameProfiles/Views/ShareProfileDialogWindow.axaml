@@ -238,7 +238,7 @@
                                          Height="38"
                                          Background="{StaticResource FillWhite08}"
                                          BorderBrush="{StaticResource BorderWhite19}"
-                                         CornerRadius="8,0,0,8"
+                                         CornerRadius="8"
                                          Foreground="{DynamicResource TextPrimary}"
                                          FontSize="11"
                                          Padding="10,0"
@@ -246,6 +246,7 @@
                                 <Button
                                         Grid.Column="1"
                                         Command="{Binding CopyUriCommand}"
+                                        Margin="8,0,0,0"
                                         AutomationProperties.Name="{localization:Localize GameProfiles.ShareDialog.CopyLink}"
                                         Classes="action-secondary">
 

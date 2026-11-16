@@ -177,6 +177,15 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
         </Style>
+        <Style Selector="Button.action-danger.icon-action:not(:disabled)">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+        </Style>
+        <Style Selector="Button.action-danger.icon-action:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+        </Style>
+        <Style Selector="Button.action-danger.icon-action:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.action-danger.icon-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerInk}" />
+        </Style>
 
         <Style Selector="ToggleButton.tool-button:pressed">
             <Setter Property="RenderTransform" Value="scale(0.9)" />

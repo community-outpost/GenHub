@@ -202,23 +202,6 @@
             <Setter Property="Background" Value="#12FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
         </Style>
-
-        <!-- Style to show children on hover -->
-        <Style Selector="Button.delete-reveal-btn">
-            <Setter Property="Opacity" Value="0" />
-
-        </Style>
-
-        <!-- When parent card is hovered, reveal the delete button -->
-        <Style Selector="Button.content-card-btn:pointerover Button.delete-reveal-btn">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-
-        <!-- Ensure the delete button itself reacts to its own hover -->
-        <Style Selector="Button.delete-reveal-btn:pointerover">
-            <Setter Property="Opacity" Value="1" />
-
-        </Style>
         <!-- Corner Accent Style -->
         <Style Selector="Path.corner-accent">
             <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />

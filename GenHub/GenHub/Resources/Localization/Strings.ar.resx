@@ -3721,6 +3721,9 @@
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>أزرق سماوي</value>
   </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>أزرق متوسط</value>
+  </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>سماوي</value>
   </data>
@@ -4260,6 +4263,9 @@
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>أزرق سماوي</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>أزرق متوسط</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>أزرق داكن</value>

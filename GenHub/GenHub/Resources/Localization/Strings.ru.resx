@@ -3721,6 +3721,9 @@
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>Сине-бирюзовый</value>
   </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>Средне-синий</value>
+  </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>Бирюзовый</value>
   </data>
@@ -4260,6 +4263,9 @@
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>Сине-голубой</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>Средне-синий</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>Тёмно-синий</value>
