@@ -147,6 +147,9 @@ public class SharedViewModelModuleTests
         Assert.NotNull(serviceProvider.GetService<DownloadsBrowserViewModel>());
         Assert.NotNull(serviceProvider.GetService<GenHub.Features.Tools.ViewModels.ToolsViewModel>());
         Assert.NotNull(serviceProvider.GetService<SettingsViewModel>());
+        Assert.Same(
+            serviceProvider.GetRequiredService<GameProfileLauncherViewModel>(),
+            serviceProvider.GetRequiredService<SettingsViewModel>().ProfileLibraryActions);
     }
 
     private static IConfigurationProviderService CreateMockConfigProvider()

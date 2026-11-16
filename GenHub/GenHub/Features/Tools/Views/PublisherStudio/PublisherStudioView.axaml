@@ -51,8 +51,6 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
-        <!-- Glass Action Button (Header Top Right) -->
-
         <Style Selector="Button.action-secondary.upload-pending /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionBrush}"/>
@@ -62,8 +60,10 @@
             <Setter Property="Background" Value="{DynamicResource PendingActionBackgroundHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource PendingActionHoverBrush}"/>
         </Style>
-
-        <!-- Primary Gradient Button -->
+        <Style Selector="Button.action-secondary.upload-pending:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
 
         <!-- Status Badges -->
         <Style Selector="Border.status-badge-warning">

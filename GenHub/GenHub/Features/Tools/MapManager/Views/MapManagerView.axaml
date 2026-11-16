@@ -245,9 +245,9 @@
               <TextBlock Text="{localization:Localize Maps.Button.Zip}" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
-          <Border Classes="split-action">
+          <Border Classes="split-action" Classes.upload-disabled="{Binding !#MapUploadButton.IsEffectivelyEnabled}">
           <StackPanel Orientation="Horizontal" Spacing="0">
-            <Button Command="{Binding UploadAndShareCommand}"
+            <Button x:Name="MapUploadButton" Command="{Binding UploadAndShareCommand}"
                     Classes="action-primary SplitLeft ActionBarBtn action-compact"
                     ToolTip.Tip="{localization:Localize Maps.Tooltip.UploadAndShare}">
               <StackPanel Orientation="Horizontal" Spacing="6">

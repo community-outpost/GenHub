@@ -69,10 +69,7 @@
             Margin="0,4"
             BoxShadow="0 8 32 0 #50000000">
 
-        <!-- Glass Effect Backdrop -->
         <Grid>
-            <!-- Subtle Background Texture/Overlay -->
-
             <Grid RowDefinitions="Auto,Auto,Auto" Margin="16">
                 <!-- Header: Icon, Title, and Close -->
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
@@ -123,7 +120,10 @@
 
                 <!-- Action Button -->
                 <Button Grid.Row="2"
-                        Classes="action-secondary action-compact"
+                        Classes="action-compact"
+                        Classes.action-primary="{Binding FirstAction.IsPrimary, FallbackValue=False}"
+                        Classes.action-secondary="{Binding FirstAction.IsSecondary, FallbackValue=False}"
+                        Classes.action-danger="{Binding FirstAction.IsDanger, FallbackValue=False}"
                         IsVisible="{Binding IsActionable}"
                         Command="{Binding ActionCommand}"
                         Content="{Binding ActionText}"

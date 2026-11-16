@@ -66,7 +66,7 @@ public class NotificationActionStyleViewTests
             var dismiss = Assert.Single(view.GetVisualDescendants().OfType<Button>(), button => button.Classes.Contains("icon-action"));
             Assert.True(dismiss.Bounds.Width >= 32);
             Assert.True(dismiss.Bounds.Height >= 32);
-            Assert.False(string.IsNullOrWhiteSpace(AutomationProperties.GetName(dismiss)));
+            Assert.Equal(new MarkerLocalizationService()["Notifications.Tooltip.Dismiss"], AutomationProperties.GetName(dismiss));
             var glyph = Assert.IsType<PathIcon>(dismiss.Content);
             Assert.Equal(16, glyph.Width);
             Assert.Equal(16, glyph.Height);
@@ -85,7 +85,56 @@ public class NotificationActionStyleViewTests
         }
     }
 
-    /// <summary>Several translated actions wrap into rows instead of extending outside the feed.</summary>
+    /// <summary>The toast shows its first action with that action's shared role and a localized dismiss button.</summary>
+    /// <param name="style">The notification action style.</param>
+    /// <param name="role">The expected shared action role.</param>
+    [AvaloniaTheory]
+    [InlineData(NotificationActionStyle.Primary, "action-primary")]
+    [InlineData(NotificationActionStyle.Secondary, "action-secondary")]
+    [InlineData(NotificationActionStyle.Danger, "action-danger")]
+    public void ToastAction_UsesActionRoleAndLocalizedDismiss(NotificationActionStyle style, string role)
+    {
+        var resources = Avalonia.Application.Current!.Resources;
+        var hadPrevious = resources.TryGetValue(LocalizationConstants.ResourceServiceKey, out var previous);
+        var message = new NotificationMessage(
+            NotificationType.Info,
+            "Update ready",
+            "The local test update is available.",
+            autoDismissMilliseconds: null,
+            actions: [new NotificationAction("Install", () => { }, style, dismissOnExecute: false)]);
+        using var viewModel = new NotificationItemViewModel(message, _ => { }, NullLogger<NotificationItemViewModel>.Instance);
+        var window = new Window { Width = 420, Height = 260 };
+        try
+        {
+            resources[LocalizationConstants.ResourceServiceKey] = new MarkerLocalizationService();
+            var view = new NotificationToastView { DataContext = viewModel };
+            window.Content = view;
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var action = Assert.Single(view.GetVisualDescendants().OfType<Button>(), button => button.Classes.Contains("action-compact"));
+            Assert.Contains(role, action.Classes);
+            Assert.Single(new[] { "action-primary", "action-secondary", "action-danger" }, name => action.Classes.Contains(name));
+
+            var dismiss = Assert.Single(view.GetVisualDescendants().OfType<Button>(), button => button.Classes.Contains("icon-action"));
+            Assert.True(dismiss.Bounds.Width >= 32);
+            Assert.True(dismiss.Bounds.Height >= 32);
+            Assert.Equal(new MarkerLocalizationService()["Notifications.Tooltip.Dismiss"], AutomationProperties.GetName(dismiss));
+        }
+        finally
+        {
+            window.Close();
+            if (hadPrevious)
+            {
+                resources[LocalizationConstants.ResourceServiceKey] = previous;
+            }
+            else
+            {
+                resources.Remove(LocalizationConstants.ResourceServiceKey);
+            }
+        }
+    }
+
+    /// <summary>Several translated actions wrap into rows, and a caption wider than the feed wraps inside its button.</summary>
     [AvaloniaFact]
     public void FeedActions_LongCaptionsWrapWithinNarrowFeed()
     {
@@ -99,6 +148,7 @@ public class NotificationActionStyleViewTests
                 new NotificationAction("Открыть папку содержимого", () => { }),
                 new NotificationAction("Повторить загрузку элемента", () => { }, NotificationActionStyle.Secondary),
                 new NotificationAction("Удалить загруженный элемент", () => { }, NotificationActionStyle.Danger),
+                new NotificationAction(string.Join(" ", Enumerable.Repeat("Переустановить", 8)), () => { }, NotificationActionStyle.Secondary),
             ]);
         using var viewModel = new NotificationFeedItemViewModel(message, _ => { }, _ => { }, NullLogger<NotificationFeedItemViewModel>.Instance);
         var view = new NotificationFeedItemView { DataContext = viewModel };
@@ -109,10 +159,13 @@ public class NotificationActionStyleViewTests
             Dispatcher.UIThread.RunJobs();
             var actions = view.GetVisualDescendants().OfType<Button>()
                 .Where(button => button.Classes.Contains("action-compact")).ToArray();
-            Assert.Equal(3, actions.Length);
+            Assert.Equal(4, actions.Length);
             var bounds = actions.Select(button => new Rect(button.TranslatePoint(default, view)!.Value, button.Bounds.Size)).ToArray();
             Assert.True(bounds.Select(rect => rect.Y).Distinct().Count() > 1);
             Assert.All(bounds, rect => Assert.True(rect.Right <= view.Bounds.Width));
+            var shortCaption = Assert.IsType<TextBlock>(actions[0].Content);
+            var longCaption = Assert.IsType<TextBlock>(actions[3].Content);
+            Assert.True(longCaption.Bounds.Height > shortCaption.Bounds.Height * 1.5);
         }
         finally
         {

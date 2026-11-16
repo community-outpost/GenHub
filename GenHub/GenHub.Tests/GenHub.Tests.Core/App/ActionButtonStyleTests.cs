@@ -8,7 +8,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using GenHub.Core.Constants;
 using System;
 using System.Linq;
 using Xunit;

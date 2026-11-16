@@ -4,7 +4,7 @@
     <Setter Property="Background" Value="{DynamicResource ActionPrimaryRestBrush}" />
     <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
   </Style>
-  <Style Selector="Border.split-action:disabled">
+  <Style Selector="Border.split-action.upload-disabled">
     <Setter Property="Background" Value="{DynamicResource ActionDisabledFill}" />
   </Style>
   <Style Selector="Button.ActionBarBtn, ToggleButton.ActionBarBtn">
@@ -81,6 +81,7 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource ActionOnAccentBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
+    <Setter Property="BorderThickness" Value="1,0,0,0" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:pointerover">
     <Setter Property="Background" Value="{DynamicResource SplitActionHoverBrush}" />
@@ -145,10 +146,6 @@
   <Style Selector="ToggleButton.SplitRight:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="BorderBrush" Value="{DynamicResource ActionFocusBrush}" />
     <Setter Property="BorderThickness" Value="2" />
-  </Style>
-  <Style Selector="ToggleButton.SplitRight /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="BorderBrush" Value="{DynamicResource SplitActionDividerBrush}" />
-    <Setter Property="BorderThickness" Value="1,0,0,0" />
   </Style>
   <Style Selector="ToggleButton.SplitRight:checked PathIcon">
     <Setter Property="RenderTransform" Value="rotate(90deg)" />

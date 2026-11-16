@@ -27,11 +27,6 @@
         <converters:LocalizedFormatConverter x:Key="LocalizedFormatConverter" />
     </Window.Resources>
 
-    <Window.Styles>
-        <!-- Link button style for header badges -->
-
-    </Window.Styles>
-
     <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
     <Border Background="{DynamicResource CardBackground}"
             BorderBrush="{DynamicResource BorderBrush}"

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
+             xmlns:profiles="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:models="clr-namespace:GenHub.Features.Settings.Models"
              xmlns:theming="clr-namespace:GenHub.Core.Models.Theming;assembly=GenHub.Core"
              xmlns:installations="clr-namespace:GenHub.Core.Models.GameInstallations;assembly=GenHub.Core"
@@ -105,10 +106,28 @@
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="20">
+            <StackPanel Spacing="8" IsVisible="{Binding ProfileLibraryActions, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <TextBlock Text="{localization:Localize GameProfiles.Library.MyProfiles}" Classes="setting-label"/>
+              <WrapPanel DataContext="{Binding ProfileLibraryActions}" x:DataType="profiles:GameProfileLauncherViewModel">
+                <Button Classes="action-secondary library-action" Command="{Binding ImportProfileCommand}" Content="{localization:Localize GameProfiles.Launcher.Button.Import}" Margin="0,0,12,8"/>
+                <Button Classes="action-secondary library-action" Command="{Binding ScanForGamesCommand}" Content="{localization:Localize GameProfiles.Button.Scan}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
+              </WrapPanel>
+              <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding ProfileLibraryActions.IsScanning}"/>
+              <StackPanel DataContext="{Binding ProfileLibraryActions}" x:DataType="profiles:GameProfileLauncherViewModel" IsVisible="{Binding ShouldShowScanFailure}" Spacing="8">
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="setting-description"/>
+                <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
+                  <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                </Expander>
+                <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </StackPanel>
+
             <!-- Default Workspace Strategy -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Label}" Classes="setting-label" />
-              <ComboBox Classes="form-field" ItemsSource="{Binding AvailableWorkspaceStrategies}"
+              <ComboBox Classes="workspace-strategy form-field"
+                        ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
                         MinWidth="250" />
@@ -189,46 +208,6 @@
                          Classes="setting-description" />
             </StackPanel>
 
-            <!-- Download Buffer Size -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
-                             Minimum="4"
-                             Maximum="1024"
-                             Increment="4"
-                             HorizontalAlignment="Left"
-                             Width="160"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download Timeout -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
-                             Minimum="10"
-                             Maximum="3600"
-                             Increment="10"
-                             HorizontalAlignment="Left"
-                             Width="120"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download User-Agent -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
-              <TextBox Classes="form-field" Text="{Binding DownloadUserAgent}"
-                       Width="300"
-                       LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
             <!-- Background Downloads -->
             <StackPanel Spacing="8">
               <CheckBox Content="{localization:Localize Settings.Downloads.AllowBackground.Label}"
@@ -236,6 +215,53 @@
               <TextBlock Text="{localization:Localize Settings.Downloads.AllowBackground.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
+
+            <Expander x:Name="AdvancedDownloadSettings" Header="{localization:Localize Settings.Downloads.Advanced}" IsExpanded="False" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="20" Margin="16">
+                <!-- Download Buffer Size -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
+                  <NumericUpDown x:Name="DownloadBufferSizeInput"
+                                 Value="{Binding DownloadBufferSizeKB}"
+                                 Minimum="4"
+                                 Maximum="1024"
+                                 Increment="4"
+                                 HorizontalAlignment="Left"
+                                 Width="160"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download Timeout -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
+                  <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
+                                 Minimum="10"
+                                 Maximum="3600"
+                                 Increment="10"
+                                 HorizontalAlignment="Left"
+                                 Width="120"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download User-Agent -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
+                  <TextBox Classes="form-field" Text="{Binding DownloadUserAgent}"
+                           HorizontalAlignment="Left"
+                           Width="300"
+                           LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+              </StackPanel>
+            </Expander>
 
             <Separator Margin="0,8" />
 
