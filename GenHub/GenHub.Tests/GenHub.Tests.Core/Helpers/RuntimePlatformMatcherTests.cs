@@ -45,6 +45,12 @@ public sealed class RuntimePlatformMatcherTests
     [InlineData("windows", "", false)]
     [InlineData("windows", null, false)]
     [InlineData("windows", "freebsd-x64", false)]
+    [InlineData("windowsarm64", "win-x64", false)]
+    [InlineData("winx64", "win-x64", false)]
+    [InlineData("macosx", "osx-arm64", false)]
+    [InlineData("linuxish", "linux-x64", false)]
+    [InlineData("osx", "osx.13-arm64", true)]
+    [InlineData("osx-arm64", "osx.13-arm64", true)]
     public void Matches_ReturnsExpected(string? platform, string? host, bool expected)
     {
         Assert.Equal(expected, RuntimePlatformMatcher.Matches(platform, host));
@@ -62,6 +68,8 @@ public sealed class RuntimePlatformMatcherTests
     [InlineData("osx-arm64", true)]
     [InlineData("linux-x64", true)]
     [InlineData("darwin", false)]
+    [InlineData("windowsarm64", false)]
+    [InlineData("macosx", false)]
     [InlineData("x64", false)]
     [InlineData("win-", false)]
     public void IsRecognised_ReturnsExpected(string? platform, bool expected)

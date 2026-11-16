@@ -594,24 +594,34 @@ public static class CatalogConstants
     public static class AssetPlatforms
     {
         /// <summary>
-        /// Prefix matching the Windows family and Windows runtime identifiers.
+        /// The Windows family name.
         /// </summary>
-        public const string WindowsPrefix = "win";
+        public const string WindowsFamily = "windows";
 
         /// <summary>
-        /// Prefix matching the macOS runtime identifiers.
+        /// The OS part of Windows runtime identifiers.
         /// </summary>
-        public const string MacOSRuntimePrefix = "osx";
+        public const string WindowsRuntimeOs = "win";
 
         /// <summary>
-        /// Prefix matching the macOS family name.
+        /// The macOS family name.
         /// </summary>
-        public const string MacOSFamilyPrefix = "mac";
+        public const string MacOSFamily = "macos";
 
         /// <summary>
-        /// Prefix matching the Linux family and Linux runtime identifiers.
+        /// The OS part of macOS runtime identifiers.
         /// </summary>
-        public const string LinuxPrefix = "linux";
+        public const string MacOSRuntimeOs = "osx";
+
+        /// <summary>
+        /// The Linux family name and the OS part of Linux runtime identifiers.
+        /// </summary>
+        public const string Linux = "linux";
+
+        /// <summary>
+        /// Separator between the OS version and the OS name in a versioned runtime identifier.
+        /// </summary>
+        public const char OsVersionSeparator = '.';
 
         /// <summary>
         /// Separator between the OS and architecture parts of a runtime identifier.

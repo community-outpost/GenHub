@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Features.Content.Services.Catalog;
@@ -127,7 +128,8 @@ public sealed class ContentLibraryUpstreamPreviewTests
         await WaitForIngestionAsync(ingestionMock, 1);
 
         Assert.NotNull(previewPlatforms);
-        Assert.Equal(["none", "none", "darwin"], previewPlatforms.Select(platform => platform ?? "none"));
+        var host = ManifestVariantResolver.CurrentRuntimeIdentifier;
+        Assert.Equal(new[] { host, host, "darwin" }, previewPlatforms.Select(platform => platform ?? string.Empty));
         Assert.Equal("windows", item.UpstreamSync.AssetRules[0].Platform);
     }
 

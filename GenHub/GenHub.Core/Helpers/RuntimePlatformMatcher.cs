@@ -56,36 +56,36 @@ public static class RuntimePlatformMatcher
         }
 
         var trimmed = value.Trim();
-        var separator = trimmed.LastIndexOf(CatalogConstants.AssetPlatforms.ArchitectureSeparator);
-        var osPart = separator < 0 ? trimmed : trimmed[..separator];
-        if (separator >= 0)
+        var firstSeparator = trimmed.IndexOf(CatalogConstants.AssetPlatforms.ArchitectureSeparator);
+        var osPart = firstSeparator < 0 ? trimmed : trimmed[..firstSeparator];
+        if (firstSeparator >= 0)
         {
-            architecture = trimmed[(separator + 1)..];
+            architecture = trimmed[(trimmed.LastIndexOf(CatalogConstants.AssetPlatforms.ArchitectureSeparator) + 1)..];
             if (architecture.Length == 0)
             {
                 return false;
             }
         }
 
-        family = ResolveFamily(osPart);
+        var versionSeparator = osPart.IndexOf(CatalogConstants.AssetPlatforms.OsVersionSeparator);
+        family = ResolveFamily(versionSeparator < 0 ? osPart : osPart[..versionSeparator]);
         return family != ExecutablePlatform.Unknown;
     }
 
-    private static ExecutablePlatform ResolveFamily(string osPart)
+    private static ExecutablePlatform ResolveFamily(string osName)
     {
-        if (osPart.StartsWith(CatalogConstants.AssetPlatforms.WindowsPrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsName(osName, CatalogConstants.AssetPlatforms.WindowsFamily) || IsName(osName, CatalogConstants.AssetPlatforms.WindowsRuntimeOs))
         {
             return ExecutablePlatform.Windows;
         }
 
-        if (osPart.StartsWith(CatalogConstants.AssetPlatforms.MacOSRuntimePrefix, StringComparison.OrdinalIgnoreCase)
-            || osPart.StartsWith(CatalogConstants.AssetPlatforms.MacOSFamilyPrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsName(osName, CatalogConstants.AssetPlatforms.MacOSFamily) || IsName(osName, CatalogConstants.AssetPlatforms.MacOSRuntimeOs))
         {
             return ExecutablePlatform.MacOS;
         }
 
-        return osPart.StartsWith(CatalogConstants.AssetPlatforms.LinuxPrefix, StringComparison.OrdinalIgnoreCase)
-            ? ExecutablePlatform.Linux
-            : ExecutablePlatform.Unknown;
+        return IsName(osName, CatalogConstants.AssetPlatforms.Linux) ? ExecutablePlatform.Linux : ExecutablePlatform.Unknown;
     }
+
+    private static bool IsName(string value, string name) => string.Equals(value, name, StringComparison.OrdinalIgnoreCase);
 }

@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
@@ -1853,9 +1854,10 @@ public partial class ContentLibraryViewModel(
             }
 
             // Authors review every platform's assets, not only the ones for the OS Publisher Studio runs on.
-            foreach (var rule in (clone.UpstreamSync?.AssetRules ?? []).Where(r => RuntimePlatformMatcher.IsRecognised(r.Platform)))
+            // Pinning each platform rule to this host keeps it ahead of platform-neutral rules.
+            foreach (var rule in (clone.UpstreamSync?.AssetRules ?? []).Where(r => r.IsPlatformSpecific && RuntimePlatformMatcher.IsRecognised(r.Platform)))
             {
-                rule.Platform = null;
+                rule.Platform = ManifestVariantResolver.CurrentRuntimeIdentifier;
             }
 
             // Ingestion replaces releases on success and leaves them untouched on a miss,
