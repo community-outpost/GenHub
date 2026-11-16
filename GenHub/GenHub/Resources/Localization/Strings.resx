@@ -7039,6 +7039,15 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   <data name="Settings.Subscriptions.RemoveToolTip" xml:space="preserve">
     <value>Unsubscribe from this catalog</value>
   </data>
+  <data name="Settings.Subscriptions.AutoUpdate" xml:space="preserve">
+    <value>Update automatically</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateToolTip" xml:space="preserve">
+    <value>When you launch a profile, download new versions from this catalog and switch the profile to them without asking</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateSaveFailedMessage" xml:space="preserve">
+    <value>Failed to save the automatic update setting for {0}.</value>
+  </data>
   <data name="Settings.Subscriptions.RemovedNotificationMessage" xml:space="preserve">
     <value>Unsubscribed from {0}</value>
   </data>

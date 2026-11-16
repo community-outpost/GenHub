@@ -6981,6 +6981,15 @@ GenHub связывает запуск модификаций со Steam, отк
   <data name="Settings.Subscriptions.RemoveToolTip" xml:space="preserve">
     <value>Отписаться от этого каталога</value>
   </data>
+  <data name="Settings.Subscriptions.AutoUpdate" xml:space="preserve">
+    <value>Обновлять автоматически</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateToolTip" xml:space="preserve">
+    <value>При запуске профиля загружать новые версии из этого каталога и переключать профиль на них без запроса</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateSaveFailedMessage" xml:space="preserve">
+    <value>Не удалось сохранить настройку автоматического обновления для {0}.</value>
+  </data>
   <data name="Settings.Subscriptions.RemovedNotificationMessage" xml:space="preserve">
     <value>Вы отписались от {0}</value>
   </data>

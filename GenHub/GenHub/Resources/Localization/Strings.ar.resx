@@ -6981,6 +6981,15 @@
   <data name="Settings.Subscriptions.RemoveToolTip" xml:space="preserve">
     <value>إلغاء الاشتراك من هذا الكتالوج</value>
   </data>
+  <data name="Settings.Subscriptions.AutoUpdate" xml:space="preserve">
+    <value>التحديث تلقائيًا</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateToolTip" xml:space="preserve">
+    <value>عند تشغيل ملف تعريف، يتم تنزيل الإصدارات الجديدة من هذا الكتالوج وتبديل ملف التعريف إليها دون سؤال</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateSaveFailedMessage" xml:space="preserve">
+    <value>فشل حفظ إعداد التحديث التلقائي لـ {0}.</value>
+  </data>
   <data name="Settings.Subscriptions.RemovedNotificationMessage" xml:space="preserve">
     <value>تم إلغاء الاشتراك من {0}</value>
   </data>
