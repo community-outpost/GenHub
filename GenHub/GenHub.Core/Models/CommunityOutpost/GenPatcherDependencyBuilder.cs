@@ -203,28 +203,21 @@ public static class GenPatcherDependencyBuilder
     }
 
     /// <summary>
-    /// Removes the GenTool dependency that older Control Bar Pro manifests declared, so manifests
+    /// Removes the GenTool dependency that older control bar manifests declared, so manifests
     /// saved before the dependency was dropped behave like newly built ones.
     /// </summary>
     /// <param name="manifest">A manifest read from storage.</param>
     /// <returns>True when a GenTool dependency was removed.</returns>
-    public static bool RemoveRetiredControlBarProGenToolDependency(ContentManifest manifest)
+    public static bool RemoveRetiredControlBarGenToolDependency(ContentManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        if (manifest.Dependencies is not { Count: > 0 } || !IsControlBarProManifestId(manifest.Id.Value))
+        if (manifest.Dependencies is not { Count: > 0 } || !IsControlBarManifestId(manifest.Id.Value))
         {
             return false;
         }
 
         return manifest.Dependencies.RemoveAll(IsGenToolDependency) > 0;
     }
-
-    /// <summary>
-    /// Creates an optional GenTool dependency for enhanced features.
-    /// </summary>
-    /// <returns>An optional content dependency for GenTool.</returns>
-    public static ContentDependency CreateOptionalGenToolDependency() =>
-        CreateGenToolDependency("GenTool (Recommended)", DependencyInstallBehavior.Suggest, isOptional: true);
 
     /// <summary>
     /// Creates a dependency on the Control Bar HD Base (cbbs).
@@ -366,9 +359,6 @@ public static class GenPatcherDependencyBuilder
         // All control bars need Zero Hour 1.04
         dependencies.Add(CreateZeroHour104Dependency());
 
-        // Control bars benefit from GenTool for better UI integration
-        dependencies.Add(CreateOptionalGenToolDependency());
-
         // Specific control bar dependencies based on content code
         var code = metadata.ContentCode.ToLowerInvariant();
 
@@ -378,11 +368,6 @@ public static class GenPatcherDependencyBuilder
         {
             dependencies.Add(CreateControlBarProCoreDependency());
             dependencies.Add(CreateControlBarLanguageDependency());
-
-            // Pro variants carry no GenTool dependency. Their only GenTool link is the
-            // GenTool\fullviewport.dat flag, which the TheSuperHackers client reads natively,
-            // and GenTool can't run on the non-Windows clients.
-            dependencies.RemoveAll(IsGenToolDependency);
         }
 
         // cbpc requires cbbs (HD Base)
@@ -552,8 +537,9 @@ public static class GenPatcherDependencyBuilder
     private static bool IsGenToolDependency(ContentDependency dependency) =>
         IsCommunityOutpostContent(dependency.Id.Value, out var code) && code == "gent";
 
-    private static bool IsControlBarProManifestId(string manifestId) =>
-        IsCommunityOutpostContent(manifestId, out var code) && code is "cbpr" or "cbpx";
+    private static bool IsControlBarManifestId(string manifestId) =>
+        IsCommunityOutpostContent(manifestId, out var code) &&
+        GenPatcherContentRegistry.GetMetadata(code).Category == GenPatcherContentCategory.ControlBar;
 
     private static bool IsCommunityOutpostContent(string manifestId, out string contentCode)
     {

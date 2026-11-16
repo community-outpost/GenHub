@@ -31,14 +31,16 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
-    /// Verifies that Control Bar Pro has no GenTool dependency. The TheSuperHackers client reads
-    /// the add-on's full viewport flag natively, so GenTool must not be required or suggested.
+    /// Verifies that no control bar declares a GenTool dependency, required or suggested.
     /// </summary>
-    /// <param name="contentCode">The Control Bar Pro content code.</param>
+    /// <param name="contentCode">The control bar content code.</param>
     [Theory]
+    [InlineData("cbbs")]
+    [InlineData("cben")]
+    [InlineData("cbpc")]
     [InlineData("cbpr")]
     [InlineData("cbpx")]
-    public void GetDependencies_ControlBarPro_HasNoGenToolDependency(string contentCode)
+    public void GetDependencies_ControlBar_HasNoGenToolDependency(string contentCode)
     {
         var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
@@ -48,16 +50,18 @@ public class GenPatcherDependencyBuilderTests
     }
 
     /// <summary>
-    /// Verifies that only Control Bar Pro manifests lose a stored GenTool dependency.
+    /// Verifies that only Community Outpost control bar manifests lose a stored GenTool dependency.
     /// </summary>
     /// <param name="manifestId">The stored manifest ID.</param>
     /// <param name="expectRemoved">Whether the GenTool dependency should be removed.</param>
     [Theory]
     [InlineData("1.10.communityoutpost.addon.cbpr", true)]
     [InlineData("1.10.communityoutpost.addon.cbpx", true)]
-    [InlineData("1.10.communityoutpost.addon.cbbs", false)]
+    [InlineData("1.10.communityoutpost.addon.cbbs", true)]
+    [InlineData("1.10.communityoutpost.addon.cbpc", true)]
+    [InlineData("1.10.communityoutpost.addon.hleg", false)]
     [InlineData("1.10.publisherb.addon.cbpr", false)]
-    public void RemoveRetiredControlBarProGenToolDependency_OnlyAffectsControlBarPro(string manifestId, bool expectRemoved)
+    public void RemoveRetiredControlBarGenToolDependency_OnlyAffectsControlBars(string manifestId, bool expectRemoved)
     {
         var manifest = new GenHub.Core.Models.Manifest.ContentManifest
         {
@@ -65,7 +69,7 @@ public class GenPatcherDependencyBuilderTests
             Dependencies = [GenPatcherDependencyBuilder.CreateGenToolDependency()],
         };
 
-        var removed = GenPatcherDependencyBuilder.RemoveRetiredControlBarProGenToolDependency(manifest);
+        var removed = GenPatcherDependencyBuilder.RemoveRetiredControlBarGenToolDependency(manifest);
 
         Assert.Equal(expectRemoved, removed);
         Assert.Equal(expectRemoved ? 0 : 1, manifest.Dependencies.Count);
@@ -413,24 +417,6 @@ public class GenPatcherDependencyBuilderTests
         Assert.Equal(ContentType.Addon, dependency.DependencyType);
         Assert.Equal(DependencyInstallBehavior.RequireExisting, dependency.InstallBehavior);
         Assert.False(dependency.IsOptional);
-
-        // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)
-        Assert.Contains("gent", dependency.Id.ToString());
-    }
-
-    /// <summary>
-    /// Verifies that CreateOptionalGenToolDependency returns optional dependency.
-    /// </summary>
-    [Fact]
-    public void CreateOptionalGenToolDependency_ReturnsOptionalDependency()
-    {
-        // Act
-        var dependency = GenPatcherDependencyBuilder.CreateOptionalGenToolDependency();
-
-        // Assert
-        Assert.Equal(ContentType.Addon, dependency.DependencyType);
-        Assert.Equal(DependencyInstallBehavior.Suggest, dependency.InstallBehavior);
-        Assert.True(dependency.IsOptional);
 
         // ID format: 1.0.communityoutpost.addon.gent (using 4-char content code)
         Assert.Contains("gent", dependency.Id.ToString());

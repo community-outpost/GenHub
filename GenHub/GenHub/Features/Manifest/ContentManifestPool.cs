@@ -170,7 +170,7 @@ public class ContentManifestPool(
                 return OperationResult<ContentManifest?>.CreateFailure("Manifest file is corrupted or invalid");
             }
 
-            GenPatcherDependencyBuilder.RemoveRetiredControlBarProGenToolDependency(manifest);
+            GenPatcherDependencyBuilder.RemoveRetiredControlBarGenToolDependency(manifest);
             return OperationResult<ContentManifest?>.CreateSuccess(manifest);
         }
         catch (Exception ex)
@@ -201,7 +201,7 @@ public class ContentManifestPool(
 
                 if (manifest != null)
                 {
-                    GenPatcherDependencyBuilder.RemoveRetiredControlBarProGenToolDependency(manifest);
+                    GenPatcherDependencyBuilder.RemoveRetiredControlBarGenToolDependency(manifest);
                     manifests.Add(manifest);
                 }
             }
