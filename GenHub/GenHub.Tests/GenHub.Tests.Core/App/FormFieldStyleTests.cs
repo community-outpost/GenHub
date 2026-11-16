@@ -103,6 +103,36 @@ public class FormFieldStyleTests
         }
     }
 
+    /// <summary>Edit Custom Tab fields use the shared field and dialog label styles.</summary>
+    [AvaloniaFact]
+    public void EditCustomTab_FieldsAndLabelsUseSharedStyles()
+    {
+        var dialog = new EditCustomTabDialogView();
+        var window = new Window { Width = 900, Height = 900, Content = dialog };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var fields = dialog.GetVisualDescendants().OfType<TextBox>().Where(field => field.TemplatedParent is null).ToList();
+            Assert.NotEmpty(fields);
+            Assert.All(fields, field =>
+            {
+                Assert.Contains("form-field", field.Classes);
+                Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(field.Background));
+                Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), field.CornerRadius);
+            });
+
+            var labels = dialog.GetVisualDescendants().OfType<TextBlock>().Where(text => text.Classes.Contains("dialog-label")).ToList();
+            Assert.NotEmpty(labels);
+            Assert.All(labels, label => Assert.Equal(TextWrapping.Wrap, label.TextWrapping));
+            Assert.DoesNotContain(dialog.GetVisualDescendants().OfType<TextBlock>(), text => text.Classes.Contains("label") || text.Classes.Contains("hint"));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>A compact dropdown still exposes selected content and keyboard focus without clipping its glyph.</summary>
     [AvaloniaFact]
     public void CompactDropdown_SelectionFocusAndDisabledInkRemainAvailable()
