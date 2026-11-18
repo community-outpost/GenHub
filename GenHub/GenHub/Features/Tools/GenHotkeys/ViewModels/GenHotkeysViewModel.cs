@@ -1050,7 +1050,16 @@ public partial class GenHotkeysViewModel(
         var deleteSucceeded = false;
         try
         {
-            await _saveSemaphore.WaitAsync(cancellationToken);
+            try
+            {
+                await _saveSemaphore.WaitAsync(cancellationToken);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                logger.LogDebug(ex, "Save semaphore was disposed before delete");
+                return;
+            }
+
             lockAcquired = true;
             var deleted = await profileStorageService.DeleteProfileAsync(toDelete.Id, cancellationToken);
             if (!deleted)
@@ -1081,7 +1090,14 @@ public partial class GenHotkeysViewModel(
         {
             if (lockAcquired)
             {
-                _saveSemaphore.Release();
+                try
+                {
+                    _saveSemaphore.Release();
+                }
+                catch (ObjectDisposedException ex)
+                {
+                    logger.LogDebug(ex, "Save semaphore was disposed before release");
+                }
             }
 
             _deletingProfileId = null;

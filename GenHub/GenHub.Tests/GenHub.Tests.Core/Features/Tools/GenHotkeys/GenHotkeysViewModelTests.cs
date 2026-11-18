@@ -565,6 +565,74 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that disposing while a delete of the pending-save profile is in flight
+    /// skips the dispose flush, so the deleted profile file is never rewritten.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Dispose_WhenPendingSaveBelongsToDeletingProfile_DoesNotFlushDeletedProfileAsync()
+    {
+        _mockDialogService.Setup(d => d.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object,
+            dialogService: _mockDialogService.Object);
+
+        var profile1 = new HotkeyProfile { Name = "Profile 1" };
+        var profile2 = new HotkeyProfile { Name = "Profile 2" };
+        vm.Profiles.Add(profile1);
+        vm.Profiles.Add(profile2);
+        vm.SelectedProfile = profile1;
+
+        var deleteGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mockProfileStorage.Setup(s => s.DeleteProfileAsync(profile1.Id, It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await deleteGate.Task;
+                return true;
+            });
+
+        var deleteTask = vm.DeleteCurrentProfileAsync();
+
+        for (var i = 0; i < 100; i++)
+        {
+            if (_mockProfileStorage.Invocations.Any(invocation =>
+                    invocation.Method.Name == nameof(IHotkeyProfileStorageService.DeleteProfileAsync)))
+            {
+                break;
+            }
+
+            await Task.Delay(50);
+        }
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Unit Action",
+            DefaultDisplayName = "Unit Action",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+        vm.SelectAction(action);
+        action.DisplayName = "Renamed During Delete";
+
+        vm.Dispose();
+        deleteGate.SetResult(true);
+        await deleteTask;
+        await Task.Delay(GenHotkeysConstants.ProfileSaveDebounceMilliseconds + 100);
+
+        Assert.DoesNotContain(profile1, vm.Profiles);
+        _mockProfileStorage.Verify(s => s.SaveProfileAsync(It.Is<HotkeyProfile>(p => p.Id == profile1.Id), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that a completed direct save does not flush the same profile again when the selection changes.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
