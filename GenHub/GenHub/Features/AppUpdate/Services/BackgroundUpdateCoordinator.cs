@@ -964,11 +964,13 @@ public class BackgroundUpdateCoordinator(
         }
 
         var latestVersion = latestRelease.Version.TrimStart('v', 'V');
+        var isNotInstalledYet = string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildVersion);
         var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
 
         var customDismissKey = $"{contentId}@{latestVersion}";
-        if (UpdateNotificationViewModel.CompareReleaseVersions(latestVersion, installedVersion) > 0 &&
-            !string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase))
+        var isDismissed = string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase);
+        if ((isNotInstalledYet || UpdateNotificationViewModel.CompareReleaseVersions(latestVersion, installedVersion) > 0) &&
+            !(isDismissed && !isNotInstalledYet))
         {
             NotifyCustomBuildUpdateAvailable(contentId, buildName, latestVersion);
         }

@@ -837,6 +837,32 @@ public partial class AddContentDialogViewModel(
     }
 
     /// <summary>
+    /// Stages a local directory or file path while inspecting the staged build off the UI thread.
+    /// If ContentName or ContentId are empty, auto-fills them.
+    /// </summary>
+    /// <param name="path">Path to the folder or archive file.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task PopulateFromPathAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        await StagePathsAsync([path], autofill: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Stages multiple local directories or file paths while inspecting the staged build off the UI thread.
+    /// Empty content fields are auto-filled from the first staged entry.
+    /// </summary>
+    /// <param name="paths">Paths to stage.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task PopulateFromPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+        await StagePathsAsync(paths, autofill: true, cancellationToken);
+    }
+
+    /// <summary>
     /// Adds screenshots from dropped file paths with duplicate detection.
     /// </summary>
     /// <param name="paths">The dropped file or directory paths.</param>
@@ -1337,6 +1363,22 @@ public partial class AddContentDialogViewModel(
             stagedAny |= TryStagePath(rawPath, autofill);
         }
 
+        FinishStaging(stagedAny);
+    }
+
+    private async Task StagePathsAsync(IEnumerable<string> paths, bool autofill, CancellationToken cancellationToken = default)
+    {
+        var stagedAny = false;
+        foreach (var rawPath in paths)
+        {
+            stagedAny |= await TryStagePathAsync(rawPath, autofill, cancellationToken);
+        }
+
+        FinishStaging(stagedAny);
+    }
+
+    private void FinishStaging(bool stagedAny)
+    {
         if (!stagedAny)
         {
             return;
@@ -1350,6 +1392,40 @@ public partial class AddContentDialogViewModel(
 
     private bool TryStagePath(string? rawPath, bool autofill)
     {
+        if (!TryStageEntryCore(rawPath, out var path, out var entry, out var isFirst))
+        {
+            return false;
+        }
+
+        if (isFirst)
+        {
+            ApplyFirstStagedEntry(path, entry, autofill);
+        }
+
+        return true;
+    }
+
+    private async Task<bool> TryStagePathAsync(string? rawPath, bool autofill, CancellationToken cancellationToken = default)
+    {
+        if (!TryStageEntryCore(rawPath, out var path, out var entry, out var isFirst))
+        {
+            return false;
+        }
+
+        if (isFirst)
+        {
+            await ApplyFirstStagedEntryAsync(path, entry, autofill, cancellationToken);
+        }
+
+        return true;
+    }
+
+    private bool TryStageEntryCore(string? rawPath, out string stagedPath, out StagedContentFile entry, out bool isFirst)
+    {
+        stagedPath = string.Empty;
+        entry = null!;
+        isFirst = false;
+
         if (string.IsNullOrWhiteSpace(rawPath))
         {
             return false;
@@ -1366,16 +1442,11 @@ public partial class AddContentDialogViewModel(
             return false;
         }
 
-        var isFirst = StagedFiles.Count == 0;
-        var entry = CreateStagedEntry(path);
+        isFirst = StagedFiles.Count == 0;
+        entry = CreateStagedEntry(path);
         StagedFiles.Add(entry);
         StartStagedCompute(entry);
-
-        if (isFirst)
-        {
-            ApplyFirstStagedEntry(path, entry, autofill);
-        }
-
+        stagedPath = path;
         return true;
     }
 
@@ -1385,6 +1456,15 @@ public partial class AddContentDialogViewModel(
         if (autofill)
         {
             AutoFillFromEntry(path, entry);
+        }
+    }
+
+    private async Task ApplyFirstStagedEntryAsync(string path, StagedContentFile entry, bool autofill, CancellationToken cancellationToken = default)
+    {
+        PackageFilename = entry.IsFolder ? $"{entry.DisplayName}.zip" : entry.DisplayName;
+        if (autofill)
+        {
+            await AutoFillFromEntryAsync(path, entry, cancellationToken);
         }
     }
 
@@ -1444,9 +1524,20 @@ public partial class AddContentDialogViewModel(
 
     private void AutoFillFromEntry(string path, StagedContentFile entry)
     {
+        var buildInfo = _buildInspector.Inspect(path);
+        ApplyAutofillFromBuildInfo(path, entry, buildInfo);
+    }
+
+    private async Task AutoFillFromEntryAsync(string path, StagedContentFile entry, CancellationToken cancellationToken = default)
+    {
+        var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken);
+        ApplyAutofillFromBuildInfo(path, entry, buildInfo);
+    }
+
+    private void ApplyAutofillFromBuildInfo(string path, StagedContentFile entry, GenHubBuildInfo buildInfo)
+    {
         var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
 
-        var buildInfo = _buildInspector.Inspect(path);
         if (buildInfo.IsGenHubBuild)
         {
             ApplyGenHubBuildToContent(buildInfo, baseName);
@@ -1692,7 +1783,7 @@ public partial class AddContentDialogViewModel(
         var existing = filePaths.Where(File.Exists).ToList();
         if (existing.Count > 0)
         {
-            StagePaths(existing, autofill: true);
+            await StagePathsAsync(existing, autofill: true);
         }
     }
 
@@ -1708,7 +1799,7 @@ public partial class AddContentDialogViewModel(
             GetLocalizedString("Tools.PublisherStudio.Content.SelectFolderTitle", "Select Content Folder"));
         if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
         {
-            PopulateFromPath(folderPath);
+            await PopulateFromPathAsync(folderPath);
         }
     }
 

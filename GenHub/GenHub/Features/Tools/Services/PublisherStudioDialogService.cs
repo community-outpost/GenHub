@@ -77,13 +77,13 @@ public class PublisherStudioDialogService(
     public async Task<CatalogContentItem?> ShowAddContentDialogAsync(IEnumerable<string>? initialPaths = null, PublisherCatalog? catalog = null)
     {
         return await ShowDialogAsync<AddContentDialogViewModel, AddContentDialogView, CatalogContentItem>(
-            callback =>
+            async callback =>
             {
                 var vm = new AddContentDialogViewModel(res => callback(res!), this, localizationService, catalog, notificationService, _buildInspector);
                 var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
                 if (pathsList is { Count: > 0 })
                 {
-                    vm.PopulateFromPaths(pathsList);
+                    await vm.PopulateFromPathsAsync(pathsList);
                 }
 
                 return vm;

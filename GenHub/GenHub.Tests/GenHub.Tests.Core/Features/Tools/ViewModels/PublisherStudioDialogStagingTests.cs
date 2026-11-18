@@ -79,6 +79,31 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
     }
 
     /// <summary>
+    /// The async staging path inspects the build off the UI thread and stages identically to the sync path.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PopulateFromPathsAsync_SingleFile_MatchesSyncStagingAsync()
+    {
+        var file = WriteTempFile("async-mod.big", "payload");
+        CatalogContentItem? created = null;
+        using var vm = new AddContentDialogViewModel(item => created = item);
+
+        await vm.PopulateFromPathsAsync([file]);
+        await WaitForComputeAsync(vm);
+
+        vm.CreateContentCommand.Execute(null);
+
+        Assert.NotNull(created);
+        var release = Assert.Single(created.Releases);
+        Assert.False(release.BundleArtifacts);
+        var artifact = Assert.Single(release.Artifacts);
+        Assert.Equal("async-mod.big", artifact.Filename);
+        Assert.True(artifact.IsPrimary);
+        Assert.Equal("async-mod.big", vm.StagedFiles[0].DisplayName);
+    }
+
+    /// <summary>
     /// Staging a zip archive must surface its entry count and the automatic
     /// extraction note so publishers know installs unpack it.
     /// </summary>
