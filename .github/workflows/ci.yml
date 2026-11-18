@@ -69,6 +69,7 @@ jobs:
               - 'GenHub/GenHub.Core/**'
             ui:
               - 'GenHub/GenHub/**'
+              - 'GenHub/GenHub.UI.Showcase/**'
             windows:
               - 'GenHub/GenHub.Windows/**'
               - 'GenHub/GenHub.ProxyLauncher/**'
@@ -209,6 +210,8 @@ jobs:
 
           Write-Host "Building UI project"
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} @buildProps
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           Write-Host "Building Windows project"
           dotnet build "${{ env.WINDOWS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} @buildProps
@@ -349,6 +352,7 @@ jobs:
 
           echo "Building UI project"
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
 
           echo "Building Linux project"
           dotnet build "${{ env.LINUX_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
@@ -479,6 +483,7 @@ jobs:
 
           dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
           dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build GenHub/GenHub.UI.Showcase/GenHub.UI.Showcase.csproj -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
           dotnet build "${{ env.MACOS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
 
       - name: Publish macOS App
@@ -653,7 +658,7 @@ jobs:
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
-              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+              dotnet test $testProject.FullName -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
               if ($LASTEXITCODE -ne 0) {
                 throw "Test failed for $($testProject.FullName)"
               }
@@ -696,7 +701,7 @@ jobs:
           for test_project in ${{ env.TEST_PROJECTS }}; do
             [[ "$test_project" == *Windows* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
-            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
           done
 
   test-macos:
@@ -739,7 +744,7 @@ jobs:
             [[ -z "$test_project" ]] && continue
             [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
-            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity normal
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --filter "Category!=LiveNetwork" --verbosity minimal --logger "console;verbosity=normal" --blame-hang-timeout 8m --blame-hang-dump-type none
             test_count=$((test_count + 1))
           done <<< "$test_projects"
           if [ "$test_count" -eq 0 ]; then
@@ -781,21 +786,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      # `latest-bgfx` is a moving tag, republished as the engine advances. Deliberate
-      # tradeoff: this job tracks the current engine build rather than pinning a
-      # reproducible one, so an engine regression surfaces here first.
+      # The engine comes from a dedicated release that the fork never republishes or prunes.
+      # The SHA-256 guards against the archive changing anyway. To move to a newer engine,
+      # verify the build, publish it (not as a draft) as a new genhub-ci-engine release, and update both values.
       - name: Download Native Engine
         env:
           GH_TOKEN: ${{ github.token }}
+          ENGINE_REPO: bobtista/GeneralsGameCode
+          ENGINE_TAG: genhub-ci-engine-2026.11.16
+          ENGINE_ASSET: GeneralsZH-macos-arm64.zip
+          ENGINE_SHA256: de72b66846b5922d20fa5e30c816e1df38e481261d34359afde23c83de29b4a9
         run: |
-          gh release download latest-bgfx \
-            --repo bobtista/GeneralsGameCode \
-            --pattern 'GeneralsZH-macos-arm64.zip' \
+          gh release download "$ENGINE_TAG" \
+            --repo "$ENGINE_REPO" \
+            --pattern "$ENGINE_ASSET" \
             --dir engine-download
+          if ! echo "$ENGINE_SHA256  engine-download/$ENGINE_ASSET" | shasum -a 256 -c -; then
+            echo "::error::$ENGINE_ASSET from $ENGINE_REPO@$ENGINE_TAG does not match the pinned SHA-256. Verify the new build and update ENGINE_SHA256."
+            exit 1
+          fi
           # The archive wraps everything in a GeneralsZH-macos-arm64/ directory, so it is
           # staged and the wrapper's contents lifted out. Not `unzip -j`: that would also
           # flatten Data/INI/, which the engine reads by path.
-          unzip -q engine-download/GeneralsZH-macos-arm64.zip -d engine-staging
+          unzip -q "engine-download/$ENGINE_ASSET" -d engine-staging
           root="$(find engine-staging -mindepth 1 -maxdepth 1 -type d)"
           if [ ! -f "$root/generalszh" ]; then
             echo "::error::generalszh not found in the release archive; contents were:"
@@ -817,7 +830,8 @@ jobs:
           dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj \
             -c ${{ env.BUILD_CONFIGURATION }} \
             --filter "FullyQualifiedName~EngineLaunchSmokeTests" \
-            --verbosity normal
+            --verbosity minimal \
+            --logger "console;verbosity=normal"
 
   summary:
     name: Build Summary
@@ -835,18 +849,20 @@ jobs:
           echo "### GenHub CI Results" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && 'Passed' || needs.build-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && 'Passed' || needs.build-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && 'Passed' || needs.build-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && 'Passed' || needs.test-windows.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && 'Passed' || needs.test-linux.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && 'Passed' || needs.test-macos.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && 'Passed' || needs.engine-launch-smoke.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Localization | ${{ needs.validate-localization.result == 'success' && 'Passed' || needs.validate-localization.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Windows | ${{ needs.build-windows.result == 'success' && 'Passed' || needs.build-windows.result == 'skipped' && 'Skipped' || needs.build-windows.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Linux | ${{ needs.build-linux.result == 'success' && 'Passed' || needs.build-linux.result == 'skipped' && 'Skipped' || needs.build-linux.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build macOS | ${{ needs.build-macos.result == 'success' && 'Passed' || needs.build-macos.result == 'skipped' && 'Skipped' || needs.build-macos.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Windows | ${{ needs.test-windows.result == 'success' && 'Passed' || needs.test-windows.result == 'skipped' && 'Skipped' || needs.test-windows.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Linux | ${{ needs.test-linux.result == 'success' && 'Passed' || needs.test-linux.result == 'skipped' && 'Skipped' || needs.test-linux.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test macOS | ${{ needs.test-macos.result == 'success' && 'Passed' || needs.test-macos.result == 'skipped' && 'Skipped' || needs.test-macos.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && 'Passed' || needs.engine-launch-smoke.result == 'skipped' && 'Skipped' || needs.engine-launch-smoke.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Localization | ${{ needs.validate-localization.result == 'success' && 'Passed' || needs.validate-localization.result == 'skipped' && 'Skipped' || needs.validate-localization.result == 'cancelled' && 'Cancelled' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
 
       # Turns the summary into a real gate: branch protection can require this one
       # check and a failed or cancelled job anywhere in `needs` blocks the merge.
       # Skipped jobs pass — being gated off by detect-changes is not a failure.
+      # A cancelled push run is not a failure. The pull request run for the same branch
+      # shares its concurrency group and cancels it by design, and push runs gate no merge.
       - name: Fail when a required job failed
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        if: ${{ contains(needs.*.result, 'failure') || (github.event_name != 'push' && contains(needs.*.result, 'cancelled')) }}
         run: exit 1

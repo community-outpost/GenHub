@@ -93,6 +93,18 @@ Constants used by the application localization foundation.
 
 ---
 
+## CuratedCatalogFilterConstants Class
+
+Resource keys used by the local filter on curated catalogs in the Downloads browser.
+
+| Constant | Value | Description |
+| --- | --- | --- |
+| `AllLabelKey` | `"Downloads.Browser.Filter.All"` | Label of the chip that selects every category |
+| `CategoryLabelKeyPrefix` | `"Downloads.Browser.Filter.Category."` | Prefix of catalog category chip labels, followed by the category identifier |
+| `ContentTypeLabelKeyPrefix` | `"ContentType."` | Prefix of content type labels, followed by the content type identifier |
+
+---
+
 ## AppUpdateConstants Class
 
 Constants related to application updates and Velopack.
@@ -370,6 +382,7 @@ Constants related to manifest ID generation, validation, and file operations.
 | `MinManifestSegments`          | `5`                  | Minimum number of segments in manifest ID (must be exactly 5)                         |
 | `ManifestIdSegmentSeparator`   | `'.'`                | Separator character for manifest ID segments                                          |
 | `VariantSeparator`             | `"-"`                | Separator used to append variant identifiers to content names                         |
+| `ScannedRetailPublisherId`     | `"retailinstallation"` | Publisher ID segment of a scanned retail game client                                |
 
 ### Manifest Validation
 
@@ -698,6 +711,75 @@ Constants for publisher endpoint names and keys used in JSON serialization and l
 
 ---
 
+## PublisherStudioConstants Class
+
+Constants for Publisher Studio project storage and catalog export messages.
+
+| Constant                 | Value                                           | Description                                                        |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------ |
+| `StudioFolderName`       | `"PublisherStudio"`                             | Studio data folder under the application data directory            |
+| `ProjectsFolderName`     | `"projects"`                                    | Projects folder under the studio folder                            |
+| `DefaultProjectFileName` | `"default-publisher.json"`                      | File name of the default publisher project                         |
+| `SettingsFileName`       | `"publisher_studio_settings.json"`              | Publisher Studio settings file name                                |
+| `ExportDraftMessageKey`  | `"Tools.PublisherStudio.Validation.ExportDraft"` | Resource key for the error when an item without releases blocks export or publish |
+| `ExportDraftMessage`     | Message string                                  | English fallback for `ExportDraftMessageKey`; `{0}` is the item name or ID |
+
+---
+
+## CustomTabConstants Class
+
+Limits, allowlists, link patterns and UI resource keys for publisher-defined custom tabs.
+
+### Limits
+
+| Constant                   | Value   | Description                                              |
+| -------------------------- | ------- | -------------------------------------------------------- |
+| `MaxTabsPerScope`          | `10`    | Most tabs one content item or the catalog root may declare |
+| `MaxCardsPerTab`           | `24`    | Most cards one tab may declare                           |
+| `MaxTabIdLength`           | `64`    | Longest tab ID                                           |
+| `MaxHeaderLength`          | `40`    | Longest tab header                                       |
+| `MaxIntroLength`           | `2000`  | Longest tab intro                                        |
+| `MaxBodyLength`            | `50000` | Longest tab Markdown body                                |
+| `MaxCardTitleLength`       | `100`   | Longest card title or label                              |
+| `MaxCardDescriptionLength` | `1000`  | Longest card description                                 |
+| `AvaloniaResourceScheme`   | `"avares"` | URI scheme for images bundled with the app            |
+| `GeneratedIdFallbackPrefix` | `"tab-"` | Prefix of a generated tab ID when the header has no usable characters |
+| `GeneratedIdFallbackHashLength` | `8` | Hash characters in a generated fallback tab ID       |
+
+### Studio Tab Header Buttons
+
+| Constant                   | Value                                               | Description                                 |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------- |
+| `EditTabLocalizationKey`   | `"Tools.PublisherStudio.Content.CustomTabs.EditTab"`   | Tooltip key of the tab header edit button   |
+| `DeleteTabLocalizationKey` | `"Tools.PublisherStudio.Content.CustomTabs.DeleteTab"` | Tooltip key of the tab header delete button |
+| `EditIconResourceKey`      | `"EditIcon"`                                        | Icon resource of the tab header edit button |
+| `DeleteIconResourceKey`    | `"DeleteIcon"`                                      | Icon resource of the tab header delete button |
+
+The header buttons use `ThemeResourceKeys.AccentBrush` for edit and `ThemeResourceKeys.StatusErrorBrush` for delete.
+
+### Publisher Image Links
+
+| Constant                                | Value                                                              | Description                                   |
+| --------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------- |
+| `GoogleDriveHost`                       | `"drive.google.com"`                                               | Host of Drive file viewer links               |
+| `GoogleDriveDirectUrlFormat`            | `"https://drive.usercontent.google.com/download?id={0}&export=view"` | Direct download URL for a Drive file ID     |
+| `GoogleDriveOpenPath`                   | `"/open"`                                                          | Drive open link path                          |
+| `GoogleDriveUcPath`                     | `"/uc"`                                                            | Drive legacy download link path               |
+| `GoogleDriveIdQueryKey`                 | `"id"`                                                             | Query parameter carrying a Drive file ID      |
+| `GoogleDriveResourceKeyQueryKey`        | `"resourcekey"`                                                    | Query parameter carrying a Drive resource key |
+| `GoogleDriveFilePathPattern`            | regex                                                              | Drive viewer path, captures the `id` group    |
+| `GoogleDriveFileIdPattern`              | regex                                                              | Drive file ID                                 |
+| `GoogleDriveResourceKeyPattern`         | regex                                                              | Drive resource key                            |
+| `DiscordCdnHost`                        | `"cdn.discordapp.com"`                                             | Discord CDN attachment host                   |
+| `DiscordMediaHost`                      | `"media.discordapp.net"`                                           | Discord media proxy attachment host           |
+| `DiscordAttachmentsPathPrefix`          | `"/attachments/"`                                                  | Discord attachment path prefix                |
+| `DiscordEphemeralAttachmentsPathPrefix` | `"/ephemeral-attachments/"`                                        | Discord ephemeral attachment path prefix      |
+| `DiscordExpiryQueryKey`                 | `"ex"`                                                             | Query parameter carrying the expiry time      |
+| `DiscordSignatureQueryKey`              | `"hm"`                                                             | Query parameter carrying the signature        |
+| `BodyLinkPattern`                       | regex                                                              | http or https link in a tab body              |
+
+---
+
 ## PublisherInfoConstants Class
 
 Constants for publisher information including display names, websites, and support URLs.
@@ -866,6 +948,26 @@ Constants related to game client detection and management.
   - `GeneralsOnline30HzExecutable`
   - `GeneralsOnline60HzExecutable`
   - `GeneralsOnlineDefaultExecutable`
+
+### Setup Wizard and Publisher Profiles
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PublisherAcquisitionFailedError` | `"Could not download {0} content."` | Error returned when a publisher download failed. The result still carries any profiles created from an older package. `{0}` is the publisher display name |
+
+#### InstallationTypeLocalizationKeys
+
+Resource keys for installation source names in the setup wizard summary. Unknown and custom sources have no key and are left out.
+
+| Constant | Value |
+|----------|-------|
+| `Steam` | `"GameProfiles.InstallationType.Steam"` |
+| `EaApp` | `"GameProfiles.InstallationType.EaApp"` |
+| `TheFirstDecade` | `"GameProfiles.InstallationType.FirstDecade"` |
+| `CdIso` | `"GameProfiles.InstallationType.CdIso"` |
+| `Wine` | `"GameProfiles.InstallationType.Wine"` |
+| `Retail` | `"GameProfiles.InstallationType.Retail"` |
+| `Lutris` | `"GameProfiles.InstallationType.Lutris"` |
 
 ---
 
@@ -1092,6 +1194,44 @@ User interface sizing, theme color, and display name constants.
 - `StatusErrorColor`: Color used to indicate error or negative status (`"#F44336"`)
 - `GeneralsThemeColor`: Default theme color for Generals content (`"#BD5A0F"`)
 - `ZeroHourThemeColor`: Default theme color for Zero Hour content (`"#1B6575"`)
+
+### Collection Notifications
+
+- `IndexerPropertyName`: Property name raised when the items of an indexed collection change (`"Item[]"`)
+
+## ThemeConstants Class
+
+Preset color themes and the primary action palette.
+
+### Default Action Fills
+
+Approved primary action fills for the default Void Purple theme.
+
+- `DefaultActionRestHex`: Resting fill (`"#7540B8"`)
+- `DefaultActionHoverHex`: Pointer-over fill (`"#8651C9"`)
+- `DefaultActionPressedHex`: Pressed fill (`"#65339F"`)
+- `DefaultActionRestGradientStartHex`: Start of the resting gradient (`"#8241CF"`)
+- `DefaultActionRestGradientEndHex`: End of the resting gradient (`"#6930B3"`)
+- `DefaultActionPressedGradientStartHex`: Start of the pressed gradient (`"#7135BC"`)
+- `DefaultActionPressedGradientEndHex`: End of the pressed gradient (`"#592696"`)
+
+### Derived Action Fill Tuning
+
+Used by `ActionButtonPalette` to derive action fills for non-default themes. Each state takes the brightest fill that keeps white text at or above its contrast ratio, capped by its maximum channel scale.
+
+- `ActionRestMinimumContrast`: Minimum white-ink contrast for the resting fill (`6.2`)
+- `ActionRestMaximumScale`: Maximum channel scale for the resting fill (`0.82`)
+- `ActionHoverMinimumContrast`: Minimum white-ink contrast for the pointer-over fill (`5.2`)
+- `ActionHoverMaximumScale`: Maximum channel scale for the pointer-over fill (`1.0`)
+- `ActionPressedMinimumContrast`: Minimum white-ink contrast for the pressed fill (`7.5`)
+- `ActionPressedMaximumScale`: Maximum channel scale for the pressed fill (`0.68`)
+- `ActionPressedGradientDarkenFactor`: Channel multiplier for the deeper end of the pressed gradient (`0.85`)
+- `ActionFillSearchIterations`: Bisection steps used to find each fill (`24`)
+
+### Preset Themes
+
+- `DefaultTheme`, `GeneralsTheme`, `ZeroHourTheme`, `EmeraldTheme`, `CrimsonTheme`, `AmberTheme`, `CobaltTheme`, `RoseTheme`, `TiberiumTheme`, `TealTheme`, `IndigoTheme`, `RubyTheme`: Preset `ColorTheme` palettes
+- `AllThemes`: Every preset, in display order
 
 ## ScrollSpyConstants Class
 
@@ -1573,6 +1713,7 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **PublisherKeyConstants**: Trusted publisher key store file name, encryption salt (DPAPI entropy on Windows), schema version, quarantine file naming, accepted PEM labels, minimum RSA and ECDSA key sizes, the allowed EC curve OIDs (P-256, P-384, P-521), the publisher identity proof domain line, and the allowed clock skew for proof signing times
 - **PublisherTypeConstants**: Publisher type identifiers for content sources
 - **StorageConstants**: Storage and CAS operation constants
+- **ThemeConstants**: Preset color themes and primary action palette tuning
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
 - **UserDataConstants**: Tracked user data installation constants
@@ -2005,6 +2146,10 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 ### Telemetry Properties (`TelemetryConstants.Properties`)
 
 Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `LaunchSource`, `ShortcutType`, `ShareFormat`, `ImportSource`, `FixId`, `FixName`, `IsCrucial`, `Success`, `ErrorMessage`, `ErrorCategory`, `ProjectName`, `BuildSteps`, `ToolSource`, `FileName`, `FileSizeBytes`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `ProfilesUpdated`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+
+### Telemetry Error Categories (`TelemetryConstants.ErrorCategories`)
+
+Values for the `ErrorCategory` property: `LaunchFailed` (`launch_failed`) when a launch reports failure without an exception, and `MissingDependencies` (`missing_dependencies`) when launch is blocked by missing required content.
 
 ---
 

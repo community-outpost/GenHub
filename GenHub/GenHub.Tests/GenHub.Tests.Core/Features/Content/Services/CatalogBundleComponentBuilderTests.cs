@@ -1,3 +1,4 @@
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.Catalog;
@@ -336,6 +337,142 @@ public sealed class CatalogBundleComponentBuilderTests
         Assert.True(release.IsLatest);
         Assert.NotNull(release.Dependencies);
         Assert.Empty(release.Dependencies);
+    }
+
+    /// <summary>
+    /// An upstream sibling not yet ingested lists only the asset rules that apply to the host
+    /// as placeholder variants.
+    /// </summary>
+    [Fact]
+    public void Build_PlatformAssetRulesWithoutReleases_ListsOnlyHostVariants()
+    {
+        var (catalog, bundle) = CreateBundleWithPlatformRules(
+            new CatalogUpstreamAssetRule { Pattern = "host", Variant = "Host", Platform = HostFamily() },
+            new CatalogUpstreamAssetRule { Pattern = "other", Variant = "Other", Platform = OtherFamily() },
+            new CatalogUpstreamAssetRule { Pattern = "any", Variant = "Any" });
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        var component = Assert.Single(components, c => c.ContentId == "per-os-client");
+        Assert.True(component.IsAvailable);
+        Assert.Equal(["Host", "Any"], component.Variants.Select(v => v.Label));
+    }
+
+    /// <summary>
+    /// An upstream sibling whose asset rules all target other platforms is unavailable on the host.
+    /// </summary>
+    [Fact]
+    public void Build_PlatformAssetRulesForOtherPlatformOnly_MarksComponentUnavailable()
+    {
+        var (catalog, bundle) = CreateBundleWithPlatformRules(
+            new CatalogUpstreamAssetRule { Pattern = "other", Variant = "Other", Platform = OtherFamily() });
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        Assert.False(Assert.Single(components, c => c.ContentId == "per-os-client").IsAvailable);
+    }
+
+    /// <summary>
+    /// A sibling that ingestion withheld on this host stays unavailable even though it has host rules.
+    /// </summary>
+    [Fact]
+    public void Build_SiblingWithheldOnHost_MarksComponentUnavailable()
+    {
+        var (catalog, bundle) = CreateBundleWithPlatformRules(
+            new CatalogUpstreamAssetRule { Pattern = "host", Variant = "Host", Platform = HostFamily() });
+        catalog.Content.Single(c => c.Id == "per-os-client").IsWithheldOnHost = true;
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        Assert.False(Assert.Single(components, c => c.ContentId == "per-os-client").IsAvailable);
+    }
+
+    /// <summary>
+    /// A withheld sibling stays unavailable even when it still carries a release.
+    /// </summary>
+    [Fact]
+    public void Build_WithheldSiblingWithRelease_MarksComponentUnavailable()
+    {
+        var (catalog, bundle) = CreateBundleWithPlatformRules(
+            new CatalogUpstreamAssetRule { Pattern = "host", Variant = "Host", Platform = HostFamily() });
+        var sibling = catalog.Content.Single(c => c.Id == "per-os-client");
+        sibling.Releases.Add(new ContentRelease { Version = "1.0.0", IsLatest = true });
+        sibling.IsWithheldOnHost = true;
+
+        var components = CatalogBundleComponentBuilder.Build(catalog, bundle, bundle.Releases[0]);
+
+        Assert.False(Assert.Single(components, c => c.ContentId == "per-os-client").IsAvailable);
+    }
+
+    /// <summary>
+    /// Hydration skips a withheld bundle so it is not offered with a synthetic release.
+    /// </summary>
+    [Fact]
+    public void HydrateSyntheticBundleReleases_WithheldBundle_AddsNoRelease()
+    {
+        var bundle = new CatalogContentItem
+        {
+            Id = "withheld-bundle",
+            ContentType = ContentType.ContentBundle,
+            Releases = [],
+            BundledItems = [new CatalogDependency { ContentId = "per-os-client" }],
+            IsWithheldOnHost = true,
+        };
+
+        CatalogBundleComponentBuilder.HydrateSyntheticBundleReleases([bundle]);
+
+        Assert.Empty(bundle.Releases);
+    }
+
+    private static string HostFamily() => HostPlatform.Current switch
+    {
+        ExecutablePlatform.Windows => "windows",
+        ExecutablePlatform.MacOS => "macos",
+        _ => "linux",
+    };
+
+    private static string OtherFamily() => HostPlatform.Current == ExecutablePlatform.Windows ? "macos" : "windows";
+
+    private static (PublisherCatalog Catalog, CatalogContentItem Bundle) CreateBundleWithPlatformRules(params CatalogUpstreamAssetRule[] rules)
+    {
+        var sibling = new CatalogContentItem
+        {
+            Id = "per-os-client",
+            Name = "Per-OS Client",
+            ContentType = ContentType.GameClient,
+            Releases = [],
+            UpstreamSync = new CatalogUpstreamSync
+            {
+                Provider = "GitHubReleases",
+                Repository = "Test/TestRepo",
+                VariantAxis = "build",
+                AssetRules = [.. rules],
+            },
+        };
+
+        var bundle = new CatalogContentItem
+        {
+            Id = "per-os-bundle",
+            Name = "Per-OS Bundle",
+            ContentType = ContentType.ContentBundle,
+            Releases =
+            [
+                new ContentRelease
+                {
+                    Version = "1.0.0",
+                    Dependencies = [new CatalogDependency { ContentId = "per-os-client" }],
+                },
+            ],
+        };
+
+        var catalog = new PublisherCatalog
+        {
+            SchemaVersion = 1,
+            Publisher = new PublisherProfile { Id = "test", Name = "Test" },
+            Content = [sibling, bundle],
+        };
+
+        return (catalog, bundle);
     }
 
     private static PublisherCatalog CreateCatalogWithLemonBundle()

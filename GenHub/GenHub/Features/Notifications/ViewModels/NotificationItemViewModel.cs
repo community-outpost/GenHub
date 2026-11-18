@@ -59,6 +59,11 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
     public ObservableCollection<NotificationActionViewModel> Actions { get; }
 
     /// <summary>
+    /// Gets the first action, which the toast shows with its shared role.
+    /// </summary>
+    public NotificationActionViewModel? FirstAction => Actions.FirstOrDefault();
+
+    /// <summary>
     /// Gets the action text for backward compatibility (first action).
     /// </summary>
     public string? ActionText => Actions.FirstOrDefault()?.Text;

@@ -51,7 +51,8 @@ public sealed class ProfileContentService(
     private sealed record ProfileContentResolution(
         List<string> EnabledContentIds,
         Core.Models.Manifest.ContentManifest? RequiredGameClient,
-        GameType? RequiredGameType);
+        GameType? RequiredGameType,
+        IReadOnlyList<ContentDependencyGap> MissingDependencies);
 
     private sealed record ProfileFoundation(
         List<string> EnabledContentIds,
@@ -316,33 +317,43 @@ public sealed class ProfileContentService(
 
             if (manifest.ContentType.IsStandalone())
             {
-                var standaloneRequest = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, requestedIds);
-                var standaloneResult = await profileManager.CreateProfileAsync(standaloneRequest, cancellationToken);
-                if (standaloneResult.Failed)
-                {
-                    var error = standaloneResult.FirstError ?? "Failed to create profile";
-                    logger.LogError("Failed to create profile '{ProfileName}': {Error}", profileName, error);
-                    return standaloneResult;
-                }
-
-                notificationService.ShowSuccess(
-                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Title", "Profile Created"),
-                    localizationService.GetLocalizedString("GameProfiles.Notification.ProfileCreated.Message", $"Created profile '{profileName}' with {manifest.Name}", profileName, manifest.Name));
-
-                logger.LogInformation(
-                    "Successfully created profile {ProfileId} with content {ManifestId}",
-                    standaloneResult.Data!.Id,
-                    manifestId);
-
-                return standaloneResult;
+                return await CreateStandaloneProfileAsync(profileName, manifest, manifestId, cancellationToken);
             }
 
-            return await CreateStandardProfileWithContentAsync(
-                profileName,
-                manifestId,
-                manifest,
-                requestedIds,
-                cancellationToken);
+            var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
+            if (resolution.Failed || resolution.Data == null)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    resolution.FirstError ?? "Unable to resolve the required content dependencies.");
+            }
+
+            if (resolution.Data.MissingDependencies.Count > 0)
+            {
+                return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
+                    BuildMissingDependenciesError(manifest.Name ?? manifestId, resolution.Data.MissingDependencies),
+                    resolution.Data.MissingDependencies);
+            }
+
+            List<string> enabledContentIds = resolution.Data.EnabledContentIds;
+
+            var requiredGameClient = resolution.Data.RequiredGameClient;
+            var requiredGameType = resolution.Data.RequiredGameType ?? manifest.TargetGame;
+            var foundation = await SelectInstallationForNewProfileAsync(requiredGameType, cancellationToken);
+            if (foundation.Failed)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(foundation.FirstError ?? "No game installations found. Please configure a game installation first.");
+            }
+
+            var (installation, gameClient) = foundation.Data;
+
+            var profileGameClient = requiredGameClient != null
+                ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
+                : null;
+
+            var createRequest = BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
+            await AddClientDependentLocalDependenciesAsync(createRequest, cancellationToken);
+
+            return await SaveNewProfileAsync(profileName, manifest, manifestId, createRequest, createRequest.EnabledContentIds ?? [], isStandalone: false, cancellationToken);
         }
         catch (ManifestNotFoundException ex)
         {
@@ -366,86 +377,79 @@ public sealed class ProfileContentService(
         }
     }
 
-    /// <summary>
-    /// Validates a profile's enabled content for conflicts.
-    /// Returns a list of conflict warnings to display to the user.
-    /// </summary>
-    /// <param name="profileId">The profile ID to validate.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>List of conflict warning messages.</returns>
-    public async Task<List<string>> ValidateProfileContentAsync(
-        string profileId,
+    /// <inheritdoc/>
+    public async Task<OperationResult<IReadOnlyList<string>>> InstallMissingDependenciesAsync(
+        IReadOnlyList<ContentDependencyGap> missingDependencies,
         CancellationToken cancellationToken = default)
     {
-        var warnings = new List<string>();
+        ArgumentNullException.ThrowIfNull(missingDependencies);
 
-        try
+        var installedIds = new List<string>();
+        var failedNames = new List<string>();
+        var incompatibleNames = new List<string>();
+        var installedManifests = new Queue<ContentManifest>();
+        foreach (var gap in missingDependencies.Where(gap => gap.CanDownload))
         {
-            // Get the profile
-            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-            if (profileResult.Failed || profileResult.Data == null)
+            cancellationToken.ThrowIfCancellationRequested();
+            var dependency = gap.Dependency ?? await FindDeclaredDependencyAsync(gap, cancellationToken);
+            var (manifest, incompatible) = await FindOrAcquireCompatibleDependencyAsync(dependency, gap.DependencyId, cancellationToken);
+            if (manifest == null)
             {
-                return warnings;
+                logger.LogWarning(
+                    "Could not install required item {DependencyId} for {RequiredById}",
+                    gap.DependencyId,
+                    gap.RequiredById);
+                (incompatible ? incompatibleNames : failedNames).Add(MissingDependencyDialog.GetDisplayName(localizationService, gap));
+                continue;
             }
 
-            var profile = profileResult.Data;
-            var enabledIds = profile.EnabledContentIds?.ToList() ?? [];
+            logger.LogInformation(
+                "Downloaded required item {DependencyId} as {ManifestId} for {RequiredById}",
+                gap.DependencyId,
+                manifest.Id.Value,
+                gap.RequiredById);
+            TryAddInstalled(installedIds, installedManifests, manifest);
+        }
 
-            // Check each pair of enabled content for conflicts
-            for (int i = 0; i < enabledIds.Count; i++)
+        // An installed item can need more items. Enable the ones already acquired and download
+        // the rest, so one Install click leaves nothing missing that GenHub can fetch.
+        while (installedManifests.Count > 0)
+        {
+            var installed = installedManifests.Dequeue();
+            foreach (var dependency in (installed.Dependencies ?? []).Where(IsRequiredContentDependency))
             {
-                for (int j = i + 1; j < enabledIds.Count; j++)
+                cancellationToken.ThrowIfCancellationRequested();
+                var (manifest, incompatible) = await FindOrAcquireCompatibleDependencyAsync(dependency, dependency.Id.Value, cancellationToken);
+                if (manifest != null)
                 {
-                    try
-                    {
-                        var manifest1Result = await manifestPool.GetManifestAsync(
-                            Core.Models.Manifest.ManifestId.Create(enabledIds[i]),
-                            cancellationToken);
+                    TryAddInstalled(installedIds, installedManifests, manifest);
+                    continue;
+                }
 
-                        var manifest2Result = await manifestPool.GetManifestAsync(
-                            Core.Models.Manifest.ManifestId.Create(enabledIds[j]),
-                            cancellationToken);
+                logger.LogWarning(
+                    "Could not install {DependencyId}, which {ManifestId} requires",
+                    dependency.Id.Value,
+                    installed.Id.Value);
 
-                        if (manifest1Result.Success && manifest1Result.Data != null &&
-                            manifest2Result.Success && manifest2Result.Data != null)
-                        {
-                            var manifest1 = manifest1Result.Data;
-                            var manifest2 = manifest2Result.Data;
-
-                            // Check exclusive content type conflicts
-                            if (ExclusiveContentTypes.Contains(manifest1.ContentType) &&
-                                manifest1.ContentType == manifest2.ContentType)
-                            {
-                                warnings.Add($"Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled ({manifest1.ContentType})");
-                            }
-
-                            // Check Community Outpost category conflicts
-                            var code1 = GetContentCodeFromManifest(manifest1);
-                            var code2 = GetContentCodeFromManifest(manifest2);
-
-                            if (!string.IsNullOrEmpty(code1) && !string.IsNullOrEmpty(code2))
-                            {
-                                var conflicting1 = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(code1);
-                                if (conflicting1.Contains(code2, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    warnings.Add($"Conflict: '{manifest1.Name}' and '{manifest2.Name}' cannot both be enabled. Please remove one.");
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogDebug(ex, "Failed to check conflict between {Id1} and {Id2}", enabledIds[i], enabledIds[j]);
-                    }
+                // Items GenHub cannot download are reported later as still missing. A failed
+                // download of an item it can fetch fails the install now.
+                if (CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(dependency.Id.Value, out _, out var contentCode))
+                {
+                    var registryName = GenPatcherContentRegistry.GetMetadata(contentCode).DisplayName;
+                    var name = string.IsNullOrWhiteSpace(registryName) ? dependency.Name : registryName;
+                    (incompatible ? incompatibleNames : failedNames).Add(string.IsNullOrWhiteSpace(name)
+                        ? localizationService.GetLocalizedString("GameProfiles.MissingDependencies.UnnamedItem", "A required item")
+                        : name);
                 }
             }
         }
-        catch (Exception ex)
+
+        if (failedNames.Count > 0 || incompatibleNames.Count > 0)
         {
-            logger.LogWarning(ex, "Error validating profile content for {ProfileId}", profileId);
+            return OperationResult<IReadOnlyList<string>>.CreateFailure(BuildInstallFailureMessage(failedNames, incompatibleNames));
         }
 
-        return warnings;
+        return OperationResult<IReadOnlyList<string>>.CreateSuccess(installedIds);
     }
 
     /// <summary>
@@ -547,21 +551,20 @@ public sealed class ProfileContentService(
         return null;
     }
 
-    private static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
+    private static void TryAddInstalled(List<string> installedIds, Queue<ContentManifest> installedManifests, ContentManifest manifest)
     {
-        contentCode = string.Empty;
-        var parts = manifestId.Split('.');
-
-        if (parts.Length < 5 ||
-            !parts[2].Equals(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+        if (!installedIds.Contains(manifest.Id.Value, StringComparer.OrdinalIgnoreCase))
         {
-            return false;
+            installedIds.Add(manifest.Id.Value);
+            installedManifests.Enqueue(manifest);
         }
-
-        var codePart = parts[4];
-        contentCode = codePart.Length >= 4 ? codePart[..4] : codePart;
-        return !string.IsNullOrEmpty(contentCode);
     }
+
+    private static bool IsRequiredContentDependency(ContentDependency dependency) =>
+        !dependency.IsOptional &&
+        dependency.InstallBehavior is DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall &&
+        dependency.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient) &&
+        !string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Checks whether two five-segment manifest identifiers address the same publisher content
@@ -816,6 +819,14 @@ public sealed class ProfileContentService(
                 sw.Elapsed);
         }
 
+        if (resolution.Data.MissingDependencies.Count > 0)
+        {
+            return AddToProfileResult.CreateMissingDependencies(
+                BuildMissingDependenciesError(contentName, resolution.Data.MissingDependencies),
+                resolution.Data.MissingDependencies,
+                sw.Elapsed);
+        }
+
         enabledContentIds = resolution.Data.EnabledContentIds;
 
         if (resolution.Data.RequiredGameType != null)
@@ -836,6 +847,22 @@ public sealed class ProfileContentService(
             enabledContentIds = foundation.Data.EnabledContentIds;
             reconciledGameClient = foundation.Data.GameClient;
             reconciledInstallationId = foundation.Data.InstallationId;
+        }
+
+        var missingDependencies = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
+            enabledContentIds,
+            cancellationToken);
+        if (missingDependencies.Count > 0)
+        {
+            logger.LogWarning(
+                "Not adding {ManifestId} to profile {ProfileId}: {Count} required item(s) are missing",
+                primaryManifestId,
+                profileId,
+                missingDependencies.Count);
+            return AddToProfileResult.CreateMissingDependencies(
+                BuildMissingDependenciesError(contentName, missingDependencies),
+                missingDependencies,
+                sw.Elapsed);
         }
 
         var updateRequest = new UpdateProfileRequest
@@ -959,62 +986,59 @@ public sealed class ProfileContentService(
         }
     }
 
-    private async Task<ProfileOperationResult<GameProfile>> CreateStandardProfileWithContentAsync(
+    /// <summary>
+    /// Creates a standalone tool profile. The tool's required items must be present or acquirable,
+    /// but the profile saves only the tool, so it stays a one-item tool profile.
+    /// </summary>
+    private async Task<ProfileOperationResult<GameProfile>> CreateStandaloneProfileAsync(
         string profileName,
-        string manifestId,
         ContentManifest manifest,
-        IReadOnlyList<string> requestedIds,
+        string manifestId,
         CancellationToken cancellationToken)
     {
-        var resolution = await ResolveProfileContentAsync(requestedIds, requestedIds, cancellationToken);
-        if (resolution.Failed || resolution.Data == null)
+        var acquisition = await AcquireRequiredDependenciesAsync(
+            [manifestId],
+            [manifest],
+            skipFoundationDependencies: true,
+            cancellationToken);
+        if (acquisition.Failed || acquisition.Data == null)
         {
             return ProfileOperationResult<GameProfile>.CreateFailure(
-                resolution.FirstError ?? "Unable to resolve the required content dependencies.");
+                acquisition.FirstError ?? "A required dependency could not be acquired.");
         }
 
-        List<string> enabledContentIds = resolution.Data.EnabledContentIds;
+        var request = BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, [manifestId]);
+        return await SaveNewProfileAsync(profileName, manifest, manifestId, request, acquisition.Data, isStandalone: true, cancellationToken);
+    }
 
-        // Find a suitable game installation
-        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
-        if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
+    /// <summary>
+    /// Creates the profile and announces it. Nothing is created while required content is missing.
+    /// A standalone profile runs without a game, so its game installation and client requirements are not checked.
+    /// </summary>
+    private async Task<ProfileOperationResult<GameProfile>> SaveNewProfileAsync(
+        string profileName,
+        ContentManifest manifest,
+        string manifestId,
+        CreateProfileRequest createRequest,
+        List<string> requiredContentIds,
+        bool isStandalone,
+        CancellationToken cancellationToken)
+    {
+        var missingDependencies = (await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(
+                requiredContentIds,
+                cancellationToken))
+            .Where(gap => !isStandalone || gap.DependencyType is not (ContentType.GameInstallation or ContentType.GameClient))
+            .ToList();
+        if (missingDependencies.Count > 0)
         {
-            var noInstMsg = localizationService?.GetLocalizedString("Profiles.Error.NoInstallationsFound", "No game installations found. Please configure a game installation first.") ?? "No game installations found. Please configure a game installation first.";
-            return ProfileOperationResult<GameProfile>.CreateFailure(noInstMsg);
+            logger.LogWarning(
+                "Not creating profile '{ProfileName}': {Count} required item(s) are missing",
+                profileName,
+                missingDependencies.Count);
+            return ProfileOperationResult<GameProfile>.CreateMissingDependencies(
+                BuildMissingDependenciesError(manifest.Name ?? manifestId, missingDependencies),
+                missingDependencies);
         }
-
-        var requiredGameClient = resolution.Data.RequiredGameClient;
-        var requiredGameType = resolution.Data.RequiredGameType ?? manifest.TargetGame;
-
-        // Find an installation that satisfies the reconciled content graph, not merely the
-        // type of the item the user selected.
-        var installation = installationsResult.Data.FirstOrDefault(i =>
-            i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
-
-        if (installation == null)
-        {
-            var noMatchMsg = localizationService != null
-                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, localizationService.GetLocalizedString("Profiles.Error.NoInstallationForGameType", "No {0} installation is available for the required game client."), requiredGameType)
-                : $"No {requiredGameType} installation is available for the required game client.";
-            return ProfileOperationResult<GameProfile>.CreateFailure(noMatchMsg);
-        }
-
-        var gameClient = installation.AvailableGameClients
-            .FirstOrDefault(c => c.GameType == requiredGameType);
-
-        if (gameClient == null)
-        {
-            var noClientMsg = localizationService != null
-                ? string.Format(System.Globalization.CultureInfo.InvariantCulture, localizationService.GetLocalizedString("Profiles.Error.NoGameClientForInstallation", "No suitable game client found for installation '{0}'."), installation.InstallationType)
-                : $"No suitable game client found for installation '{installation.InstallationType}'.";
-            return ProfileOperationResult<GameProfile>.CreateFailure(noClientMsg);
-        }
-
-        var profileGameClient = requiredGameClient != null
-            ? CreatePublisherGameClient(requiredGameClient, gameClient, installation.Id)
-            : null;
-
-        var createRequest = BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
 
         var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
         if (createResult.Failed)
@@ -1034,6 +1058,47 @@ public sealed class ProfileContentService(
             manifestId);
 
         return createResult;
+    }
+
+    /// <summary>
+    /// Finds an installation and its client for the game the new profile's content requires.
+    /// The reconciled content graph decides the game, not merely the type of the selected item.
+    /// </summary>
+    private async Task<OperationResult<(Core.Models.GameInstallations.GameInstallation Installation, GameClient Client)>> SelectInstallationForNewProfileAsync(
+        GameType requiredGameType,
+        CancellationToken cancellationToken)
+    {
+        var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
+        if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoInstallationsFound",
+                    "No game installations found. Please configure a game installation first."));
+        }
+
+        var installation = installationsResult.Data.FirstOrDefault(i =>
+            i.AvailableGameClients.Any(c => c.GameType == requiredGameType));
+        if (installation == null)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoInstallationForGameType",
+                    "No {0} installation is available for the required game client.",
+                    requiredGameType));
+        }
+
+        var gameClient = installation.AvailableGameClients.FirstOrDefault(c => c.GameType == requiredGameType);
+        if (gameClient == null)
+        {
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoGameClientForInstallation",
+                    "No suitable game client found for installation '{0}'.",
+                    installation.InstallationType));
+        }
+
+        return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateSuccess((installation, gameClient));
     }
 
     private CreateProfileRequest BuildStandaloneCreateProfileRequest(
@@ -1118,18 +1183,27 @@ public sealed class ProfileContentService(
     {
         try
         {
-            var acquisition = await AcquireRequiredDependenciesAsync(requestedContentIds, cancellationToken);
+            var enabledManifests = await LoadManifestsAsync(contentIds, cancellationToken);
+            var acquisition = await AcquireRequiredDependenciesAsync(requestedContentIds, enabledManifests, skipFoundationDependencies: false, cancellationToken);
             if (acquisition.Failed || acquisition.Data == null)
             {
                 return OperationResult<ProfileContentResolution>.CreateFailure(
                     acquisition.FirstError ?? "A required dependency could not be acquired.");
             }
 
+            // Content already in the profile can need items that were downloaded later, for
+            // example after the missing-items dialog installed them. Enable those local items too.
+            var existingContentDependencies = await FindLocalRequiredDependenciesAsync(
+                contentIds.Except(acquisition.Data, StringComparer.OrdinalIgnoreCase),
+                enabledManifests,
+                cancellationToken);
+
             // Include the canonical manifest IDs acquired above. The generic dependency resolver
             // intentionally skips semantic AutoInstall references, so relying on its output alone
             // would download a dependency without enabling it in the profile.
             var contentIdsWithAcquiredDependencies = contentIds
                 .Concat(acquisition.Data)
+                .Concat(existingContentDependencies)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -1138,6 +1212,13 @@ public sealed class ProfileContentService(
                 cancellationToken);
             if (completeResolution.Failed)
             {
+                var missingContent = await FindMissingContentDependenciesAsync(contentIdsWithAcquiredDependencies, cancellationToken);
+                if (missingContent.Count > 0)
+                {
+                    return OperationResult<ProfileContentResolution>.CreateSuccess(
+                        new ProfileContentResolution(contentIdsWithAcquiredDependencies, null, null, missingContent));
+                }
+
                 return OperationResult<ProfileContentResolution>.CreateFailure(
                     completeResolution.FirstError ?? "Required content dependencies could not be resolved.");
             }
@@ -1186,6 +1267,7 @@ public sealed class ProfileContentService(
 
             var enabledContentIds = completeResolution.ResolvedContentIds
                 .Concat(acquisition.Data)
+                .Concat(existingContentDependencies)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             foreach (var requestedId in requestedContentIds.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
@@ -1197,7 +1279,8 @@ public sealed class ProfileContentService(
                 new ProfileContentResolution(
                     enabledContentIds,
                     requiredGameClients.SingleOrDefault(),
-                    requiredGameType));
+                    requiredGameType,
+                    []));
         }
         catch (OperationCanceledException)
         {
@@ -1216,9 +1299,12 @@ public sealed class ProfileContentService(
     /// before resolving the profile closure. The dependency resolver can only include manifests
     /// that are already present in the pool, so acquiring after resolution made transitive content
     /// such as Control Bar Pro Core invisible to the resolver and produced broken launch profiles.
+    /// A standalone profile runs without a game, so it skips game installation and client dependencies.
     /// </summary>
     private async Task<OperationResult<List<string>>> AcquireRequiredDependenciesAsync(
         IEnumerable<string> rootManifestIds,
+        IReadOnlyCollection<ContentManifest> enabledManifests,
+        bool skipFoundationDependencies,
         CancellationToken cancellationToken)
     {
         var pendingIds = new Queue<string>(rootManifestIds);
@@ -1246,6 +1332,29 @@ public sealed class ProfileContentService(
 
             foreach (var dependency in manifestResult.Data.Dependencies ?? [])
             {
+                if ((skipFoundationDependencies &&
+                    dependency.DependencyType is ContentType.GameInstallation or ContentType.GameClient) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests))
+                {
+                    continue;
+                }
+
+                if (dependency.InstallBehavior == DependencyInstallBehavior.RequireExisting)
+                {
+                    if (resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, enabledManifests))
+                    {
+                        continue;
+                    }
+
+                    var localDependency = await FindLocalRequiredDependencyAsync(dependency, cancellationToken);
+                    if (localDependency != null)
+                    {
+                        pendingIds.Enqueue(localDependency.Id.Value);
+                    }
+
+                    continue;
+                }
+
                 if (dependency.InstallBehavior != DependencyInstallBehavior.AutoInstall)
                 {
                     continue;
@@ -1363,6 +1472,200 @@ public sealed class ProfileContentService(
                 installation.Id));
     }
 
+    private string BuildMissingDependenciesError(string contentName, IReadOnlyList<ContentDependencyGap> missingDependencies)
+    {
+        var names = string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, missingDependencies));
+        return localizationService.GetLocalizedString(
+            "GameProfiles.MissingDependencies.Error",
+            "{0} needs {1} before it can be added.",
+            contentName,
+            names);
+    }
+
+    /// <summary>
+    /// Reports missing add-on content when the resolver cannot close the dependency graph.
+    /// Game installations and clients are left out because the foundation reconciliation that
+    /// runs after resolution supplies them.
+    /// </summary>
+    private async Task<IReadOnlyList<ContentDependencyGap>> FindMissingContentDependenciesAsync(
+        IEnumerable<string> contentIds,
+        CancellationToken cancellationToken)
+    {
+        var gaps = await resolutionServices.DependencyValidator.FindMissingDependenciesAsync(contentIds, cancellationToken);
+        return gaps
+            .Where(gap => gap.DependencyType != ContentType.GameInstallation && gap.DependencyType != ContentType.GameClient)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Finds the declaration behind a gap, so installing can honor its version and game limits.
+    /// </summary>
+    private async Task<ContentDependency?> FindDeclaredDependencyAsync(ContentDependencyGap gap, CancellationToken cancellationToken)
+    {
+        if (!ManifestId.TryCreate(gap.RequiredById, out var requiredById))
+        {
+            return null;
+        }
+
+        var requiredBy = await manifestPool.GetManifestAsync(requiredById, cancellationToken);
+        return requiredBy.Data?.Dependencies?.FirstOrDefault(dependency =>
+            string.Equals(dependency.Id.Value, gap.DependencyId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Returns an acquired manifest that satisfies the dependency, or downloads one. A result that
+    /// still fails the dependency's limits counts as not installed.
+    /// </summary>
+    private async Task<(ContentManifest? Manifest, bool Incompatible)> FindOrAcquireCompatibleDependencyAsync(
+        ContentDependency? dependency,
+        string dependencyId,
+        CancellationToken cancellationToken)
+    {
+        var manifest = dependency != null
+            ? await FindLocalRequiredDependencyAsync(dependency, cancellationToken)
+            : null;
+        manifest ??= await GetOrAcquireDependencyManifestAsync(dependencyId, dependency, cancellationToken);
+        if (manifest != null && dependency != null && !resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [manifest]))
+        {
+            logger.LogWarning(
+                "Acquired {ManifestId} does not meet the limits of required item {DependencyId}",
+                manifest.Id.Value,
+                dependencyId);
+            return (null, true);
+        }
+
+        return (manifest, false);
+    }
+
+    private string BuildInstallFailureMessage(IReadOnlyList<string> failedNames, IReadOnlyList<string> incompatibleNames)
+    {
+        var messages = new List<string>();
+        if (failedNames.Count > 0)
+        {
+            messages.Add(localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.DownloadFailed.Message",
+                "GenHub could not download {0}. Check your connection and try again.",
+                string.Join(", ", failedNames.Distinct(StringComparer.OrdinalIgnoreCase))));
+        }
+
+        if (incompatibleNames.Count > 0)
+        {
+            messages.Add(localizationService.GetLocalizedString(
+                "GameProfiles.MissingDependencies.IncompatibleVersion.Message",
+                "GenHub found {0}, but not a version this content works with.",
+                string.Join(", ", incompatibleNames.Distinct(StringComparer.OrdinalIgnoreCase))));
+        }
+
+        return string.Join(" ", messages);
+    }
+
+    /// <summary>
+    /// Enables acquired dependencies that apply only once the new profile's game client is known,
+    /// such as GenTool for Control Bar Pro with a retail client.
+    /// </summary>
+    private async Task AddClientDependentLocalDependenciesAsync(CreateProfileRequest createRequest, CancellationToken cancellationToken)
+    {
+        var enabledIds = createRequest.EnabledContentIds ??= [];
+        var enabledManifests = await LoadManifestsAsync(enabledIds, cancellationToken);
+        var localIds = await FindLocalRequiredDependenciesAsync(enabledIds, enabledManifests, cancellationToken);
+        enabledIds.AddRange(localIds.Where(id => !enabledIds.Contains(id, StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private async Task<List<ContentManifest>> LoadManifestsAsync(IEnumerable<string> contentIds, CancellationToken cancellationToken)
+    {
+        var manifests = new List<ContentManifest>();
+        foreach (var contentId in contentIds.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!ManifestId.TryCreate(contentId, out var manifestId))
+            {
+                continue;
+            }
+
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            if (manifestResult.Data != null)
+            {
+                manifests.Add(manifestResult.Data);
+            }
+        }
+
+        return manifests;
+    }
+
+    /// <summary>
+    /// Walks the required dependencies of <paramref name="contentIds"/> and returns the ones that
+    /// are already acquired. Nothing is downloaded.
+    /// </summary>
+    private async Task<List<string>> FindLocalRequiredDependenciesAsync(
+        IEnumerable<string> contentIds,
+        IReadOnlyCollection<ContentManifest> enabledManifests,
+        CancellationToken cancellationToken)
+    {
+        var pendingIds = new Queue<string>(contentIds);
+        var visitedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var localDependencyIds = new List<string>();
+
+        while (pendingIds.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var contentId = pendingIds.Dequeue();
+            if (!visitedIds.Add(contentId) || !ManifestId.TryCreate(contentId, out var manifestId))
+            {
+                continue;
+            }
+
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+            foreach (var dependency in manifestResult.Data?.Dependencies ?? [])
+            {
+                if (dependency.InstallBehavior is not (DependencyInstallBehavior.RequireExisting or DependencyInstallBehavior.AutoInstall) ||
+                    !resolutionServices.DependencyValidator.AppliesTo(dependency, enabledManifests) ||
+                    resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, enabledManifests))
+                {
+                    continue;
+                }
+
+                var localDependency = await FindLocalRequiredDependencyAsync(dependency, cancellationToken);
+                if (localDependency != null && !visitedIds.Contains(localDependency.Id.Value))
+                {
+                    localDependencyIds.Add(localDependency.Id.Value);
+                    pendingIds.Enqueue(localDependency.Id.Value);
+                }
+            }
+        }
+
+        return localDependencyIds;
+    }
+
+    /// <summary>
+    /// Finds a required, already acquired dependency so that adding content also enables it.
+    /// Nothing is downloaded here. Missing items are reported by the dependency validator instead.
+    /// </summary>
+    private async Task<ContentManifest?> FindLocalRequiredDependencyAsync(
+        ContentDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (dependency.IsOptional ||
+            dependency.DependencyType == ContentType.GameInstallation ||
+            dependency.DependencyType == ContentType.GameClient ||
+            string.Equals(dependency.Id.Value, ManifestConstants.DefaultContentDependencyId, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var existing = await manifestPool.GetManifestAsync(dependency.Id, cancellationToken);
+        if (existing.Success &&
+            existing.Data != null &&
+            resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [existing.Data]))
+        {
+            return existing.Data;
+        }
+
+        // Match acquired content with the validator's rules, so a non-strict dependency can be
+        // satisfied by another publisher's manifest exactly when Save and launch accept it.
+        var allManifests = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        return allManifests.Data?.FirstOrDefault(manifest =>
+            resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [manifest]));
+    }
+
     private async Task<List<string>> GetDependencyNamesAsync(
         IEnumerable<string> dependencyIds,
         CancellationToken cancellationToken)
@@ -1378,7 +1681,7 @@ public sealed class ProfileContentService(
             else
             {
                 logger.LogWarning("Dependency {DependencyId} could not be auto-acquired", dependencyId);
-                if (TryParseCommunityOutpostContentCode(dependencyId, out var contentCode))
+                if (ContentDependencyValidator.TryParseCommunityOutpostContentCode(dependencyId, out var contentCode))
                 {
                     var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
                     dependencyNames.Add(string.IsNullOrEmpty(metadata.DisplayName) ? "Required dependency" : metadata.DisplayName);
@@ -1398,108 +1701,32 @@ public sealed class ProfileContentService(
     /// A dependency declaration's version segment is not always the stored artifact's release
     /// version, so this returns the canonical manifest rather than a boolean success flag.
     /// </summary>
+    private Task<Core.Models.Manifest.ContentManifest?> GetOrAcquireDependencyManifestAsync(
+        string manifestId,
+        CancellationToken cancellationToken) =>
+        GetOrAcquireDependencyManifestAsync(manifestId, null, cancellationToken);
+
+    /// <summary>
+    /// Gets an acquired dependency, or acquires it from its publisher. When an acquired manifest
+    /// fails the limits of <paramref name="dependency"/>, the publisher is asked for one that fits,
+    /// and the acquired manifest is returned only if that fails.
+    /// </summary>
     private async Task<Core.Models.Manifest.ContentManifest?> GetOrAcquireDependencyManifestAsync(
         string manifestId,
+        ContentDependency? dependency,
         CancellationToken cancellationToken)
     {
+        ContentManifest? acquired = null;
         try
         {
-            var existing = await manifestPool.GetManifestAsync(
-                Core.Models.Manifest.ManifestId.Create(manifestId),
-                cancellationToken);
-
-            if (existing.Success && existing.Data != null)
+            acquired = await FindAcquiredDependencyManifestAsync(manifestId, cancellationToken);
+            if (acquired != null &&
+                (dependency == null || resolutionServices.DependencyValidator.IsSatisfiedBy(dependency, [acquired])))
             {
-                return existing.Data;
+                return acquired;
             }
 
-            var equivalentManifest = await FindEquivalentAcquiredManifestAsync(manifestId, cancellationToken);
-            if (equivalentManifest != null)
-            {
-                logger.LogInformation(
-                    "Using acquired manifest {ResolvedManifestId} to satisfy dependency {DeclaredManifestId}",
-                    equivalentManifest.Id,
-                    manifestId);
-                return equivalentManifest;
-            }
-
-            if (!TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
-            {
-                return null;
-            }
-
-            var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
-            if (metadata.IsBaseDependency && !string.IsNullOrWhiteSpace(metadata.OutputFilename))
-            {
-                var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-                if (allManifestsResult.Success && allManifestsResult.Data != null)
-                {
-                    var bundlingManifest = allManifestsResult.Data.FirstOrDefault(manifest =>
-                        ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
-                            System.IO.Path.GetFileName(file.RelativePath),
-                            metadata.OutputFilename,
-                            StringComparison.OrdinalIgnoreCase)));
-
-                    if (bundlingManifest != null)
-                    {
-                        logger.LogInformation(
-                            "Satisfied base dependency {DeclaredManifestId} using acquired manifest {ResolvedManifestId} containing payload {Filename}",
-                            manifestId,
-                            bundlingManifest.Id,
-                            metadata.OutputFilename);
-                        return bundlingManifest;
-                    }
-                }
-
-                // Base deps are hidden from catalog search — acquire them directly.
-                var directAcquire = await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-                if (directAcquire != null)
-                {
-                    return directAcquire;
-                }
-            }
-
-            // Provider discoverers match on PublisherType ("communityoutpost"), not
-            // PublisherId ("community-outpost"). Using the wrong id yields
-            // "No enabled providers available for search".
-            var query = new ContentSearchQuery
-            {
-                ProviderName = CommunityOutpostConstants.PublisherType,
-                SearchTerm = contentCode,
-                IncludeInstalled = true,
-                Take = 50,
-            };
-
-            var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
-            if (searchResult.Failed || searchResult.Data == null)
-            {
-                // Catalog search can still miss base deps; fall back to a direct acquire.
-                return await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-            }
-
-            var match = searchResult.Data.FirstOrDefault(r =>
-                r.Id?.EndsWith($".{contentCode}", StringComparison.OrdinalIgnoreCase) == true ||
-                (r.ResolverMetadata?.TryGetValue("contentCode", out var discoveredCode) == true &&
-                 discoveredCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase)));
-
-            if (match == null)
-            {
-                return await AcquireCommunityOutpostContentByCodeAsync(
-                    contentCode,
-                    metadata,
-                    cancellationToken);
-            }
-
-            // Silent by design: dependency auto-acquire is a sub-step of the profile operation,
-            // whose overall outcome already notifies the user. Per-dependency toasts would duplicate it.
-            var acquireResult = await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
-            return acquireResult.Success ? acquireResult.Data : null;
+            return await AcquireDependencyFromPublisherAsync(manifestId, cancellationToken) ?? acquired;
         }
         catch (OperationCanceledException)
         {
@@ -1508,8 +1735,133 @@ public sealed class ProfileContentService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to auto-acquire dependency {ManifestId}", manifestId);
+            return acquired;
+        }
+    }
+
+    private async Task<Core.Models.Manifest.ContentManifest?> FindAcquiredDependencyManifestAsync(
+        string manifestId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await manifestPool.GetManifestAsync(
+            Core.Models.Manifest.ManifestId.Create(manifestId),
+            cancellationToken);
+
+        if (existing.Success && existing.Data != null)
+        {
+            return existing.Data;
+        }
+
+        var equivalentManifest = await FindEquivalentAcquiredManifestAsync(manifestId, cancellationToken);
+        if (equivalentManifest != null)
+        {
+            logger.LogInformation(
+                "Using acquired manifest {ResolvedManifestId} to satisfy dependency {DeclaredManifestId}",
+                equivalentManifest.Id,
+                manifestId);
+            return equivalentManifest;
+        }
+
+        if (!ContentDependencyValidator.TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        {
             return null;
         }
+
+        var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+        if (!metadata.IsBaseDependency || string.IsNullOrWhiteSpace(metadata.OutputFilename))
+        {
+            return null;
+        }
+
+        var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (allManifestsResult.Failed || allManifestsResult.Data == null)
+        {
+            logger.LogWarning(
+                "Could not read the manifest pool to find a manifest bundling {DeclaredManifestId}: {Error}",
+                manifestId,
+                allManifestsResult.FirstError);
+            return null;
+        }
+
+        var bundlingManifest = allManifestsResult.Data.FirstOrDefault(manifest =>
+            ManifestVariantResolver.ResolveFiles(manifest).Any(file => string.Equals(
+                System.IO.Path.GetFileName(file.RelativePath),
+                metadata.OutputFilename,
+                StringComparison.OrdinalIgnoreCase)));
+
+        if (bundlingManifest != null)
+        {
+            logger.LogInformation(
+                "Satisfied base dependency {DeclaredManifestId} using acquired manifest {ResolvedManifestId} containing payload {Filename}",
+                manifestId,
+                bundlingManifest.Id,
+                metadata.OutputFilename);
+        }
+
+        return bundlingManifest;
+    }
+
+    private async Task<Core.Models.Manifest.ContentManifest?> AcquireDependencyFromPublisherAsync(
+        string manifestId,
+        CancellationToken cancellationToken)
+    {
+        if (!ContentDependencyValidator.TryParseCommunityOutpostContentCode(manifestId, out var contentCode))
+        {
+            return null;
+        }
+
+        var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+        if (metadata.IsBaseDependency && !string.IsNullOrWhiteSpace(metadata.OutputFilename))
+        {
+            // Base deps are hidden from catalog search — acquire them directly.
+            var directAcquire = await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+            if (directAcquire != null)
+            {
+                return directAcquire;
+            }
+        }
+
+        // Provider discoverers match on PublisherType ("communityoutpost"), not
+        // PublisherId ("community-outpost"). Using the wrong id yields
+        // "No enabled providers available for search".
+        var query = new ContentSearchQuery
+        {
+            ProviderName = CommunityOutpostConstants.PublisherType,
+            SearchTerm = contentCode,
+            IncludeInstalled = true,
+            Take = 50,
+        };
+
+        var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
+        if (searchResult.Failed || searchResult.Data == null)
+        {
+            // Catalog search can still miss base deps; fall back to a direct acquire.
+            return await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+        }
+
+        var match = searchResult.Data.FirstOrDefault(r =>
+            r.Id?.EndsWith($".{contentCode}", StringComparison.OrdinalIgnoreCase) == true ||
+            (r.ResolverMetadata?.TryGetValue("contentCode", out var discoveredCode) == true &&
+             discoveredCode.Equals(contentCode, StringComparison.OrdinalIgnoreCase)));
+
+        if (match == null)
+        {
+            return await AcquireCommunityOutpostContentByCodeAsync(
+                contentCode,
+                metadata,
+                cancellationToken);
+        }
+
+        // Silent by design: dependency auto-acquire is a sub-step of the profile operation,
+        // whose overall outcome already notifies the user. Per-dependency toasts would duplicate it.
+        var acquireResult = await contentOrchestrator.AcquireContentAsync(match, SilentProgress<ContentAcquisitionProgress>.Instance, cancellationToken);
+        return acquireResult.Success ? acquireResult.Data : null;
     }
 
     /// <summary>
@@ -1528,7 +1880,7 @@ public sealed class ProfileContentService(
             return null;
         }
 
-        if (TryParseCommunityOutpostContentCode(declaredManifestId, out var contentCode))
+        if (ContentDependencyValidator.TryParseCommunityOutpostContentCode(declaredManifestId, out var contentCode))
         {
             return manifestsResult.Data.FirstOrDefault(manifest =>
                 string.Equals(

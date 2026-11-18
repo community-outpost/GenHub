@@ -6,8 +6,10 @@ using GenHub.Features.Launching;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -31,7 +33,7 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// </summary>
 [Collection(NativeClientLaunchCollection.Name)]
 [Trait(NativeClientFixture.TraitName, NativeClientFixture.TraitValue)]
-public class EngineLaunchSmokeTests : IDisposable
+public partial class EngineLaunchSmokeTests : IDisposable
 {
     /// <summary>
     /// Environment variable that forbids skipping: when set to <c>1</c> or <c>true</c>, a
@@ -127,11 +129,12 @@ public class EngineLaunchSmokeTests : IDisposable
         if (!result.Success)
         {
             // The engine beat the launcher-detection delay. The manager folds the exit
-            // code into the error, so the assertion still pins it to exactly 1.
-            Assert.Contains(
-                "exited immediately with code 1",
-                string.Join(" ", result.Errors),
-                StringComparison.OrdinalIgnoreCase);
+            // code into the error. The code is parsed out so a crash code such as 133
+            // cannot pass as a prefix match on 1.
+            var errors = string.Join(" ", result.Errors);
+            var exitCode = ParseImmediateExitCode(errors);
+            Assert.True(exitCode.HasValue, $"The launch failed without reporting an exit code: {errors}");
+            Assert.Equal(1, exitCode);
         }
         else
         {
@@ -154,6 +157,22 @@ public class EngineLaunchSmokeTests : IDisposable
     }
 
     /// <summary>
+    /// The exit code is read whole from the immediate-exit error, so a crash code that starts
+    /// with 1 is not mistaken for the expected abort.
+    /// </summary>
+    /// <param name="errors">The launch errors.</param>
+    /// <param name="expected">The exit code the errors report, or null when they report none.</param>
+    [Theory]
+    [InlineData("Process exited immediately with code 1. No output was captured.", 1)]
+    [InlineData("Process exited immediately with code 133. No output was captured.", 133)]
+    [InlineData("The process exited immediately with code 134 (0x86). Explained.", 134)]
+    [InlineData("Process exited immediately after launch.", null)]
+    public void ParseImmediateExitCode_ReadsTheWholeCode(string errors, int? expected)
+    {
+        Assert.Equal(expected, ParseImmediateExitCode(errors));
+    }
+
+    /// <summary>
     /// Releases the temporary workspace and sandbox HOME.
     /// </summary>
     public void Dispose()
@@ -172,6 +191,17 @@ public class EngineLaunchSmokeTests : IDisposable
             // A leftover temp directory is not worth failing a test over.
         }
     }
+
+    private static int? ParseImmediateExitCode(string errors)
+    {
+        var match = ImmediateExitCodePattern().Match(errors);
+        return match.Success && int.TryParse(match.Groups["code"].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var code)
+            ? code
+            : null;
+    }
+
+    [GeneratedRegex(@"exited immediately with code (?<code>-?\d+)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ImmediateExitCodePattern();
 
     /// <summary>
     /// Asserts the abort produced its diagnostic. In this failure mode stderr is empty;

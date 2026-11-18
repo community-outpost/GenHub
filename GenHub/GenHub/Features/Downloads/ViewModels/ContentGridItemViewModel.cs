@@ -113,6 +113,9 @@ public sealed partial class ContentGridItemViewModel(
     private bool _isSelected;
 
     [ObservableProperty]
+    private bool _isFilteredOut;
+
+    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowPublisherLogoBadge))]
     private Bitmap? _iconBitmap;
 

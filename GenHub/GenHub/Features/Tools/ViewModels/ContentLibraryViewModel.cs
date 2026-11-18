@@ -2,14 +2,18 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.Helpers;
+using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Publishers;
 using GenHub.Core.Utilities;
+using GenHub.Features.Content.Services;
 using GenHub.Features.Content.Services.Catalog;
 using GenHub.Features.Tools.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -43,9 +47,17 @@ public partial class ContentLibraryViewModel(
     ILocalizationService? localizationService = null,
     ICatalogUpstreamIngestionService? upstreamIngestionService = null) : ObservableObject
 {
+    /// <summary>
+    /// The number of built-in detail tabs declared before the publisher-defined tabs in the Studio item preview.
+    /// </summary>
+    public const int BuiltInDetailTabCount = 4;
+
+    private const int DetailTabSummary = 0;
     private const int DetailTabReleases = 1;
     private const int DetailTabAddons = 2;
     private const int DetailTabMedia = 3;
+
+    private readonly List<CatalogTabDefinition> _selectedContentTabSources = [];
 
     [ObservableProperty]
     private ObservableCollection<CatalogContentItem> _contentItems = InitializeContentItems(activeCatalog, parentViewModel);
@@ -83,7 +95,8 @@ public partial class ContentLibraryViewModel(
             if (!string.Equals(ruleA.Pattern, ruleB.Pattern, StringComparison.Ordinal) ||
                 !string.Equals(ruleA.Variant, ruleB.Variant, StringComparison.Ordinal) ||
                 ruleA.IsDefault != ruleB.IsDefault ||
-                ruleA.TargetGame != ruleB.TargetGame)
+                ruleA.TargetGame != ruleB.TargetGame ||
+                !string.Equals(ruleA.Platform, ruleB.Platform, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
@@ -312,9 +325,19 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets the localized catalog item count summary for the footer.
     /// </summary>
-    public string CatalogSummaryText => string.Format(
-        localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalog") ?? "{0} items in catalog",
-        ContentItems.Count);
+    public string CatalogSummaryText => ContentItems.Count == 1
+        ? string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalogOne") ?? "{0} item in catalog",
+            ContentItems.Count)
+        : string.Format(
+            localizationService?.GetString("Tools.PublisherStudio.Library.ItemsInCatalog") ?? "{0} items in catalog",
+            ContentItems.Count);
+
+    /// <summary>
+    /// Gets the publisher-defined tabs of the selected content item, rendered after the built-in detail tabs
+    /// with the same view players see.
+    /// </summary>
+    public BatchObservableCollection<CustomTabDefinition> SelectedContentCustomTabs { get; } = [];
 
     /// <summary>
     /// Gets filtered content items based on the search query.
@@ -350,9 +373,9 @@ public partial class ContentLibraryViewModel(
         get => parentViewModel?.SelectedCatalog;
         set
         {
-            if (parentViewModel != null && parentViewModel.SelectedCatalog != value)
+            if (parentViewModel is { } parent && parent.SelectedCatalog != value)
             {
-                parentViewModel.SelectedCatalog = value;
+                parent.SelectedCatalog = value;
                 OnPropertyChanged();
             }
         }
@@ -361,7 +384,7 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets a value indicating whether the current catalog can be removed.
     /// </summary>
-    public bool CanRemoveCatalog => parentViewModel?.CanRemoveCatalog ?? false;
+    public bool CanRemoveCatalog => parentViewModel?.CanRemoveCatalog == true;
 
     /// <summary>
     /// Gets the command to add a new catalog.
@@ -434,7 +457,7 @@ public partial class ContentLibraryViewModel(
     /// <summary>
     /// Gets a value indicating whether a hosting provider is currently connected.
     /// </summary>
-    public bool IsHostingConnected => parentViewModel?.PublishShareViewModel?.IsProviderAuthenticated ?? false;
+    public bool IsHostingConnected => parentViewModel?.PublishShareViewModel?.IsProviderAuthenticated == true;
 
     /// <summary>
     /// Gets a value indicating whether the hosting hint banner should be shown.
@@ -497,7 +520,7 @@ public partial class ContentLibraryViewModel(
     public async Task AddContentWithPathsAsync(IEnumerable<string>? initialPaths)
     {
         var pathsList = initialPaths?.Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
-        if (pathsList is { Count: > 0 } && !pathsList.Any(p => System.IO.File.Exists(p) || System.IO.Directory.Exists(p)))
+        if (pathsList is { Count: > 0 } && pathsList.All(p => !System.IO.File.Exists(p) && !System.IO.Directory.Exists(p)))
         {
             var title = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathTitle", "Invalid Path");
             var message = GetLocalizedString("Tools.PublisherStudio.Content.InvalidPathMessage", "The specified file or folder does not exist.");
@@ -848,6 +871,159 @@ public partial class ContentLibraryViewModel(
 
     [GeneratedRegex(@"-+", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex DashRunRegex();
+
+    private void RefreshSelectedContentCustomTabs()
+    {
+        _selectedContentTabSources.Clear();
+        _selectedContentTabSources.AddRange(SelectedContent?.CustomTabs.Where(tab => tab != null).OrderBy(tab => tab.Order) ?? Enumerable.Empty<CatalogTabDefinition>());
+        SelectedContentCustomTabs.ReplaceAll(_selectedContentTabSources.Select(CatalogTabMapper.Map));
+    }
+
+    private int FindCustomTabIndex(CustomTabDefinition? tab)
+    {
+        var shown = tab == null ? -1 : SelectedContentCustomTabs.IndexOf(tab);
+        return shown < 0 || shown >= _selectedContentTabSources.Count || SelectedContent == null
+            ? -1
+            : SelectedContent.CustomTabs.IndexOf(_selectedContentTabSources[shown]);
+    }
+
+    private bool IsInActiveCatalog(CatalogContentItem item) => activeCatalog.Catalog.Content.Contains(item);
+
+    private CatalogTabDefinition? GetSelectedCustomTabSource()
+    {
+        var shown = SelectedDetailTabIndex - BuiltInDetailTabCount;
+        return shown >= 0 && shown < _selectedContentTabSources.Count ? _selectedContentTabSources[shown] : null;
+    }
+
+    private async Task SaveCustomTabChangeAsync(
+        CatalogContentItem item,
+        CatalogTabDefinition? select,
+        string successMessageKey,
+        string successMessageFallback,
+        string header)
+    {
+        MarkProjectAndCatalogDirty();
+        if (ReferenceEquals(SelectedContent, item))
+        {
+            RefreshSelectedContentCustomTabs();
+            var index = select == null ? -1 : _selectedContentTabSources.IndexOf(select);
+            if (index >= 0)
+            {
+                SelectedDetailTabIndex = BuiltInDetailTabCount + index;
+            }
+            else if (SelectedDetailTabIndex >= BuiltInDetailTabCount)
+            {
+                SelectedDetailTabIndex = DetailTabSummary;
+            }
+        }
+
+        if (parentViewModel == null)
+        {
+            return;
+        }
+
+        await parentViewModel.SaveProjectSilentAsync();
+        if (parentViewModel.HasUnsavedChanges)
+        {
+            return;
+        }
+
+        notificationService?.ShowSuccess(
+            GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.SavedTitle", "Custom Tabs"),
+            string.Format(GetLocalizedString(successMessageKey, successMessageFallback), header));
+    }
+
+    /// <summary>
+    /// Adds a publisher-defined tab to the selected content item through the tab editor.
+    /// </summary>
+    /// <returns>A task that completes when the tab is added or the editor is cancelled.</returns>
+    [RelayCommand]
+    private async Task AddCustomTabAsync()
+    {
+        var item = SelectedContent;
+        if (item == null)
+        {
+            return;
+        }
+
+        var added = await dialogService.ShowEditCustomTabDialogAsync(null, [.. item.CustomTabs.Where(tab => tab != null)]);
+        if (added == null || !IsInActiveCatalog(item))
+        {
+            return;
+        }
+
+        item.CustomTabs.Add(added);
+        await SaveCustomTabChangeAsync(item, added, "Tools.PublisherStudio.Content.CustomTabs.AddedFormat", "Added the custom tab '{0}'.", added.Header);
+        logger.LogInformation("Added custom tab {TabId} to content item {ContentId}", added.TabId, item.Id);
+    }
+
+    /// <summary>
+    /// Edits a publisher-defined tab of the selected content item through the tab editor.
+    /// </summary>
+    /// <param name="tab">The rendered tab to edit.</param>
+    /// <returns>A task that completes when the tab is saved or the editor is cancelled.</returns>
+    [RelayCommand]
+    private async Task EditCustomTabAsync(CustomTabDefinition? tab)
+    {
+        var index = FindCustomTabIndex(tab);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var item = SelectedContent!;
+        var source = item.CustomTabs[index];
+        var selected = GetSelectedCustomTabSource();
+        var siblings = item.CustomTabs.Where((candidate, i) => i != index && candidate != null).ToList();
+        var edited = await dialogService.ShowEditCustomTabDialogAsync(source, siblings);
+        var current = item.CustomTabs.IndexOf(source);
+        if (edited == null || current < 0 || !IsInActiveCatalog(item))
+        {
+            return;
+        }
+
+        item.CustomTabs[current] = edited;
+        await SaveCustomTabChangeAsync(item, ReferenceEquals(selected, source) ? edited : selected, "Tools.PublisherStudio.Content.CustomTabs.SavedFormat", "Saved the custom tab '{0}'.", edited.Header);
+        logger.LogInformation("Updated custom tab {TabId} on content item {ContentId}", edited.TabId, item.Id);
+    }
+
+    /// <summary>
+    /// Deletes a publisher-defined tab from the selected content item after the author confirms.
+    /// </summary>
+    /// <param name="tab">The rendered tab to delete.</param>
+    /// <returns>A task that completes when the tab is deleted or the author cancels.</returns>
+    [RelayCommand]
+    private async Task DeleteCustomTabAsync(CustomTabDefinition? tab)
+    {
+        var index = FindCustomTabIndex(tab);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var item = SelectedContent!;
+        var removed = item.CustomTabs[index];
+        var selected = GetSelectedCustomTabSource();
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            GetLocalizedString("Tools.PublisherStudio.Content.CustomTabs.RemoveTitle", "Remove Custom Tab"),
+            string.Format(
+                GetLocalizedString(
+                    "Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat",
+                    "Remove the custom tab '{0}'? Its intro, body and cards are removed from this item."),
+                tab!.Header));
+        if (!confirmed || !IsInActiveCatalog(item) || !item.CustomTabs.Remove(removed))
+        {
+            return;
+        }
+
+        await SaveCustomTabChangeAsync(
+            item,
+            ReferenceEquals(selected, removed) ? null : selected,
+            "Tools.PublisherStudio.Content.CustomTabs.RemovedFormat",
+            "Removed the custom tab '{0}'.",
+            tab.Header);
+        logger.LogInformation("Deleted custom tab {TabId} from content item {ContentId}", tab.TabId, item.Id);
+    }
 
     private void MarkProjectAndCatalogDirty()
     {
@@ -1620,6 +1796,7 @@ public partial class ContentLibraryViewModel(
         OnPropertyChanged(nameof(IsSelectedContentBundle));
         OnPropertyChanged(nameof(ShowReleaseArtifacts));
         OnPropertyChanged(nameof(EffectiveSelectedContentReleasesCount));
+        RefreshSelectedContentCustomTabs();
         if (_suppressUpstreamPreviewReload)
         {
             return;
@@ -1674,6 +1851,13 @@ public partial class ContentLibraryViewModel(
             if (clone == null || upstreamIngestionService == null)
             {
                 return;
+            }
+
+            // Authors review every platform's assets, not only the ones for the OS Publisher Studio runs on.
+            // Pinning each platform rule to this host keeps it ahead of platform-neutral rules.
+            foreach (var rule in (clone.UpstreamSync?.AssetRules ?? []).Where(r => r.IsPlatformSpecific && RuntimePlatformMatcher.IsRecognised(r.Platform)))
+            {
+                rule.Platform = ManifestVariantResolver.CurrentRuntimeIdentifier;
             }
 
             // Ingestion replaces releases on success and leaves them untouched on a miss,
@@ -1762,6 +1946,8 @@ public partial class ContentLibraryViewModel(
             return;
         }
 
+        var viewedTab = GetSelectedCustomTabSource();
+
         // The selection round-trip only forces the detail panel to rebuild for the same
         // item, so keep the upstream preview instead of cancelling and re-fetching it.
         _suppressUpstreamPreviewReload = true;
@@ -1773,6 +1959,17 @@ public partial class ContentLibraryViewModel(
         finally
         {
             _suppressUpstreamPreviewReload = false;
+        }
+
+        var viewedIndex = viewedTab == null ? -1 : _selectedContentTabSources.IndexOf(viewedTab);
+        if (viewedIndex < 0 && viewedTab != null)
+        {
+            viewedIndex = _selectedContentTabSources.FindIndex(tab => string.Equals(tab.TabId, viewedTab.TabId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (viewedIndex >= 0)
+        {
+            SelectedDetailTabIndex = BuiltInDetailTabCount + viewedIndex;
         }
 
         OnPropertyChanged(nameof(FilteredContent));

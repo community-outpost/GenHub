@@ -125,7 +125,7 @@ public static class CatalogBundleComponentBuilder
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        foreach (var item in items.Where(i => (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
+        foreach (var item in items.Where(i => !i.IsWithheldOnHost && (i.ContentType == ContentType.ContentBundle || i.BundledItems is { Count: > 0 }) && (i.Releases == null || i.Releases.Count == 0)))
         {
             item.Releases ??= [];
             var bundleRelease = new ContentRelease
@@ -178,6 +178,11 @@ public static class CatalogBundleComponentBuilder
         out bool isSyntheticPlaceholder)
     {
         isSyntheticPlaceholder = false;
+        if (sibling.IsWithheldOnHost)
+        {
+            return null;
+        }
+
         var siblingRelease = SelectRelease(sibling, versionConstraint);
         if (siblingRelease != null)
         {
@@ -192,14 +197,22 @@ public static class CatalogBundleComponentBuilder
             return null;
         }
 
-        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 })
+        if (sibling.UpstreamSync?.AssetRules is { Count: > 0 } assetRules)
         {
+            var hostRules = assetRules
+                .Where(r => r.SupportsRuntime(ManifestVariantResolver.CurrentRuntimeIdentifier))
+                .ToList();
+            if (hostRules.Count == 0)
+            {
+                return null;
+            }
+
             isSyntheticPlaceholder = true;
             return new ContentRelease
             {
                 Version = "latest",
                 IsLatest = true,
-                Artifacts = sibling.UpstreamSync.AssetRules.Select(r => new ReleaseArtifact
+                Artifacts = hostRules.Select(r => new ReleaseArtifact
                 {
                     Filename = r.Pattern,
                     Variant = r.Variant,

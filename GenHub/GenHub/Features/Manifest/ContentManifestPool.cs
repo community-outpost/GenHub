@@ -4,6 +4,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -169,6 +170,7 @@ public class ContentManifestPool(
                 return OperationResult<ContentManifest?>.CreateFailure("Manifest file is corrupted or invalid");
             }
 
+            GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest);
             return OperationResult<ContentManifest?>.CreateSuccess(manifest);
         }
         catch (Exception ex)
@@ -199,6 +201,7 @@ public class ContentManifestPool(
 
                 if (manifest != null)
                 {
+                    GenPatcherDependencyBuilder.NormalizeControlBarGenToolDependency(manifest);
                     manifests.Add(manifest);
                 }
             }

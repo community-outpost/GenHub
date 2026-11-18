@@ -1,6 +1,6 @@
 # Telemetry & Product Analytics Architecture
 
-GenHub features an opt-out, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
+GenHub features an opt-in, privacy-preserving telemetry and error-reporting architecture built on top of **Sentry** (for crash diagnostics and exception traces) and **PostHog** (for privacy-respecting product analytics and event telemetry).
 
 ---
 
@@ -8,8 +8,8 @@ GenHub features an opt-out, privacy-preserving telemetry and error-reporting arc
 
 Telemetry strictly honors user choice and local regulations:
 
-1. **Preference & Opt-Out**: Telemetry is enabled by default (`AnonymousMetrics`) to help maintain build health, track download reliability, and improve launcher stability without collecting PII. Users can opt out at any time:
-   - **In-App Toggle**: In **Settings > Diagnostics & Privacy > Telemetry & Crash Reporting Level**, switch to `Disabled`.
+1. **Preference & Opt-In**: Telemetry is disabled by default (`Disabled`). New installs and settings files without a stored preference send nothing. A stored choice is always kept. The first settings save writes the current preference to the file, so it counts as a stored choice from then on. A later change to the default only reaches installs that have never saved settings. Users who want to help maintain build health, track download reliability, and improve launcher stability can opt in at any time, and opt out again later:
+   - **In-App Toggle**: In **Settings > Diagnostics & Privacy > Telemetry & Crash Reporting Level**, choose `CrashReportsOnly` or `AnonymousMetrics`, or switch back to `Disabled`.
    - **Environment Variables**: Set `DO_NOT_TRACK=1` or `GENHUB_TELEMETRY_OPTOUT=1` in your environment to unconditionally disable all telemetry.
    - `Disabled (0)`: Completely disables all telemetry and error tracking. No network requests are made.
    - `CrashReportsOnly (1)`: Sends anonymized crash reports and unhandled exceptions via Sentry.

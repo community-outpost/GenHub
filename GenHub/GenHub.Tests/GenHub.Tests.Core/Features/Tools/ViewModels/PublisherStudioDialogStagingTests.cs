@@ -545,6 +545,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
                         Variant = "Zero Hour",
                         IsDefault = true,
                         TargetGame = GameType.ZeroHour,
+                        Platform = "osx-arm64",
                     },
                 ],
             },
@@ -561,6 +562,7 @@ public sealed class PublisherStudioDialogStagingTests : IDisposable
         Assert.Equal("Zero Hour", rule.Variant);
         Assert.True(rule.IsDefault);
         Assert.Equal(GameType.ZeroHour, rule.TargetGame);
+        Assert.Equal("osx-arm64", rule.Platform);
     }
 
     /// <summary>

@@ -30,6 +30,7 @@ using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Features.Launching;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -68,8 +69,12 @@ public class ProfileLauncherFacade(
     IGameLaunchRunner launchRunner,
     IInstallationCasPoolService? installationCasPoolService = null,
     ILocalizationService? localizationService = null,
-    IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null) : IProfileLauncherFacade
+    IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null,
+    IContentDependencyValidator? dependencyValidator = null) : IProfileLauncherFacade
 {
+    private readonly IContentDependencyValidator _dependencyValidator = dependencyValidator
+        ?? new ContentDependencyValidator(manifestPool, NullLogger<ContentDependencyValidator>.Instance);
+
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,
@@ -565,6 +570,16 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
 
+    private static ProfileOperationResult<GameLaunchInfo> CreateLaunchValidationFailure(
+        ProfileOperationResult<bool> validationResult,
+        string profileId)
+    {
+        var errors = string.Join(", ", validationResult.Errors);
+        return validationResult.MissingDependencies.Count > 0
+            ? ProfileOperationResult<GameLaunchInfo>.CreateMissingDependencies(errors, validationResult.MissingDependencies, profileId: profileId)
+            : ProfileOperationResult<GameLaunchInfo>.CreateFailure(errors);
+    }
+
     /// <summary>
     /// Checks if a profile uses a SuperHackers game client.
     /// </summary>
@@ -584,6 +599,13 @@ public class ProfileLauncherFacade(
     {
         return profile.IsCommunityOutpostProfile();
     }
+
+    /// <summary>
+    /// Matches a dependency the way the shared validator does: by catalog identity, or by type and name when the publisher is not strict.
+    /// </summary>
+    private static bool MatchesDependencyIdentity(string[] dependencyParts, ContentDependency dependency, ContentManifest manifest) =>
+        DependencyResolver.HasCompatibleIdentity(dependencyParts, dependency, manifest) ||
+        (!dependency.StrictPublisher && ContentDependencyValidator.MatchesByType(dependency, dependencyParts, manifest));
 
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
@@ -928,7 +950,7 @@ public class ProfileLauncherFacade(
             if (validationResult.Failed)
             {
                 logger.LogError("[Launch] Validation failed: {Errors}", string.Join(", ", validationResult.Errors));
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", validationResult.Errors));
+                return CreateLaunchValidationFailure(validationResult, profileId);
             }
 
             logger.LogDebug("[Launch] Validation passed");
@@ -1158,6 +1180,7 @@ public class ProfileLauncherFacade(
         }
 
         if (genericCatalogProfileReconciler != null &&
+            !ReferenceEquals(reconciler, genericCatalogProfileReconciler) &&
             !string.Equals(publisherType, CatalogConstants.GenericPublisherType, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogDebug("[Launch] Checking for subscribed catalog content updates in profile");
@@ -1309,12 +1332,31 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
         }
 
+        // Version, game, publisher and conflict problems keep their detailed messages.
+        // Missing items come next, so the launcher can offer to install them.
         var dependencyErrors = ValidateDependencies(manifests, profile.GameClient?.GameType ?? GameType.ZeroHour);
         if (dependencyErrors.Count > 0)
         {
             errors.AddRange(dependencyErrors);
             logger.LogWarning("Profile {ProfileId} dependency validation failed: {Errors}", profile.Id, string.Join(", ", dependencyErrors));
             return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", errors));
+        }
+
+        var missingDependencies = _dependencyValidator.FindMissingDependencies(manifests);
+        if (missingDependencies.Count > 0)
+        {
+            logger.LogWarning(
+                "Profile {ProfileId} launch blocked: missing required items {DependencyIds}",
+                profile.Id,
+                string.Join(", ", missingDependencies.Select(gap => gap.DependencyId)));
+            return ProfileOperationResult<bool>.CreateMissingDependencies(
+                localizationService.GetLocalizedString(
+                    "GameProfiles.MissingDependencies.LaunchError",
+                    "{0} can't launch. It needs {1}.",
+                    profile.Name,
+                    string.Join(", ", MissingDependencyDialog.GetDisplayNames(localizationService, missingDependencies))),
+                missingDependencies,
+                profileId: profile.Id);
         }
 
         try
@@ -1582,20 +1624,34 @@ public class ProfileLauncherFacade(
 
     /// <summary>
     /// Checks if a version string is compatible with dependency requirements.
-    /// Unparseable version strings that do not match <see cref="ContentDependency.CompatibleVersions"/>
-    /// intentionally fail numeric min/max range checks by design.
+    /// A version with no digits is accepted, as in the shared validator. Other unparseable version strings
+    /// that do not match <see cref="ContentDependency.CompatibleVersions"/> intentionally fail numeric min/max range checks.
     /// </summary>
     /// <param name="version">The version to check.</param>
     /// <param name="dependency">The dependency with version requirements.</param>
     /// <returns>True if compatible, false otherwise.</returns>
     private bool IsVersionCompatible(string version, ContentDependency dependency)
     {
-        // If compatible versions list is specified, check exact match or numeric equivalence
-        if (dependency.CompatibleVersions is { Count: > 0 })
+        // Like the shared validator, a manifest without a comparable version is not rejected for it.
+        if (string.IsNullOrWhiteSpace(version) ||
+            string.Equals(version, ManifestConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+            version.All(character => !char.IsDigit(character)))
         {
-            return dependency.CompatibleVersions.Any(cv =>
-                string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) ||
-                CatalogManifestIdentity.CompareVersions(cv, version) == 0);
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
+        {
+            return CatalogManifestIdentity.CompareVersions(version, dependency.ExactVersion) == 0;
+        }
+
+        // Like the shared validator, a version list and a range must both hold.
+        if (dependency.CompatibleVersions is { Count: > 0 } &&
+            dependency.CompatibleVersions.All(cv =>
+                !string.Equals(cv, version, StringComparison.OrdinalIgnoreCase) &&
+                CatalogManifestIdentity.CompareVersions(cv, version) != 0))
+        {
+            return false;
         }
 
         if (!string.IsNullOrEmpty(dependency.MinVersion))
@@ -1626,6 +1682,11 @@ public class ProfileLauncherFacade(
     /// <returns>A string describing the version requirements.</returns>
     private string BuildVersionRequirementString(ContentDependency dependency)
     {
+        if (!string.IsNullOrWhiteSpace(dependency.ExactVersion))
+        {
+            return $"(version: {dependency.ExactVersion})";
+        }
+
         if (dependency.CompatibleVersions is { Count: > 0 })
         {
             return $"(version: {string.Join(" or ", dependency.CompatibleVersions)})";
@@ -1715,12 +1776,6 @@ public class ProfileLauncherFacade(
     {
         if (!manifestsByType.TryGetValue(dependency.DependencyType, out var potentialMatches) || potentialMatches.Count == 0)
         {
-            var msg = $"Content '{manifest.Name}' requires {dependency.DependencyType} content, but none is selected";
-            if (!dependency.IsOptional)
-            {
-                errors.Add(msg);
-            }
-
             logger.LogWarning(
                 "Dependency validation failed: {ManifestName} requires {DependencyType} but none found (Optional: {IsOptional})",
                 manifest.Name,
@@ -1729,38 +1784,40 @@ public class ProfileLauncherFacade(
             return;
         }
 
+        IReadOnlyList<ContentManifest> matches = potentialMatches;
         if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
         {
-            ValidateSpecificDependencyRequirement(manifest, dependency, manifestsById, potentialMatches, errors);
+            var match = ValidateSpecificDependencyRequirement(manifest, dependency, manifestsById, potentialMatches, errors);
+
+            // A missing item is left to the shared validator, which offers to install it.
+            if (match == null)
+            {
+                return;
+            }
+
+            matches = SelectSatisfyingMatches(dependency, potentialMatches, match);
         }
         else
         {
             logger.LogDebug("Generic dependency {DependencyType} satisfied for {ManifestName}", dependency.DependencyType, manifest.Name);
         }
 
-        ValidateDependencyGameType(manifest, dependency, potentialMatches, profileGameType, errors);
-        ValidateDependencyPublisher(manifest, dependency, potentialMatches, errors);
+        ValidateDependencyGameType(manifest, dependency, matches, profileGameType, errors);
+        ValidateDependencyPublisher(manifest, dependency, matches, errors);
     }
 
-    private void ValidateSpecificDependencyRequirement(
+    /// <summary>
+    /// Checks the version of the manifest that matches a specific dependency.
+    /// </summary>
+    /// <returns>The matching manifest, or <see langword="null"/> when none is enabled.</returns>
+    private ContentManifest? ValidateSpecificDependencyRequirement(
         ContentManifest manifest,
         ContentDependency dependency,
         Dictionary<string, ContentManifest> manifestsById,
         List<ContentManifest> potentialMatches,
         List<string> errors)
     {
-        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(
-            dependency.Id.ToString(),
-            dependency,
-            potentialMatches);
-
-        ContentManifest? requiredManifest = null;
-        if (!string.IsNullOrEmpty(matchedCatalogId))
-        {
-            requiredManifest = potentialMatches.FirstOrDefault(m =>
-                string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
-                ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
-        }
+        var requiredManifest = FindCatalogMatch(dependency, manifestsById, potentialMatches);
 
         if (requiredManifest == null &&
             manifestsById.TryGetValue(dependency.Id.ToString(), out var exactMatch) &&
@@ -1774,6 +1831,12 @@ public class ProfileLauncherFacade(
             var depParts = dependency.Id.ToString().Split('.');
             var candidateMatch = (manifestsById.TryGetValue(dependency.Id.ToString(), out var exact) ? exact : null)
                 ?? (depParts.Length == 5 ? potentialMatches.FirstOrDefault(m => DependencyResolver.HasCompatibleIdentity(depParts, dependency, m)) : null);
+
+            // A matching manifest without a comparable version is accepted, as the shared validator does.
+            if (candidateMatch != null && IsVersionCompatible(candidateMatch.Version, dependency))
+            {
+                return candidateMatch;
+            }
 
             if (candidateMatch != null)
             {
@@ -1791,13 +1854,7 @@ public class ProfileLauncherFacade(
                     versionInfo,
                     candidateMatch.Version,
                     dependency.IsOptional);
-                return;
-            }
-
-            var missingMsg = $"Content '{manifest.Name}' requires specific content '{dependency.Name}' (ID: {dependency.Id}), but it is not selected";
-            if (!dependency.IsOptional)
-            {
-                errors.Add(missingMsg);
+                return candidateMatch;
             }
 
             logger.LogWarning(
@@ -1805,10 +1862,10 @@ public class ProfileLauncherFacade(
                 manifest.Name,
                 dependency.Id,
                 dependency.IsOptional);
-            return;
+            return null;
         }
 
-        if ((!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
+        if ((!string.IsNullOrEmpty(dependency.ExactVersion) || !string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
             && !IsVersionCompatible(requiredManifest.Version, dependency))
         {
             var versionInfo = BuildVersionRequirementString(dependency);
@@ -1826,19 +1883,72 @@ public class ProfileLauncherFacade(
                 requiredManifest.Version,
                 dependency.IsOptional);
         }
+
+        return requiredManifest;
+    }
+
+    /// <summary>
+    /// Finds the enabled manifest that matches a dependency's catalog identity.
+    /// </summary>
+    /// <returns>A match that meets the version requirement when one is enabled, else the newest match, else <see langword="null"/>.</returns>
+    private ContentManifest? FindCatalogMatch(
+        ContentDependency dependency,
+        Dictionary<string, ContentManifest> manifestsById,
+        List<ContentManifest> potentialMatches)
+    {
+        var dependencyId = dependency.Id.ToString();
+        var matchedCatalogId = DependencyResolver.FindVersionIndependentCatalogMatch(dependencyId, dependency, potentialMatches);
+        if (string.IsNullOrEmpty(matchedCatalogId))
+        {
+            return null;
+        }
+
+        var match = potentialMatches.FirstOrDefault(m =>
+            string.Equals(m.Id.Value, matchedCatalogId, StringComparison.OrdinalIgnoreCase))
+            ?? (manifestsById.TryGetValue(matchedCatalogId, out var direct) ? direct : null);
+        if (match == null || IsVersionCompatible(match.Version, dependency))
+        {
+            return match;
+        }
+
+        // The resolver picks the newest match without checking an exact version, so an older enabled match can still satisfy it.
+        var dependencyParts = dependencyId.Split('.');
+        return potentialMatches.FirstOrDefault(m =>
+            MatchesDependencyIdentity(dependencyParts, dependency, m) &&
+            IsVersionCompatible(m.Version, dependency))
+            ?? match;
+    }
+
+    /// <summary>
+    /// Keeps every enabled manifest that satisfies a specific dependency, so the game and publisher checks see each of them.
+    /// </summary>
+    /// <returns>The satisfying manifests, or the selected match alone when none satisfies the version requirement.</returns>
+    private IReadOnlyList<ContentManifest> SelectSatisfyingMatches(
+        ContentDependency dependency,
+        List<ContentManifest> potentialMatches,
+        ContentManifest match)
+    {
+        var dependencyParts = dependency.Id.ToString().Split('.');
+        var satisfying = potentialMatches
+            .Where(m => MatchesDependencyIdentity(dependencyParts, dependency, m) && IsVersionCompatible(m.Version, dependency))
+            .ToList();
+        return satisfying.Count > 0 ? satisfying : [match];
     }
 
     private void ValidateDependencyGameType(
         ContentManifest manifest,
         ContentDependency dependency,
-        List<ContentManifest> potentialMatches,
+        IReadOnlyList<ContentManifest> potentialMatches,
         GameType profileGameType,
         List<string> errors)
     {
         if (dependency.DependencyType == Core.Models.Enums.ContentType.GameInstallation)
         {
             var gameInstallations = potentialMatches;
-            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType);
+
+            // Like the shared validator, an installation with no recorded game is not rejected for it.
+            var compatibleInstallation = gameInstallations.FirstOrDefault(gi => gi.TargetGame == profileGameType)
+                ?? gameInstallations.FirstOrDefault(gi => gi.TargetGame == GameType.Unknown);
 
             if (compatibleInstallation == null)
             {
@@ -1878,12 +1988,14 @@ public class ProfileLauncherFacade(
     private void ValidateDependencyPublisher(
         ContentManifest manifest,
         ContentDependency dependency,
-        List<ContentManifest> potentialMatches,
+        IReadOnlyList<ContentManifest> potentialMatches,
         List<string> errors)
     {
         if (dependency.StrictPublisher && !string.IsNullOrEmpty(dependency.PublisherType))
         {
-            var dependencyManifest = potentialMatches.FirstOrDefault();
+            var dependencyManifest = potentialMatches.FirstOrDefault(match =>
+                string.Equals(match.Publisher?.PublisherType, dependency.PublisherType, StringComparison.OrdinalIgnoreCase))
+                ?? potentialMatches.FirstOrDefault();
             if (dependencyManifest != null)
             {
                 var publisherType = dependencyManifest.Publisher?.PublisherType ?? PublisherTypeConstants.Unknown;

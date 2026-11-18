@@ -25,7 +25,7 @@
 
     <Style Selector="TextBlock.demo-badge">
       <Setter Property="FontSize" Value="10"/>
-      <Setter Property="Foreground" Value="#AAAAAA"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
       <Setter Property="Background" Value="#30FFFFFF"/>
       <Setter Property="Padding" Value="8,4"/>
       <Setter Property="FontWeight" Value="Bold"/>

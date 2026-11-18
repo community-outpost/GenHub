@@ -3,13 +3,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
+             xmlns:profiles="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:models="clr-namespace:GenHub.Features.Settings.Models"
              xmlns:theming="clr-namespace:GenHub.Core.Models.Theming;assembly=GenHub.Core"
              xmlns:installations="clr-namespace:GenHub.Core.Models.GameInstallations;assembly=GenHub.Core"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls"
              xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
-             xmlns:providers="using:GenHub.Core.Models.Providers"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
@@ -54,95 +54,8 @@
       <Setter Property="Margin" Value="0,2,0,0" />
     </Style>
 
-    <Style Selector="Button.browse-button">
-      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="12,6" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button.browse-button:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-    </Style>
-
-    <Style Selector="Button.secondary-button">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="16,8" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button.secondary-button:pointerover">
-      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="RenderTransform" Value="scale(1.02)" />
-    </Style>
-    <Style Selector="Button.secondary-button:pressed">
-      <Setter Property="RenderTransform" Value="scale(0.98)" />
-    </Style>
-
-    <Style Selector="TextBox">
-      <Setter Property="Background" Value="{DynamicResource TextBoxBackground}" />
-      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="8" />
-    </Style>
-
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-    </Style>
-
-    <Style Selector="Button.danger-button">
-      <Setter Property="Background" Value="#991B1B" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="12,8" />
-      <Setter Property="HorizontalAlignment" Value="Stretch" />
-      <Setter Property="HorizontalContentAlignment" Value="Center" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="FontSize" Value="12.5" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-           <BrushTransition Property="Background" Duration="0:0:0.15" />
-           <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-           <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-
-    <Style Selector="Button.danger-button:pointerover">
-      <Setter Property="Background" Value="#DC2626" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="RenderTransform" Value="scale(1.02)" />
-    </Style>
-    <Style Selector="Button.danger-button:pressed">
-      <Setter Property="RenderTransform" Value="scale(0.98)" />
     </Style>
 
     <Style Selector="Button.theme-card-button">
@@ -192,10 +105,28 @@
         </Expander.Header>
         <Border Padding="20">
           <StackPanel Spacing="20">
+            <StackPanel Spacing="8" IsVisible="{Binding ProfileLibraryActions, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <TextBlock Text="{localization:Localize GameProfiles.Library.MyProfiles}" Classes="setting-label"/>
+              <WrapPanel DataContext="{Binding ProfileLibraryActions}" x:DataType="profiles:GameProfileLauncherViewModel">
+                <Button Classes="action-secondary library-action" Command="{Binding ImportProfileCommand}" Content="{localization:Localize GameProfiles.Launcher.Button.Import}" Margin="0,0,12,8"/>
+                <Button Classes="action-secondary library-action" Command="{Binding ScanForGamesCommand}" Content="{localization:Localize GameProfiles.Button.Scan}" IsEnabled="{Binding !IsScanning}" Margin="0,0,0,8"/>
+              </WrapPanel>
+              <ProgressBar IsIndeterminate="True" Height="2" IsVisible="{Binding ProfileLibraryActions.IsScanning}"/>
+              <StackPanel DataContext="{Binding ProfileLibraryActions}" x:DataType="profiles:GameProfileLauncherViewModel" IsVisible="{Binding ShouldShowScanFailure}" Spacing="8">
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{localization:Localize GameProfiles.ScanFailure.Description}" Classes="setting-description"/>
+                <Expander Header="{localization:Localize GameProfiles.ScanFailure.Details}" IsExpanded="False" HorizontalAlignment="Stretch">
+                  <SelectableTextBlock Text="{Binding ScanFailureMessage}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                </Expander>
+                <Button Classes="action-secondary library-action" Command="{Binding ChooseGameFolderCommand}" Content="{localization:Localize GameProfiles.ScanFailure.ChooseFolderButton}" HorizontalAlignment="Left"/>
+              </StackPanel>
+            </StackPanel>
+
             <!-- Default Workspace Strategy -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GameConfiguration.DefaultWorkspaceStrategy.Label}" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableWorkspaceStrategies}"
+              <ComboBox Classes="workspace-strategy form-field"
+                        ItemsSource="{Binding AvailableWorkspaceStrategies}"
                         SelectedItem="{Binding DefaultWorkspaceStrategy}"
                         HorizontalAlignment="Left"
                         MinWidth="250" />
@@ -223,13 +154,13 @@
                           <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                           <TextBlock Text="{Binding InstallationPath}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
                         </StackPanel>
-                        <Button Grid.Column="1"
+                        <Button Classes="icon-action" Grid.Column="1"
                                 VerticalAlignment="Center"
+                                AutomationProperties.Name="{localization:Localize Settings.GameConfiguration.CustomInstallations.RemoveToolTip}"
                                 ToolTip.Tip="{localization:Localize Settings.GameConfiguration.CustomInstallations.RemoveToolTip}"
                                 Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveCustomInstallationCommand}"
                                 CommandParameter="{Binding}">
-                          <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
-                                    Width="14" Height="14" Foreground="{DynamicResource TextSecondary}" />
+                          <PathIcon Data="{StaticResource DeleteIcon}" />
                         </Button>
                       </Grid>
                     </Border>
@@ -237,11 +168,11 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
 
-              <Button HorizontalAlignment="Left"
+              <Button Classes="action-secondary" HorizontalAlignment="Left"
                       Margin="0,4,0,0"
                       Command="{Binding AddCustomInstallationCommand}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="14" Height="14" />
+                  <PathIcon Data="{StaticResource AddIcon}" Width="16" Height="16" />
                   <TextBlock Text="{localization:Localize Settings.GameConfiguration.CustomInstallations.Add}" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -276,46 +207,6 @@
                          Classes="setting-description" />
             </StackPanel>
 
-            <!-- Download Buffer Size -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadBufferSizeKB}"
-                             Minimum="4"
-                             Maximum="1024"
-                             Increment="4"
-                             HorizontalAlignment="Left"
-                             Width="160"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download Timeout -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
-              <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
-                             Minimum="10"
-                             Maximum="3600"
-                             Increment="10"
-                             HorizontalAlignment="Left"
-                             Width="120"
-                             FormatString="F0"
-                             LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
-            <!-- Download User-Agent -->
-            <StackPanel Spacing="8">
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding DownloadUserAgent}"
-                       Width="300"
-                       LostFocus="OnTextBoxLostFocus" />
-              <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
-                         Classes="setting-description" />
-            </StackPanel>
-
             <!-- Background Downloads -->
             <StackPanel Spacing="8">
               <CheckBox Content="{localization:Localize Settings.Downloads.AllowBackground.Label}"
@@ -323,6 +214,53 @@
               <TextBlock Text="{localization:Localize Settings.Downloads.AllowBackground.Description}"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
+
+            <Expander x:Name="AdvancedDownloadSettings" Header="{localization:Localize Settings.Downloads.Advanced}" IsExpanded="False" HorizontalAlignment="Stretch">
+              <StackPanel Spacing="20" Margin="16">
+                <!-- Download Buffer Size -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Label}" Classes="setting-label" />
+                  <NumericUpDown x:Name="DownloadBufferSizeInput"
+                                 Value="{Binding DownloadBufferSizeKB}"
+                                 Minimum="4"
+                                 Maximum="1024"
+                                 Increment="4"
+                                 HorizontalAlignment="Left"
+                                 Width="160"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.BufferSize.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download Timeout -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Label}" Classes="setting-label" />
+                  <NumericUpDown Value="{Binding DownloadTimeoutSeconds}"
+                                 Minimum="10"
+                                 Maximum="3600"
+                                 Increment="10"
+                                 HorizontalAlignment="Left"
+                                 Width="120"
+                                 FormatString="F0"
+                                 LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.Timeout.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+                <!-- Download User-Agent -->
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Label}" Classes="setting-label" />
+                  <TextBox Classes="form-field" Text="{Binding DownloadUserAgent}"
+                           HorizontalAlignment="Left"
+                           Width="300"
+                           LostFocus="OnTextBoxLostFocus" />
+                  <TextBlock Text="{localization:Localize Settings.Downloads.UserAgent.Description}"
+                             Classes="setting-description" />
+                </StackPanel>
+
+              </StackPanel>
+            </Expander>
 
             <Separator Margin="0,8" />
 
@@ -341,11 +279,8 @@
 
               <!-- When Not Connected and Not Authenticating -->
               <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding CanSignInToSteam}">
-                <Button Content="{localization:Localize Settings.SteamAccount.SignInQrCode}"
-                        Command="{Binding SignInWithSteamCommand}"
-                        Background="{DynamicResource AccentBrush}"
-                        Foreground="{DynamicResource PrimaryButtonForeground}"
-                        Padding="16,8" FontWeight="SemiBold" />
+                <Button Classes="action-primary" Content="{localization:Localize Settings.SteamAccount.SignInQrCode}"
+                        Command="{Binding SignInWithSteamCommand}" />
               </StackPanel>
 
               <!-- When Connected -->
@@ -353,7 +288,7 @@
                 <TextBlock Text="{Binding SteamConnectedAsText}" VerticalAlignment="Center" FontWeight="SemiBold" />
                 <Button Content="{localization:Localize Settings.SteamAccount.Disconnect}"
                         Command="{Binding SignOutSteamAccountCommand}"
-                        Classes="secondary-button" />
+                        Classes="action-secondary" />
               </StackPanel>
 
               <!-- When Authenticating (QR Code Display) -->
@@ -365,7 +300,7 @@
                 </Border>
                 <Button Content="{localization:Localize Settings.SteamAccount.Cancel}"
                         Command="{Binding CancelSteamSignInCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Left" />
+                        Classes="action-secondary" HorizontalAlignment="Left" />
               </StackPanel>
             </StackPanel>
           </StackPanel>
@@ -453,13 +388,34 @@
                 <TextBlock Text="{localization:Localize Settings.Appearance.Language.Label}" Classes="setting-label" />
                 <TextBlock Text="{localization:Localize Settings.Appearance.Language.Description}"
                            Classes="setting-description" />
-                <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                <ComboBox Classes="form-field" ItemsSource="{Binding AvailableLanguages}"
                           SelectedItem="{Binding SelectedLanguage}"
                           MinWidth="220"
                           HorizontalAlignment="Left"
                           Margin="0,4,0,0">
                   <ComboBox.ItemTemplate>
                     <DataTemplate x:DataType="models:LanguageOption">
+                      <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+
+              <StackPanel Spacing="6" Margin="0,16,0,0" IsVisible="{Binding ProfileLibraryActions, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{localization:Localize Settings.Appearance.ProfileLayout.Label}" Classes="setting-label" />
+                <TextBlock Text="{localization:Localize Settings.Appearance.ProfileLayout.Description}"
+                           Classes="setting-description" />
+                <ComboBox x:Name="ProfileLayoutComboBox"
+                          DataContext="{Binding ProfileLibraryActions}"
+                          x:DataType="profiles:GameProfileLauncherViewModel"
+                          ItemsSource="{Binding AvailableProfileLayouts}"
+                          SelectedItem="{Binding SelectedProfileLayoutOption}"
+                          AutomationProperties.Name="{localization:Localize Settings.Appearance.ProfileLayout.Label}"
+                          MinWidth="220"
+                          HorizontalAlignment="Left"
+                          Margin="0,4,0,0">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="profiles:GameProfileLauncherViewModel+ProfileLayoutOption">
                       <TextBlock Text="{Binding DisplayName}" />
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
@@ -490,41 +446,41 @@
                 <Button Grid.Row="0" Grid.Column="0"
                         Content="{localization:Localize Settings.DataDirectories.OpenAppData}"
                         Command="{Binding OpenAppDataDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="2"
                         Content="{localization:Localize Settings.DataDirectories.OpenProfiles}"
                         Command="{Binding OpenProfilesDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="4"
                         Content="{localization:Localize Settings.DataDirectories.OpenManifests}"
                         Command="{Binding OpenManifestsDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="0"
                         Content="{localization:Localize Settings.DataDirectories.OpenWorkspaces}"
                         Command="{Binding OpenWorkspacesDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="2"
                         Content="{localization:Localize Settings.DataDirectories.OpenCasPool}"
                         Command="{Binding OpenCasPoolDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
 
             <!-- Settings File Path -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.DataDirectories.SettingsFilePath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding SettingsFilePath}"
                          Watermark="{localization:Localize Settings.DataDirectories.SettingsFilePath.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
                          Content="{localization:Localize Common.Button.Browse}"
                          Command="{Binding BrowseSettingsFilePathCommand}"
-                         Classes="browse-button" />
+                         Classes="action-secondary action-compact" />
               </Grid>
               <TextBlock Text="{localization:Localize Settings.DataDirectories.SettingsFilePath.Description}"
                          Classes="setting-description" />
@@ -551,7 +507,7 @@
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding MigrationTargetPath}"
                          Watermark="{localization:Localize Settings.MigrateInstallation.TargetPath.Watermark}"
                          AutomationProperties.Name="{localization:Localize Settings.MigrateInstallation.TargetPath.Label}"
@@ -560,7 +516,7 @@
                 <Button Grid.Column="1"
                         Content="{localization:Localize Common.Button.Browse}"
                         Command="{Binding BrowseMigrationTargetPathCommand}"
-                        Classes="browse-button"
+                        Classes="action-secondary action-compact"
                         IsEnabled="{Binding !IsMigrating}" />
               </Grid>
               <TextBlock Text="{localization:Localize Settings.MigrateInstallation.TargetPath.Description}"
@@ -591,7 +547,7 @@
             <!-- Migrate Button -->
             <Button Content="{localization:Localize Settings.MigrateInstallation.Button}"
                     Command="{Binding MigrateInstallationLocationCommand}"
-                    Classes="danger-button"
+                    HorizontalAlignment="Stretch" Classes="action-danger"
                     IsEnabled="{Binding !IsMigrating}"
                     Margin="0,8,0,0" />
           </StackPanel>
@@ -612,7 +568,7 @@
             <!-- Telemetry Consent Level -->
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.DiagnosticsPrivacy.TelemetryLevel.Label}" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableTelemetryLevels}"
+              <ComboBox Classes="form-field" ItemsSource="{Binding AvailableTelemetryLevels}"
                         SelectedItem="{Binding TelemetryPreference}"
                         HorizontalAlignment="Left"
                         MinWidth="280">
@@ -654,22 +610,22 @@
                 <Button Grid.Row="0" Grid.Column="0"
                         Content="{localization:Localize Settings.Logs.OpenDirectory}"
                         Command="{Binding OpenLogsDirectoryCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="0" Grid.Column="2"
                         Content="{localization:Localize Settings.Logs.OpenLatest}"
                         Command="{Binding OpenLatestLogCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="0"
                         Content="{localization:Localize Settings.Logs.CopyLatest}"
                         Command="{Binding CopyLatestLogCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
                 <Button Grid.Row="2" Grid.Column="2"
                         Content="{localization:Localize Settings.Logs.Clear}"
                         Command="{Binding ClearLogsCommand}"
-                        Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+                        Classes="action-secondary" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
             </Grid>
           </StackPanel>
         </Border>
@@ -713,14 +669,14 @@
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.Cas.RootDirectory.Label}" Classes="setting-label" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0"
+                <TextBox Classes="form-field" Grid.Column="0"
                          Text="{Binding CasRootPath}"
                          Watermark="{localization:Localize Settings.Cas.RootDirectory.Watermark}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
                          Content="{localization:Localize Common.Button.Browse}"
                          Command="{Binding BrowseCasRootPathCommand}"
-                         Classes="browse-button" />
+                         Classes="action-secondary action-compact" />
               </Grid>
               <TextBlock Text="{localization:Localize Settings.Cas.RootDirectory.Description}"
                          Classes="setting-description" />
@@ -816,7 +772,7 @@
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.LocalContent.Directories.Watermark}" />
+              <TextBox Classes="form-field" Text="{Binding ContentDirectoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.LocalContent.Directories.Watermark}" />
               <TextBlock Text="{localization:Localize Settings.LocalContent.Directories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -836,7 +792,7 @@
           <StackPanel Spacing="20">
             <StackPanel Spacing="8">
               <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Label}" Classes="setting-label" />
-              <TextBox Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.GitHubDiscovery.Repositories.Watermark}" />
+              <TextBox Classes="form-field" Text="{Binding GitHubDiscoveryRepositoriesText}" AcceptsReturn="True" Height="80" Watermark="{localization:Localize Settings.GitHubDiscovery.Repositories.Watermark}" />
               <TextBlock Text="{localization:Localize Settings.GitHubDiscovery.Repositories.Description}" Classes="setting-description" />
             </StackPanel>
           </StackPanel>
@@ -871,7 +827,7 @@
             <!-- Manage Updates & PRs Button -->
             <Button Content="{localization:Localize Settings.Updates.ManageUpdatesButton}"
                     Command="{Binding OpenUpdateWindowCommand}"
-                    Classes="browse-button"
+                    Classes="action-secondary action-compact"
                     HorizontalAlignment="Left"
                     Margin="0,4,0,0"
                     ToolTip.Tip="{localization:Localize Settings.Updates.ManageUpdatesToolTip}" />
@@ -924,22 +880,16 @@
                 <StackPanel Spacing="12" IsVisible="{Binding IsGitHubSignedOut}">
                   <TextBlock Text="{localization:Localize Settings.GitHubAuth.SignedOut.Description}"
                              Classes="setting-description" TextWrapping="Wrap" />
-                  <Button Content="{localization:Localize Settings.GitHubAuth.SignedOut.SignInButton}"
-                          Command="{Binding SignInWithGitHubCommand}"
-                          Background="{DynamicResource AccentBrush}"
-                          Foreground="{DynamicResource PrimaryButtonForeground}"
-                          Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                  <Button Classes="action-primary" Content="{localization:Localize Settings.GitHubAuth.SignedOut.SignInButton}"
+                          Command="{Binding SignInWithGitHubCommand}" HorizontalAlignment="Left" />
                 </StackPanel>
 
                 <!-- Session Expired -->
                 <StackPanel Spacing="12" IsVisible="{Binding IsGitHubSessionExpiredVisible}">
                   <TextBlock Text="{localization:Localize Settings.GitHubAuth.SessionExpired.Description}"
                              Classes="setting-description" TextWrapping="Wrap" />
-                  <Button Content="{localization:Localize Settings.GitHubAuth.SessionExpired.SignInButton}"
-                          Command="{Binding SignInWithGitHubCommand}"
-                          Background="{DynamicResource AccentBrush}"
-                          Foreground="{DynamicResource PrimaryButtonForeground}"
-                          Padding="20,8" FontWeight="SemiBold" HorizontalAlignment="Left" />
+                  <Button Classes="action-primary" Content="{localization:Localize Settings.GitHubAuth.SessionExpired.SignInButton}"
+                          Command="{Binding SignInWithGitHubCommand}" HorizontalAlignment="Left" />
                 </StackPanel>
 
                 <!-- Authorizing -->
@@ -953,14 +903,11 @@
                                HorizontalAlignment="Center" />
                   </Border>
                   <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button Content="{localization:Localize Settings.GitHubAuth.Authorizing.CopyAndOpen}"
-                            Command="{Binding CopyGitHubUserCodeCommand}"
-                            Background="{DynamicResource AccentBrush}"
-                            Foreground="{DynamicResource PrimaryButtonForeground}"
-                            Padding="20,8" FontWeight="SemiBold" />
+                    <Button Classes="action-primary" Content="{localization:Localize Settings.GitHubAuth.Authorizing.CopyAndOpen}"
+                            Command="{Binding CopyGitHubUserCodeCommand}" />
                     <Button Content="{localization:Localize Settings.GitHubAuth.Authorizing.Cancel}"
                             Command="{Binding CancelSignInCommand}"
-                            Classes="secondary-button" />
+                            Classes="action-secondary" />
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <ProgressBar IsIndeterminate="True" Width="120" Height="4" VerticalAlignment="Center" />
@@ -984,7 +931,7 @@
                     </StackPanel>
                     <Button Grid.Column="2" Content="{localization:Localize Settings.GitHubAuth.SignedIn.SignOut}"
                             Command="{Binding SignOutFromGitHubCommand}"
-                            Classes="secondary-button" VerticalAlignment="Center" />
+                            Classes="action-secondary" VerticalAlignment="Center" />
                   </Grid>
                 </StackPanel>
               </StackPanel>
@@ -1007,9 +954,7 @@
                     IsEnabled="{Binding !IsLoadingSubscriptions}"
                     AutomationProperties.Name="{localization:Localize Settings.Subscriptions.RefreshAllAutomation}"
                     ToolTip.Tip="{localization:Localize Settings.Subscriptions.RefreshAllToolTip}"
-                    Classes="secondary-button"
-                    Padding="12,4"
-                    FontSize="12"
+                    Classes="action-secondary action-compact"
                     Margin="0,0,10,0"
                     VerticalAlignment="Center"/>
           </Grid>
@@ -1020,30 +965,36 @@
 
             <ItemsControl ItemsSource="{Binding Subscriptions}">
               <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="providers:PublisherSubscription">
+                <DataTemplate x:DataType="models:SubscriptionListItem">
                   <Border Background="{DynamicResource SurfaceCardBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                       <!-- Publisher Icon/Avatar -->
                       <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" ClipToBounds="True" Background="{DynamicResource SurfaceHoverBrush}" Margin="0,0,12,0">
-                         <Image controls:ImageLoader.Source="{Binding AvatarUrl}" Stretch="UniformToFill" />
+                         <Image controls:ImageLoader.Source="{Binding Subscription.AvatarUrl}" Stretch="UniformToFill" />
                       </Border>
 
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
-                        <TextBlock Text="{Binding DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        <TextBlock Text="{Binding CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding Subscription.PublisherName}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Subscription.DefinitionUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{Binding Subscription.CatalogUrl}" Foreground="{DynamicResource TextSecondary}" FontSize="11" TextTrimming="CharacterEllipsis" IsVisible="{Binding Subscription.DefinitionUrl, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
                       </StackPanel>
 
                       <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <CheckBox IsChecked="{Binding IsAutoUpdateEnabled}"
+                                  Content="{localization:Localize Settings.Subscriptions.AutoUpdate}"
+                                  Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SetSubscriptionAutoUpdateCommand}"
+                                  CommandParameter="{Binding}"
+                                  ToolTip.Tip="{localization:Localize Settings.Subscriptions.AutoUpdateToolTip}"
+                                  Foreground="{DynamicResource TextSecondary}"
+                                  VerticalAlignment="Center"/>
+
                         <!-- Remove Button -->
                         <Button Content="{localization:Localize Settings.Subscriptions.Remove}"
                                 Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).RemoveSubscriptionCommand}"
                                 CommandParameter="{Binding}"
                                 AutomationProperties.Name="{localization:Localize Settings.Subscriptions.RemoveAutomation}"
                                 ToolTip.Tip="{localization:Localize Settings.Subscriptions.RemoveToolTip}"
-                                Classes="danger-button"
-                                Padding="8,4"
-                                FontSize="12"/>
+                                HorizontalAlignment="Stretch" Classes="action-danger action-compact"/>
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -1109,13 +1060,13 @@
               <Button Grid.Column="1"
                       Content="{localization:Localize Settings.CloudStorage.Button.Refresh}"
                       Command="{Binding RefreshUploadsCommand}"
-                      Classes="secondary-button"
+                      Classes="action-secondary"
                       Margin="0,0,8,0" />
               <Button Grid.Column="2"
                       Content="{localization:Localize Settings.CloudStorage.Button.ClearAll}"
                       Command="{Binding ClearAllUploadsCommand}"
                       IsEnabled="{Binding HasUploads}"
-                      Classes="secondary-button" />
+                      Classes="action-danger" />
             </Grid>
 
             <!-- Empty State -->
@@ -1179,9 +1130,7 @@
                               Content="{localization:Localize Settings.CloudStorage.Button.CopyLink}"
                               Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).CopyUploadUrlCommand}"
                               CommandParameter="{Binding Url}"
-                              Classes="secondary-button"
-                              Padding="8,4"
-                              FontSize="12"
+                              Classes="action-secondary action-compact"
                               Margin="0,0,6,0"
                               VerticalAlignment="Center" />
 
@@ -1189,10 +1138,7 @@
                               Content="{localization:Localize Settings.CloudStorage.Button.Delete}"
                               Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteUploadCommand}"
                               CommandParameter="{Binding .}"
-                              Classes="secondary-button"
-                              Padding="8,4"
-                              FontSize="12"
-                              Foreground="{DynamicResource ErrorBrush}"
+                              Classes="action-danger action-compact"
                               VerticalAlignment="Center" />
                     </Grid>
                   </Border>
@@ -1240,27 +1186,27 @@
                           Content="{localization:Localize Settings.DangerZone.UninstallGenHub}"
                           Command="{Binding UninstallGenHubCommand}"
                           ToolTip.Tip="{localization:Localize Settings.DangerZone.UninstallGenHub.ToolTip}"
-                          Classes="danger-button" Margin="0,0,0,10"/>
+                          HorizontalAlignment="Stretch" Classes="action-danger" Margin="0,0,0,10"/>
 
                   <StackPanel Grid.Row="1" Grid.Column="0" Spacing="10" Margin="0,0,10,0">
                       <Button Content="{localization:Localize Settings.DangerZone.DeleteCasStorage}"
                               Command="{Binding DeleteCasStorageCommand}"
                               ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteCasStorage.ToolTip}"
-                              Classes="danger-button" />
+                              HorizontalAlignment="Stretch" Classes="action-danger" />
                       <Button Content="{localization:Localize Settings.DangerZone.DeleteManifests}"
                               Command="{Binding DeleteManifestsCommand}"
                               ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteManifests.ToolTip}"
-                              Classes="danger-button" />
+                              HorizontalAlignment="Stretch" Classes="action-danger" />
                   </StackPanel>
                   <StackPanel Grid.Row="1" Grid.Column="1" Spacing="10" Margin="10,0,0,0">
                       <Button Content="{localization:Localize Settings.DangerZone.DeleteWorkspaces}"
                               Command="{Binding DeleteWorkspacesCommand}"
                               ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteWorkspaces.ToolTip}"
-                              Classes="danger-button" />
+                              HorizontalAlignment="Stretch" Classes="action-danger" />
                       <Button Content="{localization:Localize Settings.DangerZone.DeleteProfiles}"
                               Command="{Binding DeleteProfilesCommand}"
                               ToolTip.Tip="{localization:Localize Settings.DangerZone.DeleteProfiles.ToolTip}"
-                              Classes="danger-button" />
+                              HorizontalAlignment="Stretch" Classes="action-danger" />
                   </StackPanel>
               </Grid>
 
@@ -1268,10 +1214,8 @@
 
               <Button Content="{localization:Localize Settings.DangerZone.DeleteAllData}"
                       Command="{Binding DeleteAllDataCommand}"
-                      Classes="danger-button"
-                      HorizontalAlignment="Stretch"
-                      FontWeight="Bold"
-                      FontSize="14"/>
+                      Classes="action-danger"
+                      HorizontalAlignment="Stretch"/>
             </StackPanel>
           </StackPanel>
         </Border>
@@ -1281,7 +1225,7 @@
       <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
         <Button Content="{localization:Localize Settings.Button.ResetToDefaults}"
                 Command="{Binding ResetToDefaultsCommand}"
-                Classes="secondary-button"
+                Classes="action-secondary"
                 IsEnabled="{Binding !IsSaving}" />
       </StackPanel>
 

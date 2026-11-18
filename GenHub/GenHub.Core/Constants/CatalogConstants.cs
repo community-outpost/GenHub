@@ -585,4 +585,59 @@ public static class CatalogConstants
             string.Equals(channel, Beta, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(channel, Nightly, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Tokens accepted by an upstream asset rule's platform: an OS family
+    /// (<c>windows</c>, <c>macos</c>, <c>linux</c>) or runtime OS name (<c>win</c>, <c>osx</c>),
+    /// optionally followed by an architecture (<c>win-x64</c>, <c>macos-arm64</c>).
+    /// A numeric OS version may follow the OS name (<c>osx.13-arm64</c>), and Linux accepts
+    /// a qualifier before the architecture (<c>linux-musl-x64</c>).
+    /// </summary>
+    public static class AssetPlatforms
+    {
+        /// <summary>
+        /// The Windows family name.
+        /// </summary>
+        public const string WindowsFamily = "windows";
+
+        /// <summary>
+        /// The OS part of Windows runtime identifiers.
+        /// </summary>
+        public const string WindowsRuntimeOs = "win";
+
+        /// <summary>
+        /// The macOS family name.
+        /// </summary>
+        public const string MacOSFamily = "macos";
+
+        /// <summary>
+        /// The OS part of macOS runtime identifiers.
+        /// </summary>
+        public const string MacOSRuntimeOs = "osx";
+
+        /// <summary>
+        /// The Linux family name and the OS part of Linux runtime identifiers.
+        /// </summary>
+        public const string Linux = "linux";
+
+        /// <summary>
+        /// Separator between the OS version and the OS name in a versioned runtime identifier.
+        /// </summary>
+        public const char OsVersionSeparator = '.';
+
+        /// <summary>
+        /// Separator between the OS and architecture parts of a runtime identifier.
+        /// </summary>
+        public const char ArchitectureSeparator = '-';
+
+        /// <summary>
+        /// Architectures accepted in a runtime identifier.
+        /// </summary>
+        public static readonly string[] Architectures = ["x64", "x86", "arm64", "arm"];
+
+        /// <summary>
+        /// Linux runtime identifier qualifiers accepted between the OS and the architecture.
+        /// </summary>
+        public static readonly string[] LinuxQualifiers = ["musl", "bionic"];
+    }
 }

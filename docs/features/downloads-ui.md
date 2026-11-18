@@ -68,6 +68,9 @@ graph TD
    - Search box (`TextBox.search-box`) with two-way binding to `SearchTerm` and reactive search debouncing.
    - Filter toggle button (`ToggleButton.filter-toggle-btn`) visible when the active publisher supports filtering (`CanShowFilters`).
    - Refresh button and in-flight loading spinners.
+   - Curated catalogs (Generals Online, TheSuperHackers, Community Outpost) do not search their provider. They show a local filter instead (`CanFilterLocally`): a filter box bound to `LocalFilterText` and a row of category chips (`LocalCategoryFilters`, built from `CatalogCategoryFilter`). The filter matches name, category, content type and tags. A card's category is its catalog category, or its content type when it has none or the category only spells the content type. Chips show localized labels from `Downloads.Browser.Filter.Category.*` and `ContentType.*`. Unknown categories fall back to their identifier split into words. The filter text matches both the label and the identifier. Chips list "All" plus the categories present in the loaded cards.
+   - The local filter only reads cards that are already loaded. It never calls the provider. Community Outpost and Generals Online return their whole catalog in one page. TheSuperHackers pages its releases, so the filter covers the loaded pages and "Load More" stays available. Newly loaded cards are filtered and tallied as they arrive, without revisiting cards already loaded.
+   - When nothing matches, the grid shows a message and a "Clear filters" button (`HasNoLocalFilterMatches`, `ClearLocalFilterCommand`). Switching publisher clears the filter.
 
 3. **Flyout Filter Panel**:
    - Embeds `FilterPanelView`, bound to `CurrentFilterViewModel`.
@@ -127,8 +130,9 @@ graph TD
 3. **Addons Tab**:
    - Discovered compatible addons, map packs, and complementary files.
 4. **Dynamic Custom Tabs**:
-   - Populated dynamically at runtime via `ITabProviderRegistry` and `CatalogTabProvider`.
-   - Allows creator catalogs to define dedicated documentation, server configuration, or extra information tabs directly in their `catalog.json`.
+   - Populated at runtime via `ITabProviderRegistry` and `CatalogTabProvider` from the selected item's `customTabs`.
+   - Rendered as top-level tabs after the built-in tabs through `CustomTabContentView`: plain-text intro, safe Markdown body, and card grid.
+   - Catalog-level tabs appear only on items listed in their `appliesTo`.
 
 ---
 

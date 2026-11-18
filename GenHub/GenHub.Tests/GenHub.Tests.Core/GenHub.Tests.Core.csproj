@@ -38,6 +38,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TemporaryApplicationEnvironment.cs" Link="Shared\TemporaryApplicationEnvironment.cs" />
+    <Compile Include="..\Shared\TestEnvironmentConstants.cs" Link="Shared\TestEnvironmentConstants.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Features\Tools\Fixtures\*.rep">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -27,6 +27,7 @@ public class CatalogContentItem : ObservableObject
     private List<CatalogDependency> _bundledItems = [];
     private List<CatalogDependency> _addons = [];
     private List<ContentRelease> _addonReleases = [];
+    private List<CatalogTabDefinition> _customTabs = [];
     private CatalogUpstreamSync? _upstreamSync;
 
     /// <summary>
@@ -159,6 +160,23 @@ public class CatalogContentItem : ObservableObject
         get => _addonReleases;
         set => _addonReleases = value ?? [];
     }
+
+    /// <summary>
+    /// Gets or sets the publisher-defined tabs shown in the content detail view for this item.
+    /// </summary>
+    [JsonPropertyName("customTabs")]
+    public List<CatalogTabDefinition> CustomTabs
+    {
+        get => _customTabs;
+        set => _customTabs = value ?? [];
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether upstream ingestion found no build for this host's platform
+    /// and withheld the item, so it must not be offered on this host.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsWithheldOnHost { get; set; }
 
     /// <summary>
     /// Gets the combined number of legacy addons and addon releases for tab badges.

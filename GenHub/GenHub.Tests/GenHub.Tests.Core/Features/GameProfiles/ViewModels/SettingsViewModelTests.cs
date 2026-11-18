@@ -24,6 +24,7 @@ using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.GitHub.Services;
+using GenHub.Features.Settings.Models;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -2296,8 +2297,8 @@ public class SettingsViewModelTests
 
         // Assert
         Assert.Equal(2, viewModel.Subscriptions.Count);
-        Assert.Equal("Alpha Publisher", viewModel.Subscriptions[0].PublisherName);
-        Assert.Equal("Beta Publisher", viewModel.Subscriptions[1].PublisherName);
+        Assert.Equal("Alpha Publisher", viewModel.Subscriptions[0].Subscription.PublisherName);
+        Assert.Equal("Beta Publisher", viewModel.Subscriptions[1].Subscription.PublisherName);
     }
 
     /// <summary>
@@ -2309,7 +2310,7 @@ public class SettingsViewModelTests
     {
         // Arrange
         var mockSubStore = new Mock<IPublisherSubscriptionStore>();
-        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        var sub = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
         mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _mockDialogService
@@ -2337,7 +2338,7 @@ public class SettingsViewModelTests
     {
         // Arrange
         var mockSubStore = new Mock<IPublisherSubscriptionStore>();
-        var sub = new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" };
+        var sub = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
         mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _mockDialogService
@@ -2371,6 +2372,248 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that loaded subscription rows reflect the stored automatic update preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSubscriptionsCommand_ReflectsStoredAutoUpdatePreferenceAsync()
+    {
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var subs = new List<PublisherSubscription>
+        {
+            new() { PublisherId = "p1", PublisherName = "Alpha Publisher" },
+            new() { PublisherId = "p2", PublisherName = "Beta Publisher" },
+        };
+        mockSubStore.Setup(s => s.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess(subs));
+        _defaultSettings.SetAutoUpdatePreference("p1", true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+
+        await viewModel.LoadSubscriptionsCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.Subscriptions[0].IsAutoUpdateEnabled);
+        Assert.False(viewModel.Subscriptions[1].IsAutoUpdateEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that toggling automatic updates on a subscription row persists the preference and that turning it off clears it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SetSubscriptionAutoUpdateCommand_PersistsAndClearsPreferenceAsync()
+    {
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply => Task.FromResult(apply(_defaultSettings)));
+        var viewModel = CreateViewModel();
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: true);
+
+        await viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+
+        Assert.True(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+
+        item.IsAutoUpdateEnabled = false;
+        await viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a failed save reverts the toggle and the in-memory preference, and tells the user.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SetSubscriptionAutoUpdateCommand_SaveFails_RevertsToggleAndNotifiesAsync()
+    {
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply =>
+            {
+                apply(_defaultSettings);
+                return Task.FromResult(false);
+            });
+        _mockConfigService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(apply => apply(_defaultSettings));
+        var viewModel = CreateViewModel();
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
+        viewModel.Subscriptions.Add(item);
+        item.IsAutoUpdateEnabled = true;
+
+        await viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+
+        Assert.False(item.IsAutoUpdateEnabled);
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that when two overlapping saves both fail, the row and the in-memory preference return to the last
+    /// saved value, and the earlier failure does not overwrite the newer choice while the later save is pending.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SetSubscriptionAutoUpdateCommand_OverlappingSavesFail_RestoresLastSavedValueAsync()
+    {
+        var firstSave = new TaskCompletionSource<bool>();
+        var secondSave = new TaskCompletionSource<bool>();
+        var pendingSaves = new Queue<TaskCompletionSource<bool>>(new[] { firstSave, secondSave });
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply =>
+            {
+                apply(_defaultSettings);
+                return pendingSaves.Dequeue().Task;
+            });
+        _mockConfigService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(apply => apply(_defaultSettings));
+        var viewModel = CreateViewModel();
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
+        viewModel.Subscriptions.Add(item);
+
+        item.IsAutoUpdateEnabled = true;
+        var firstCommand = viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+        item.IsAutoUpdateEnabled = false;
+        var secondCommand = viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+
+        firstSave.SetResult(false);
+        await firstCommand;
+
+        Assert.False(item.IsAutoUpdateEnabled);
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+
+        secondSave.SetResult(false);
+        await secondCommand;
+
+        Assert.False(item.IsAutoUpdateEnabled);
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a save failing after its subscription row was removed does not restore the removed
+    /// publisher's preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SetSubscriptionAutoUpdateCommand_SaveFailsAfterRowRemoved_DoesNotRevertAsync()
+    {
+        var pendingSave = new TaskCompletionSource<bool>();
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply =>
+            {
+                apply(_defaultSettings);
+                return pendingSave.Task;
+            });
+        _mockConfigService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(apply => apply(_defaultSettings));
+        _defaultSettings.SetAutoUpdatePreference("pub1", true);
+        var viewModel = CreateViewModel();
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: true);
+        viewModel.Subscriptions.Add(item);
+
+        item.IsAutoUpdateEnabled = false;
+        var command = viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+        viewModel.Subscriptions.Remove(item);
+        pendingSave.SetResult(false);
+        await command;
+
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a save failing after the user toggled again leaves the newer choice in place.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SetSubscriptionAutoUpdateCommand_SaveFailsAfterNewerToggle_KeepsNewerChoiceAsync()
+    {
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: true);
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply =>
+            {
+                apply(_defaultSettings);
+                item.IsAutoUpdateEnabled = !item.IsAutoUpdateEnabled;
+                item.IsAutoUpdateEnabled = !item.IsAutoUpdateEnabled;
+                return Task.FromResult(false);
+            });
+        _mockConfigService
+            .Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(apply => apply(_defaultSettings));
+        var viewModel = CreateViewModel();
+
+        await viewModel.SetSubscriptionAutoUpdateCommand.ExecuteAsync(item);
+
+        Assert.True(item.IsAutoUpdateEnabled);
+        Assert.True(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that removing a subscription clears its stored automatic update preference, even when the row
+    /// was loaded before the preference was enabled, so a later re-subscribe asks again.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_ClearsAutoUpdatePreferenceAsync()
+    {
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .Returns<Func<UserSettings, bool>>(apply => Task.FromResult(apply(_defaultSettings)));
+        _defaultSettings.SetAutoUpdatePreference("pub1", true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: false);
+        viewModel.Subscriptions.Add(item);
+
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(item);
+
+        Assert.DoesNotContain(item, viewModel.Subscriptions);
+        Assert.False(_defaultSettings.GetSubscription("pub1")?.AutoUpdateEnabled);
+    }
+
+    /// <summary>
+    /// Verifies that removing a subscription tells the user when the cleared automatic update preference cannot be saved.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveSubscriptionCommand_ClearSaveFails_NotifiesAsync()
+    {
+        var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        mockSubStore.Setup(s => s.RemoveSubscriptionAsync("pub1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockConfigService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
+            .ReturnsAsync(false);
+        _defaultSettings.SetAutoUpdatePreference("pub1", true);
+
+        var viewModel = CreateViewModel(subscriptionStore: mockSubStore.Object);
+        var item = new SubscriptionListItem(new PublisherSubscription { PublisherId = "pub1", PublisherName = "Test Publisher" }, isAutoUpdateEnabled: true);
+        viewModel.Subscriptions.Add(item);
+
+        await viewModel.RemoveSubscriptionCommand.ExecuteAsync(item);
+
+        Assert.DoesNotContain(item, viewModel.Subscriptions);
+        _mockNotificationService.Verify(n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that ShowNoSubscriptions accurately reflects subscription list and loading status.
     /// </summary>
     [Fact]
@@ -2390,7 +2633,7 @@ public class SettingsViewModelTests
         Assert.True(viewModel.ShowNoSubscriptions);
 
         // Adding subscription hides message
-        var sub = new PublisherSubscription { PublisherId = "p1", PublisherName = "Publisher 1" };
+        var sub = new SubscriptionListItem(new PublisherSubscription { PublisherId = "p1", PublisherName = "Publisher 1" }, isAutoUpdateEnabled: false);
         viewModel.Subscriptions.Add(sub);
         Assert.False(viewModel.ShowNoSubscriptions);
 
