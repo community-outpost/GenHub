@@ -604,6 +604,61 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that closing the editor still persists an edit when the direct save failed and the debounce timer is already gone.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Dispose_WhenDirectSaveFailed_PersistsPendingEditAsync()
+    {
+        var calls = 0;
+        var saved = new TaskCompletionSource<HotkeyProfile>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mockProfileStorage
+            .Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .Returns((HotkeyProfile profile, CancellationToken _) =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    throw new IOException("disk full");
+                }
+
+                saved.TrySetResult(profile);
+                return Task.FromResult(profile);
+            });
+
+        var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+        var profile = new HotkeyProfile { Name = "Failed Save" };
+        vm.SelectedProfile = profile;
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Unit Action",
+            DefaultDisplayName = "Unit Action",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+        vm.SelectAction(action);
+        action.DisplayName = "Renamed Unit Action";
+
+        Assert.False(await vm.SaveCurrentProfileAsync());
+        vm.Dispose();
+        vm.Dispose();
+        try
+        {
+            var completed = await Task.WhenAny(saved.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.Same(saved.Task, completed);
+            var persisted = await saved.Task;
+            Assert.Equal(profile.Id, persisted.Id);
+            Assert.Equal("Renamed Unit Action", persisted.TitleMappings["CONTROLBAR:Test"]);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Verifies that disposing the view model persists a debounced profile edit that has not reached its timer yet.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
@@ -635,6 +690,7 @@ public class GenHotkeysViewModelTests
         vm.SelectAction(action);
         action.DisplayName = "Renamed Unit Action";
 
+        vm.Dispose();
         vm.Dispose();
         try
         {
@@ -1251,6 +1307,42 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that resetting a title does not schedule another save of the same profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTitleAsync_DoesNotFlushAgainWhenProfileChangesAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profile = new HotkeyProfile { Name = "Title Test Profile" };
+        var other = new HotkeyProfile { Name = "Other Profile" };
+        profile.TitleMappings["CONTROLBAR:Test"] = "Custom Name";
+        vm.Profiles.Add(profile);
+        vm.Profiles.Add(other);
+        vm.SelectedProfile = profile;
+        vm.SelectedAction = new HotkeyActionViewModel
+        {
+            DisplayName = "Custom Name",
+            DefaultDisplayName = "Unit Action",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+
+        await vm.ResetTitleAsync();
+        _mockProfileStorage.Invocations.Clear();
+        vm.SelectedProfile = other;
+        await Task.Delay(50);
+
+        _mockProfileStorage.Verify(
+            s => s.SaveProfileAsync(It.Is<HotkeyProfile>(p => p.Id == profile.Id), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that ResetTooltipAsync removes the custom tooltip from profile, restores default tooltip,
     /// and dispatches an info toast.
     /// </summary>
@@ -1288,6 +1380,45 @@ public class GenHotkeysViewModelTests
         _mockNotificationService.Verify(
             n => n.ShowInfo(It.IsAny<string>(), It.Is<string>(s => s.Contains("Reset tooltip")), null, false),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that resetting a tooltip does not schedule another save of the same profile.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ResetTooltipAsync_DoesNotFlushAgainWhenProfileChangesAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profile = new HotkeyProfile { Name = "Tooltip Test Profile" };
+        var other = new HotkeyProfile { Name = "Other Profile" };
+        profile.TooltipMappings["CONTROLBAR:ToolTipTest"] = "Custom Tooltip";
+        vm.Profiles.Add(profile);
+        vm.Profiles.Add(other);
+        vm.SelectedProfile = profile;
+        vm.SelectedAction = new HotkeyActionViewModel
+        {
+            DisplayName = "Unit Action",
+            DefaultDisplayName = "Unit Action",
+            Tooltip = "Custom Tooltip",
+            DefaultTooltip = "Default tooltip.",
+            TooltipString = "CONTROLBAR:ToolTipTest",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+
+        await vm.ResetTooltipAsync();
+        _mockProfileStorage.Invocations.Clear();
+        vm.SelectedProfile = other;
+        await Task.Delay(50);
+
+        _mockProfileStorage.Verify(
+            s => s.SaveProfileAsync(It.Is<HotkeyProfile>(p => p.Id == profile.Id), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>

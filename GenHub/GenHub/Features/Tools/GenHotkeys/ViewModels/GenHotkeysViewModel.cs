@@ -127,7 +127,9 @@ public partial class GenHotkeysViewModel(
     private List<HotkeyFaction> _allFactions = [];
     private bool _isInitializing;
     private bool _isSyncingProfile;
+    private bool _suppressDebouncedSave;
     private bool _isDisposed;
+    private int _disposeEntered;
     private int _saveSemaphoreDisposed;
     private CancellationTokenSource? _reloadCts;
     private CancellationTokenSource? _addonCheckCts;
@@ -747,7 +749,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        targetAction.DisplayName = targetAction.DefaultDisplayName;
+        AssignWithoutSchedulingSave(() => targetAction.DisplayName = targetAction.DefaultDisplayName);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         ShowNotificationInfo(resetMsg);
@@ -809,7 +811,7 @@ public partial class GenHotkeysViewModel(
             return;
         }
 
-        targetAction.Tooltip = targetAction.DefaultTooltip;
+        AssignWithoutSchedulingSave(() => targetAction.Tooltip = targetAction.DefaultTooltip);
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         ShowNotificationInfo(resetMsg);
@@ -1483,6 +1485,11 @@ public partial class GenHotkeysViewModel(
     /// <param name="disposing">Whether to dispose managed state.</param>
     protected virtual void Dispose(bool disposing)
     {
+        if (!disposing || Interlocked.Exchange(ref _disposeEntered, 1) != 0)
+        {
+            return;
+        }
+
         if (disposing)
         {
             var flushOwnsSemaphore = false;
@@ -1499,6 +1506,13 @@ public partial class GenHotkeysViewModel(
                 }
 
                 saveCts.Dispose();
+            }
+
+            var pendingProfileId = _pendingSaveProfileId;
+            var hasUnsavedProfile = !string.IsNullOrEmpty(pendingProfileId)
+                && !string.Equals(pendingProfileId, _deletingProfileId, StringComparison.OrdinalIgnoreCase);
+            if (saveCts != null || hasUnsavedProfile)
+            {
                 flushOwnsSemaphore = TryQueueDisposeFlush();
             }
 
@@ -2845,9 +2859,22 @@ public partial class GenHotkeysViewModel(
         ClearPendingSaveProfile(profile.Id);
     }
 
+    private void AssignWithoutSchedulingSave(Action assign)
+    {
+        _suppressDebouncedSave = true;
+        try
+        {
+            assign();
+        }
+        finally
+        {
+            _suppressDebouncedSave = false;
+        }
+    }
+
     private void ScheduleDebouncedSaveProfile()
     {
-        if (_isDisposed)
+        if (_isDisposed || _suppressDebouncedSave)
         {
             return;
         }
