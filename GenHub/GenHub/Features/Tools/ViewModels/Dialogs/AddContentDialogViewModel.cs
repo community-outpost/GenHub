@@ -1514,16 +1514,16 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName, bool preserveTypeAndTags = false)
+    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName, bool preserveType = false, bool preserveTags = false)
     {
-        if (!preserveTypeAndTags)
+        if (!preserveType)
         {
             SelectedContentType = ContentType.GenHubBuild;
         }
 
         ApplyGenHubBuildContentNameAndId(buildInfo, baseName);
         ApplyGenHubBuildDescription(buildInfo);
-        ApplyGenHubBuildVersionAndTags(buildInfo, preserveTypeAndTags);
+        ApplyGenHubBuildVersionAndTags(buildInfo, preserveTags);
     }
 
     private void AutoFillFromEntry(string path, StagedContentFile entry)
@@ -1542,17 +1542,18 @@ public partial class AddContentDialogViewModel(
             return;
         }
 
-        var preserveTypeAndTags = !SelectedContentType.Equals(initialType) || !string.Equals(TagsInput, initialTags, StringComparison.Ordinal);
-        ApplyAutofillFromBuildInfo(path, entry, buildInfo, preserveTypeAndTags);
+        var preserveType = !SelectedContentType.Equals(initialType);
+        var preserveTags = !string.Equals(TagsInput, initialTags, StringComparison.Ordinal);
+        ApplyAutofillFromBuildInfo(path, entry, buildInfo, preserveType, preserveTags);
     }
 
-    private void ApplyAutofillFromBuildInfo(string path, StagedContentFile entry, GenHubBuildInfo buildInfo, bool preserveTypeAndTags = false)
+    private void ApplyAutofillFromBuildInfo(string path, StagedContentFile entry, GenHubBuildInfo buildInfo, bool preserveType = false, bool preserveTags = false)
     {
         var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
 
         if (buildInfo.IsGenHubBuild)
         {
-            ApplyGenHubBuildToContent(buildInfo, baseName, preserveTypeAndTags);
+            ApplyGenHubBuildToContent(buildInfo, baseName, preserveType, preserveTags);
             return;
         }
 
@@ -1580,7 +1581,7 @@ public partial class AddContentDialogViewModel(
 
         // Intelligently infer ContentType from extension or name
         var inferredType = InferContentType(path, baseName, buildInfo);
-        if (inferredType.HasValue && !preserveTypeAndTags)
+        if (inferredType.HasValue && !preserveType)
         {
             SelectedContentType = inferredType.Value;
         }
