@@ -16,6 +16,7 @@ using GenHub.Tests.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Reflection;
 using System.Text;
@@ -601,15 +602,8 @@ public class GitHubContentDelivererTests
     public async Task DeliverContentAsync_ReportsConnectingProgressBeforeDownloadAsync()
     {
         var targetDirectory = CreateWorkingDirectory();
-        var progressReports = new List<ContentAcquisitionProgress>();
-        var syncLock = new object();
-        var progress = new SynchronousProgress<ContentAcquisitionProgress>(p =>
-        {
-            lock (syncLock)
-            {
-                progressReports.Add(p);
-            }
-        });
+        var progressReports = new ConcurrentQueue<ContentAcquisitionProgress>();
+        var progress = new SynchronousProgress<ContentAcquisitionProgress>(progressReports.Enqueue);
 
         try
         {

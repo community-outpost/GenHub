@@ -319,12 +319,14 @@ public class UpdateNotificationViewModelTests
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
 
-        var prTcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var prTcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>(TaskCreationOptions.RunContinuationsAsynchronously);
         mockVelopack.Setup(x => x.GetArtifactsForPullRequestAsync(391, It.IsAny<CancellationToken>()))
-            .Returns(async (int _, CancellationToken ct) =>
+            .Returns((int _, CancellationToken ct) =>
             {
-                ct.Register(() => prTcs.TrySetCanceled(ct));
-                return await prTcs.Task;
+                ct.Register(() => prTcs.TrySetCanceled());
+                entered.TrySetResult();
+                return prTcs.Task;
             });
 
         var vm = new UpdateNotificationViewModel(
@@ -333,6 +335,13 @@ public class UpdateNotificationViewModelTests
             mockUserSettings.Object);
 
         vm.SubscribeToPrCommand.Execute(391);
+        var enteredDeadline = DateTime.UtcNow.AddSeconds(2);
+        while (!entered.Task.IsCompleted && DateTime.UtcNow < enteredDeadline)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.True(entered.Task.IsCompleted);
         Assert.True(vm.IsLoadingVersions);
 
         vm.UnsubscribeCommand.Execute(null);

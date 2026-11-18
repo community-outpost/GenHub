@@ -7,6 +7,7 @@ using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 
@@ -1292,7 +1293,7 @@ public class DownloadServiceTests
     public async Task DownloadFileAsync_GoogleDriveUrl_RequestsConfirmedDownloadUrlDirectlyAsync()
     {
         var content = new byte[] { 1, 2, 3 };
-        var requestedUris = new List<Uri>();
+        var requestedUris = new ConcurrentQueue<Uri>();
 
         var handler = new Mock<HttpMessageHandler>();
         handler.Protected()
@@ -1302,10 +1303,7 @@ public class DownloadServiceTests
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync((HttpRequestMessage request, CancellationToken _) =>
             {
-                lock (requestedUris)
-                {
-                    requestedUris.Add(request.RequestUri!);
-                }
+                requestedUris.Enqueue(request.RequestUri!);
 
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {

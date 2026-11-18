@@ -98,6 +98,29 @@ public class FastHttpClientFileDownloader(
         }
     }
 
+    private sealed class PercentProgressGate
+    {
+        private readonly object _sync = new();
+        private int _maxReported = -1;
+
+        public void Report(int percent, Action<int> progress)
+        {
+            if (percent <= Volatile.Read(ref _maxReported))
+            {
+                return;
+            }
+
+            lock (_sync)
+            {
+                if (percent > _maxReported)
+                {
+                    _maxReported = percent;
+                    progress(percent);
+                }
+            }
+        }
+    }
+
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
         private readonly object _sync = new();
@@ -156,24 +179,8 @@ public class FastHttpClientFileDownloader(
         double timeout,
         CancellationToken cancelToken = default)
     {
-        var maxReported = -1;
-        var sync = new object();
-        Action<int> monotonicProgress = p =>
-        {
-            if (p <= Volatile.Read(ref maxReported))
-            {
-                return;
-            }
-
-            lock (sync)
-            {
-                if (p > maxReported)
-                {
-                    maxReported = p;
-                    progress(p);
-                }
-            }
-        };
+        var progressGate = new PercentProgressGate();
+        Action<int> monotonicProgress = percent => progressGate.Report(percent, progress);
 
         return DownloadFileCoreAsync(url, targetFile, monotonicProgress, headers, timeout, remainingRedirects: 3, cancelToken);
     }

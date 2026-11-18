@@ -30,6 +30,28 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 public class ContentOrchestrator : IContentOrchestrator
 {
+    private sealed class MonotonicAcquisitionProgress
+    {
+        private readonly object _sync = new();
+        private int _maxReportedPercentage;
+
+        public void Report(IProgress<ContentAcquisitionProgress>? progress, ContentAcquisitionProgress update)
+        {
+            if (progress == null)
+            {
+                return;
+            }
+
+            lock (_sync)
+            {
+                var targetPct = (int)Math.Round(update.ProgressPercentage);
+                _maxReportedPercentage = Math.Max(_maxReportedPercentage, targetPct);
+                update.ProgressPercentage = _maxReportedPercentage;
+                progress.Report(update);
+            }
+        }
+    }
+
     private readonly ILogger<ContentOrchestrator> _logger;
     private readonly ConcurrentBag<IContentProvider> _providers;
     private readonly ConcurrentBag<IContentDiscoverer> _discoverers;
@@ -432,24 +454,8 @@ public class ContentOrchestrator : IContentOrchestrator
 
         _logger.LogInformation("Acquiring content {ContentName} from {ProviderName}", searchResult.Name, searchResult.ProviderName);
 
-        var maxReportedPercentage = 0;
-        var progressLock = new object();
-        void ReportMonotonicProgress(ContentAcquisitionProgress cap)
-        {
-            if (progress == null)
-            {
-                return;
-            }
-
-            lock (progressLock)
-            {
-                var targetPct = (int)Math.Round(cap.ProgressPercentage);
-                maxReportedPercentage = Math.Max(maxReportedPercentage, targetPct);
-
-                cap.ProgressPercentage = maxReportedPercentage;
-                progress.Report(cap);
-            }
-        }
+        var progressGate = new MonotonicAcquisitionProgress();
+        void ReportMonotonicProgress(ContentAcquisitionProgress cap) => progressGate.Report(progress, cap);
 
         try
         {
@@ -742,9 +748,9 @@ public class ContentOrchestrator : IContentOrchestrator
                     (reported.StageDescription.Contains(ContentConstants.StageKeywordExtracting, StringComparison.OrdinalIgnoreCase) ||
                         reported.StageDescription.Contains(ContentConstants.StageKeywordProcessing, StringComparison.OrdinalIgnoreCase))));
 
-        ContentAcquisitionPhase effectivePhase;
-        int rangeStart;
-        int rangeEnd;
+        ContentAcquisitionPhase effectivePhase = reported.Phase;
+        int rangeStart = ContentConstants.ProgressStepDownloading;
+        int rangeEnd = ContentConstants.ProgressStepValidatingFiles;
         if (isExtracting)
         {
             effectivePhase = reported.Phase == ContentAcquisitionPhase.Copying

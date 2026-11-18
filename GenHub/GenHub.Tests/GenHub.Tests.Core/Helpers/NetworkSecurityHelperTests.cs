@@ -222,7 +222,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_LoopbackHost_ThrowsSecurityException()
+    public async Task ConnectSocketWithSsrfCheckAsync_LoopbackHost_ThrowsSecurityExceptionAsync()
     {
         var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
 
@@ -235,7 +235,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_InvalidHost_ThrowsSecurityException()
+    public async Task ConnectSocketWithSsrfCheckAsync_InvalidHost_ThrowsSecurityExceptionAsync()
     {
         var context = CreateConnectionContext(new DnsEndPoint("not a valid host!@#", 80));
 
@@ -248,7 +248,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_DirectIPv6Loopback_ThrowsSecurityException()
+    public async Task ConnectSocketWithSsrfCheckAsync_DirectIPv6Loopback_ThrowsSecurityExceptionAsync()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
         var context = CreateConnectionContext(new DnsEndPoint("[::1]", 8080), request);
@@ -262,7 +262,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetLoopback_ThrowsSecurityException()
+    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetLoopback_ThrowsSecurityExceptionAsync()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://127.0.0.1:8080/test");
         var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
@@ -276,7 +276,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetIPv6Loopback_ThrowsSecurityException()
+    public async Task ConnectSocketWithSsrfCheckAsync_ProxyWithTargetIPv6Loopback_ThrowsSecurityExceptionAsync()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]:8080/test");
         var context = CreateConnectionContext(new DnsEndPoint("proxy.example.com", 8080), request);
@@ -290,7 +290,7 @@ public class NetworkSecurityHelperTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ConnectSocketWithSsrfCheckAsync_CustomExceptionFactory_ThrowsCustomException()
+    public async Task ConnectSocketWithSsrfCheckAsync_CustomExceptionFactory_ThrowsCustomExceptionAsync()
     {
         var context = CreateConnectionContext(new DnsEndPoint("127.0.0.1", 80));
 

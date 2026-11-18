@@ -666,7 +666,7 @@ public class DownloadService(
         long rangeStart,
         CancellationToken cancellationToken)
     {
-        HttpResponseMessage response;
+        HttpResponseMessage response = null!;
 
         // Skip the Google Drive virus-scan interstitial: each Drive request for a large file can
         // take ~30 seconds, so requesting the confirmed URL directly saves a full round trip.

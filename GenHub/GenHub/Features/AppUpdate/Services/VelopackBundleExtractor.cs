@@ -100,7 +100,19 @@ public static class VelopackBundleExtractor
             extractedBytes = length;
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or EndOfStreamException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }
@@ -112,7 +124,15 @@ public static class VelopackBundleExtractor
         {
             File.Delete(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (IOException)
+        {
+            // Best effort cleanup of partial extraction output
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best effort cleanup of partial extraction output
+        }
+        catch (ArgumentException)
         {
             // Best effort cleanup of partial extraction output
         }

@@ -39,7 +39,11 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
             {
                 Directory.Delete(_tempDir, true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // Best effort cleanup
+            }
+            catch (UnauthorizedAccessException)
             {
                 // Best effort cleanup
             }
@@ -161,15 +165,17 @@ public sealed class PublisherStudioGenHubBuildTests : IDisposable
 
         ContentRelease? createdRelease = null;
         var mockDialogService = new Mock<IPublisherStudioDialogService>();
+
+        // Manually set custom version before dropping/adding artifact
         var vm = new AddReleaseDialogViewModel(
             existingContent,
             catalog,
             rel => createdRelease = rel,
             mockDialogService.Object,
-            buildInspector: _inspector);
-
-        // Manually set custom version before dropping/adding artifact
-        vm.Version = "2.5.0-custom";
+            buildInspector: _inspector)
+        {
+            Version = "2.5.0-custom",
+        };
 
         await vm.AddArtifactsFromPathsAsync([buildPath]);
 

@@ -192,11 +192,9 @@ public class GenHubBuildInspectorTests
                 }
 
                 var exeEntry = archive.CreateEntry("bin/GenHub.exe");
-                using (var stream = exeEntry.Open())
-                {
-                    stream.WriteByte(0x4D); // "MZ" header
-                    stream.WriteByte(0x5A);
-                }
+                using var stream = exeEntry.Open();
+                stream.WriteByte(0x4D); // "MZ" header
+                stream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -233,11 +231,9 @@ public class GenHubBuildInspectorTests
                 }
 
                 var exeEntry = archive.CreateEntry("bin/GenHub.Windows.exe");
-                using (var stream = exeEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var exeStream = exeEntry.Open();
+                exeStream.WriteByte(0x4D);
+                exeStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -283,11 +279,9 @@ public class GenHubBuildInspectorTests
             using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
             {
                 var exeEntry = archive.CreateEntry("GenHub.exe");
-                using (var stream = exeEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var stream = exeEntry.Open();
+                stream.WriteByte(0x4D);
+                stream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -355,11 +349,9 @@ public class GenHubBuildInspectorTests
                 }
 
                 var exeEntry = archive.CreateEntry("CustomGenApp.exe");
-                using (var stream = exeEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var exeStream = exeEntry.Open();
+                exeStream.WriteByte(0x4D);
+                exeStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempNupkg);
@@ -399,20 +391,18 @@ public class GenHubBuildInspectorTests
             using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
             {
                 var nuspecEntry = archive.CreateEntry("GenHub.nuspec");
-                using (var stream = nuspecEntry.Open())
-                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
-                {
-                    writer.Write($"""
-                        <?xml version="1.0" encoding="utf-8"?>
-                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-                            <metadata>
-                                <id>GenHub</id>
-                                <version>{prereleaseVersion}</version>
-                                <authors>Community Outpost</authors>
-                            </metadata>
-                        </package>
-                        """);
-                }
+                using var stream = nuspecEntry.Open();
+                using var writer = new StreamWriter(stream, System.Text.Encoding.UTF8);
+                writer.Write($"""
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                        <metadata>
+                            <id>GenHub</id>
+                            <version>{prereleaseVersion}</version>
+                            <authors>Community Outpost</authors>
+                        </metadata>
+                    </package>
+                    """);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -444,20 +434,18 @@ public class GenHubBuildInspectorTests
             using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
             {
                 var nuspecEntry = archive.CreateEntry("addon.nuspec");
-                using (var stream = nuspecEntry.Open())
-                using (var writer = new StreamWriter(stream, System.Text.Encoding.UTF8))
-                {
-                    writer.Write("""
-                        <?xml version="1.0" encoding="utf-8"?>
-                        <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-                            <metadata>
-                                <id>thirdparty-addon</id>
-                                <version>1.5.0-alpha</version>
-                                <authors>CommunityAuthor</authors>
-                            </metadata>
-                        </package>
-                        """);
-                }
+                using var stream = nuspecEntry.Open();
+                using var writer = new StreamWriter(stream, System.Text.Encoding.UTF8);
+                writer.Write("""
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+                        <metadata>
+                            <id>thirdparty-addon</id>
+                            <version>1.5.0-alpha</version>
+                            <authors>CommunityAuthor</authors>
+                        </metadata>
+                    </package>
+                    """);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -538,11 +526,9 @@ public class GenHubBuildInspectorTests
                 }
 
                 var toolExe = archive.CreateEntry("MapBuilder.exe");
-                using (var stream = toolExe.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var exeStream = toolExe.Open();
+                exeStream.WriteByte(0x4D);
+                exeStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempNupkg);
@@ -595,11 +581,9 @@ public class GenHubBuildInspectorTests
 
                 // Actual app executable
                 var appEntry = archive.CreateEntry("CustomApp.exe");
-                using (var stream = appEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var appStream = appEntry.Open();
+                appStream.WriteByte(0x4D);
+                appStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempNupkg);
@@ -655,11 +639,9 @@ public class GenHubBuildInspectorTests
 
                 // Fork executable matching nuspec id
                 var appEntry = archive.CreateEntry("SuperFork.exe");
-                using (var stream = appEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var appStream = appEntry.Open();
+                appStream.WriteByte(0x4D);
+                appStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempNupkg);
@@ -742,11 +724,9 @@ public class GenHubBuildInspectorTests
 
                 // Bundled secondary GenHub library
                 var libEntry = archive.CreateEntry("GenHub.dll");
-                using (var stream = libEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var libStream = libEntry.Open();
+                libStream.WriteByte(0x4D);
+                libStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempZip);
@@ -775,11 +755,9 @@ public class GenHubBuildInspectorTests
             using (var archive = System.IO.Compression.ZipFile.Open(tempZip, System.IO.Compression.ZipArchiveMode.Create))
             {
                 var libEntry = archive.CreateEntry("GenHub.dll");
-                using (var stream = libEntry.Open())
-                {
-                    stream.WriteByte(0x4D);
-                    stream.WriteByte(0x5A);
-                }
+                using var libStream = libEntry.Open();
+                libStream.WriteByte(0x4D);
+                libStream.WriteByte(0x5A);
             }
 
             var info = _inspector.Inspect(tempZip);

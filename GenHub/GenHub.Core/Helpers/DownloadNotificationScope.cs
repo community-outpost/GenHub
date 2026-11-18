@@ -119,7 +119,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
-        bool forceUpdate;
+        bool forceUpdate = false;
         lock (_lock)
         {
             var phaseChanged = !_lastReportedPhase.HasValue || _lastReportedPhase.Value != value.Phase;
@@ -153,7 +153,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             return;
         }
 
-        bool forceUpdate;
+        bool forceUpdate = false;
         lock (_lock)
         {
             forceUpdate = !string.Equals(_lastReportedDownloadFile, value.FileName, StringComparison.Ordinal);
@@ -187,7 +187,7 @@ public sealed class DownloadNotificationScope : IProgress<ContentAcquisitionProg
             status = value.Status;
         }
 
-        bool forceUpdate;
+        bool forceUpdate = false;
         lock (_lock)
         {
             var msg = value.Message ?? value.Status ?? string.Empty;

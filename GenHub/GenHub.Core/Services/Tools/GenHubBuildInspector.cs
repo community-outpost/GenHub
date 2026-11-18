@@ -269,7 +269,19 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                    IsGenHubApplicationIdentity(versionInfo.FileDescription) ||
                    IsGenHubApplicationIdentity(versionInfo.OriginalFilename);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }
@@ -323,7 +335,11 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return strVal;
             }
         }
-        catch (Exception ex) when (ex is BadImageFormatException or InvalidOperationException)
+        catch (BadImageFormatException)
+        {
+            // Ignore decoding failures
+        }
+        catch (InvalidOperationException)
         {
             // Ignore decoding failures
         }
@@ -343,7 +359,11 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                 return (k, v);
             }
         }
-        catch (Exception ex) when (ex is BadImageFormatException or InvalidOperationException)
+        catch (BadImageFormatException)
+        {
+            // Ignore decoding failures
+        }
+        catch (InvalidOperationException)
         {
             // Ignore decoding failures
         }
@@ -364,7 +384,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             using var memoryStream = new MemoryStream();
             var buffer = new byte[8192];
             long totalRead = 0;
-            int bytesRead;
+            int bytesRead = 0;
             while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
             {
                 totalRead += bytesRead;
@@ -396,7 +416,11 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
                     metadata.Elements().FirstOrDefault(e => e.Name.LocalName.Equals("description", StringComparison.OrdinalIgnoreCase))?.Value?.Trim());
             }
         }
-        catch (Exception ex) when (ex is IOException or XmlException)
+        catch (IOException)
+        {
+            // Ignore nuspec parsing errors
+        }
+        catch (XmlException)
         {
             // Ignore nuspec parsing errors
         }
@@ -1028,11 +1052,12 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             ?? candidates.FirstOrDefault();
 
         PeMetadata peMetadata = default;
-        if (exeEntry != null && exeEntry.Length <= GenHubBuildConstants.MaxArchiveEntrySizeBytes)
+        if (exeEntry?.Length <= GenHubBuildConstants.MaxArchiveEntrySizeBytes)
         {
+            var entry = exeEntry!;
             try
             {
-                using var entryStream = exeEntry.Open();
+                using var entryStream = entry.Open();
                 using var memStream = new MemoryStream();
                 entryStream.CopyTo(memStream);
                 memStream.Position = 0;
@@ -1040,7 +1065,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException)
             {
-                _logger.LogDebug(ex, "Failed to read PE metadata from '{Entry}' in '{Path}'", exeEntry.FullName, archivePath);
+                _logger.LogDebug(ex, "Failed to read PE metadata from '{Entry}' in '{Path}'", entry.FullName, archivePath);
             }
         }
 
@@ -1198,7 +1223,19 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         {
             versionInfo = FileVersionInfo.GetVersionInfo(filePath);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException)
+        catch (IOException)
+        {
+            // Handled below via PE reader
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Handled below via PE reader
+        }
+        catch (SecurityException)
+        {
+            // Handled below via PE reader
+        }
+        catch (ArgumentException)
         {
             // Handled below via PE reader
         }
@@ -1298,6 +1335,16 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             resolvedCompanyName = GenHubBuildConstants.FallbackCustomCompanyName;
         }
 
+        string? forkName = null;
+        if (isFork)
+        {
+            forkName = GenHubBuildConstants.FallbackForkCompanyName;
+        }
+        else if (isCustom)
+        {
+            forkName = GenHubBuildConstants.FallbackCustomCompanyName;
+        }
+
         var ctx = new BuildMetadataContext(
             IsGenHub: true,
             CleanVersion: version ?? GenHubBuildConstants.DefaultVersion,
@@ -1313,7 +1360,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             FileName: fileName,
             IsCustom: isCustom,
             IsFork: isFork,
-            ForkName: isFork ? GenHubBuildConstants.FallbackForkCompanyName : (isCustom ? GenHubBuildConstants.FallbackCustomCompanyName : null));
+            ForkName: forkName);
 
         return BuildResult(in ctx);
     }
