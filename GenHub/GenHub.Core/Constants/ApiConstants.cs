@@ -341,10 +341,10 @@ public static class ApiConstants
     /// <param name="packageId">The package id.</param>
     /// <param name="version">The exact package version.</param>
     /// <returns>The download URL for the package.</returns>
-    public static string GetNuGetV2PackageDownloadUrl(string packageId, string version)
+    public static Uri GetNuGetV2PackageDownloadUrl(string packageId, string version)
     {
         var normalizedId = packageId.ToLowerInvariant();
         var normalizedVersion = version.ToLowerInvariant();
-        return $"{NuGetV2BaseUrl}/{normalizedId}/{normalizedVersion}";
+        return new Uri($"{NuGetV2BaseUrl}/{normalizedId}/{normalizedVersion}");
     }
 }

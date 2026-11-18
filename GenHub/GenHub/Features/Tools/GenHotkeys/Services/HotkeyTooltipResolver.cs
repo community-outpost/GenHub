@@ -18,8 +18,8 @@ public static class HotkeyTooltipResolver
     /// <param name="iconName">The icon identifier (e.g. &quot;USADozer&quot;).</param>
     /// <param name="explicitTooltipString">An explicit tooltip label if specified in data, or null.</param>
     /// <param name="refCsf">The reference CSF file to lookup text from.</param>
-    /// <returns>A tuple of (tooltipLabel, tooltipText).</returns>
-    public static (string TooltipLabel, string? TooltipText) ResolveTooltip(
+    /// <returns>A tuple of (tooltipLabel, tooltipText, hasRetailSlot). The slot is false when the label is synthetic and no retail command button references it.</returns>
+    public static (string TooltipLabel, string? TooltipText, bool HasRetailSlot) ResolveTooltip(
         string hotkeyString,
         string iconName,
         string? explicitTooltipString,
@@ -27,15 +27,15 @@ public static class HotkeyTooltipResolver
     {
         if (TryResolveExplicitOrKnown(explicitTooltipString, hotkeyString, refCsf, out var directResult))
         {
-            return directResult;
+            return (directResult.TooltipLabel, directResult.TooltipText, true);
         }
 
         if (refCsf != null && TryResolveHeuristics(hotkeyString, iconName, refCsf, out var heuristicResult))
         {
-            return heuristicResult;
+            return (heuristicResult.TooltipLabel, heuristicResult.TooltipText, true);
         }
 
-        return (GenerateDefaultSyntheticLabel(hotkeyString, iconName), null);
+        return (GenerateDefaultSyntheticLabel(hotkeyString, iconName), null, false);
     }
 
     private static bool TryResolveExplicitOrKnown(

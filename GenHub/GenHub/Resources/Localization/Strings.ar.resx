@@ -18534,6 +18534,9 @@ Error: فشل: {3}
   <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
     <value>+ إضافة وصف</value>
   </data>
+  <data name="Tools.GenHotkeys.NoTooltipSlot" xml:space="preserve">
+    <value>لا يحتوي هذا الأمر على تلميح داخل اللعبة، لذا لن يظهر الوصف هنا أثناء اللعب.</value>
+  </data>
   <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
     <value>مفتاح الاختصار المعين</value>
   </data>

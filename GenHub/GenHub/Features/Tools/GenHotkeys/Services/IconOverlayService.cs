@@ -84,13 +84,7 @@ public class IconOverlayService(ILogger<IconOverlayService> logger, ISageTexture
                 logger.LogDebug("Rendering hotkey badge '{Key}' at {Corner}", hotkey, corner);
 
                 using var image = LoadImageSafe(sourceIconBytes, sageTextureCodec, logger);
-                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
-                {
-                    image.Resize(new MagickGeometry(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight)
-                    {
-                        IgnoreAspectRatio = true,
-                    });
-                }
+                FitCameoCanvas(image);
 
                 var badgeChar = char.ToUpperInvariant(hotkey);
                 using (var pixels = image.GetPixelsUnsafe())
@@ -120,19 +114,30 @@ public class IconOverlayService(ILogger<IconOverlayService> logger, ISageTexture
                 logger.LogDebug("Converting custom cameo directly to 60x48 TGA without hotkey stamp");
 
                 using var image = LoadImageSafe(sourceIconBytes, sageTextureCodec, logger);
-                if (image.Width != TextureEditorConstants.CameoSmallWidth || image.Height != TextureEditorConstants.CameoSmallHeight)
-                {
-                    image.Resize(new MagickGeometry(TextureEditorConstants.CameoSmallWidth, TextureEditorConstants.CameoSmallHeight)
-                    {
-                        IgnoreAspectRatio = true,
-                    });
-                }
+                FitCameoCanvas(image);
 
                 using var ms = new MemoryStream();
                 TgaWriter.Write32BitUncompressed(image, ms);
                 return ms.ToArray();
             },
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Fits a cameo onto the 60x48 canvas without stretching. The source keeps its aspect ratio and transparent bars fill the remainder.
+    /// </summary>
+    private static void FitCameoCanvas(MagickImage image)
+    {
+        var width = (uint)TextureEditorConstants.CameoSmallWidth;
+        var height = (uint)TextureEditorConstants.CameoSmallHeight;
+        if (image.Width == width && image.Height == height)
+        {
+            return;
+        }
+
+        image.BackgroundColor = MagickColors.Transparent;
+        image.Resize(new MagickGeometry(width, height));
+        image.Extent(width, height, Gravity.Center, MagickColors.Transparent);
     }
 
     /// <summary>
@@ -143,9 +148,11 @@ public class IconOverlayService(ILogger<IconOverlayService> logger, ISageTexture
     {
         try
         {
-            var image = new MagickImage(sourceIconBytes);
-            image.ColorSpace = ColorSpace.sRGB;
-            image.ColorType = ColorType.TrueColorAlpha;
+            var image = new MagickImage(sourceIconBytes)
+            {
+                ColorSpace = ColorSpace.sRGB,
+                ColorType = ColorType.TrueColorAlpha,
+            };
             return image;
         }
         catch (Exception ex) when (ex is MagickException or InvalidDataException or NotSupportedException or ArgumentException)

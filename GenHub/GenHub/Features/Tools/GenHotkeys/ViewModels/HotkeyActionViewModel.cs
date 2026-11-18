@@ -19,6 +19,9 @@ public partial class HotkeyActionViewModel : ObservableObject
     private string? _tooltipString;
 
     [ObservableProperty]
+    private bool _hasRetailTooltipSlot = true;
+
+    [ObservableProperty]
     private string _displayName = string.Empty;
 
     [ObservableProperty]
@@ -77,7 +80,7 @@ public partial class HotkeyActionViewModel : ObservableObject
     public bool HasTooltip => !string.IsNullOrWhiteSpace(Tooltip);
 
     /// <summary>Gets a value indicating whether a tooltip description is present or currently being edited.</summary>
-    public bool CanShowTooltipEditor => HasTooltip || IsEditingDescription;
+    public bool CanShowTooltipEditor => HasRetailTooltipSlot && (HasTooltip || IsEditingDescription);
 
     /// <summary>Gets a value indicating whether the display name has been modified from default.</summary>
     public bool CanResetDisplayName => !string.Equals(DisplayName, DefaultDisplayName, StringComparison.Ordinal);
@@ -114,7 +117,7 @@ public partial class HotkeyActionViewModel : ObservableObject
             var idx = displayName.IndexOf(keyChar, StringComparison.OrdinalIgnoreCase);
             if (idx >= 0)
             {
-                return (displayName[..idx], displayName.Substring(idx, 1), displayName[(idx + 1)..], true);
+                return (displayName[..idx], displayName[idx..(idx + 1)], displayName[(idx + 1)..], true);
             }
 
             return ("[", keyChar.ToString().ToUpperInvariant(), $"] {displayName}", false);
@@ -147,6 +150,11 @@ public partial class HotkeyActionViewModel : ObservableObject
     }
 
     partial void OnIsEditingDescriptionChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanShowTooltipEditor));
+    }
+
+    partial void OnHasRetailTooltipSlotChanged(bool value)
     {
         OnPropertyChanged(nameof(CanShowTooltipEditor));
     }

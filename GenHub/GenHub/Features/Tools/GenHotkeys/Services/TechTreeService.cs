@@ -365,7 +365,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             }
         }
 
-        var (tooltipLabel, tooltipText) = HotkeyTooltipResolver.ResolveTooltip(
+        var (tooltipLabel, tooltipText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
             actJson.HotkeyString,
             actJson.IconName,
             actJson.TooltipString,
@@ -376,6 +376,7 @@ public class TechTreeService(ILogger<TechTreeService> logger) : ITechTreeService
             IconName = actJson.IconName,
             HotkeyString = actJson.HotkeyString,
             TooltipString = tooltipLabel,
+            HasRetailTooltipSlot = hasRetailSlot,
             DisplayName = actDisplayName,
             DefaultDisplayName = actDisplayName,
             Tooltip = tooltipText,

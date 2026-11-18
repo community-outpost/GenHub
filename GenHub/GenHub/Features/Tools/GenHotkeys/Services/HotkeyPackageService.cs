@@ -387,6 +387,22 @@ public class HotkeyPackageService(
         }
     }
 
+    private static string? GetSafeTexturePath(string directory, string textureStem)
+    {
+        if (string.IsNullOrWhiteSpace(textureStem)
+            || textureStem is "." or ".."
+            || textureStem.IndexOfAny(['/', '\\', ':']) >= 0
+            || textureStem.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            return null;
+        }
+
+        var root = Path.GetFullPath(directory);
+        var combined = Path.GetFullPath(Path.Combine(root, textureStem + ".tga"));
+        var prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        return combined.StartsWith(prefix, StringComparison.Ordinal) ? combined : null;
+    }
+
     private async Task GenerateMappedImagesIniAsync(
         HashSet<string> processedIcons,
         string stagingDir,
@@ -625,7 +641,13 @@ public class HotkeyPackageService(
                 profile.OverlayCorner,
                 cancellationToken);
 
-            var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
+            var tgaPath = GetSafeTexturePath(texturesDir, iconName);
+            if (tgaPath == null)
+            {
+                logger.LogWarning("Rejected unsafe hotkey texture name '{Icon}'", iconName);
+                return false;
+            }
+
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
             return true;
         }
@@ -657,23 +679,23 @@ public class HotkeyPackageService(
             }
 
             var customBytes = await File.ReadAllBytesAsync(customImagePath, cancellationToken);
-            byte[] tgaBytes;
-            if (hotkey.HasValue)
-            {
-                tgaBytes = await iconOverlayService.GenerateOverlayTgaAsync(
+            var tgaBytes = hotkey.HasValue
+                ? await iconOverlayService.GenerateOverlayTgaAsync(
                     customBytes,
                     hotkey.Value,
                     profile.OverlayCorner,
-                    cancellationToken);
-            }
-            else
-            {
-                tgaBytes = await iconOverlayService.ConvertToTgaAsync(
+                    cancellationToken)
+                : await iconOverlayService.ConvertToTgaAsync(
                     customBytes,
                     cancellationToken);
+
+            var tgaPath = GetSafeTexturePath(texturesDir, iconName);
+            if (tgaPath == null)
+            {
+                logger.LogWarning("Rejected unsafe custom cameo texture name '{Icon}'", iconName);
+                return false;
             }
 
-            var tgaPath = Path.Combine(texturesDir, $"{iconName}.tga");
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
 
             // Also write duplicate TGA for all known retail ButtonImage aliases in Art/Textures
@@ -682,7 +704,13 @@ public class HotkeyPackageService(
             {
                 foreach (var retailImage in retailImages)
                 {
-                    var aliasPath = Path.Combine(texturesDir, $"{retailImage}.tga");
+                    var aliasPath = GetSafeTexturePath(texturesDir, retailImage);
+                    if (aliasPath == null)
+                    {
+                        logger.LogWarning("Rejected unsafe retail alias texture name '{Alias}' for icon '{Icon}'", retailImage, iconName);
+                        continue;
+                    }
+
                     if (!File.Exists(aliasPath))
                     {
                         await File.WriteAllBytesAsync(aliasPath, tgaBytes, cancellationToken);

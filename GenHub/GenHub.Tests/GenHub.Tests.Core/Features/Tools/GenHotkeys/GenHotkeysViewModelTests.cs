@@ -557,6 +557,7 @@ public class GenHotkeysViewModelTests
             .ReturnsAsync(true);
 
         await vm.DeleteCurrentProfileAsync();
+        await Task.Delay(GenHotkeysConstants.ProfileSaveDebounceMilliseconds + 100);
 
         Assert.DoesNotContain(profile1, vm.Profiles);
         Assert.Same(profile2, vm.SelectedProfile);
@@ -846,7 +847,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SelectFactionGroup_FiltersFactionsCollection_ToSelectedGroup()
+    public async Task SelectFactionGroup_FiltersFactionsCollection_ToSelectedGroupAsync()
     {
         var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
         var factionAir = new HotkeyFaction { ShortName = "AIR", DisplayName = "AIR" };
@@ -899,7 +900,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task SelectedFactionChanged_UpdatesSelectedFactionGroup()
+    public async Task SelectedFactionChanged_UpdatesSelectedFactionGroupAsync()
     {
         var factionUsa = new HotkeyFaction { ShortName = "USA", DisplayName = "USA" };
         var factionChina = new HotkeyFaction { ShortName = "CHINA", DisplayName = "China" };
@@ -952,7 +953,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_WhenTechTreeEmpty_ClearsSelectedFaction()
+    public async Task InitializeAsync_WhenTechTreeEmpty_ClearsSelectedFactionAsync()
     {
         _mockProfileStorage.Setup(s => s.GetProfilesAsync(It.IsAny<GameType>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<HotkeyProfile>());
@@ -1570,7 +1571,7 @@ public class GenHotkeysViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [AvaloniaFact]
-    public async Task LoadBitmapAsync_WhenCancellationTokenCanceled_DoesNotInvokeOnLoaded()
+    public async Task LoadBitmapAsync_WhenCancellationTokenCanceled_DoesNotInvokeOnLoadedAsync()
     {
         using var vm = new GenHotkeysViewModel(
             _mockTechTree.Object,

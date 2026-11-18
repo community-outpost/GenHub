@@ -45,9 +45,8 @@ public class FactionToBrushConverter : IValueConverter
 
     private static IBrush? TryGetThemeBrush(string resourceKey)
     {
-        if (Application.Current != null &&
-            Application.Current.TryGetResource(resourceKey, Application.Current.ActualThemeVariant, out var res) &&
-            res is IBrush brush)
+        var app = Application.Current;
+        if (app?.TryGetResource(resourceKey, app.ActualThemeVariant, out var res) == true && res is IBrush brush)
         {
             return brush;
         }

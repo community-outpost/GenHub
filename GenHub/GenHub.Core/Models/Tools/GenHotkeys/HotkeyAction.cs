@@ -16,6 +16,9 @@ public class HotkeyAction
     /// <summary>Gets or sets the CSF tooltip description identifier (e.g. "CONTROLBAR:ToolTipUSABuildDozer").</summary>
     public string? TooltipString { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether a retail command button reads this tooltip label.</summary>
+    public bool HasRetailTooltipSlot { get; set; } = true;
+
     /// <summary>Gets or sets the friendly display name for the action.</summary>
     public string DisplayName { get; set; } = string.Empty;
 

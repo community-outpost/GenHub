@@ -5473,6 +5473,9 @@
   <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
     <value>+ Добавить описание</value>
   </data>
+  <data name="Tools.GenHotkeys.NoTooltipSlot" xml:space="preserve">
+    <value>У этой команды нет внутриигровой подсказки, поэтому описание здесь не появится в игре.</value>
+  </data>
   <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
     <value>Назначенная клавиша</value>
   </data>

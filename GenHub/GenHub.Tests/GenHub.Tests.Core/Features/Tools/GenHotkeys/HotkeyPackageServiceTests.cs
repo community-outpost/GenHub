@@ -599,9 +599,7 @@ public class HotkeyPackageServiceTests
                     It.IsAny<string?>(),
                     It.IsAny<string?>()))
                 .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
-                {
-                    bigEntries = ReadBigEntries(packageDir);
-                })
+                    bigEntries = ReadBigEntries(packageDir))
                 .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
                 {
                     Id = ManifestId.Create("1.0.local.addon.hotkeys-cameo"),
@@ -675,9 +673,7 @@ public class HotkeyPackageServiceTests
                     It.IsAny<string?>(),
                     It.IsAny<string?>()))
                 .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?, string?, string?>((packageDir, _, _, _, _, _, _, _, _, _) =>
-                {
-                    bigEntries = new HashSet<string>(ReadBigEntries(packageDir).Keys, StringComparer.OrdinalIgnoreCase);
-                })
+                    bigEntries = new HashSet<string>(ReadBigEntries(packageDir).Keys, StringComparer.OrdinalIgnoreCase))
                 .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
                 {
                     Id = ManifestId.Create("1.0.local.addon.hotkeys-standalone"),

@@ -173,6 +173,28 @@ public class IconOverlayServiceTests
     }
 
     /// <summary>
+    /// Verifies that a square source is letterboxed onto 60x48 instead of being stretched.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ConvertToTgaAsync_WithSquareSource_PreservesAspectWithSideBarsAsync()
+    {
+        var service = new IconOverlayService(NullLogger<IconOverlayService>.Instance);
+        using var source = new MagickImage(MagickColors.Red, 64, 64);
+        var inputBytes = source.ToByteArray(MagickFormat.Png);
+
+        var tgaBytes = await service.ConvertToTgaAsync(inputBytes);
+
+        using var decoded = new MagickImage(tgaBytes, MagickFormat.Tga);
+        Assert.Equal(60U, decoded.Width);
+        Assert.Equal(48U, decoded.Height);
+        var left = decoded.GetPixels().GetPixel(0, 24).ToColor()!;
+        var center = decoded.GetPixels().GetPixel(30, 24).ToColor()!;
+        Assert.True(left.A < center.A / 4, "Side bars should stay transparent when the source is square.");
+        Assert.True(center.R > left.R, "The fitted square should remain in the center.");
+    }
+
+    /// <summary>
     /// Verifies that GenerateOverlayTgaAsync skips stamping a badge when an unsupported character is passed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

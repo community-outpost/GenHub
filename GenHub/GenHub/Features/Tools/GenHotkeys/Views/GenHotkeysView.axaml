@@ -733,6 +733,14 @@
                                TextWrapping="Wrap"
                                IsVisible="{Binding SelectedAction.HasTooltip}"/>
 
+                    <TextBlock Text="{localization:Localize Tools.GenHotkeys.NoTooltipSlot}"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               FontSize="11"
+                               Opacity="0.75"
+                               Margin="0,2,0,0"
+                               IsVisible="{Binding !SelectedAction.HasRetailTooltipSlot}"/>
+
                     <!-- '+ Add description' prompt shown right where description would appear if none exists -->
                     <Button Command="{Binding StartAddDescriptionCommand}"
                             Classes="action-secondary action-compact"

@@ -29,7 +29,7 @@ public class HotkeyTooltipResolverTests
         string hotkeyString,
         string expectedTooltipLabel)
     {
-        var (resolvedLabel, resolvedText) = HotkeyTooltipResolver.ResolveTooltip(
+        var (resolvedLabel, resolvedText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
             hotkeyString,
             iconName: "TestIcon",
             explicitTooltipString: null,
@@ -37,6 +37,7 @@ public class HotkeyTooltipResolverTests
 
         Assert.Equal(expectedTooltipLabel, resolvedLabel);
         Assert.Null(resolvedText);
+        Assert.True(hasRetailSlot);
     }
 
     /// <summary>
@@ -48,7 +49,7 @@ public class HotkeyTooltipResolverTests
         var csf = new CsfFile();
         csf.SetString("CONTROLBAR:ToolTipStop", "Halt all current actions and orders immediately.");
 
-        var (resolvedLabel, resolvedText) = HotkeyTooltipResolver.ResolveTooltip(
+        var (resolvedLabel, resolvedText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
             "CONTROLBAR:Stop",
             iconName: "StopIcon",
             explicitTooltipString: null,
@@ -56,6 +57,7 @@ public class HotkeyTooltipResolverTests
 
         Assert.Equal("CONTROLBAR:ToolTipStop", resolvedLabel);
         Assert.Equal("Halt all current actions and orders immediately.", resolvedText);
+        Assert.True(hasRetailSlot);
     }
 
     /// <summary>
@@ -68,7 +70,7 @@ public class HotkeyTooltipResolverTests
         csf.SetString("UPGRADE:ToolTipAmericaAdvancedTraining", "Advanced training text");
         csf.SetString("CONTROLBAR:ToolTipAmericaAdvancedTraining", "Wrong fallback text");
 
-        var (resolvedLabel, resolvedText) = HotkeyTooltipResolver.ResolveTooltip(
+        var (resolvedLabel, resolvedText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
             "UPGRADE:AmericaAdvancedTraining",
             iconName: "TestIcon",
             explicitTooltipString: null,
@@ -76,6 +78,7 @@ public class HotkeyTooltipResolverTests
 
         Assert.Equal("UPGRADE:ToolTipAmericaAdvancedTraining", resolvedLabel);
         Assert.Equal("Advanced training text", resolvedText);
+        Assert.True(hasRetailSlot);
     }
 
     /// <summary>
@@ -200,7 +203,7 @@ public class HotkeyTooltipResolverTests
         string hotkeyString,
         string expectedTooltipLabel)
     {
-        var (resolvedLabel, resolvedText) = HotkeyTooltipResolver.ResolveTooltip(
+        var (resolvedLabel, resolvedText, hasRetailSlot) = HotkeyTooltipResolver.ResolveTooltip(
             hotkeyString,
             iconName: "TestIcon",
             explicitTooltipString: null,
@@ -208,5 +211,6 @@ public class HotkeyTooltipResolverTests
 
         Assert.Equal(expectedTooltipLabel, resolvedLabel);
         Assert.Null(resolvedText);
+        Assert.False(hasRetailSlot);
     }
 }

@@ -85,7 +85,7 @@ public static class VlcRuntimeConstants
     /// <summary>
     /// Gets the default fallback download URL for VideoLAN.LibVLC.Windows NuGet package.
     /// </summary>
-    public static string DefaultFallbackDownloadUrl => ApiConstants.GetNuGetV2PackageDownloadUrl(PackageId, PackageVersion);
+    public static string DefaultFallbackDownloadUrl => ApiConstants.GetNuGetV2PackageDownloadUrl(PackageId, PackageVersion).AbsoluteUri;
 
     /// <summary>
     /// Gets the active primary download URL, honoring environment variable overrides.

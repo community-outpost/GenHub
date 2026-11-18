@@ -5473,6 +5473,9 @@ Your modern, community-focused command center for **C&amp;C: Generals &amp; Zero
   <data name="Tools.GenHotkeys.AddDescriptionPrompt" xml:space="preserve">
     <value>+ Add description</value>
   </data>
+  <data name="Tools.GenHotkeys.NoTooltipSlot" xml:space="preserve">
+    <value>This command has no in-game tooltip, so a description here will not appear in the game.</value>
+  </data>
   <data name="Tools.GenHotkeys.AssignedKeyLabel" xml:space="preserve">
     <value>Assigned Hotkey</value>
   </data>
