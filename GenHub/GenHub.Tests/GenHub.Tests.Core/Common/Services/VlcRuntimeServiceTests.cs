@@ -2,6 +2,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
+using GenHub.Tests.Core.Collections;
 using GenHub.Tests.Core.Services.Security;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -22,22 +23,24 @@ namespace GenHub.Tests.Core.Common.Services;
 /// <summary>
 /// Unit tests for <see cref="VlcRuntimeService"/>.
 /// </summary>
+[Collection(VlcEnvironmentCollection.Name)]
 public sealed class VlcRuntimeServiceTests : IDisposable
 {
-    private readonly string testTargetDirectory;
+    private static readonly object EnvironmentLock = new();
+    private readonly string _testTargetDirectory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VlcRuntimeServiceTests"/> class.
     /// </summary>
     public VlcRuntimeServiceTests()
     {
-        testTargetDirectory = Path.Combine(Path.GetTempPath(), "GenHubTests", "VlcRuntimeServiceTests", Guid.NewGuid().ToString("N"));
+        _testTargetDirectory = Path.Combine(Path.GetTempPath(), "GenHubTests", "VlcRuntimeServiceTests", Guid.NewGuid().ToString("N"));
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        DeleteDirectorySilently(testTargetDirectory);
+        DeleteDirectorySilently(_testTargetDirectory);
     }
 
     /// <summary>
@@ -52,6 +55,28 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that ExpectedSha512 uses environment variable override when set.
+    /// </summary>
+    [Fact]
+    public void ExpectedSha512_WithEnvironmentVariable_ReturnsOverriddenHash()
+    {
+        lock (EnvironmentLock)
+        {
+            const string customHash = "CUSTOM_SHA512_HASH";
+            var original = Environment.GetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar);
+            try
+            {
+                Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, customHash);
+                Assert.Equal(customHash, VlcRuntimeConstants.ExpectedSha512);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(VlcRuntimeConstants.VlcPackageSha512EnvVar, original);
+            }
+        }
+    }
+
+    /// <summary>
     /// Verifies that IsAvailable returns false and status is NotInstalled when directory does not exist on Windows and no system VLC is configured.
     /// </summary>
     [Fact]
@@ -59,7 +84,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     {
         var mockHandler = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null);
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -80,21 +105,21 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     [WindowsFact]
     public void IsAvailable_TargetDirectoryDLLsPresent_ReturnsTrue()
     {
-        Directory.CreateDirectory(testTargetDirectory);
-        File.WriteAllText(Path.Combine(testTargetDirectory, "libvlc.dll"), "fake-libvlc");
-        File.WriteAllText(Path.Combine(testTargetDirectory, "libvlccore.dll"), "fake-vlccore");
+        Directory.CreateDirectory(_testTargetDirectory);
+        File.WriteAllText(Path.Combine(_testTargetDirectory, "libvlc.dll"), "fake-libvlc");
+        File.WriteAllText(Path.Combine(_testTargetDirectory, "libvlccore.dll"), "fake-vlccore");
 
         var mockHandler = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(mockHandler.Object);
         var service = new VlcRuntimeService(
             httpClient,
             NullLogger<VlcRuntimeService>.Instance,
-            testTargetDirectory,
+            _testTargetDirectory,
             systemVlcDirectory: null);
 
         Assert.True(service.IsAvailable());
         Assert.Equal(VlcRuntimeStatus.Available, service.Status);
-        Assert.Equal(testTargetDirectory, service.RuntimeDirectory);
+        Assert.Equal(_testTargetDirectory, service.RuntimeDirectory);
     }
 
     /// <summary>
@@ -103,7 +128,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
     [WindowsFact]
     public void IsAvailable_SystemVlcPresent_ReturnsTrue()
     {
-        var mockSystemVlcDir = Path.Combine(testTargetDirectory, "mock-vlc");
+        var mockSystemVlcDir = Path.Combine(_testTargetDirectory, "mock-vlc");
         Directory.CreateDirectory(mockSystemVlcDir);
         File.WriteAllText(Path.Combine(mockSystemVlcDir, "libvlc.dll"), "fake-libvlc");
         File.WriteAllText(Path.Combine(mockSystemVlcDir, "libvlccore.dll"), "fake-vlccore");
@@ -113,7 +138,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         var service = new VlcRuntimeService(
             httpClient,
             NullLogger<VlcRuntimeService>.Instance,
-            Path.Combine(testTargetDirectory, "target"),
+            Path.Combine(_testTargetDirectory, "target"),
             systemVlcDirectory: mockSystemVlcDir);
 
         Assert.True(service.IsAvailable());
@@ -135,7 +160,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
 
         var mockHandler = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var result = await service.InstallRuntimeAsync();
 
@@ -166,7 +191,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
 
         var expectedSha = Convert.ToHexString(SHA512.HashData(zipBytes));
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: expectedSha);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: expectedSha);
 
         var progressTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var progress = new Progress<double>(p =>
@@ -184,17 +209,17 @@ public sealed class VlcRuntimeServiceTests : IDisposable
         Assert.True(progressReported);
         Assert.Equal(VlcRuntimeStatus.Available, service.Status);
         Assert.True(service.IsAvailable());
-        Assert.Equal(testTargetDirectory, service.RuntimeDirectory);
+        Assert.Equal(_testTargetDirectory, service.RuntimeDirectory);
 
         // Verify extracted files
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlc.dll")));
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlccore.dll")));
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "plugins", "access", "libaccess_http_plugin.dll")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "libvlc.dll")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "libvlccore.dll")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "plugins", "access", "libaccess_http_plugin.dll")));
 
         // Verify non-target files were excluded
-        Assert.False(File.Exists(Path.Combine(testTargetDirectory, "vlc.h")));
-        Assert.False(Directory.Exists(Path.Combine(testTargetDirectory, "include")));
-        Assert.False(Directory.Exists(Path.Combine(testTargetDirectory, "win-x86")));
+        Assert.False(File.Exists(Path.Combine(_testTargetDirectory, "vlc.h")));
+        Assert.False(Directory.Exists(Path.Combine(_testTargetDirectory, "include")));
+        Assert.False(Directory.Exists(Path.Combine(_testTargetDirectory, "win-x86")));
     }
 
     /// <summary>
@@ -227,13 +252,13 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             });
 
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var result = await service.InstallRuntimeAsync();
 
         Assert.True(result.Success);
         Assert.Equal(VlcRuntimeStatus.Available, service.Status);
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlc.dll")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "libvlc.dll")));
     }
 
     /// <summary>
@@ -248,8 +273,8 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             return;
         }
 
-        Directory.CreateDirectory(testTargetDirectory);
-        File.WriteAllText(Path.Combine(testTargetDirectory, "old_file.txt"), "stale content");
+        Directory.CreateDirectory(_testTargetDirectory);
+        File.WriteAllText(Path.Combine(_testTargetDirectory, "old_file.txt"), "stale content");
 
         var active = GetActivePrefix();
         var zipBytes = CreateSampleNupkgArchive(
@@ -257,15 +282,15 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             (active + "libvlccore.dll", "new-libvlccore"));
 
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var result = await service.InstallRuntimeAsync();
 
         Assert.True(result.Success);
         Assert.Equal(VlcRuntimeStatus.Available, service.Status);
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlc.dll")));
-        Assert.True(File.Exists(Path.Combine(testTargetDirectory, "libvlccore.dll")));
-        Assert.False(File.Exists(Path.Combine(testTargetDirectory, "old_file.txt")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "libvlc.dll")));
+        Assert.True(File.Exists(Path.Combine(_testTargetDirectory, "libvlccore.dll")));
+        Assert.False(File.Exists(Path.Combine(_testTargetDirectory, "old_file.txt")));
     }
 
     /// <summary>
@@ -287,13 +312,13 @@ public sealed class VlcRuntimeServiceTests : IDisposable
 
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
         const string wrongSha512 = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: wrongSha512);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: wrongSha512);
 
         var result = await service.InstallRuntimeAsync();
 
         Assert.False(result.Success);
         Assert.Equal(VlcRuntimeStatus.Failed, service.Status);
-        Assert.False(Directory.Exists(testTargetDirectory));
+        Assert.False(Directory.Exists(_testTargetDirectory));
     }
 
     /// <summary>
@@ -313,7 +338,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             (active + "../../escape.dll", "malicious-escape-content"));
 
         var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         var result = await service.InstallRuntimeAsync();
 
@@ -335,10 +360,10 @@ public sealed class VlcRuntimeServiceTests : IDisposable
             return;
         }
 
-        var parent = Path.GetDirectoryName(testTargetDirectory)!;
+        var parent = Path.GetDirectoryName(_testTargetDirectory)!;
         var outOfRangeStaging = Path.Combine(parent, $".staging-9999999999999999-{Guid.NewGuid():N}");
         var normalStaleStaging = Path.Combine(parent, $".staging-{DateTimeOffset.UtcNow.AddHours(-2).ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}");
-        var targetName = Path.GetFileName(testTargetDirectory);
+        var targetName = Path.GetFileName(_testTargetDirectory);
         var outOfRangeBackup = Path.Combine(parent, $"{targetName}.old.9999999999999999.{Guid.NewGuid():N}");
         var normalStaleBackup = Path.Combine(parent, $"{targetName}.old.{DateTimeOffset.UtcNow.AddHours(-2).ToUnixTimeMilliseconds()}.{Guid.NewGuid():N}");
 
@@ -355,12 +380,12 @@ public sealed class VlcRuntimeServiceTests : IDisposable
                 (active + "libvlccore.dll", "mock-libvlccore"));
 
             var httpClient = CreateMockHttpClient(HttpStatusCode.OK, zipBytes);
-            var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+            var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
             var result = await service.InstallRuntimeAsync();
 
             Assert.True(result.Success);
-            Assert.True(Directory.Exists(testTargetDirectory));
+            Assert.True(Directory.Exists(_testTargetDirectory));
             Assert.False(Directory.Exists(normalStaleStaging));
             Assert.False(Directory.Exists(normalStaleBackup));
             Assert.True(Directory.Exists(outOfRangeStaging));
@@ -392,7 +417,7 @@ public sealed class VlcRuntimeServiceTests : IDisposable
 
         var mockHandler = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(mockHandler.Object);
-        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
+        var service = new VlcRuntimeService(httpClient, NullLogger<VlcRuntimeService>.Instance, _testTargetDirectory, systemVlcDirectory: null, expectedSha512: null);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.InstallRuntimeAsync(cancellationToken: cts.Token));
     }
