@@ -1333,6 +1333,10 @@ public class GenHotkeysViewModelTests
         };
 
         await vm.ResetTitleAsync();
+
+        // Positive control: the success path ran (the failure branch leaves "Custom Name").
+        Assert.Equal("Unit Action", vm.SelectedAction?.DisplayName);
+
         _mockProfileStorage.Invocations.Clear();
         vm.SelectedProfile = other;
         await Task.Delay(50);
@@ -1412,6 +1416,10 @@ public class GenHotkeysViewModelTests
         };
 
         await vm.ResetTooltipAsync();
+
+        // Positive control: the success path ran (the failure branch leaves "Custom Tooltip").
+        Assert.Equal("Default tooltip.", vm.SelectedAction?.Tooltip);
+
         _mockProfileStorage.Invocations.Clear();
         vm.SelectedProfile = other;
         await Task.Delay(50);

@@ -1509,9 +1509,10 @@ public partial class GenHotkeysViewModel(
             }
 
             var pendingProfileId = _pendingSaveProfileId;
-            var hasUnsavedProfile = !string.IsNullOrEmpty(pendingProfileId)
-                && !string.Equals(pendingProfileId, _deletingProfileId, StringComparison.OrdinalIgnoreCase);
-            if (saveCts != null || hasUnsavedProfile)
+            var isPendingProfileBeingDeleted = !string.IsNullOrEmpty(pendingProfileId)
+                && string.Equals(pendingProfileId, _deletingProfileId, StringComparison.OrdinalIgnoreCase);
+            var hasUnsavedProfile = !string.IsNullOrEmpty(pendingProfileId) && !isPendingProfileBeingDeleted;
+            if ((saveCts != null && !isPendingProfileBeingDeleted) || hasUnsavedProfile)
             {
                 flushOwnsSemaphore = TryQueueDisposeFlush();
             }
@@ -2861,6 +2862,7 @@ public partial class GenHotkeysViewModel(
 
     private void AssignWithoutSchedulingSave(Action assign)
     {
+        var previousValue = _suppressDebouncedSave;
         _suppressDebouncedSave = true;
         try
         {
@@ -2868,7 +2870,7 @@ public partial class GenHotkeysViewModel(
         }
         finally
         {
-            _suppressDebouncedSave = false;
+            _suppressDebouncedSave = previousValue;
         }
     }
 
