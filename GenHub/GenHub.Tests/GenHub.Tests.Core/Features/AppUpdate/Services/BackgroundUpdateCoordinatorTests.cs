@@ -1156,10 +1156,14 @@ public class BackgroundUpdateCoordinatorTests
             });
 
         var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var tempCatalogFile = Path.Combine(Path.GetTempPath(), $"catalog_{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(tempCatalogFile, """{"version": "1.0.0"}""");
+        try
+        {
         var subscription = new PublisherSubscription
         {
             PublisherId = "pub-fork",
-            CatalogUrl = "https://example.com/catalog.json",
+            CatalogUrl = tempCatalogFile,
         };
         mockSubStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
@@ -1198,19 +1202,6 @@ public class BackgroundUpdateCoordinatorTests
         mockCatalogParser.Setup(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("""{"version": "1.0.0"}"""),
-        };
-        mockHttpMessageHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(response);
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
-
         using var coordinator = new BackgroundUpdateCoordinator(
             mockVelopack.Object,
             mockUserSettings.Object,
@@ -1218,15 +1209,25 @@ public class BackgroundUpdateCoordinatorTests
             new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
             publisherSubscriptionStore: mockSubStore.Object,
             publisherCatalogParser: mockCatalogParser.Object,
-            httpClientFactory: mockHttpClientFactory.Object);
+            httpClientFactory: null);
 
         await coordinator.CheckForUpdatesAsync();
+
+        mockCatalogParser.Verify(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
 
         var notification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.NotNull(notification);
         Assert.Equal(AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle, notification.Title);
         Assert.Contains("0.0.1", notification.Message);
         Assert.Contains("Fork GenHub", notification.Message);
+        }
+        finally
+        {
+            if (File.Exists(tempCatalogFile))
+            {
+                File.Delete(tempCatalogFile);
+            }
+        }
     }
 
     /// <summary>
@@ -1254,10 +1255,14 @@ public class BackgroundUpdateCoordinatorTests
         var mockNotificationService = CreateNotificationServiceMock();
 
         var mockSubStore = new Mock<IPublisherSubscriptionStore>();
+        var tempCatalogFile = Path.Combine(Path.GetTempPath(), $"catalog_{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(tempCatalogFile, """{"version": "1.0.0"}""");
+        try
+        {
         var subscription = new PublisherSubscription
         {
             PublisherId = "pub-fork",
-            CatalogUrl = "https://example.com/catalog.json",
+            CatalogUrl = tempCatalogFile,
         };
         mockSubStore.Setup(x => x.GetSubscriptionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IReadOnlyList<PublisherSubscription>>.CreateSuccess([subscription]));
@@ -1296,19 +1301,6 @@ public class BackgroundUpdateCoordinatorTests
         mockCatalogParser.Setup(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<PublisherCatalog>.CreateSuccess(catalog));
 
-        var mockHttpMessageHandler = new Mock<HttpMessageHandler>();
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent("""{"version": "1.0.0"}"""),
-        };
-        mockHttpMessageHandler.Protected()
-            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(response);
-
-        var httpClient = new HttpClient(mockHttpMessageHandler.Object);
-        var mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>())).Returns(httpClient);
-
         using var coordinator = new BackgroundUpdateCoordinator(
             mockVelopack.Object,
             mockUserSettings.Object,
@@ -1316,13 +1308,23 @@ public class BackgroundUpdateCoordinatorTests
             new Mock<ILogger<BackgroundUpdateCoordinator>>().Object,
             publisherSubscriptionStore: mockSubStore.Object,
             publisherCatalogParser: mockCatalogParser.Object,
-            httpClientFactory: mockHttpClientFactory.Object);
+            httpClientFactory: null);
 
         await coordinator.CheckForUpdatesAsync();
+
+        mockCatalogParser.Verify(x => x.ParseCatalogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
 
         mockNotificationService.Verify(
             x => x.Show(It.Is<NotificationMessage>(msg => msg.Title == AppUpdateConstants.CustomBuildUpdateAvailableNotificationTitle)),
             Times.Never);
+        }
+        finally
+        {
+            if (File.Exists(tempCatalogFile))
+            {
+                File.Delete(tempCatalogFile);
+            }
+        }
     }
 
     /// <summary>

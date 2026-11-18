@@ -1499,14 +1499,14 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private void ApplyGenHubBuildVersionAndTags(GenHubBuildInfo buildInfo)
+    private void ApplyGenHubBuildVersionAndTags(GenHubBuildInfo buildInfo, bool preserveTags = false)
     {
         if (!string.IsNullOrWhiteSpace(buildInfo.Version) && (string.IsNullOrWhiteSpace(InitialVersion) || InitialVersion == PublisherStudioConstants.DefaultInitialVersion))
         {
             InitialVersion = buildInfo.Version;
         }
 
-        if (buildInfo.SuggestedTags.Count > 0)
+        if (!preserveTags && buildInfo.SuggestedTags.Count > 0)
         {
             var currentTags = ParseTags(TagsInput);
             var merged = currentTags.Union(buildInfo.SuggestedTags, StringComparer.OrdinalIgnoreCase).ToList();
@@ -1514,12 +1514,16 @@ public partial class AddContentDialogViewModel(
         }
     }
 
-    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName)
+    private void ApplyGenHubBuildToContent(GenHubBuildInfo buildInfo, string baseName, bool preserveTypeAndTags = false)
     {
-        SelectedContentType = ContentType.GenHubBuild;
+        if (!preserveTypeAndTags)
+        {
+            SelectedContentType = ContentType.GenHubBuild;
+        }
+
         ApplyGenHubBuildContentNameAndId(buildInfo, baseName);
         ApplyGenHubBuildDescription(buildInfo);
-        ApplyGenHubBuildVersionAndTags(buildInfo);
+        ApplyGenHubBuildVersionAndTags(buildInfo, preserveTypeAndTags);
     }
 
     private void AutoFillFromEntry(string path, StagedContentFile entry)
@@ -1530,22 +1534,25 @@ public partial class AddContentDialogViewModel(
 
     private async Task AutoFillFromEntryAsync(string path, StagedContentFile entry, CancellationToken cancellationToken = default)
     {
+        var initialType = SelectedContentType;
+        var initialTags = TagsInput;
         var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken);
         if (!StagedFiles.Contains(entry))
         {
             return;
         }
 
-        ApplyAutofillFromBuildInfo(path, entry, buildInfo);
+        var preserveTypeAndTags = !SelectedContentType.Equals(initialType) || !string.Equals(TagsInput, initialTags, StringComparison.Ordinal);
+        ApplyAutofillFromBuildInfo(path, entry, buildInfo, preserveTypeAndTags);
     }
 
-    private void ApplyAutofillFromBuildInfo(string path, StagedContentFile entry, GenHubBuildInfo buildInfo)
+    private void ApplyAutofillFromBuildInfo(string path, StagedContentFile entry, GenHubBuildInfo buildInfo, bool preserveTypeAndTags = false)
     {
         var baseName = entry.IsFolder ? entry.DisplayName : Path.GetFileNameWithoutExtension(entry.DisplayName);
 
         if (buildInfo.IsGenHubBuild)
         {
-            ApplyGenHubBuildToContent(buildInfo, baseName);
+            ApplyGenHubBuildToContent(buildInfo, baseName, preserveTypeAndTags);
             return;
         }
 
@@ -1573,7 +1580,7 @@ public partial class AddContentDialogViewModel(
 
         // Intelligently infer ContentType from extension or name
         var inferredType = InferContentType(path, baseName, buildInfo);
-        if (inferredType.HasValue)
+        if (inferredType.HasValue && !preserveTypeAndTags)
         {
             SelectedContentType = inferredType.Value;
         }

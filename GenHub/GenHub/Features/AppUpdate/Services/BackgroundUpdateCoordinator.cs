@@ -966,7 +966,9 @@ public class BackgroundUpdateCoordinator(
         var latestVersion = latestRelease.Version.TrimStart('v', 'V');
         var isNotInstalledYet = string.IsNullOrWhiteSpace(settings.SubscribedCustomBuildVersion);
         var installedVersion = (settings.SubscribedCustomBuildVersion ?? UpdateNotificationViewModel.CurrentAppVersion).TrimStart('v', 'V').Split('+')[0];
-        var isNewer = isNotInstalledYet || UpdateNotificationViewModel.CompareReleaseVersions(latestVersion, installedVersion) > 0;
+        var isNewer = isNotInstalledYet
+            || UpdateNotificationViewModel.CompareReleaseVersions(latestVersion, installedVersion) > 0
+            || AppUpdateVersionHelper.IsArtifactVersionNewer(latestVersion, installedVersion, allowCrossChannel: true);
 
         var customDismissKey = $"{contentId}@{latestVersion}";
         var isDismissed = string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase);
