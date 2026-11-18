@@ -1054,10 +1054,9 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         PeMetadata peMetadata = default;
         if (exeEntry?.Length <= GenHubBuildConstants.MaxArchiveEntrySizeBytes)
         {
-            var entry = exeEntry!;
             try
             {
-                using var entryStream = entry.Open();
+                using var entryStream = exeEntry.Open();
                 using var memStream = new MemoryStream();
                 entryStream.CopyTo(memStream);
                 memStream.Position = 0;
@@ -1065,7 +1064,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException)
             {
-                _logger.LogDebug(ex, "Failed to read PE metadata from '{Entry}' in '{Path}'", entry.FullName, archivePath);
+                _logger.LogDebug(ex, "Failed to read PE metadata from '{Entry}' in '{Path}'", exeEntry.FullName, archivePath);
             }
         }
 
@@ -1217,39 +1216,8 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
     {
         var normalizedFilePath = NormalizePathSeparators(filePath);
         var fileName = Path.GetFileName(normalizedFilePath);
-        FileVersionInfo? versionInfo = null;
-
-        try
-        {
-            versionInfo = FileVersionInfo.GetVersionInfo(filePath);
-        }
-        catch (IOException)
-        {
-            // Handled below via PE reader
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Handled below via PE reader
-        }
-        catch (SecurityException)
-        {
-            // Handled below via PE reader
-        }
-        catch (ArgumentException)
-        {
-            // Handled below via PE reader
-        }
-
-        PeMetadata peMetadata = default;
-        try
-        {
-            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            peMetadata = TryReadPeMetadata(fileStream);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or InvalidDataException or BadImageFormatException or RegexMatchTimeoutException)
-        {
-            _logger.LogDebug(ex, "Failed to read PE metadata from '{Path}'", filePath);
-        }
+        var versionInfo = TryReadVersionInfo(filePath);
+        var peMetadata = TryReadPeMetadataFromPath(filePath);
 
         var productName = peMetadata.ProductName ?? versionInfo?.ProductName;
         var fileDescription = peMetadata.FileDescription ?? versionInfo?.FileDescription;
@@ -1258,12 +1226,7 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
         var productVersion = peMetadata.InformationalVersion ?? versionInfo?.ProductVersion ?? peMetadata.Version;
         var fileVersion = versionInfo?.FileVersion ?? peMetadata.FileVersion;
 
-        var isGenHub = IsGenHubApplicationIdentity(productName) ||
-                       IsGenHubApplicationIdentity(fileDescription) ||
-                       IsGenHubApplicationIdentity(originalFileName) ||
-                       (!TestFixturePattern().IsMatch(fileName) && GenHubNamePattern().IsMatch(fileName));
-
-        if (!isGenHub)
+        if (!IsRecognizedGenHubBinary(productName, fileDescription, originalFileName, fileName))
         {
             return CreateNonBuildInfo();
         }
@@ -1274,23 +1237,13 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             peMetadata.PullRequestNumber);
 
         var filenameFallback = InspectFromFileNameOnly(filePath);
-
         if (string.IsNullOrWhiteSpace(cleanVersion))
         {
             cleanVersion = filenameFallback.Version;
             prNum ??= filenameFallback.PullRequestNumber;
         }
 
-        var hasCompanyOrChannel = !string.IsNullOrWhiteSpace(companyName) ||
-                                  !string.IsNullOrWhiteSpace(peMetadata.BuildChannel);
-
-        var hintCustom = !hasCompanyOrChannel && filenameFallback.IsCustomBuild;
-        var hintFork = !hasCompanyOrChannel && filenameFallback.IsFork;
-        var hintForkName = !hasCompanyOrChannel ? filenameFallback.ForkName : null;
-        var hintChannel = !hasCompanyOrChannel && (hintCustom || hintFork)
-            ? filenameFallback.BuildChannel
-            : peMetadata.BuildChannel;
-
+        var hints = ResolveFilenameHints(companyName, peMetadata.BuildChannel, filenameFallback);
         var ctx = new BuildMetadataContext(
             IsGenHub: true,
             CleanVersion: cleanVersion,
@@ -1301,14 +1254,110 @@ public sealed partial class GenHubBuildInspector(ILogger<GenHubBuildInspector>? 
             FileDescription: fileDescription,
             GitShortHash: peMetadata.GitShortHash ?? hash,
             PullRequestNumber: prNum,
-            BuildChannel: hintChannel,
+            BuildChannel: hints.Channel,
             EntryPoint: fileName,
             FileName: fileName,
-            IsCustom: hintCustom,
-            IsFork: hintFork,
-            ForkName: hintForkName);
+            IsCustom: hints.IsCustom,
+            IsFork: hints.IsFork,
+            ForkName: hints.ForkName);
 
         return BuildResult(in ctx);
+    }
+
+    private FileVersionInfo? TryReadVersionInfo(string filePath)
+    {
+        try
+        {
+            return FileVersionInfo.GetVersionInfo(filePath);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private PeMetadata TryReadPeMetadataFromPath(string filePath)
+    {
+        try
+        {
+            using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return TryReadPeMetadata(fileStream);
+        }
+        catch (IOException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+        catch (SecurityException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+        catch (BadImageFormatException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            return LogIgnoredPeRead(filePath, ex);
+        }
+    }
+
+    private PeMetadata LogIgnoredPeRead(string filePath, Exception ex)
+    {
+        _logger.LogDebug(ex, "Failed to read PE metadata from '{Path}'", filePath);
+        return default;
+    }
+
+    private bool IsRecognizedGenHubBinary(
+        string? productName,
+        string? fileDescription,
+        string? originalFileName,
+        string fileName)
+    {
+        if (IsGenHubApplicationIdentity(productName) ||
+            IsGenHubApplicationIdentity(fileDescription) ||
+            IsGenHubApplicationIdentity(originalFileName))
+        {
+            return true;
+        }
+
+        return !TestFixturePattern().IsMatch(fileName) && GenHubNamePattern().IsMatch(fileName);
+    }
+
+    private (bool IsCustom, bool IsFork, string? ForkName, string? Channel) ResolveFilenameHints(
+        string? companyName,
+        string? peChannel,
+        GenHubBuildInfo filenameFallback)
+    {
+        var hasCompanyOrChannel = !string.IsNullOrWhiteSpace(companyName) ||
+                                  !string.IsNullOrWhiteSpace(peChannel);
+        if (hasCompanyOrChannel)
+        {
+            return (false, false, null, peChannel);
+        }
+
+        var useFallbackChannel = filenameFallback.IsCustomBuild || filenameFallback.IsFork;
+        var channel = useFallbackChannel ? filenameFallback.BuildChannel : peChannel;
+        return (filenameFallback.IsCustomBuild, filenameFallback.IsFork, filenameFallback.ForkName, channel);
     }
 
     private GenHubBuildInfo InspectFromFileNameOnly(string path)

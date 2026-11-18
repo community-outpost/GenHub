@@ -767,12 +767,6 @@ public class ContentOrchestrator : IContentOrchestrator
             rangeStart = ContentConstants.ProgressStepExtracting;
             rangeEnd = ContentConstants.ProgressStepStoring;
         }
-        else
-        {
-            effectivePhase = reported.Phase;
-            rangeStart = ContentConstants.ProgressStepDownloading;
-            rangeEnd = ContentConstants.ProgressStepValidatingFiles;
-        }
 
         var rawPct = reported.ProgressPercentage > 0 ? reported.ProgressPercentage : reported.StageProgress;
         var normalized = Math.Clamp(rawPct, ContentConstants.ProgressMinPercentage, ContentConstants.ProgressMaxPercentage) / ContentConstants.ProgressMaxPercentage;
