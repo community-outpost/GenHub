@@ -1531,6 +1531,11 @@ public partial class AddContentDialogViewModel(
     private async Task AutoFillFromEntryAsync(string path, StagedContentFile entry, CancellationToken cancellationToken = default)
     {
         var buildInfo = await _buildInspector.InspectAsync(path, cancellationToken);
+        if (!StagedFiles.Contains(entry))
+        {
+            return;
+        }
+
         ApplyAutofillFromBuildInfo(path, entry, buildInfo);
     }
 

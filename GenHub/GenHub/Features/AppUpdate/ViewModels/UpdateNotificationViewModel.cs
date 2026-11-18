@@ -810,7 +810,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             var settings = _userSettingsService.Get();
             var customDismissKey = $"{SubscribedCustomBuildContentId}@{latestVersion}";
             var isDismissed = string.Equals(customDismissKey, settings.DismissedCustomBuildVersion, StringComparison.OrdinalIgnoreCase);
-            if (isDismissed && !isNotInstalledYet)
+            if (isDismissed)
             {
                 IsUpdateAvailable = false;
                 _logger.LogInformation("Update {Version} was previously dismissed by user", latestRelease.Version);
