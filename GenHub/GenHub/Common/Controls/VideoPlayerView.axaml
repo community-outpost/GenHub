@@ -79,15 +79,11 @@
                     <StackPanel Orientation="Horizontal"
                                 Spacing="10"
                                 HorizontalAlignment="Center">
-                        <Button x:Name="DownloadCodecsButton"
-                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadAction}"
-                                Padding="16,8"
-                                Cursor="Hand" />
-                        <Button Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
+                        <Button Classes="action-primary" x:Name="DownloadCodecsButton"
+                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.DownloadAction}" />
+                        <Button Classes="action-secondary" Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
                                 Command="{Binding FallbackCommand, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
-                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
-                                Padding="16,8"
-                                Cursor="Hand" />
+                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
                     </StackPanel>
                 </StackPanel>
 
@@ -134,15 +130,11 @@
                     <StackPanel Orientation="Horizontal"
                                 Spacing="8"
                                 HorizontalAlignment="Center">
-                        <Button x:Name="RetryButton"
-                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.Retry}"
-                                Padding="16,8"
-                                Cursor="Hand" />
-                        <Button Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
+                        <Button Classes="action-primary" x:Name="RetryButton"
+                                Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.Retry}" />
+                        <Button Classes="action-secondary" Content="{localization:Localize Downloads.ContentDetail.VideoPlayer.OpenInBrowser}"
                                 Command="{Binding FallbackCommand, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
-                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}"
-                                Padding="16,8"
-                                Cursor="Hand" />
+                                CommandParameter="{Binding SourceUrl, RelativeSource={RelativeSource AncestorType=local:VideoPlayerView}}" />
                     </StackPanel>
                 </StackPanel>
             </Panel>

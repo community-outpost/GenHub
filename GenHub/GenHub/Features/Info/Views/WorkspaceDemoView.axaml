@@ -21,12 +21,10 @@
 
                 <Button Grid.Column="1"
                         Command="{Binding StartSimulationCommand}"
-                        IsEnabled="{Binding !IsSimulating}"
-                        Background="{DynamicResource PrimaryButtonBackground}"
-                        Padding="16,8" CornerRadius="6">
+                        IsEnabled="{Binding !IsSimulating}" Classes="action-primary action-compact">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <material:MaterialIcon Kind="Play" Width="18" Height="18" Foreground="{DynamicResource PrimaryButtonForeground}"/>
-                        <TextBlock Text="{localization:Localize Info.WorkspaceDemo.RunSimulator}" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryButtonForeground}"/>
+                        <material:MaterialIcon Kind="Play" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                        <TextBlock Text="{localization:Localize Info.WorkspaceDemo.RunSimulator}"/>
                     </StackPanel>
                 </Button>
             </Grid>

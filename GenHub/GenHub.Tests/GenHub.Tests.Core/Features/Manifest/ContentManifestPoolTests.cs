@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.CommunityOutpost;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -211,6 +212,39 @@ public class ContentManifestPoolTests : IDisposable
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(manifest.Id, result.Data.Id);
+    }
+
+    /// <summary>
+    /// A Control Bar Pro manifest saved while GenTool was required for every client loads with GenTool
+    /// required only for retail game clients.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetManifestAsync_StoredControlBarProWithGenTool_RequiresGenToolOnlyForRetailAsync()
+    {
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.10.communityoutpost.addon.cbpr"),
+            Name = "Control Bar Pro (ExiLe)",
+            ContentType = ContentType.Addon,
+            Dependencies =
+            [
+                GenPatcherDependencyBuilder.CreateGenToolDependency(),
+                GenPatcherDependencyBuilder.CreateControlBarProCoreDependency(),
+            ],
+        };
+        var manifestPath = Path.Combine(_tempDirectory, "cbpr.json");
+        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(manifest));
+        _storageServiceMock.Setup(service => service.GetManifestStoragePath(manifest.Id))
+            .Returns(manifestPath);
+
+        var result = await _manifestPool.GetManifestAsync(manifest.Id);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Data!.Dependencies.Count);
+        Assert.Contains(result.Data.Dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateControlBarProCoreDependency().Id));
+        var genTool = Assert.Single(result.Data.Dependencies, d => d.Id.Equals(GenPatcherDependencyBuilder.CreateGenToolDependency().Id));
+        Assert.True(genTool.RetailClientOnly);
     }
 
     /// <summary>

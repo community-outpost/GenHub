@@ -1,0 +1,96 @@
+using GenHub.Core.Helpers;
+using Xunit;
+
+namespace GenHub.Tests.Core.Helpers;
+
+/// <summary>
+/// Unit tests for <see cref="RuntimePlatformMatcher"/>.
+/// </summary>
+public sealed class RuntimePlatformMatcherTests
+{
+    /// <summary>
+    /// Verifies OS families, runtime identifiers and unconstrained platforms against each host.
+    /// </summary>
+    /// <param name="platform">The declared platform.</param>
+    /// <param name="host">The host runtime identifier.</param>
+    /// <param name="expected">Whether the platform applies to the host.</param>
+    [Theory]
+    [InlineData(null, "win-x64", true)]
+    [InlineData("", "osx-arm64", true)]
+    [InlineData("   ", "linux-x64", true)]
+    [InlineData("windows", "win-x64", true)]
+    [InlineData("Windows", "win-arm64", true)]
+    [InlineData("windows", "osx-arm64", false)]
+    [InlineData("windows", "linux-x64", false)]
+    [InlineData("macos", "osx-arm64", true)]
+    [InlineData("macOS", "osx-x64", true)]
+    [InlineData("macos", "win-x64", false)]
+    [InlineData("macos", "linux-x64", false)]
+    [InlineData("linux", "linux-x64", true)]
+    [InlineData("linux", "linux-musl-arm64", true)]
+    [InlineData("linux", "win-x64", false)]
+    [InlineData("linux", "osx-arm64", false)]
+    [InlineData("win-x64", "win-x64", true)]
+    [InlineData("WIN-X64", "win-x64", true)]
+    [InlineData("win-x64", "win-arm64", false)]
+    [InlineData("win-x64", "linux-x64", false)]
+    [InlineData("osx-arm64", "osx-arm64", true)]
+    [InlineData("osx-arm64", "osx-x64", false)]
+    [InlineData("macos-arm64", "osx-arm64", true)]
+    [InlineData("linux-x64", "linux-x64", true)]
+    [InlineData("linux-x64", "linux-arm64", false)]
+    [InlineData("linux-x64", "osx-x64", false)]
+    [InlineData("freebsd", "linux-x64", false)]
+    [InlineData("win-", "win-x64", false)]
+    [InlineData("windows", "", false)]
+    [InlineData("windows", null, false)]
+    [InlineData("windows", "freebsd-x64", false)]
+    [InlineData("windowsarm64", "win-x64", false)]
+    [InlineData("winx64", "win-x64", false)]
+    [InlineData("macosx", "osx-arm64", false)]
+    [InlineData("linuxish", "linux-x64", false)]
+    [InlineData("osx", "osx.13-arm64", true)]
+    [InlineData("osx-arm64", "osx.13-arm64", true)]
+    [InlineData("osx.10.15-x64", "osx-x64", true)]
+    [InlineData("windows.x64", "win-x64", false)]
+    [InlineData("windows.typo", "win-arm64", false)]
+    [InlineData("win-x64x", "win-x64", false)]
+    [InlineData("win-musl-x64", "win-x64", false)]
+    [InlineData("linux-musl-x64", "linux-musl-x64", true)]
+    [InlineData("linux-x64", "linux-musl-x64", true)]
+    [InlineData("linux-foo-x64", "linux-x64", false)]
+    public void Matches_ReturnsExpected(string? platform, string? host, bool expected)
+    {
+        Assert.Equal(expected, RuntimePlatformMatcher.Matches(platform, host));
+    }
+
+    /// <summary>
+    /// Verifies which platform values are recognised.
+    /// </summary>
+    /// <param name="platform">The declared platform.</param>
+    /// <param name="expected">Whether the platform is recognised.</param>
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("windows", true)]
+    [InlineData("osx-arm64", true)]
+    [InlineData("linux-x64", true)]
+    [InlineData("darwin", false)]
+    [InlineData("windowsarm64", false)]
+    [InlineData("macosx", false)]
+    [InlineData("x64", false)]
+    [InlineData("win-", false)]
+    [InlineData("osx", true)]
+    [InlineData("macos-arm64", true)]
+    [InlineData("osx.13-arm64", true)]
+    [InlineData("windows.typo", false)]
+    [InlineData("windows.x64", false)]
+    [InlineData("osx.-arm64", false)]
+    [InlineData("osx.13.-arm64", false)]
+    [InlineData("win-x64x", false)]
+    [InlineData("linux-bionic-arm64", true)]
+    public void IsRecognised_ReturnsExpected(string? platform, bool expected)
+    {
+        Assert.Equal(expected, RuntimePlatformMatcher.IsRecognised(platform));
+    }
+}

@@ -64,12 +64,14 @@ public static class DemoViewModelFactory
                 GameType = GameType.ZeroHour,
                 PublisherType = PublisherTypeConstants.Steam,
             },
-            GameInstallationId = "mock-steam-installation", // Required to switch IsSteamInstallation to true so the button appears
+            GameInstallationId = "mock-steam-installation",
             UseSteamLaunch = false, // Explicitly start disabled so the first toggle turns it ON
         };
 
         GameProfileItemViewModel vm = new(mockProfile.Id, mockProfile, UriConstants.ZeroHourIconUri, "avares://GenHub/Assets/Covers/usa-cover.jpg")
         {
+            InstallationType = GameInstallationType.Steam,
+
             // Wire up demo actions that show notifications instead of real operations
             LaunchAction = async _ =>
             {

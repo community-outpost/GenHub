@@ -641,12 +641,12 @@ public sealed class ReplayHeaderParserTests
     /// <param name="expectedSize">The expected map size in bytes.</param>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Theory]
-    [InlineData("M=00maps/tansooo;MC=6314F5FD;MS=106110;SD=1;C=100;", 1662318077u, 106110u)]
-    [InlineData("M=03maps/[rank] arctic arena zh v1;MC=43396DD8;MS=162490;SD=1;", 1127837144u, 162490u)]
+    [InlineData("M=00maps/tansooo;MC=6314F5FD;MS=106110;SD=1;C=100;", 1_662_318_077u, 106110u)]
+    [InlineData("M=03maps/[rank] arctic arena zh v1;MC=43396DD8;MS=162490;SD=1;", 1_127_837_144u, 162490u)]
     [InlineData("M=03maps/[aod] the persian gulf;MC=C33D1C4;MS=111694;", 0x0C33D1C4u, 111694u)]
-    [InlineData("M=maps/x/x.map;mc=6314f5fd;ms=106110;", 1662318077u, 106110u)]
-    [InlineData("M=maps/x/x.map;MC=0x6314F5FD;MS=106110;", 1662318077u, 106110u)]
-    [InlineData("MS=106110;MC=6314F5FD;M=maps/x/x.map;", 1662318077u, 106110u)]
+    [InlineData("M=maps/x/x.map;mc=6314f5fd;ms=106110;", 1_662_318_077u, 106110u)]
+    [InlineData("M=maps/x/x.map;MC=0x6314F5FD;MS=106110;", 1_662_318_077u, 106110u)]
+    [InlineData("MS=106110;MC=6314F5FD;M=maps/x/x.map;", 1_662_318_077u, 106110u)]
     public async Task ParseHeaderAsync_MapCrcAndSizeTokens_ParsesHexCrcAndDecimalSizeAsync(string initString, uint expectedCrc, uint expectedSize)
     {
         using var stream = new MemoryStream();

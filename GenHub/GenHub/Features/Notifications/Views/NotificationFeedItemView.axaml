@@ -1,4 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -32,73 +33,32 @@
         </Style>
 
         <Style Selector="Border.item-container:pointerover">
-            <Setter Property="Background" Value="#242436" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
         </Style>
 
         <Style Selector="TextBlock.item-title">
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         </Style>
 
         <Style Selector="TextBlock.item-message">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#B0B0B8" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="18" />
         </Style>
 
         <Style Selector="TextBlock.item-time">
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#888898" />
-        </Style>
-
-        <Style Selector="Button.dismiss-button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#808090" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="4" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.dismiss-button:pointerover">
-            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
         </Style>
 
         <Style Selector="ItemsControl.actions-panel">
             <Setter Property="Margin" Value="0,8,0,0" />
         </Style>
 
-        <Style Selector="Button.action-button">
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Setter.Value>
-                    <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                    </Transitions>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.action-button:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.03)" />
-        </Style>
-
-        <Style Selector="Button.action-button:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.97)" />
-        </Style>
     </UserControl.Styles>
 
     <Border Classes="item-container" Padding="0">
@@ -134,17 +94,15 @@
                               IsVisible="{Binding Actions.Count}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="8" Orientation="Horizontal" />
+                            <WrapPanel Orientation="Horizontal" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="{Binding BackgroundBrush}"
-                                    CornerRadius="6">
+                            <Border Margin="0,0,8,8">
                                 <Button Command="{Binding ExecuteCommand}"
-                                        Classes="action-button"
-                                        Background="Transparent">
-                                    <TextBlock Text="{Binding Text}" Foreground="{Binding ForegroundBrush}" FontWeight="Medium" />
+                                        Classes="action-compact" Classes.action-primary="{Binding IsPrimary}" Classes.action-secondary="{Binding IsSecondary}" Classes.action-danger="{Binding IsDanger}">
+                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
                                 </Button>
                             </Border>
                         </DataTemplate>
@@ -156,15 +114,11 @@
             <Button Grid.Column="1" Grid.Row="0"
                     Command="{Binding DismissCommand}"
                     ToolTip.Tip="{localization:Localize Notifications.Tooltip.Dismiss}"
-                    Classes="dismiss-button"
+                    Classes="icon-action"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
-                    Margin="0,8,8,0">
-                <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                      Fill="#808090"
-                      Width="12"
-                      Height="12"
-                      Stretch="Uniform" />
+                    Margin="0,8,8,0" AutomationProperties.Name="{localization:Localize Notifications.Tooltip.Dismiss}">
+                <PathIcon Data="{StaticResource CloseIcon}" />
             </Button>
         </Grid>
     </Border>

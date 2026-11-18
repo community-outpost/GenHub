@@ -232,21 +232,11 @@
         <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,24,0,0">
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
                 <Button Content="{localization:Localize Downloads.DependencyPreview.Cancel}"
-                        Command="{Binding CancelCommand}"
-                        Width="100" Height="36"
-                        Background="{DynamicResource SurfaceElevatedBrush}"
-                        BorderBrush="{DynamicResource BorderBrush}"
-                        BorderThickness="1"
-                        Foreground="{DynamicResource TextPrimary}"
-                        CornerRadius="6"/>
+                        Command="{Binding CancelCommand}" Classes="action-secondary"/>
 
                 <Button Content="{localization:Localize Downloads.DependencyPreview.Proceed}"
                         Command="{Binding ProceedCommand}"
-                        Width="100" Height="36"
-                        Background="{DynamicResource AccentBrush}"
-                        Foreground="White"
-                        CornerRadius="6"
-                        IsEnabled="{Binding CanProceed}"/>
+                        IsEnabled="{Binding CanProceed}" Classes="action-primary"/>
             </StackPanel>
         </Grid>
     </Grid>

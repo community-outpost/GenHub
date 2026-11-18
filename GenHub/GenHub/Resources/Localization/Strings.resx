@@ -508,7 +508,7 @@
     <value>SCAN</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>LAUNCH</value>
+    <value>Play</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>STOP</value>
@@ -542,6 +542,9 @@
   </data>
   <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
     <value>Edit Profile (Hotswap Content)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
+    <value>Play this profile</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>Toggle Steam Integration</value>
@@ -638,6 +641,9 @@
   </data>
   <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
     <value>PC Game</value>
+  </data>
+  <data name="GameProfiles.InstallationType.Lutris" xml:space="preserve">
+    <value>Lutris</value>
   </data>
   <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
     <value>Retail</value>
@@ -782,6 +788,9 @@
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
     <value>Game scan complete! Created {0} new profiles.</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.MessageSingular" xml:space="preserve">
+    <value>Game scan complete! Created 1 new profile.</value>
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
     <value>Scan Complete</value>
@@ -937,7 +946,7 @@
     <value>Looking for Command &amp; Conquer Generals?</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>Command &amp; Conquer Generals and Zero Hour could not be found. You need a valid installation of the game to play. You can purchase the game officially from Steam or the EA App.</value>
+    <value>GenHub could not find an installed game. If you already own it, choose its folder. Otherwise, you can buy it from Steam or the EA App.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>Buy on Steam</value>
@@ -947,6 +956,36 @@
   </data>
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>Failed to open store page: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>Let GenHub find your game</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>GenHub has not scanned this computer yet. Scan to find Command &amp; Conquer Generals and Zero Hour and set up profiles for them.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>Scan for Games</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>The game scan did not finish</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>GenHub could not check every location. Choose your game folder, or fix the access problem and scan again.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>Choose Game Folder</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>Scan Again</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>Could not set up the chosen game folder: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>Setting up the games that were found failed: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>Some locations could not be searched, so GenHub used the game folder you chose. Fix the access problem and scan again to find other installations.</value>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>No game installations found</value>
@@ -1004,9 +1043,6 @@
   </data>
   <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
     <value>Scan complete. Found {0} game installations</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>Scan complete. Found {0} installations, created {1} profiles</value>
   </data>
   <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
     <value>Scan complete! No new installations found</value>
@@ -1111,10 +1147,10 @@
     <value>Steam Proxy Launcher cannot run non-Windows executable format '{0}'. Steam integration requires a Windows executable.</value>
   </data>
   <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
-    <value>Cannot launch '{0}': it starts '{1}', which is missing from the selected content or the workspace, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
+    <value>Cannot launch '{0}': it starts '{1}', which is missing from the selected content or the workspace, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than "Symbolic links".</value>
   </data>
   <data name="Launch.Monitoring.EntryPointHashMissing" xml:space="preserve">
-    <value>Cannot launch '{0}': the selected content has no content hash for it, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than SymlinkOnly.</value>
+    <value>Cannot launch '{0}': the selected content has no content hash for it, so GenHub cannot track the game. Update or reinstall the game client, or switch this profile to a workspace strategy other than "Symbolic links".</value>
   </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>Game client '{0}' declares entry point '{1}', which was not found in its payload.</value>
@@ -1654,6 +1690,12 @@
   </data>
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>Select the user interface display language.</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Label" xml:space="preserve">
+    <value>Profile layout</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Description" xml:space="preserve">
+    <value>Show game profiles as a searchable library or as cards with a Play button on each card.</value>
   </data>
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>Language</value>
@@ -3355,13 +3397,13 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>Interface Primary Color</value>
   </data>
-  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Content</value>
   </data>
-  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.ProfileSettings" xml:space="preserve">
     <value>Profile Settings</value>
   </data>
-  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.GameSettings" xml:space="preserve">
     <value>Game Settings</value>
   </data>
   <data name="GameSettings.Category.Video" xml:space="preserve">
@@ -3684,6 +3726,9 @@ Applied: {2} / {3} applicable fixes.</value>
   </data>
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
+  </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
   </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>Cyan</value>
@@ -4141,6 +4186,54 @@ This will modify game files and configuration settings at:
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>Search</value>
   </data>
+  <data name="Downloads.Browser.Filter.Watermark" xml:space="preserve">
+    <value>Filter by name, category or tag...</value>
+  </data>
+  <data name="Downloads.Browser.Filter.All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Downloads.Browser.Filter.NoMatches" xml:space="preserve">
+    <value>No content matches the current filter.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.LoadedOnly" xml:space="preserve">
+    <value>Only loaded items are filtered. Load more to include the rest.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.CommunityPatch" xml:space="preserve">
+    <value>Community patch</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.OfficialPatch" xml:space="preserve">
+    <value>Official patch</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.BaseGame" xml:space="preserve">
+    <value>Base game</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.ControlBar" xml:space="preserve">
+    <value>Control bars</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Hotkeys" xml:space="preserve">
+    <value>Hotkeys</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Camera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Tools" xml:space="preserve">
+    <value>Tools</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Maps" xml:space="preserve">
+    <value>Maps</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Visuals" xml:space="preserve">
+    <value>Visuals</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Prerequisites" xml:space="preserve">
+    <value>Prerequisites</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Other" xml:space="preserve">
+    <value>Other</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>My Downloads</value>
   </data>
@@ -4176,6 +4269,9 @@ This will modify game files and configuration settings at:
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>Cyan Blue</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>Medium Blue</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>Dark Blue</value>
@@ -4504,8 +4600,74 @@ This will modify game files and configuration settings at:
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>Setup Detected Content</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>Skip</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>Game found</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>No installed game found</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>We found {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>We found these games:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>GenHub could not identify a game it can launch here. Add your game folder in Settings under Custom Game Installations, then select SCAN.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>Use installed game</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>Customize setup</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>Add Generals Online, TheSuperHackers or the Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>Set up later</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="GameProfiles.Notification.SetupNotFinished.Message" xml:space="preserve">
+    <value>Setup did not finish, so no profiles were created. Select SCAN to try again.</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Title" xml:space="preserve">
+    <value>Some Components Not Set Up</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Message" xml:space="preserve">
+    <value>These components could not be set up: {0}. Check the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>No Profiles Created</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>You chose to set up later. Select SCAN when you are ready to create a profile.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>Your game is already set up. No new profiles were needed.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>No Profiles Created</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>GenHub found your game but could not create a profile for it. Check the logs for details.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>GenHub could not find a game it can set up, so no profiles were created. Add your game folder in Settings under Custom Game Installations, then select SCAN.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>Continue</value>
@@ -4845,6 +5007,12 @@ Would you like to update and replace it in the profile as part of this bundle in
   </data>
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>Publisher</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>Image could not be loaded. Open the link:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>Open the image link in your browser</value>
   </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>Content provided by third-party publishers. GenHub does not guarantee compatibility.</value>
@@ -5813,9 +5981,9 @@ Profile startup and launch logs are recorded in the GenHub AppData directory to 
     <value>Profile card buttons, manifest scrubbing, and window sizing.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**Profile Card Controls:**
+    <value>**Profile Controls:**
 1. **Play:** Launches the game with this profile's active mods, settings, and workspace.
-2. **Edit Profile (Pencil):** Opens the profile editor to select mods, maps, and adjust game settings.
+2. **Edit Profile:** Opens the profile editor from the profile actions menu to select mods, maps, and adjust game settings.
 3. **Copy Profile (Duplicate):** Clones the profile, including all settings and enabled content, into a new profile.
 4. **Desktop Shortcut:** Creates a desktop shortcut to launch this profile directly.
 5. **Delete Profile:** Removes the profile and its dedicated workspace configuration.
@@ -6112,7 +6280,7 @@ When signature checks pass, GenHub verifies that game assets are authentic and r
     <value>How to add a profile shortcut to your desktop.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. In **Game Profiles**, right-click any profile card (or click the Desktop shortcut icon).
+    <value>1. In **Game Profiles**, select a profile and open its profile actions menu.
 2. Select **Create Desktop Shortcut**.
 3. GenHub writes the shortcut for your OS: a `.lnk` file on Windows or a `.desktop` entry on Linux. Profile shortcuts are not available on macOS yet.
 4. Double-click it to launch that profile.</value>
@@ -6894,6 +7062,15 @@ GenHub supports four file linking strategies under **Settings -&gt; Game Configu
   </data>
   <data name="Settings.Subscriptions.RemoveToolTip" xml:space="preserve">
     <value>Unsubscribe from this catalog</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdate" xml:space="preserve">
+    <value>Update automatically</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateToolTip" xml:space="preserve">
+    <value>When you launch a profile, download new versions from this catalog and switch the profile to them without asking</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateSaveFailedMessage" xml:space="preserve">
+    <value>Failed to save the automatic update setting for {0}.</value>
   </data>
   <data name="Settings.Subscriptions.RemovedNotificationMessage" xml:space="preserve">
     <value>Unsubscribed from {0}</value>
@@ -12913,6 +13090,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
     <value>{0} items</value>
   </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} item</value>
+  </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>{0} Catalogs</value>
   </data>
@@ -13272,6 +13452,9 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
     <value>{0} items in catalog</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
+    <value>{0} item in catalog</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
     <value>Parsed: {0}</value>
@@ -13684,6 +13867,123 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>Paste an image URL or pick a local file. Local files are uploaded to your hosting provider when you publish the catalog.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>Tab ID</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>Generated from the header</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>Custom Tabs</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>Added the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>Saved the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>Removed the custom tab '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>Header</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>Release notes</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>Remove Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>Remove the custom tab '{0}'? Its intro, body and cards are removed from this item.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>Intro</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>Body (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>Links open only for HTTP and HTTPS URLs. Images load only from remote HTTP and HTTPS URLs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>Visible</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>A content item can have at most {0} custom tabs.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>Each custom tab needs an ID of 1 to {0} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>Custom tab ID '{0}' is used more than once.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>Custom tab '{0}' has a card that breaks the catalog rules.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>Discord attachment links expire after about a day and then stop loading. Host the image somewhere permanent.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>Edit Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>Add Custom Tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>Cards</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>Card title</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>Label</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>Image URL</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>Add card</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>Remove card</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>Edit tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>Delete tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>Add custom tab</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>Custom tab '{0}' can have at most {1} cards.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' needs a title.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' has a title or label longer than {2} characters or a description longer than {3} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>Card {0} on custom tab '{1}' needs an image link that starts with https:// or avares://.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>Custom tab '{0}' needs a header of 1 to {1} characters.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>Custom tab '{0}' has an intro longer than {1} characters or a body longer than {2} characters.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>Icon</value>
   </data>
@@ -13771,8 +14071,8 @@ Project structure ready. Edit files in GameFilesEdited folder.</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>At least one bundle component is required.</value>
   </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>A release item is required. Please provide a valid download URL or local file.</value>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>Add a file or download URL for the initial release, or clear its changelog and dependencies.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>Download URL must be a valid HTTP or HTTPS link.</value>
@@ -16784,6 +17084,12 @@ Publish Tier 1 publisher definitions and Tier 2 catalogs whose release records c
   <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
     <value>Updated {0} to version {1}.</value>
   </data>
+  <data name="Content.Notification.AutoUpdateCompleted.Message" xml:space="preserve">
+    <value>{0} was updated automatically to version {1}. You can turn this off in Settings under Publisher Subscriptions.</value>
+  </data>
+  <data name="Content.Notification.AutoUpdateFailed.Message" xml:space="preserve">
+    <value>{0} could not be updated to version {1} automatically: {2}. The installed version is still in use.</value>
+  </data>
   <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
     <value>{0} Update Partial</value>
   </data>
@@ -18382,5 +18688,196 @@ Mapped image texture reference</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>Screenshot name (optional)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ExportDraft" xml:space="preserve">
+    <value>'{0}' has no releases. Add a release or remove this draft from the catalog before exporting. Your project can still be saved.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
+    <value>An initial release is optional. Without one, this item is a draft: you can save the project, but must add a release or remove the draft before exporting or publishing the catalog.</value>
+  </data>
+  <data name="Settings.Downloads.Advanced" xml:space="preserve"><value>Advanced download settings</value></data>
+  <data name="Downloads.ContentDetail.MoreActions" xml:space="preserve"><value>More actions</value></data>
+  <data name="Tools.PublisherStudio.Publish.ConnectionSettings" xml:space="preserve"><value>Hosting connection</value></data>
+  <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>Files and dependencies</value></data>
+  <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>Files: {0}</value></data>
+  <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>Dependencies: {0}</value></data>
+  <data name="GameProfiles.Library.MyProfiles" xml:space="preserve">
+    <value>My profiles</value>
+  </data>
+  <data name="GameProfiles.Library.Search" xml:space="preserve">
+    <value>Search profiles</value>
+  </data>
+  <data name="GameProfiles.Library.NoMatches" xml:space="preserve">
+    <value>No matching profiles</value>
+  </data>
+  <data name="GameProfiles.Library.NewProfile" xml:space="preserve">
+    <value>New profile</value>
+  </data>
+  <data name="GameProfiles.Library.Play" xml:space="preserve">
+    <value>Play</value>
+  </data>
+  <data name="GameProfiles.Layout.Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="GameProfiles.Layout.Cards" xml:space="preserve">
+    <value>Cards</value>
+  </data>
+  <data name="GameProfiles.Library.Actions" xml:space="preserve">
+    <value>Profile actions</value>
+  </data>
+  <data name="GameProfiles.Library.EditProfile" xml:space="preserve">
+    <value>Edit profile</value>
+  </data>
+  <data name="GameProfiles.Library.MoveEarlier" xml:space="preserve">
+    <value>Move earlier</value>
+  </data>
+  <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
+    <value>Move later</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
+    <value>Your next game starts here</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
+    <value>Create a profile or scan for installed games to get started.</value>
+  </data>
+  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
+    <value>No description has been added to this profile.</value>
+  </data>
+  <data name="GameProfiles.Library.Running" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="GameProfiles.Library.Preparing" xml:space="preserve">
+    <value>Preparing workspace…</value>
+  </data>
+  <data name="GameProfiles.Library.LaunchAvailable" xml:space="preserve">
+    <value>Available to launch</value>
+  </data>
+  <data name="GameProfiles.Library.SteamLaunch" xml:space="preserve">
+    <value>Launch through Steam</value>
+  </data>
+  <data name="GameProfiles.Library.LocalLaunch" xml:space="preserve">
+    <value>Local launch</value>
+  </data>
+  <data name="GameProfiles.Library.NoArguments" xml:space="preserve">
+    <value>No extra arguments</value>
+  </data>
+  <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
+    <value>Game profile</value>
+  </data>
+  <data name="GameProfiles.Library.LoadError" xml:space="preserve">
+    <value>Profiles could not be loaded. Try reopening Game Profiles or restart GenHub.</value>
+  </data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>My profiles ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Profile settings</value></data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>Technical details</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
+    <value>One required item is missing</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
+    <value>{0} required items are missing</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
+    <value>{0} only works when these items are in the profile:</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.RequiredBy" xml:space="preserve">
+    <value>(needed by {0})</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
+    <value>Technical details</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
+    <value>Install required items</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
+    <value>A required item</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>Unnamed content</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
+    <value>GenHub can't download this. Install the game, then let GenHub detect it.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameClient" xml:space="preserve">
+    <value>GenHub can't download this. Get it from Downloads or from its publisher.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.Content" xml:space="preserve">
+    <value>GenHub can't download this. Get it from its publisher, then add it to GenHub.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Install" xml:space="preserve">
+    <value>Install required items downloads and enables them first. Cancel saves nothing.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
+    <value>GenHub can install some of these items. Install the others manually, then try again.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
+    <value>Nothing is saved until these items are present.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Error" xml:space="preserve">
+    <value>{0} needs {1} before it can be added.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.StillMissing.Message" xml:space="preserve">
+    <value>{0} was not added. It still needs {1}.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.DownloadFailed.Message" xml:space="preserve">
+    <value>GenHub could not download {0}. Check your connection and try again.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
+    <value>• {0} needs {1}</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>GenHub found {0}, but not a version this content works with.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>Install available items</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>GenHub could not install the required items.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.LaunchError" xml:space="preserve">
+    <value>{0} can't launch. It needs {1}.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
+    <value>{0} needs {1}</value>
+  </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>Installing required items for {0}...</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
+    <value>These settings are locked while the game is running. Close the game to change them.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Name" xml:space="preserve">
+    <value>Link files (recommended)</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Description" xml:space="preserve">
+    <value>Links game files instead of copying them. Uses almost no extra disk space.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
+    <value>If the game or the CAS pool is on a different drive than the workspace, needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
+    <value>Symbolic links</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Description" xml:space="preserve">
+    <value>Points to game files with symbolic links. Works across drives.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.WindowsNote" xml:space="preserve">
+    <value>Needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Name" xml:space="preserve">
+    <value>Copy game files, link loose media</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Description" xml:space="preserve">
+    <value>Copies game archives, programs and settings. Links only loose textures, audio and video. Uses nearly as much disk space as a full copy.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.WindowsNote" xml:space="preserve">
+    <value>Linking needs administrator rights or Developer Mode.</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Name" xml:space="preserve">
+    <value>Copy all files</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
+    <value>Copies every file into the workspace. Works everywhere but uses the most disk space.</value>
   </data>
 </root>

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
+             xmlns:catalogVm="clr-namespace:GenHub.Features.Content.ViewModels.Catalog"
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:constants="clr-namespace:GenHub.Core.Constants;assembly=GenHub.Core"
@@ -25,49 +26,6 @@
         </Style>
 
         <!-- Search box style -->
-        <Style Selector="TextBox.search-box">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="Watermark" Value="Search..." />
-        </Style>
-
-        <Style Selector="TextBox.search-box:focus">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-        </Style>
-
-        <!-- Action buttons -->
-        <Style Selector="Button.toolbar-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="16,8" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.toolbar-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
-        </Style>
-
-        <Style Selector="Button.toolbar-btn:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.98)" />
-        </Style>
 
         <!-- Filter Toggle -->
         <Style Selector="ToggleButton.filter-toggle-btn">
@@ -96,88 +54,14 @@
         </Style>
 
         <Style Selector="ToggleButton.filter-toggle-btn:checked">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         </Style>
 
         <Style Selector="ToggleButton.filter-toggle-btn:checked:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
             <Setter Property="Opacity" Value="0.9" />
-        </Style>
-
-        <!-- Load More Button -->
-        <Style Selector="Button.load-more-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="32,10" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.load-more-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
-        </Style>
-
-        <Style Selector="Button.load-more-btn:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.98)" />
-        </Style>
-
-        <!-- Catalog Reload Button -->
-        <Style Selector="Button.catalog-reload-btn">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="6" />
-            <Setter Property="Width" Value="32" />
-            <Setter Property="Height" Value="32" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Button.catalog-reload-btn:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-        </Style>
-
-        <Style Selector="Button.catalog-reload-btn:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.95)" />
-        </Style>
-
-        <Style Selector="Button.catalog-reload-btn:disabled">
-            <Setter Property="Opacity" Value="0.4" />
-            <Setter Property="Cursor" Value="Arrow" />
-        </Style>
-
-        <Style Selector="Button.catalog-reload-btn.spinning, Button.catalog-reload-btn.spinning:disabled">
-            <Setter Property="Opacity" Value="0.85" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
         </Style>
 
         <Style Selector="Button.catalog-reload-btn.spinning PathIcon">
@@ -266,14 +150,13 @@
 
         <controls:SidebarLayout.PaneFooter>
             <Button Command="{Binding ImportSubscriptionCommand}"
-                    Classes="pane-footer-btn"
+                    Classes="action-secondary"
                     HorizontalAlignment="Stretch"
                     Margin="8,0,8,12"
                     ToolTip.Tip="{localization:Localize Downloads.Browser.ImportSubscriptionTooltip}">
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                    <PathIcon Data="{DynamicResource CloudStorageIcon}"
-                              Width="16" Height="16" Foreground="{DynamicResource AccentBrush}"/>
-                    <TextBlock Text="{localization:Localize Downloads.Browser.ImportSubscription}" HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}" FontSize="13"/>
+                    <PathIcon Data="{DynamicResource CloudStorageIcon}" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}"/>
+                    <TextBlock Text="{localization:Localize Downloads.Browser.ImportSubscription}" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Button>
         </controls:SidebarLayout.PaneFooter>
@@ -292,7 +175,7 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBox Grid.Column="0"
-                             Classes="search-box"
+                             Classes="form-field"
                              Text="{Binding SearchTerm}"
                              Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
                              VerticalAlignment="Center"
@@ -304,7 +187,7 @@
                     </TextBox>
 
                     <Button Grid.Column="1"
-                            Classes="toolbar-btn"
+                            Classes="action-secondary action-compact"
                             Content="{localization:Localize Downloads.Browser.Search}"
                             Command="{Binding SearchCommand}"
                             Margin="8,0,0,0"
@@ -326,6 +209,36 @@
                     </ToggleButton>
                 </Grid>
 
+                <!-- Curated catalog filter: narrows the loaded cards locally without querying the provider. -->
+                <StackPanel DockPanel.Dock="Top"
+                            Spacing="8"
+                            Margin="0,0,0,12"
+                            IsVisible="{Binding CanFilterLocally}">
+                    <TextBox Classes="clearButton form-field"
+                             Text="{Binding LocalFilterText}"
+                             Watermark="{localization:Localize Downloads.Browser.Filter.Watermark}"
+                             AutomationProperties.Name="{localization:Localize Downloads.Browser.Filter.Watermark}" />
+
+                    <ItemsControl ItemsSource="{Binding LocalCategoryFilters}"
+                                  IsVisible="{Binding HasLocalCategoryFilters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="catalogVm:CatalogCategoryFilter">
+                                <Button Command="{Binding $parent[views:DownloadsBrowserView].((vm:DownloadsBrowserViewModel)DataContext).SelectLocalCategoryCommand}"
+                                        CommandParameter="{Binding Key}"
+                                        Classes.filter-chip-selected="{Binding IsSelected}"
+                                        Classes.filter-chip="{Binding !IsSelected}">
+                                    <TextBlock Text="{Binding DisplayText}" />
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
                 <!-- Catalog switcher and reload bar (visible for subscribed publishers with multiple catalogs, or while loading).
                      Long catalog names trim in place; the full name stays available via tooltip. -->
                 <StackPanel DockPanel.Dock="Top"
@@ -339,7 +252,7 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextSecondary}"
                                VerticalAlignment="Center" />
-                    <ComboBox ItemsSource="{Binding AvailableCatalogs}"
+                    <ComboBox Classes="form-field" ItemsSource="{Binding AvailableCatalogs}"
                               SelectedItem="{Binding SelectedCatalog}"
                               MaxWidth="340"
                               MinWidth="180"
@@ -411,7 +324,7 @@
                                IsVisible="{Binding !HasMultipleCatalogs}" />
 
                     <!-- Reload catalog button with animated spin on loading -->
-                    <Button Classes="catalog-reload-btn"
+                    <Button Classes="icon-action catalog-reload-btn"
                             Classes.spinning="{Binding IsLoadingCatalogs}"
                             Command="{Binding ReloadCatalogCommand}"
                             ToolTip.Tip="{localization:Localize Downloads.Browser.ReloadCatalog}"
@@ -419,8 +332,7 @@
                             VerticalAlignment="Center"
                             IsVisible="{Binding CanShowCatalogSwitcher}">
                         <PathIcon Data="{StaticResource RefreshIcon}"
-                                  Width="13" Height="13"
-                                  RenderTransformOrigin="50%,50%">
+                                  RenderTransformOrigin="50%,50%" Width="{DynamicResource ActionIconSize}" Height="{DynamicResource ActionIconSize}">
                             <PathIcon.RenderTransform>
                                 <RotateTransform Angle="0" />
                             </PathIcon.RenderTransform>
@@ -453,6 +365,29 @@
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled"
                                   VerticalScrollBarVisibility="Auto">
                     <StackPanel>
+                        <StackPanel HorizontalAlignment="Center"
+                                    Spacing="8"
+                                    Margin="0,40,0,0"
+                                    IsVisible="{Binding HasNoLocalFilterMatches}">
+                            <TextBlock Text="{localization:Localize Downloads.Browser.Filter.NoMatches}"
+                                       FontSize="15"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{localization:Localize Downloads.Browser.Filter.LoadedOnly}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondary}"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding CanLoadMore}" />
+                            <Button Classes="action-secondary action-compact"
+                                    Content="{localization:Localize Downloads.Browser.Filter.Clear}"
+                                    Command="{Binding ClearLocalFilterCommand}"
+                                    HorizontalAlignment="Center" />
+                        </StackPanel>
+
                         <ItemsControl ItemsSource="{Binding ContentItems}" HorizontalAlignment="Center">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -460,8 +395,8 @@
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Panel Margin="6">
+                                <DataTemplate DataType="vm:ContentGridItemViewModel">
+                                    <Panel Margin="6" IsVisible="{Binding !IsFilteredOut}">
                                         <views:ContentCardView DataContext="{Binding}" />
                                     </Panel>
                                 </DataTemplate>
@@ -473,7 +408,7 @@
                                 Command="{Binding LoadMoreCommand}"
                                 IsEnabled="{Binding !IsLoading}"
                                 IsVisible="{Binding CanLoadMore}"
-                                Classes="load-more-btn"
+                                Classes="action-secondary"
                                 HorizontalAlignment="Center"
                                 Margin="0,20,0,40" />
 

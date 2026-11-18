@@ -243,7 +243,60 @@ public sealed class ProfileLauncherFacadePublisherReconciliationTests
             Times.Never);
     }
 
-    private ProfileLauncherFacade CreateFacade() => new(
+    /// <summary>
+    /// Verifies that a profile whose client comes from a subscribed catalog runs catalog reconciliation once,
+    /// so an automatic update is not attempted twice and a failure is not reported twice.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WhenRegistryFallsBackToCatalogReconciler_RunsCatalogReconciliationOnceAsync()
+    {
+        const string profileId = "catalog-profile";
+        const string catalogPublisherId = "custom-catalog";
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "Catalog Profile",
+            GameClient = new GameClient
+            {
+                Id = "client-zh",
+                Name = "Custom Client",
+                GameType = GameType.ZeroHour,
+                PublisherType = catalogPublisherId,
+                ExecutablePath = "generals.exe",
+            },
+            GameInstallationId = "inst-1",
+            WorkspaceStrategy = WorkspaceStrategy.HardLink,
+            EnabledContentIds = [_clientManifest.Id.Value, _installManifest.Id.Value],
+        };
+
+        _profileManagerMock
+            .Setup(m => m.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        var catalogReconcilerMock = new Mock<IGenericCatalogProfileReconciler>();
+        catalogReconcilerMock
+            .Setup(r => r.PublisherType)
+            .Returns(CatalogConstants.GenericPublisherType);
+        catalogReconcilerMock
+            .Setup(r => r.CheckAndReconcileIfNeededAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<PublisherReconciliationResult>.CreateFailure("network down"));
+
+        _reconcilerRegistryMock
+            .Setup(r => r.GetReconciler(catalogPublisherId))
+            .Returns(catalogReconcilerMock.Object);
+
+        var facade = CreateFacade(catalogReconcilerMock.Object);
+
+        await facade.LaunchProfileAsync(profileId);
+
+        catalogReconcilerMock.Verify(
+            r => r.CheckAndReconcileIfNeededAsync(profileId, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    private ProfileLauncherFacade CreateFacade(IGenericCatalogProfileReconciler? genericCatalogProfileReconciler = null) => new(
         _profileManagerMock.Object,
         _gameLauncherMock.Object,
         _workspaceManagerMock.Object,
@@ -262,5 +315,6 @@ public sealed class ProfileLauncherFacadePublisherReconciliationTests
         NullLogger<ProfileLauncherFacade>.Instance,
         new DirectRunner(NullLogger<DirectRunner>.Instance),
         installationCasPoolService: null,
-        localizationService: null);
+        localizationService: null,
+        genericCatalogProfileReconciler: genericCatalogProfileReconciler);
 }

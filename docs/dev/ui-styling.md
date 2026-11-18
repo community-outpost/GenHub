@@ -127,12 +127,33 @@ Item templates inside sidebars must use inset rounded rows:
 </DataTemplate>
 ```
 
+## Text inputs and form density
+
+Ordinary text inputs opt into `FormFieldStyles.axaml` with `Classes="form-field"`.
+Use `FormFieldFill` and `FormFieldBorder` so inputs remain visible at rest, with semantic text colors and 8px input corners,
+36px minimum height, 13px type and `10,8` padding. Hover lifts the fill and strengthens the border. Focus and validation states
+retain the original Fluent editor template; password, selection, read-only and
+multiline behavior stay with the consumer.
+
+Use `Classes="form-field form-compact"` for dense editor/search fields: 32px
+minimum height, 12px type and `8,6` padding. Dropdowns use the same form metrics,
+with `form-compact` for dense contexts. Do not duplicate field paint or template
+state styles in individual views. Layout, multiline height, maximum dropdown
+height and semantic option templates stay with the consumer.
+
+The text style is deliberately opt-in so embedded text editors inside numeric
+scrubbers and code-editor controls keep their component templates and geometry.
+Code/raw-text editors, numeric scrubbing and special item previews are distinct
+families, not ordinary text forms. Never remove their behavior to match form
+presentation.
+
 ## Selection dropdowns (ComboBox)
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
 
-- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource CardBackground}` with subtle 1px border `{DynamicResource BorderBrush}`.
-- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceElevatedBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
+- **Container:** Corners from `{DynamicResource InputCornerRadius}`, `MinHeight` from `{DynamicResource FormFieldMinHeight}`, background bound to `{DynamicResource FormFieldFill}` with a 1px `{DynamicResource FormFieldBorder}` border.
+- **Hover & Focus:** Hover switches to `{DynamicResource FormFieldHoverFill}` and `{DynamicResource FormFieldHoverBorder}`. Focus keeps `{DynamicResource FormFieldFill}` with an `{DynamicResource AccentBrush}` border, which also marks the open state.
+- **Disabled:** Text and chevron use `{DynamicResource TextMuted}`.
 - **Glyph:** Vector chevron (`Data="M7 10l5 5 5-5z"`) that rotates 180 degrees smoothly when the dropdown opens.
 - **Popup menu:** Elevated surface with rounded 8px corners, internal 4px padding, and drop shadow (`BoxShadow="0 10 28 0 #99000000"`).
 - **Items:** Inset rounded items (`Margin="0,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
@@ -202,25 +223,154 @@ All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.ax
 - **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
 - **Hover on Selected:** Highlights row with `{DynamicResource AccentTintBackgroundBrush}` and outlined with `{DynamicResource AccentBrush}`.
 
-## Tab and pill buttons (RadioButton.TabButton & Button.pill-tab)
+## Navigation (Button.pill-tab, nav-pill, tab-icon-btn & sidebar-btn)
 
-For game selection tabs, replay category toggles, or filter pills:
+`Assets/Styles/NavigationStyles.axaml` owns the state paint for the main tabs
+(`pill-tab`), Publisher Studio tabs (`nav-pill`), profile targets (`tab-icon-btn`)
+and settings sidebar rows (`sidebar-btn`). Views keep only layout: padding, size,
+margins and transitions. Mark the current item with `active` or `selected`.
 
-- **Style:** Inset rounded pill (`CornerRadius="8"`, `Padding="16,8"`).
-- **Pointer-over:** Soft hover highlight `{DynamicResource SurfaceHoverBrush}` or `#10FFFFFF`.
-- **Checked / Active State:** Background bound to `{DynamicResource AccentBrush}` (or `{DynamicResource AccentTintBackgroundBrush}` with `{DynamicResource AccentBrush}` border), with foreground `White`.
+- **Shape:** Tabs and profile targets use `{DynamicResource ActionCornerRadius}`.
+  Sidebar rows keep their own row radius.
+- **Rest:** `NavRestInk` text on a transparent fill. Profile targets keep a visible
+  `ProfileNavigationRestFill` and `ProfileNavigationRestBorder`.
+- **Hover / pressed:** `NavHoverFill` or `NavPressedFill` with `NavHoverBorder` and
+  `NavSelectedInk`.
+- **Selected:** `NavSelectedFill`, `NavSelectedInk` and `NavSelectedBorder`.
+  Hovering or pressing it uses `NavSelectedHoverFill` and `NavSelectedHoverBorder`.
+  Profile targets and sidebar rows keep the profile colour outline in every state.
+- **Focus:** a 2px `NavFocusBrush` outline.
+- **Disabled:** `NavDisabledInk` and `NavDisabledBorder`. A disabled selected item
+  keeps `NavSelectedFill`.
+
+Map and Replay Manager game tabs (`RadioButton.TabButton`) share the pill radius
+and keep their own state colours.
+
+See [the consistency rollout](./ui-consistency-rollout.md) for adoption scope and
+remaining screen families.
 
 ## Button classes
 
-Use standardized button classes rather than ad-hoc button styling:
+Ordinary actions use the global `Assets/Styles/ButtonStyles.axaml`, loaded by
+`App.axaml`. Choose one text role and optionally `action-compact`. Add `icon-action` to a
+semantic role for an icon-only primary or destructive action; its 32px target
+does not replace the semantic colors. Use `icon-action` alone for neutral utilities. These are styles on
+standard Avalonia buttons: command enablement, keyboard activation and focus remain
+owned by Avalonia. Do not copy the styles into a feature view.
 
-| Class | Usage |
+| Class | Use | Metrics |
+|---|---|---|
+| `action-primary` | Main action, usually one per form or dialog | Darker live accent; white ink; minimum 36px high; 16×8 padding |
+| `action-secondary` | Cancel, browse, retry, and other supporting actions | Transparent surface and subtle border; same metrics |
+| `action-danger` | Delete or replace an existing item | Subtle red tint, red outline and pale red ink; same metrics |
+| `icon-action` | Utility actions with no visible caption | Transparent at rest; minimum 32×32 target; 16px glyph |
+| `action-compact` | Add to a text role in dense toolbars | Minimum 32px high; 12×6 padding; 12px type |
+
+Default action type is 13px medium, with semibold primary actions. Ordinary action
+buttons use `ActionCornerRadius` (999px, clamped to a capsule by Avalonia). Utility
+icons use the same rule to form circular targets. Cards and inputs retain their
+existing radii; pill-shaped actions do not imply pill-shaped containers.
+Use minimum sizes so translated labels can grow. Wrap long captions in a
+`TextBlock` with `TextWrapping="Wrap"` when horizontal space is constrained.
+Do not override a role's background, foreground, font, padding, or interaction
+states locally. Layout properties such as alignment and margins stay with the
+consumer. Specialized split buttons form one capsule with square adjoining edges and shared
+`ToolActionBarStyles`. Put the gradient on a `Border.split-action` around both
+hit targets; the segments remain transparent at rest. Their hover/pressed
+overlays preserve the continuous gradient. Keep each target independently
+focusable and retain the arrow divider.
+
+```xml
+<Button Classes="action-primary"
+        Command="{Binding InstallCommand}"
+        Content="{localization:Localize Updates.Button.InstallUpdate}" />
+<Button Classes="icon-action"
+        Command="{Binding CloseCommand}"
+        AutomationProperties.Name="{localization:Localize Common.Button.Close}"
+        ToolTip.Tip="{localization:Localize Common.Button.Close}">
+    <PathIcon Data="{StaticResource CloseIcon}" />
+</Button>
+```
+
+Primary actions use `ActionOnAccentBrush` (white) on dedicated
+`ActionPrimaryRestBrush`, `ActionPrimaryHoverBrush` and
+`ActionPrimaryPressedBrush` gradients. These action fills are separate from the
+brighter navigation accent. `ActionButtonPalette.CreateBrushes` derives restrained
+two-stop gradients for each live palette and preserves the selected purple
+treatment. Tests verify at least 4.5:1 white-text contrast at both stops and
+intermediate shades across every shipped palette and state.
+
+Secondary actions are transparent with restrained outlines and medium-weight
+labels. Destructive actions use a red tint and outline rather than a dominant
+solid red fill. Disabled actions mute both captions and glyphs. Keyboard focus
+retains its visible border; opacity or scaling is not the only state indicator.
+
+### Dialog hierarchy and layout
+
+Normal dialogs use `DialogPadding` (24px) around content and
+`DialogHeaderSpacing` (16px below the header). Keep exterior shadow margins
+separate from content padding. Use the opt-in roles from `DialogStyles.axaml`:
+
+| Class | Role |
 |---|---|
-| `Button.action-primary` | Main call to action (theme accent background, white text). |
-| `Button.action-secondary` | Secondary action (`#1AFFFFFF` background with subtle border). |
-| `Button.icon-btn-subtle` | Icon-only utility buttons (`Width="28"`, `Height="28"`, transparent hover). |
-| `Button.tab-icon-btn` | Large square navigation tab buttons (`56x56`, `CornerRadius="12"`). |
-| `Button.dialog-close-btn` | Modal and flyout close buttons. |
+| `dialog-title` | 20px semibold primary title, wrapping when translated |
+| `dialog-section` | 15px semibold section heading |
+| `dialog-label` | 13px semibold secondary field label |
+| `dialog-body` | 13px primary explanatory copy |
+| `dialog-hint` | 12px secondary supporting copy |
+| `dialog-error` | 12px wrapping semantic validation error |
+
+Use a header/body/footer grid. The body scrolls independently; validation and
+actions occupy real footer rows, with 12px between actions. Do not float framed
+button bars over the form or reserve arbitrary bottom padding to hide overlap.
+Constrained action captions must wrap within their targets. Small confirmation
+dialogs grow for translated titles while keeping long message bodies bounded
+and scrollable. Native title bars and dense editor workspaces remain separate
+component families rather than inheriting dialog content titles.
+
+### Icons
+
+Use existing semantic geometry resources in `ThemeResources.axaml` for common
+actions (`AddIcon`, `EditIcon`, `DeleteIcon`, `DownloadIcon`, `RefreshIcon`,
+`CloseIcon`, and so on). Existing Material icons and `ToolIcon.*` resources may
+remain where they represent specialized concepts; do not add another icon
+package or paste duplicate path data for an existing semantic action.
+
+- Action and Studio tab glyphs: 16px (`ActionIconSize`); section and sidebar glyphs:
+  20px (`SectionIconSize`); profile navigation glyphs: 32px
+  (`ProfileNavigationIconSize`).
+- Let glyphs and action captions inherit the button foreground. A fixed white
+  child icon bypasses palette contrast and disabled styling.
+- Icon-only buttons require a localized accessible name and a matching tooltip.
+- Game artwork, publisher logos, and other brand graphics keep their identity.
+- Navigation pills, selectable cards, media transport, hotkey keys and hero Play
+  actions are separate component families. Do not mechanically apply action
+  roles to them.
+
+### Component showcase and verification
+
+Run the standalone developer gallery (no game or application services start):
+
+```sh
+dotnet run --project GenHub/GenHub.UI.Showcase
+```
+
+It uses the production resources and offers every shipped accent palette,
+default and compact actions, disabled controls, utility icons, and long Russian
+and Arabic captions. Hover, press, Tab and Enter work normally; resize the window
+to inspect wrapping. Labels in this developer tool are samples, not application
+localization resources.
+
+For a reproducible headless image:
+
+```sh
+dotnet run --project GenHub/GenHub.UI.Showcase -- --screenshot /absolute/path/components.png
+```
+
+For a UI change, compare representative before/after views, check keyboard focus
+and activation, disabled command behavior, live palette changes and long captions.
+A gallery image verifies shared controls; it does not replace screenshots of the
+migrated screens or native Windows/Linux/macOS verification.
 
 ## User feedback and toast notifications (INotificationService)
 
@@ -338,7 +488,8 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 #### TextBoxes and Search Fields (Watermarks)
 ```xml
-<TextBox Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
+<TextBox Classes="form-field"
+         Watermark="{localization:Localize Downloads.Browser.SearchWatermark}"
          Text="{Binding SearchQuery, Mode=TwoWay}" />
 ```
 
@@ -364,3 +515,32 @@ Declare the localization markup namespace on the root `<UserControl>` or `<Windo
 
 > [!IMPORTANT]
 > **Never hardcode string literals in XAML.** If you add a new UI element, always add its resource entry to `GenHub/GenHub/Resources/Localization/Strings.resx` using a hierarchical dot-separated key (`<Feature>.<Context>.<Element>`), and test that it renders correctly in Avalonia views.
+
+## Neutral reading surfaces and cards
+
+Use `Border.surface-card` for an opaque card shell with semantic background,
+border and `CardCornerRadius`. Add `surface-content` for the standard 16px inset,
+`surface-section` for a 24px form-section inset, and `surface-interactive` only
+when the whole card is an interactive target. Media and whole-card buttons may
+keep their padding on the inner content/target so the shell does not double it.
+
+Artwork and profile identity belong in previews, headers, selection indicators
+and accent stripes. Form reading surfaces stay opaque and neutral when the
+profile color changes, including very bright colors. Do not apply opacity to a
+whole form header: it also fades its text and actions. Use `TextPrimary` and
+`TextSecondary` for labels/help instead of reducing text opacity over artwork.
+
+Visual consistency is a quality constraint, not a reason to flatten a successful
+component. Catalog cards keep their restrained shading and depth, and the main
+selection outline stays crisp. Profile artwork and a light identity tint stay in a
+bounded header, and every profile tab keeps opaque reading panels. Form fills and
+borders remain visible at rest. Profile navigation keeps 32px glyphs with visible
+inactive targets.
+
+### Alignment and curvature
+
+Single-line, non-wrapping `form-field` editors center both text and watermark in the allocated height. Multiline and wrapped editors keep their first line at the top inset. Preserve local layout overrides for specialized editors.
+
+Action captions and glyphs center their own line/icon boxes within the shared action content. Avoid per-screen baseline nudges or transforms.
+
+Fields use `InputCornerRadius`. Fluent validation captions use the same error brush as field outlines.

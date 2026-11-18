@@ -5252,6 +5252,12 @@ public sealed class ReplayDirectoryServiceTests
 
             await ReplayCrcMatchingHelper.GetOrCalculateProfileExeCrcAsync(fakeExePath, mockCrcCalc.Object);
 
+            CrcMappingEntry? matchedClient = null;
+            if (!unmappedReplay)
+            {
+                matchedClient = isRetail ? CreateRetailMappingEntry() : CreateGeneralsOnlineMappingEntry();
+            }
+
             var replay = new ReplayFile
             {
                 FileName = isRetail ? "Match104.rep" : "MatchMod.rep",
@@ -5259,7 +5265,7 @@ public sealed class ReplayDirectoryServiceTests
                 SizeInBytes = 2048,
                 LastModified = DateTime.UtcNow,
                 GameVersion = GameType.ZeroHour,
-                MatchedClient = unmappedReplay ? null : (isRetail ? CreateRetailMappingEntry() : CreateGeneralsOnlineMappingEntry()),
+                MatchedClient = matchedClient,
                 Metadata = unmappedReplay ? new ReplayMetadata { ExeCrc = 0x99999999 } : null,
             };
 

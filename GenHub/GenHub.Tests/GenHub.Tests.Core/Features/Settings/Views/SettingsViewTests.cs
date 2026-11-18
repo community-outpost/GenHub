@@ -57,6 +57,44 @@ public class SettingsViewTests
         });
     }
 
+    /// <summary>
+    /// Verifies that advanced controls retain their values across disclosure changes.
+    /// </summary>
+    [AvaloniaFact]
+    public void AdvancedDownloads_CollapseKeepsValuesAndEverydayControlsAvailable()
+    {
+        using var viewModel = CreateViewModel();
+        var view = new SettingsView { DataContext = viewModel };
+        var window = new Window { Width = 1100, Height = 800, Content = view };
+        try
+        {
+            window.Show();
+            var downloads = view.FindControl<Expander>("Expander_Downloads")!;
+            downloads.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            var advanced = view.FindControl<Expander>("AdvancedDownloadSettings")!;
+            Assert.False(advanced.IsExpanded);
+            viewModel.DownloadBufferSizeKB = 128;
+            advanced.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            var buffer = view.FindControl<NumericUpDown>("DownloadBufferSizeInput")!;
+            Assert.True(buffer.IsEffectivelyVisible);
+            advanced.IsExpanded = false;
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(buffer.IsEffectivelyVisible);
+            advanced.IsExpanded = true;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(128, viewModel.DownloadBufferSizeKB);
+            Assert.Equal(128, buffer.Value);
+            Assert.True(buffer.IsEffectivelyVisible);
+            Assert.True(downloads.IsExpanded);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     private static async Task AssertSectionScrollsIntoViewAsync(Action<SettingsViewModel, SettingsView, Expander> triggerAction)
     {
         using var viewModel = CreateViewModel();

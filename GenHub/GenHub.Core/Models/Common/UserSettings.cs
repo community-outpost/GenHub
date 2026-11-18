@@ -54,6 +54,12 @@ public class UserSettings
     /// <summary>Gets or sets the sorting mode for game profiles on the launcher screen.</summary>
     public ProfileSortMode ProfileSortMode { get; set; } = ProfileSortMode.LastPlayed;
 
+    /// <summary>Gets or sets how game profiles are presented on the launcher screen.</summary>
+    public ProfileLayout ProfileLayout { get; set; } = ProfileLayout.Library;
+
+    /// <summary>Gets or sets the outcome of the most recent completed game installation scan.</summary>
+    public InstallationScanOutcome LastInstallationScanOutcome { get; set; } = InstallationScanOutcome.NotScanned;
+
     /// <summary>Gets or sets the last selected navigation tab.</summary>
     public NavigationTab LastSelectedTab { get; set; } = NavigationTab.Home;
 
@@ -222,9 +228,9 @@ public class UserSettings
     public bool IsNotificationMuted { get; set; }
 
     /// <summary>
-    /// Gets or sets the telemetry collection preference level.
+    /// Gets or sets the telemetry collection preference level. Telemetry stays off until the user turns it on.
     /// </summary>
-    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.AnonymousMetrics;
+    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.Disabled;
 
     /// <summary>
     /// Gets or sets a value indicating whether the telemetry onboarding prompt has been shown.
@@ -257,6 +263,8 @@ public class UserSettings
             WorkspacePath = WorkspacePath,
             LastUsedProfileId = LastUsedProfileId,
             ProfileSortMode = ProfileSortMode,
+            ProfileLayout = ProfileLayout,
+            LastInstallationScanOutcome = LastInstallationScanOutcome,
             LastSelectedTab = LastSelectedTab,
             MaxConcurrentDownloads = MaxConcurrentDownloads,
             AllowBackgroundDownloads = AllowBackgroundDownloads,

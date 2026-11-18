@@ -1,5 +1,7 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 using System;
@@ -15,12 +17,6 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class GameProfileLauncherView : UserControl
 {
-    // Height of the invisible hover/tap strip at the top of the view that re-expands the
-    // collapsed header. Tracked via pointer position so it reserves no layout space.
-    private const double HeaderHoverThreshold = 24.0;
-
-    private bool _pointerInHeaderHoverZone;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileLauncherView"/> class.
     /// </summary>
@@ -29,6 +25,7 @@ public partial class GameProfileLauncherView : UserControl
         InitializeComponent();
         AddHandler(DragDrop.DropEvent, OnDrop);
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DoubleTappedEvent, OnProfileRowDoubleTapped);
     }
 
     /// <summary>
@@ -80,72 +77,19 @@ public partial class GameProfileLauncherView : UserControl
         Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
     }
 
-    private void HeaderZone_PointerEntered(object? sender, PointerEventArgs e)
+    private void OnProfileRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.ExpandHeaderCommand.Execute(null);
-        }
-    }
-
-    private void HeaderZone_PointerExited(object? sender, PointerEventArgs e)
-    {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.StartHeaderTimerCommand.Execute(null);
-        }
-    }
-
-    private void RootLayout_PointerMoved(object? sender, PointerEventArgs e)
-    {
-        UpdateHeaderHoverZone(e);
-    }
-
-    private void RootLayout_PointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        UpdateHeaderHoverZone(e);
-    }
-
-    private void UpdateHeaderHoverZone(PointerEventArgs e)
-    {
-        if (DataContext is not GameProfileLauncherViewModel vm || vm.IsHeaderExpanded)
-        {
-            _pointerInHeaderHoverZone = false;
-            return;
-        }
-
-        var inHoverZone = e.GetPosition(this).Y <= HeaderHoverThreshold;
-        if (inHoverZone == _pointerInHeaderHoverZone)
+        if (e.Source is not Visual source ||
+            source.FindAncestorOfType<Button>(includeSelf: true) != null ||
+            source.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { DataContext: GameProfileItemViewModel profile })
         {
             return;
         }
 
-        _pointerInHeaderHoverZone = inHoverZone;
-        if (inHoverZone)
+        e.Handled = true;
+        if (!profile.IsProcessRunning && !profile.IsPreparingWorkspace && profile.LaunchProfileCommand.CanExecute(null))
         {
-            vm.ExpandHeaderCommand.Execute(null);
-        }
-        else
-        {
-            vm.StartHeaderTimerCommand.Execute(null);
-        }
-    }
-
-    private void SortModeComboBox_DropDownOpened(object? sender, EventArgs e)
-    {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.IsSortDropdownOpen = true;
-            vm.ExpandHeaderCommand.Execute(null);
-        }
-    }
-
-    private void SortModeComboBox_DropDownClosed(object? sender, EventArgs e)
-    {
-        if (DataContext is GameProfileLauncherViewModel vm)
-        {
-            vm.IsSortDropdownOpen = false;
-            vm.StartHeaderTimerCommand.Execute(null);
+            profile.LaunchProfileCommand.Execute(null);
         }
     }
 

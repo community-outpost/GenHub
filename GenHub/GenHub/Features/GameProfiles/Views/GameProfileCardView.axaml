@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:localization="clr-namespace:GenHub.Common.Markup"
+             xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
              x:DataType="vm:GameProfileItemViewModel"
@@ -69,7 +70,6 @@
             <Setter Property="Opacity" Value="1" />
         </Style>
 
-
         <!-- Metadata Panel Animation -->
         <Style Selector="StackPanel.metadata-panel">
             <Setter Property="RenderTransform" Value="translateY(0)" />
@@ -91,14 +91,13 @@
             <Setter Property="Foreground" Value="#1A1A1A" />
             <Setter Property="FontSize" Value="16" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="CornerRadius" Value="24" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
             <Setter Property="Padding" Value="24,12" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#FFFFFFFF" />
             <Setter Property="HorizontalAlignment" Value="Center" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="RenderTransform" Value="scale(0.9)" />
-            <Setter Property="Opacity" Value="0.4" />
             <Setter Property="Transitions">
                 <Transitions>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
@@ -110,7 +109,15 @@
 
         <Style Selector="Border.profile-card:pointerover Button.launch-button">
             <Setter Property="RenderTransform" Value="scale(1)" />
-            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Button.launch-button:focus-visible">
+            <Setter Property="RenderTransform" Value="scale(1)" />
+        </Style>
+
+        <!-- Read-only card previews cannot be clicked, so they hide the Play button -->
+        <Style Selector="views|GameProfileCardView[IsHitTestVisible=False] Button.play-button">
+            <Setter Property="IsVisible" Value="False" />
         </Style>
 
         <Style Selector="Button.launch-button:pointerover">
@@ -123,12 +130,12 @@
         </Style>
 
         <!-- Tools/Action Button Style -->
-        <Style Selector="Button.tool-button, ToggleButton.tool-button">
+        <Style Selector="ToggleButton.tool-button">
             <Setter Property="Background" Value="#40000000" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Width" Value="32" />
             <Setter Property="Height" Value="32" />
-            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="CornerRadius" Value="{DynamicResource ActionCornerRadius}" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#20FFFFFF" />
@@ -143,25 +150,44 @@
             </Setter>
         </Style>
 
-        <Style Selector="Button.tool-button:pointerover, ToggleButton.tool-button:pointerover">
+        <Style Selector="ToggleButton.tool-button:pointerover">
             <Setter Property="Background" Value="#80000000" />
             <Setter Property="BorderBrush" Value="#80FFFFFF" />
             <Setter Property="RenderTransform" Value="scale(1.1)" />
         </Style>
 
-        <!-- Delete Button Specifics (Red Glassmorphism) -->
-        <Style Selector="Button.delete-btn">
-             <Setter Property="Background" Value="#20D32F2F" /> <!-- Subtle Red Tint -->
-             <Setter Property="BorderBrush" Value="#60D32F2F" />
-             <Setter Property="Foreground" Value="#FFEBEE" />
+        <!-- Card tools sit over cover art, so they keep a dark backing and light ink -->
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):not(:disabled)">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
         </Style>
-        <Style Selector="Button.delete-btn:pointerover">
-            <Setter Property="Background" Value="#80D32F2F" /> <!-- Stronger Red on Hover -->
-            <Setter Property="BorderBrush" Value="#FFD32F2F" />
-            <Setter Property="Foreground" Value="White" />
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
+        </Style>
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover, Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
+        </Style>
+        <Style Selector="Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.icon-action:not(.action-primary):not(.action-secondary):not(.action-danger):pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderStrongBrush}" />
+        </Style>
+        <Style Selector="Button.action-danger.icon-action:not(:disabled)">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+        </Style>
+        <Style Selector="Button.action-danger.icon-action:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OverlayScrimBrush}" />
+        </Style>
+        <Style Selector="Button.action-danger.icon-action:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.action-danger.icon-action:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionDangerInk}" />
         </Style>
 
-        <Style Selector="Button.tool-button:pressed, ToggleButton.tool-button:pressed">
+        <Style Selector="ToggleButton.tool-button:pressed">
             <Setter Property="RenderTransform" Value="scale(0.9)" />
         </Style>
 
@@ -180,6 +206,27 @@
         <!-- Ensure icon inside launch button inherits color on hover -->
         <Style Selector="Button.launch-button:pointerover PathIcon" x:CompileBindings="False">
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+        </Style>
+
+        <!-- Keep the primary action readable over every cover image. These follow the launch theming so they win, and the
+             pointer and pressed states target the template because the Fluent theme sets them there. -->
+        <Style Selector="Button.launch-button.play-button">
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBackground}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="CornerRadius" Value="18" />
+            <!-- Overrides the 110 MinWidth that GameProfileLauncherView.axaml sets on Button.launch-button. -->
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <Style Selector="Button.launch-button.play-button:pointerover /template/ ContentPresenter#PART_ContentPresenter, Button.launch-button.play-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentDarkBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
+        </Style>
+        <Style Selector="Button.launch-button.play-button:pointerover PathIcon">
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
         </Style>
 
         <Style Selector="ToggleButton.tool-button:checked">
@@ -320,7 +367,7 @@
                 <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.CopyProfile}"
                           Command="{Binding CopyProfileCommand}">
                     <MenuItem.Icon>
-                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                        <PathIcon Data="{StaticResource CopyIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Header="{localization:Localize GameProfiles.Card.Menu.CreateShortcut}"
@@ -334,7 +381,7 @@
                           Command="{Binding DeleteProfileCommand}"
                           Foreground="#EF4444">
                     <MenuItem.Icon>
-                        <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Foreground="#EF4444" />
+                        <PathIcon Data="{StaticResource DeleteIcon}" Foreground="#EF4444" />
                     </MenuItem.Icon>
                 </MenuItem>
             </ContextMenu>
@@ -343,16 +390,16 @@
         <!-- Clipping Container for Internal Content -->
         <!-- This ensures all children are strictly clipped to the rounded corners, preventing 'hard corners' -->
         <Border CornerRadius="16" ClipToBounds="True">
-            <Grid>
+            <Grid RowDefinitions="*,Auto">
                 <!-- Background Image (Clipped) -->
                 <!-- Margin 1px to prevent sub-pixel bleeding at edges -->
-                <Border CornerRadius="16" ClipToBounds="True" Margin="1">
+                <Border Grid.RowSpan="2" CornerRadius="16" ClipToBounds="True" Margin="1">
                      <Image Source="{Binding CoverImagePath, Converter={StaticResource StringToImageConverter}}"
                             Stretch="UniformToFill" />
                 </Border>
 
                 <!-- Dark Gradient Overlay -->
-                <Border CornerRadius="16" Margin="1">
+                <Border Grid.RowSpan="2" CornerRadius="16" Margin="1">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                             <GradientStop Color="#20000000" Offset="0" />
@@ -367,7 +414,7 @@
                      Actually, let's use Margin="-2" to make it bleed OUTWARD slightly if ZIndex is high, or 0 if contained.
                      The user reported missing borders (left/top). This usually means clipping.
                      Let's ensure the parent container has enough padding or this element has margin. -->
-                <Border Classes="hover-glow" IsVisible="{Binding !IsProcessRunning}"
+                <Border Grid.RowSpan="2" Classes="hover-glow" IsVisible="{Binding !IsProcessRunning}"
                         BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
                         BorderThickness="4"
                         CornerRadius="16"
@@ -379,14 +426,14 @@
                 </Border>
 
                 <!-- Color Tint Overlay -->
-                <Border Opacity="0.25" IsVisible="{Binding !IsProcessRunning}" CornerRadius="16">
+                <Border Grid.RowSpan="2" Opacity="0.25" IsVisible="{Binding !IsProcessRunning}" CornerRadius="16">
                     <Border.Background>
                         <SolidColorBrush Color="{Binding ColorValue, Converter={StaticResource StringToColorConverter}}" />
                     </Border.Background>
                 </Border>
 
                 <!-- Running State Active Overlay -->
-                <Border IsVisible="{Binding IsProcessRunning}"
+                <Border Grid.RowSpan="2" IsVisible="{Binding IsProcessRunning}"
                         BorderBrush="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}"
                         BorderThickness="2"
                         CornerRadius="16"
@@ -397,7 +444,7 @@
                 </Border>
 
                 <!-- Metadata Content (Bottom) -->
-                <StackPanel Classes="metadata-panel" VerticalAlignment="Bottom" Margin="16">
+                <StackPanel Grid.Row="1" Classes="metadata-panel" VerticalAlignment="Bottom" Margin="16">
                     <!-- Title and Icon -->
                     <Grid ColumnDefinitions="Auto, *">
                         <!-- Icon Container with Profile Color Border -->
@@ -447,9 +494,24 @@
                 </StackPanel>
 
 
+                <!-- Play Button: always visible between the tool row and the metadata, above the hover overlay, first card tab stop -->
+                <!-- The 52 top margin clears the 48 hover tool row and leaves room for Play to grow on hover. The tool row is 8 row margin, 32 button and 4 button margin above and below. PlayButton_ClearsToolRowAndWrappedRussianBadgesAtMinimumWidthAsync guards it. -->
+                <Panel Grid.Row="0" ZIndex="1" Margin="0,52,0,0" IsVisible="{Binding CanLaunch}">
+                    <Button Classes="launch-button play-button"
+                            Command="{Binding LaunchProfileCommand}"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.LaunchProfile}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
+                                <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Launch}" VerticalAlignment="Center" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Button.Content>
+                    </Button>
+                </Panel>
+
                 <!-- Hover Interaction Overlay -->
                 <!-- Tag bound to IsDemoModeActive allows CSS-like selection to force visibility -->
-                <Grid Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
+                <Grid Grid.RowSpan="2" Classes="hover-overlay" IsVisible="{Binding !IsProcessRunning}">
 
                     <!-- Tint Darken on Hover -->
                     <Border Background="#30000000" CornerRadius="16" />
@@ -458,34 +520,25 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8"
                                 IsVisible="{Binding IsFreeReorderMode}">
                         <!-- Move Left -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding MoveLeftCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.MoveLeft}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveLeft}">
-                            <PathIcon Data="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z" Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveLeft}"
+                                Margin="4">
+                            <PathIcon Data="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"   />
                         </Button>
 
                         <!-- Move Right -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding MoveRightCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.MoveRight}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveRight}">
-                            <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z" Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.MoveRight}"
+                                Margin="4">
+                            <PathIcon Data="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"   />
                         </Button>
                     </StackPanel>
-
-                    <!-- Launch Button Center -->
-                    <Button Classes="launch-button"
-                            Command="{Binding LaunchProfileCommand}"
-                            AutomationProperties.Name="Launch Profile"
-                            IsVisible="{Binding CanLaunch}">
-                        <Button.Content>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <PathIcon Data="M8,5.14V19.14L19,12.14L8,5.14Z" Width="14" Height="14" />
-                                <TextBlock Text="{localization:Localize GameProfiles.Card.Action.Launch}" VerticalAlignment="Center" FontWeight="Bold"/>
-                            </StackPanel>
-                        </Button.Content>
-                    </Button>
 
                     <!-- Top Right Tools (Expanded) -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
@@ -505,57 +558,61 @@
                         </Grid>
 
                         <!-- Edit Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding EditProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}">
-                            <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}"
+                                Margin="4">
+                            <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
                         </Button>
 
                         <!-- Share Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding ShareProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}">
-                            <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}"
+                                Margin="4">
+                            <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z" />
                         </Button>
 
                         <!-- Copy Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding CopyProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}">
-                            <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}"
+                                Margin="4">
+                            <PathIcon Data="{StaticResource CopyIcon}" />
                         </Button>
 
                         <!-- Create Shortcut -->
                         <Grid>
-                            <Button Classes="tool-button"
+                            <Button
+                                    Classes="icon-action"
                                     Command="{Binding CreateShortcutCommand}"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}"
-                                    AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}">
-                                <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
-                                          Width="14" Height="14" />
+                                    AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}"
+                                    Margin="4">
+                                <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z" />
                             </Button>
                         </Grid>
 
                         <!-- Delete Button -->
-                        <Button Classes="tool-button delete-btn"
+                        <Button
+                                Classes="action-danger icon-action"
                                 Command="{Binding DeleteProfileCommand}"
-                                Foreground="#EF4444"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}">
-                            <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.DeleteProfile}"
+                                Margin="4">
+                            <PathIcon Data="{StaticResource DeleteIcon}" />
                         </Button>
                     </StackPanel>
                 </Grid>
 
                 <!-- Demo Highlight Circles Overlay (Always Visible, Independent of Hover) -->
-                <Grid IsVisible="{Binding !IsProcessRunning}" IsHitTestVisible="False">
+                <Grid Grid.RowSpan="2" IsVisible="{Binding !IsProcessRunning}" IsHitTestVisible="False">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
 
                         <!-- 1. Steam Slot -->
@@ -598,12 +655,12 @@
                 </Grid>
 
                 <!-- Running State Overlay (Always interactions when running) -->
-                <Grid IsVisible="{Binding IsProcessRunning}">
+                <Grid Grid.RowSpan="2" IsVisible="{Binding IsProcessRunning}">
                     <!-- Stop Button Center -->
                     <Button Classes="launch-button"
                             Command="{Binding StopProfileCommand}"
                             CommandParameter="{Binding}"
-                            AutomationProperties.Name="Stop Profile"
+                            AutomationProperties.Name="{localization:Localize GameProfiles.Card.Action.Stop}"
                             Background="#CCEF4444"
                             BorderBrush="#EF4444"
                             Foreground="White"
@@ -659,44 +716,46 @@
                     <!-- Top Right Tools (Running Mode: Edit/Hotswap, Share, Copy, Shortcut) -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8">
                         <!-- Edit Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding EditProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.EditProfileHotswap}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}">
-                            <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.EditProfile}"
+                                Margin="4">
+                            <PathIcon Data="M20.71,4.04C21.1,3.65 21.1,3 20.71,2.63L18.37,0.29C18,-.1 17.35,-.1 16.96,0.29L15.12,2.12L18.87,5.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
                         </Button>
 
                         <!-- Share Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding ShareProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}">
-                            <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.ShareProfile}"
+                                Margin="4">
+                            <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z" />
                         </Button>
 
                         <!-- Copy Button -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding CopyProfileCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}">
-                            <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CopyProfile}"
+                                Margin="4">
+                            <PathIcon Data="{StaticResource CopyIcon}" />
                         </Button>
 
                         <!-- Create Shortcut -->
-                        <Button Classes="tool-button"
+                        <Button
+                                Classes="icon-action"
                                 Command="{Binding CreateShortcutCommand}"
                                 ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}"
-                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}">
-                            <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z"
-                                      Width="14" Height="14" />
+                                AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.CreateShortcut}"
+                                Margin="4">
+                            <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.8,14L10,12.8V4H14V12.8L15.2,14H8.8Z" />
                         </Button>
                     </StackPanel>
                 </Grid>
-
-
 
             </Grid>
         </Border>

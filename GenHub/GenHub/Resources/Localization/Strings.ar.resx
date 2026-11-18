@@ -508,7 +508,7 @@
     <value>فحص</value>
   </data>
   <data name="GameProfiles.Card.Action.Launch" xml:space="preserve">
-    <value>تشغيل</value>
+    <value>العب</value>
   </data>
   <data name="GameProfiles.Card.Action.Stop" xml:space="preserve">
     <value>إيقاف</value>
@@ -542,6 +542,9 @@
   </data>
   <data name="GameProfiles.Card.Tooltip.EditProfileHotswap" xml:space="preserve">
     <value>تعديل ملف التعريف (تبديل سريع للمحتوى)</value>
+  </data>
+  <data name="GameProfiles.Card.Tooltip.LaunchProfile" xml:space="preserve">
+    <value>العب بملف التعريف هذا</value>
   </data>
   <data name="GameProfiles.Card.Tooltip.SteamIntegration" xml:space="preserve">
     <value>تبديل تكامل Steam</value>
@@ -638,6 +641,9 @@
   </data>
   <data name="GameProfiles.InstallationType.PcGame" xml:space="preserve">
     <value>لعبة كمبيوتر (PC)</value>
+  </data>
+  <data name="GameProfiles.InstallationType.Lutris" xml:space="preserve">
+    <value>Lutris</value>
   </data>
   <data name="GameProfiles.InstallationType.Retail" xml:space="preserve">
     <value>نسخة التجزئة (Retail)</value>
@@ -782,6 +788,9 @@
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Message" xml:space="preserve">
     <value>اكتمل فحص اللعبة! تم إنشاء {0} ملفات تعريف جديدة.</value>
+  </data>
+  <data name="GameProfiles.Notification.ScanComplete.MessageSingular" xml:space="preserve">
+    <value>اكتمل فحص اللعبة! تم إنشاء ملف تعريف جديد واحد.</value>
   </data>
   <data name="GameProfiles.Notification.ScanComplete.Title" xml:space="preserve">
     <value>اكتمل الفحص</value>
@@ -937,7 +946,7 @@
     <value>تبحث عن Command &amp; Conquer Generals؟</value>
   </data>
   <data name="GameProfiles.Storefront.BannerDescription" xml:space="preserve">
-    <value>تعذر العثور على تثبيت Command &amp; Conquer Generals و Zero Hour. تحتاج إلى نسخة مثبتة من اللعبة للعب. يمكنك شراء اللعبة رسميًا من Steam أو تطبيق EA.</value>
+    <value>لم يعثر GenHub على لعبة مثبتة. إذا كنت تملكها، فاختر مجلدها. وإلا يمكنك شراؤها من Steam أو تطبيق EA.</value>
   </data>
   <data name="GameProfiles.Storefront.SteamButton" xml:space="preserve">
     <value>شراء عبر Steam</value>
@@ -947,6 +956,36 @@
   </data>
   <data name="GameProfiles.Storefront.FailedToOpenUrl" xml:space="preserve">
     <value>فشل في فتح صفحة المتجر: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Title" xml:space="preserve">
+    <value>دع GenHub يعثر على لعبتك</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Description" xml:space="preserve">
+    <value>لم يفحص GenHub هذا الكمبيوتر بعد. ابدأ الفحص للعثور على Command &amp; Conquer Generals و Zero Hour وإعداد ملفات تعريف لهما.</value>
+  </data>
+  <data name="GameProfiles.ScanPrompt.Button" xml:space="preserve">
+    <value>البحث عن الألعاب</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Title" xml:space="preserve">
+    <value>لم يكتمل فحص اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.Description" xml:space="preserve">
+    <value>تعذر على GenHub فحص جميع المواقع. اختر مجلد اللعبة، أو أصلح مشكلة الوصول وأعد الفحص.</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderButton" xml:space="preserve">
+    <value>اختيار مجلد اللعبة</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.RetryButton" xml:space="preserve">
+    <value>إعادة الفحص</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.ChooseFolderFailed" xml:space="preserve">
+    <value>تعذّر إعداد مجلد اللعبة المختار: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.SetupFailed" xml:space="preserve">
+    <value>فشل إعداد الألعاب التي تم العثور عليها: {0}</value>
+  </data>
+  <data name="GameProfiles.ScanFailure.IncompleteMessage" xml:space="preserve">
+    <value>تعذّر البحث في بعض المواقع، لذلك استخدم GenHub مجلد اللعبة الذي اخترته. أصلح مشكلة الوصول ثم أعد الفحص للعثور على تثبيتات أخرى.</value>
   </data>
   <data name="GameProfiles.Status.NoInstallationsFound" xml:space="preserve">
     <value>لم يتم العثور على أي تثبيتات للعبة</value>
@@ -1004,9 +1043,6 @@
   </data>
   <data name="GameProfiles.Status.ScanComplete" xml:space="preserve">
     <value>اكتمل الفحص. تم العثور على {0} من تثبيتات اللعبة</value>
-  </data>
-  <data name="GameProfiles.Status.ScanCompleteFound" xml:space="preserve">
-    <value>اكتمل الفحص. تم العثور على {0} من التثبيتات، وتم إنشاء {1} من ملفات التعريف</value>
   </data>
   <data name="GameProfiles.Status.ScanCompleteNoNew" xml:space="preserve">
     <value>اكتمل الفحص! لم يتم العثور على تثبيتات جديدة</value>
@@ -1111,10 +1147,10 @@
     <value>لا يمكن لمشغل وكيل Steam تشغيل ملف بتنسيق غير تابع لـ Windows '{0}'. يتطلب تكامل Steam وجود ملف تنفيذي لـ Windows.</value>
   </data>
   <data name="Launch.Monitoring.BootstrapperChildUnresolved" xml:space="preserve">
-    <value>لا يمكن تشغيل '{0}': فهو يشغّل '{1}'، وهو غير موجود في المحتوى المحدد أو في مساحة العمل، لذلك لا يستطيع GenHub تتبع اللعبة. حدّث عميل اللعبة أو أعد تثبيته، أو غيّر استراتيجية مساحة العمل لهذا الملف الشخصي إلى استراتيجية غير SymlinkOnly.</value>
+    <value>لا يمكن تشغيل '{0}': فهو يشغّل '{1}'، وهو غير موجود في المحتوى المحدد أو في مساحة العمل، لذلك لا يستطيع GenHub تتبع اللعبة. حدّث عميل اللعبة أو أعد تثبيته، أو غيّر استراتيجية مساحة العمل لهذا الملف الشخصي إلى استراتيجية غير «روابط رمزية».</value>
   </data>
   <data name="Launch.Monitoring.EntryPointHashMissing" xml:space="preserve">
-    <value>لا يمكن تشغيل '{0}': المحتوى المحدد لا يتضمن بصمة محتوى له، لذلك لا يستطيع GenHub تتبع اللعبة. حدّث عميل اللعبة أو أعد تثبيته، أو غيّر استراتيجية مساحة العمل لهذا الملف الشخصي إلى استراتيجية غير SymlinkOnly.</value>
+    <value>لا يمكن تشغيل '{0}': المحتوى المحدد لا يتضمن بصمة محتوى له، لذلك لا يستطيع GenHub تتبع اللعبة. حدّث عميل اللعبة أو أعد تثبيته، أو غيّر استراتيجية مساحة العمل لهذا الملف الشخصي إلى استراتيجية غير «روابط رمزية».</value>
   </data>
   <data name="Manifest.EntryPoint.NotFoundInPayload" xml:space="preserve">
     <value>يعلن عميل اللعبة '{0}' عن نقطة إدخال '{1}'، والتي لم يتم العثور عليها في حمولتها.</value>
@@ -1654,6 +1690,12 @@
   </data>
   <data name="Settings.Appearance.Language.Description" xml:space="preserve">
     <value>حدد لغة عرض واجهة المستخدم.</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Label" xml:space="preserve">
+    <value>تخطيط الملفات الشخصية</value>
+  </data>
+  <data name="Settings.Appearance.ProfileLayout.Description" xml:space="preserve">
+    <value>اعرض ملفات اللعبة الشخصية كمكتبة قابلة للبحث أو كبطاقات تحتوي كل منها على زر تشغيل.</value>
   </data>
   <data name="Settings.Appearance.Language.Label" xml:space="preserve">
     <value>اللغة</value>
@@ -3355,13 +3397,13 @@
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>اللون الأساسي للواجهة</value>
   </data>
-  <data name="GameProfiles.Navigation.ContentTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>المحتوى</value>
   </data>
-  <data name="GameProfiles.Navigation.ProfileSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.ProfileSettings" xml:space="preserve">
     <value>إعدادات الملف الشخصي</value>
   </data>
-  <data name="GameProfiles.Navigation.GameSettingsTooltip" xml:space="preserve">
+  <data name="GameProfiles.Navigation.GameSettings" xml:space="preserve">
     <value>إعدادات اللعبة</value>
   </data>
   <data name="GameSettings.Category.Video" xml:space="preserve">
@@ -3684,6 +3726,9 @@
   </data>
   <data name="Theme.Color.CyanBlue" xml:space="preserve">
     <value>أزرق سماوي</value>
+  </data>
+  <data name="Theme.Color.MediumBlue" xml:space="preserve">
+    <value>أزرق متوسط</value>
   </data>
   <data name="Theme.Color.Cyan" xml:space="preserve">
     <value>سماوي</value>
@@ -4141,6 +4186,54 @@
   <data name="Downloads.Browser.Search" xml:space="preserve">
     <value>بحث</value>
   </data>
+  <data name="Downloads.Browser.Filter.Watermark" xml:space="preserve">
+    <value>التصفية حسب الاسم أو الفئة أو الوسم...</value>
+  </data>
+  <data name="Downloads.Browser.Filter.All" xml:space="preserve">
+    <value>الكل</value>
+  </data>
+  <data name="Downloads.Browser.Filter.NoMatches" xml:space="preserve">
+    <value>لا يوجد محتوى يطابق عامل التصفية الحالي.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.LoadedOnly" xml:space="preserve">
+    <value>تتم تصفية العناصر المحمّلة فقط. حمّل المزيد لتضمين البقية.</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Clear" xml:space="preserve">
+    <value>مسح عوامل التصفية</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.CommunityPatch" xml:space="preserve">
+    <value>تصحيح المجتمع</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.OfficialPatch" xml:space="preserve">
+    <value>التصحيح الرسمي</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.BaseGame" xml:space="preserve">
+    <value>اللعبة الأساسية</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.ControlBar" xml:space="preserve">
+    <value>أشرطة التحكم</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Hotkeys" xml:space="preserve">
+    <value>مفاتيح الاختصار</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Camera" xml:space="preserve">
+    <value>الكاميرا</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Tools" xml:space="preserve">
+    <value>الأدوات</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Maps" xml:space="preserve">
+    <value>الخرائط</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Visuals" xml:space="preserve">
+    <value>المرئيات</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Prerequisites" xml:space="preserve">
+    <value>المتطلبات المسبقة</value>
+  </data>
+  <data name="Downloads.Browser.Filter.Category.Other" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
   <data name="Downloads.Browser.MyDownloads" xml:space="preserve">
     <value>تنزيلاتي</value>
   </data>
@@ -4176,6 +4269,9 @@
   </data>
   <data name="Color.CyanBlue" xml:space="preserve">
     <value>أزرق سماوي</value>
+  </data>
+  <data name="Color.MediumBlue" xml:space="preserve">
+    <value>أزرق متوسط</value>
   </data>
   <data name="Color.DarkBlue" xml:space="preserve">
     <value>أزرق داكن</value>
@@ -4504,8 +4600,74 @@
   <data name="Profiles.Wizard.Title" xml:space="preserve">
     <value>إعداد المحتوى المكتشف</value>
   </data>
-  <data name="Profiles.Wizard.Skip" xml:space="preserve">
-    <value>تخطي</value>
+  <data name="Profiles.Wizard.Ready.Title" xml:space="preserve">
+    <value>تم العثور على اللعبة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.NoGameTitle" xml:space="preserve">
+    <value>لم يتم العثور على لعبة مثبتة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundOne" xml:space="preserve">
+    <value>وجدنا {0}.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundMany" xml:space="preserve">
+    <value>وجدنا هذه الألعاب:</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundNone" xml:space="preserve">
+    <value>لم يتعرف GenHub هنا على لعبة يمكن تشغيلها. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntry" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.FoundEntryVersion" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="Profiles.Wizard.Game.Generals" xml:space="preserve">
+    <value>Generals</value>
+  </data>
+  <data name="Profiles.Wizard.Game.ZeroHour" xml:space="preserve">
+    <value>Zero Hour</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.UseInstalledGame" xml:space="preserve">
+    <value>استخدام اللعبة المثبتة</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.Customize" xml:space="preserve">
+    <value>تخصيص الإعداد</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.CustomizeHint" xml:space="preserve">
+    <value>أضف Generals Online أو TheSuperHackers أو Community Patch.</value>
+  </data>
+  <data name="Profiles.Wizard.Ready.SetUpLater" xml:space="preserve">
+    <value>الإعداد لاحقًا</value>
+  </data>
+  <data name="Profiles.Wizard.Back" xml:space="preserve">
+    <value>رجوع</value>
+  </data>
+  <data name="GameProfiles.Notification.SetupNotFinished.Message" xml:space="preserve">
+    <value>لم يكتمل الإعداد، لذلك لم يتم إنشاء ملفات تعريف. اختر «فحص» للمحاولة مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Title" xml:space="preserve">
+    <value>لم يتم إعداد بعض المكونات</value>
+  </data>
+  <data name="GameProfiles.Notification.ComponentsFailed.Message" xml:space="preserve">
+    <value>تعذر إعداد هذه المكونات: {0}. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.SetUpLater.Message" xml:space="preserve">
+    <value>لقد اخترت الإعداد لاحقًا. اختر «فحص» عندما تكون جاهزًا لإنشاء ملف تعريف.</value>
+  </data>
+  <data name="GameProfiles.Notification.AlreadySetUp.Message" xml:space="preserve">
+    <value>لعبتك معدّة بالفعل. لم تكن هناك حاجة إلى ملفات تعريف جديدة.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Title" xml:space="preserve">
+    <value>لم يتم إنشاء ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Notification.NoProfilesCreated.Message" xml:space="preserve">
+    <value>عثر GenHub على لعبتك لكنه لم يتمكن من إنشاء ملف تعريف لها. راجع السجلات لمعرفة التفاصيل.</value>
+  </data>
+  <data name="GameProfiles.Notification.NoInstalledGame.Message" xml:space="preserve">
+    <value>لم يعثر GenHub على لعبة يمكن إعدادها، لذلك لم يتم إنشاء أي ملفات تعريف. أضف مجلد اللعبة من الإعدادات ضمن «تثبيتات اللعبة المخصصة»، ثم اختر فحص.</value>
   </data>
   <data name="Profiles.Wizard.Continue" xml:space="preserve">
     <value>متابعة</value>
@@ -4845,6 +5007,12 @@
   </data>
   <data name="Downloads.ContentDetail.Publisher" xml:space="preserve">
     <value>الناشر</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageUnavailable" xml:space="preserve">
+    <value>تعذّر تحميل الصورة. افتح الرابط:</value>
+  </data>
+  <data name="Downloads.ContentDetail.CardImageLinkTooltip" xml:space="preserve">
+    <value>افتح رابط الصورة في المتصفح</value>
   </data>
   <data name="Downloads.ContentDetail.PublisherDisclaimer" xml:space="preserve">
     <value>المحتوى مقدم من ناشرين خارجيين. GenHub لا يضمن التوافق.</value>
@@ -5787,9 +5955,9 @@
     <value>أزرار بطاقات الملف الشخصي وتنظيف البيان وتغيير حجم النوافذ.</value>
   </data>
   <data name="Info.Card.game-profiles.controls.DetailedContent" xml:space="preserve">
-    <value>**عناصر التحكم في بطاقة ملف التعريف:**
+    <value>**عناصر التحكم في ملف التعريف:**
 1. **تشغيل:** يبدأ اللعبة بالتعديلات والإعدادات ومساحة العمل النشطة لهذا الملف.
-2. **تعديل ملف التعريف (أيقونة القلم):** يفتح محرر ملف التعريف لاختيار التعديلات والخرائط وضبط الإعدادات.
+2. **تعديل ملف التعريف:** يفتح محرر ملف التعريف من قائمة إجراءات ملف التعريف لاختيار التعديلات والخرائط وضبط الإعدادات.
 3. **نسخ ملف التعريف (تكرار):** يستنسخ ملف التعريف بالكامل، بما في ذلك جميع الإعدادات والمحتويات المُمكّنة.
 4. **اختصار سطح المكتب:** ينشئ اختصارًا على سطح المكتب لتشغيل هذا الملف مباشرة.
 5. **حذف ملف التعريف:** يزيل ملف التعريف وتكوين مساحة العمل المخصصة له.
@@ -6064,7 +6232,7 @@
     <value>طريقة إضافة اختصار لملف التعريف على سطح مكتب Windows.</value>
   </data>
   <data name="Info.Card.shortcuts.creation.DetailedContent" xml:space="preserve">
-    <value>1. في **ملفات تعريف اللعبة**، انقر بزر الماوس الأيمن على أي بطاقة ملف تعريف (أو انقر فوق أيقونة اختصار سطح المكتب).
+    <value>1. في **ملفات تعريف اللعبة**، اختر ملف تعريف وافتح قائمة إجراءات ملف التعريف.
 2. اختر **إنشاء اختصار على سطح المكتب**.
 3. يكتب GenHub الاختصار المناسب لنظامك: ملف `.lnk` على Windows أو مدخل `.desktop` على Linux. اختصارات الملفات غير متوفرة على macOS بعد.
 4. انقر نقرًا مزدوجًا عليه لتشغيل ملف التعريف.</value>
@@ -6812,6 +6980,15 @@
   </data>
   <data name="Settings.Subscriptions.RemoveToolTip" xml:space="preserve">
     <value>إلغاء الاشتراك من هذا الكتالوج</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdate" xml:space="preserve">
+    <value>التحديث تلقائيًا</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateToolTip" xml:space="preserve">
+    <value>عند تشغيل ملف تعريف، يتم تنزيل الإصدارات الجديدة من هذا الكتالوج وتبديل ملف التعريف إليها دون سؤال</value>
+  </data>
+  <data name="Settings.Subscriptions.AutoUpdateSaveFailedMessage" xml:space="preserve">
+    <value>فشل حفظ إعداد التحديث التلقائي لـ {0}.</value>
   </data>
   <data name="Settings.Subscriptions.RemovedNotificationMessage" xml:space="preserve">
     <value>تم إلغاء الاشتراك من {0}</value>
@@ -12826,7 +13003,10 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>يرجى الانتظار حتى انتهاء الرفع أو المزامنة الحالية قبل الفحص.</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.ContentItemsFormat" xml:space="preserve">
-    <value>{0} من العناصر</value>
+    <value>عدد العناصر: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Publish.ContentItemsFormatOne" xml:space="preserve">
+    <value>{0} عنصر</value>
   </data>
   <data name="Tools.PublisherStudio.Publish.CatalogsCountFormat" xml:space="preserve">
     <value>{0} من الفهارس</value>
@@ -13186,6 +13366,9 @@ GameFilesEdited/Data/INI/**/*.ini</value>
     <value>استوديو النشر GenHub</value>
   </data>
   <data name="Tools.PublisherStudio.Library.ItemsInCatalog" xml:space="preserve">
+    <value>عدد العناصر في الكتالوج: {0}</value>
+  </data>
+  <data name="Tools.PublisherStudio.Library.ItemsInCatalogOne" xml:space="preserve">
     <value>{0} عنصر في الكتالوج</value>
   </data>
   <data name="Tools.PublisherStudio.Artifact.ParsedSize" xml:space="preserve">
@@ -13599,6 +13782,123 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Content.ArtworkHint" xml:space="preserve">
     <value>الصق رابط صورة أو اختر ملفًا محليًا. تُرفع الملفات المحلية إلى مزود الاستضافة عند نشر الكتالوج.</value>
   </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabId" xml:space="preserve">
+    <value>معرّف علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TabIdFromHeader" xml:space="preserve">
+    <value>يُنشأ من العنوان</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedTitle" xml:space="preserve">
+    <value>علامات التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddedFormat" xml:space="preserve">
+    <value>تمت إضافة علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.SavedFormat" xml:space="preserve">
+    <value>تم حفظ علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemovedFormat" xml:space="preserve">
+    <value>تمت إزالة علامة التبويب المخصصة '{0}'.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Header" xml:space="preserve">
+    <value>العنوان</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.HeaderPlaceholder" xml:space="preserve">
+    <value>ملاحظات الإصدار</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Order" xml:space="preserve">
+    <value>الترتيب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveTitle" xml:space="preserve">
+    <value>إزالة علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveMessageFormat" xml:space="preserve">
+    <value>هل تريد إزالة علامة التبويب المخصصة '{0}'؟ تُزال مقدمتها ومحتواها وبطاقاتها من هذا العنصر.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Intro" xml:space="preserve">
+    <value>المقدمة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Body" xml:space="preserve">
+    <value>المحتوى (Markdown)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.BodyHint" xml:space="preserve">
+    <value>تُفتح الروابط فقط لعناوين HTTP و HTTPS. تُحمَّل الصور فقط من عناوين HTTP و HTTPS البعيدة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Visible" xml:space="preserve">
+    <value>مرئي</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Preview" xml:space="preserve">
+    <value>معاينة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyTabs" xml:space="preserve">
+    <value>يمكن أن يحتوي عنصر المحتوى على {0} علامات تبويب مخصصة كحد أقصى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidTabId" xml:space="preserve">
+    <value>تحتاج كل علامة تبويب مخصصة إلى معرّف من 1 إلى {0} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DuplicateTabId" xml:space="preserve">
+    <value>معرّف علامة التبويب المخصصة '{0}' مستخدم أكثر من مرة.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidCards" xml:space="preserve">
+    <value>تحتوي علامة التبويب المخصصة '{0}' على بطاقة تخالف قواعد الكتالوج.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ExpiringImageLinks" xml:space="preserve">
+    <value>تنتهي صلاحية روابط مرفقات Discord بعد يوم تقريبًا ثم تتوقف عن التحميل. استضف الصورة في مكان دائم.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTitle" xml:space="preserve">
+    <value>تعديل علامة التبويب المخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTitle" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.Cards" xml:space="preserve">
+    <value>البطاقات</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTitle" xml:space="preserve">
+    <value>عنوان البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardLabel" xml:space="preserve">
+    <value>الوسم</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardDescription" xml:space="preserve">
+    <value>الوصف</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageUrl" xml:space="preserve">
+    <value>رابط الصورة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddCard" xml:space="preserve">
+    <value>إضافة بطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.RemoveCard" xml:space="preserve">
+    <value>إزالة البطاقة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.EditTab" xml:space="preserve">
+    <value>تعديل علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.DeleteTab" xml:space="preserve">
+    <value>حذف علامة التبويب</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.AddTab" xml:space="preserve">
+    <value>إضافة علامة تبويب مخصصة</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.TooManyCards" xml:space="preserve">
+    <value>يمكن أن تحتوي علامة التبويب المخصصة '{0}' على {1} بطاقة كحد أقصى.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardMissingTitle" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى عنوان.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardTextTooLong" xml:space="preserve">
+    <value>البطاقة {0} في علامة التبويب المخصصة '{1}' تحتوي على عنوان أو وسم أطول من {2} حرفًا أو وصف أطول من {3} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.CardImageInvalid" xml:space="preserve">
+    <value>تحتاج البطاقة {0} في علامة التبويب المخصصة '{1}' إلى رابط صورة يبدأ بـ https:// أو avares://.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.InvalidHeader" xml:space="preserve">
+    <value>تحتاج علامة التبويب المخصصة '{0}' إلى عنوان من 1 إلى {1} حرفًا.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.CustomTabs.ContentTooLong" xml:space="preserve">
+    <value>علامة التبويب المخصصة '{0}' تحتوي على مقدمة أطول من {1} حرفًا أو محتوى أطول من {2} حرفًا.</value>
+  </data>
   <data name="Tools.PublisherStudio.Content.IconArtwork" xml:space="preserve">
     <value>أيقونة</value>
   </data>
@@ -13686,8 +13986,8 @@ GameFilesEdited/Data/INI/**/*.ini</value>
   <data name="Tools.PublisherStudio.Validation.BundleComponentRequired" xml:space="preserve">
     <value>مطلوب مكون حزمة واحد على الأقل.</value>
   </data>
-  <data name="Tools.PublisherStudio.Validation.ReleaseItemRequired" xml:space="preserve">
-    <value>عنصر الإصدار مطلوب. يرجى توفير عنوان URL صالح للتنزيل أو ملف محلي.</value>
+  <data name="Tools.PublisherStudio.Validation.ReleaseDetailsNeedSource" xml:space="preserve">
+    <value>أضف ملفًا أو عنوان URL للتنزيل للإصدار الأولي، أو امسح سجل التغييرات والتبعيات.</value>
   </data>
   <data name="Tools.PublisherStudio.Validation.DownloadUrlInvalid" xml:space="preserve">
     <value>يجب أن يكون رابط التنزيل رابط HTTP أو HTTPS صالحًا.</value>
@@ -16701,6 +17001,12 @@ https://example.com/screenshot2.png</value>
   <data name="Content.Notification.UpdateCompleted.Message" xml:space="preserve">
     <value>تم تحديث {0} إلى الإصدار {1}.</value>
   </data>
+  <data name="Content.Notification.AutoUpdateCompleted.Message" xml:space="preserve">
+    <value>تم تحديث {0} تلقائيًا إلى الإصدار {1}. يمكنك إيقاف ذلك من الإعدادات ضمن اشتراكات الناشرين.</value>
+  </data>
+  <data name="Content.Notification.AutoUpdateFailed.Message" xml:space="preserve">
+    <value>تعذر تحديث {0} تلقائيًا إلى الإصدار {1}: {2}. لا يزال الإصدار المثبت قيد الاستخدام.</value>
+  </data>
   <data name="Content.Notification.PublisherUpdatePartial.Title" xml:space="preserve">
     <value>تحديث {0} جزئي</value>
   </data>
@@ -18323,5 +18629,196 @@ Error: فشل: {3}
   </data>
   <data name="Tools.PublisherStudio.Library.ScreenshotNameWatermark" xml:space="preserve">
     <value>اسم لقطة الشاشة (اختياري)</value>
+  </data>
+  <data name="Tools.PublisherStudio.Validation.ExportDraft" xml:space="preserve">
+    <value>لا يحتوي «{0}» على إصدارات. أضف إصدارًا أو أزل هذه المسودة من الكتالوج قبل التصدير. لا يزال بإمكانك حفظ المشروع.</value>
+  </data>
+  <data name="Tools.PublisherStudio.Content.DraftHint" xml:space="preserve">
+    <value>الإصدار الأولي اختياري. بدونه، يكون هذا العنصر مسودة: يمكنك حفظ المشروع، لكن يجب إضافة إصدار أو إزالة المسودة قبل تصدير الكتالوج أو نشره.</value>
+  </data>
+  <data name="Settings.Downloads.Advanced" xml:space="preserve"><value>إعدادات التنزيل المتقدمة</value></data>
+  <data name="Downloads.ContentDetail.MoreActions" xml:space="preserve"><value>إجراءات أخرى</value></data>
+  <data name="Tools.PublisherStudio.Publish.ConnectionSettings" xml:space="preserve"><value>الاتصال بالاستضافة</value></data>
+  <data name="Tools.PublisherStudio.Library.FilesAndDependencies" xml:space="preserve"><value>الملفات والتبعيات</value></data>
+  <data name="Tools.PublisherStudio.Library.FileCount" xml:space="preserve"><value>الملفات: {0}</value></data>
+  <data name="Tools.PublisherStudio.Library.DependencyCount" xml:space="preserve"><value>التبعيات: {0}</value></data>
+  <data name="GameProfiles.Library.MyProfiles" xml:space="preserve">
+    <value>ملفاتي التعريفية</value>
+  </data>
+  <data name="GameProfiles.Library.Search" xml:space="preserve">
+    <value>البحث عن ملفات تعريف</value>
+  </data>
+  <data name="GameProfiles.Library.NoMatches" xml:space="preserve">
+    <value>لا توجد ملفات تعريف مطابقة</value>
+  </data>
+  <data name="GameProfiles.Library.NewProfile" xml:space="preserve">
+    <value>ملف تعريف جديد</value>
+  </data>
+  <data name="GameProfiles.Library.Play" xml:space="preserve">
+    <value>لعب</value>
+  </data>
+  <data name="GameProfiles.Layout.Library" xml:space="preserve">
+    <value>مكتبة</value>
+  </data>
+  <data name="GameProfiles.Layout.Cards" xml:space="preserve">
+    <value>بطاقات</value>
+  </data>
+  <data name="GameProfiles.Library.Actions" xml:space="preserve">
+    <value>إجراءات ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Library.EditProfile" xml:space="preserve">
+    <value>تحرير ملف التعريف</value>
+  </data>
+  <data name="GameProfiles.Library.MoveEarlier" xml:space="preserve">
+    <value>نقل إلى الأعلى</value>
+  </data>
+  <data name="GameProfiles.Library.MoveLater" xml:space="preserve">
+    <value>نقل إلى الأسفل</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyTitle" xml:space="preserve">
+    <value>لعبتك التالية تبدأ هنا</value>
+  </data>
+  <data name="GameProfiles.Library.EmptyHelp" xml:space="preserve">
+    <value>أنشئ ملف تعريف أو ابحث عن الألعاب المثبّتة للبدء.</value>
+  </data>
+  <data name="GameProfiles.Library.NoDescription" xml:space="preserve">
+    <value>لم تتم إضافة وصف إلى ملف التعريف هذا.</value>
+  </data>
+  <data name="GameProfiles.Library.Running" xml:space="preserve">
+    <value>قيد التشغيل</value>
+  </data>
+  <data name="GameProfiles.Library.Preparing" xml:space="preserve">
+    <value>جارٍ تجهيز مساحة العمل…</value>
+  </data>
+  <data name="GameProfiles.Library.LaunchAvailable" xml:space="preserve">
+    <value>متاح للتشغيل</value>
+  </data>
+  <data name="GameProfiles.Library.SteamLaunch" xml:space="preserve">
+    <value>التشغيل عبر Steam</value>
+  </data>
+  <data name="GameProfiles.Library.LocalLaunch" xml:space="preserve">
+    <value>تشغيل محلي</value>
+  </data>
+  <data name="GameProfiles.Library.NoArguments" xml:space="preserve">
+    <value>لا توجد وسائط إضافية</value>
+  </data>
+  <data name="GameProfiles.Library.UnknownGame" xml:space="preserve">
+    <value>ملف تعريف اللعبة</value>
+  </data>
+  <data name="GameProfiles.Library.LoadError" xml:space="preserve">
+    <value>تعذر تحميل ملفات التعريف. أعد فتح قسم ملفات التعريف أو أعد تشغيل GenHub.</value>
+  </data>
+  <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>ملفاتي الشخصية ({0})</value></data>
+  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>إعدادات الملف الشخصي</value></data>
+  <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
+    <value>التفاصيل التقنية</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Single" xml:space="preserve">
+    <value>أحد العناصر المطلوبة مفقود</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Title.Multiple" xml:space="preserve">
+    <value>هناك {0} عناصر مطلوبة مفقودة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Intro" xml:space="preserve">
+    <value>لا يعمل {0} إلا عند وجود هذه العناصر في الملف الشخصي:</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.RequiredBy" xml:space="preserve">
+    <value>(يحتاجه {0})</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Details" xml:space="preserve">
+    <value>التفاصيل التقنية</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Install" xml:space="preserve">
+    <value>تثبيت العناصر المطلوبة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedItem" xml:space="preserve">
+    <value>عنصر مطلوب</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.UnnamedOwner" xml:space="preserve">
+    <value>محتوى بدون اسم</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameInstallation" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. ثبّت اللعبة، ثم دع GenHub يكتشفها.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.GameClient" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. احصل عليه من التنزيلات أو من ناشره.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.ManualHint.Content" xml:space="preserve">
+    <value>لا يستطيع GenHub تنزيل هذا العنصر. احصل عليه من ناشره، ثم أضفه إلى GenHub.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Install" xml:space="preserve">
+    <value>يقوم زر تثبيت العناصر المطلوبة بتنزيلها وتفعيلها أولاً. الإلغاء لا يحفظ أي شيء.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Partial" xml:space="preserve">
+    <value>يمكن لـ GenHub تثبيت بعض هذه العناصر. ثبّت العناصر الأخرى يدويًا، ثم حاول مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Outcome.Manual" xml:space="preserve">
+    <value>لن يُحفظ أي شيء حتى تتوفر هذه العناصر.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.Error" xml:space="preserve">
+    <value>يحتاج {0} إلى {1} قبل إضافته.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.StillMissing.Message" xml:space="preserve">
+    <value>لم تتم إضافة {0}. لا يزال يحتاج إلى {1}.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.DownloadFailed.Message" xml:space="preserve">
+    <value>تعذّر على GenHub تنزيل {0}. تحقق من اتصالك وحاول مرة أخرى.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.MissingDependencies.Item" xml:space="preserve">
+    <value>• يحتاج {0} إلى {1}</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.IncompatibleVersion.Message" xml:space="preserve">
+    <value>عثر GenHub على {0}، لكن ليس بإصدار يعمل مع هذا المحتوى.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallAvailable" xml:space="preserve">
+    <value>تثبيت العناصر المتاحة</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.InstallFailed.Message" xml:space="preserve">
+    <value>تعذّر على GenHub تثبيت العناصر المطلوبة.</value>
+  </data>
+  <data name="GameProfiles.MissingDependencies.LaunchError" xml:space="preserve">
+    <value>لا يمكن تشغيل {0}. يحتاج إلى {1}.</value>
+  </data>
+  <data name="GameProfiles.Settings.Notification.DependencyWarning.Item" xml:space="preserve">
+    <value>يحتاج {0} إلى {1}</value>
+  </data>
+  <data name="GameProfiles.Status.InstallingRequiredItems" xml:space="preserve">
+    <value>جارٍ تثبيت العناصر المطلوبة لـ {0}...</value>
+  </data>
+  <data name="GameProfiles.General.LaunchConfigurationLocked" xml:space="preserve">
+    <value>هذه الإعدادات مقفلة أثناء تشغيل اللعبة. أغلق اللعبة لتغييرها.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Name" xml:space="preserve">
+    <value>ربط الملفات (موصى به)</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.Description" xml:space="preserve">
+    <value>يربط ملفات اللعبة بدلاً من نسخها. لا يستخدم تقريباً أي مساحة إضافية على القرص.</value>
+  </data>
+  <data name="WorkspaceStrategy.HardLink.WindowsNote" xml:space="preserve">
+    <value>إذا كانت اللعبة أو تجمع CAS على محرك أقراص غير محرك مساحة العمل، يتطلب صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Name" xml:space="preserve">
+    <value>روابط رمزية</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.Description" xml:space="preserve">
+    <value>يشير إلى ملفات اللعبة عبر روابط رمزية. يعمل عبر محركات الأقراص المختلفة.</value>
+  </data>
+  <data name="WorkspaceStrategy.SymlinkOnly.WindowsNote" xml:space="preserve">
+    <value>يتطلب صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Name" xml:space="preserve">
+    <value>نسخ ملفات اللعبة وربط الوسائط المنفصلة</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.Description" xml:space="preserve">
+    <value>ينسخ أرشيفات اللعبة والبرامج والإعدادات. يربط فقط ملفات الصور والصوت والفيديو المنفصلة. يستخدم مساحة تقارب مساحة النسخ الكامل.</value>
+  </data>
+  <data name="WorkspaceStrategy.HybridCopySymlink.WindowsNote" xml:space="preserve">
+    <value>يتطلب الربط صلاحيات المسؤول أو وضع المطور.</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Name" xml:space="preserve">
+    <value>نسخ كل الملفات</value>
+  </data>
+  <data name="WorkspaceStrategy.FullCopy.Description" xml:space="preserve">
+    <value>ينسخ كل ملف إلى مساحة العمل. يعمل في كل مكان لكنه يستخدم أكبر مساحة على القرص.</value>
   </data>
 </root>

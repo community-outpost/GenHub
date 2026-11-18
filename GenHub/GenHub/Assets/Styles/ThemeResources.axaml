@@ -139,6 +139,8 @@
     <Color x:Key="ErrorTextColor">#FF5252</Color>
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="StatusErrorBrush" Color="{StaticResource ErrorColor}" />
+    <!-- Fluent validation captions use the same semantic color as error outlines and hints. -->
+    <SolidColorBrush x:Key="SystemControlErrorTextForegroundBrush" Color="{StaticResource ErrorColor}" />
     <SolidColorBrush x:Key="ErrorFillBrush" Color="{StaticResource ErrorFillColor}" />
     <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}" />
     <SolidColorBrush x:Key="StatusErrorBadgeBackgroundBrush" Color="#20EF4444" />
@@ -248,11 +250,93 @@
     <!-- ==================================================================== -->
     <!-- 5. Component Dimensions and Radii                                    -->
     <!-- ==================================================================== -->
+    <Thickness x:Key="DialogPadding">24</Thickness>
+    <Thickness x:Key="DialogHeaderSpacing">0,0,0,16</Thickness>
+    <x:Double x:Key="DialogTitleFontSize">20</x:Double>
     <CornerRadius x:Key="CardCornerRadius">12</CornerRadius>
     <CornerRadius x:Key="InputCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="BadgeCornerRadius">6</CornerRadius>
     <CornerRadius x:Key="ButtonCornerRadius">8</CornerRadius>
     <Thickness x:Key="CardPadding">16</Thickness>
+    <Thickness x:Key="SurfaceSectionPadding">24</Thickness>
+
+    <SolidColorBrush x:Key="FormFieldFill" Color="#1B1B24" />
+    <SolidColorBrush x:Key="FormFieldBorder" Color="#666678" />
+    <SolidColorBrush x:Key="FormFieldHoverFill" Color="#242431" />
+    <SolidColorBrush x:Key="FormFieldHoverBorder" Color="#848498" />
+    <SolidColorBrush x:Key="ProfileNavigationRestFill" Color="#0DFFFFFF" />
+    <SolidColorBrush x:Key="ProfileNavigationRestBorder" Color="#666678" />
+    <x:Double x:Key="ProfileNavigationIconSize">32</x:Double>
+
+    <!-- Form fields share geometry and palette; dense editor fields retain a compact variant. -->
+    <x:Double x:Key="FormFieldMinHeight">36</x:Double>
+    <x:Double x:Key="FormCompactMinHeight">32</x:Double>
+    <x:Double x:Key="FormFieldFontSize">13</x:Double>
+    <x:Double x:Key="FormCompactFontSize">12</x:Double>
+    <Thickness x:Key="FormFieldPadding">10,8</Thickness>
+    <Thickness x:Key="FormCompactPadding">8,6</Thickness>
+    <!-- Shared navigation states: geometry remains specific to tabs, rows and icon choices. -->
+    <SolidColorBrush x:Key="NavRestInk" Color="{DynamicResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="NavSelectedInk" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="NavHoverFill" Color="{DynamicResource GlassFillColor}" />
+    <SolidColorBrush x:Key="NavPressedFill" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="NavHoverBorder" Color="{DynamicResource BorderHighlightDark}" />
+    <SolidColorBrush x:Key="NavSelectedFill" Color="{DynamicResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="NavSelectedHoverFill" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="NavSelectedBorder" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="NavSelectedHoverBorder" Color="{DynamicResource AccentLightColor}" />
+    <SolidColorBrush x:Key="NavFocusBrush" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="NavDisabledFill" Color="Transparent" />
+    <SolidColorBrush x:Key="NavDisabledInk" Color="{DynamicResource TextMutedColor}" />
+    <SolidColorBrush x:Key="NavDisabledBorder" Color="{DynamicResource BorderSubtleDark}" />
+
+    <!-- Action dimensions grow with content; never impose a fixed text button height. -->
+    <x:Double x:Key="ActionMinHeight">36</x:Double>
+    <x:Double x:Key="ActionCompactMinHeight">32</x:Double>
+    <x:Double x:Key="ActionFontSize">13</x:Double>
+    <x:Double x:Key="ActionCompactFontSize">12</x:Double>
+    <x:Double x:Key="ActionIconSize">16</x:Double>
+    <x:Double x:Key="SectionIconSize">20</x:Double>
+    <x:Double x:Key="ColorSwatchSize">28</x:Double>
+    <Thickness x:Key="ActionPadding">16,8</Thickness>
+    <Thickness x:Key="ActionCompactPadding">12,6</Thickness>
+    <!-- Selected pill treatment: dedicated action shades do not change navigation accents. -->
+    <CornerRadius x:Key="ActionCornerRadius">999</CornerRadius>
+    <SolidColorBrush x:Key="SplitActionHoverBrush" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="SplitActionPressedBrush" Color="#20000000" />
+    <SolidColorBrush x:Key="SplitActionDividerBrush" Color="#28FFFFFF" />
+
+    <LinearGradientBrush x:Key="ActionPrimaryRestBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8241CF" Offset="0" />
+        <GradientStop Color="#6930B3" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryHoverBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#8651C9" Offset="0" />
+        <GradientStop Color="#7540B8" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ActionPrimaryPressedBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+        <GradientStop Color="#7135BC" Offset="0" />
+        <GradientStop Color="#592696" Offset="1" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="ActionOnAccentBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ActionSecondaryRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionSecondaryHover" Color="#1B1A25" />
+    <SolidColorBrush x:Key="ActionSecondaryPressed" Color="#252331" />
+    <SolidColorBrush x:Key="ActionSecondaryInk" Color="#D2D0DC" />
+    <SolidColorBrush x:Key="ActionSecondaryBorder" Color="#42404F" />
+    <SolidColorBrush x:Key="ActionSecondaryHoverBorder" Color="#6A627B" />
+    <SolidColorBrush x:Key="ActionDisabledFill" Color="#0BFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledBorder" Color="#1EFFFFFF" />
+    <SolidColorBrush x:Key="ActionDisabledInk" Color="#777383" />
+    <SolidColorBrush x:Key="ActionDangerRest" Color="#18EF4444" />
+    <SolidColorBrush x:Key="ActionDangerHover" Color="#32EF4444" />
+    <SolidColorBrush x:Key="ActionDangerPressed" Color="#48EF4444" />
+    <SolidColorBrush x:Key="ActionDangerInk" Color="#FCA5A5" />
+    <SolidColorBrush x:Key="ActionDangerBorder" Color="#66EF4444" />
+    <SolidColorBrush x:Key="ActionUtilityRest" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionUtilityInk" Color="#B6B2C5" />
+    <SolidColorBrush x:Key="ActionUtilityBorder" Color="Transparent" />
+    <SolidColorBrush x:Key="ActionFocusBrush" Color="{StaticResource TextPrimaryColor}" />
 
     <!-- ==================================================================== -->
     <!-- 6. StreamGeometry Icons                                              -->

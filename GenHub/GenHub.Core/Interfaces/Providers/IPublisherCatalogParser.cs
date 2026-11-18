@@ -24,12 +24,27 @@ public interface IPublisherCatalogParser
     void NormalizeCatalog(PublisherCatalog catalog);
 
     /// <summary>
+    /// Applies import-time defaults to a catalog with the given custom tab handling.
+    /// </summary>
+    /// <param name="catalog">The catalog to normalize.</param>
+    /// <param name="tabHandling">Whether invalid custom tabs and cards are dropped or kept.</param>
+    void NormalizeCatalog(PublisherCatalog catalog, CatalogTabHandling tabHandling);
+
+    /// <summary>
     /// Validates that a catalog conforms to the expected schema version.
     /// This is a pure check and never mutates the catalog.
     /// </summary>
     /// <param name="catalog">The catalog to validate.</param>
     /// <returns>Validation result with any errors.</returns>
     OperationResult<bool> ValidateCatalog(PublisherCatalog catalog);
+
+    /// <summary>
+    /// Validates a catalog with the given custom tab handling. This never mutates the catalog.
+    /// </summary>
+    /// <param name="catalog">The catalog to validate.</param>
+    /// <param name="tabHandling">Whether the structural custom tab rules are checked.</param>
+    /// <returns>Validation result with any errors.</returns>
+    OperationResult<bool> ValidateCatalog(PublisherCatalog catalog, CatalogTabHandling tabHandling);
 
     /// <summary>
     /// Verifies the catalog signature if present.

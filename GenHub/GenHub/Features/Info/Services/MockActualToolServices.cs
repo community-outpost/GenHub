@@ -87,6 +87,9 @@ public sealed class MockDialogService : IDialogService
     public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageAsync(string title, string content, IEnumerable<DialogAction> actions, bool showDoNotAskAgain = false, CancellationToken cancellationToken = default) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
 
     /// <inheritdoc/>
+    public Task<(DialogAction? Action, bool DoNotAskAgain)> ShowMessageWithDetailsAsync(string title, string content, IEnumerable<DialogAction> actions, string detailsHeader, string detailsContent, CancellationToken cancellationToken = default) => Task.FromResult<(DialogAction? Action, bool DoNotAskAgain)>((null, false));
+
+    /// <inheritdoc/>
     public Task<UpdateDialogResult?> ShowUpdateOptionDialogAsync(string title, string message, bool initialDeleteOldVersions) => Task.FromResult<UpdateDialogResult?>(null);
 }
 
@@ -721,6 +724,10 @@ public sealed class MockPublisherStudioDialogService : IPublisherStudioDialogSer
 
     /// <inheritdoc/>
     public Task<PublisherReferral?> ShowAddReferralDialogAsync() => Task.FromResult<PublisherReferral?>(null);
+
+    /// <inheritdoc/>
+    public Task<CatalogTabDefinition?> ShowEditCustomTabDialogAsync(CatalogTabDefinition? existing, IReadOnlyList<CatalogTabDefinition> siblings) =>
+        Task.FromResult<CatalogTabDefinition?>(null);
 
     /// <inheritdoc/>
     public Task<string?> ShowProjectOpenPromptAsync(string title) => Task.FromResult<string?>(null);

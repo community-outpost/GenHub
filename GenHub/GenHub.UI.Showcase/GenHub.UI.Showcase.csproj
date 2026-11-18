@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Remove="../../stylecop.json" />
+    <AdditionalFiles Include="stylecop.json" />
+    <ProjectReference Include="../GenHub/GenHub.csproj" />
+    <PackageReference Include="Avalonia.Headless" />
+  </ItemGroup>
+</Project>
