@@ -128,6 +128,7 @@ public partial class GenHotkeysViewModel(
     private bool _isInitializing;
     private bool _isSyncingProfile;
     private bool _isDisposed;
+    private int _saveSemaphoreDisposed;
     private CancellationTokenSource? _reloadCts;
     private CancellationTokenSource? _addonCheckCts;
     private CancellationTokenSource? _saveDebounceCts;
@@ -636,6 +637,7 @@ public partial class GenHotkeysViewModel(
         var successMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoApplied", "Custom cameo applied to '{0}'.", targetAction.DisplayName);
         StatusMessage = successMsg;
         ShowNotificationSuccess(successMsg);
+        ClearPendingSaveAfterDirectPersist(targetProfile);
         return true;
     }
 
@@ -697,6 +699,7 @@ public partial class GenHotkeysViewModel(
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.CustomCameoReset", "Reset cameo for '{0}' to game default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         ShowNotificationInfo(resetMsg);
+        ClearPendingSaveAfterDirectPersist(targetProfile);
     }
 
     /// <summary>
@@ -748,6 +751,7 @@ public partial class GenHotkeysViewModel(
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TitleReset", "Reset title for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         ShowNotificationInfo(resetMsg);
+        ClearPendingSaveAfterDirectPersist(targetProfile);
     }
 
     /// <summary>
@@ -809,6 +813,7 @@ public partial class GenHotkeysViewModel(
         var resetMsg = GetLocalizedString("Tools.GenHotkeys.Status.TooltipReset", "Reset tooltip for '{0}' to default.", targetAction.DisplayName);
         StatusMessage = resetMsg;
         ShowNotificationInfo(resetMsg);
+        ClearPendingSaveAfterDirectPersist(targetProfile);
     }
 
     /// <summary>
@@ -1316,7 +1321,8 @@ public partial class GenHotkeysViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task<bool> SaveCurrentProfileAsync(CancellationToken cancellationToken = default)
     {
-        if (SelectedProfile == null || _isDisposed)
+        var profile = SelectedProfile;
+        if (profile == null || _isDisposed)
         {
             return false;
         }
@@ -1325,9 +1331,14 @@ public partial class GenHotkeysViewModel(
 
         try
         {
-            SelectedProfile.OverlayEnabled = OverlayEnabled;
-            SelectedProfile.OverlayCorner = SelectedCorner;
-            var saved = await SaveProfileSerializedAsync(SelectedProfile, cancellationToken);
+            profile.OverlayEnabled = OverlayEnabled;
+            profile.OverlayCorner = SelectedCorner;
+            var saved = await SaveProfileSerializedAsync(profile, cancellationToken);
+            if (saved != null)
+            {
+                ClearPendingSaveAfterDirectPersist(profile);
+            }
+
             return saved != null;
         }
         catch (OperationCanceledException)
@@ -1336,7 +1347,7 @@ public partial class GenHotkeysViewModel(
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException or InvalidOperationException)
         {
-            logger.LogError(ex, "Failed to persist profile '{Name}'", SelectedProfile.Name);
+            logger.LogError(ex, "Failed to persist profile '{Name}'", profile.Name);
             StatusMessage = $"Failed to save: {ex.Message}";
             return false;
         }
@@ -1474,6 +1485,7 @@ public partial class GenHotkeysViewModel(
     {
         if (disposing)
         {
+            var flushOwnsSemaphore = false;
             var saveCts = Interlocked.Exchange(ref _saveDebounceCts, null);
             if (saveCts != null)
             {
@@ -1487,8 +1499,7 @@ public partial class GenHotkeysViewModel(
                 }
 
                 saveCts.Dispose();
-
-                FlushSelectedProfileOnDispose();
+                flushOwnsSemaphore = TryQueueDisposeFlush();
             }
 
             lock (_bitmapCache)
@@ -1510,7 +1521,10 @@ public partial class GenHotkeysViewModel(
                     localizationService.PropertyChanged -= OnLocalizationPropertyChanged;
                 }
 
-                _saveSemaphore.Dispose();
+                if (!flushOwnsSemaphore)
+                {
+                    DisposeSaveSemaphore();
+                }
 
                 _failedCustomCameos.Clear();
 
@@ -2326,6 +2340,9 @@ public partial class GenHotkeysViewModel(
         return action.DefaultTooltip;
     }
 
+    private static bool IsExpectedSaveException(Exception ex) =>
+        ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException;
+
     private void ShowExportNotification(ContentManifest manifest, bool isUpdate, string bigFileName)
     {
         if (notificationService is null)
@@ -2412,6 +2429,7 @@ public partial class GenHotkeysViewModel(
         StatusMessage = message;
         if (savedProfile != null)
         {
+            ClearPendingSaveAfterDirectPersist(targetProfile);
             notificationService?.ShowSuccess(GetLocalizedString("Tools.GenHotkeys.Notification.PresetApplied.Title", "Preset Applied"), message, NotificationDurations.Short);
         }
         else
@@ -2809,6 +2827,24 @@ public partial class GenHotkeysViewModel(
         }
     }
 
+    private void ClearPendingSaveProfile(string profileId)
+    {
+        if (string.Equals(_pendingSaveProfileId, profileId, StringComparison.OrdinalIgnoreCase))
+        {
+            _pendingSaveProfileId = null;
+        }
+    }
+
+    private void ClearPendingSaveAfterDirectPersist(HotkeyProfile profile)
+    {
+        if (_saveDebounceCts != null)
+        {
+            return;
+        }
+
+        ClearPendingSaveProfile(profile.Id);
+    }
+
     private void ScheduleDebouncedSaveProfile()
     {
         if (_isDisposed)
@@ -2861,21 +2897,52 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private void FlushSelectedProfileOnDispose()
+    private bool TryQueueDisposeFlush()
     {
         if (SelectedProfile == null || _isDisposed)
         {
-            return;
+            return false;
         }
 
         var profileName = SelectedProfile.Name;
         var snapshot = SelectedProfile.CreateSnapshot();
-        var saveTask = Task.Run(() => SaveProfileSerializedAsync(snapshot, CancellationToken.None));
+        _pendingSaveProfileId = null;
+        var saveTask = Task.Run(
+            () => PersistDisposeFlushAsync(snapshot, profileName),
+            CancellationToken.None);
         _ = saveTask.ContinueWith(
             t => logger.LogError(t.Exception, "Background flush save task failed on dispose for profile '{ProfileName}'", profileName),
             CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted,
             TaskScheduler.Default);
+        return true;
+    }
+
+    private async Task PersistDisposeFlushAsync(HotkeyProfile snapshot, string profileName)
+    {
+        try
+        {
+            var saved = await SaveProfileSerializedAsync(snapshot, CancellationToken.None, allowDuringDispose: true)
+                .ConfigureAwait(false);
+            if (saved == null)
+            {
+                logger.LogWarning("Flush save failed for profile '{ProfileName}'", profileName);
+            }
+        }
+        finally
+        {
+            DisposeSaveSemaphore();
+        }
+    }
+
+    private void DisposeSaveSemaphore()
+    {
+        if (Interlocked.Exchange(ref _saveSemaphoreDisposed, 1) != 0)
+        {
+            return;
+        }
+
+        _saveSemaphore.Dispose();
     }
 
     private async Task DebounceSaveProfileAsync(HotkeyProfile profile, CancellationTokenSource cts, CancellationToken token)
@@ -2883,7 +2950,11 @@ public partial class GenHotkeysViewModel(
         try
         {
             await Task.Delay(GenHotkeysConstants.ProfileSaveDebounceMilliseconds, token).ConfigureAwait(false);
-            await ExecuteDebouncedSaveAsync(profile, token).ConfigureAwait(false);
+            var saved = await ExecuteDebouncedSaveAsync(profile, token).ConfigureAwait(false);
+            if (saved && !token.IsCancellationRequested && ReferenceEquals(_saveDebounceCts, cts))
+            {
+                ClearPendingSaveProfile(profile.Id);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -2907,17 +2978,17 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private async Task ExecuteDebouncedSaveAsync(HotkeyProfile profile, CancellationToken token)
+    private async Task<bool> ExecuteDebouncedSaveAsync(HotkeyProfile profile, CancellationToken token)
     {
         if (token.IsCancellationRequested || _isDisposed)
         {
-            return;
+            return false;
         }
 
         var snapshot = await CaptureProfileSnapshotAsync(profile, token).ConfigureAwait(false);
         if (snapshot == null)
         {
-            return;
+            return false;
         }
 
         var saved = await SaveProfileSerializedAsync(snapshot, token).ConfigureAwait(false);
@@ -2925,7 +2996,10 @@ public partial class GenHotkeysViewModel(
         {
             logger.LogWarning("Debounced profile save failed for profile '{ProfileName}'", profile.Name);
             PostProfileSaveFailure(profile.Name);
+            return false;
         }
+
+        return saved != null;
     }
 
     private async Task<HotkeyProfile?> CaptureProfileSnapshotAsync(HotkeyProfile profile, CancellationToken token)
@@ -2941,8 +3015,8 @@ public partial class GenHotkeysViewModel(
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogDebug(ex, "UI dispatcher unavailable; capturing hotkey profile snapshot on the current thread");
-            return CaptureProfileSnapshot(profile, token);
+            logger.LogWarning(ex, "UI dispatcher unavailable; skipping hotkey profile snapshot");
+            return null;
         }
     }
 
@@ -2953,16 +3027,8 @@ public partial class GenHotkeysViewModel(
             return null;
         }
 
-        if (string.Equals(_pendingSaveProfileId, profile.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            _pendingSaveProfileId = null;
-        }
-
         return profile.CreateSnapshot();
     }
-
-    private bool IsExpectedSaveException(Exception ex) =>
-        ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or JsonException;
 
     private void PostProfileSaveFailure(string profileName)
     {
@@ -3543,9 +3609,12 @@ public partial class GenHotkeysViewModel(
         }
     }
 
-    private async Task<HotkeyProfile?> SaveProfileSerializedAsync(HotkeyProfile profile, CancellationToken cancellationToken)
+    private async Task<HotkeyProfile?> SaveProfileSerializedAsync(
+        HotkeyProfile profile,
+        CancellationToken cancellationToken,
+        bool allowDuringDispose = false)
     {
-        if (_isDisposed)
+        if (_isDisposed && !allowDuringDispose)
         {
             return null;
         }

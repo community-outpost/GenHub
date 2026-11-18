@@ -697,34 +697,7 @@ public class HotkeyPackageService(
             }
 
             await File.WriteAllBytesAsync(tgaPath, tgaBytes, cancellationToken);
-
-            // Also write duplicate TGA for all known retail ButtonImage aliases in Art/Textures
-            // so any direct loose texture lookups or mods immediately resolve to the custom cameo!
-            if (HotkeyRetailCameoMappings.Mappings.TryGetValue(iconName, out var retailImages))
-            {
-                foreach (var retailImage in retailImages)
-                {
-                    var aliasPath = GetSafeTexturePath(texturesDir, retailImage);
-                    if (aliasPath == null)
-                    {
-                        logger.LogWarning("Rejected unsafe retail alias texture name '{Alias}' for icon '{Icon}'", retailImage, iconName);
-                        continue;
-                    }
-
-                    if (!File.Exists(aliasPath))
-                    {
-                        await File.WriteAllBytesAsync(aliasPath, tgaBytes, cancellationToken);
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "Retail alias texture '{AliasPath}' for icon '{Icon}' already exists, skipping duplicate write",
-                            aliasPath,
-                            iconName);
-                    }
-                }
-            }
-
+            await WriteRetailAliasTexturesAsync(iconName, texturesDir, tgaBytes, cancellationToken);
             return true;
         }
         catch (OperationCanceledException)
@@ -735,6 +708,39 @@ public class HotkeyPackageService(
         {
             logger.LogWarning(ex, "Failed to export custom cameo TGA for '{Icon}' from '{Path}'", iconName, customImagePath);
             return false;
+        }
+    }
+
+    private async Task WriteRetailAliasTexturesAsync(
+        string iconName,
+        string texturesDir,
+        byte[] tgaBytes,
+        CancellationToken cancellationToken)
+    {
+        if (!HotkeyRetailCameoMappings.Mappings.TryGetValue(iconName, out var retailImages))
+        {
+            return;
+        }
+
+        foreach (var retailImage in retailImages)
+        {
+            var aliasPath = GetSafeTexturePath(texturesDir, retailImage);
+            if (aliasPath == null)
+            {
+                logger.LogWarning("Rejected unsafe retail alias texture name '{Alias}' for icon '{Icon}'", retailImage, iconName);
+                continue;
+            }
+
+            if (File.Exists(aliasPath))
+            {
+                logger.LogWarning(
+                    "Retail alias texture '{AliasPath}' for icon '{Icon}' already exists, skipping duplicate write",
+                    aliasPath,
+                    iconName);
+                continue;
+            }
+
+            await File.WriteAllBytesAsync(aliasPath, tgaBytes, cancellationToken);
         }
     }
 

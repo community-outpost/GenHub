@@ -565,6 +565,95 @@ public class GenHotkeysViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a completed direct save does not flush the same profile again when the selection changes.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task SaveCurrentProfileAsync_AfterDebouncedEdit_DoesNotFlushAgainOnProfileSwitchAsync()
+    {
+        using var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+
+        var profile1 = new HotkeyProfile { Name = "Profile 1" };
+        var profile2 = new HotkeyProfile { Name = "Profile 2" };
+        vm.Profiles.Add(profile1);
+        vm.Profiles.Add(profile2);
+        vm.SelectedProfile = profile1;
+
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Unit Action",
+            DefaultDisplayName = "Unit Action",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+        vm.SelectAction(action);
+        action.DisplayName = "Renamed Unit Action";
+
+        Assert.True(await vm.SaveCurrentProfileAsync());
+        _mockProfileStorage.Invocations.Clear();
+
+        vm.SelectedProfile = profile2;
+        await Task.Delay(50);
+
+        _mockProfileStorage.Verify(
+            s => s.SaveProfileAsync(It.Is<HotkeyProfile>(p => p.Id == profile1.Id), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that disposing the view model persists a debounced profile edit that has not reached its timer yet.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task Dispose_WhenDebouncedEditIsPending_PersistsSnapshotAsync()
+    {
+        var saved = new TaskCompletionSource<HotkeyProfile>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _mockProfileStorage
+            .Setup(s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()))
+            .Returns((HotkeyProfile profile, CancellationToken _) =>
+            {
+                saved.TrySetResult(profile);
+                return Task.FromResult(profile);
+            });
+
+        var vm = new GenHotkeysViewModel(
+            _mockTechTree.Object,
+            _mockProfileStorage.Object,
+            _mockPackageService.Object,
+            _mockLogger.Object);
+        var profile = new HotkeyProfile { Name = "Dispose Flush" };
+        vm.SelectedProfile = profile;
+        var action = new HotkeyActionViewModel
+        {
+            DisplayName = "Unit Action",
+            DefaultDisplayName = "Unit Action",
+            HotkeyString = "CONTROLBAR:Test",
+        };
+        vm.SelectAction(action);
+        action.DisplayName = "Renamed Unit Action";
+
+        vm.Dispose();
+        try
+        {
+            var completed = await Task.WhenAny(saved.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.Same(saved.Task, completed);
+            var persisted = await saved.Task;
+            Assert.Equal(profile.Id, persisted.Id);
+            Assert.Equal("Renamed Unit Action", persisted.TitleMappings["CONTROLBAR:Test"]);
+            _mockProfileStorage.Verify(
+                s => s.SaveProfileAsync(It.IsAny<HotkeyProfile>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+        finally
+        {
+            vm.Dispose();
+        }
+    }
+
+    /// <summary>
     /// Verifies that DeleteCurrentProfileAsync prompts confirmation and cancels without deleting when rejected.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

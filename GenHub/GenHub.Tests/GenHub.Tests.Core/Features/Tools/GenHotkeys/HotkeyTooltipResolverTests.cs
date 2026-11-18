@@ -170,23 +170,34 @@ public class HotkeyTooltipResolverTests
     {
         var vm = new HotkeyActionViewModel();
         Assert.False(vm.CanShowTooltipEditor);
+        Assert.True(vm.ShowAddDescriptionPrompt);
 
         var propertyChangedList = new System.Collections.Generic.List<string>();
         vm.PropertyChanged += (s, e) => propertyChangedList.Add(e.PropertyName!);
 
         vm.IsEditingDescription = true;
         Assert.True(vm.CanShowTooltipEditor);
+        Assert.False(vm.ShowAddDescriptionPrompt);
         Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
+        Assert.Contains(nameof(HotkeyActionViewModel.ShowAddDescriptionPrompt), propertyChangedList);
 
         propertyChangedList.Clear();
         vm.IsEditingDescription = false;
         Assert.False(vm.CanShowTooltipEditor);
+        Assert.True(vm.ShowAddDescriptionPrompt);
         Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
 
         propertyChangedList.Clear();
         vm.Tooltip = "Orders unit to hold position.";
         Assert.True(vm.CanShowTooltipEditor);
+        Assert.False(vm.ShowAddDescriptionPrompt);
         Assert.Contains(nameof(HotkeyActionViewModel.CanShowTooltipEditor), propertyChangedList);
+
+        propertyChangedList.Clear();
+        vm.HasRetailTooltipSlot = false;
+        Assert.False(vm.CanShowTooltipEditor);
+        Assert.False(vm.ShowAddDescriptionPrompt);
+        Assert.Contains(nameof(HotkeyActionViewModel.ShowAddDescriptionPrompt), propertyChangedList);
     }
 
     /// <summary>
