@@ -1056,7 +1056,7 @@ public partial class GenHotkeysViewModel(
             }
             catch (ObjectDisposedException ex)
             {
-                logger.LogDebug(ex, "Save semaphore was disposed before delete");
+                logger.LogWarning(ex, "Delete abandoned because save semaphore was disposed");
                 return;
             }
 
