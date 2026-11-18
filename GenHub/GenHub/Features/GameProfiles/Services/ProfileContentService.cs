@@ -93,10 +93,10 @@ public sealed class ProfileContentService(
                 primaryManifestId,
                 profileId);
 
-            var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds.Count, cancellationToken);
+            var contextResult = await LoadProfileAndPrimaryManifestAsync(profileId, primaryManifestId, requestedIds, cancellationToken);
             if (contextResult.Failed)
             {
-                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", sw.Elapsed);
+                return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", contextResult.ErrorCode, sw.Elapsed);
             }
 
             var (profile, _, contentName) = contextResult.Data;
@@ -301,6 +301,16 @@ public sealed class ProfileContentService(
             {
                 var error = manifestResult.FirstError ?? "Failed to retrieve manifest";
                 return ProfileOperationResult<GameProfile>.CreateFailure(error);
+            }
+
+            var genHubBuildId = await FindGenHubBuildIdAsync(requestedIds, manifestId, manifestResult, cancellationToken);
+            if (genHubBuildId != null)
+            {
+                var error = localizationService.GetLocalizedString(
+                    "GameProfiles.GenHubBuild.CreateNotAllowed",
+                    "GenHub application builds cannot be used to create game profiles.");
+                logger.LogWarning("Attempted to create game profile with GenHub build {ManifestId}", genHubBuildId);
+                return ProfileOperationResult<GameProfile>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
             }
 
             var manifest = manifestResult.Data;
@@ -709,10 +719,43 @@ public sealed class ProfileContentService(
         return $"{UriConstants.AvarUriScheme}GenHub{UriConstants.IconsBasePath}/{gameIcon}";
     }
 
-    private async Task<OperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
+    /// <summary>
+    /// Finds the first requested manifest that is a GenHub application build, which game profiles cannot consume.
+    /// </summary>
+    /// <param name="requestedIds">The requested manifest IDs.</param>
+    /// <param name="primaryManifestId">The already-fetched primary manifest ID.</param>
+    /// <param name="primaryManifestResult">The already-fetched primary manifest result.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The offending manifest ID, or <c>null</c> when no GenHub build is requested.</returns>
+    private async Task<string?> FindGenHubBuildIdAsync(
+        IReadOnlyList<string> requestedIds,
+        string primaryManifestId,
+        OperationResult<ContentManifest?> primaryManifestResult,
+        CancellationToken cancellationToken)
+    {
+        foreach (var reqId in requestedIds)
+        {
+            var checkResult = string.Equals(reqId, primaryManifestId, StringComparison.Ordinal)
+                ? primaryManifestResult
+                : await manifestPool.GetManifestAsync(Core.Models.Manifest.ManifestId.Create(reqId), cancellationToken);
+            if (checkResult.Success && checkResult.Data != null)
+            {
+                var manifest = checkResult.Data;
+                if (manifest.ContentType == ContentType.GenHubBuild ||
+                    (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Any(t => string.Equals(t, GenHubBuildConstants.GenHubBuildTag, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return reqId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<ProfileOperationResult<(GameProfile Profile, ContentManifest Manifest, string ContentName)>> LoadProfileAndPrimaryManifestAsync(
         string profileId,
         string primaryManifestId,
-        int requestedCount,
+        IReadOnlyList<string> requestedIds,
         CancellationToken cancellationToken)
     {
         var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
@@ -720,7 +763,7 @@ public sealed class ProfileContentService(
         {
             var error = profileResult.FirstError ?? "Profile not found";
             logger.LogWarning("Failed to get profile {ProfileId}: {Error}", profileId, error);
-            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
         }
 
         var manifestResult = await manifestPool.GetManifestAsync(
@@ -731,15 +774,25 @@ public sealed class ProfileContentService(
         {
             var error = manifestResult.FirstError ?? "Failed to retrieve manifest";
             logger.LogWarning("Failed to get manifest {ManifestId}: {Error}", primaryManifestId, error);
-            return OperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error);
+        }
+
+        var genHubBuildId = await FindGenHubBuildIdAsync(requestedIds, primaryManifestId, manifestResult, cancellationToken);
+        if (genHubBuildId != null)
+        {
+            var error = localizationService.GetLocalizedString(
+                "GameProfiles.GenHubBuild.AddNotAllowed",
+                "GenHub application builds cannot be added to game profiles.");
+            logger.LogWarning("Attempted to add GenHub build manifest {ManifestId} to profile {ProfileId}", genHubBuildId, profileId);
+            return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateFailure(error, ProfileConstants.GenHubBuildNotAllowedErrorCode);
         }
 
         var manifest = manifestResult.Data;
-        var contentName = requestedCount > 1
-            ? $"{manifest.Name ?? primaryManifestId} + {requestedCount - 1} more"
+        var contentName = requestedIds.Count > 1
+            ? $"{manifest.Name ?? primaryManifestId} + {requestedIds.Count - 1} more"
             : manifest.Name ?? primaryManifestId;
 
-        return OperationResult<(GameProfile, ContentManifest, string)>.CreateSuccess((profileResult.Data, manifest, contentName));
+        return ProfileOperationResult<(GameProfile, ContentManifest, string)>.CreateSuccess((profileResult.Data, manifest, contentName));
     }
 
     private async Task<AddToProfileResult> PerformContentAddAndReconciliationAsync(
@@ -1018,7 +1071,10 @@ public sealed class ProfileContentService(
         var installationsResult = await resolutionServices.InstallationService.GetAllInstallationsAsync(cancellationToken);
         if (installationsResult.Failed || installationsResult.Data == null || installationsResult.Data.Count == 0)
         {
-            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure("No game installations found. Please configure a game installation first.");
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoInstallationsFound",
+                    "No game installations found. Please configure a game installation first."));
         }
 
         var installation = installationsResult.Data.FirstOrDefault(i =>
@@ -1026,13 +1082,20 @@ public sealed class ProfileContentService(
         if (installation == null)
         {
             return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
-                $"No {requiredGameType} installation is available for the required game client.");
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoInstallationForGameType",
+                    "No {0} installation is available for the required game client.",
+                    requiredGameType));
         }
 
         var gameClient = installation.AvailableGameClients.FirstOrDefault(c => c.GameType == requiredGameType);
         if (gameClient == null)
         {
-            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure($"No suitable game client found for installation '{installation.InstallationType}'.");
+            return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateFailure(
+                localizationService.GetLocalizedString(
+                    "Profiles.Error.NoGameClientForInstallation",
+                    "No suitable game client found for installation '{0}'.",
+                    installation.InstallationType));
         }
 
         return OperationResult<(Core.Models.GameInstallations.GameInstallation, GameClient)>.CreateSuccess((installation, gameClient));

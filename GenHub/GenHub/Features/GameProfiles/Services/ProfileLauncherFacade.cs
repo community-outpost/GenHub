@@ -75,11 +75,6 @@ public class ProfileLauncherFacade(
     private readonly IContentDependencyValidator _dependencyValidator = dependencyValidator
         ?? new ContentDependencyValidator(manifestPool, NullLogger<ContentDependencyValidator>.Instance);
 
-    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
-    {
-        public void Report(T value) => handler(value);
-    }
-
     /// <inheritdoc/>
     public Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(
         string profileId,

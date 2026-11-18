@@ -46,6 +46,11 @@ public class AddToProfileResult : ResultBase
     public bool WasAppliedLive { get; set; }
 
     /// <summary>
+    /// Gets or sets the error code, if any.
+    /// </summary>
+    public string? ErrorCode { get; set; }
+
+    /// <summary>
     /// Gets the required items that blocked the add. Empty unless the add failed for missing dependencies.
     /// </summary>
     public IReadOnlyList<ContentDependencyGap> MissingDependencies { get; private init; } = [];
@@ -121,6 +126,21 @@ public class AddToProfileResult : ResultBase
     public static AddToProfileResult CreateFailure(string error, TimeSpan elapsed = default)
     {
         return new AddToProfileResult(error, elapsed);
+    }
+
+    /// <summary>
+    /// Creates a failed result with an error code.
+    /// </summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="errorCode">The error code.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="AddToProfileResult"/>.</returns>
+    public static AddToProfileResult CreateFailure(string error, string? errorCode, TimeSpan elapsed = default)
+    {
+        return new AddToProfileResult(error, elapsed)
+        {
+            ErrorCode = errorCode,
+        };
     }
 
     /// <summary>

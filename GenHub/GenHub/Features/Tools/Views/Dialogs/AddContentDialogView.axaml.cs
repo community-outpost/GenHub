@@ -89,13 +89,13 @@ public partial class AddContentDialogView : UserControl
             var others = paths.Where(p => !IsVideoFile(p) && !IsImageFile(p)).ToList();
             if (others.Count > 0)
             {
-                vm.PopulateFromPaths(others);
+                await vm.PopulateFromPathsAsync(others);
             }
 
             return;
         }
 
-        vm.PopulateFromPaths(paths);
+        await vm.PopulateFromPathsAsync(paths);
     }
 
     private static async Task RouteImagesAsync(List<string> images, AddContentDialogViewModel vm)

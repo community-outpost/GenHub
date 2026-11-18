@@ -18,6 +18,11 @@ public static class ApiConstants
     public const string GitHubDomain = "github.com";
 
     /// <summary>
+    /// GitHub API host name.
+    /// </summary>
+    public const string GitHubApiHost = "api.github.com";
+
+    /// <summary>
     /// GitHub URL regex pattern for parsing repository URLs.
     /// </summary>
     public const string GitHubUrlRegexPattern = @"^https://github\.com/(?<owner>[^/]+)/(?<repo>[^/]+)(?:/releases/tag/(?<tag>[^/]+))?";
@@ -87,6 +92,11 @@ public static class ApiConstants
     /// Format string for GitHub API Artifact download URL (owner, repo, artifactId).
     /// </summary>
     public const string GitHubApiArtifactDownloadFormat = "https://api.github.com/repos/{0}/{1}/actions/artifacts/{2}/zip";
+
+    /// <summary>
+    /// Path segment for GitHub API actions artifacts endpoints.
+    /// </summary>
+    public const string GitHubApiArtifactsPathSegment = "/actions/artifacts/";
 
     /// <summary>
     /// Format string for GitHub API CI Workflow Runs endpoint by branch (owner, repo, branch).
