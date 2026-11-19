@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -85,6 +86,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalizationService? _localizationService;
     private readonly IContentDependencyValidator? _dependencyValidator;
     private readonly IProfileContentService? _profileContentService;
+    private readonly ISteamManifestPatcher? _steamManifestPatcher;
     private readonly List<Action> _pendingInstallCancellations = [];
     private readonly SemaphoreSlim _shareDialogSemaphore = new(1, 1);
 
@@ -93,6 +95,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
+    private bool _originalUseSteamLaunch = true;
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
@@ -123,6 +126,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="localizationService">The optional localization service.</param>
     /// <param name="dependencyValidator">The optional validator that reports missing required content on save.</param>
     /// <param name="profileContentService">The optional service that downloads missing required content.</param>
+    /// <param name="steamManifestPatcher">The optional patcher that applies the Steam launch mode to enabled manifests.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -145,7 +149,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IArchivePayloadProcessor? archivePayloadProcessor = null,
         ILocalizationService? localizationService = null,
         IContentDependencyValidator? dependencyValidator = null,
-        IProfileContentService? profileContentService = null)
+        IProfileContentService? profileContentService = null,
+        ISteamManifestPatcher? steamManifestPatcher = null)
     {
         _gameProfileManager = gameProfileManager;
         _configurationProvider = configurationProvider;
@@ -168,6 +173,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _localizationService = localizationService;
         _dependencyValidator = dependencyValidator;
         _profileContentService = profileContentService;
+        _steamManifestPatcher = steamManifestPatcher;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,
@@ -976,6 +982,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         finally
         {
             _isSynchronizingEnabledContent = false;
+            OnPropertyChanged(nameof(IsSteamLaunchSupported));
         }
     }
 
@@ -1032,6 +1039,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnSelectedGameInstallationChanged(ContentDisplayItem? value)
     {
+        OnPropertyChanged(nameof(IsSteamLaunchSupported));
         if (value != null)
         {
             SyncInstallationSelection(value);

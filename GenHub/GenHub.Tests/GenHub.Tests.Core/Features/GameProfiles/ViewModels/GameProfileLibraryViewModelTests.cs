@@ -394,10 +394,10 @@ public class GameProfileLibraryViewModelTests
     }
 
     /// <summary>
-    /// Verifies that the launch page uses the existing editor instead of duplicate settings tabs.
+    /// Verifies that the launch header leaves editing and Steam launch mode to the actions menu and profile settings.
     /// </summary>
     [AvaloniaFact]
-    public void LibraryView_ProfileSettings_UsesExistingEditorCommand()
+    public void LibraryView_Header_LeavesEditingToActionsMenu()
     {
         var vm = CreateViewModel();
         var profile = CreateProfile("profile", "Profile");
@@ -408,9 +408,8 @@ public class GameProfileLibraryViewModelTests
         {
             window.Show();
             Dispatcher.UIThread.RunJobs();
-            var settings = view.GetVisualDescendants().OfType<Button>().Single(control => ReferenceEquals(control.Command, profile.EditProfileCommand));
-            Assert.True(settings.IsEffectivelyVisible);
-            Assert.True(settings.IsEnabled);
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<Button>(), control => ReferenceEquals(control.Command, profile.EditProfileCommand));
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<ToggleButton>(), control => ReferenceEquals(control.Command, profile.ToggleSteamLaunchCommand));
             Assert.DoesNotContain(view.GetVisualDescendants().OfType<ToggleButton>(), control => Equals(control.CommandParameter, "Overview"));
             Assert.DoesNotContain(view.GetVisualDescendants().OfType<Button>(), control => control.IsEffectivelyVisible && (ReferenceEquals(control.Command, vm.ScanForGamesCommand) || ReferenceEquals(control.Command, vm.ImportProfileCommand)));
         }

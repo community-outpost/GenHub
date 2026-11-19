@@ -3391,6 +3391,12 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
     <value>-win -quickstart</value>
   </data>
+  <data name="GameProfiles.General.SteamLaunch" xml:space="preserve">
+    <value>Launch through Steam</value>
+  </data>
+  <data name="GameProfiles.General.SteamLaunchDescription" xml:space="preserve">
+    <value>Starts the game through Steam so it tracks play time and shows the overlay.</value>
+  </data>
   <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
     <value>Theme Customization</value>
   </data>
@@ -18681,7 +18687,6 @@ Mapped image texture reference</value>
     <value>Profiles could not be loaded. Try reopening Game Profiles or restart GenHub.</value>
   </data>
   <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>My profiles ({0})</value></data>
-  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Profile settings</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>Technical details</value>
   </data>

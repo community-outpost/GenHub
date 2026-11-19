@@ -3391,6 +3391,12 @@
   <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
     <value>-win -quickstart</value>
   </data>
+  <data name="GameProfiles.General.SteamLaunch" xml:space="preserve">
+    <value>Запускать через Steam</value>
+  </data>
+  <data name="GameProfiles.General.SteamLaunchDescription" xml:space="preserve">
+    <value>Запускает игру через Steam, чтобы учитывалось время игры и работал оверлей.</value>
+  </data>
   <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
     <value>Настройка темы</value>
   </data>
@@ -18622,7 +18628,6 @@ Error: не удалось: {3}
     <value>Не удалось загрузить профили. Откройте раздел профилей заново или перезапустите GenHub.</value>
   </data>
   <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>Мои профили ({0})</value></data>
-  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>Настройки профиля</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>Технические сведения</value>
   </data>

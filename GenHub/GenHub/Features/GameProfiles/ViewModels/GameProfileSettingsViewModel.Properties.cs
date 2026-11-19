@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
@@ -175,6 +176,18 @@ public partial class GameProfileSettingsViewModel
 
     [ObservableProperty]
     private ContentDisplayItem? _selectedGameInstallation;
+
+    [ObservableProperty]
+    private bool _useSteamLaunch = true;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected installation and client can launch through Steam.
+    /// </summary>
+    public bool IsSteamLaunchSupported =>
+        SelectedGameInstallation is { } installation &&
+        ReplayCrcMatchingHelper.IsSteamLaunchEligible(
+            installation.InstallationType,
+            GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation, CurrentProfileId != null ? _originalProfile?.GameClient : null));
 
     [ObservableProperty]
     private ObservableCollection<ContentDisplayItem> _enabledContent = [];
