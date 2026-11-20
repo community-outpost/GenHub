@@ -974,7 +974,7 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            await HandleProfileUpdateSuccessAsync(result, enabledContentIds, updatedRunningState);
+            await HandleProfileUpdateSuccessAsync(result, enabledContentIds, updatedRunningState, updateRequest.UseSteamLaunch);
         }
         else
         {
@@ -1130,7 +1130,7 @@ public partial class GameProfileSettingsViewModel
         };
 
         PopulateGameSettings(rollbackRequest, originalGameSettings);
-        rollbackRequest.UseSteamLaunch = originalProfile.UseSteamLaunch;
+        rollbackRequest.UseSteamLaunch = originalProfile.UseSteamLaunch ?? false;
         return rollbackRequest;
     }
 
@@ -1175,7 +1175,7 @@ public partial class GameProfileSettingsViewModel
         return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
     }
 
-    private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)
+    private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning, bool? savedUseSteamLaunch)
     {
         if (!isProfileRunning && GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
         {
@@ -1189,7 +1189,7 @@ public partial class GameProfileSettingsViewModel
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Message", "Content changes have been applied to the active game session."));
         }
 
-        await ApplySteamLaunchModeIfChangedAsync(enabledContentIds);
+        await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
 
         StatusMessage = "Profile updated successfully";
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
@@ -1202,9 +1202,9 @@ public partial class GameProfileSettingsViewModel
         ExecuteCancel();
     }
 
-    private async Task ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds)
+    private async Task ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
     {
-        if (_steamManifestPatcher == null || !IsSteamLaunchSupported || UseSteamLaunch == _originalUseSteamLaunch)
+        if (_steamManifestPatcher == null || savedUseSteamLaunch is not { } useSteamLaunch || useSteamLaunch == _originalUseSteamLaunch)
         {
             return;
         }
@@ -1213,10 +1213,10 @@ public partial class GameProfileSettingsViewModel
         {
             foreach (var contentId in enabledContentIds)
             {
-                await _steamManifestPatcher.PatchManifestAsync(contentId, UseSteamLaunch);
+                await _steamManifestPatcher.PatchManifestAsync(contentId, useSteamLaunch);
             }
 
-            _originalUseSteamLaunch = UseSteamLaunch;
+            _originalUseSteamLaunch = useSteamLaunch;
         }
         catch (Exception ex)
         {

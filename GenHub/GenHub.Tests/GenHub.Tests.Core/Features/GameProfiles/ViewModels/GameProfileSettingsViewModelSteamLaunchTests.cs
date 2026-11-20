@@ -160,6 +160,48 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that a profile without a stored launch mode keeps launching directly after an unchanged save.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenStoredLaunchModeMissing_KeepsDirectLaunchAsync()
+    {
+        var updates = await InitializeExistingProfileAsync(useSteamLaunch: null);
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.False(_viewModel.UseSteamLaunch);
+        var update = Assert.Single(updates);
+        Assert.False(update.UseSteamLaunch);
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that manifests are patched from the saved launch mode when the setting changes mid-save.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenSteamLaunchChangesDuringSave_PatchesSavedValueAsync()
+    {
+        var updates = await InitializeExistingProfileAsync(useSteamLaunch: true);
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(ProfileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, UpdateProfileRequest, CancellationToken>((_, request, _) =>
+            {
+                updates.Add(request);
+                _viewModel.UseSteamLaunch = true;
+            })
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = ProfileId }));
+        _viewModel.UseSteamLaunch = false;
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var update = Assert.Single(updates);
+        Assert.False(update.UseSteamLaunch);
+        _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Once);
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), true), Times.Never);
+    }
+
     private static ContentDisplayItem CreateInstallation(GameInstallationType installationType) => new()
     {
         Id = InstallId,
@@ -179,7 +221,7 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         },
     };
 
-    private async Task<List<UpdateProfileRequest>> InitializeExistingProfileAsync(bool useSteamLaunch)
+    private async Task<List<UpdateProfileRequest>> InitializeExistingProfileAsync(bool? useSteamLaunch)
     {
         var profile = new GameProfile
         {
@@ -207,7 +249,7 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         await _viewModel.InitializeForProfileAsync(ProfileId);
         _viewModel.SelectedGameInstallation = CreateInstallation(GameInstallationType.Steam);
         _viewModel.EnabledContent.Add(CreateInstallation(GameInstallationType.Steam));
-        Assert.Equal(useSteamLaunch, _viewModel.UseSteamLaunch);
+        Assert.Equal(useSteamLaunch ?? false, _viewModel.UseSteamLaunch);
         updates.Clear();
         return updates;
     }

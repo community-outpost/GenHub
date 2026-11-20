@@ -284,7 +284,7 @@ public partial class GameProfileSettingsViewModel
         }
 
         CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
-        _originalUseSteamLaunch = profile.UseSteamLaunch ?? true;
+        _originalUseSteamLaunch = profile.UseSteamLaunch ?? false;
         UseSteamLaunch = _originalUseSteamLaunch;
         LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? ZeroHourName);
         GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;
