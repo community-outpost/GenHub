@@ -1207,6 +1207,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         _loadedClientSelectionKey = GetClientSelectionKey();
         _brandingSelectionKey = _loadedClientSelectionKey;
+        OnPropertyChanged(nameof(IsSteamLaunchSupported));
     }
 
     /// <summary>Determines whether the user selected a different client or installation since loading.</summary>

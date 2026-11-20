@@ -263,9 +263,11 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         _viewModel.UseSteamLaunch = true;
 
         await _viewModel.SaveCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(null);
 
-        Assert.Equal(1, closeRequests);
+        Assert.Equal(2, closeRequests);
         _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, true), Times.Once);
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Exactly(2));
     }
 
     /// <summary>
@@ -311,10 +313,20 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(ProfileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
+        bool? lastNotifiedSupport = null;
+        _viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(GameProfileSettingsViewModel.IsSteamLaunchSupported))
+            {
+                lastNotifiedSupport = _viewModel.IsSteamLaunchSupported;
+            }
+        };
+
         await _viewModel.InitializeForProfileAsync(ProfileId);
 
         Assert.Equal(GameInstallationType.Steam, _viewModel.SelectedGameInstallation?.InstallationType);
         Assert.False(_viewModel.IsSteamLaunchSupported);
+        Assert.False(lastNotifiedSupport);
     }
 
     private static ContentDisplayItem CreateInstallation(GameInstallationType installationType) => new()
