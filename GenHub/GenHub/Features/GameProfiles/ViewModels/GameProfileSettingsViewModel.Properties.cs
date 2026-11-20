@@ -180,15 +180,6 @@ public partial class GameProfileSettingsViewModel
     [ObservableProperty]
     private bool _useSteamLaunch = true;
 
-    /// <summary>
-    /// Gets a value indicating whether the selected installation and client can launch through Steam.
-    /// </summary>
-    public bool IsSteamLaunchSupported =>
-        SelectedGameInstallation is { } installation &&
-        ReplayCrcMatchingHelper.IsSteamLaunchEligible(
-            installation.InstallationType,
-            GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation, CurrentProfileId != null ? _originalProfile?.GameClient : null));
-
     [ObservableProperty]
     private ObservableCollection<ContentDisplayItem> _enabledContent = [];
 
@@ -313,4 +304,13 @@ public partial class GameProfileSettingsViewModel
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property accessed via property binding on ViewModel instance")]
     public bool CanEditImmutableMetadata => !IsHotswapMode;
+
+    /// <summary>
+    /// Gets a value indicating whether the selected installation and client can launch through Steam.
+    /// </summary>
+    public bool IsSteamLaunchSupported =>
+        SelectedGameInstallation is { } installation &&
+        ReplayCrcMatchingHelper.IsSteamLaunchEligible(
+            installation.InstallationType,
+            GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation, CurrentProfileId != null ? _originalProfile?.GameClient : null));
 }

@@ -1189,7 +1189,7 @@ public partial class GameProfileSettingsViewModel
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Message", "Content changes have been applied to the active game session."));
         }
 
-        var steamLaunchApplied = await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
+        var manifestPatchSucceeded = await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
 
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
@@ -1198,7 +1198,7 @@ public partial class GameProfileSettingsViewModel
             WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
         }
 
-        if (!steamLaunchApplied)
+        if (!manifestPatchSucceeded)
         {
             return;
         }
