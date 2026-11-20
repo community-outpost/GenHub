@@ -1189,9 +1189,8 @@ public partial class GameProfileSettingsViewModel
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Message", "Content changes have been applied to the active game session."));
         }
 
-        await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
+        var steamLaunchApplied = await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
 
-        StatusMessage = "Profile updated successfully";
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
         if (result.Data != null)
@@ -1199,14 +1198,20 @@ public partial class GameProfileSettingsViewModel
             WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
         }
 
+        if (!steamLaunchApplied)
+        {
+            return;
+        }
+
+        StatusMessage = "Profile updated successfully";
         ExecuteCancel();
     }
 
-    private async Task ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
+    private async Task<bool> ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
     {
         if (_steamManifestPatcher == null || savedUseSteamLaunch is not { } useSteamLaunch || useSteamLaunch == _originalUseSteamLaunch)
         {
-            return;
+            return true;
         }
 
         try
@@ -1217,13 +1222,16 @@ public partial class GameProfileSettingsViewModel
             }
 
             _originalUseSteamLaunch = useSteamLaunch;
+            return true;
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to apply Steam launch mode to manifests for profile {ProfileName}", Name);
+            StatusMessage = _localizationService?.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", Name) ?? ex.Message;
             _notificationService?.ShowError(
                 _localizationService?.GetString("GameProfiles.Notification.SteamIntegrationError.Title") ?? "Steam Integration Error",
                 _localizationService?.GetString("GameProfiles.Notification.SteamIntegrationError.Message", Name, ex.Message) ?? ex.Message);
+            return false;
         }
     }
 

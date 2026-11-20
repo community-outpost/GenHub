@@ -202,6 +202,49 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), true), Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that switching to a non-Steam installation leaves the stored launch mode and manifests alone.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenInstallationNotSteam_DoesNotPatchManifestsAsync()
+    {
+        var updates = await InitializeExistingProfileAsync(useSteamLaunch: true);
+        _viewModel.SelectedGameInstallation = CreateInstallation(GameInstallationType.EaApp);
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        var update = Assert.Single(updates);
+        Assert.Null(update.UseSteamLaunch);
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a failed manifest patch keeps the editor open and a second save retries it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenManifestPatchFails_KeepsEditorOpenAndRetriesAsync()
+    {
+        var updates = await InitializeExistingProfileAsync(useSteamLaunch: true);
+        _viewModel.UseSteamLaunch = false;
+        var closeRequests = 0;
+        _viewModel.RequestClose += (_, _) => closeRequests++;
+        _patcherMock.SetupSequence(p => p.PatchManifestAsync(InstallId, false))
+            .ThrowsAsync(new System.IO.IOException("locked"))
+            .Returns(Task.CompletedTask);
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, closeRequests);
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, updates.Count);
+        Assert.Equal(1, closeRequests);
+        _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Exactly(2));
+    }
+
     private static ContentDisplayItem CreateInstallation(GameInstallationType installationType) => new()
     {
         Id = InstallId,
