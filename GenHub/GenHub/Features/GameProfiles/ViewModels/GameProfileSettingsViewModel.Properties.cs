@@ -310,7 +310,5 @@ public partial class GameProfileSettingsViewModel
     /// </summary>
     public bool IsSteamLaunchSupported =>
         SelectedGameInstallation is { } installation &&
-        ReplayCrcMatchingHelper.IsSteamLaunchEligible(
-            installation.InstallationType,
-            GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation, CurrentProfileId != null ? _originalProfile?.GameClient : null));
+        ReplayCrcMatchingHelper.IsSteamLaunchEligible(installation.InstallationType, ResolveSteamLaunchClient(installation));
 }

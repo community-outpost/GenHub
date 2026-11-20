@@ -245,6 +245,78 @@ public class GameProfileSettingsViewModelSteamLaunchTests
         _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Exactly(2));
     }
 
+    /// <summary>
+    /// Verifies that restoring the original launch mode after a failed patch still reconciles the manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenOriginalModeRestoredAfterFailedPatch_PatchesManifestsAsync()
+    {
+        await InitializeExistingProfileAsync(useSteamLaunch: true);
+        var closeRequests = 0;
+        _viewModel.RequestClose += (_, _) => closeRequests++;
+        _patcherMock.Setup(p => p.PatchManifestAsync(InstallId, false)).ThrowsAsync(new System.IO.IOException("locked"));
+        _viewModel.UseSteamLaunch = false;
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        _viewModel.UseSteamLaunch = true;
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, closeRequests);
+        _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, true), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that an unchanged selection is checked against the stored client the save keeps.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task IsSteamLaunchSupported_WhenStoredClientIsNotRetail_ReturnsFalseAsync()
+    {
+        var profile = new GameProfile
+        {
+            Id = ProfileId,
+            Name = "Steam Profile",
+            GameInstallationId = "install-zh",
+            UseSteamLaunch = false,
+            GameClient = new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour, ExecutablePath = "generalszh" },
+        };
+        _gameProfileManagerMock.Setup(m => m.GetProfileAsync(ProfileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _contentLoaderMock.Setup(c => c.LoadEnabledContentForProfileAsync(profile))
+            .ReturnsAsync(new ObservableCollection<CoreContentDisplayItem>());
+        _contentLoaderMock.Setup(c => c.LoadAvailableGameInstallationsAsync())
+            .ReturnsAsync(new ObservableCollection<CoreContentDisplayItem>
+            {
+                new()
+                {
+                    Id = InstallId,
+                    ManifestId = InstallId,
+                    DisplayName = "Zero Hour",
+                    ContentType = ContentType.GameInstallation,
+                    GameType = GameType.ZeroHour,
+                    InstallationType = GameInstallationType.Steam,
+                    SourceId = "install-zh",
+                    IsEnabled = true,
+                    GameClient = new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour, ExecutablePath = "generals.exe" },
+                },
+            });
+        _contentLoaderMock.Setup(c => c.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync([]);
+        _manifestPoolMock.Setup(m => m.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+        _launchRegistryMock.Setup(l => l.GetAllActiveLaunchesAsync()).ReturnsAsync(new List<GameLaunchInfo>());
+        _gameProfileManagerMock.Setup(m => m.UpdateProfileAsync(ProfileId, It.IsAny<UpdateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        await _viewModel.InitializeForProfileAsync(ProfileId);
+
+        Assert.Equal(GameInstallationType.Steam, _viewModel.SelectedGameInstallation?.InstallationType);
+        Assert.False(_viewModel.IsSteamLaunchSupported);
+    }
+
     private static ContentDisplayItem CreateInstallation(GameInstallationType installationType) => new()
     {
         Id = InstallId,

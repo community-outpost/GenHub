@@ -1175,6 +1175,17 @@ public partial class GameProfileSettingsViewModel
         return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
     }
 
+    /// <summary>Resolves the client the next save will store, so Steam eligibility matches the saved client.</summary>
+    private GameClient? ResolveSteamLaunchClient(ContentDisplayItem installation)
+    {
+        if (CurrentProfileId != null)
+        {
+            return ResolveGameClientForUpdate();
+        }
+
+        return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation);
+    }
+
     private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning, bool? savedUseSteamLaunch)
     {
         if (!isProfileRunning && GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
@@ -1209,7 +1220,9 @@ public partial class GameProfileSettingsViewModel
 
     private async Task<bool> ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
     {
-        if (_steamManifestPatcher == null || savedUseSteamLaunch is not { } useSteamLaunch || useSteamLaunch == _originalUseSteamLaunch)
+        if (_steamManifestPatcher == null ||
+            savedUseSteamLaunch is not { } useSteamLaunch ||
+            (useSteamLaunch == _originalUseSteamLaunch && !_hasIncompleteSteamLaunchPatch))
         {
             return true;
         }
@@ -1222,10 +1235,12 @@ public partial class GameProfileSettingsViewModel
             }
 
             _originalUseSteamLaunch = useSteamLaunch;
+            _hasIncompleteSteamLaunchPatch = false;
             return true;
         }
         catch (Exception ex)
         {
+            _hasIncompleteSteamLaunchPatch = true;
             _logger?.LogError(ex, "Failed to apply Steam launch mode to manifests for profile {ProfileName}", Name);
             StatusMessage = _localizationService?.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", Name) ?? ex.Message;
             _notificationService?.ShowError(

@@ -96,6 +96,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _originalUseSteamLaunch = true; // skipcq: CS-R1137
+    private bool _hasIncompleteSteamLaunchPatch; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
