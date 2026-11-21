@@ -225,6 +225,10 @@
                             <TextBlock Classes="form-label" Text="{localization:Localize GameProfiles.General.CommandLineArguments}" />
                             <TextBox Classes="form-field" Text="{Binding CommandLineArguments, Mode=TwoWay}" IsEnabled="{Binding CanEditImmutableMetadata}" Watermark="{localization:Localize GameProfiles.General.CommandLineArgumentsWatermark}" />
                         </StackPanel>
+                        <StackPanel Spacing="8" IsVisible="{Binding IsSteamLaunchSupported}">
+                            <CheckBox Content="{localization:Localize GameProfiles.General.SteamLaunch}" IsChecked="{Binding UseSteamLaunch}" IsEnabled="{Binding CanEditImmutableMetadata}" />
+                            <TextBlock Text="{localization:Localize GameProfiles.General.SteamLaunchDescription}" FontSize="11" Opacity="0.5" TextWrapping="Wrap" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

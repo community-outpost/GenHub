@@ -917,6 +917,7 @@ public partial class GameProfileSettingsViewModel
 
         var gameSettings = GameSettingsViewModel.GetProfileSettings();
         PopulateGameSettings(createRequest, gameSettings);
+        createRequest.UseSteamLaunch = IsSteamLaunchSupported && UseSteamLaunch;
 
         var result = await _gameProfileManager.CreateProfileAsync(createRequest, cancellationToken);
         if (result.Success && result.Data != null)
@@ -973,7 +974,7 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            await HandleProfileUpdateSuccessAsync(result, enabledContentIds, updatedRunningState);
+            await HandleProfileUpdateSuccessAsync(result, enabledContentIds, updatedRunningState, updateRequest.UseSteamLaunch);
         }
         else
         {
@@ -1129,6 +1130,7 @@ public partial class GameProfileSettingsViewModel
         };
 
         PopulateGameSettings(rollbackRequest, originalGameSettings);
+        rollbackRequest.UseSteamLaunch = originalProfile.UseSteamLaunch ?? false;
         return rollbackRequest;
     }
 
@@ -1156,6 +1158,7 @@ public partial class GameProfileSettingsViewModel
         };
 
         PopulateGameSettings(updateRequest, gameSettings);
+        updateRequest.UseSteamLaunch = IsSteamLaunchSupported ? UseSteamLaunch : null;
         return updateRequest;
     }
 
@@ -1172,7 +1175,18 @@ public partial class GameProfileSettingsViewModel
         return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, SelectedGameInstallation, _originalProfile?.GameClient);
     }
 
-    private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning)
+    /// <summary>Resolves the client the next save will store, so Steam eligibility matches the saved client.</summary>
+    private GameClient? ResolveSteamLaunchClient(ContentDisplayItem installation)
+    {
+        if (CurrentProfileId != null)
+        {
+            return ResolveGameClientForUpdate();
+        }
+
+        return GameProfileClientResolutionHelper.ResolveActiveGameClient(EnabledContent, installation);
+    }
+
+    private async Task HandleProfileUpdateSuccessAsync(ProfileOperationResult<GameProfile> result, List<string> enabledContentIds, bool isProfileRunning, bool? savedUseSteamLaunch)
     {
         if (!isProfileRunning && GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
         {
@@ -1186,7 +1200,8 @@ public partial class GameProfileSettingsViewModel
                 _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.LiveUpdateComplete.Message", "Content changes have been applied to the active game session."));
         }
 
-        StatusMessage = "Profile updated successfully";
+        var manifestPatchSucceeded = await ApplySteamLaunchModeIfChangedAsync(enabledContentIds, savedUseSteamLaunch);
+
         _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
         if (result.Data != null)
@@ -1194,7 +1209,46 @@ public partial class GameProfileSettingsViewModel
             WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
         }
 
+        if (!manifestPatchSucceeded)
+        {
+            return;
+        }
+
+        StatusMessage = "Profile updated successfully";
         ExecuteCancel();
+    }
+
+    private async Task<bool> ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
+    {
+        if (_steamManifestPatcher == null ||
+            CurrentProfileId is not { } profileId ||
+            savedUseSteamLaunch is not { } useSteamLaunch ||
+            (useSteamLaunch == _originalUseSteamLaunch && !_profilesWithIncompleteSteamLaunchPatch.Contains(profileId)))
+        {
+            return true;
+        }
+
+        try
+        {
+            foreach (var contentId in enabledContentIds)
+            {
+                await _steamManifestPatcher.PatchManifestAsync(contentId, useSteamLaunch);
+            }
+
+            _originalUseSteamLaunch = useSteamLaunch;
+            _profilesWithIncompleteSteamLaunchPatch.Remove(profileId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _profilesWithIncompleteSteamLaunchPatch.Add(profileId);
+            _logger?.LogError(ex, "Failed to apply Steam launch mode to manifests for profile {ProfileName}", Name);
+            StatusMessage = _localizationService?.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", Name) ?? ex.Message;
+            _notificationService?.ShowError(
+                _localizationService?.GetString("GameProfiles.Notification.SteamIntegrationError.Title") ?? "Steam Integration Error",
+                _localizationService?.GetString("GameProfiles.Notification.SteamIntegrationError.Message", Name, ex.Message) ?? ex.Message);
+            return false;
+        }
     }
 
     private async Task<bool> CheckIsProfileRunningAsync()

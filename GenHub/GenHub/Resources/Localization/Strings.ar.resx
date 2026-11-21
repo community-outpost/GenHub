@@ -3391,6 +3391,12 @@
   <data name="GameProfiles.General.CommandLineArgumentsWatermark" xml:space="preserve">
     <value>-win -quickstart</value>
   </data>
+  <data name="GameProfiles.General.SteamLaunch" xml:space="preserve">
+    <value>التشغيل عبر Steam</value>
+  </data>
+  <data name="GameProfiles.General.SteamLaunchDescription" xml:space="preserve">
+    <value>يشغّل اللعبة عبر Steam ليتتبع وقت اللعب ويعرض الواجهة المضمّنة.</value>
+  </data>
   <data name="GameProfiles.General.ThemeCustomization" xml:space="preserve">
     <value>تخصيص السمة</value>
   </data>
@@ -18622,7 +18628,6 @@ Error: فشل: {3}
     <value>تعذر تحميل ملفات التعريف. أعد فتح قسم ملفات التعريف أو أعد تشغيل GenHub.</value>
   </data>
   <data name="GameProfiles.Library.MyProfilesCount" xml:space="preserve"><value>ملفاتي الشخصية ({0})</value></data>
-  <data name="GameProfiles.Library.ProfileSettings" xml:space="preserve"><value>إعدادات الملف الشخصي</value></data>
   <data name="GameProfiles.ScanFailure.Details" xml:space="preserve">
     <value>التفاصيل التقنية</value>
   </data>

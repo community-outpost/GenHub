@@ -130,13 +130,15 @@ Item templates inside sidebars must use inset rounded rows:
 ## Text inputs and form density
 
 Ordinary text inputs opt into `FormFieldStyles.axaml` with `Classes="form-field"`.
-Use `FormFieldFill` and `FormFieldBorder` so inputs remain visible at rest, with semantic text colors and 8px input corners,
-36px minimum height, 13px type and `10,8` padding. Hover lifts the fill and strengthens the border. Focus and validation states
+Use `FormFieldFill` and `FormFieldBorder` so inputs remain visible at rest, with semantic text colors, 36px minimum height
+and 13px type. Single-line fields are pills: `SingleLineFieldCornerRadius` corners and `FormFieldPillPadding` (`14,8`).
+Multiline and wrapped editors keep 8px `InputCornerRadius` corners and `10,8` padding. Hover lifts the fill and strengthens
+the border. Focus and validation states
 retain the original Fluent editor template; password, selection, read-only and
 multiline behavior stay with the consumer.
 
 Use `Classes="form-field form-compact"` for dense editor/search fields: 32px
-minimum height, 12px type and `8,6` padding. Dropdowns use the same form metrics,
+minimum height, 12px type and `8,6` padding, or `FormCompactPillPadding` (`12,6`) on single-line fields. Dropdowns use the same form metrics,
 with `form-compact` for dense contexts. Do not duplicate field paint or template
 state styles in individual views. Layout, multiline height, maximum dropdown
 height and semantic option templates stay with the consumer.
@@ -151,7 +153,7 @@ presentation.
 
 All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
 
-- **Container:** Corners from `{DynamicResource InputCornerRadius}`, `MinHeight` from `{DynamicResource FormFieldMinHeight}`, background bound to `{DynamicResource FormFieldFill}` with a 1px `{DynamicResource FormFieldBorder}` border.
+- **Container:** Pill corners from `{DynamicResource SingleLineFieldCornerRadius}`, padding from `{DynamicResource FormFieldPillPadding}`, `MinHeight` from `{DynamicResource FormFieldMinHeight}`, background bound to `{DynamicResource FormFieldFill}` with a 1px `{DynamicResource FormFieldBorder}` border.
 - **Hover & Focus:** Hover switches to `{DynamicResource FormFieldHoverFill}` and `{DynamicResource FormFieldHoverBorder}`. Focus keeps `{DynamicResource FormFieldFill}` with an `{DynamicResource AccentBrush}` border, which also marks the open state.
 - **Disabled:** Text and chevron use `{DynamicResource TextMuted}`.
 - **Glyph:** Vector chevron (`Data="M7 10l5 5 5-5z"`) that rotates 180 degrees smoothly when the dropdown opens.
@@ -543,4 +545,4 @@ Single-line, non-wrapping `form-field` editors center both text and watermark in
 
 Action captions and glyphs center their own line/icon boxes within the shared action content. Avoid per-screen baseline nudges or transforms.
 
-Fields use `InputCornerRadius`. Fluent validation captions use the same error brush as field outlines.
+Single-line fields, dropdowns and numeric fields use `SingleLineFieldCornerRadius`. Multiline and wrapped editors use `InputCornerRadius`. Fluent validation captions use the same error brush as field outlines.
