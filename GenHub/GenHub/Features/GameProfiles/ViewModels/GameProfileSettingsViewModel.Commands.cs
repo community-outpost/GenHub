@@ -1221,8 +1221,9 @@ public partial class GameProfileSettingsViewModel
     private async Task<bool> ApplySteamLaunchModeIfChangedAsync(List<string> enabledContentIds, bool? savedUseSteamLaunch)
     {
         if (_steamManifestPatcher == null ||
+            CurrentProfileId is not { } profileId ||
             savedUseSteamLaunch is not { } useSteamLaunch ||
-            (useSteamLaunch == _originalUseSteamLaunch && !_hasIncompleteSteamLaunchPatch))
+            (useSteamLaunch == _originalUseSteamLaunch && !_profilesWithIncompleteSteamLaunchPatch.Contains(profileId)))
         {
             return true;
         }
@@ -1235,12 +1236,12 @@ public partial class GameProfileSettingsViewModel
             }
 
             _originalUseSteamLaunch = useSteamLaunch;
-            _hasIncompleteSteamLaunchPatch = false;
+            _profilesWithIncompleteSteamLaunchPatch.Remove(profileId);
             return true;
         }
         catch (Exception ex)
         {
-            _hasIncompleteSteamLaunchPatch = true;
+            _profilesWithIncompleteSteamLaunchPatch.Add(profileId);
             _logger?.LogError(ex, "Failed to apply Steam launch mode to manifests for profile {ProfileName}", Name);
             StatusMessage = _localizationService?.GetString("GameProfiles.Error.ErrorUpdatingLaunchMode", Name) ?? ex.Message;
             _notificationService?.ShowError(

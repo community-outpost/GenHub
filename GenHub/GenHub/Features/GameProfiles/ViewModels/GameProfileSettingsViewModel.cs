@@ -92,11 +92,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
     private readonly List<string> _originalEnabledContentIds = [];
+    private readonly HashSet<string> _profilesWithIncompleteSteamLaunchPatch = [];
     private readonly SemaphoreSlim _loadContentSemaphore = new(1, 1);
     private GameProfile? _originalProfile; // skipcq: CS-R1137
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _originalUseSteamLaunch = true; // skipcq: CS-R1137
-    private bool _hasIncompleteSteamLaunchPatch; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
     private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;

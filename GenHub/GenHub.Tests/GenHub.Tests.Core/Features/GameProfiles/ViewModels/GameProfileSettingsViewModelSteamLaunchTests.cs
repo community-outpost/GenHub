@@ -271,6 +271,33 @@ public class GameProfileSettingsViewModelSteamLaunchTests
     }
 
     /// <summary>
+    /// Verifies that reopening a profile after a partial manifest patch still retries the patch on the next save.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SaveCommand_WhenProfileReopenedAfterFailedPatch_RetriesPatchAsync()
+    {
+        await InitializeExistingProfileAsync(useSteamLaunch: true);
+        _patcherMock.SetupSequence(p => p.PatchManifestAsync(InstallId, false))
+            .ThrowsAsync(new System.IO.IOException("locked"))
+            .Returns(Task.CompletedTask);
+        _viewModel.UseSteamLaunch = false;
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        await InitializeExistingProfileAsync(useSteamLaunch: false);
+        var closeRequests = 0;
+        _viewModel.RequestClose += (_, _) => closeRequests++;
+
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+        await _viewModel.SaveCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, closeRequests);
+        _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Exactly(2));
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Exactly(2));
+    }
+
+    /// <summary>
     /// Verifies that an unchanged selection is checked against the stored client the save keeps.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

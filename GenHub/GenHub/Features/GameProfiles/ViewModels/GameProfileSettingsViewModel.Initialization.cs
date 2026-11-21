@@ -57,7 +57,6 @@ public partial class GameProfileSettingsViewModel
             _isCoverCustomized = false;
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
             _originalUseSteamLaunch = true;
-            _hasIncompleteSteamLaunchPatch = false;
             UseSteamLaunch = true;
             SelectedContentType = ContentType.GameClient;
 
@@ -131,7 +130,6 @@ public partial class GameProfileSettingsViewModel
             CurrentProfileId = profileId;
             _loadedClientSelectionKey = null;
             _brandingSelectionKey = null;
-            _hasIncompleteSteamLaunchPatch = false;
             OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
