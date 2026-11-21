@@ -31,6 +31,7 @@ public class GameProfileSettingsViewModelSteamLaunchTests
 {
     private const string ProfileId = "steam-profile";
     private const string InstallId = "1.108.steam.gameinstallation.zh";
+    private const string ModId = "1.0.genhub.mod.testmod";
 
     private readonly Mock<IGameProfileManager> _gameProfileManagerMock = new();
     private readonly Mock<IProfileContentLoader> _contentLoaderMock = new();
@@ -271,21 +272,27 @@ public class GameProfileSettingsViewModelSteamLaunchTests
     }
 
     /// <summary>
-    /// Verifies that reopening a profile after a partial manifest patch still retries the patch on the next save.
+    /// Verifies that reopening a profile after one of two manifest patches failed retries the patch on the next save.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SaveCommand_WhenProfileReopenedAfterFailedPatch_RetriesPatchAsync()
+    public async Task SaveCommand_WhenProfileReopenedAfterPartialPatch_RetriesPatchAsync()
     {
         await InitializeExistingProfileAsync(useSteamLaunch: true);
-        _patcherMock.SetupSequence(p => p.PatchManifestAsync(InstallId, false))
+        _viewModel.EnabledContent.Add(CreateMod());
+        _patcherMock.Setup(p => p.PatchManifestAsync(InstallId, false)).Returns(Task.CompletedTask);
+        _patcherMock.SetupSequence(p => p.PatchManifestAsync(ModId, false))
             .ThrowsAsync(new System.IO.IOException("locked"))
             .Returns(Task.CompletedTask);
         _viewModel.UseSteamLaunch = false;
 
         await _viewModel.SaveCommand.ExecuteAsync(null);
 
+        _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Once);
+        _patcherMock.Verify(p => p.PatchManifestAsync(ModId, false), Times.Once);
+
         await InitializeExistingProfileAsync(useSteamLaunch: false);
+        _viewModel.EnabledContent.Add(CreateMod());
         var closeRequests = 0;
         _viewModel.RequestClose += (_, _) => closeRequests++;
 
@@ -294,7 +301,8 @@ public class GameProfileSettingsViewModelSteamLaunchTests
 
         Assert.Equal(2, closeRequests);
         _patcherMock.Verify(p => p.PatchManifestAsync(InstallId, false), Times.Exactly(2));
-        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Exactly(2));
+        _patcherMock.Verify(p => p.PatchManifestAsync(ModId, false), Times.Exactly(2));
+        _patcherMock.Verify(p => p.PatchManifestAsync(It.IsAny<string>(), It.IsAny<bool>()), Times.Exactly(4));
     }
 
     /// <summary>
@@ -373,6 +381,17 @@ public class GameProfileSettingsViewModelSteamLaunchTests
             GameType = GameType.ZeroHour,
             ExecutablePath = "generals.exe",
         },
+    };
+
+    private static ContentDisplayItem CreateMod() => new()
+    {
+        Id = ModId,
+        ManifestId = ManifestId.Create(ModId),
+        DisplayName = "Test Mod",
+        ContentType = ContentType.Mod,
+        GameType = GameType.ZeroHour,
+        InstallationType = GameInstallationType.Unknown,
+        IsEnabled = true,
     };
 
     private async Task<List<UpdateProfileRequest>> InitializeExistingProfileAsync(bool? useSteamLaunch)
