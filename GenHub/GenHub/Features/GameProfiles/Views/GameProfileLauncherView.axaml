@@ -4,8 +4,8 @@
             <controls:SidebarLayout.PaneHeader>
                 <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBox Text="{Binding ProfileSearchText, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.Library.Search}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Search}" MinHeight="38" CornerRadius="8" Padding="10,8" VerticalContentAlignment="Center"/>
-                        <Button x:Name="ProfileSortButton" Grid.Column="1" Classes="library-action" Margin="6,0,0,0" ToolTip.Tip="{Binding SelectedSortModeItem.DisplayName}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}">
+                        <TextBox Classes="form-field" Text="{Binding ProfileSearchText, Mode=TwoWay}" Watermark="{localization:Localize GameProfiles.Library.Search}" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Search}" MinHeight="38"/>
+                        <Button x:Name="ProfileSortButton" Grid.Column="1" Classes="action-secondary library-action" Margin="6,0,0,0" ToolTip.Tip="{Binding SelectedSortModeItem.DisplayName}" AutomationProperties.Name="{localization:Localize GameProfiles.Launcher.Tooltip.Sort}">
                             <material:MaterialIcon Kind="Sort" Width="16" Height="16"/>
                             <Button.Flyout>
                                 <MenuFlyout>
@@ -141,11 +141,6 @@
                                         </StackPanel>
                                     </Button>
                                     <TextBlock Text="{Binding LibraryLaunchStatus}" Classes="library-secondary" VerticalAlignment="Center" IsVisible="{Binding IsPreparingWorkspace}" Margin="0,0,12,8"/>
-                                    <Button Classes="library-action" Command="{Binding EditProfileCommand}" IsEnabled="{Binding CanEdit}" Content="{localization:Localize GameProfiles.Library.ProfileSettings}" Margin="0,0,12,8"/>
-                                    <ToggleButton Classes="library-tab" IsChecked="{Binding UseSteamLaunch}" Command="{Binding ToggleSteamLaunchCommand}" IsVisible="{Binding IsSteamIntegrationSupported}" ToolTip.Tip="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" AutomationProperties.Name="{localization:Localize GameProfiles.Card.Tooltip.SteamIntegration}" Margin="0,0,12,8">
-                                        <Image Source="avares://GenHub/Assets/Icons/steam-icon.png" Width="20" Height="20"/>
-                                    </ToggleButton>
-
                                 </WrapPanel>
                                 <Button Grid.Column="1" Classes="action-secondary library-action" Padding="16,9" MinWidth="46" MinHeight="38" VerticalAlignment="Top" AutomationProperties.Name="{localization:Localize GameProfiles.Library.Actions}">
                                     <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18"/>

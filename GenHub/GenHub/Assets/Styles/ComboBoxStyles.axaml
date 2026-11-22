@@ -20,8 +20,8 @@
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
-        <Setter Property="Padding" Value="{DynamicResource FormFieldPadding}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource SingleLineFieldCornerRadius}" />
+        <Setter Property="Padding" Value="{DynamicResource FormFieldPillPadding}" />
         <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
         <Setter Property="MaxDropDownHeight" Value="360" />
         <Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -260,10 +260,10 @@
 
     <!-- Clean / Compact Variant -->
     <Style Selector="ComboBox.compact, ComboBox.form-compact">
-        <Setter Property="Padding" Value="{DynamicResource FormCompactPadding}" />
+        <Setter Property="Padding" Value="{DynamicResource FormCompactPillPadding}" />
         <Setter Property="MinHeight" Value="{DynamicResource FormCompactMinHeight}" />
         <Setter Property="FontSize" Value="{DynamicResource FormCompactFontSize}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource SingleLineFieldCornerRadius}" />
     </Style>
 
     <!-- Workspace strategy picker: plain name and description in the list, name only when closed -->

@@ -56,6 +56,8 @@ public partial class GameProfileSettingsViewModel
             _isIconCustomized = false;
             _isCoverCustomized = false;
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();
+            _originalUseSteamLaunch = true;
+            UseSteamLaunch = true;
             SelectedContentType = ContentType.GameClient;
 
             EnabledContent.Clear();
@@ -282,6 +284,8 @@ public partial class GameProfileSettingsViewModel
         }
 
         CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
+        _originalUseSteamLaunch = profile.UseSteamLaunch ?? false;
+        UseSteamLaunch = _originalUseSteamLaunch;
         LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? ZeroHourName);
         GameTypeFilter = profile.GameClient?.GameType ?? Core.Models.Enums.GameType.ZeroHour;
 

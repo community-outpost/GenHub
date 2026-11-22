@@ -5,14 +5,14 @@
             <Setter Property="MinHeight" Value="38" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ActionSecondaryRest}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryBorder}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource ActionSecondaryInk}" />
         </Style>
         <Style Selector="Button.library-action:pointerover /template/ ContentPresenter, ToggleButton.library-tab:pointerover /template/ ContentPresenter, RadioButton.library-tab:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ActionSecondaryHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionSecondaryHoverBorder}" />
         </Style>
         <Style Selector="Button.library-play">
             <Setter Property="MinWidth" Value="134" />

@@ -72,7 +72,7 @@
     <Style Selector="NumericUpDown.form-field">
         <Setter Property="Background" Value="{DynamicResource FormFieldFill}" />
         <Setter Property="BorderBrush" Value="{DynamicResource FormFieldBorder}" />
-        <Setter Property="CornerRadius" Value="{DynamicResource InputCornerRadius}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource SingleLineFieldCornerRadius}" />
         <Setter Property="MinHeight" Value="{DynamicResource FormFieldMinHeight}" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>

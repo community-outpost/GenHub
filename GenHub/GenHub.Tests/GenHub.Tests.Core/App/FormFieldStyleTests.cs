@@ -34,7 +34,8 @@ public class FormFieldStyleTests
             var border = field.GetVisualDescendants().OfType<Border>().Single(item => item.Name == "PART_BorderElement");
             border.Transitions = null;
             Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(border.Background));
-            Assert.Equal(new CornerRadius(8), field.CornerRadius);
+            Assert.Equal(Resource<CornerRadius>("SingleLineFieldCornerRadius"), field.CornerRadius);
+            Assert.Equal(Resource<Thickness>("FormFieldPillPadding"), field.Padding);
             Assert.Equal(36, field.MinHeight);
             Assert.Equal(13, field.FontSize);
             Assert.Same(Avalonia.Application.Current!.FindResource("ActionPrimaryRestBrush"), field.SelectionBrush);
@@ -90,8 +91,8 @@ public class FormFieldStyleTests
             // The dialog's shared Studio styles must not repaint opted-in fields at rest or on hover.
             var createDropdown = create.GetVisualDescendants().OfType<ComboBox>().First();
             Assert.Contains("form-field", createDropdown.Classes);
-            Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), createDropdown.CornerRadius);
-            Assert.Equal(Resource<Thickness>("FormFieldPadding"), createDropdown.Padding);
+            Assert.Equal(Resource<CornerRadius>("SingleLineFieldCornerRadius"), createDropdown.CornerRadius);
+            Assert.Equal(Resource<Thickness>("FormFieldPillPadding"), createDropdown.Padding);
             Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(createDropdown.Background));
             Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(createDropdown.BorderBrush));
             window.MouseMove(createField.TranslatePoint(new Point(20, createField.Bounds.Height / 2), window)!.Value);
@@ -122,7 +123,8 @@ public class FormFieldStyleTests
             {
                 Assert.Contains("form-field", field.Classes);
                 Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(field.Background));
-                Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), field.CornerRadius);
+                var expectedRadius = field.AcceptsReturn || field.TextWrapping != TextWrapping.NoWrap ? "InputCornerRadius" : "SingleLineFieldCornerRadius";
+                Assert.Equal(Resource<CornerRadius>(expectedRadius), field.CornerRadius);
             });
 
             var texts = dialog.GetVisualDescendants().OfType<TextBlock>().ToList();
@@ -134,7 +136,7 @@ public class FormFieldStyleTests
             var orderText = order.GetVisualDescendants().OfType<TextBox>().First(box => box.Name == "PART_TextBox");
             Assert.Contains("form-field", order.Classes);
             Assert.Equal(Resource<double>("FormFieldMinHeight"), order.MinHeight);
-            Assert.Equal(Resource<CornerRadius>("InputCornerRadius"), order.CornerRadius);
+            Assert.Equal(Resource<CornerRadius>("SingleLineFieldCornerRadius"), order.CornerRadius);
             Assert.Equal(ResourceColor("FormFieldFill"), BrushColor(order.Background));
             Assert.Equal(ResourceColor("FormFieldBorder"), BrushColor(order.BorderBrush));
             Assert.Equal(Resource<double>("FormFieldFontSize"), orderText.FontSize);
@@ -169,7 +171,8 @@ public class FormFieldStyleTests
             border.Transitions = null;
             glyph.Transitions = null;
             Assert.Equal(32, field.MinHeight);
-            Assert.Equal(new CornerRadius(8), field.CornerRadius);
+            Assert.Equal(Resource<CornerRadius>("SingleLineFieldCornerRadius"), field.CornerRadius);
+            Assert.Equal(Resource<Thickness>("FormCompactPillPadding"), field.Padding);
             Assert.Equal("Generals", field.SelectedItem);
             field.Focus(NavigationMethod.Tab);
             Dispatcher.UIThread.RunJobs();

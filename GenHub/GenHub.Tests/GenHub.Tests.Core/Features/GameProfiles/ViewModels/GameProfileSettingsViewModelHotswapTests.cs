@@ -870,6 +870,7 @@ public class GameProfileSettingsViewModelHotswapTests
             Id = profileId,
             Name = "PostSave Profile",
             EnabledContentIds = [installId, originalMapId],
+            UseSteamLaunch = null,
             VideoResolutionWidth = 800,
             VideoResolutionHeight = 600,
             AudioSoundVolume = 50,
@@ -972,6 +973,7 @@ public class GameProfileSettingsViewModelHotswapTests
                     r.EnabledContentIds.Contains(originalMapId) &&
                     r.ClearWorkspaceStrategy == true &&
                     r.WorkspaceStrategy == null &&
+                    r.UseSteamLaunch == false &&
                     r.VideoResolutionWidth == 800 &&
                     r.VideoResolutionHeight == 600 &&
                     r.AudioSoundVolume == 50),
