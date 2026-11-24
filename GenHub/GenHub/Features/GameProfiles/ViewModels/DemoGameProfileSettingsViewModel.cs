@@ -313,7 +313,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     /// Synchronizes the active page with the given info section ID.
     /// </summary>
     /// <param name="sectionId">The target info section ID.</param>
-    /// <param name="page">The page to show when it belongs to the section; otherwise the section's first page is shown.</param>
+    /// <param name="page">The page to show when it belongs to the section; ignored otherwise.</param>
     public void SyncTabToSection(string sectionId, ProfileSettingsPage? page = null)
     {
         int targetIndex = GetSectionTabIndex(sectionId);
@@ -329,7 +329,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
             {
                 SelectedPage = page.Value;
             }
-            else if (SelectedTabIndex != targetIndex)
+            else
             {
                 SelectedTabIndex = targetIndex;
             }

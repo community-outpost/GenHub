@@ -98,6 +98,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private UpdateProfileRequest? _originalGameSettings; // skipcq: CS-R1137
     private bool _originalUseSteamLaunch = true; // skipcq: CS-R1137
     private bool _isContentReloadInProgress; // skipcq: CS-R1137
+    private bool _isContentReloadPending;
     private int _loadContentVersion; // skipcq: CS-R1137
     private bool _isSynchronizingEnabledContent;
     private string? _currentProfileId;
@@ -276,15 +277,21 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             if (_isContentReloadInProgress)
             {
+                _isContentReloadPending = true;
                 return;
             }
 
             _isContentReloadInProgress = true;
             try
             {
-                await Task.Delay(75).ConfigureAwait(true);
-                await LoadAvailableContentAsync().ConfigureAwait(true);
-                await LoadProfileContentCandidatesAsync().ConfigureAwait(true);
+                do
+                {
+                    _isContentReloadPending = false;
+                    await Task.Delay(75).ConfigureAwait(true);
+                    await LoadAvailableContentAsync().ConfigureAwait(true);
+                    await LoadProfileContentCandidatesAsync().ConfigureAwait(true);
+                }
+                while (_isContentReloadPending);
             }
             finally
             {

@@ -132,15 +132,17 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
+            UpdateContentItemsHotswapState(candidates, IsHotswapMode);
             _profileContentCandidates = candidates;
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException or JsonException)
         {
             _logger?.LogError(ex, "Error loading profile content candidates");
+            _notificationService?.ShowError(GetErrorLoadingContentTitle(), ex.Message);
         }
 
         RebuildProfileContentRows();
@@ -297,7 +299,8 @@ public partial class GameProfileSettingsViewModel
 
         try
         {
-            if (await ConfirmGameSwitchAsync(installation))
+            if (await ConfirmGameSwitchAsync(installation) &&
+                !await IsLockedAfterConfirmationAsync(installation, SelectedGameInstallation))
             {
                 await EnableContentInternal(installation);
             }
@@ -346,6 +349,11 @@ public partial class GameProfileSettingsViewModel
                 }
             }
 
+            if (await IsLockedAfterConfirmationAsync(client, current))
+            {
+                return;
+            }
+
             await EnableContentInternal(client);
         }
         finally
@@ -368,6 +376,12 @@ public partial class GameProfileSettingsViewModel
                 $"'{item.DisplayName}' is locked and cannot be modified while the game is running.",
                 item.DisplayName));
         return true;
+    }
+
+    private async Task<bool> IsLockedAfterConfirmationAsync(ContentDisplayItem item, ContentDisplayItem? current)
+    {
+        await RefreshHotswapStateAsync();
+        return IsLockedWhileRunning(item) || IsLockedWhileRunning(current);
     }
 
     private async Task<bool> ConfirmGameSwitchAsync(ContentDisplayItem installation)

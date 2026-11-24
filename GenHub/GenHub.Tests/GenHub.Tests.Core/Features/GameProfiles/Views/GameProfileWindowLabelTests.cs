@@ -38,6 +38,30 @@ public class GameProfileWindowLabelTests
         new(LocalizationConstants.StringResourceBaseName, typeof(LocalizationService).Assembly);
 
     /// <summary>
+    /// Verifies the embedded settings host renders the view model's own toasts.
+    /// </summary>
+    [AvaloniaFact]
+    public void EmbeddedHost_RendersViewModelNotifications()
+    {
+        var viewModel = CreateViewModel();
+        var view = new GameProfileSettingsContentView { DataContext = viewModel };
+        var window = new Window { Width = 1100, Height = 800, Content = view };
+        window.Show();
+
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+
+            var container = Assert.Single(view.GetVisualDescendants().OfType<GenHub.Features.Notifications.Views.NotificationContainerView>());
+            Assert.Same(viewModel.NotificationManager, container.DataContext);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    /// <summary>
     /// Verifies each sidebar page shows its translated label within the sidebar width.
     /// </summary>
     /// <param name="cultureName">The shipped culture to render.</param>

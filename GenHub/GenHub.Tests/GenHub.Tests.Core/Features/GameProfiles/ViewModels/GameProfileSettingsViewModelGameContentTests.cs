@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
@@ -49,6 +50,7 @@ public class GameProfileSettingsViewModelGameContentTests
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameProfileManager> _profileManagerMock = new();
     private readonly Mock<ILaunchRegistry> _launchRegistryMock = new();
+    private readonly Mock<INotificationService> _notificationMock = new();
     private readonly List<GameLaunchInfo> _activeLaunches = [];
     private readonly Dictionary<ContentType, List<CoreContentDisplayItem>> _candidates = [];
 
@@ -538,22 +540,102 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
-    /// Verifies a failing loader keeps the rows already shown.
+    /// Verifies a failing loader keeps the rows already shown and reports the failure.
     /// </summary>
+    /// <param name="rejectsId">Whether the loader fails on an invalid manifest ID rather than an unavailable pool.</param>
     /// <returns>A task representing the asynchronous test.</returns>
-    [Fact]
-    public async Task LoadCandidates_WhenLoaderThrows_KeepsPreviousRowsAsync()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoadCandidates_WhenLoaderThrows_KeepsPreviousRowsAndReportsAsync(bool rejectsId)
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog: false);
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+        _notificationMock.Invocations.Clear();
+        Exception failure = rejectsId ? new ArgumentException("bad id") : new InvalidOperationException("pool unavailable");
         _loaderMock
             .Setup(loader => loader.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
-            .ThrowsAsync(new InvalidOperationException("pool unavailable"));
+            .ThrowsAsync(failure);
 
         await viewModel.LoadProfileContentCandidatesAsync();
 
         Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
+        _notificationMock.Verify(notifications => notifications.ShowError(It.IsAny<string>(), failure.Message, It.IsAny<int?>(), It.IsAny<bool>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies acquisitions that arrive while a reload runs trigger another reload.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [AvaloniaFact]
+    public async Task ContentAcquired_DuringReload_ReloadsAgainAsync()
+    {
+        var firstLoadGate = new TaskCompletionSource();
+        var firstLoadStarted = new TaskCompletionSource();
+        var lastTypeLoads = 0;
+        _loaderMock
+            .Setup(loader => loader.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
+            .Returns(async (ContentType type, ObservableCollection<CoreContentDisplayItem> _, IEnumerable<string> _) =>
+            {
+                if (type == ContentType.Executable && Interlocked.Increment(ref lastTypeLoads) == 1)
+                {
+                    firstLoadStarted.TrySetResult();
+                    await firstLoadGate.Task;
+                }
+
+                return new ObservableCollection<CoreContentDisplayItem>(_candidates.TryGetValue(type, out var items) ? items : []);
+            });
+        var viewModel = CreateViewModel(withDialog: false);
+        var message = new ContentAcquiredMessage(new ContentManifest { Id = ManifestId.Create(ZeroHourModId) });
+
+        try
+        {
+            viewModel.Receive(message);
+            await PumpUntilAsync(() => firstLoadStarted.Task.IsCompleted);
+            AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
+            viewModel.Receive(message);
+            Dispatcher.UIThread.RunJobs();
+            firstLoadGate.SetResult();
+            await PumpUntilAsync(() => viewModel.ProfileContentRows.Count > 0);
+        }
+        finally
+        {
+            firstLoadGate.TrySetResult();
+        }
+
+        Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies a game started while a replacement is being confirmed blocks the replacement.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task SelectGameClient_WhenGameStartsDuringConfirmation_KeepsCurrentClientAsync()
+    {
+        AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
+        var viewModel = CreateViewModel(withDialog: true);
+        SetupExistingProfile(CreateCore(ContentType.GameClient, CurrentClientId, GameType.ZeroHour));
+        await viewModel.InitializeForProfileAsync(ProfileId);
+        _dialogMock
+            .Setup(dialog => dialog.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(() =>
+            {
+                _activeLaunches.Add(new GameLaunchInfo
+                {
+                    LaunchId = "launch-1",
+                    ProfileId = ProfileId,
+                    WorkspaceId = ProfileId,
+                    ProcessInfo = new GameProcessInfo { ProcessId = Environment.ProcessId },
+                });
+                return true;
+            });
+        var otherClient = viewModel.GameClientRows.Single(row => row.Item.ManifestId.Value == OtherClientId).Item;
+
+        await viewModel.SelectGameClientCommand.ExecuteAsync(otherClient);
+
+        Assert.Equal(CurrentClientId, Assert.Single(viewModel.EnabledContent, item => item.ContentType == ContentType.GameClient).ManifestId.Value);
     }
 
     /// <summary>
@@ -649,6 +731,16 @@ public class GameProfileSettingsViewModelGameContentTests
 
     private static IEnumerable<string> RowIds(IEnumerable<ProfileContentRow> rows) => rows.Select(row => row.Item.ManifestId.Value);
 
+    private static async Task PumpUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            Dispatcher.UIThread.RunJobs();
+            await Task.Delay(10);
+        }
+    }
+
     private static ContentDisplayItem CreateItem(ContentType type, string id, GameType gameType, bool isEnabled = false) => new()
     {
         Id = id,
@@ -716,7 +808,7 @@ public class GameProfileSettingsViewModelGameContentTests
             Mock.Of<IConfigurationProviderService>(),
             _loaderMock.Object,
             null,
-            null,
+            _notificationMock.Object,
             _manifestPoolMock.Object,
             null,
             null,

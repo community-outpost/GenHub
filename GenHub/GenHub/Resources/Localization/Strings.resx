@@ -6228,11 +6228,11 @@ When you confirm an import, GenHub registers the item into your local content po
   </data>
   <data name="Info.Card.local-content.workspace-isolation.DetailedContent" xml:space="preserve">
     <value>**Linking content to game profiles**
-After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** tab:
+After registering a local content item, open any profile in **Profile Settings** and navigate to the **Content** page:
 
 * Enable the checkbox next to any mod, addon, tool, or map pack to attach it to that profile.
 * Reorder items in the list to configure load priority when multiple items override the same INI settings or art assets.
-* Assign custom game clients (such as a test build from TheSuperHackers) in the Client selector.
+* Assign custom game clients (such as a test build from TheSuperHackers) on the **Game** page.
 
 **Workspace isolation**
 GenHub never writes modded files into your original Command &amp; Conquer installation directory. When launching a profile, GenHub creates an isolated workspace using symbolic links or hardlinks to combine your base game with the specific content items assigned to that profile. Your base game files remain untouched, and profiles run independently without file conflicts.</value>

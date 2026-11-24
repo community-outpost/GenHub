@@ -4,17 +4,26 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
+             xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsContentView"
              x:DataType="vm:GameProfileSettingsViewModel">
 
     <Border Background="{DynamicResource SurfaceBackgroundBrush}">
-        <Grid ColumnDefinitions="240,*">
-            <views:GameProfileSettingsSidebarView />
-            <Grid Grid.Column="1" RowDefinitions="Auto,*">
-                <views:GameProfileSettingsPageTitleView Margin="32,28,32,16" />
-                <views:GameProfileSettingsPagesView Grid.Row="1" />
+        <Panel>
+            <Grid ColumnDefinitions="240,*">
+                <views:GameProfileSettingsSidebarView />
+                <Grid Grid.Column="1" RowDefinitions="Auto,*">
+                    <views:GameProfileSettingsPageTitleView Margin="32,28,32,16" />
+                    <views:GameProfileSettingsPagesView Grid.Row="1" />
+                </Grid>
             </Grid>
-        </Grid>
+
+            <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,75,16,0"
+                                                   ZIndex="2000" />
+        </Panel>
     </Border>
 </UserControl>
