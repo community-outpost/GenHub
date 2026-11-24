@@ -9,31 +9,32 @@
   </defs>
   <rect width="1200" height="760" rx="20" fill="url(#bg)"/>
   <rect x="44" y="38" width="1112" height="684" rx="16" fill="#14141d" stroke="#30303e" stroke-width="1.5"/>
-  <text x="82" y="101" font-size="28" font-weight="700">Enabled Content</text>
-  <text x="82" y="131" font-size="15" class="muted">Content this profile uses when it launches.</text>
+  <text x="82" y="101" font-size="28" font-weight="700">This profile will use</text>
+  <text x="82" y="131" font-size="15" class="muted">These items are used when you launch this profile.</text>
   <rect x="82" y="168" width="476" height="170" rx="12" fill="#1a1a24" stroke="#353541"/>
   <text x="108" y="210" font-size="19" font-weight="650">Current Zero Hour client</text>
   <rect x="108" y="229" width="112" height="29" rx="6" fill="#252431" stroke="#464255"/>
   <text x="123" y="249" font-size="13" class="muted">Game Client</text>
-  <rect x="435" y="281" width="96" height="36" rx="7" fill="#2c1b23" stroke="#b24b57"/>
-  <text x="456" y="305" font-size="14" font-weight="650" fill="#ff9aa1">Remove</text>
+  <rect x="374" y="281" width="170" height="36" rx="7" fill="#2c1b23" stroke="#b24b57"/>
+  <text x="388" y="305" font-size="14" font-weight="650" fill="#ff9aa1">Remove from profile</text>
   <rect x="585" y="168" width="520" height="170" rx="12" fill="#1a1a24" stroke="#353541"/>
   <text x="611" y="210" font-size="19" font-weight="650">New client to add</text>
   <rect x="611" y="229" width="134" height="29" rx="6" fill="#252431" stroke="#464255"/>
   <text x="626" y="249" font-size="13" class="muted">Game Client</text>
-  <rect x="970" y="281" width="110" height="42" rx="8" fill="#2b1940" stroke="#9d55d6"/>
-  <text x="995" y="308" font-size="15" font-weight="700">+ Add</text>
+  <rect x="930" y="281" width="150" height="42" rx="8" fill="#2b1940" stroke="#9d55d6"/>
+  <text x="947" y="308" font-size="15" font-weight="700">Add to profile</text>
   <rect x="44" y="38" width="1112" height="684" rx="16" fill="#05050a" opacity="0.72"/>
   <rect x="300" y="234" width="600" height="292" rx="16" fill="#1a1923" stroke="#554d64" stroke-width="1.5"/>
   <circle cx="348" cy="287" r="19" fill="#402c16" stroke="#d19b4b"/>
   <text x="342" y="295" font-size="21" font-weight="700" fill="#ffd38a">!</text>
-  <text x="383" y="294" font-size="24" font-weight="700">Replace game client?</text>
-  <text x="342" y="349" font-size="16" class="muted">This profile already uses 'Current Zero Hour client'.</text>
-  <text x="342" y="376" font-size="16" class="muted">Replacing it with 'New client to add' removes the</text>
-  <text x="342" y="403" font-size="16" class="muted">current item from this profile. Continue?</text>
-  <rect x="342" y="447" width="144" height="48" rx="9" fill="#272431" stroke="#575162"/>
-  <text x="374" y="477" font-size="15" font-weight="650">Keep current</text>
-  <rect x="697" y="447" width="160" height="48" rx="9" fill="url(#accent)" stroke="#d6c7ef"/>
-  <text x="746" y="477" font-size="15" font-weight="700">Replace</text>
+  <text x="383" y="294" font-size="24" font-weight="700">Replace game client for this profile?</text>
+  <text x="342" y="349" font-size="16" class="muted">This profile currently uses 'Current Zero Hour client'.</text>
+  <text x="342" y="376" font-size="16" class="muted">If you continue, this profile will use 'New client to add' instead.</text>
+  <text x="342" y="403" font-size="16" class="muted">The current item will not be deleted; you can select it</text>
+  <text x="342" y="430" font-size="16" class="muted">for another profile later.</text>
+  <rect x="342" y="454" width="160" height="48" rx="9" fill="#272431" stroke="#575162"/>
+  <text x="374" y="484" font-size="15" font-weight="650">Keep current</text>
+  <rect x="674" y="454" width="183" height="48" rx="9" fill="url(#accent)" stroke="#d6c7ef"/>
+  <text x="697" y="484" font-size="15" font-weight="700">Use this instead</text>
   <text x="302" y="564" font-size="13" class="muted">Static UI preview of the replacement confirmation.</text>
 </svg>
