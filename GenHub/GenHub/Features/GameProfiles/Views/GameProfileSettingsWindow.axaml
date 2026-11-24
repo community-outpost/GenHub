@@ -4,18 +4,17 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
         xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
-        xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
         xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
         xmlns:controls="clr-namespace:GenHub.Common.Controls"
-        mc:Ignorable="d" d:DesignWidth="750" d:DesignHeight="700"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="760"
         x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsWindow"
         x:DataType="vm:GameProfileSettingsViewModel"
         x:Name="SettingsWindow"
         Title="{localization:Localize GameProfiles.Window.Title}"
-        Width="1000" Height="850"
-        MinWidth="600" MinHeight="550"
+        Width="1000" Height="760"
+        MinWidth="720" MinHeight="520"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource SurfaceBackgroundBrush}"
@@ -25,320 +24,64 @@
         ExtendClientAreaTitleBarHeightHint="-1">
 
     <Window.Resources>
-        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
-        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
-        <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
-        <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
-        <conv:StringToImageConverter x:Key="StringToImageConverter" />
-        <conv:NotNullConverter x:Key="NotNullConverter" />
-        <conv:NotNullOrEmptyConverter x:Key="NotNullOrEmptyConverter" />
-        <conv:NullSafePropertyConverter x:Key="NullSafeConverter" />
-        <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
-        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
-        <conv:TabIndexToVisibilityConverter x:Key="TabIndexToVisibilityConverter" />
-        <conv:StringToColorConverter x:Key="StringToColorConverter" />
+        <conv:EqualityConverter x:Key="EqualityConverter" />
     </Window.Resources>
 
     <Window.Styles>
-
-        <!-- Form field -->
-        <Style Selector="StackPanel.form-field">
-            <Setter Property="Margin" Value="0,0,0,12" />
-        </Style>
-
-        <!-- Form label -->
-        <Style Selector="TextBlock.form-label">
-            <Setter Property="Margin" Value="0,0,0,6" />
-            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="Medium" />
-        </Style>
-
-        <!-- Input fields -->
-
-        <!-- Compact color button -->
-        <Style Selector="Button.color-btn">
-            <Setter Property="Width" Value="{DynamicResource ColorSwatchSize}" />
-            <Setter Property="Height" Value="{DynamicResource ColorSwatchSize}" />
-            <Setter Property="Margin" Value="0,0,6,6" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <!-- Content action buttons -->
-
-        <!-- Content filter pills -->
-        <Style Selector="Button.filter-pill">
-            <Setter Property="Background">
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Offset="0" Color="#50FFFFFF"/>
-                    <GradientStop Offset="0.5" Color="#20FFFFFF"/>
-                    <GradientStop Offset="1" Color="#05FFFFFF"/>
-                </LinearGradientBrush>
-            </Setter>
-            <Setter Property="Margin" Value="4" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush">
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Offset="0" Color="#D0FFFFFF"/>
-                    <GradientStop Offset="1" Color="#40FFFFFF"/>
-                </LinearGradientBrush>
-            </Setter>
-            <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="16,10" />
-            <Setter Property="MinWidth" Value="110" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
-
-        <Style Selector="Button.filter-pill TextBlock">
-             <Setter Property="Effect">
-                 <DropShadowEffect BlurRadius="4" Color="#000000" Opacity="0.8" OffsetX="1" OffsetY="1" />
-            </Setter>
-        </Style>
-
-        <!-- Hover: Brighten the 'glass' significantly. RenderTransform moved to Button to avoid clipping -->
-        <Style Selector="Button.filter-pill:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#50000000" />
-            <Setter Property="BorderBrush" Value="#FFFFFFFF" />
-        </Style>
-
-        <Style Selector="Button.filter-pill:pointerover">
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
-            <Setter Property="ZIndex" Value="10" />
-        </Style>
-
-        <Style Selector="Button.filter-pill:pressed">
-             <Setter Property="RenderTransform" Value="scale(0.96)" />
-        </Style>
-
-        <Style Selector="Button.filter-pill.selected /template/ ContentPresenter" x:CompileBindings="False">
-            <Setter Property="Background" Value="{Binding $parent[Button].DataContext.ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Setter Property="BorderBrush">
-                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Offset="0" Color="#FFFFFFFF"/>
-                    <GradientStop Offset="1" Color="#AAFFFFFF"/>
-                </LinearGradientBrush>
-            </Setter>
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-
-        <Style Selector="Button.filter-pill.selected">
-            <Setter Property="ZIndex" Value="1" />
-            <Setter Property="BorderThickness" Value="2" />
-        </Style>
-
-        <!-- Selected text gets a strong shadow to pop against the colored background -->
-        <Style Selector="Button.filter-pill.selected TextBlock">
-            <Setter Property="Foreground" Value="White" />
+        <Style Selector="TextBlock.page-title">
+            <Setter Property="FontSize" Value="26" />
             <Setter Property="FontWeight" Value="Bold" />
-             <Setter Property="Effect">
-                 <DropShadowEffect BlurRadius="4" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="2" />
-            </Setter>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
         </Style>
-
-        <Style Selector="Button.filter-pill.selected PathIcon">
-            <Setter Property="Foreground" Value="White" />
-             <Setter Property="Effect">
-                 <DropShadowEffect BlurRadius="4" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="2" />
-            </Setter>
-        </Style>
-
-        <!-- Conjoined pills -->
-        <Style Selector="Button.filter-pill.left">
-            <Setter Property="CornerRadius" Value="10,0,0,10" />
-            <Setter Property="MinWidth" Value="100" />
-            <Setter Property="Margin" Value="4,4,-1,4" />
-        </Style>
-        <Style Selector="Button.filter-pill.right">
-            <Setter Property="CornerRadius" Value="0,10,10,0" />
-            <Setter Property="MinWidth" Value="100" />
-        </Style>
-
-        <!-- Header action button style -->
-
-        <!-- New Content Card Styles -->
-        <Style Selector="Button.content-card-btn">
-            <Setter Property="Background" Value="#08FFFFFF" />
-            <Setter Property="BorderBrush" Value="#15FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="Margin" Value="4" />
-            <Setter Property="Width" Value="180" />
-            <Setter Property="MaxWidth" Value="180" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.1" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.1" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.content-card-btn:pointerover">
-            <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
-        </Style>
-        <Style Selector="Button.content-card-btn:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
-        </Style>
-        <!-- Corner Accent Style -->
-        <Style Selector="Path.corner-accent">
-            <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />
-            <Setter Property="StrokeThickness" Value="1.5" />
-            <Setter Property="StrokeJoin" Value="Miter" />
-            <Setter Property="Opacity" Value="0.6" />
-            <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="8" Color="{DynamicResource AccentColor}" Opacity="0.4" OffsetX="0" OffsetY="0" />
-            </Setter>
-        </Style>
-
-        <!-- Specific Bottom Right Accent Style -->
-        <Style Selector="Path.corner-accent.bottom-right">
-             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
-             <Setter Property="StrokeThickness" Value="5" />
-             <Setter Property="Opacity" Value="1" />
-             <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="15" Color="{DynamicResource AccentColor}" Opacity="1.0" OffsetX="0" OffsetY="0" />
-            </Setter>
-        </Style>
-
-        <!-- Edge Accent Style -->
-        <Style Selector="Border.edge-accent">
-            <Setter Property="Opacity" Value="0.5" />
-            <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="10" Color="{DynamicResource AccentColor}" Opacity="0.3" OffsetX="0" OffsetY="0" />
-            </Setter>
-        </Style>
-
-        <!-- Footer Row Style -->
-        <Style Selector="Border.footer-row">
-            <Setter Property="Background" Value="#15000000" />
-            <Setter Property="BorderBrush" Value="#20FFFFFF" />
-            <Setter Property="BorderThickness" Value="0,1,0,0" />
-            <Setter Property="Padding" Value="24,12" />
-        </Style>
-
-        <!-- Save FAB Style -->
-
     </Window.Styles>
 
     <Border Background="{DynamicResource SurfaceBackgroundBrush}"
             BorderBrush="{DynamicResource BorderBrush}"
             BorderThickness="1">
         <Panel>
-            <!-- Background Artwork Overlay -->
-            <Image Source="{Binding CoverPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                   Stretch="UniformToFill"
-                   Opacity="0.1"
-                   HorizontalAlignment="Stretch"
-                   VerticalAlignment="Stretch" />
+            <Grid ColumnDefinitions="240,*">
+                <Border Grid.Column="0" PointerPressed="OnHeaderPointerPressed" Background="Transparent">
+                    <views:GameProfileSettingsSidebarView />
+                </Border>
 
-            <!-- Edge Accents -->
-            <Border Classes="edge-accent" HorizontalAlignment="Right" Width="1.5" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Border Classes="edge-accent" VerticalAlignment="Bottom" Height="1.5" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+                <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+                    <Grid x:Name="PageHeader"
+                          Grid.Row="0"
+                          Background="Transparent"
+                          ColumnDefinitions="*,Auto"
+                          MinHeight="88"
+                          PointerPressed="OnHeaderPointerPressed">
+                        <Panel Grid.Column="0" Margin="32,0,0,12">
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.General}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Game}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.Navigation.Content}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameProfiles.General.TabAppearance}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Appearance}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Video}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Video}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Audio}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Audio}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.Controls}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Controls}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.TheSuperHackers}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.TheSuperHackers}}" />
+                            <TextBlock Classes="page-title" Text="{localization:Localize GameSettings.Category.GeneralsOnline}"
+                                       IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.GeneralsOnline}}" />
+                        </Panel>
 
-            <!-- Corner Accents at absolute edges -->
-            <Canvas HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
-                <!-- Top Left -->
-                <Path Classes="corner-accent" Data="M 0,15 L 0,0 L 15,0" Canvas.Top="0" Canvas.Left="0" />
-                <!-- Top Right -->
-                <Path Classes="corner-accent" Data="M 0,0 L 15,0 L 15,15" Canvas.Top="0" Canvas.Right="0" />
-                <!-- Bottom Left -->
-                <Path Classes="corner-accent" Data="M 15,15 L 0,15 L 0,0" Canvas.Bottom="0" Canvas.Left="0" />
-                <!-- Bottom Right (Enhanced) -->
-                <Path Classes="corner-accent bottom-right" Data="M 0,35 L 35,35 L 35,0" Canvas.Bottom="0" Canvas.Right="0" />
-            </Canvas>
-
-            <Grid RowDefinitions="Auto,Auto,*">
-                <!-- Redesigned Minimal Header -->
-                <Border Grid.Row="0"
-                        Background="Transparent"
-                        Height="60"
-                        PointerPressed="OnHeaderPointerPressed">
-                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
-                        <!-- Profile Icon -->
-                        <Border Grid.Column="0"
-                                Width="36" Height="36"
-                                Background="#25FFFFFF"
-                                CornerRadius="18"
-                                ClipToBounds="True"
-                                BorderBrush="White"
-                                BorderThickness="1.5"
-                                Margin="0,0,16,0"
-                                VerticalAlignment="Center">
-                            <Image Source="{Binding IconPath, Mode=OneWay, Converter={StaticResource StringToImageConverter}}"
-                                   Width="36" Height="36"
-                                   Stretch="UniformToFill" />
-                        </Border>
-
-                        <!-- Profile Info (Truncates if title is long) -->
-                        <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
-                            <StackPanel VerticalAlignment="Center">
-                                <DockPanel LastChildFill="True">
-                                    <Border DockPanel.Dock="Right"
-                                            IsVisible="{Binding IsHotswapMode}"
-                                            Background="#254CAF50"
-                                            BorderBrush="#804CAF50"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Padding="6,2"
-                                            Margin="8,0,0,0"
-                                            VerticalAlignment="Center">
-                                        <TextBlock Text="{localization:Localize GameProfiles.Window.HotswapMode}"
-                                                   Foreground="#81C784"
-                                                   FontSize="10"
-                                                   FontWeight="Bold"
-                                                   LetterSpacing="0.5" />
-                                    </Border>
-                                    <TextBlock Text="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                                               Foreground="White"
-                                               FontSize="18"
-                                               FontWeight="Bold"
-                                               TextTrimming="CharacterEllipsis"
-                                               TextWrapping="NoWrap"
-                                               ToolTip.Tip="{Binding Name, Mode=OneWay, FallbackValue='New Profile'}"
-                                               VerticalAlignment="Center" />
-                                </DockPanel>
-                                <TextBlock Text="{localization:Localize GameProfiles.Window.Subtitle}"
-                                           Foreground="{DynamicResource AccentLightBrush}"
-                                           FontSize="10"
-                                           FontWeight="SemiBold"
-                                           LetterSpacing="1"
-                                           Opacity="0.8" />
-                            </StackPanel>
-                        </Grid>
-
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <!-- Randomize Color -->
-                            <Button
-                                    Command="{Binding RandomizeColorCommand}"
-                                    Classes="icon-action"
-                                    ToolTip.Tip="{localization:Localize GameProfiles.Window.RandomizeColor}"
-                                    AutomationProperties.Name="{localization:Localize GameProfiles.Window.RandomizeColor}">
-                                <PathIcon Data="{StaticResource RefreshIcon}" />
-                            </Button>
-
-                            <!-- Toggle Fullscreen -->
-                            <Button
-                                    Click="OnToggleFullscreenClick"
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Top" Margin="0,12,12,0">
+                            <Button Click="OnToggleFullscreenClick"
                                     Classes="icon-action"
                                     ToolTip.Tip="{localization:Localize GameProfiles.Window.ToggleFullscreen}"
                                     AutomationProperties.Name="{localization:Localize GameProfiles.Window.ToggleFullscreen}">
                                 <PathIcon Data="M4,4H20V20H4V4M6,8V18H18V8H6Z" />
                             </Button>
-
-                            <!-- Close Button -->
-                            <Button
-                                    Command="{Binding ExecuteCancelCommand}"
+                            <Button Command="{Binding ExecuteCancelCommand}"
                                     Classes="icon-action"
                                     ToolTip.Tip="{localization:Localize Common.CloseEsc}"
                                     AutomationProperties.Name="{localization:Localize Common.CloseEsc}">
@@ -346,189 +89,178 @@
                             </Button>
                         </StackPanel>
                     </Grid>
-                </Border>
 
-                <!-- Global Navigation at the Top -->
-                <views:GameProfileNavigationView Grid.Row="1" Margin="24,0,24,12" />
-
-                <!-- Tab Content Panels -->
-                <Grid Grid.Row="2" Margin="12,0,12,12" ClipToBounds="True">
-                    <!-- Content Tab Panel (Index 0) -->
-                    <views:GameProfileContentEditorView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=0}" />
-
-                    <!-- Profile Settings Panel (Index 1) -->
-                    <views:GameProfileGeneralSettingsView IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=1}" />
-
-                    <!-- Game Settings Panel (Index 2) -->
-                    <Panel IsVisible="{Binding SelectedTabIndex, Converter={StaticResource TabIndexToVisibilityConverter}, ConverterParameter=2}">
-                        <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+                    <Panel Grid.Row="1" ClipToBounds="True">
+                        <views:GameProfileGameSelectionView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Game}}" />
+                        <views:GameProfileContentEditorView IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.Content}}" />
+                        <views:GameProfileGeneralSettingsView IsVisible="{Binding IsProfileSettingsTabVisible}" />
+                        <Panel IsVisible="{Binding IsGameSettingsTabVisible}">
+                            <views:GameSettingsView DataContext="{Binding GameSettingsViewModel}" />
+                        </Panel>
                     </Panel>
+
+                    <Border x:Name="FooterBar"
+                            Grid.Row="2"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="0,1,0,0"
+                            Padding="32,14">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                            <Button Content="{localization:Localize Common.Cancel}"
+                                    Command="{Binding ExecuteCancelCommand}"
+                                    Classes="action-secondary"
+                                    MinWidth="100" />
+                            <Button Command="{Binding SaveCommand}"
+                                    Classes="action-primary"
+                                    MinWidth="120"
+                                    ToolTip.Tip="{localization:Localize GameProfiles.Window.SaveTooltip}"
+                                    AutomationProperties.Name="{localization:Localize Common.Button.Save}">
+                                <TextBlock Text="{localization:Localize Common.Button.Save}" />
+                            </Button>
+                        </StackPanel>
+                    </Border>
                 </Grid>
-
-        <!-- Add Local Content Dialog -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsAddLocalContentDialogOpen}"
-                Background="#CC000000"
-                ZIndex="1002">
-            <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                    BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
-                    BorderThickness="2"
-                    CornerRadius="16"
-                    Width="420"
-                    Padding="24"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Center"
-                    TextElement.Foreground="White">
-                <StackPanel Spacing="16">
-                    <!-- Header -->
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <PathIcon Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.DialogTitle}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <!-- Selected Folder -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.SelectedFolder}" FontSize="12" Opacity="0.8" />
-                        <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
-                            <TextBlock Text="{Binding LocalContentDirectoryPath}"
-                                       FontSize="11"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip.Tip="{Binding LocalContentDirectoryPath}" />
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Content Name -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentName}" FontSize="12" Opacity="0.8" />
-                        <TextBox Classes="form-field" Text="{Binding LocalContentName, Mode=TwoWay}"
-                                 Watermark="{localization:Localize GameProfiles.LocalContent.ContentNameWatermark}" />
-                    </StackPanel>
-
-                    <!-- Content Type -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentType}" FontSize="12" Opacity="0.8" />
-                        <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
-                                  SelectedItem="{Binding SelectedLocalContentType}"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.PublisherNote}"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
-                    </StackPanel>
-
-                    <!-- Game Type Selection - Always visible -->
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.TargetGame}" FontSize="12" Opacity="0.8" />
-                        <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
-                                  SelectedItem="{Binding SelectedLocalGameType}"
-                                  HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <TextBlock Text="{localization:Localize GameProfiles.LocalContent.TargetGameNote}"
-                                   FontSize="10" Opacity="0.6" FontStyle="Italic" />
-                    </StackPanel>
-
-                    <!-- Action Buttons -->
-                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
-                        <Button
-                                Grid.Column="1"
-                                Content="{localization:Localize Common.Cancel}"
-                                Command="{Binding CancelAddLocalContentCommand}"
-                                Margin="0,0,12,0"
-                                Classes="action-secondary"
-                                MinWidth="90"/>
-                        <Button
-                                Grid.Column="2"
-                                Command="{Binding ConfirmAddLocalContentCommand}"
-                                Classes="action-primary"
-                                MinWidth="130">
-                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
-                                <TextBlock Text="{localization:Localize GameProfiles.LocalContent.AddContentButton}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </Border>
-        <!-- Loading overlay -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsInitializing}"
-                Background="#DD000000"
-                ZIndex="1001">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
-                <TextBlock Text="{localization:Localize Common.Status.Loading}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Saving overlay -->
-        <Border Grid.RowSpan="2"
-                IsVisible="{Binding IsSaving}"
-                Background="#CC000000"
-                ZIndex="1000">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
-                <TextBlock Text="{localization:Localize Common.Status.Saving}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Error Panel -->
-        <Border Grid.RowSpan="2"
-                Background="#CC000000"
-                IsVisible="{Binding LoadingError}"
-                ZIndex="1000">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                    <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="18" Height="18" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{localization:Localize GameProfiles.Window.LoadError}" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
-                </StackPanel>
-                <Button
-                        Content="{localization:Localize Common.Close}"
-                        HorizontalAlignment="Center"
-                        Command="{Binding ExecuteCancelCommand}"
-                        Classes="action-secondary"/>
-            </StackPanel>
-        </Border>
-
             </Grid>
 
-            <!-- Notification Container - Outside Grid for proper positioning -->
+            <!-- Add Local Content Dialog -->
+            <Border
+                    IsVisible="{Binding IsAddLocalContentDialogOpen}"
+                    Background="#CC000000"
+                    ZIndex="1002">
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{Binding ColorValue, Converter={StaticResource ThemeBorderConverter}, Mode=OneWay}"
+                        BorderThickness="2"
+                        CornerRadius="16"
+                        Width="420"
+                        Padding="24"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        TextElement.Foreground="White">
+                    <StackPanel Spacing="16">
+                        <!-- Header -->
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <PathIcon Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.DialogTitle}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Selected Folder -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.SelectedFolder}" FontSize="12" Opacity="0.8" />
+                            <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,8">
+                                <TextBlock Text="{Binding LocalContentDirectoryPath}"
+                                           FontSize="11"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding LocalContentDirectoryPath}" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Content Name -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentName}" FontSize="12" Opacity="0.8" />
+                            <TextBox Classes="form-field" Text="{Binding LocalContentName, Mode=TwoWay}"
+                                     Watermark="{localization:Localize GameProfiles.LocalContent.ContentNameWatermark}" />
+                        </StackPanel>
+
+                        <!-- Content Type -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.ContentType}" FontSize="12" Opacity="0.8" />
+                            <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AllowedLocalContentTypes}"
+                                      SelectedItem="{Binding SelectedLocalContentType}"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.PublisherNote}"
+                                       FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        </StackPanel>
+
+                        <!-- Game Type Selection - Always visible -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.TargetGame}" FontSize="12" Opacity="0.8" />
+                            <ComboBox Classes="form-field" ItemsSource="{x:Static vm:GameProfileSettingsViewModel.AvailableLocalGameTypes}"
+                                      SelectedItem="{Binding SelectedLocalGameType}"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:GameTypeDisplayConverter.Instance}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Text="{localization:Localize GameProfiles.LocalContent.TargetGameNote}"
+                                       FontSize="10" Opacity="0.6" FontStyle="Italic" />
+                        </StackPanel>
+
+                        <!-- Action Buttons -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                            <Button
+                                    Grid.Column="1"
+                                    Content="{localization:Localize Common.Cancel}"
+                                    Command="{Binding CancelAddLocalContentCommand}"
+                                    Margin="0,0,12,0"
+                                    Classes="action-secondary"
+                                    MinWidth="90"/>
+                            <Button
+                                    Grid.Column="2"
+                                    Command="{Binding ConfirmAddLocalContentCommand}"
+                                    Classes="action-primary"
+                                    MinWidth="130">
+                                <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                    <PathIcon Data="{StaticResource ConfirmationCheckIcon}"    VerticalAlignment="Center"/>
+                                    <TextBlock Text="{localization:Localize GameProfiles.LocalContent.AddContentButton}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Border>
+
+            <!-- Loading overlay -->
+            <Border
+                    IsVisible="{Binding IsInitializing}"
+                    Background="#DD000000"
+                    ZIndex="1001">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                    <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                    <TextBlock Text="{localization:Localize Common.Status.Loading}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Saving overlay -->
+            <Border
+                    IsVisible="{Binding IsSaving}"
+                    Background="#CC000000"
+                    ZIndex="1000">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                    <ProgressBar IsIndeterminate="True" Width="180" Height="4"/>
+                    <TextBlock Text="{localization:Localize Common.Status.Saving}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Error Panel -->
+            <Border
+                    Background="#CC000000"
+                    IsVisible="{Binding LoadingError}"
+                    ZIndex="1000">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                        <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="18" Height="18" Foreground="{DynamicResource ErrorBrush}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{localization:Localize GameProfiles.Window.LoadError}" FontSize="16" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button
+                            Content="{localization:Localize Common.Close}"
+                            HorizontalAlignment="Center"
+                            Command="{Binding ExecuteCancelCommand}"
+                            Classes="action-secondary"/>
+                </StackPanel>
+            </Border>
+
             <notifications:NotificationContainerView DataContext="{Binding NotificationManager}"
                                                    HorizontalAlignment="Right"
                                                    VerticalAlignment="Top"
                                                    Margin="0,90,10,0"
                                                    ZIndex="2000" />
-
-            <!-- Floating Action Button for Global Save -->
-            <Border ZIndex="500"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Bottom"
-                    Margin="0,0,10,10"
-                    BoxShadow="0 15 35 0 #80000000"
-                    CornerRadius="25"
-                    IsVisible="{Binding !IsSaving}"
-                    IsHitTestVisible="True">
-                <Button
-                        Classes="action-primary"
-                        Command="{Binding SaveCommand}"
-                        ToolTip.Tip="{localization:Localize GameProfiles.Window.SaveTooltip}"
-                        Margin="0" AutomationProperties.Name="{localization:Localize Common.Button.Save}">
-
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <PathIcon Data="{StaticResource ConfirmationCheckIcon}" />
-                        <TextBlock Text="{localization:Localize Common.Button.Save}" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-            </Border>
         </Panel>
-</Border>
+    </Border>
 </controls:GenHubWindow>

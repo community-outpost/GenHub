@@ -110,8 +110,6 @@ public class SurfaceStyleTests
             var cards = view.GetVisualDescendants().OfType<Border>().Where(border => border.Classes.Contains(cardClass) && border.IsEffectivelyVisible).ToArray();
             Assert.NotEmpty(cards);
             Assert.All(cards, card => Assert.Equal(cardFill, BrushColor(card.Background)));
-            var sidebar = view.FindControl<Grid>("RootGrid")!.Children.OfType<Border>().First(border => Grid.GetColumn(border) == 0);
-            Assert.Equal(cardFill, BrushColor(sidebar.Background));
             Assert.Equal((byte)255, cardFill.A);
 
             if (tab != "content")

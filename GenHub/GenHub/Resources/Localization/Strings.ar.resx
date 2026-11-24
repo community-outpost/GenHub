@@ -3403,6 +3403,66 @@
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>اللون الأساسي للواجهة</value>
   </data>
+  <data name="GameProfiles.Navigation.General" xml:space="preserve">
+    <value>عام</value>
+  </data>
+  <data name="GameProfiles.Navigation.Game" xml:space="preserve">
+    <value>اللعبة</value>
+  </data>
+  <data name="GameProfiles.Game.Summary" xml:space="preserve">
+    <value>يستخدم الملف الشخصي تثبيتًا واحدًا للعبة وعميل لعبة واحدًا.</value>
+  </data>
+  <data name="GameProfiles.Game.InstallationHeader" xml:space="preserve">
+    <value>تثبيت اللعبة</value>
+  </data>
+  <data name="GameProfiles.Game.ClientHeader" xml:space="preserve">
+    <value>عميل اللعبة</value>
+  </data>
+  <data name="GameProfiles.Game.Select" xml:space="preserve">
+    <value>اختيار</value>
+  </data>
+  <data name="GameProfiles.Game.Selected" xml:space="preserve">
+    <value>محدد</value>
+  </data>
+  <data name="GameProfiles.Game.NoInstallations" xml:space="preserve">
+    <value>لم يتم العثور على أي تثبيت للعبة.</value>
+  </data>
+  <data name="GameProfiles.Game.NoClients" xml:space="preserve">
+    <value>لم يتم العثور على عملاء لهذه اللعبة.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Title" xml:space="preserve">
+    <value>تبديل لعبة هذا الملف الشخصي؟</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Message" xml:space="preserve">
+    <value>'{0}' هو تثبيت لـ {1}. ستتم إزالة المحتوى المحدد لـ {2} من هذا الملف الشخصي.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Confirm" xml:space="preserve">
+    <value>تبديل اللعبة</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Title" xml:space="preserve">
+    <value>استبدال عميل اللعبة؟</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Message" xml:space="preserve">
+    <value>سيحل '{0}' محل '{1}' كعميل اللعبة لهذا الملف الشخصي.</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Confirm" xml:space="preserve">
+    <value>استبدال</value>
+  </data>
+  <data name="GameProfiles.Content.Summary" xml:space="preserve">
+    <value>العناصر المحددة جزء من هذا الملف الشخصي. إلغاء التحديد يزيل العنصر من هذا الملف الشخصي فقط ويبقى في مكتبتك.</value>
+  </data>
+  <data name="GameProfiles.Content.FilterAll" xml:space="preserve">
+    <value>كل المحتوى</value>
+  </data>
+  <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
+    <value>نوع المحتوى</value>
+  </data>
+  <data name="GameProfiles.Content.Empty" xml:space="preserve">
+    <value>لم يتم العثور على محتوى لهذه اللعبة.</value>
+  </data>
+  <data name="GameProfiles.Content.IncludeToolTip" xml:space="preserve">
+    <value>تضمين في هذا الملف الشخصي</value>
+  </data>
   <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>المحتوى</value>
   </data>

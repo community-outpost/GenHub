@@ -3,371 +3,126 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
-             xmlns:models="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
-             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="600"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileContentEditorView"
              x:DataType="vm:GameProfileSettingsViewModel">
 
-    <UserControl.Resources>
-        <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
-        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
-        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
-        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
-        <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
-        <conv:BoolToStatusColorConverter x:Key="BoolToStatusColorConverter" />
-        <conv:StringToImageConverter x:Key="StringToImageConverter" />
-        <conv:NotNullConverter x:Key="NotNullConverter" />
-        <conv:NotNullOrEmptyConverter x:Key="NotNullOrEmptyConverter" />
-        <conv:NullSafePropertyConverter x:Key="NullSafeConverter" />
-        <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
-        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-        <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
-        <conv:TabIndexToVisibilityConverter x:Key="TabIndexToVisibilityConverter" />
-        <conv:EqualityConverter x:Key="EqualityConverter" />
-    </UserControl.Resources>
-
     <UserControl.Styles>
-        <!-- Section card style -->
         <Style Selector="Border.section-card">
             <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CardCornerRadius}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+        <Style Selector="Border.content-row">
+            <Setter Property="Padding" Value="20,12" />
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="24" />
-            <Setter Property="Margin" Value="24,0,24,24" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="TextElement.Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
-
-        <!-- Section title -->
-        <Style Selector="TextBlock.section-title">
-            <Setter Property="FontSize" Value="20" />
-            <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Margin" Value="0,0,0,20" />
+        <Style Selector="ContentPresenter:nth-last-child(1) > Border.content-row">
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
-
-        <!-- Sidebar buttons -->
-        <Style Selector="Button.sidebar-btn">
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="Margin" Value="0,2" />
-            <Setter Property="HorizontalAlignment" Value="Stretch" />
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="Foreground" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
+        <Style Selector="TextBlock.row-label">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
-
-        <!-- Content Card Styles -->
-        <Style Selector="Grid.content-card">
-            <Setter Property="Width" Value="180" />
-            <Setter Property="MaxWidth" Value="180" />
-        </Style>
-        <Style Selector="Button.content-card-btn">
-            <Setter Property="Background" Value="#08FFFFFF" />
-            <Setter Property="BorderBrush" Value="#15FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="12,10" />
-            <Setter Property="Margin" Value="4" />
-            <Setter Property="Width" Value="180" />
-            <Setter Property="MaxWidth" Value="180" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="VerticalContentAlignment" Value="Stretch" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Button.content-card-btn:pointerover">
-            <Setter Property="Background" Value="#18FFFFFF" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-            <Setter Property="RenderTransform" Value="translateY(-1px)" />
-        </Style>
-
-        <!-- Action reveal button on card -->
-        <Style Selector="Button.action-reveal-btn">
-            <Setter Property="Opacity" Value="0.6" />
-
-        </Style>
-        <Style Selector="Grid.content-card:pointerover Button.action-reveal-btn">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-        <Style Selector="Button.action-reveal-btn:pointerover">
-            <Setter Property="Opacity" Value="1" />
-
+        <Style Selector="TextBlock.row-hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
     </UserControl.Styles>
 
-    <Grid x:Name="RootGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" MinWidth="58" MaxWidth="350" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="*" MinWidth="250" />
-        </Grid.ColumnDefinitions>
+    <ScrollViewer x:Name="ContentEditorScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  BringIntoViewOnFocusChange="False">
+        <StackPanel Margin="32,0,32,24" Spacing="16">
+            <TextBlock Classes="row-hint" Text="{localization:Localize GameProfiles.Content.Summary}" />
 
-        <!-- Sidebar Navigation -->
-        <Border Grid.Column="0"
-                Background="{DynamicResource CardBackground}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="0,0,1,0"
-                Padding="12,24">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="4">
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.EnabledContent}}"
-                            Command="{Binding SelectContentEditorCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentEditorCategory.EnabledContent}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabEnabled}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.TabEnabled}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="CheckCircleOutline" Width="18" Height="18" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{localization:Localize GameProfiles.Content.TabEnabled}" VerticalAlignment="Center" FontSize="13.5"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button Classes="sidebar-btn"
-                            Classes.selected="{Binding SelectedContentEditorCategory, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ContentEditorCategory.AvailableContent}}"
-                            Command="{Binding SelectContentEditorCategoryCommand}"
-                            CommandParameter="{x:Static vm:ContentEditorCategory.AvailableContent}"
-                            ToolTip.Tip="{localization:Localize GameProfiles.Content.TabAvailable}" AutomationProperties.Name="{localization:Localize GameProfiles.Content.TabAvailable}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <material:MaterialIcon Kind="PlusCircleOutline" Width="18" Height="18" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{localization:Localize GameProfiles.Content.TabAvailable}" VerticalAlignment="Center" FontSize="13.5"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </ScrollViewer>
-        </Border>
-
-        <!-- Resizer -->
-        <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns" />
-
-        <!-- Content Area -->
-        <ScrollViewer x:Name="ContentEditorScrollViewer" Grid.Column="2" Padding="0,24,0,80"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      BringIntoViewOnFocusChange="False">
-            <StackPanel Spacing="0">
-
-                <!-- Enabled Content Section -->
-                <Control x:Name="EnabledContentSection" Height="1" Margin="0,-1,0,0" />
-                <Border Classes="section-card">
-                    <StackPanel>
-                        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <material:MaterialIcon Kind="CheckDecagramOutline" Width="20" Height="20" Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Classes="section-title" Text="{localization:Localize GameProfiles.Content.EnabledContentTitle}" Margin="0" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <Button
-                                    Grid.Column="1"
-                                    Command="{Binding LoadAvailableContentCommand}"
-                                    Classes="action-secondary"
-                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.RefreshInstalledTip}"
-                                    VerticalAlignment="Center" AutomationProperties.Name="{localization:Localize GameProfiles.Content.RefreshInstalledTip}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="Refresh"  />
-                                    <TextBlock Text="{localization:Localize Common.Refresh}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
-
-                        <!-- Warning if no content -->
-                        <Border Background="{DynamicResource DetailsBackground}"
-                                BorderBrush="{DynamicResource WarningBrush}"
-                                BorderThickness="1"
-                                CornerRadius="8" Padding="14" Margin="0,4,0,12"
-                                IsVisible="{Binding EnabledContent.Count, Converter={x:Static ObjectConverters.Equal}, ConverterParameter=0}">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
-                                <material:MaterialIcon Kind="AlertCircleOutline" Width="20" Height="20" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.NoContentWarning}"
-                                           FontSize="12.5" Foreground="{DynamicResource TextPrimary}" Opacity="0.9" TextWrapping="Wrap" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Enabled content list -->
-                        <ItemsControl ItemsSource="{Binding EnabledContent}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="*,Auto" Classes="content-card">
-                                        <Button Grid.Column="0" Grid.ColumnSpan="2"
-                                                Classes="content-card-btn"
-                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).DisableContentCommand}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip.Tip="{Binding RemoveToolTip}" AutomationProperties.Name="{Binding RemoveToolTip}">
-                                            <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
-                                                <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
-                                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
-                                                            IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                        <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
-                                                    </Border>
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
-                                                        <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
-                                                    </Border>
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
-                                                            IsVisible="{Binding HasDisplayVersion}">
-                                                        <TextBlock Text="{Binding DisplayVersion}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
-                                                    </Border>
-                                                </WrapPanel>
-                                            </StackPanel>
-                                        </Button>
-
-                                        <!-- Edit Button (Only for Local/Editable content) -->
-                                        <Button
-                                                Grid.Column="1"
-                                                Classes="action-reveal-btn icon-action"
-                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
-                                                CommandParameter="{Binding}"
-                                                IsVisible="{Binding IsEditable}"
-                                                Margin="0,0,12,0"
-                                                VerticalAlignment="Center"
-                                                AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
-                                                ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
-                                            <material:MaterialIcon Kind="PencilOutline"   />
-                                        </Button>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <ComboBox x:Name="ContentTypeFilter"
+                          Classes="form-field"
+                          MinWidth="200"
+                          ItemsSource="{x:Static vm:GameProfileSettingsViewModel.ProfileContentFilterOptions}"
+                          SelectedItem="{Binding SelectedProfileContentFilter}"
+                          AutomationProperties.Name="{localization:Localize GameProfiles.Content.FilterLabel}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProfileContentFilterOption">
+                            <Panel>
+                                <TextBlock Text="{localization:Localize GameProfiles.Content.FilterAll}" IsVisible="{Binding IsAll}" />
+                                <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" IsVisible="{Binding !IsAll}" />
+                            </Panel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="1"
+                        Classes="icon-action"
+                        Margin="8,0,0,0"
+                        HorizontalAlignment="Left"
+                        Command="{Binding RefreshProfileContentCommand}"
+                        ToolTip.Tip="{localization:Localize GameProfiles.Content.RefreshInstalledTip}"
+                        AutomationProperties.Name="{localization:Localize GameProfiles.Content.RefreshInstalledTip}">
+                    <material:MaterialIcon Kind="Refresh" />
+                </Button>
+                <Button Grid.Column="2"
+                        Classes="action-secondary"
+                        Command="{Binding AddLocalContentCommand}"
+                        ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}"
+                        AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalButton}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <material:MaterialIcon Kind="FolderPlusOutline" />
+                        <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center" />
                     </StackPanel>
-                </Border>
+                </Button>
+            </Grid>
 
-                <!-- Add Content Section -->
-                <Control x:Name="AvailableContentSection" Height="1" Margin="0,-1,0,0" />
-                <Border Classes="section-card">
-                    <StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
-                            <material:MaterialIcon Kind="FolderPlusOutline" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Classes="section-title" Text="{localization:Localize GameProfiles.Content.AddContentTitle}" Margin="0" VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Content type filter pills -->
-                        <ItemsControl ItemsSource="{Binding VisibleFilters}" Margin="0,0,0,12">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel HorizontalAlignment="Center" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:GameProfileSettingsViewModel+FilterTypeInfo">
-                                    <Button Classes="filter-pill"
-                                            Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectContentTypeFilterCommand}"
-                                            CommandParameter="{Binding ContentType}">
-                                        <Classes.selected>
-                                            <MultiBinding Converter="{StaticResource EqualityConverter}">
-                                                <Binding Path="ContentType" />
-                                                <Binding Path="$parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectedContentType" />
-                                            </MultiBinding>
-                                        </Classes.selected>
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <PathIcon Data="{Binding IconData}" Width="16" Height="16" />
-                                            <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="12.5" />
+            <Border x:Name="ContentChecklist" Classes="section-card">
+                <StackPanel>
+                    <TextBlock Classes="row-hint" Margin="20,16"
+                               Text="{localization:Localize GameProfiles.Content.Empty}"
+                               IsVisible="{Binding IsProfileContentEmpty}" />
+                    <ItemsControl ItemsSource="{Binding ProfileContentRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileContentRow">
+                                <Border Classes="content-row">
+                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Classes="row-label" Text="{Binding Item.DisplayName}" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Classes="row-hint" Text="{Binding Item.ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" />
+                                                <TextBlock Classes="row-hint" Text="{Binding Item.Publisher}" IsVisible="{Binding Item.Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                <TextBlock Classes="row-hint" Text="{Binding Item.DisplayVersion}" IsVisible="{Binding Item.HasDisplayVersion}" />
+                                            </StackPanel>
                                         </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- Action Row: Add Local and Game Type Toggle -->
-                        <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,12">
-                            <Button
-                                    Grid.Column="0"
-                                    Classes="action-secondary"
-                                    Command="{Binding AddLocalContentCommand}"
-                                    AutomationProperties.Name="{localization:Localize GameProfiles.Content.AddLocalButton}"
-                                    ToolTip.Tip="{localization:Localize GameProfiles.Content.AddLocalTooltip}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <material:MaterialIcon Kind="FolderPlusOutline"  />
-                                    <TextBlock Text="{localization:Localize GameProfiles.Content.AddLocalButton}" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
-                                <TextBlock Text="{localization:Localize GameProfiles.Content.FilterGameLabel}" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextSecondary}" FontSize="12" />
-                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.Generals}"
-                                        Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.Generals}}"
-                                        Command="{Binding SelectGameTypeFilterCommand}"
-                                        CommandParameter="{x:Static models:GameType.Generals}" />
-                                <Button Classes="filter-pill" Content="{localization:Localize Common.Game.ZeroHour}"
-                                        Classes.selected="{Binding GameTypeFilter, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static models:GameType.ZeroHour}}"
-                                        Command="{Binding SelectGameTypeFilterCommand}"
-                                        CommandParameter="{x:Static models:GameType.ZeroHour}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Available Content List -->
-                        <ItemsControl ItemsSource="{Binding AvailableContent}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid ColumnDefinitions="*,Auto" Classes="content-card">
-                                        <Button Grid.Column="0" Grid.ColumnSpan="2"
-                                                Classes="content-card-btn"
-                                                Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EnableContentCommand}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip.Tip="{Binding AddToolTip}" AutomationProperties.Name="{Binding AddToolTip}">
-                                            <StackPanel Spacing="6" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
-                                                <WrapPanel Orientation="Horizontal" Margin="0,0,8,0">
-                                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
-                                                            IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                        <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="{DynamicResource AccentLightBrush}" FontWeight="SemiBold" />
-                                                    </Border>
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
-                                                        <TextBlock Text="{Binding ContentType, Converter={x:Static conv:ContentTypeDisplayConverter.Instance}}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
-                                                    </Border>
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
-                                                            IsVisible="{Binding HasDisplayVersion}">
-                                                        <TextBlock Text="{Binding DisplayVersion}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
-                                                    </Border>
-                                                </WrapPanel>
-                                            </StackPanel>
-                                        </Button>
-
-                                        <!-- Edit Button (Only for Local/Editable content) -->
-                                        <Button
-                                                Grid.Column="1"
-                                                Classes="action-reveal-btn icon-action"
+                                        <Button Grid.Column="1"
+                                                Classes="icon-action"
+                                                Margin="12,0"
+                                                IsVisible="{Binding Item.IsEditable}"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).EditContentCommand}"
-                                                CommandParameter="{Binding}"
-                                                IsVisible="{Binding IsEditable}"
-                                                Margin="0,0,12,0"
-                                                VerticalAlignment="Center"
-                                                AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}"
-                                                ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}">
-                                            <material:MaterialIcon Kind="PencilOutline"   />
+                                                CommandParameter="{Binding Item}"
+                                                ToolTip.Tip="{localization:Localize GameProfiles.Content.EditContentToolTip}"
+                                                AutomationProperties.Name="{localization:Localize GameProfiles.Content.EditContentToolTip}">
+                                            <material:MaterialIcon Kind="PencilOutline" />
                                         </Button>
+                                        <CheckBox Grid.Column="2"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding IsIncluded, Mode=OneWay}"
+                                                  IsEnabled="{Binding Item.CanToggle}"
+                                                  Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).ToggleProfileContentCommand}"
+                                                  CommandParameter="{Binding Item}"
+                                                  ToolTip.Tip="{localization:Localize GameProfiles.Content.IncludeToolTip}"
+                                                  AutomationProperties.Name="{Binding Item.DisplayName}" />
                                     </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-                <Panel Height="80" /> <!-- Bottom Spacer -->
-            </StackPanel>
-        </ScrollViewer>
-    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

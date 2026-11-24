@@ -182,6 +182,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             NullLogger<NotificationItemViewModel>.Instance);
 
         GameSettingsViewModel = new GameSettingsViewModel(gameSettingsService!, gameSettingsLogger!, notificationService, localizationService);
+        GameSettingsViewModel.PropertyChanged += OnGameSettingsPropertyChanged;
 
         WeakReferenceMessenger.Default.Register<Core.Models.Content.ContentAcquiredMessage>(this);
         WeakReferenceMessenger.Default.Register<ManifestReplacedMessage>(this);
@@ -283,6 +284,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 await Task.Delay(75).ConfigureAwait(true);
                 await LoadAvailableContentAsync().ConfigureAwait(true);
+                await LoadProfileContentCandidatesAsync().ConfigureAwait(true);
             }
             finally
             {
@@ -452,6 +454,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         await RefreshVisibleFiltersAsync();
         await LoadAvailableContentAsync();
         LoadAvailableIconsAndCovers(GameTypeFilter.ToString());
+        await LoadProfileContentCandidatesAsync();
     }
 
     /// <summary>Replaces only matching manifest components, retaining any unsaved selection differences.</summary>
@@ -984,6 +987,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             _isSynchronizingEnabledContent = false;
             OnPropertyChanged(nameof(IsSteamLaunchSupported));
+            RebuildProfileContentRows();
         }
     }
 
@@ -1049,6 +1053,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         {
             ClearInstallationSelection();
         }
+
+        RebuildProfileContentRows();
     }
 
     /// <summary>
@@ -1056,6 +1062,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// </summary>
     partial void OnGameTypeFilterChanged(GameType value)
     {
+        RebuildProfileContentRows();
         if (IsInitializing)
         {
             return;

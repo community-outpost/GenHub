@@ -30,29 +30,21 @@ public class NavigationStyleTests
     [AvaloniaTheory]
     [InlineData("main")]
     [InlineData("studio")]
-    [InlineData("profile")]
     [InlineData("sidebar")]
     public void NavigationConsumer_SelectionAndDisabledStatesRemainDistinct(string family)
     {
-        var profile = family is "sidebar" or "profile" ? GenHub.Features.Info.ViewModels.DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab() : null;
+        var profile = family == "sidebar" ? GenHub.Features.Info.ViewModels.DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab() : null;
         UserControl view = family switch
         {
             "main" => new MainView { DataContext = null },
             "studio" => new PublisherStudioView(),
-            "profile" => new GameProfileNavigationView { DataContext = profile },
-            _ => new GameSettingsView { DataContext = profile!.GameSettingsViewModel },
+            _ => new GameProfileSettingsSidebarView { DataContext = profile },
         };
         var window = new Window { Width = 1200, Height = 800, Content = view };
         window.Show();
         try
         {
-            if (family == "sidebar")
-            {
-                view.FindControl<Grid>("RootGrid")!.ColumnDefinitions[0].Width = new GridLength(260);
-                view.UpdateLayout();
-            }
-
-            var role = family switch { "main" => "pill-tab", "studio" => "nav-pill", "profile" => "tab-icon-btn", _ => "sidebar-btn" };
+            var role = family switch { "main" => "pill-tab", "studio" => "nav-pill", _ => "sidebar-btn" };
             var button = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains(role) && item.IsVisible && !item.Classes.Contains("selected") && !item.Classes.Contains("active"));
             if (family != "sidebar")
             {
@@ -97,12 +89,7 @@ public class NavigationStyleTests
             Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
             Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
             var selectedOutline = BrushColor(outline());
-            if (family == "profile")
-            {
-                Assert.Equal(BrushColor(button.BorderBrush), selectedOutline);
-            }
-
-            if (family is "profile" or "sidebar")
+            if (family == "sidebar")
             {
                 Assert.NotEqual(ResourceColor("NavSelectedBorder"), selectedOutline);
             }
@@ -113,7 +100,7 @@ public class NavigationStyleTests
             Assert.Equal(ResourceColor("NavSelectedHoverFill"), BrushColor(button.Background));
             Assert.NotEqual(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
             Assert.Equal(ResourceColor("NavSelectedInk"), BrushColor(button.Foreground));
-            Assert.Equal(family is "profile" or "sidebar" ? selectedOutline : ResourceColor("NavSelectedHoverBorder"), BrushColor(outline()));
+            Assert.Equal(family == "sidebar" ? selectedOutline : ResourceColor("NavSelectedHoverBorder"), BrushColor(outline()));
             Assert.True(button.Focus(NavigationMethod.Tab));
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("NavFocusBrush"), BrushColor(outline()));
@@ -121,34 +108,20 @@ public class NavigationStyleTests
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(button.Foreground));
             Assert.Equal(ResourceColor("NavSelectedFill"), BrushColor(button.Background));
-            if (family != "profile")
-            {
-                Assert.Equal(ResourceColor("NavDisabledBorder"), BrushColor(button.BorderBrush));
-            }
+            Assert.Equal(ResourceColor("NavDisabledBorder"), BrushColor(button.BorderBrush));
 
             var glyphs = button.GetVisualDescendants().OfType<PathIcon>().ToList();
-            Assert.Equal(family == "main", glyphs.Count == 0);
+            Assert.Equal(family is "main" or "sidebar", glyphs.Count == 0);
             foreach (var glyph in glyphs)
             {
                 Assert.Equal(ResourceColor("NavDisabledInk"), BrushColor(glyph.Foreground));
-                Assert.Equal(family switch { "studio" => 16, "profile" => 32, _ => 20 }, glyph.Width);
+                Assert.Equal(family == "studio" ? 16 : 20, glyph.Width);
                 Assert.Equal(glyph.Width, glyph.Height);
             }
 
             button.Classes.Remove(selectedClass);
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(ResourceColor("NavDisabledFill"), BrushColor(button.Background));
-
-            if (family == "sidebar")
-            {
-                var logoRow = view.GetVisualDescendants().OfType<Button>().First(item => item.Classes.Contains("sidebar-btn") && item.GetVisualDescendants().OfType<Image>().Any());
-                var logo = logoRow.GetVisualDescendants().OfType<Image>().First();
-                Assert.Equal(20, logo.Width);
-                Assert.Equal(20, logo.Height);
-                logoRow.IsEnabled = false;
-                Dispatcher.UIThread.RunJobs();
-                Assert.Equal(0.45, logo.Opacity);
-            }
         }
         finally
         {

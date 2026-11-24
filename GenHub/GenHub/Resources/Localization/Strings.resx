@@ -3403,6 +3403,66 @@ Applied: {2} / {3} applicable fixes.</value>
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>Interface Primary Color</value>
   </data>
+  <data name="GameProfiles.Navigation.General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="GameProfiles.Navigation.Game" xml:space="preserve">
+    <value>Game</value>
+  </data>
+  <data name="GameProfiles.Game.Summary" xml:space="preserve">
+    <value>A profile uses one game installation and one game client.</value>
+  </data>
+  <data name="GameProfiles.Game.InstallationHeader" xml:space="preserve">
+    <value>Game installation</value>
+  </data>
+  <data name="GameProfiles.Game.ClientHeader" xml:space="preserve">
+    <value>Game client</value>
+  </data>
+  <data name="GameProfiles.Game.Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="GameProfiles.Game.Selected" xml:space="preserve">
+    <value>Selected</value>
+  </data>
+  <data name="GameProfiles.Game.NoInstallations" xml:space="preserve">
+    <value>No game installations found.</value>
+  </data>
+  <data name="GameProfiles.Game.NoClients" xml:space="preserve">
+    <value>No game clients found for this game.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Title" xml:space="preserve">
+    <value>Switch this profile's game?</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Message" xml:space="preserve">
+    <value>'{0}' is a {1} installation. Content selected for {2} will be removed from this profile.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Confirm" xml:space="preserve">
+    <value>Switch game</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Title" xml:space="preserve">
+    <value>Replace the game client?</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Message" xml:space="preserve">
+    <value>'{0}' will replace '{1}' as this profile's game client.</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Confirm" xml:space="preserve">
+    <value>Replace</value>
+  </data>
+  <data name="GameProfiles.Content.Summary" xml:space="preserve">
+    <value>Checked items are part of this profile. Unchecking removes an item from this profile only. It stays in your library.</value>
+  </data>
+  <data name="GameProfiles.Content.FilterAll" xml:space="preserve">
+    <value>All content</value>
+  </data>
+  <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
+    <value>Content type</value>
+  </data>
+  <data name="GameProfiles.Content.Empty" xml:space="preserve">
+    <value>No content found for this game.</value>
+  </data>
+  <data name="GameProfiles.Content.IncludeToolTip" xml:space="preserve">
+    <value>Include in this profile</value>
+  </data>
   <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Content</value>
   </data>

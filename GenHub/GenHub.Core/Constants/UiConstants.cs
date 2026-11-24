@@ -18,32 +18,12 @@ public static class UiConstants
     /// <summary>
     /// Default width for GameProfileSettingsWindow in pixels.
     /// </summary>
-    public const double DefaultProfileSettingsWidth = 750;
+    public const double DefaultProfileSettingsWidth = 1000;
 
     /// <summary>
     /// Default height for GameProfileSettingsWindow in pixels.
     /// </summary>
-    public const double DefaultProfileSettingsHeight = 700;
-
-    /// <summary>
-    /// Default width for the profile settings sidebar in pixels.
-    /// </summary>
-    public const double DefaultProfileSettingsSidebarWidth = 140;
-
-    /// <summary>
-    /// Default fallback width in pixels for profile settings tab sidebars.
-    /// </summary>
-    public const double DefaultProfileSettingsTabSidebarFallbackWidth = 170;
-
-    /// <summary>
-    /// Minimum width for the profile settings sidebar (shows icons only) in pixels.
-    /// </summary>
-    public const double MinProfileSettingsSidebarWidth = 58;
-
-    /// <summary>
-    /// Maximum width for the profile settings sidebar in pixels.
-    /// </summary>
-    public const double MaxProfileSettingsSidebarWidth = 300;
+    public const double DefaultProfileSettingsHeight = 760;
 
     /// <summary>
     /// Progressive item render delay in milliseconds for streaming cards into the download browser grid.

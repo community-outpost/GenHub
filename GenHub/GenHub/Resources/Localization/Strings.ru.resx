@@ -3403,6 +3403,66 @@
   <data name="GameProfiles.General.PrimaryColor" xml:space="preserve">
     <value>Основной цвет интерфейса</value>
   </data>
+  <data name="GameProfiles.Navigation.General" xml:space="preserve">
+    <value>Общие</value>
+  </data>
+  <data name="GameProfiles.Navigation.Game" xml:space="preserve">
+    <value>Игра</value>
+  </data>
+  <data name="GameProfiles.Game.Summary" xml:space="preserve">
+    <value>Профиль использует одну установку игры и один игровой клиент.</value>
+  </data>
+  <data name="GameProfiles.Game.InstallationHeader" xml:space="preserve">
+    <value>Установка игры</value>
+  </data>
+  <data name="GameProfiles.Game.ClientHeader" xml:space="preserve">
+    <value>Игровой клиент</value>
+  </data>
+  <data name="GameProfiles.Game.Select" xml:space="preserve">
+    <value>Выбрать</value>
+  </data>
+  <data name="GameProfiles.Game.Selected" xml:space="preserve">
+    <value>Выбрано</value>
+  </data>
+  <data name="GameProfiles.Game.NoInstallations" xml:space="preserve">
+    <value>Установки игры не найдены.</value>
+  </data>
+  <data name="GameProfiles.Game.NoClients" xml:space="preserve">
+    <value>Игровые клиенты для этой игры не найдены.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Title" xml:space="preserve">
+    <value>Сменить игру этого профиля?</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Message" xml:space="preserve">
+    <value>«{0}» — установка {1}. Контент, выбранный для {2}, будет удалён из этого профиля.</value>
+  </data>
+  <data name="GameProfiles.Game.SwitchGame.Confirm" xml:space="preserve">
+    <value>Сменить игру</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Title" xml:space="preserve">
+    <value>Заменить игровой клиент?</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Message" xml:space="preserve">
+    <value>«{0}» заменит «{1}» в качестве игрового клиента этого профиля.</value>
+  </data>
+  <data name="GameProfiles.Game.ReplaceClient.Confirm" xml:space="preserve">
+    <value>Заменить</value>
+  </data>
+  <data name="GameProfiles.Content.Summary" xml:space="preserve">
+    <value>Отмеченные элементы входят в этот профиль. Снятие отметки убирает элемент только из этого профиля. Он остаётся в вашей библиотеке.</value>
+  </data>
+  <data name="GameProfiles.Content.FilterAll" xml:space="preserve">
+    <value>Весь контент</value>
+  </data>
+  <data name="GameProfiles.Content.FilterLabel" xml:space="preserve">
+    <value>Тип контента</value>
+  </data>
+  <data name="GameProfiles.Content.Empty" xml:space="preserve">
+    <value>Контент для этой игры не найден.</value>
+  </data>
+  <data name="GameProfiles.Content.IncludeToolTip" xml:space="preserve">
+    <value>Включить в этот профиль</value>
+  </data>
   <data name="GameProfiles.Navigation.Content" xml:space="preserve">
     <value>Контент</value>
   </data>

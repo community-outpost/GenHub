@@ -157,7 +157,7 @@ public partial class GameProfileSettingsViewModel
     [NotifyPropertyChangedFor(nameof(IsContentTabVisible))]
     [NotifyPropertyChangedFor(nameof(IsProfileSettingsTabVisible))]
     [NotifyPropertyChangedFor(nameof(IsGameSettingsTabVisible))]
-    private int _selectedTabIndex;
+    private int _selectedTabIndex = ProfileTabIndex;
 
     /// <summary>Gets a value indicating whether the content tab is visible.</summary>
     public bool IsContentTabVisible => SelectedTabIndex == 0;
