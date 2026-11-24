@@ -75,7 +75,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ProfileContentRows_ShowProfileGameAndSelectedType()
+    public async Task ProfileContentRows_ShowProfileGameAndSelectedTypeAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         AddCandidate(ContentType.Mod, GeneralsModId, GameType.Generals);
@@ -104,7 +104,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ToggleProfileContent_IncludesThenExcludesWithoutDeleting()
+    public async Task ToggleProfileContent_IncludesThenExcludesWithoutDeletingAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog: true);
@@ -133,7 +133,7 @@ public class GameProfileSettingsViewModelGameContentTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task SelectGameClient_ReplacingCurrentClient_RequiresConfirmation(bool confirmed)
+    public async Task SelectGameClient_ReplacingCurrentClient_RequiresConfirmationAsync(bool confirmed)
     {
         AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog: true);
@@ -158,7 +158,7 @@ public class GameProfileSettingsViewModelGameContentTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task SelectGameInstallation_OfOtherGame_RequiresConfirmation(bool confirmed)
+    public async Task SelectGameInstallation_OfOtherGame_RequiresConfirmationAsync(bool confirmed)
     {
         var viewModel = CreateViewModel(withDialog: true);
         var zeroHour = CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour);
@@ -184,7 +184,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task SelectGameInstallation_WithoutDialogService_SwitchesGame()
+    public async Task SelectGameInstallation_WithoutDialogService_SwitchesGameAsync()
     {
         var viewModel = CreateViewModel(withDialog: false);
         var zeroHour = CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour);
@@ -205,7 +205,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InitializeForProfile_LoadsGameAndContentRows()
+    public async Task InitializeForProfile_LoadsGameAndContentRowsAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
@@ -224,7 +224,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InitializeForNewProfile_LoadsGameAndContentRows()
+    public async Task InitializeForNewProfile_LoadsGameAndContentRowsAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
@@ -244,7 +244,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [AvaloniaFact]
-    public async Task ContentAcquired_ReloadsContentRows()
+    public async Task ContentAcquired_ReloadsContentRowsAsync()
     {
         var viewModel = CreateViewModel(withDialog: false);
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
@@ -268,7 +268,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Rows_AreOrderedForReading()
+    public async Task Rows_AreOrderedForReadingAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, "B mod");
         AddCandidate(ContentType.Map, MapId, GameType.ZeroHour, "C map");
@@ -289,7 +289,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Rows_ListIncludedContentOfAnyType()
+    public async Task Rows_ListIncludedContentOfAnyTypeAsync()
     {
         var viewModel = CreateViewModel(withDialog: false);
         viewModel.EnabledContent.Add(CreateItem(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, isEnabled: true));
@@ -306,16 +306,19 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ToolProfile_ListsToolAndRefusesInstallation()
+    public async Task ToolProfile_ListsToolAndRefusesInstallationAsync()
     {
         var viewModel = CreateViewModel(withDialog: true);
         var installation = CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour);
         viewModel.AvailableGameInstallations.Add(installation);
         viewModel.EnabledContent.Add(CreateItem(ContentType.ModdingTool, ToolId, GameType.Unknown, isEnabled: true));
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+        var statusBefore = viewModel.StatusMessage;
 
         await viewModel.SelectGameInstallationCommand.ExecuteAsync(installation);
 
+        Assert.Equal(statusBefore, viewModel.StatusMessage);
+        Assert.False(viewModel.CanSelectGameInstallation);
         Assert.True(viewModel.IsStandaloneToolProfile);
         Assert.Contains(viewModel.ProfileContentRows, row => row.Item.ManifestId.Value == ToolId && row.IsIncluded);
         Assert.Null(viewModel.SelectedGameInstallation);
@@ -335,7 +338,7 @@ public class GameProfileSettingsViewModelGameContentTests
     [InlineData(GeneralsInstallId, GameType.Generals, false)]
     [InlineData(GeneralsInstallId, GameType.Unknown, true)]
     [InlineData(ZeroHourInstallId, GameType.ZeroHour, true)]
-    public async Task SelectGameInstallation_WithoutContentToRemove_DoesNotAsk(string targetId, GameType targetGame, bool hasZeroHourContent)
+    public async Task SelectGameInstallation_WithoutContentToRemove_DoesNotAskAsync(string targetId, GameType targetGame, bool hasZeroHourContent)
     {
         var viewModel = CreateViewModel(withDialog: true);
         var zeroHour = CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour);
@@ -369,7 +372,7 @@ public class GameProfileSettingsViewModelGameContentTests
     [InlineData(false, true, false)]
     [InlineData(true, false, false)]
     [InlineData(true, true, true)]
-    public async Task SelectGameClient_WithoutReplacementPrompt_SelectsWithoutAsking(bool hasCurrentClient, bool withDialog, bool reselectCurrent)
+    public async Task SelectGameClient_WithoutReplacementPrompt_SelectsWithoutAskingAsync(bool hasCurrentClient, bool withDialog, bool reselectCurrent)
     {
         AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog);
@@ -394,7 +397,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadCandidates_SkipsWrongTypeDuplicateIdenticalAndInvalidItems()
+    public async Task LoadCandidates_SkipsWrongTypeDuplicateIdenticalAndInvalidItemsAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         AddCandidate(ContentType.Mod, MapId, GameType.ZeroHour, contentType: ContentType.Map);
@@ -411,11 +414,11 @@ public class GameProfileSettingsViewModelGameContentTests
     }
 
     /// <summary>
-    /// Verifies an included item stays listed next to an identical copy so it can still be unchecked.
+    /// Verifies an identical copy of an included item is hidden while the included item stays listed.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadCandidates_KeepsIncludedItemNextToIdenticalCopy()
+    public async Task LoadCandidates_HidesIdenticalCopyOfIncludedItemAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog: false);
@@ -426,8 +429,112 @@ public class GameProfileSettingsViewModelGameContentTests
         await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
 
         var row = Assert.Single(viewModel.ProfileContentRows);
-        Assert.Same(included, row.Item);
+        Assert.Equal("1.0.moddb.mod.zhmodcopy", row.Item.ManifestId.Value);
         Assert.True(row.IsIncluded);
+    }
+
+    /// <summary>
+    /// Verifies two identical items that are both in the profile both stay listed so either can be unchecked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Rows_KeepIdenticalItemsThatAreBothIncludedAsync()
+    {
+        var viewModel = CreateViewModel(withDialog: false);
+        var first = CreateItem(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, isEnabled: true);
+        var second = CreateItem(ContentType.Mod, "1.0.moddb.mod.zhmodcopy", GameType.ZeroHour, isEnabled: true);
+        second.DisplayName = first.DisplayName;
+        viewModel.EnabledContent.Add(first);
+        viewModel.EnabledContent.Add(second);
+
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+
+        Assert.Equal(Sorted(ZeroHourModId, "1.0.moddb.mod.zhmodcopy"), Sorted([.. RowIds(viewModel.ProfileContentRows)]));
+        Assert.All(viewModel.ProfileContentRows, row => Assert.True(row.IsIncluded));
+    }
+
+    /// <summary>
+    /// Verifies items with the same name but a different publisher or version are not treated as copies.
+    /// </summary>
+    /// <param name="publisher">The publisher of the second item.</param>
+    /// <param name="version">The version of the second item.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("Other Publisher", null)]
+    [InlineData(null, "2.0")]
+    public async Task LoadCandidates_KeepsSameNameWithDifferentPublisherOrVersionAsync(string? publisher, string? version)
+    {
+        AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour, "Shared Name");
+        AddCandidate(ContentType.Mod, "1.0.moddb.mod.zhmodcopy", GameType.ZeroHour, "Shared Name");
+        var copy = _candidates[ContentType.Mod][1];
+        copy.Publisher = publisher ?? string.Empty;
+        copy.Version = version ?? string.Empty;
+        var viewModel = CreateViewModel(withDialog: false);
+
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, viewModel.ProfileContentRows.Count);
+    }
+
+    /// <summary>
+    /// Verifies tools that are not yet in the profile are offered and can be filtered.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ProfileContentRows_OfferToolsNotYetIncludedAsync()
+    {
+        AddCandidate(ContentType.ModdingTool, ToolId, GameType.Unknown);
+        AddCandidate(ContentType.Executable, "1.0.local.executable.launcher", GameType.ZeroHour);
+        AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
+        var viewModel = CreateViewModel(withDialog: false);
+
+        await viewModel.RefreshProfileContentCommand.ExecuteAsync(null);
+
+        Assert.Equal(Sorted(ToolId, "1.0.local.executable.launcher", ZeroHourModId), Sorted([.. RowIds(viewModel.ProfileContentRows)]));
+        Assert.Contains(GameProfileSettingsViewModel.ProfileContentFilterOptions, option => option.ContentType == ContentType.ModdingTool);
+        Assert.Contains(GameProfileSettingsViewModel.ProfileContentFilterOptions, option => option.ContentType == ContentType.Executable);
+
+        viewModel.SelectedProfileContentFilter = new ProfileContentFilterOption(ContentType.ModdingTool);
+
+        Assert.Equal([ToolId], RowIds(viewModel.ProfileContentRows));
+    }
+
+    /// <summary>
+    /// Verifies the Game page refuses changes while the profile's game is running, before asking anything.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GamePage_WhileGameRuns_RefusesSelectionWithoutAskingAsync()
+    {
+        AddCandidate(ContentType.GameClient, OtherClientId, GameType.ZeroHour);
+        var viewModel = CreateViewModel(withDialog: true);
+        SetupExistingProfile(CreateCore(ContentType.GameClient, CurrentClientId, GameType.ZeroHour));
+        await viewModel.InitializeForProfileAsync(ProfileId);
+        var zeroHour = CreateItem(ContentType.GameInstallation, ZeroHourInstallId, GameType.ZeroHour);
+        var generals = CreateItem(ContentType.GameInstallation, GeneralsInstallId, GameType.Generals);
+        viewModel.AvailableGameInstallations.Add(zeroHour);
+        viewModel.AvailableGameInstallations.Add(generals);
+        viewModel.SelectedGameInstallation = zeroHour;
+        SetupConfirmation(true);
+        _activeLaunches.Add(new GameLaunchInfo
+        {
+            LaunchId = "launch-1",
+            ProfileId = ProfileId,
+            WorkspaceId = ProfileId,
+            ProcessInfo = new GameProcessInfo { ProcessId = Environment.ProcessId },
+        });
+        await viewModel.RefreshHotswapStateAsync();
+        var otherClient = viewModel.GameClientRows.Single(row => row.Item.ManifestId.Value == OtherClientId).Item;
+
+        await viewModel.SelectGameClientCommand.ExecuteAsync(otherClient);
+        await viewModel.SelectGameInstallationCommand.ExecuteAsync(generals);
+
+        Assert.False(otherClient.CanToggle);
+        Assert.False(generals.CanToggle);
+        _dialogMock.Verify(dialog => dialog.ShowConfirmationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>()), Times.Never);
+        Assert.Equal(CurrentClientId, Assert.Single(viewModel.EnabledContent, item => item.ContentType == ContentType.GameClient).ManifestId.Value);
+        Assert.Equal(ZeroHourInstallId, viewModel.SelectedGameInstallation?.ManifestId.Value);
+        Assert.Equal(GameType.ZeroHour, viewModel.GameTypeFilter);
     }
 
     /// <summary>
@@ -435,7 +542,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadCandidates_WhenLoaderThrows_KeepsPreviousRows()
+    public async Task LoadCandidates_WhenLoaderThrows_KeepsPreviousRowsAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         var viewModel = CreateViewModel(withDialog: false);
@@ -454,28 +561,37 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LoadCandidates_WhenLoadsOverlap_LaterLoadWins()
+    public async Task LoadCandidates_WhenLoadsOverlap_LaterLoadWinsAsync()
     {
         var firstLoadGate = new TaskCompletionSource();
-        var calls = 0;
+        var loadGeneration = new AsyncLocal<int>();
         _loaderMock
             .Setup(loader => loader.LoadAvailableContentAsync(It.IsAny<ContentType>(), It.IsAny<ObservableCollection<CoreContentDisplayItem>>(), It.IsAny<IEnumerable<string>>()))
             .Returns(async (ContentType type, ObservableCollection<CoreContentDisplayItem> _, IEnumerable<string> _) =>
             {
-                if (Interlocked.Increment(ref calls) == 1)
+                if (loadGeneration.Value == 1)
                 {
                     await firstLoadGate.Task;
-                    return new ObservableCollection<CoreContentDisplayItem>();
+                    return new ObservableCollection<CoreContentDisplayItem>(type == ContentType.Map ? [CreateCore(ContentType.Map, MapId, GameType.ZeroHour)] : []);
                 }
 
                 return new ObservableCollection<CoreContentDisplayItem>(type == ContentType.Mod ? [CreateCore(ContentType.Mod, ZeroHourModId, GameType.ZeroHour)] : []);
             });
         var viewModel = CreateViewModel(withDialog: false);
 
-        var firstLoad = viewModel.LoadProfileContentCandidatesAsync();
-        await viewModel.LoadProfileContentCandidatesAsync();
-        firstLoadGate.SetResult();
-        await firstLoad;
+        try
+        {
+            loadGeneration.Value = 1;
+            var firstLoad = viewModel.LoadProfileContentCandidatesAsync();
+            loadGeneration.Value = 2;
+            await viewModel.LoadProfileContentCandidatesAsync();
+            firstLoadGate.SetResult();
+            await firstLoad;
+        }
+        finally
+        {
+            firstLoadGate.TrySetResult();
+        }
 
         Assert.Equal([ZeroHourModId], RowIds(viewModel.ProfileContentRows));
     }
@@ -498,7 +614,7 @@ public class GameProfileSettingsViewModelGameContentTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task Rows_FollowHotswapLockWhenGameStartsAndStops()
+    public async Task Rows_FollowHotswapLockWhenGameStartsAndStopsAsync()
     {
         AddCandidate(ContentType.Mod, ZeroHourModId, GameType.ZeroHour);
         AddCandidate(ContentType.Map, MapId, GameType.ZeroHour);

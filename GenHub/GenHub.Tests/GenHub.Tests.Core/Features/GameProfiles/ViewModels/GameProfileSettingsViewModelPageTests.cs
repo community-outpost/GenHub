@@ -31,19 +31,18 @@ public class GameProfileSettingsViewModelPageTests
     /// </summary>
     /// <param name="page">The page to select.</param>
     /// <param name="tabIndex">The expected tab index.</param>
-    /// <param name="generalCategory">The expected general category, when the page is a profile page.</param>
     /// <param name="gameCategory">The expected game settings category, when the page is a game page.</param>
     [Theory]
-    [InlineData(ProfileSettingsPage.General, 1, GeneralSettingsCategory.Identity, null)]
-    [InlineData(ProfileSettingsPage.Appearance, 1, GeneralSettingsCategory.Appearance, null)]
-    [InlineData(ProfileSettingsPage.Game, 0, null, null)]
-    [InlineData(ProfileSettingsPage.Content, 0, null, null)]
-    [InlineData(ProfileSettingsPage.Video, 2, null, SettingsCategory.Video)]
-    [InlineData(ProfileSettingsPage.Audio, 2, null, SettingsCategory.Audio)]
-    [InlineData(ProfileSettingsPage.Controls, 2, null, SettingsCategory.Controls)]
-    [InlineData(ProfileSettingsPage.TheSuperHackers, 2, null, SettingsCategory.TheSuperHackers)]
-    [InlineData(ProfileSettingsPage.GeneralsOnline, 2, null, SettingsCategory.GeneralsOnline)]
-    public void SelectPageCommand_MapsOntoTabAndCategory(ProfileSettingsPage page, int tabIndex, GeneralSettingsCategory? generalCategory, SettingsCategory? gameCategory)
+    [InlineData(ProfileSettingsPage.General, 1, null)]
+    [InlineData(ProfileSettingsPage.Appearance, 1, null)]
+    [InlineData(ProfileSettingsPage.Game, 0, null)]
+    [InlineData(ProfileSettingsPage.Content, 0, null)]
+    [InlineData(ProfileSettingsPage.Video, 2, SettingsCategory.Video)]
+    [InlineData(ProfileSettingsPage.Audio, 2, SettingsCategory.Audio)]
+    [InlineData(ProfileSettingsPage.Controls, 2, SettingsCategory.Controls)]
+    [InlineData(ProfileSettingsPage.TheSuperHackers, 2, SettingsCategory.TheSuperHackers)]
+    [InlineData(ProfileSettingsPage.GeneralsOnline, 2, SettingsCategory.GeneralsOnline)]
+    public void SelectPageCommand_MapsOntoTabAndCategory(ProfileSettingsPage page, int tabIndex, SettingsCategory? gameCategory)
     {
         var viewModel = CreateViewModel();
         viewModel.SelectedPage = page == ProfileSettingsPage.Video ? ProfileSettingsPage.Audio : ProfileSettingsPage.Video;
@@ -52,11 +51,6 @@ public class GameProfileSettingsViewModelPageTests
 
         Assert.Equal(page, viewModel.SelectedPage);
         Assert.Equal(tabIndex, viewModel.SelectedTabIndex);
-        if (generalCategory.HasValue)
-        {
-            Assert.Equal(generalCategory.Value, viewModel.SelectedGeneralCategory);
-        }
-
         if (gameCategory.HasValue)
         {
             Assert.Equal(gameCategory.Value, viewModel.GameSettingsViewModel.SelectedCategory);

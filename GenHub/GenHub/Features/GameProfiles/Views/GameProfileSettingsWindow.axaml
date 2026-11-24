@@ -25,7 +25,6 @@
 
     <Window.Resources>
         <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
-        <conv:EqualityConverter x:Key="EqualityConverter" />
     </Window.Resources>
 
     <Border Background="{DynamicResource SurfaceBackgroundBrush}"

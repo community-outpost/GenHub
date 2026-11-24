@@ -68,15 +68,6 @@ public partial class GameProfileSettingsViewModel
         try
         {
             SelectedTabIndex = GetTabIndex(page);
-            if (page == ProfileSettingsPage.General)
-            {
-                SelectedGeneralCategory = GeneralSettingsCategory.Identity;
-            }
-            else if (page == ProfileSettingsPage.Appearance)
-            {
-                SelectedGeneralCategory = GeneralSettingsCategory.Appearance;
-            }
-
             if (GetCategory(page) is { } category)
             {
                 GameSettingsViewModel.SelectedCategory = category;

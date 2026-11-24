@@ -133,7 +133,7 @@ public partial class GameProfileSettingsViewModel
     }
 
     /// <summary>
-    /// Invoked when a tab is selected via <see cref="SelectTabCommand"/>.
+    /// Invoked after a sidebar page is chosen through <see cref="SelectedPage"/>, with the tab index the page belongs to.
     /// </summary>
     /// <param name="tabIndex">The selected tab index.</param>
     protected virtual void OnTabSelected(int tabIndex)
@@ -1585,17 +1585,6 @@ public partial class GameProfileSettingsViewModel
         {
             GameTypeFilter = gameType;
             _logger?.LogInformation("Game type filter changed to {GameType}", gameType);
-        }
-    }
-
-    [RelayCommand]
-    private void SelectTab(string? tabIndexStr)
-    {
-        if (int.TryParse(tabIndexStr, out var tabIndex))
-        {
-            SelectedTabIndex = tabIndex;
-            _logger?.LogDebug("Tab selected: {TabIndex}", tabIndex);
-            OnTabSelected(tabIndex);
         }
     }
 

@@ -256,22 +256,22 @@ public class ToolDemoViewModelTests
     }
 
     /// <summary>
-    /// Verifies that clicking a settings demo tab switches the tab and requests navigation to the mapped section.
+    /// Verifies that choosing a settings demo sidebar page switches the page and requests navigation to the mapped section with that page.
     /// </summary>
     [AvaloniaFact]
-    public void DemoSettingsTabClick_SwitchesTabAndRequestsNavigation()
+    public void DemoSettingsPageClick_SwitchesPageAndRequestsNavigation()
     {
         var viewModel = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_SettingsTab();
         viewModel.SelectedTabIndex.Should().Be(2);
 
-        string? requested = null;
-        ((DemoGameProfileSettingsViewModel)viewModel).NavigationRequested = sectionId => requested = sectionId;
+        (string Section, ProfileSettingsPage Page)? requested = null;
+        ((DemoGameProfileSettingsViewModel)viewModel).NavigationRequested = (sectionId, page) => requested = (sectionId, page);
 
-        viewModel.SelectTabCommand.Execute("0");
+        viewModel.SelectPageCommand.Execute(ProfileSettingsPage.Game);
         Dispatcher.UIThread.RunJobs();
 
         viewModel.SelectedTabIndex.Should().Be(0);
-        requested.Should().Be(InfoConstants.SectionGameProfileContent);
+        requested.Should().Be((InfoConstants.SectionGameProfileContent, ProfileSettingsPage.Game));
     }
 
     /// <summary>

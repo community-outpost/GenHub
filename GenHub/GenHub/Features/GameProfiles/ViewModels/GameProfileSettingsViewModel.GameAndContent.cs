@@ -7,7 +7,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -72,6 +74,11 @@ public partial class GameProfileSettingsViewModel
     public bool IsGameClientListEmpty => GameClientRows.Count == 0;
 
     /// <summary>
+    /// Gets a value indicating whether a game installation can be chosen for this profile.
+    /// </summary>
+    public bool CanSelectGameInstallation => !IsStandaloneToolProfile;
+
+    /// <summary>
     /// Gets a value indicating whether the profile is a standalone tool profile, which takes no game installation.
     /// </summary>
     public bool IsStandaloneToolProfile => ToolProfileHelper.IsToolProfile(EnabledContent
@@ -127,7 +134,11 @@ public partial class GameProfileSettingsViewModel
 
             _profileContentCandidates = candidates;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or JsonException)
         {
             _logger?.LogError(ex, "Error loading profile content candidates");
         }
@@ -170,6 +181,7 @@ public partial class GameProfileSettingsViewModel
             .OrderByDescending(row => row.IsIncluded)
             .ThenBy(row => row.Item.DisplayName, StringComparer.CurrentCultureIgnoreCase));
         OnPropertyChanged(nameof(IsStandaloneToolProfile));
+        OnPropertyChanged(nameof(CanSelectGameInstallation));
     }
 
     private static string GetDisplayIdentity(ContentDisplayItem item) =>
@@ -270,6 +282,11 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        if (IsLockedWhileRunning(installation) || IsLockedWhileRunning(SelectedGameInstallation))
+        {
+            return;
+        }
+
         if (IsStandaloneToolProfile)
         {
             _localNotificationService.ShowWarning(
@@ -305,6 +322,11 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        if (IsLockedWhileRunning(client) || IsLockedWhileRunning(current))
+        {
+            return;
+        }
+
         try
         {
             if (current != null && _dialogService != null)
@@ -330,6 +352,22 @@ public partial class GameProfileSettingsViewModel
         {
             RebuildProfileContentRows();
         }
+    }
+
+    private bool IsLockedWhileRunning(ContentDisplayItem? item)
+    {
+        if (item == null || (!item.IsLocked && item.CanToggle))
+        {
+            return false;
+        }
+
+        _localNotificationService.ShowWarning(
+            _localizationService.GetLocalizedString("GameProfiles.Settings.Notification.ContentLocked.Title", ContentLockedTitle),
+            _localizationService.GetLocalizedString(
+                "GameProfiles.Settings.Notification.ContentLocked.Message",
+                $"'{item.DisplayName}' is locked and cannot be modified while the game is running.",
+                item.DisplayName));
+        return true;
     }
 
     private async Task<bool> ConfirmGameSwitchAsync(ContentDisplayItem installation)

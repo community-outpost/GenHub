@@ -81,6 +81,36 @@ public class SurfaceStyleTests
         }
     }
 
+    /// <summary>At the window's minimum width each General row keeps a readable label beside its control.</summary>
+    [AvaloniaFact]
+    public void GeneralPage_AtMinimumWindowWidth_KeepsLabelsBesideControls()
+    {
+        var viewModel = DemoViewModelFactory.CreateDemoProfileSettingsViewModel_ProfileTab();
+        var view = new GameProfileGeneralSettingsView { DataContext = viewModel };
+        var window = new Window { Width = 720 - 240, Height = 800, Content = view };
+        window.Show();
+        try
+        {
+            Dispatcher.UIThread.RunJobs();
+            var rows = view.GetVisualDescendants().OfType<Grid>()
+                .Where(grid => grid.ColumnDefinitions.Count == 2 && grid.ColumnDefinitions[1].MaxWidth < double.PositiveInfinity && grid.IsEffectivelyVisible)
+                .ToArray();
+            Assert.Equal(3, rows.Length);
+            Assert.All(rows, row =>
+            {
+                var label = row.GetVisualDescendants().OfType<TextBlock>().First(item => item.Classes.Contains("row-label"));
+                var control = row.Children.OfType<Control>().Single(item => Grid.GetColumn(item) == 1);
+                Assert.True(label.Bounds.Width >= 120, $"'{label.Text}' only gets {label.Bounds.Width}");
+                Assert.True(label.TranslatePoint(new Point(label.Bounds.Width, 0), row)!.Value.X <= control.Bounds.Left, $"'{label.Text}' overlaps its control");
+                Assert.True(control.Bounds.Right <= row.Bounds.Width + 0.5, $"the control beside '{label.Text}' leaves its row");
+            });
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
     /// <summary>Every tab of the production profile window keeps opaque, non-hovering reading panels.</summary>
     /// <param name="tab">The profile window tab to mount.</param>
     [AvaloniaTheory]

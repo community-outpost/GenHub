@@ -5,7 +5,6 @@
              xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
              xmlns:views="clr-namespace:GenHub.Features.GameProfiles.Views"
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
-             xmlns:localization="clr-namespace:GenHub.Common.Markup;assembly=GenHub"
              mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="600"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileSettingsPagesView"
              x:DataType="vm:GameProfileSettingsViewModel">

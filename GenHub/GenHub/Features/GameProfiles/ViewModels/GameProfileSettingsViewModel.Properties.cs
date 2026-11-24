@@ -16,9 +16,6 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameProfileSettingsViewModel
 {
     [ObservableProperty]
-    private GeneralSettingsCategory _selectedGeneralCategory = GeneralSettingsCategory.Identity;
-
-    [ObservableProperty]
     private string _name = string.Empty;
 
     [ObservableProperty]

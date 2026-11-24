@@ -61,7 +61,7 @@
                     <TextBlock Classes="row-hint" Margin="20,16"
                                Text="{localization:Localize GameProfiles.Game.NoInstallations}"
                                IsVisible="{Binding IsGameInstallationListEmpty}" />
-                    <ItemsControl ItemsSource="{Binding GameInstallationRows}">
+                    <ItemsControl ItemsSource="{Binding GameInstallationRows}" IsEnabled="{Binding CanSelectGameInstallation}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ProfileContentRow">
                                 <Border Classes="choice-row">
@@ -80,7 +80,7 @@
                                         <Button Grid.Column="1" Classes="action-secondary"
                                                 Content="{localization:Localize GameProfiles.Game.Select}"
                                                 IsVisible="{Binding !IsIncluded}"
-                                                IsEnabled="{Binding !$parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IsStandaloneToolProfile}"
+                                                IsEnabled="{Binding Item.CanToggle}"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectGameInstallationCommand}"
                                                 CommandParameter="{Binding Item}"
                                                 AutomationProperties.Name="{Binding Item.DisplayName}" />
@@ -116,6 +116,7 @@
                                         <Button Grid.Column="1" Classes="action-secondary"
                                                 Content="{localization:Localize GameProfiles.Game.Select}"
                                                 IsVisible="{Binding !IsIncluded}"
+                                                IsEnabled="{Binding Item.CanToggle}"
                                                 Command="{Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).SelectGameClientCommand}"
                                                 CommandParameter="{Binding Item}"
                                                 AutomationProperties.Name="{Binding Item.DisplayName}" />

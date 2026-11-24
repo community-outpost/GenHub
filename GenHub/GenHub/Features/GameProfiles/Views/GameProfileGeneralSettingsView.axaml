@@ -41,6 +41,7 @@
         </Style>
         <Style Selector="TextBlock.row-label">
             <Setter Property="FontSize" Value="15" />
+            <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -57,7 +58,7 @@
             <Setter Property="Margin" Value="0,24,0,6" />
         </Style>
         <Style Selector=":is(Control).row-control">
-            <Setter Property="Width" Value="300" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="24,0,0,0" />
         </Style>
@@ -70,7 +71,11 @@
             <StackPanel x:Name="GeneralPage"
                         IsVisible="{Binding SelectedPage, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static vm:ProfileSettingsPage.General}}">
                 <Border Classes="settings-card">
-                    <Grid ColumnDefinitions="*,324">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.ProfileName}" />
                         <TextBox Grid.Column="1" Classes="form-field row-control"
                                  Text="{Binding Name, Mode=TwoWay}"
@@ -79,7 +84,11 @@
                 </Border>
 
                 <Border Classes="settings-card">
-                    <Grid ColumnDefinitions="*,324">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
                         <TextBlock Classes="row-label" VerticalAlignment="Top" Margin="0,8,0,0" Text="{localization:Localize GameProfiles.General.Description}" />
                         <TextBox Grid.Column="1" Classes="form-field row-control"
                                  Text="{Binding Description, Mode=TwoWay}"
@@ -109,7 +118,11 @@
                 </Border>
 
                 <Border Classes="settings-card">
-                    <Grid ColumnDefinitions="*,324">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="2*" MaxWidth="324" />
+                        </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Classes="row-label" Text="{localization:Localize GameProfiles.General.WorkspaceStrategy}" />
                             <TextBlock Classes="row-hint">
